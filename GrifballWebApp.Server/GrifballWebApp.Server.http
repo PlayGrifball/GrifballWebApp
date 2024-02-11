@@ -1,0 +1,6 @@
+@GrifballWebApp.Server_HostAddress = http://localhost:5295
+
+GET {{GrifballWebApp.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
