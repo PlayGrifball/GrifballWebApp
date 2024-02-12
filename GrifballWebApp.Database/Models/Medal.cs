@@ -3,6 +3,10 @@
 namespace GrifballWebApp.Database.Models;
 public partial class Medal
 {
+    public Medal()
+    {
+        MedalEarned = new HashSet<MedalEarned>();
+    }
     public long MedalID { get; set; }
     public string MedalName { get; set; }
     public string Description { get; set; }
@@ -14,4 +18,6 @@ public partial class Medal
 
     public MedalDifficulty MedalDifficulty { get; set; }
     public MedalType MedalType { get; set; }
+
+    public virtual ICollection<MedalEarned> MedalEarned { get; set; }
 }

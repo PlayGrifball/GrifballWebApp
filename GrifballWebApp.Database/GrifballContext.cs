@@ -17,6 +17,7 @@ public partial class GrifballContext : DbContext
     public virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
+    public virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
 
@@ -26,6 +27,7 @@ public partial class GrifballContext : DbContext
         modelBuilder.ApplyConfiguration(new Configuration.MatchPlayerConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalDifficultyConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalTypeConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
 

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240212023305_init")]
+    [Migration("20240212024935_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -257,6 +257,51 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MedalEarned", b =>
+                {
+                    b.Property<long>("MedalID")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("MatchID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("TotalPersonalScoreAwarded")
+                        .HasColumnType("int");
+
+                    b.HasKey("MedalID", "MatchID", "XboxUserID");
+
+                    b.HasIndex("MatchID", "XboxUserID");
+
+                    b.ToTable("MedalEarned", "Infinite");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MedalEarnedHistory", "Infinite");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalType", b =>
                 {
                     b.Property<int>("MedalTypeID")
@@ -363,9 +408,38 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("MedalType");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MedalEarned", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Medal", "Medal")
+                        .WithMany("MedalEarned")
+                        .HasForeignKey("MedalID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchParticipant", "MatchParticipant")
+                        .WithMany("MedalEarned")
+                        .HasForeignKey("MatchID", "XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MatchParticipant");
+
+                    b.Navigation("Medal");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
                 {
                     b.Navigation("MatchParticipants");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant", b =>
+                {
+                    b.Navigation("MedalEarned");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Medal", b =>
+                {
+                    b.Navigation("MedalEarned");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalDifficulty", b =>

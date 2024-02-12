@@ -76,6 +76,15 @@ public class DataPullService
             return new MatchParticipant()
             {
                 XboxUser = xboxUser,
+                //Kills = x.ParticipationInfo.Kills,
+                MedalEarned = x.PlayerTeamStats.First().Stats.CoreStats.Medals.Select(m => new MedalEarned()
+                {
+                    MedalID = m.NameId,
+                    MatchID = matchID,
+                    XboxUserID = xboxUser.XUID,
+                    Count = m.Count,
+                    TotalPersonalScoreAwarded = m.TotalPersonalScoreAwarded,
+                }).ToList(),
             };
         }).ToList();
 

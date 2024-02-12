@@ -3,6 +3,11 @@
 namespace GrifballWebApp.Database.Models;
 public partial class MatchParticipant
 {
+    public MatchParticipant()
+    {
+        MedalEarned = new HashSet<MedalEarned>();
+    }
+
     public Guid MatchID { get; set; }
     public long XboxUserID { get; set; }
 
@@ -33,4 +38,6 @@ public partial class MatchParticipant
 
     public Match Match { get; set; }
     public XboxUser XboxUser { get; set; }
+
+    public virtual ICollection<MedalEarned> MedalEarned { get; set; }
 }

@@ -465,11 +465,89 @@ namespace GrifballWebApp.Database.Migrations
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
+            migrationBuilder.CreateTable(
+                name: "MedalEarned",
+                schema: "Infinite",
+                columns: table => new
+                {
+                    MedalID = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    MatchID = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    Count = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    TotalPersonalScoreAwarded = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MedalEarned", x => new { x.MedalID, x.MatchID, x.XboxUserID });
+                    table.ForeignKey(
+                        name: "FK_MedalEarned_MatchParticipants_MatchID_XboxUserID",
+                        columns: x => new { x.MatchID, x.XboxUserID },
+                        principalSchema: "Infinite",
+                        principalTable: "MatchParticipants",
+                        principalColumns: new[] { "MatchID", "XboxUserID" },
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MedalEarned_Medals_MedalID",
+                        column: x => x.MedalID,
+                        principalSchema: "Infinite",
+                        principalTable: "Medals",
+                        principalColumn: "MedalID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
             migrationBuilder.CreateIndex(
                 name: "IX_MatchParticipants_XboxUserID",
                 schema: "Infinite",
                 table: "MatchParticipants",
                 column: "XboxUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedalEarned_MatchID_XboxUserID",
+                schema: "Infinite",
+                table: "MedalEarned",
+                columns: new[] { "MatchID", "XboxUserID" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Medals_MedalDifficultyID",
@@ -487,6 +565,15 @@ namespace GrifballWebApp.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "MedalEarned",
+                schema: "Infinite")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "MedalEarnedHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
             migrationBuilder.DropTable(
                 name: "MatchParticipants",
                 schema: "Infinite")
