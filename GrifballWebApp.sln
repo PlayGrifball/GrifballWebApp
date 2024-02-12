@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrifballWebApp.Server", "Gr
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "grifballwebapp.client", "grifballwebapp.client\grifballwebapp.client.esproj", "{219BE030-A863-450B-843D-D95A63A84BD3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrifballWebApp.Database", "GrifballWebApp.Database\GrifballWebApp.Database.csproj", "{058A06AC-357C-42A9-84B3-2DEEDC1A7C2D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{219BE030-A863-450B-843D-D95A63A84BD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{219BE030-A863-450B-843D-D95A63A84BD3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{219BE030-A863-450B-843D-D95A63A84BD3}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{058A06AC-357C-42A9-84B3-2DEEDC1A7C2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{058A06AC-357C-42A9-84B3-2DEEDC1A7C2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{058A06AC-357C-42A9-84B3-2DEEDC1A7C2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{058A06AC-357C-42A9-84B3-2DEEDC1A7C2D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

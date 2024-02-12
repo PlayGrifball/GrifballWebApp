@@ -396,3 +396,17 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Custom for Grunt
+
+## Contains token information for the registered client.
+client.json
+
+## Contains information about the Halo Waypoint communication tokens.
+grunt.json
+
+## Contains token information
+tokens.json
+
+## Contains one time use authorization code
+AccountAuthorization.txt

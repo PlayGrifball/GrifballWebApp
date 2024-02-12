@@ -1,3 +1,7 @@
+using GrifballWebApp.Database;
+using GrifballWebApp.Server.Services;
+using Microsoft.EntityFrameworkCore;
+using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server;
 
@@ -13,6 +17,14 @@ public class Program
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+
+        builder.Services.AddDbContextFactory<GrifballContext>((services, options)
+            => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
+            ?? throw new Exception("GrifballContext failed to configure")));
+
+        builder.Services.AddScoped<DataPullService>();
+
+        builder.RegisterHaloInfiniteClientFactory();
 
         var app = builder.Build();
 
