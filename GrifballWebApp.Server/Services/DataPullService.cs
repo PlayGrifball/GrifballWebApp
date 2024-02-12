@@ -42,8 +42,8 @@ public class DataPullService
         var match = new Match()
         {
             MatchID = matchID,
-            StartTime = response.Result.MatchInfo.StartTime,
-            EndTime = response.Result.MatchInfo.EndTime,
+            StartTime = response.Result.MatchInfo.StartTime.ToUniversalTime().DateTime,
+            EndTime = response.Result.MatchInfo.EndTime.ToUniversalTime().DateTime,
         };
 
         var matchParticpants = response.Result.Players.Select(x =>
@@ -80,7 +80,55 @@ public class DataPullService
         }).ToList();
 
         match.MatchParticipants = matchParticpants;
-        await _grifballContext.AddAsync(match);
+        await _grifballContext.Matches.AddAsync(match);
+        await _grifballContext.SaveChangesAsync();
+    }
+
+    public async Task DownloadMedals()
+    {
+        if (await _grifballContext.Medals.AnyAsync())
+        {
+            throw new Exception("You already have medals!");
+        }
+        var client = await _haloInfiniteClientFactory.CreateAsync();
+
+        var response = await client.Medals();
+
+        if (response.Result is null)
+        {
+            throw new Exception("Result null. Failed to get medals");
+        }
+
+        var medalTypes = response.Result.Types.Select((medalTypeName, index) => new MedalType()
+        {
+            MedalTypeID = index + 1,
+            MedalTypeName = medalTypeName,
+        }).ToList();
+
+        var medalDifficulties = response.Result.Difficulties.Select((medalTypeDifficulty, index) => new MedalDifficulty()
+        {
+            MedalDifficultyID = index + 1,
+            MedalDifficultyName = medalTypeDifficulty,
+        }).ToList();
+
+        await _grifballContext.MedalTypes.AddRangeAsync(medalTypes);
+
+        await _grifballContext.MedalDifficulties.AddRangeAsync(medalDifficulties);
+
+        var medals = response.Result.Medals.Select(medal => new Medal()
+        {
+            MedalID = medal.NameID,
+            MedalName = medal.Name.Value,
+            Description = medal.Description.Value,
+            SpriteIndex = medal.SpriteIndex,
+            SortingWeight = medal.SortingWeight,
+            MedalDifficultyID = medal.DifficultyIndex + 1,
+            MedalTypeID = medal.TypeIndex + 1,
+            PersonalScore = medal.PersonalScore,
+        }).ToList();
+
+        await _grifballContext.Medals.AddRangeAsync(medals);
+
         await _grifballContext.SaveChangesAsync();
     }
 }
