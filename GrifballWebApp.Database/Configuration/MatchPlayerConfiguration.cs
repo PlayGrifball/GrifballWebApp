@@ -9,10 +9,10 @@ public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
     {
         entity.ToTable("XboxUsers", "Xbox", tb => tb.IsTemporal());
 
-        entity.HasKey(e => e.XUID);
+        entity.HasKey(e => e.XboxUserID);
 
         // Value always comes from 343
-        entity.Property(e => e.XUID).ValueGeneratedNever();
+        entity.Property(e => e.XboxUserID).ValueGeneratedNever();
 
         OnConfigurePartial(entity);
     }

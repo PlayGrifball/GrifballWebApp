@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240214040708_init")]
+    [Migration("20240214044145_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -336,9 +336,135 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonID"));
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("SeasonName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("SeasonID");
+
+                    b.ToTable("Event", "Seasons");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("EventHistory", "Seasons");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
+                {
+                    b.Property<int>("TeamID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamID"));
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TeamName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("TeamID");
+
+                    b.HasIndex("SeasonID");
+
+                    b.ToTable("Event", "Teams");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("EventHistory", "Teams");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
+                {
+                    b.Property<int>("TeamPlayerID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamPlayerID"));
+
+                    b.Property<bool>("IsCaptain")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("TeamID")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TeamPlayerID");
+
+                    b.HasIndex("TeamID");
+
+                    b.HasIndex("XboxUserID");
+
+                    b.ToTable("Event", "TeamPlayers");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("EventHistory", "TeamPlayers");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
-                    b.Property<long>("XUID")
+                    b.Property<long>("XboxUserID")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Gamertag")
@@ -354,7 +480,7 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.HasKey("XUID");
+                    b.HasKey("XboxUserID");
 
                     b.ToTable("XboxUsers", "Xbox");
 
@@ -427,6 +553,34 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medal");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany("Teams")
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("TeamPlayers")
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
+                        .WithMany("TeamPlayers")
+                        .HasForeignKey("XboxUserID");
+
+                    b.Navigation("Team");
+
+                    b.Navigation("XboxUser");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
                 {
                     b.Navigation("MatchParticipants");
@@ -452,9 +606,21 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medals");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
+                {
+                    b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
+                {
+                    b.Navigation("TeamPlayers");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Navigation("MatchParticipants");
+
+                    b.Navigation("TeamPlayers");
                 });
 #pragma warning restore 612, 618
         }

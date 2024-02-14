@@ -54,7 +54,7 @@ public class DataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = _grifballContext.XboxUsers.FirstOrDefault(x => x.XUID == xuidLong);
+            var xboxUser = _grifballContext.XboxUsers.FirstOrDefault(x => x.XboxUserID == xuidLong);
 
             if (xboxUser is null) // Needs to be created
             {
@@ -67,7 +67,7 @@ public class DataPullService
 
                 xboxUser = new XboxUser()
                 {
-                    XUID = xuidLong,
+                    XboxUserID = xuidLong,
                     Gamertag = user.gamertag,
                 };
             }
@@ -110,7 +110,7 @@ public class DataPullService
                 {
                     MedalID = m.NameId,
                     MatchID = matchID,
-                    XboxUserID = xboxUser.XUID,
+                    XboxUserID = xboxUser.XboxUserID,
                     Count = m.Count,
                     TotalPersonalScoreAwarded = m.TotalPersonalScoreAwarded,
                 }).ToList(),

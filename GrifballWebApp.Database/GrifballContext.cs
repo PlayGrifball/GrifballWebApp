@@ -19,6 +19,9 @@ public partial class GrifballContext : DbContext
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
     public virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
+    public virtual DbSet<Season> Seasons { get; set; }
+    public virtual DbSet<Team> Teams { get; set; }
+    public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -29,6 +32,9 @@ public partial class GrifballContext : DbContext
         modelBuilder.ApplyConfiguration(new Configuration.MedalDifficultyConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalTypeConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.TeamPlayerConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
 
         OnModelCreatingPartial(modelBuilder);
