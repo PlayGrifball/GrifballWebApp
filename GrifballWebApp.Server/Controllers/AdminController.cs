@@ -28,11 +28,7 @@ public class AdminController : ControllerBase
         _dataPullService = dataPullService;
     }
 
-    [HttpGet(Name = "Medals")]
-    public async Task Medals()
-    {
-        await _dataPullService.DownloadMedals();
-    }
+    
 
     [HttpGet(Name = "MatchStats")]
     public async Task Get()
