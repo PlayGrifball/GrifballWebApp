@@ -314,7 +314,7 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    Kda = table.Column<int>(type: "int", nullable: false)
+                    Kda = table.Column<float>(type: "real", nullable: false)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "MatchParticipantsHistory")
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
@@ -374,7 +374,7 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    Accuracy = table.Column<int>(type: "int", nullable: false)
+                    Accuracy = table.Column<float>(type: "real", nullable: false)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "MatchParticipantsHistory")
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Infinite")

@@ -67,8 +67,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<long>("XboxUserID")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("Accuracy")
-                        .HasColumnType("int");
+                    b.Property<float>("Accuracy")
+                        .HasColumnType("real");
 
                     b.Property<int>("Assists")
                         .HasColumnType("int");
@@ -106,8 +106,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("Hijacks")
                         .HasColumnType("int");
 
-                    b.Property<int>("Kda")
-                        .HasColumnType("int");
+                    b.Property<float>("Kda")
+                        .HasColumnType("real");
 
                     b.Property<int>("Kills")
                         .HasColumnType("int");

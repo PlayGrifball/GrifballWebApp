@@ -16,7 +16,7 @@ public partial class MatchParticipant
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
-    public int Kda { get; set; }
+    public float Kda { get; set; }
     public int Suicides { get; set; }
     public int Betrayals { get; set; }
     public TimeSpan AverageLife { get; set; }
@@ -26,7 +26,7 @@ public partial class MatchParticipant
     public int PowerWeaponKills { get; set; }
     public int ShotsFired { get; set; }
     public int ShotsHit { get; set; }
-    public int Accuracy { get; set; }
+    public float Accuracy { get; set; }
     public int DamageDealt { get; set; }
     public int CalloutAssists { get; set; }
     public int VehicleDestroys { get; set; }

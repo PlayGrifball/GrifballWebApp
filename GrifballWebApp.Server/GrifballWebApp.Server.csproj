@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>8.*-*</Version>
     </PackageReference>
-    <PackageReference Include="Surprenant.Grunt" Version="0.0.0.3-beta" />
+    <PackageReference Include="Surprenant.Grunt" Version="0.0.0.4-beta" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 

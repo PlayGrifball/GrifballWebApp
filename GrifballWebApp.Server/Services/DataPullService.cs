@@ -20,7 +20,6 @@ public class DataPullService
     }
     public async Task DownloadMatch(Guid matchID)
     {
-        var foooo = await _grifballContext.Matches.ToListAsync();
         if (await _grifballContext.Matches.AnyAsync(m => m.MatchID == matchID))
         {
             _logger.LogDebug("Match {MatchID} already exists", matchID);
@@ -28,7 +27,7 @@ public class DataPullService
         }
         var client = await _haloInfiniteClientFactory.CreateAsync();
 
-        var response = await client.StatsGetMatchStats(matchID.ToString());
+        var response = await client.StatsGetMatchStats(matchID);
 
         if (response.Result is null)
         {
@@ -73,11 +72,41 @@ public class DataPullService
                 };
             }
 
+            var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
+                ?? throw new Exception("Failed to find last team stats");
+
+            if (x.PlayerTeamStats.Any(pts => pts.TeamId != x.LastTeamId))
+            {
+                _logger.LogWarning("Player {PlayerID} played on multiple teams in match {}", x.PlayerId, matchID);
+            }
+
             return new MatchParticipant()
             {
                 XboxUser = xboxUser,
-                //Kills = x.ParticipationInfo.Kills,
-                MedalEarned = x.PlayerTeamStats.First().Stats.CoreStats.Medals.Select(m => new MedalEarned()
+                TeamID = x.LastTeamId,
+                Kills = stats.Kills,
+                Deaths = stats.Deaths,
+                Assists = stats.Assists,
+                Kda = stats.KDA,
+                Suicides = stats.Suicides,
+                Betrayals = stats.Betrayals,
+                AverageLife = stats.AverageLifeDuration,
+                GrenadeKills = stats.GrenadeKills,
+                HeadshotKills = stats.HeadshotKills,
+                MeleeKills = stats.MeleeKills,
+                PowerWeaponKills = stats.PowerWeaponKills,
+                ShotsFired = stats.ShotsFired,
+                ShotsHit = stats.ShotsHit,
+                Accuracy = stats.Accuracy,
+                DamageDealt = stats.DamageDealt,
+                DamageTaken = stats.DamageTaken,
+                CalloutAssists = stats.CalloutAssists,
+                VehicleDestroys = stats.VehicleDestroys,
+                DriverAssists = stats.DriverAssists,
+                Hijacks = stats.Hijacks,
+                EmpAssists = stats.EmpAssists,
+                MaxKillingSpree = stats.MaxKillingSpree,
+                MedalEarned = stats.Medals.Select(m => new MedalEarned()
                 {
                     MedalID = m.NameId,
                     MatchID = matchID,
@@ -85,6 +114,7 @@ public class DataPullService
                     Count = m.Count,
                     TotalPersonalScoreAwarded = m.TotalPersonalScoreAwarded,
                 }).ToList(),
+                
             };
         }).ToList();
 
