@@ -1,11 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 
-interface WeatherForecast {
-  date: string;
-  temperatureC: number;
-  temperatureF: number;
-  summary: string;
+interface KillsDto {
+  rank: number;
+  gamertag: string;
+  kills: number;
 }
 
 @Component({
@@ -14,18 +13,18 @@ interface WeatherForecast {
   styleUrl: './app.component.css'
 })
 export class AppComponent implements OnInit {
-  public forecasts: WeatherForecast[] = [];
+  public kills: KillsDto[] = [];
 
   constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.getForecasts();
+    this.getKills();
   }
 
-  getForecasts() {
-    this.http.get<WeatherForecast[]>('/weatherforecast').subscribe(
+  getKills() {
+    this.http.get<KillsDto[]>('/api/stats/TopKills').subscribe(
       (result) => {
-        this.forecasts = result;
+        this.kills = result;
       },
       (error) => {
         console.error(error);
@@ -33,5 +32,5 @@ export class AppComponent implements OnInit {
     );
   }
 
-  title = 'grifballwebapp.client';
+  title = 'Home';
 }
