@@ -14,6 +14,11 @@ public partial class MatchConfiguration : IEntityTypeConfiguration<Match>
         // Value always comes from 343
         entity.Property(e => e.MatchID).ValueGeneratedNever();
 
+        entity.HasOne(d => d.MatchLink)
+            .WithOne(p => p.Match)
+            .HasForeignKey<MatchLink>(d => d.MatchID)
+            .IsRequired(false);
+
         OnConfigurePartial(entity);
     }
 

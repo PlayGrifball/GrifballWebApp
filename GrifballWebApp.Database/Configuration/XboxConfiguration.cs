@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
-public partial class MatchPlayerConfiguration : IEntityTypeConfiguration<MatchParticipant>
+public partial class MatchParticipantConfiguration : IEntityTypeConfiguration<MatchParticipant>
 {
     public void Configure(EntityTypeBuilder<MatchParticipant> entity)
     {

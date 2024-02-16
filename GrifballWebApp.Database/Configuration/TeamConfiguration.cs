@@ -7,7 +7,7 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
 {
     public void Configure(EntityTypeBuilder<Team> entity)
     {
-        entity.ToTable("Event", "Teams", tb => tb.IsTemporal());
+        entity.ToTable("Teams", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.TeamID);
 

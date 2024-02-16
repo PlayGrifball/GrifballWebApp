@@ -7,7 +7,7 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
 {
     public void Configure(EntityTypeBuilder<Season> entity)
     {
-        entity.ToTable("Event", "Seasons", tb => tb.IsTemporal());
+        entity.ToTable("Seasons", "Event", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.SeasonID);
 
