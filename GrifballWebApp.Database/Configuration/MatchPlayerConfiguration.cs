@@ -3,19 +3,24 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
-public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
+public partial class MatchParticipantConfiguration : IEntityTypeConfiguration<MatchParticipant>
 {
-    public void Configure(EntityTypeBuilder<XboxUser> entity)
+    public void Configure(EntityTypeBuilder<MatchParticipant> entity)
     {
-        entity.ToTable("XboxUsers", "Xbox", tb => tb.IsTemporal());
+        entity.ToTable("MatchParticipants", "Infinite", tb => tb.IsTemporal());
 
-        entity.HasKey(e => e.XboxUserID);
+        entity.HasKey(e => new { e.MatchID, e.XboxUserID });
 
-        // Value always comes from 343
-        entity.Property(e => e.XboxUserID).ValueGeneratedNever();
+        entity.HasOne(d => d.Match)
+            .WithMany(p => p.MatchParticipants)
+            .HasForeignKey(d => d.MatchID);
+
+        entity.HasOne(d => d.XboxUser)
+            .WithMany(p => p.MatchParticipants)
+            .HasForeignKey(d => d.XboxUserID);
 
         OnConfigurePartial(entity);
     }
 
-    partial void OnConfigurePartial(EntityTypeBuilder<XboxUser> entity);
+    partial void OnConfigurePartial(EntityTypeBuilder<MatchParticipant> entity);
 }

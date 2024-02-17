@@ -7,6 +7,6 @@ public partial class TeamPlayer
     public int TeamID { get; set; }
     public Team Team { get; set; }
     public bool IsCaptain { get; set; }
-    public long? XboxUserID { get; set; }
-    public XboxUser XboxUser { get; set; }
+    public int PlayerID { get; set; }
+    public Person Person { get; set; }
 }

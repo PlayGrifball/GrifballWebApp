@@ -15,6 +15,11 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
             .WithMany(p => p.Teams)
             .HasForeignKey(d => d.SeasonID);
 
+        entity.Property(e => e.TeamName).HasMaxLength(30);
+
+        // Team name must be unique for any given season
+        entity.HasIndex(e => new { e.TeamName, e.SeasonID }).IsUnique();
+
         OnConfigurePartial(entity);
     }
 

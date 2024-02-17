@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240216050613_init")]
+    [Migration("20240217054028_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -134,21 +134,6 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("Deaths")
                         .HasColumnType("int");
 
-                    b.Property<int>("DriverAssists")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EmpAssists")
-                        .HasColumnType("int");
-
-                    b.Property<int>("GrenadeKills")
-                        .HasColumnType("int");
-
-                    b.Property<int>("HeadshotKills")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Hijacks")
-                        .HasColumnType("int");
-
                     b.Property<float>("Kda")
                         .HasColumnType("real");
 
@@ -184,9 +169,6 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("TeamID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VehicleDestroys")
                         .HasColumnType("int");
 
                     b.HasKey("MatchID", "XboxUserID");
@@ -376,6 +358,54 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Person", b =>
+                {
+                    b.Property<int>("PersonID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PersonID"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("PersonID");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("XboxUserID")
+                        .IsUnique();
+
+                    b.ToTable("Persons", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("PersonsHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -395,9 +425,14 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnName("PeriodStart");
 
                     b.Property<string>("SeasonName")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.HasKey("SeasonID");
+
+                    b.HasIndex("SeasonName")
+                        .IsUnique();
 
                     b.ToTable("Seasons", "Event");
 
@@ -482,11 +517,16 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TeamName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.HasKey("TeamID");
 
                     b.HasIndex("SeasonID");
+
+                    b.HasIndex("TeamName", "SeasonID")
+                        .IsUnique()
+                        .HasFilter("[TeamName] IS NOT NULL");
 
                     b.ToTable("Teams", "Event");
 
@@ -523,17 +563,17 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int>("PlayerID")
+                        .HasColumnType("int");
+
                     b.Property<int>("TeamID")
                         .HasColumnType("int");
 
-                    b.Property<long?>("XboxUserID")
-                        .HasColumnType("bigint");
-
                     b.HasKey("TeamPlayerID");
 
-                    b.HasIndex("TeamID");
+                    b.HasIndex("PlayerID");
 
-                    b.HasIndex("XboxUserID");
+                    b.HasIndex("TeamID");
 
                     b.ToTable("TeamPlayers", "Event");
 
@@ -655,6 +695,15 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medal");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Person", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
+                        .WithOne("Person")
+                        .HasForeignKey("GrifballWebApp.Database.Models.Person", "XboxUserID");
+
+                    b.Navigation("XboxUser");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
@@ -695,19 +744,21 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
                 {
+                    b.HasOne("GrifballWebApp.Database.Models.Person", "Person")
+                        .WithMany("TeamPlayers")
+                        .HasForeignKey("PlayerID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
                         .WithMany("TeamPlayers")
                         .HasForeignKey("TeamID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
-                        .WithMany("TeamPlayers")
-                        .HasForeignKey("XboxUserID");
+                    b.Navigation("Person");
 
                     b.Navigation("Team");
-
-                    b.Navigation("XboxUser");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
@@ -737,6 +788,11 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medals");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Person", b =>
+                {
+                    b.Navigation("TeamPlayers");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Navigation("SeasonMatches");
@@ -762,7 +818,7 @@ namespace GrifballWebApp.Database.Migrations
                 {
                     b.Navigation("MatchParticipants");
 
-                    b.Navigation("TeamPlayers");
+                    b.Navigation("Person");
                 });
 #pragma warning restore 612, 618
         }

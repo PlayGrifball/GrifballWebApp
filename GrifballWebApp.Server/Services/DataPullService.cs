@@ -91,8 +91,6 @@ public class DataPullService
                 Suicides = stats.Suicides,
                 Betrayals = stats.Betrayals,
                 AverageLife = stats.AverageLifeDuration,
-                GrenadeKills = stats.GrenadeKills,
-                HeadshotKills = stats.HeadshotKills,
                 MeleeKills = stats.MeleeKills,
                 PowerWeaponKills = stats.PowerWeaponKills,
                 ShotsFired = stats.ShotsFired,
@@ -101,10 +99,6 @@ public class DataPullService
                 DamageDealt = stats.DamageDealt,
                 DamageTaken = stats.DamageTaken,
                 CalloutAssists = stats.CalloutAssists,
-                VehicleDestroys = stats.VehicleDestroys,
-                DriverAssists = stats.DriverAssists,
-                Hijacks = stats.Hijacks,
-                EmpAssists = stats.EmpAssists,
                 MaxKillingSpree = stats.MaxKillingSpree,
                 MedalEarned = stats.Medals.Select(m => new MedalEarned()
                 {

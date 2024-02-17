@@ -15,9 +15,9 @@ public partial class TeamPlayerConfiguration : IEntityTypeConfiguration<TeamPlay
             .WithMany(p => p.TeamPlayers)
             .HasForeignKey(d => d.TeamID);
 
-        entity.HasOne(d => d.XboxUser)
+        entity.HasOne(d => d.Person)
             .WithMany(p => p.TeamPlayers)
-            .HasForeignKey(d => d.XboxUserID);
+            .HasForeignKey(d => d.PlayerID);
 
         OnConfigurePartial(entity);
     }

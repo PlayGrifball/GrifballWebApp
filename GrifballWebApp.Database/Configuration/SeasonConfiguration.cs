@@ -11,6 +11,10 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
 
         entity.HasKey(e => e.SeasonID);
 
+        entity.Property(e => e.SeasonName).HasMaxLength(30).IsRequired();
+
+        entity.HasIndex(e => e.SeasonName).IsUnique();
+
         OnConfigurePartial(entity);
     }
 
