@@ -1,22 +1,11 @@
-<h1 id="tableLabel">Top Kills</h1>
-
-<p>This component demonstrates fetching data from the server.</p>
-
-<p *ngIf="!kills"><em>Loading... Please refresh once the ASP.NET backend has started. See <a href="https://aka.ms/jspsintegrationangular">https://aka.ms/jspsintegrationangular</a> for more details.</em></p>
-
-<table *ngIf="kills">
-    <thead>
-        <tr>
-          <th>Rank</th>
-          <th>Gamertag</th>
-          <th>Kills</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr *ngFor="let k of kills">
-            <td>{{ k.rank }}</td>
-            <td>{{ k.gamertag }}</td>
-            <td>{{ k.kills }}</td>
-        </tr>
-    </tbody>
-</table>
+<main>
+  <a [routerLink]="['/']">
+    <header>
+      <img class="logo" src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true">
+      <span>Play Grifball</span>
+    </header>
+  </a>
+  <section class="content">
+    <router-outlet></router-outlet>
+  </section>
+</main>
