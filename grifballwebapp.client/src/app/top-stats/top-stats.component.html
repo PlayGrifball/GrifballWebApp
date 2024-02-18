@@ -1,22 +1,29 @@
 <h1 id="tableLabel">Top Kills</h1>
 
-<p>This component demonstrates fetching data from the server.</p>
-
 <p *ngIf="!kills"><em>Loading... Please refresh once the ASP.NET backend has started. See <a href="https://aka.ms/jspsintegrationangular">https://aka.ms/jspsintegrationangular</a> for more details.</em></p>
 
-<table *ngIf="kills">
-    <thead>
-        <tr>
-          <th>Rank</th>
-          <th>Gamertag</th>
-          <th>Kills</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr *ngFor="let k of kills">
-            <td>{{ k.rank }}</td>
-            <td>{{ k.gamertag }}</td>
-            <td>{{ k.kills }}</td>
-        </tr>
-    </tbody>
+<table mat-table [dataSource]="kills" class="mat-elevation-z8">
+
+  <!--- Note that these columns can be defined in any order.
+        The actual rendered columns are set as a property on the row definition" -->
+  <!-- Rank Column -->
+  <ng-container matColumnDef="rank">
+    <th mat-header-cell *matHeaderCellDef> Rank </th>
+    <td mat-cell *matCellDef="let row"> {{row.rank}} </td>
+  </ng-container>
+
+  <!-- Gamertag Column -->
+  <ng-container matColumnDef="gamertag">
+    <th mat-header-cell *matHeaderCellDef> Name </th>
+    <td mat-cell *matCellDef="let row"> {{row.gamertag}} </td>
+  </ng-container>
+
+  <!-- Kills Column -->
+  <ng-container matColumnDef="kills">
+    <th mat-header-cell *matHeaderCellDef> Kills </th>
+    <td mat-cell *matCellDef="let row"> {{row.kills}} </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 </table>

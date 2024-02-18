@@ -9,6 +9,7 @@ import { KillsDto } from './killsDto';
 })
 export class TopStatsComponent implements OnInit {
   public kills: KillsDto[] = [];
+  public displayedColumns: string[] = ['rank', 'gamertag', 'kills'];
 
   constructor(private http: HttpClient) { }
 
