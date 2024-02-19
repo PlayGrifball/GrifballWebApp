@@ -1,8 +1,27 @@
 <main>
   <header>
-    <app-toolbar></app-toolbar>
+    <app-toolbar [snav]="snav"></app-toolbar>
   </header>
-  <section class="content">
-    <router-outlet></router-outlet>
-  </section>
+  <!--[style.marginTop.px]="mobileQuery.matches ? 56 : 0"-->
+  <mat-sidenav-container class="example-sidenav-container" [hasBackdrop]="false" >
+    <!--
+      [mode]="mobileQuery.matches ? 'over' : 'side'"
+      [fixedInViewport]="mobileQuery.matches"
+    -->
+    <mat-sidenav #snav 
+                  fixedTopGap="56">
+      <mat-nav-list>
+        @for (nav of fillerNav; track nav) {
+        <a mat-list-item [routerLink]="['/login']">{{nav}}</a>
+        }
+      </mat-nav-list>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <section class="content">
+        <router-outlet></router-outlet>
+      </section>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+
 </main>
