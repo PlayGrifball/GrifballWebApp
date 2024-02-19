@@ -1,10 +1,7 @@
 <main>
-  <a [routerLink]="['/']">
-    <header>
-      <img class="logo" src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true">
-      <span>Play Grifball</span>
-    </header>
-  </a>
+  <header>
+    <app-toolbar></app-toolbar>
+  </header>
   <section class="content">
     <router-outlet></router-outlet>
   </section>

@@ -1,0 +1,12 @@
+:host {
+  display: block;
+}
+
+.example-spacer {
+  flex: 1 1 auto;
+}
+
+.logo {
+  height: 60%;
+  padding: 8px;
+}
