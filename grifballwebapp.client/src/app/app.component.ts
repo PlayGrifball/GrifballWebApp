@@ -1,8 +1,10 @@
-import { Component, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, ViewChild } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
+import { MediaMatcher } from '@angular/cdk/layout';
+import { SideBarDto } from './sidebarDto';
 
 @Component({
   selector: 'app-root',
@@ -17,8 +19,31 @@ import { MatListModule } from '@angular/material/list';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent {
+export class AppComponent implements OnDestroy {
   @ViewChild('snav') snav!: MatSidenav;
 
-  fillerNav = Array.from({ length: 50 }, (_, i) => `Nav Item ${i + 1}`);
+  mobileQuery: MediaQueryList;
+  private _mobileQueryListener: () => void;
+
+  public navLinks: SideBarDto[] = [
+    {
+      title: "Home",
+      path: ""
+    },
+    {
+      title: "Login",
+      path: "/login"
+    }
+  ];
+
+  constructor(changeDetectorRef: ChangeDetectorRef, media: MediaMatcher) {
+    this.mobileQuery = media.matchMedia('(max-width: 600px)');
+    this._mobileQueryListener = () => changeDetectorRef.detectChanges();
+    this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);
+  }
+
+  ngOnDestroy(): void {
+    this.mobileQuery.removeEventListener("change", this._mobileQueryListener);
+  }
+
 }

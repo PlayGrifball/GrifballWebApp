@@ -1,18 +1,14 @@
-<main>
-  <header>
-    <app-toolbar [snav]="snav"></app-toolbar>
-  </header>
-  <!--[style.marginTop.px]="mobileQuery.matches ? 56 : 0"-->
-  <mat-sidenav-container class="example-sidenav-container" [hasBackdrop]="false" >
-    <!--
-      [mode]="mobileQuery.matches ? 'over' : 'side'"
-      [fixedInViewport]="mobileQuery.matches"
-    -->
-    <mat-sidenav #snav 
-                  fixedTopGap="56">
+<div class="app-container" [class.app-is-mobile]="mobileQuery.matches" >
+
+  <app-toolbar [snav]="snav"></app-toolbar>
+
+  <mat-sidenav-container class="app-sidenav-container" [hasBackdrop]="false" [style.marginTop.px]="mobileQuery.matches ? 56 : 0" >
+
+    <mat-sidenav #snav fixedTopGap="56"
+    [fixedInViewport]="mobileQuery.matches" [mode]="'over'" >
       <mat-nav-list>
-        @for (nav of fillerNav; track nav) {
-        <a mat-list-item [routerLink]="['/login']">{{nav}}</a>
+        @for (nav of navLinks; track nav) {
+        <a mat-list-item [routerLink]="[navLinks.at($index)?.path]">{{nav.title}}</a>
         }
       </mat-nav-list>
     </mat-sidenav>
@@ -22,6 +18,7 @@
         <router-outlet></router-outlet>
       </section>
     </mat-sidenav-content>
+    
   </mat-sidenav-container>
 
-</main>
+</div>
