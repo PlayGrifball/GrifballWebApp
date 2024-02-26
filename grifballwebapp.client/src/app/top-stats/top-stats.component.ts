@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { KillsDto } from './killsDto';
-import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 import { MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
+import { ApiClientService } from '../../ApiClient.service';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-top-stats',
@@ -10,7 +12,8 @@ import { CommonModule } from '@angular/common';
   imports: [
     CommonModule,
     HttpClientModule,
-    MatTableModule
+    MatTableModule,
+    MatSnackBarModule
   ],
   templateUrl: './top-stats.component.html',
   styleUrl: './top-stats.component.css'
@@ -19,9 +22,8 @@ export class TopStatsComponent implements OnInit {
   public kills: KillsDto[] = [];
   public displayedColumns: string[] = ['rank', 'gamertag', 'kills'];
 
-  constructor(private http: HttpClient)
+  constructor(private http: ApiClientService, private snackBar: MatSnackBar)
   {
-    console.log("Constructed top stats");
   }
 
   ngOnInit() {
@@ -29,13 +31,14 @@ export class TopStatsComponent implements OnInit {
   }
 
   getKills() {
-    this.http.get<KillsDto[]>('/api/stats/TopKills').subscribe(
-      (result) => {
-        this.kills = result;
-      },
-      (error) => {
-        console.error(error);
+    this.http.getKills().subscribe({
+      next: (result) => this.kills = result,
+      error: (error) => console.error(error),
+      complete: () => {
+        console.log("Got kills");
+        this.snackBar.open("Got Kills", "Close")
       }
-    );
+    });
+
   }
 }
