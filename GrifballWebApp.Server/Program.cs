@@ -23,6 +23,8 @@ public class Program
             ?? throw new Exception("GrifballContext failed to configure")));
 
         builder.Services.AddScoped<DataPullService>();
+        builder.Services.AddScoped<AccountService>();
+        builder.Services.AddScoped<CryptographyService>();
 
         builder.RegisterHaloInfiniteClientFactory();
 

@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { LoginDto } from './loginDto';
+import { ApiClientService } from '../../ApiClient.service';
 
 @Component({
   selector: 'app-login',
@@ -24,11 +25,17 @@ export class LoginComponent {
 
   model: LoginDto = { } as LoginDto;
 
-  constructor() {
+  constructor(private apiClient: ApiClientService) {
     console.log(this.model.username);
   }
 
   onSubmit() {
-    console.log(this.model.username);
+    //console.log(this.model.username);
+    this.apiClient.login(this.model).subscribe(
+      {
+        error: (e) => console.log(e),
+        next: (e) => console.log('Next: ' + e),
+        complete: () => console.log('Logged in'),
+      });
   }
 }

@@ -26,8 +26,4 @@
     <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Dtos\" />
-  </ItemGroup>
-
 </Project>

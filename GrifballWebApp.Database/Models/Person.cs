@@ -11,5 +11,6 @@ public partial class Person
     public string Name { get; set; }
     public long XboxUserID { get; set; }
     public XboxUser XboxUser { get; set; }
+    public Password Password { get; set; }
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
 }

@@ -15,6 +15,11 @@ public partial class PersonConfiguration : IEntityTypeConfiguration<Person>
 
         entity.HasIndex(e => e.Name).IsUnique();
 
+        entity.HasOne(d => d.Password)
+            .WithOne(d => d.Person)
+            .HasForeignKey<Password>(d => d.PersonID)
+            .IsRequired(false);
+
         OnConfigurePartial(entity);
     }
 
