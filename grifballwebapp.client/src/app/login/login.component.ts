@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { LoginDto } from './loginDto';
 import { ApiClientService } from '../../ApiClient.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-login',
@@ -15,7 +16,8 @@ import { ApiClientService } from '../../ApiClient.service';
     MatFormFieldModule,
     FormsModule,
     MatIconModule,
-    MatButtonModule
+    MatButtonModule,
+    RouterLink
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'
@@ -26,7 +28,6 @@ export class LoginComponent {
   model: LoginDto = { } as LoginDto;
 
   constructor(private apiClient: ApiClientService) {
-    console.log(this.model.username);
   }
 
   onSubmit() {

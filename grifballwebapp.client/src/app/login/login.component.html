@@ -1,3 +1,5 @@
+<h2>Login</h2>
+
 <form class="example-form" #loginForm="ngForm" (ngSubmit)="onSubmit()">
   <mat-form-field class="example-full-width">
     <mat-label>Username</mat-label>
@@ -16,3 +18,10 @@
       Submit
     </button>
 </form>
+
+<div class="space"></div>
+
+<p>Not registered?</p>
+<button mat-flat-button color="primary" [routerLink]="['/register']" >
+  Register
+</button>

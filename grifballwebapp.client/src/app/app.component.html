@@ -2,13 +2,15 @@
 
   <app-toolbar [snav]="snav"></app-toolbar>
 
-  <mat-sidenav-container class="app-sidenav-container" [hasBackdrop]="false" [style.marginTop.px]="mobileQuery.matches ? 56 : 0" >
+  <mat-sidenav-container class="app-sidenav-container"
+                         [style.marginTop.px]="mobileQuery.matches ? 56 : 0" >
 
     <mat-sidenav #snav fixedTopGap="56"
     [fixedInViewport]="mobileQuery.matches" [mode]="'over'" >
       <mat-nav-list>
         @for (nav of navLinks; track nav) {
-        <a mat-list-item [routerLink]="[navLinks.at($index)?.path]">{{nav.title}}</a>
+        <a mat-list-item [routerLink]="[navLinks.at($index)?.path]"
+           (click)="snav.toggle(false)">{{nav.title}}</a>
         }
       </mat-nav-list>
     </mat-sidenav>

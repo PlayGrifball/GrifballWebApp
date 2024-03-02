@@ -1,0 +1,38 @@
+<h2>Register</h2>
+
+<form class="example-form" #registerForm="ngForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="example-full-width">
+    <mat-label>Username</mat-label>
+    <input matInput required [(ngModel)]="model.username" name="username">
+    <app-error-message [control]="registerForm.controls['username']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>Password</mat-label>
+    <input matInput [type]="hidePassword ? 'password' : 'text'" required minlength="12" [(ngModel)]="model.password" name="password">
+    <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hidePassword">
+      <mat-icon>{{hidePassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+    </button>
+    <app-error-message [control]="registerForm.controls['password']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>Confirm Password</mat-label>
+    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required [(ngModel)]="model.confirmPassword" name="confirmPassword">
+    <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hideConfirmPassword">
+      <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+    </button>
+    <app-error-message [control]="registerForm.controls['confirmPassword']" />
+  </mat-form-field>
+
+  <button mat-flat-button color="primary" [disabled]="!registerForm.form.valid">
+    Submit
+  </button>
+
+</form>
+
+<div class="space"></div>
+
+<button mat-flat-button color="primary" [routerLink]="['/login']">
+  Login
+</button>
