@@ -16,7 +16,11 @@ import { ValidationService } from './validationService';
 export class ErrorMessageComponent {
   @Input() control!: AbstractControl | AbstractControlDirective;
 
-  get errorMessage() : string | null {
+  get errorMessage(): string | null {
+    if (this.control === null)
+      return null;
+    if (this.control === undefined)
+      return null;
     for (let propertyName in this.control.errors) {
       if (
         this.control.errors.hasOwnProperty(propertyName) &&
