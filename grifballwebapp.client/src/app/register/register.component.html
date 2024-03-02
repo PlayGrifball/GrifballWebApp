@@ -18,7 +18,8 @@
 
   <mat-form-field class="example-full-width">
     <mat-label>Confirm Password</mat-label>
-    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required [(ngModel)]="model.confirmPassword" name="confirmPassword">
+    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required [regexExpression]="regex"
+           [errorMessage]="regexErrorMessage" [(ngModel)]="model.confirmPassword" name="confirmPassword">
     <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hideConfirmPassword">
       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
     </button>

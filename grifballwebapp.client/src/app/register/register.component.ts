@@ -8,6 +8,7 @@ import { ApiClientService } from '../../ApiClient.service';
 import { RouterLink } from '@angular/router';
 import { RegisterFormModel } from './registerFormModel';
 import { ErrorMessageComponent } from '../errorMessage/errorMessage.component';
+import { PasswordMatchValidatorDirectiveDirective } from '../regexMatchValidValidatorDirective.directive';
 
 @Component({
   selector: 'app-register',
@@ -19,7 +20,8 @@ import { ErrorMessageComponent } from '../errorMessage/errorMessage.component';
     MatIconModule,
     MatButtonModule,
     RouterLink,
-    ErrorMessageComponent
+    ErrorMessageComponent,
+    PasswordMatchValidatorDirectiveDirective
   ],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
@@ -29,6 +31,11 @@ export class RegisterComponent {
   
   hidePassword = true;
   hideConfirmPassword = true;
+
+  //regex: string = "bob";
+  regex: string = "(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}";
+  //regex: string = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[`~!@#$%^&*()\-_=+[{\]}\]\\\|;:'\",<\.>\/?])[A-Za-z\d`~!@#$%^&*()\-_=+[{\]}\]\\\|;:'\",<\.>\/?]{6,}$";
+  regexErrorMessage: string = "Minimum eight characters, at least one uppercase letter, one lowercase letter, one number and one special character";
 
   model: RegisterFormModel = {} as RegisterFormModel;
 
