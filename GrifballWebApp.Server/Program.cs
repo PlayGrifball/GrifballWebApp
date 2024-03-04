@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server;
@@ -26,6 +27,16 @@ public class Program
         builder.Services.AddScoped<AccountService>();
         builder.Services.AddScoped<CryptographyService>();
 
+        builder.Services.AddAuthentication()
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters()
+                {
+                    IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(builder.Configuration.GetValue<string>("JwtSecret")
+                                                                                                            ?? throw new Exception("JwtSecret is missing"))),
+                };
+            });
+
         builder.RegisterHaloInfiniteClientFactory();
 
         var app = builder.Build();
@@ -43,7 +54,6 @@ public class Program
         app.UseHttpsRedirection();
 
         app.UseAuthorization();
-
 
         app.MapControllers();
 

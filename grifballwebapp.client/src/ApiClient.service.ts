@@ -17,8 +17,11 @@ export class ApiClientService {
     return this.http.get<KillsDto[]>('/api/stats/TopKills');
   }
 
-  login(loginDto: LoginDto) {
-    return this.http.post('/api/account/login', loginDto);
+  login(loginDto: LoginDto): Observable<string> {
+    const requestOptions: Object = {
+      responseType: 'text'
+    };
+    return this.http.post<string>('/api/account/login', loginDto, requestOptions);
   }
 
   register(registerDto: RegisterDto) {

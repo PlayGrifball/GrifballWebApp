@@ -1,5 +1,4 @@
-﻿using GrifballWebApp.Database;
-using GrifballWebApp.Server.Dtos;
+﻿using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,9 +26,9 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(loginDto?.Password))
             return BadRequest("Password is required");
 
-        await _accountService.Login(username: loginDto.Username, password: loginDto.Password, ct);
+        var jwt = await _accountService.Login(username: loginDto.Username, password: loginDto.Password, ct);
 
-        return Ok();
+        return Ok(jwt);
     }
 
     [HttpPost(Name = "Register")]

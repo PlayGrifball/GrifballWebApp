@@ -1,7 +1,10 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Surprenant.Grunt.Core;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Services;
 
@@ -10,15 +13,35 @@ public class AccountService
     private readonly GrifballContext _context;
     private readonly CryptographyService _cryptographyService;
     private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public AccountService(GrifballContext grifballContext, CryptographyService cryptographyService, HaloInfiniteClientFactory haloInfiniteClientFactory)
+    public AccountService(GrifballContext grifballContext, CryptographyService cryptographyService,
+        HaloInfiniteClientFactory haloInfiniteClientFactory, IConfiguration configuration)
     {
         _context = grifballContext;
         _cryptographyService = cryptographyService;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
+        _configuration = configuration;
     }
 
-    public async Task Login(string username, string password, CancellationToken cancellationToken = default)
+    private string CreateToken(string username)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = Convert.FromBase64String(_configuration.GetValue<string>("JwtSecret") ?? throw new Exception("Missing JwtSecret"));
+        var tokenDescripor = new SecurityTokenDescriptor()
+        {
+            Subject = new ClaimsIdentity(new Claim[]
+            {
+                new Claim(ClaimTypes.Name, username),
+            }),
+            Expires = DateTime.UtcNow.AddMinutes(60),
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
+        };
+        var token = tokenHandler.CreateEncodedJwt(tokenDescripor);
+        return token;
+    }
+
+    public async Task<string> Login(string username, string password, CancellationToken cancellationToken = default)
     {
         var person = await _context.Persons.Where(p => p.Name == username).FirstOrDefaultAsync(cancellationToken);
 
@@ -36,6 +59,7 @@ public class AccountService
             throw new Exception("Incorrect password");
 
         // Login success
+        return CreateToken(person.Name);
     }
 
     public async Task Register(string username, string password, string gamertag, CancellationToken ct = default)
