@@ -33,15 +33,18 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost(Name = "Register")]
-    public async Task<IActionResult> Register([FromBody] LoginDto loginDto, CancellationToken ct)
+    public async Task<IActionResult> Register([FromBody] RegisterDto registerDto, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(loginDto?.Username))
+        if (string.IsNullOrEmpty(registerDto?.Username))
             return BadRequest("Username is required");
 
-        if (string.IsNullOrEmpty(loginDto?.Password))
+        if (string.IsNullOrEmpty(registerDto?.Password))
             return BadRequest("Password is required");
 
-        await _accountService.Register(username: loginDto.Username, password: loginDto.Password, ct);
+        if (string.IsNullOrEmpty(registerDto?.Gamertag))
+            return BadRequest("Gamertag is required");
+
+        await _accountService.Register(username: registerDto.Username, password: registerDto.Password, gamertag: registerDto.Gamertag, ct);
 
         return Ok();
     }

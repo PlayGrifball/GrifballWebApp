@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Server.Services;
 
@@ -8,11 +9,13 @@ public class AccountService
 {
     private readonly GrifballContext _context;
     private readonly CryptographyService _cryptographyService;
+    private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
 
-    public AccountService(GrifballContext grifballContext, CryptographyService cryptographyService)
+    public AccountService(GrifballContext grifballContext, CryptographyService cryptographyService, HaloInfiniteClientFactory haloInfiniteClientFactory)
     {
         _context = grifballContext;
         _cryptographyService = cryptographyService;
+        _haloInfiniteClientFactory = haloInfiniteClientFactory;
     }
 
     public async Task Login(string username, string password, CancellationToken cancellationToken = default)
@@ -35,7 +38,7 @@ public class AccountService
         // Login success
     }
 
-    public async Task Register(string username, string password, CancellationToken ct = default)
+    public async Task Register(string username, string password, string gamertag, CancellationToken ct = default)
     {
         var exists = await _context.Persons.Where(p => p.Name == username).AnyAsync(ct);
 
@@ -43,12 +46,25 @@ public class AccountService
         if (exists)
             throw new Exception("Username is taken");
 
-        // Need gamertag
-        var x = new XboxUser()
+        var xboxUserID = await _context.XboxUsers.Where(x => x.Gamertag == gamertag)
+            .Select(x => x.XboxUserID)
+            .FirstOrDefaultAsync(ct);
+
+        if (xboxUserID == default)
         {
-            Gamertag = username,
-            XboxUserID = 233232,
-        };
+            var client = await _haloInfiniteClientFactory.CreateAsync();
+            var user = await client.UserByGamertag(gamertag: gamertag);
+            if (user is null || user.Result is null)
+                throw new Exception("User not found. Verify gamertag is correct.");
+
+            var xboxUser = new XboxUser()
+            {
+                Gamertag = user.Result.gamertag,
+                XboxUserID = Convert.ToInt64(user.Result.xuid),
+            };
+            _context.Add(xboxUser);
+            xboxUserID = xboxUser.XboxUserID;
+        }
 
         var hash = _cryptographyService.HashPasword(password, out string salt);
         ArgumentException.ThrowIfNullOrWhiteSpace(hash, nameof(hash));
@@ -61,7 +77,7 @@ public class AccountService
                 Hash = hash,
                 Salt = salt,
             },
-            XboxUser = x
+            XboxUserID = xboxUserID
         };
 
         await _context.AddAsync(person, ct);

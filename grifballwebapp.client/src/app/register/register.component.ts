@@ -55,7 +55,7 @@ export class RegisterComponent {
       {
         error: (e) => {
           console.log(e);
-          this.snackBar.open("Registration failed", "Close");
+          this.snackBar.open(`Registration failed: ${e.error}`, "Close");
         },
         next: (e) => this.snackBar.open("Registration Success", "Close"),
         //complete: () => console.log('Logged in'),
