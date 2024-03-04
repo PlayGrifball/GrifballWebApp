@@ -4,6 +4,7 @@
   <mat-form-field class="example-full-width">
     <mat-label>Username</mat-label>
     <input matInput required [(ngModel)]="model.username" name="username">
+    <app-error-message [control]="loginForm.controls['username']" />
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
@@ -12,6 +13,7 @@
     <button mat-icon-button matSuffix (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
       <mat-icon>{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
     </button>
+    <app-error-message [control]="loginForm.controls['password']" />
   </mat-form-field>
 
     <button mat-flat-button color="primary" [disabled]="!loginForm.form.valid" >

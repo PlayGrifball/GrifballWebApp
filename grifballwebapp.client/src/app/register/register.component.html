@@ -1,6 +1,7 @@
 <h2>Register</h2>
 
-<form class="example-form" #registerForm="ngForm" (ngSubmit)="onSubmit()">
+<form class="example-form" #registerForm="ngForm" (ngSubmit)="onSubmit()"
+      matchFields [field1]="registerForm.controls['password']" [field2]="registerForm.controls['confirmPassword']">
   <mat-form-field class="example-full-width">
     <mat-label>Username</mat-label>
     <input matInput required [(ngModel)]="model.username" name="username">
@@ -19,13 +20,16 @@
 
   <mat-form-field class="example-full-width">
     <mat-label>Confirm Password</mat-label>
-    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required 
+    <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required
             [(ngModel)]="model.confirmPassword" name="confirmPassword">
     <button mat-icon-button matSuffix (click)="hideConfirmPassword = !hideConfirmPassword" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hideConfirmPassword">
       <mat-icon>{{hideConfirmPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
     </button>
     <app-error-message [control]="registerForm.controls['confirmPassword']" />
   </mat-form-field>
+
+  <!-- Display errors when passwords do not match -->
+  <app-error-message [control]="registerForm" />
 
   <button mat-flat-button color="primary" [disabled]="!registerForm.form.valid">
     Submit
@@ -35,6 +39,7 @@
 
 <div class="space"></div>
 
+<p>Already registered?</p>
 <button mat-flat-button color="primary" [routerLink]="['/login']">
   Login
 </button>

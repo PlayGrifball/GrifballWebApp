@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { LoginDto } from './loginDto';
 import { ApiClientService } from '../../ApiClient.service';
 import { RouterLink } from '@angular/router';
+import { ErrorMessageComponent } from '../validation/errorMessage.component';
 
 @Component({
   selector: 'app-login',
@@ -17,7 +18,8 @@ import { RouterLink } from '@angular/router';
     FormsModule,
     MatIconModule,
     MatButtonModule,
-    RouterLink
+    RouterLink,
+    ErrorMessageComponent
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css'

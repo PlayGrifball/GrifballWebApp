@@ -7,8 +7,9 @@ import { MatInputModule } from '@angular/material/input';
 import { ApiClientService } from '../../ApiClient.service';
 import { RouterLink } from '@angular/router';
 import { RegisterFormModel } from './registerFormModel';
-import { ErrorMessageComponent } from '../errorMessage/errorMessage.component';
-import { PasswordMatchValidatorDirectiveDirective } from '../regexMatchValidValidatorDirective.directive';
+import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { RegexMatchValidValidatorDirective } from '../validation/directives/regexMatchValidValidatorDirective.directive';
+import { MatchFieldsValidatorDirective } from '../validation/directives/matchFieldsValidator.directive';
 
 @Component({
   selector: 'app-register',
@@ -21,7 +22,8 @@ import { PasswordMatchValidatorDirectiveDirective } from '../regexMatchValidVali
     MatButtonModule,
     RouterLink,
     ErrorMessageComponent,
-    PasswordMatchValidatorDirectiveDirective
+    RegexMatchValidValidatorDirective,
+    MatchFieldsValidatorDirective
   ],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss',
@@ -35,11 +37,9 @@ export class RegisterComponent {
   regex: string = String.raw`^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{12,}$`;
   regexErrorMessage: string = "Minimum 12 characters, uppercase letter, lowercase letter, number and special character #?!@$%^&*-";
 
-  model: RegisterFormModel = {} as RegisterFormModel;
+  model: RegisterFormModel = {} as RegisterFormModel
 
   constructor(private apiClient: ApiClientService) {
-    //let u = this.snav.errors || {}
-    //console.log(u);
   }
 
   onSubmit() {
