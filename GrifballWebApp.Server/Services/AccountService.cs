@@ -24,13 +24,12 @@ public class AccountService
 
         var passwordDB = await _context.Passwords.Where(p => p.PersonID == person.PersonID).FirstOrDefaultAsync(cancellationToken);
 
-        if (person is null)
+        if (passwordDB is null)
             throw new Exception("No password for that user");
 
-        var hash = _cryptographyService.HashPasword(password, out byte[] salt);
-        ArgumentException.ThrowIfNullOrWhiteSpace(hash, nameof(hash));
+        var correct = _cryptographyService.IsCorrectPassword(password: password, passwordHash: passwordDB.Hash, salt: passwordDB.Salt);
 
-        if (hash != passwordDB!.Hash)
+        if (!correct)
             throw new Exception("Incorrect password");
 
         // Login success
@@ -51,7 +50,7 @@ public class AccountService
             XboxUserID = 233232,
         };
 
-        var hash = _cryptographyService.HashPasword(password, out byte[] salt);
+        var hash = _cryptographyService.HashPasword(password, out string salt);
         ArgumentException.ThrowIfNullOrWhiteSpace(hash, nameof(hash));
 
         var person = new Person()
@@ -60,14 +59,12 @@ public class AccountService
             Password = new Password()
             {
                 Hash = hash,
-                Salt = salt.ToString(),
+                Salt = salt,
             },
             XboxUser = x
         };
 
         await _context.AddAsync(person, ct);
         await _context.SaveChangesAsync(ct);
-
-
     }
 }
