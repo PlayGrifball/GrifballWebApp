@@ -10,6 +10,7 @@ import { RegisterFormModel } from './registerFormModel';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatchFieldsValidatorDirective } from '../validation/directives/matchFieldsValidator.directive';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-register',
@@ -29,7 +30,7 @@ import { MatchFieldsValidatorDirective } from '../validation/directives/matchFie
   styleUrl: './register.component.scss',
 })
 export class RegisterComponent {
-  @ViewChild('registerForm') snav!: NgForm;
+  @ViewChild('registerForm') registerForm!: NgForm;
   
   hidePassword = true;
   hideConfirmPassword = true;
@@ -39,16 +40,25 @@ export class RegisterComponent {
 
   model: RegisterFormModel = {} as RegisterFormModel
 
-  constructor(private apiClient: ApiClientService) {
+  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar) {
   }
 
   onSubmit() {
-    //console.log(this.model.username);
-    this.apiClient.login(this.model).subscribe(
+    if (!this.registerForm) {
+      return;
+    }
+    if (!this.registerForm.valid) {
+      return;
+    }
+
+    this.apiClient.register(this.model).subscribe(
       {
-        error: (e) => console.log(e),
-        next: (e) => console.log('Next: ' + e),
-        complete: () => console.log('Logged in'),
+        error: (e) => {
+          console.log(e);
+          this.snackBar.open("Registration failed", "Close");
+        },
+        next: (e) => this.snackBar.open("Registration Success", "Close"),
+        //complete: () => console.log('Logged in'),
       });
   }
 }

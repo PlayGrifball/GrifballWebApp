@@ -8,6 +8,7 @@ import { LoginDto } from './loginDto';
 import { ApiClientService } from '../../ApiClient.service';
 import { RouterLink } from '@angular/router';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-login',
@@ -29,15 +30,15 @@ export class LoginComponent {
 
   model: LoginDto = { } as LoginDto;
 
-  constructor(private apiClient: ApiClientService) {
+  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar) {
   }
 
   onSubmit() {
     //console.log(this.model.username);
     this.apiClient.login(this.model).subscribe(
       {
-        error: (e) => console.log(e),
-        next: (e) => console.log('Next: ' + e),
+        error: (e) => this.snackBar.open("Login failed", "Close"),
+        next: (e) => this.snackBar.open("Login Success", "Close"),
         complete: () => console.log('Logged in'),
       });
   }

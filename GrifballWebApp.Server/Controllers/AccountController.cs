@@ -19,7 +19,7 @@ public class AccountController : ControllerBase
     }
 
     [HttpPost(Name = "Login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+    public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(loginDto?.Username))
             return BadRequest("Username is required");
@@ -27,7 +27,21 @@ public class AccountController : ControllerBase
         if (string.IsNullOrEmpty(loginDto?.Password))
             return BadRequest("Password is required");
 
-        await _accountService.Login(username: loginDto.Username, password: loginDto.Password);
+        await _accountService.Login(username: loginDto.Username, password: loginDto.Password, ct);
+
+        return Ok();
+    }
+
+    [HttpPost(Name = "Register")]
+    public async Task<IActionResult> Register([FromBody] LoginDto loginDto, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(loginDto?.Username))
+            return BadRequest("Username is required");
+
+        if (string.IsNullOrEmpty(loginDto?.Password))
+            return BadRequest("Password is required");
+
+        await _accountService.Register(username: loginDto.Username, password: loginDto.Password, ct);
 
         return Ok();
     }

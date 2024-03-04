@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Services;
@@ -35,8 +36,38 @@ public class AccountService
         // Login success
     }
 
-    public async Task Register(string username, string password, CancellationToken cancellationToken = default)
+    public async Task Register(string username, string password, CancellationToken ct = default)
     {
-        
+        var exists = await _context.Persons.Where(p => p.Name == username).AnyAsync(ct);
+
+        // 400
+        if (exists)
+            throw new Exception("Username is taken");
+
+        // Need gamertag
+        var x = new XboxUser()
+        {
+            Gamertag = username,
+            XboxUserID = 233232,
+        };
+
+        var hash = _cryptographyService.HashPasword(password, out byte[] salt);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hash, nameof(hash));
+
+        var person = new Person()
+        {
+            Name = username,
+            Password = new Password()
+            {
+                Hash = hash,
+                Salt = salt.ToString(),
+            },
+            XboxUser = x
+        };
+
+        await _context.AddAsync(person, ct);
+        await _context.SaveChangesAsync(ct);
+
+
     }
 }
