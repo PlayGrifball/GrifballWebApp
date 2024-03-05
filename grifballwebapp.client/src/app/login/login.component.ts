@@ -4,11 +4,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { LoginDto } from './loginDto';
-import { ApiClientService } from '../../ApiClient.service';
+import { LoginDto } from '../api/dtos/loginDto';
 import { RouterLink } from '@angular/router';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { AccountService } from '../account.service';
 
 @Component({
   selector: 'app-login',
@@ -30,16 +29,11 @@ export class LoginComponent {
 
   model: LoginDto = { } as LoginDto;
 
-  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar) {
+  constructor(private accountService: AccountService) {
   }
 
   onSubmit() {
     //console.log(this.model.username);
-    this.apiClient.login(this.model).subscribe(
-      {
-        error: (e) => this.snackBar.open("Login failed", "Close"),
-        next: (e) => this.snackBar.open("Login Success", "Close"),
-        complete: () => console.log('Logged in'),
-      });
+    this.accountService.login(this.model);
   }
 }

@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { KillsDto } from './app/top-stats/killsDto';
+import { KillsDto } from './dtos/killsDto';
 import { Observable } from 'rxjs';
-import { LoginDto } from './app/login/loginDto';
-import { RegisterDto } from './app/dtos/registerDto';
+import { LoginDto } from './dtos/loginDto';
+import { RegisterDto } from './dtos/registerDto';
 
 @Injectable({
   providedIn: 'root'

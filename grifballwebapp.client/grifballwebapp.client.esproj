@@ -7,7 +7,4 @@
     <!-- Folder where production build objects will be placed -->
     <PublishAssetsDirectory>$(MSBuildProjectDirectory)\dist\grifballwebapp.client\</PublishAssetsDirectory>
   </PropertyGroup>
-  <ItemGroup>
-    <Folder Include="src\app\dtos\" />
-  </ItemGroup>
 </Project>

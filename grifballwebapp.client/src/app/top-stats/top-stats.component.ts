@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { KillsDto } from './killsDto';
+import { KillsDto } from '../api/dtos/killsDto';
 import { HttpClientModule } from '@angular/common/http';
 import { MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
-import { ApiClientService } from '../../ApiClient.service';
+import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
