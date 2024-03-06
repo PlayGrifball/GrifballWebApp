@@ -1,14 +1,22 @@
-<mat-toolbar color="primary" class="app-toolbar" >
-    <button mat-icon-button (click)="snav.toggle()" class="example-icon" aria-label="Example icon-button with menu icon">
-        <mat-icon>menu</mat-icon>
-    </button>
-    <img class="logo" src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true">
-    <a mat-button [routerLink]="['/']">Play Grifball</a>
-    <span class="app-spacer"></span>
-    <!--<button mat-icon-button class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
-        <mat-icon>favorite</mat-icon>
-    </button>
-    <button mat-icon-button class="example-icon" aria-label="Example icon-button with share icon">
-        <mat-icon>share</mat-icon>
-    </button>-->
+<mat-toolbar color="primary" class="app-toolbar">
+  <button mat-icon-button (click)="snav.toggle()" class="example-icon" aria-label="Example icon-button with menu icon">
+    <mat-icon>menu</mat-icon>
+  </button>
+  <img class="logo" src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true">
+  <a mat-button [routerLink]="['/']">Play Grifball</a>
+  <span class="app-spacer"></span>
+  
+  @if (accountService.isLoggedIn()) {
+  <button mat-icon-button class="example-icon" aria-label="Example icon-button with share icon">
+    <mat-icon>account_box</mat-icon>
+  </button>
+  }
+  @else {
+  <button mat-icon-button
+          class="example-icon favorite-icon"
+          aria-label="Example icon-button with heart icon"
+          [routerLink]="['/login']">
+    <mat-icon>login</mat-icon>
+  </button>
+  }
 </mat-toolbar>

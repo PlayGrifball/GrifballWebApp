@@ -1,4 +1,4 @@
-import { Injectable, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
+import { Injectable, Signal, WritableSignal, computed, signal } from '@angular/core';
 import { ApiClientService } from './api/apiClient.service';
 import { LoginDto } from './api/dtos/loginDto';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -7,19 +7,17 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 @Injectable({
   providedIn: 'root',
 })
-export class AccountService implements OnInit {
+export class AccountService {
   exp: WritableSignal<Date | null> = signal(null);
 
   isLoggedIn: Signal<boolean> = computed(() => {
 
     let a = new Date(Date.now());
     let b = this.exp();
-    let result = b === null || a >= b;
-    return result;
+    let loggedOut = b === null || a >= b;
+    return !loggedOut;
   })
-  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService) { }
-
-  ngOnInit(): void {
+  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService) {
     let jwt = localStorage.getItem("access_token");
     if (jwt !== null) {
       this.exp.set(this.jwtHelper.getTokenExpirationDate(jwt));
