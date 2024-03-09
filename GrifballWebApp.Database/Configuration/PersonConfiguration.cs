@@ -7,7 +7,7 @@ public partial class PersonConfiguration : IEntityTypeConfiguration<Person>
 {
     public void Configure(EntityTypeBuilder<Person> entity)
     {
-        entity.ToTable("Persons", "Event", tb => tb.IsTemporal());
+        entity.ToTable("Persons", "ITS", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.PersonID);
 
@@ -19,6 +19,10 @@ public partial class PersonConfiguration : IEntityTypeConfiguration<Person>
             .WithOne(d => d.Person)
             .HasForeignKey<Password>(d => d.PersonID)
             .IsRequired(false);
+
+        entity.HasOne(d => d.Region)
+            .WithMany(p => p.Persons)
+            .HasForeignKey(d => d.RegionID);
 
         OnConfigurePartial(entity);
     }
