@@ -13,7 +13,7 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
 
         entity.HasOne(d => d.Season)
             .WithMany(p => p.SeasonMatches)
-            .HasForeignKey(d => d.SeasonMatchID);
+            .HasForeignKey(d => d.SeasonID);
 
         // TODO: Determine correct delete behavior.
 

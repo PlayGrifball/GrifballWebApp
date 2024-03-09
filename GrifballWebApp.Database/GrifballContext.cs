@@ -13,6 +13,7 @@ public partial class GrifballContext : DbContext
     {
     }
 
+    public virtual DbSet<BracketMatch> BracketMatches { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
     public virtual DbSet<MatchLink> MatchLinks { get; set; }
@@ -36,6 +37,7 @@ public partial class GrifballContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfiguration(new Configuration.BracketMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchLinkConfiguration());
