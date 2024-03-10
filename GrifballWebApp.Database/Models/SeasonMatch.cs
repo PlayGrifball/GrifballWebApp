@@ -15,5 +15,5 @@ public partial class SeasonMatch
     public DateTime? ScheduledTime { get; set; }
     //[InverseProperty(nameof(MatchLink.SeasonMatch))]
     public MatchLink MatchLink { get; set; }
-    public BracketMatch BracketMatch { get; set; }
+    public MatchBracketInfo BracketMatch { get; set; }
 }

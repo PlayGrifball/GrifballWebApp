@@ -26,14 +26,14 @@ public class BracketService
             var match = new SeasonMatch()
             {
                 SeasonID = seasonID,
-                BracketMatch = new BracketMatch()
+                BracketMatch = new MatchBracketInfo()
                 {
                     MatchNumber = matchNumber,
                     RoundNumber = 1,
                     HomeTeamSeedNumber = matchup.Home,
-                    HomeTeamPreviousBracketMatch = null,
+                    HomeTeamPreviousMatchBracketInfo = null,
                     AwayTeamSeedNumber = matchup.Away,
-                    AwayTeamPreviousBracketMatch = null,
+                    AwayTeamPreviousMatchBracketInfo = null,
                 }
             };
             matches.Add(match);
@@ -57,29 +57,27 @@ public class BracketService
                 matches.Add(new SeasonMatch()
                 {
                     SeasonID = seasonID,
-                    BracketMatch = new BracketMatch()
+                    BracketMatch = new MatchBracketInfo()
                     {
                         MatchNumber = matchNumber,
                         RoundNumber = round,
                         HomeTeamSeedNumber = null,
-                        HomeTeamPreviousBracketMatch = dependentMatches[0].BracketMatch,
+                        HomeTeamPreviousMatchBracketInfo = dependentMatches[0].BracketMatch,
                         AwayTeamSeedNumber = null,
-                        AwayTeamPreviousBracketMatch = dependentMatches[1].BracketMatch,
+                        AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
                     }
                 });
                 matchNumber++;
             }
         }
 
-        var foo = matches;
+        if (doubleElimination)
+        {
+            matchNumber = 1;
+        }
 
-        await _grifballContext.AddRangeAsync(matches, ct);
-        await _grifballContext.SaveChangesAsync(ct);
-
-        //if (!doubleElimination)
-        //    return;
-
-        //matchNumber = 1;
+        //await _grifballContext.AddRangeAsync(matches, ct);
+        //await _grifballContext.SaveChangesAsync(ct);
     }
 
     private int GetNumberOfRounds(int participantsCount)

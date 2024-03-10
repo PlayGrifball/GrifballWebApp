@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240310055118_init")]
+    [Migration("20240310222331_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -24,80 +24,6 @@ namespace GrifballWebApp.Database.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.BracketMatch", b =>
-                {
-                    b.Property<int>("BracketMatchID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BracketMatchID"));
-
-                    b.Property<int?>("AwayTeamPreviousBracketMatchID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("AwayTeamSeedNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("HomeTeamPreviousBracketMatchID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("HomeTeamSeedNumber")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("LosersBracket")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("MatchNumber")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<int>("RoundNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SeasonMatchID")
-                        .HasColumnType("int");
-
-                    b.HasKey("BracketMatchID");
-
-                    b.HasIndex("AwayTeamPreviousBracketMatchID")
-                        .IsUnique()
-                        .HasFilter("[AwayTeamPreviousBracketMatchID] IS NOT NULL");
-
-                    b.HasIndex("HomeTeamPreviousBracketMatchID")
-                        .IsUnique()
-                        .HasFilter("[HomeTeamPreviousBracketMatchID] IS NOT NULL");
-
-                    b.HasIndex("SeasonMatchID")
-                        .IsUnique();
-
-                    b.ToTable("BracketMatches", "Event", t =>
-                        {
-                            t.HasCheckConstraint("CK_Event_BracketMatches_RequireAwaySeedOrPreviousMatch", "\r\n(AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousBracketMatchID IS NULL) OR\r\n(AwayTeamPreviousBracketMatchID IS NOT NULL AND AwayTeamSeedNumber IS NULL)\r\n");
-
-                            t.HasCheckConstraint("CK_Event_BracketMatches_RequireHomeSeedOrPreviousMatch", "\r\n(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousBracketMatchID IS NULL) OR\r\n(HomeTeamPreviousBracketMatchID IS NOT NULL AND HomeTeamSeedNumber IS NULL)\r\n");
-                        });
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("BracketMatchesHistory", "Event");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
-                });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
                 {
@@ -201,6 +127,80 @@ namespace GrifballWebApp.Database.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("MatchesHistory", "Infinite");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
+                {
+                    b.Property<int>("MatchBracketInfoID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MatchBracketInfoID"));
+
+                    b.Property<int?>("AwayTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AwayTeamSeedNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HomeTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HomeTeamSeedNumber")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("LosersBracket")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MatchNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeasonMatchID")
+                        .HasColumnType("int");
+
+                    b.HasKey("MatchBracketInfoID");
+
+                    b.HasIndex("AwayTeamPreviousMatchBracketInfoID")
+                        .IsUnique()
+                        .HasFilter("[AwayTeamPreviousMatchBracketInfoID] IS NOT NULL");
+
+                    b.HasIndex("HomeTeamPreviousMatchBracketInfoID")
+                        .IsUnique()
+                        .HasFilter("[HomeTeamPreviousMatchBracketInfoID] IS NOT NULL");
+
+                    b.HasIndex("SeasonMatchID")
+                        .IsUnique();
+
+                    b.ToTable("MatchBracketInfo", "Event", t =>
+                        {
+                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireAwaySeedOrPreviousMatch", "\r\n(AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousMatchBracketInfoID IS NULL) OR\r\n(AwayTeamPreviousMatchBracketInfoID IS NOT NULL AND AwayTeamSeedNumber IS NULL)\r\n");
+
+                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", "\r\n(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousMatchBracketInfoID IS NULL) OR\r\n(HomeTeamPreviousMatchBracketInfoID IS NOT NULL AND HomeTeamSeedNumber IS NULL)\r\n");
+                        });
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchBracketInfoHistory", "Event");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -1085,25 +1085,25 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.BracketMatch", b =>
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.BracketMatch", "AwayTeamPreviousBracketMatch")
-                        .WithOne("AwayTeamNextBracketMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.BracketMatch", "AwayTeamPreviousBracketMatchID");
+                    b.HasOne("GrifballWebApp.Database.Models.MatchBracketInfo", "AwayTeamPreviousMatchBracketInfo")
+                        .WithOne("AwayTeamNextMatchBracketInfo")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchBracketInfo", "AwayTeamPreviousMatchBracketInfoID");
 
-                    b.HasOne("GrifballWebApp.Database.Models.BracketMatch", "HomeTeamPreviousBracketMatch")
-                        .WithOne("HomeTeamNextBracketMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.BracketMatch", "HomeTeamPreviousBracketMatchID");
+                    b.HasOne("GrifballWebApp.Database.Models.MatchBracketInfo", "HomeTeamPreviousMatchBracketInfo")
+                        .WithOne("HomeTeamNextMatchBracketInfo")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchBracketInfo", "HomeTeamPreviousMatchBracketInfoID");
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
                         .WithOne("BracketMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.BracketMatch", "SeasonMatchID")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchBracketInfo", "SeasonMatchID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("AwayTeamPreviousBracketMatch");
+                    b.Navigation("AwayTeamPreviousMatchBracketInfo");
 
-                    b.Navigation("HomeTeamPreviousBracketMatch");
+                    b.Navigation("HomeTeamPreviousMatchBracketInfo");
 
                     b.Navigation("SeasonMatch");
                 });
@@ -1316,13 +1316,6 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Team");
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.BracketMatch", b =>
-                {
-                    b.Navigation("AwayTeamNextBracketMatch");
-
-                    b.Navigation("HomeTeamNextBracketMatch");
-                });
-
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
                 {
                     b.Navigation("PersonExperiences");
@@ -1333,6 +1326,13 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("MatchLink");
 
                     b.Navigation("MatchParticipants");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
+                {
+                    b.Navigation("AwayTeamNextMatchBracketInfo");
+
+                    b.Navigation("HomeTeamNextMatchBracketInfo");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant", b =>
