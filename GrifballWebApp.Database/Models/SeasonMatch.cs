@@ -12,7 +12,7 @@ public partial class SeasonMatch
     public Team HomeTeam { get; set; }
     public int? AwayTeamID { get; set; }
     public Team AwayTeam { get; set; }
-    public DateTime ScheduledTime { get; set; }
+    public DateTime? ScheduledTime { get; set; }
     //[InverseProperty(nameof(MatchLink.SeasonMatch))]
     public MatchLink MatchLink { get; set; }
     public BracketMatch BracketMatch { get; set; }

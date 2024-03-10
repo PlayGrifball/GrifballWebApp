@@ -26,6 +26,7 @@ public class Program
         builder.Services.AddScoped<DataPullService>();
         builder.Services.AddScoped<AccountService>();
         builder.Services.AddScoped<CryptographyService>();
+        builder.Services.AddScoped<BracketService>();
 
         builder.Services.AddAuthentication()
             .AddJwtBearer(options =>

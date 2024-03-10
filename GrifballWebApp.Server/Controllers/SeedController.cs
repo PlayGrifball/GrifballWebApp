@@ -11,18 +11,23 @@ public class SeedController : ControllerBase
     private readonly ILogger<SeedController> _logger;
     private readonly GrifballContext _context;
     private readonly DataPullService _dataPullService;
-    private readonly EventsController _eventsController;
+    private readonly BracketService _bracketService;
 
-    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService)
+    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService, BracketService bracketService)
     {
         _logger = logger;
         _context = grifballContext;
         _dataPullService = dataPullService;
+        _bracketService = bracketService;
     }
 
     [HttpGet(Name = "Medals")]
     public async Task Medals()
     {
-        await _dataPullService.DownloadMedals();
+        //_bracketService.CreateBracket(5, 1);
+        _bracketService.CreateBracket(8, 1, false);
+        //var b = _bracketService.GetSeedMatchUps(16);
+        var c = 1;
+        //await _dataPullService.DownloadMedals();
     }
 }

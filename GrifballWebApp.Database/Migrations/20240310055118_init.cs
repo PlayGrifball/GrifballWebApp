@@ -783,7 +783,7 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    ScheduledTime = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    ScheduledTime = table.Column<DateTime>(type: "datetime2", nullable: true)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "SeasonMatchesHistory")
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
@@ -1238,6 +1238,36 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    HomeTeamSeedNumber = table.Column<int>(type: "int", nullable: true)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    HomeTeamPreviousBracketMatchID = table.Column<int>(type: "int", nullable: true)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    AwayTeamSeedNumber = table.Column<int>(type: "int", nullable: true)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    AwayTeamPreviousBracketMatchID = table.Column<int>(type: "int", nullable: true)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    LosersBracket = table.Column<bool>(type: "bit", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
                     PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "BracketMatchesHistory")
@@ -1254,6 +1284,20 @@ namespace GrifballWebApp.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_BracketMatches", x => x.BracketMatchID);
+                    table.CheckConstraint("CK_Event_BracketMatches_RequireAwaySeedOrPreviousMatch", "\r\n(AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousBracketMatchID IS NULL) OR\r\n(AwayTeamPreviousBracketMatchID IS NOT NULL AND AwayTeamSeedNumber IS NULL)\r\n");
+                    table.CheckConstraint("CK_Event_BracketMatches_RequireHomeSeedOrPreviousMatch", "\r\n(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousBracketMatchID IS NULL) OR\r\n(HomeTeamPreviousBracketMatchID IS NOT NULL AND HomeTeamSeedNumber IS NULL)\r\n");
+                    table.ForeignKey(
+                        name: "FK_BracketMatches_BracketMatches_AwayTeamPreviousBracketMatchID",
+                        column: x => x.AwayTeamPreviousBracketMatchID,
+                        principalSchema: "Event",
+                        principalTable: "BracketMatches",
+                        principalColumn: "BracketMatchID");
+                    table.ForeignKey(
+                        name: "FK_BracketMatches_BracketMatches_HomeTeamPreviousBracketMatchID",
+                        column: x => x.HomeTeamPreviousBracketMatchID,
+                        principalSchema: "Event",
+                        principalTable: "BracketMatches",
+                        principalColumn: "BracketMatchID");
                     table.ForeignKey(
                         name: "FK_BracketMatches_SeasonMatches_SeasonMatchID",
                         column: x => x.SeasonMatchID,
@@ -1358,6 +1402,22 @@ namespace GrifballWebApp.Database.Migrations
                     { 2, "Player" },
                     { 4, "EventOrganizer" }
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BracketMatches_AwayTeamPreviousBracketMatchID",
+                schema: "Event",
+                table: "BracketMatches",
+                column: "AwayTeamPreviousBracketMatchID",
+                unique: true,
+                filter: "[AwayTeamPreviousBracketMatchID] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BracketMatches_HomeTeamPreviousBracketMatchID",
+                schema: "Event",
+                table: "BracketMatches",
+                column: "HomeTeamPreviousBracketMatchID",
+                unique: true,
+                filter: "[HomeTeamPreviousBracketMatchID] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BracketMatches_SeasonMatchID",
