@@ -12,11 +12,13 @@ public class EventsController : ControllerBase
 {
     private readonly ILogger<EventsController> _logger;
     private readonly GrifballContext _context;
+    private readonly BracketService _bracketService;
 
-    public EventsController(ILogger<EventsController> logger, GrifballContext grifballContext)
+    public EventsController(ILogger<EventsController> logger, GrifballContext grifballContext, BracketService bracketService)
     {
         _logger = logger;
         _context = grifballContext;
+        _bracketService = bracketService;
     }
 
     [HttpGet(Name = "GetSeasons")]
@@ -61,5 +63,17 @@ public class EventsController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok(team.TeamID);
+    }
+
+    [HttpGet(Name = "CreateBracket")]
+    public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination)
+    {
+        if (participantsCount <= 0)
+            return BadRequest("Please provide participantsCount");
+        if (seasonID <= 0)
+            return BadRequest("Please provide seasonID");
+
+        await _bracketService.CreateBracket(participantsCount, seasonID, doubleElimination);
+        return Ok();
     }
 }

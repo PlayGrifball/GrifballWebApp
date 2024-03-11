@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240310222331_init")]
+    [Migration("20240311030449_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -150,14 +150,14 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int?>("AwayTeamSeedNumber")
                         .HasColumnType("int");
 
+                    b.Property<int>("Bracket")
+                        .HasColumnType("int");
+
                     b.Property<int?>("HomeTeamPreviousMatchBracketInfoID")
                         .HasColumnType("int");
 
                     b.Property<int?>("HomeTeamSeedNumber")
                         .HasColumnType("int");
-
-                    b.Property<bool>("LosersBracket")
-                        .HasColumnType("bit");
 
                     b.Property<int>("MatchNumber")
                         .HasColumnType("int");
@@ -180,13 +180,9 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.HasKey("MatchBracketInfoID");
 
-                    b.HasIndex("AwayTeamPreviousMatchBracketInfoID")
-                        .IsUnique()
-                        .HasFilter("[AwayTeamPreviousMatchBracketInfoID] IS NOT NULL");
+                    b.HasIndex("AwayTeamPreviousMatchBracketInfoID");
 
-                    b.HasIndex("HomeTeamPreviousMatchBracketInfoID")
-                        .IsUnique()
-                        .HasFilter("[HomeTeamPreviousMatchBracketInfoID] IS NOT NULL");
+                    b.HasIndex("HomeTeamPreviousMatchBracketInfoID");
 
                     b.HasIndex("SeasonMatchID")
                         .IsUnique();
@@ -1088,12 +1084,12 @@ namespace GrifballWebApp.Database.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.MatchBracketInfo", "AwayTeamPreviousMatchBracketInfo")
-                        .WithOne("AwayTeamNextMatchBracketInfo")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchBracketInfo", "AwayTeamPreviousMatchBracketInfoID");
+                        .WithMany("InverseAwayTeamNextMatchBracketInfo")
+                        .HasForeignKey("AwayTeamPreviousMatchBracketInfoID");
 
                     b.HasOne("GrifballWebApp.Database.Models.MatchBracketInfo", "HomeTeamPreviousMatchBracketInfo")
-                        .WithOne("HomeTeamNextMatchBracketInfo")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchBracketInfo", "HomeTeamPreviousMatchBracketInfoID");
+                        .WithMany("InverseHomeTeamPreviousMatchBracketInfo")
+                        .HasForeignKey("HomeTeamPreviousMatchBracketInfoID");
 
                     b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
                         .WithOne("BracketMatch")
@@ -1330,9 +1326,9 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
                 {
-                    b.Navigation("AwayTeamNextMatchBracketInfo");
+                    b.Navigation("InverseAwayTeamNextMatchBracketInfo");
 
-                    b.Navigation("HomeTeamNextMatchBracketInfo");
+                    b.Navigation("InverseHomeTeamPreviousMatchBracketInfo");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant", b =>

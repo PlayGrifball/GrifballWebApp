@@ -27,12 +27,12 @@ public partial class MatchBracketInfoConfiguration : IEntityTypeConfiguration<Ma
             .HasForeignKey<MatchBracketInfo>(p => p.SeasonMatchID);
 
         entity.HasOne(d => d.HomeTeamPreviousMatchBracketInfo)
-            .WithOne(p => p.HomeTeamNextMatchBracketInfo)
-            .HasForeignKey<MatchBracketInfo>(d => d.HomeTeamPreviousMatchBracketInfoID);
+            .WithMany(p => p.InverseHomeTeamPreviousMatchBracketInfo)
+            .HasForeignKey(d => d.HomeTeamPreviousMatchBracketInfoID);
 
         entity.HasOne(d => d.AwayTeamPreviousMatchBracketInfo)
-            .WithOne(p => p.AwayTeamNextMatchBracketInfo)
-            .HasForeignKey<MatchBracketInfo>(d => d.AwayTeamPreviousMatchBracketInfoID);
+            .WithMany(p => p.InverseAwayTeamNextMatchBracketInfo)
+            .HasForeignKey(d => d.AwayTeamPreviousMatchBracketInfoID);
 
         OnConfigurePartial(entity);
     }

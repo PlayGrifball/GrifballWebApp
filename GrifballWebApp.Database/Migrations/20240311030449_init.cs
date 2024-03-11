@@ -1262,7 +1262,7 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    LosersBracket = table.Column<bool>(type: "bit", nullable: false)
+                    Bracket = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "MatchBracketInfoHistory")
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
@@ -1414,17 +1414,13 @@ namespace GrifballWebApp.Database.Migrations
                 name: "IX_MatchBracketInfo_AwayTeamPreviousMatchBracketInfoID",
                 schema: "Event",
                 table: "MatchBracketInfo",
-                column: "AwayTeamPreviousMatchBracketInfoID",
-                unique: true,
-                filter: "[AwayTeamPreviousMatchBracketInfoID] IS NOT NULL");
+                column: "AwayTeamPreviousMatchBracketInfoID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchBracketInfo_HomeTeamPreviousMatchBracketInfoID",
                 schema: "Event",
                 table: "MatchBracketInfo",
-                column: "HomeTeamPreviousMatchBracketInfoID",
-                unique: true,
-                filter: "[HomeTeamPreviousMatchBracketInfoID] IS NOT NULL");
+                column: "HomeTeamPreviousMatchBracketInfoID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchBracketInfo_SeasonMatchID",

@@ -25,9 +25,8 @@ public class SeedController : ControllerBase
     public async Task Medals()
     {
         //_bracketService.CreateBracket(5, 1);
-        _bracketService.CreateBracket(8, 1, false);
+        //await _bracketService.CreateBracket(8, 1, true);
         //var b = _bracketService.GetSeedMatchUps(16);
-        var c = 1;
         //await _dataPullService.DownloadMedals();
     }
 }
