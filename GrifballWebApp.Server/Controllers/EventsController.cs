@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,5 +76,15 @@ public class EventsController : ControllerBase
 
         await _bracketService.CreateBracket(participantsCount, seasonID, doubleElimination);
         return Ok();
+    }
+
+    [HttpGet(Name = "GetBracket")]
+    public async Task<ActionResult<BracketDto>> GetBracket([FromQuery] int seasonID)
+    {
+        if (seasonID <= 0)
+            return BadRequest("Please provide seasonID");
+
+        var bracketDto = await _bracketService.GetBracketsAsync(seasonID);
+        return Ok(bracketDto);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Services;
@@ -344,5 +345,78 @@ public class BracketService
         }
         public int? Home { get; private set; }
         public int? Away { get; private set; }
+    }
+
+    public async Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default)
+    {
+        var bracket = await _grifballContext.SeasonMatches
+            .Where(x => x.SeasonID == seasonID && x.BracketMatch != null)
+            .Select(x => x.BracketMatch)
+            .ToListAsync(ct);
+
+        var winners = bracket.Where(x => x.Bracket is Bracket.Winner)
+            .OrderBy(x => x.RoundNumber).ThenBy(x => x.MatchNumber)
+            .GroupBy(x => x.RoundNumber);
+
+        var winnerDtos = winners.Select(x => new RoundDto()
+        {
+            RoundNumber = x.Key,
+            Matches = x.Select(x => new MatchDto()
+            {
+                MatchNumber = $"W{x.MatchNumber}",
+                HomeTeam = x.HomeTeamSeedNumber is not null ? $"Seed {x.HomeTeamSeedNumber}" :
+                    $"Winner of W{bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.HomeTeamPreviousMatchBracketInfoID)?.MatchNumber}",
+                AwayTeam = x.AwayTeamSeedNumber is not null ? $"Seed {x.AwayTeamSeedNumber}" :
+                    $"Winner of W{bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.AwayTeamPreviousMatchBracketInfoID)?.MatchNumber}",
+            }).ToArray(),
+        }).ToArray();
+
+        var losers = bracket.Where(x => x.Bracket is Bracket.Loser)
+            .OrderBy(x => x.RoundNumber).ThenBy(x => x.MatchNumber)
+            .GroupBy(x => x.RoundNumber);
+
+        var loserDtos = losers.Select(x => new RoundDto()
+        {
+            RoundNumber = x.Key,
+            Matches = x.Select(x =>
+            {
+                var homeTeamFrom = bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.HomeTeamPreviousMatchBracketInfoID);
+                var homeTeamText = homeTeamFrom?.Bracket is Bracket.Winner ? $"Loser of W{homeTeamFrom.MatchNumber}" : $"Winner of L{homeTeamFrom?.MatchNumber}";
+
+                var awayTeamFrom = bracket.FirstOrDefault(y => y.MatchBracketInfoID == x.AwayTeamPreviousMatchBracketInfoID);
+                var awayTeamText = awayTeamFrom?.Bracket is Bracket.Winner ? $"Loser of W{awayTeamFrom.MatchNumber}" : $"Winner of L{awayTeamFrom?.MatchNumber}";
+
+                return new MatchDto()
+                {
+                    MatchNumber = $"L{x.MatchNumber}",
+                    HomeTeam = homeTeamText,
+                    AwayTeam = awayTeamText,
+                };
+            }).ToArray(),
+        }).ToArray();
+
+        var grandFinal = bracket.Where(x => x.Bracket is Bracket.GrandFinal)
+            .Select(x => new MatchDto()
+            {
+                MatchNumber = $"W{x.MatchNumber}",
+                HomeTeam = $"Winner of W{x.MatchNumber - 1}",
+                AwayTeam = $"Winner of L{bracket.Where(x => x.Bracket is Bracket.Loser).OrderByDescending(x => x.MatchNumber).FirstOrDefault()?.MatchNumber}"
+            }).FirstOrDefault();
+
+        var grandFinalSuddenDeath = bracket.Where(x => x.Bracket is Bracket.GrandFinalSuddenDeath)
+            .Select(x => new MatchDto()
+            {
+                MatchNumber = $"W{x.MatchNumber}",
+                HomeTeam = $"-",
+                AwayTeam = $"-"
+            }).FirstOrDefault();
+
+        return new BracketDto()
+        {
+            WinnerRounds = winnerDtos,
+            LoserRounds = loserDtos,
+            GrandFinal = grandFinal,
+            GrandFinalSuddenDeath = grandFinalSuddenDeath,
+        };
     }
 }
