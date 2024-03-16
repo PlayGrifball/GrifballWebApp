@@ -24,12 +24,14 @@ public class AccountService
         _configuration = configuration;
     }
 
-    private string CreateToken(string username)
+    private string CreateToken(string username, List<string> roles)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Convert.FromBase64String(_configuration.GetValue<string>("JwtSecret") ?? throw new Exception("Missing JwtSecret"));
-        var tokenDescripor = new SecurityTokenDescriptor()
+        var tokenDescriptor = new SecurityTokenDescriptor()
         {
+            Audience = "GrifballWebApp",
+            Issuer = "GrifballWebApp",
             Subject = new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.Name, username),
@@ -37,7 +39,11 @@ public class AccountService
             Expires = DateTime.UtcNow.AddMinutes(60),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
         };
-        var token = tokenHandler.CreateEncodedJwt(tokenDescripor);
+        foreach (var role in roles)
+        {
+            tokenDescriptor.Subject.AddClaim(new Claim(ClaimTypes.Role, role));
+        }
+        var token = tokenHandler.CreateEncodedJwt(tokenDescriptor);
         return token;
     }
 
@@ -58,8 +64,12 @@ public class AccountService
         if (!correct)
             throw new Exception("Incorrect password");
 
+        var roles = await _context.Persons.Where(x => x.PersonID == person.PersonID)
+            .SelectMany(x => x.PersonRoles.Select(x => x.Role.Name.ToString()))
+            .ToListAsync(cancellationToken);
+
         // Login success
-        return CreateToken(person.Name);
+        return CreateToken(person.Name, roles);
     }
 
     public async Task Register(string username, string password, string gamertag, CancellationToken ct = default)

@@ -1,7 +1,9 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server;
@@ -17,7 +19,33 @@ public class Program
         builder.Services.AddControllers();
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddSwaggerGen(option =>
+        {
+            option.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme()
+            {
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Description = "Please enter a valid token",
+                Name = "Authorization",
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                BearerFormat = "JWT",
+                Scheme = "Bearer"
+            });
+
+            option.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement()
+            {
+                {
+                    new OpenApiSecurityScheme()
+                    {
+                        Reference = new OpenApiReference()
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    new string[]{}
+                }
+            });
+        });
 
         builder.Services.AddDbContextFactory<GrifballContext>((services, options)
             => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
@@ -27,12 +55,17 @@ public class Program
         builder.Services.AddScoped<AccountService>();
         builder.Services.AddScoped<CryptographyService>();
         builder.Services.AddScoped<BracketService>();
+        builder.Services.AddScoped<EventOrganizerService>();
 
         builder.Services.AddAuthentication()
             .AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
+                    ValidateAudience = true,
+                    ValidAudience = "GrifballWebApp",
+                    ValidateIssuer = true,
+                    ValidIssuer = "GrifballWebApp",
                     IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(builder.Configuration.GetValue<string>("JwtSecret")
                                                                                                             ?? throw new Exception("JwtSecret is missing"))),
                 };

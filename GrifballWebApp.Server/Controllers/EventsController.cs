@@ -3,7 +3,6 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Controllers;
 
@@ -20,31 +19,6 @@ public class EventsController : ControllerBase
         _logger = logger;
         _context = grifballContext;
         _bracketService = bracketService;
-    }
-
-    [HttpGet(Name = "GetSeasons")]
-    public async Task<IActionResult> GetSeasons()
-    {
-        return Ok(await _context.Seasons.ToListAsync());
-    }
-
-    [HttpGet(Name = "CreateSeason")]
-    public async Task<ActionResult<int>> CreateSeason([FromQuery] string name)
-    {
-        if (name == null)
-        {
-            return BadRequest("You must provide name");
-        }
-
-        var season = new Season()
-        {
-            SeasonName = name,
-        };
-
-        await _context.Seasons.AddAsync(season);
-        await _context.SaveChangesAsync();
-
-        return Ok(season.SeasonID);
     }
 
     [HttpGet(Name = "CreateTeam")]

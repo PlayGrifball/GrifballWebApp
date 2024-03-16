@@ -10,7 +10,7 @@ public partial class Season
         SeasonSignups = new HashSet<SeasonSignup>();
     }
     public int SeasonID { get; set; }
-    public required string SeasonName { get; set; }
+    public string SeasonName { get; set; }
     public DateTime SignupsOpen { get; set; }
     public DateTime SignupsClose { get; set; }
     public DateTime DraftStart { get; set; }
