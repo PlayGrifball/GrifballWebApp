@@ -8,7 +8,18 @@ import { JwtHelperService } from '@auth0/angular-jwt';
   providedIn: 'root',
 })
 export class AccountService {
-  exp: WritableSignal<Date | null> = signal(null);
+  jwt: WritableSignal<string | null> = signal(null);
+
+  exp: Signal<Date | null> = computed(() => {
+
+    let x = this.jwt();
+
+    if (x === null) {
+      return null;
+    }
+
+    return this.jwtHelper.getTokenExpirationDate(x);
+  })
 
   isLoggedIn: Signal<boolean> = computed(() => {
 
@@ -17,10 +28,28 @@ export class AccountService {
     let loggedOut = b === null || a >= b;
     return !loggedOut;
   })
+
+  isEventOrganizer: Signal<boolean> = computed(() => {
+
+    let x = this.jwt();
+
+    if (x === null) {
+      return false;
+    }
+
+    const token = this.jwtHelper.decodeToken(x);
+    if (!token.hasOwnProperty("role")) {
+      return false;
+    }
+
+    return true;
+  })
+
   constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService) {
     let jwt = localStorage.getItem("access_token");
     if (jwt !== null) {
-      this.exp.set(this.jwtHelper.getTokenExpirationDate(jwt));
+      //this.exp.set(this.jwtHelper.getTokenExpirationDate(jwt));
+      this.jwt.set(jwt);
     }
   }
 
@@ -34,9 +63,13 @@ export class AccountService {
   }
 
   private onLoginSuccess(jwt: string) {
-    console.log("before: " + this.isLoggedIn());
-    this.exp.set(this.jwtHelper.getTokenExpirationDate(jwt));
+    //this.exp.set(this.jwtHelper.getTokenExpirationDate(jwt));
+    this.jwt.set(jwt);
     localStorage.setItem("access_token", jwt);
-    console.log("after: " + this.isLoggedIn());
+  }
+
+  logout(): void {
+    localStorage.removeItem("access_token");
+    this.jwt.set(null);
   }
 }

@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { isEventOrganizerGuard } from './isEventOrganizer.guard';
 
 export const APP_ROUTES: Routes = [
   {
@@ -21,5 +22,12 @@ export const APP_ROUTES: Routes = [
     path: 'register',
     loadComponent: () => import('./register/register.component').then(m => m.RegisterComponent),
     title: 'Register'
+  },
+  {
+    path: 'seasons',
+    loadComponent: () => import('./seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
+    title: 'Seasons',
+    canActivate: [isEventOrganizerGuard]
+    
   }
 ];
