@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
 import { FormsModule, NgForm } from '@angular/forms';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,7 +19,8 @@ import { ErrorMessageComponent } from '../validation/errorMessage.component';
     MatInputModule,
     MatFormFieldModule,
     MatButtonModule,
-    ErrorMessageComponent
+    ErrorMessageComponent,
+    MatDatepickerModule,
   ],
   templateUrl: './seasonEdit.component.html',
   styleUrl: './seasonEdit.component.scss'

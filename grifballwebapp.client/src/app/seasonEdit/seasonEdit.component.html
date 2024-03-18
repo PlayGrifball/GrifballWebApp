@@ -9,8 +9,14 @@
 
   <mat-form-field class="example-full-width">
     <mat-label>signupsOpen</mat-label>
-    <input matInput required [(ngModel)]="model.signupsOpen" name="signupsOpen">
-    <app-error-message [control]="seasonForm.controls['signupsOpen']" />
+    <input matInput [matDatepicker]="picker">
+    <mat-hint>MM/DD/YYYY</mat-hint>
+    <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+    <mat-datepicker #picker></mat-datepicker>
+    <!--
+  <input matInput required [(ngModel)]="model.signupsOpen" name="signupsOpen">
+  <app-error-message [control]="seasonForm.controls['signupsOpen']" />
+  -->
   </mat-form-field>
 
   <mat-form-field class="example-full-width">

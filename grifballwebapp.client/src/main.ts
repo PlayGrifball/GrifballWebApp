@@ -9,6 +9,7 @@ import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 import { importProvidersFrom } from '@angular/core';
 import { JwtModule } from '@auth0/angular-jwt';
 import { authInterceptor } from './app/auth.interceptor';
+import { provideNativeDateAdapter } from '@angular/material/core';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -24,6 +25,7 @@ bootstrapApplication(AppComponent, {
         },
       }),
     ),
+    provideNativeDateAdapter(),
     provideAnimationsAsync(),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideRouter(APP_ROUTES
