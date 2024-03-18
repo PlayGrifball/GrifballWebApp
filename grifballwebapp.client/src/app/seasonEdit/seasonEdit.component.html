@@ -1,0 +1,43 @@
+<h2>Season Edit</h2>
+
+<form class="example-form" #seasonForm="ngForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="example-full-width">
+    <mat-label>seasonName</mat-label>
+    <input matInput required [(ngModel)]="model.seasonName" name="seasonName">
+    <app-error-message [control]="seasonForm.controls['seasonName']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>signupsOpen</mat-label>
+    <input matInput required [(ngModel)]="model.signupsOpen" name="signupsOpen">
+    <app-error-message [control]="seasonForm.controls['signupsOpen']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>signupsClose</mat-label>
+    <input matInput required [(ngModel)]="model.signupsClose" name="signupsClose">
+    <app-error-message [control]="seasonForm.controls['signupsClose']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>draftStart</mat-label>
+    <input matInput required [(ngModel)]="model.draftStart" name="draftStart">
+    <app-error-message [control]="seasonForm.controls['draftStart']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>seasonStart</mat-label>
+    <input matInput required [(ngModel)]="model.seasonStart" name="seasonStart">
+    <app-error-message [control]="seasonForm.controls['seasonStart']" />
+  </mat-form-field>
+
+  <mat-form-field class="example-full-width">
+    <mat-label>seasonEnd</mat-label>
+    <input matInput required [(ngModel)]="model.seasonEnd" name="seasonEnd">
+    <app-error-message [control]="seasonForm.controls['seasonEnd']" />
+  </mat-form-field>
+
+  <button mat-flat-button color="primary" [disabled]="!seasonForm.form.valid">
+    {{model.seasonID > 0 ? 'Save Season' : 'Create New Season'}}
+  </button>
+</form>

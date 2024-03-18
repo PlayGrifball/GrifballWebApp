@@ -28,6 +28,16 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
     title: 'Seasons',
     canActivate: [isEventOrganizerGuard]
-    
+  },
+  {
+    path: 'season/:seasonID',
+    loadComponent: () => import('./seasonEdit/seasonEdit.component').then(m => m.SeasonEditComponent),
+    title: 'Season Edit',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
+    path: '**',
+    loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
+    title: 'Page Not Found'
   }
 ];

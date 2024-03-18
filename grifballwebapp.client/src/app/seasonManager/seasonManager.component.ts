@@ -3,13 +3,17 @@ import { Component, OnInit } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
+import { RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-season-manager',
   standalone: true,
   imports: [
     CommonModule,
-    MatTableModule
+    MatTableModule,
+    RouterModule,
+    MatButtonModule
   ],
   templateUrl: './seasonManager.component.html',
   styleUrl: './seasonManager.component.scss'

@@ -36,4 +36,8 @@ export class ApiClientService {
   getSeason(seasonID: number): Observable<SeasonDto> {
     return this.http.get<SeasonDto>('/api/EventOrganizer/GetSeason/' + seasonID);
   }
+
+  upsertSeason(seasonDto: SeasonDto): Observable<number> {
+    return this.http.post<number>('/api/EventOrganizer/UpsertSeason/', seasonDto);
+  }
 }
