@@ -14,7 +14,7 @@ export class ApiClientService {
   constructor(private http: HttpClient) { }
 
 
-  getKills() : Observable<KillsDto[]> {
+  getKills(): Observable<KillsDto[]> {
     return this.http.get<KillsDto[]>('/api/stats/TopKills');
   }
 

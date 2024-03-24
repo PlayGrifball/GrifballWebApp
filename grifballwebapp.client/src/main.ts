@@ -9,7 +9,7 @@ import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 import { importProvidersFrom } from '@angular/core';
 import { JwtModule } from '@auth0/angular-jwt';
 import { authInterceptor } from './app/auth.interceptor';
-import { provideNativeDateAdapter } from '@angular/material/core';
+import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -25,7 +25,26 @@ bootstrapApplication(AppComponent, {
         },
       }),
     ),
-    provideNativeDateAdapter(),
+    provideLuxonDatetimeAdapter({
+      parse: {
+        dateInput: 'yyyy-LL-dd',
+        monthInput: 'LLLL',
+        yearInput: 'yyyy',
+        timeInput: 'HH:mm',
+        datetimeInput: 'yyyy-LL-dd HH:mm',
+      },
+      display: {
+        dateInput: 'yyyy-LL-dd',
+        monthInput: 'LLLL',
+        yearInput: 'yyyy',
+        timeInput: 'HH:mm',
+        datetimeInput: 'yyyy-LL-dd HH:mm',
+        monthYearLabel: 'yyyy LLLL',
+        dateA11yLabel: 'DDD',
+        monthYearA11yLabel: 'LLLL yyyy',
+        popupHeaderDateLabel: 'dd LLL, ccc',
+      }
+    }),
     provideAnimationsAsync(),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideRouter(APP_ROUTES
