@@ -17,31 +17,31 @@
   <!-- signupsOpen Column -->
   <ng-container matColumnDef="signupsOpen">
     <th mat-header-cell *matHeaderCellDef> signupsOpen </th>
-    <td mat-cell *matCellDef="let row"> {{row.signupsOpen}} </td>
+    <td mat-cell *matCellDef="let row"> {{row.signupsOpen | date:'short' }} </td>
   </ng-container>
 
   <!-- signupsClose Column -->
   <ng-container matColumnDef="signupsClose">
     <th mat-header-cell *matHeaderCellDef> signupsClose </th>
-    <td mat-cell *matCellDef="let row"> {{row.signupsClose}} </td>
+    <td mat-cell *matCellDef="let row"> {{row.signupsClose | date:'short' }} </td>
   </ng-container>
 
   <!-- draftStart Column -->
   <ng-container matColumnDef="draftStart">
     <th mat-header-cell *matHeaderCellDef> draftStart </th>
-    <td mat-cell *matCellDef="let row"> {{row.draftStart}} </td>
+    <td mat-cell *matCellDef="let row"> {{row.draftStart | date:'short' }} </td>
   </ng-container>
 
   <!-- seasonStart Column -->
   <ng-container matColumnDef="seasonStart">
     <th mat-header-cell *matHeaderCellDef> seasonStart </th>
-    <td mat-cell *matCellDef="let row"> {{row.seasonStart}} </td>
+    <td mat-cell *matCellDef="let row"> {{row.seasonStart | date:'short' }} </td>
   </ng-container>
 
   <!-- seasonEnd Column -->
   <ng-container matColumnDef="seasonEnd">
     <th mat-header-cell *matHeaderCellDef> seasonEnd </th>
-    <td mat-cell *matCellDef="let row"> {{row.seasonEnd}} </td>
+    <td mat-cell *matCellDef="let row"> {{row.seasonEnd | date:'short' }} </td>
   </ng-container>
 
   <!-- signupsCount Column -->

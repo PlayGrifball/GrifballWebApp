@@ -9,34 +9,41 @@
 
   <mat-form-field class="example-full-width">
     <mat-label>signupsOpen</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker" [(ngModel)]="model.signupsOpen" required name="signupsOpen" >
-    <mtx-datetimepicker-toggle [for]="datetimePicker" matSuffix></mtx-datetimepicker-toggle>
-    <mtx-datetimepicker #datetimePicker [timeInput]="true" [twelvehour]="true" type="datetime" ></mtx-datetimepicker>
+    <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="model.signupsOpen" required name="signupsOpen" >
+    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" ></mtx-datetimepicker>
     <app-error-message [control]="seasonForm.controls['signupsOpen']" />
-
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
     <mat-label>signupsClose</mat-label>
-    <input matInput required [(ngModel)]="model.signupsClose" name="signupsClose">
+    <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="model.signupsClose" required name="signupsClose">
+    <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
     <app-error-message [control]="seasonForm.controls['signupsClose']" />
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
     <mat-label>draftStart</mat-label>
-    <input matInput required [(ngModel)]="model.draftStart" name="draftStart">
+    <input matInput [mtxDatetimepicker]="datetimePicker3" [(ngModel)]="model.draftStart" required name="draftStart">
+    <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker3 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
     <app-error-message [control]="seasonForm.controls['draftStart']" />
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
     <mat-label>seasonStart</mat-label>
-    <input matInput required [(ngModel)]="model.seasonStart" name="seasonStart">
+    <input matInput [mtxDatetimepicker]="datetimePicker4" [(ngModel)]="model.seasonStart" required name="seasonStart">
+    <mtx-datetimepicker-toggle [for]="datetimePicker4" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker4 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
     <app-error-message [control]="seasonForm.controls['seasonStart']" />
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
     <mat-label>seasonEnd</mat-label>
-    <input matInput required [(ngModel)]="model.seasonEnd" name="seasonEnd">
+    <input matInput [mtxDatetimepicker]="datetimePicker5" [(ngModel)]="model.seasonEnd" required name="seasonEnd">
+    <mtx-datetimepicker-toggle [for]="datetimePicker5" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker5 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
     <app-error-message [control]="seasonForm.controls['seasonEnd']" />
   </mat-form-field>
 

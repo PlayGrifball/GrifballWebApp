@@ -4,9 +4,9 @@ export class SeasonDto {
   seasonID: number = 0;
   seasonName: string = "";
   signupsOpen!: DateTime;
-  signupsClose: string = "";
-  draftStart: string = "";
-  seasonStart: string = "";
-  seasonEnd: string = "";
+  signupsClose!: DateTime;
+  draftStart!: DateTime;
+  seasonStart!: DateTime;
+  seasonEnd!: DateTime;
   signupsCount: number = 0;
 }
