@@ -9,7 +9,9 @@ public partial class SeasonSignupConfiguration : IEntityTypeConfiguration<Season
     {
         entity.ToTable("SeasonSignups", "Event", tb => tb.IsTemporal());
 
-        entity.HasKey(e => new { e.PersonID, e.SeasonID });
+        entity.HasKey(e => e.SeasonSignupID);
+
+        entity.HasIndex(e => new { e.PersonID, e.SeasonID }).IsUnique();
 
         entity.HasOne(d => d.Season)
             .WithMany(p => p.SeasonSignups)

@@ -3,6 +3,7 @@ using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Signups;
+using GrifballWebApp.Server.Teams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -64,6 +65,7 @@ public class Program
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<SeasonService>();
+        builder.Services.AddTransient<TeamService>();
 
         builder.Services.AddAuthentication()
             .AddJwtBearer(options =>

@@ -14,6 +14,7 @@ internal class Program
         {
             services.AddDbContext<GrifballContext>((services, options) => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp") 
                 ?? throw new Exception("GrifballWebApp connection string missing")));
+            services.AddHostedService<HostedService>();
         }).Build().Run();
     }
 }

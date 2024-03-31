@@ -23,11 +23,11 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./signupForm/signupForm.component').then(m => m.SignupFormComponent),
     title: 'Signup Form'
   },
-  // {
-  //   path: 'season/:seasonID/teams',
-  //   loadComponent: () => import('./teams/teams.component').then(m => m.TeamsComponent),
-  //   title: 'Teams'
-  // },
+  {
+    path: 'season/:seasonID/teams',
+    loadComponent: () => import('./teams/teams.component').then(m => m.TeamsComponent),
+    title: 'Teams'
+  },
   {
     path: 'topstats',
     loadComponent: () => import('./top-stats/top-stats.component').then(m => m.TopStatsComponent),

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240311030449_init")]
+    [Migration("20240331021543_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -907,11 +907,14 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup", b =>
                 {
-                    b.Property<int>("PersonID")
+                    b.Property<int>("SeasonSignupID")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<int>("SeasonID")
-                        .HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonSignupID"));
+
+                    b.Property<bool>("Approved")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -923,8 +926,14 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int>("PersonID")
+                        .HasColumnType("int");
+
                     b.Property<bool>("RequiresAssistanceDrafting")
                         .HasColumnType("bit");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
 
                     b.Property<string>("TeamName")
                         .HasColumnType("nvarchar(max)");
@@ -935,9 +944,12 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<bool>("WillCaptain")
                         .HasColumnType("bit");
 
-                    b.HasKey("PersonID", "SeasonID");
+                    b.HasKey("SeasonSignupID");
 
                     b.HasIndex("SeasonID");
+
+                    b.HasIndex("PersonID", "SeasonID")
+                        .IsUnique();
 
                     b.ToTable("SeasonSignups", "Event");
 
@@ -961,6 +973,9 @@ namespace GrifballWebApp.Database.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamID"));
 
+                    b.Property<int>("CaptainID")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
@@ -979,6 +994,9 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("TeamID");
+
+                    b.HasIndex("CaptainID")
+                        .IsUnique();
 
                     b.HasIndex("SeasonID");
 
@@ -1008,8 +1026,14 @@ namespace GrifballWebApp.Database.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamPlayerID"));
 
-                    b.Property<bool>("IsCaptain")
-                        .HasColumnType("bit");
+                    b.Property<int?>("DraftCaptainOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DraftPick")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DraftRound")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -1029,9 +1053,10 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.HasKey("TeamPlayerID");
 
-                    b.HasIndex("PlayerID");
-
                     b.HasIndex("TeamID");
+
+                    b.HasIndex("PlayerID", "TeamID")
+                        .IsUnique();
 
                     b.ToTable("TeamPlayers", "Event");
 
@@ -1284,11 +1309,19 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
+                    b.HasOne("GrifballWebApp.Database.Models.TeamPlayer", "Captain")
+                        .WithOne("CaptainTeam")
+                        .HasForeignKey("GrifballWebApp.Database.Models.Team", "CaptainID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
                         .WithMany("Teams")
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Captain");
 
                     b.Navigation("Season");
                 });
@@ -1397,6 +1430,11 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("HomeMatches");
 
                     b.Navigation("TeamPlayers");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
+                {
+                    b.Navigation("CaptainTeam");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>

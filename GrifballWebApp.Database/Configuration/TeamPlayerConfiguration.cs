@@ -11,6 +11,9 @@ public partial class TeamPlayerConfiguration : IEntityTypeConfiguration<TeamPlay
 
         entity.HasKey(e => e.TeamPlayerID);
 
+        // Player can not be on the same team twice, ideally player would not be on two teams either but I lack seasonID to enforce it.
+        entity.HasIndex(e => new { e.PlayerID, e.TeamID }).IsUnique();
+
         entity.HasOne(d => d.Team)
             .WithMany(p => p.TeamPlayers)
             .HasForeignKey(d => d.TeamID);

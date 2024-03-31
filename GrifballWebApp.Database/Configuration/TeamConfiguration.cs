@@ -15,6 +15,11 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
             .WithMany(p => p.Teams)
             .HasForeignKey(d => d.SeasonID);
 
+        entity.HasOne(d => d.Captain)
+            .WithOne(p => p.CaptainTeam)
+            .HasForeignKey<Team>(d => d.CaptainID)
+            .OnDelete(DeleteBehavior.NoAction);
+
         entity.Property(e => e.TeamName).HasMaxLength(30);
 
         // Team name must be unique for any given season

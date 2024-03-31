@@ -7,6 +7,8 @@ import { RegisterDto } from './dtos/registerDto';
 import { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
+import { TeamResponseDto } from './dtos/teamResponseDto';
+import { PlayerDto } from './dtos/playerDto';
 
 @Injectable({
   providedIn: 'root'
@@ -68,5 +70,13 @@ export class ApiClientService {
 
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
     return this.http.post('/api/Signups/UpsertSignup/', signupDto);
+  }
+
+  getTeams(seasonID: number): Observable<TeamResponseDto[]> {
+    return this.http.get<TeamResponseDto[]>('/api/Teams/GetTeams/' + seasonID);
+  }
+
+  getPlayerPool(seasonID: number): Observable<PlayerDto[]> {
+    return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
   }
 }
