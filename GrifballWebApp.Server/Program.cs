@@ -1,6 +1,8 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.Signups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -55,11 +57,13 @@ public class Program
             => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
             ?? throw new Exception("GrifballContext failed to configure")));
 
-        builder.Services.AddScoped<DataPullService>();
-        builder.Services.AddScoped<AccountService>();
-        builder.Services.AddScoped<CryptographyService>();
-        builder.Services.AddScoped<BracketService>();
-        builder.Services.AddScoped<EventOrganizerService>();
+        builder.Services.AddTransient<DataPullService>();
+        builder.Services.AddTransient<AccountService>();
+        builder.Services.AddTransient<CryptographyService>();
+        builder.Services.AddTransient<BracketService>();
+        builder.Services.AddTransient<EventOrganizerService>();
+        builder.Services.AddTransient<SignupsService>();
+        builder.Services.AddTransient<SeasonService>();
 
         builder.Services.AddAuthentication()
             .AddJwtBearer(options =>

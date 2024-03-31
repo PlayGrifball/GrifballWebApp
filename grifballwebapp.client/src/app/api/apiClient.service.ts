@@ -5,6 +5,8 @@ import { Observable } from 'rxjs';
 import { LoginDto } from './dtos/loginDto';
 import { RegisterDto } from './dtos/registerDto';
 import { SeasonDto } from './dtos/seasonDto';
+import { SignupResponseDto } from './dtos/signupResponseDto';
+import { SignupRequestDto } from './dtos/signupRequestDto';
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +14,10 @@ import { SeasonDto } from './dtos/seasonDto';
 export class ApiClientService {
 
   constructor(private http: HttpClient) { }
+
+  private readonly text : Object = {
+    responseType: 'text'
+  };
 
 
   getKills(): Observable<KillsDto[]> {
@@ -39,5 +45,28 @@ export class ApiClientService {
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
     return this.http.post<number>('/api/EventOrganizer/UpsertSeason/', seasonDto);
+  }
+
+  getCurrentSeasonID(): Observable<number> {
+    return this.http.get<number>('/api/Season/getCurrentSeasonID/');
+  }
+
+  getSeasonName(seasonID: number): Observable<string | null> {
+    return this.http.get<string | null>('/api/Season/getSeasonName/' + seasonID, this.text);
+  }
+
+  getSignups(seasonID: number): Observable<SignupResponseDto[]> {
+    return this.http.get<SignupResponseDto[]>('/api/Signups/getSignups/' + seasonID);
+  }
+
+  getSignup(seasonID: number, personID: number | null): Observable<SignupResponseDto> {
+    let path = '/api/Signups/getSignup/' + seasonID;
+    if (personID !== null)
+      path += '?personID=' + personID;
+    return this.http.get<SignupResponseDto>(path);
+  }
+
+  upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
+    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
   }
 }

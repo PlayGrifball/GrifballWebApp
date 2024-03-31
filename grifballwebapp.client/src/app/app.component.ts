@@ -7,6 +7,7 @@ import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
 import { CommonModule } from '@angular/common';
+import { ApiClientService } from './api/apiClient.service';
 
 @Component({
   selector: 'app-root',
@@ -42,21 +43,37 @@ export class AppComponent implements OnDestroy, OnInit {
       //show: true,
       show: computed(() => true),
     },
+    // {
+    //   title: "Current Season",
+    //   path: "/season/0",
+    //   //show: true,
+    //   show: computed(() => true),
+    // },
     {
-      title: "Seasons",
-      path: "/seasons",
+      title: "Season Manager",
+      path: "/seasonManager",
       //show: this.accountService.isEventOrganizer(),
       show: computed(() => this.accountService.isEventOrganizer()),
     }
   ];
 
-  constructor(changeDetectorRef: ChangeDetectorRef, media: MediaMatcher, public accountService: AccountService) {
+  constructor(changeDetectorRef: ChangeDetectorRef, media: MediaMatcher, public accountService: AccountService, public api: ApiClientService) {
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
     this._mobileQueryListener = () => changeDetectorRef.detectChanges();
     this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);
   }
 
   ngOnInit(): void {
+    this.api.getCurrentSeasonID().subscribe({
+      next: (result) => {
+        const sideBarDto = {
+          title: "Current Season",
+          path: "/season/" + result,
+          show: computed(() => true),
+        };
+        this.navLinks.push(sideBarDto);
+      },
+    })
     //this.accountService.isEventOrganizer.bind().
     //this.navLinks = [
     //  {

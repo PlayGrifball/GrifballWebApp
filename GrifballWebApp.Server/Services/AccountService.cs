@@ -24,7 +24,7 @@ public class AccountService
         _configuration = configuration;
     }
 
-    private string CreateToken(string username, List<string> roles)
+    private string CreateToken(string username, int personID, List<string> roles)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Convert.FromBase64String(_configuration.GetValue<string>("JwtSecret") ?? throw new Exception("Missing JwtSecret"));
@@ -35,6 +35,7 @@ public class AccountService
             Subject = new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.Name, username),
+                new Claim("PersonID", personID.ToString()),
             }),
             Expires = DateTime.UtcNow.AddMinutes(60),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
@@ -69,7 +70,7 @@ public class AccountService
             .ToListAsync(cancellationToken);
 
         // Login success
-        return CreateToken(person.Name, roles);
+        return CreateToken(person.Name, person.PersonID, roles);
     }
 
     public async Task Register(string username, string password, string gamertag, CancellationToken ct = default)

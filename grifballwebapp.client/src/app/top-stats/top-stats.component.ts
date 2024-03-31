@@ -35,8 +35,8 @@ export class TopStatsComponent implements OnInit {
       next: (result) => this.kills = result,
       error: (error) => console.error(error),
       complete: () => {
-        console.log("Got kills");
-        this.snackBar.open("Got Kills", "Close")
+        //console.log("Got kills");
+        //this.snackBar.open("Got Kills", "Close")
       }
     });
 

@@ -9,6 +9,26 @@ export const APP_ROUTES: Routes = [
     title: 'Home',
   },
   {
+    path: 'season/:seasonID',
+    loadComponent: () => import('./season/season.component').then(m => m.SeasonComponent),
+    title: 'Season'
+  },
+  {
+    path: 'season/:seasonID/signups',
+    loadComponent: () => import('./signups/signups.component').then(m => m.SignupsComponent),
+    title: 'Signups'
+  },
+  {
+    path: 'season/:seasonID/signupForm',
+    loadComponent: () => import('./signupForm/signupForm.component').then(m => m.SignupFormComponent),
+    title: 'Signup Form'
+  },
+  // {
+  //   path: 'season/:seasonID/teams',
+  //   loadComponent: () => import('./teams/teams.component').then(m => m.TeamsComponent),
+  //   title: 'Teams'
+  // },
+  {
     path: 'topstats',
     loadComponent: () => import('./top-stats/top-stats.component').then(m => m.TopStatsComponent),
     title: 'Top Stats'
@@ -24,13 +44,13 @@ export const APP_ROUTES: Routes = [
     title: 'Register'
   },
   {
-    path: 'seasons',
+    path: 'seasonManager',
     loadComponent: () => import('./seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
-    title: 'Seasons',
+    title: 'Season Manager',
     canActivate: [isEventOrganizerGuard]
   },
   {
-    path: 'season/:seasonID',
+    path: 'seasonEdit/:seasonID',
     loadComponent: () => import('./seasonEdit/seasonEdit.component').then(m => m.SeasonEditComponent),
     title: 'Season Edit',
     canActivate: [isEventOrganizerGuard]
