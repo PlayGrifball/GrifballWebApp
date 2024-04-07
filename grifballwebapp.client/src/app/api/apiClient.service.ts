@@ -9,6 +9,10 @@ import { SignupResponseDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
 import { PlayerDto } from './dtos/playerDto';
+import { CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
+import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
+import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
+import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 
 @Injectable({
   providedIn: 'root'
@@ -78,5 +82,41 @@ export class ApiClientService {
 
   getPlayerPool(seasonID: number): Observable<PlayerDto[]> {
     return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
+  }
+
+  addCaptain(dto: CaptainPlacementDto): Observable<Object> {
+    return this.http.post('/api/Teams/AddCaptain/', dto);
+  }
+
+  resortCaptain(dto: CaptainPlacementDto): Observable<Object> {
+    return this.http.post('/api/Teams/ResortCaptain/', dto);
+  }
+
+  removeCaptain(dto: RemoveCaptainDto): Observable<Object> {
+    return this.http.post('/api/Teams/RemoveCaptain/', dto);
+  }
+
+  removePlayerFromTeam(dto: RemovePlayerFromTeamRequestDto): Observable<Object> {
+    return this.http.post('/api/Teams/removePlayerFromTeam/', dto);
+  }
+
+  movePlayerToTeam(dto: MovePlayerToTeamRequestDto): Observable<Object> {
+    return this.http.post('/api/Teams/movePlayerToTeam/', dto);
+  }
+
+  addPlayerToTeam(dto: AddPlayerToTeamRequestDto): Observable<Object> {
+    return this.http.post('/api/Teams/addPlayerToTeam/', dto);
+  }
+
+  lockCaptains(seasonID: number): Observable<Object> {
+    return this.http.get('/api/Teams/lockCaptains/' + seasonID);
+  }
+
+  unlockCaptains(seasonID: number): Observable<Object> {
+    return this.http.get('/api/Teams/unlockCaptains/' + seasonID);
+  }
+
+  areCaptainsLocked(seasonID: number): Observable<boolean> {
+    return this.http.get<boolean>('/api/Teams/areCaptainsLocked/' + seasonID);
   }
 }

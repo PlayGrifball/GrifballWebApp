@@ -25,6 +25,11 @@ export const APP_ROUTES: Routes = [
   },
   {
     path: 'season/:seasonID/teams',
+    loadComponent: () => import('./teamBuilder/teamBuilder.component').then(m => m.TeamBuilderComponent),
+    title: 'Teams'
+  },
+  {
+    path: 'season/:seasonID/teamss',
     loadComponent: () => import('./teams/teams.component').then(m => m.TeamsComponent),
     title: 'Teams'
   },

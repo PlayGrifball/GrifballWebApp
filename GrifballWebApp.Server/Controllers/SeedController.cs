@@ -27,6 +27,6 @@ public class SeedController : ControllerBase
         //_bracketService.CreateBracket(5, 1);
         //await _bracketService.CreateBracket(8, 1, true);
         //var b = _bracketService.GetSeedMatchUps(16);
-        //await _dataPullService.DownloadMedals();
+        await _dataPullService.DownloadMedals();
     }
 }

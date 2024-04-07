@@ -11,6 +11,7 @@ public partial class Season
     }
     public int SeasonID { get; set; }
     public string SeasonName { get; set; }
+    public bool CaptainsLocked { get; set; }
     public DateTime SignupsOpen { get; set; }
     public DateTime SignupsClose { get; set; }
     public DateTime DraftStart { get; set; }

@@ -1,1 +1,33 @@
-<p>teams works!</p>,
+<div cdkDropListGroup>
+    <div class="example-container">
+      <h2>Player Pool</h2>
+  
+      <div
+        cdkDropList
+        cdkDropListOrientation="horizontal"
+        [cdkDropListData]="playerPool"
+        class="example-list"
+        (cdkDropListDropped)="drop($event)">
+        @for (item of playerPool; track item) {
+          <div class="example-box" cdkDrag>{{item.name}}</div>
+        }
+      </div>
+    </div>
+  
+
+    <div class="example-container">
+      <h2>Teams</h2>
+  
+      <div
+        cdkDropList
+        cdkDropListOrientation="horizontal"
+        [cdkDropListData]="playerChosen"
+        class="example-list"
+        (cdkDropListDropped)="drop($event)">
+        @for (item of playerChosen; track item) {
+          <div class="example-box" cdkDrag>{{item.name}}</div>
+        }
+      </div>
+    </div>
+
+</div>

@@ -12,8 +12,8 @@ public partial class Team
     public int SeasonID { get; set; }
     public Season Season { get; set; }
     public int TeamID { get; set; }
-    public required string TeamName { get; set; }
-    public int CaptainID { get; set; }
+    public string TeamName { get; set; }
+    public int? CaptainID { get; set; }
     public TeamPlayer Captain { get; set; }
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
     public virtual ICollection<SeasonMatch> HomeMatches { get; set; }

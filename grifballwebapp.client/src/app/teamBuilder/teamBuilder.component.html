@@ -1,0 +1,89 @@
+@if (accountService.isEventOrganizer()) {
+<button mat-flat-button color="primary" (click)="lockCaptainsButtonClicked()">
+  {{captainLocked ? 'Unlock Captains' : 'Lock Captains'}}
+</button>
+}
+
+<p>{{StatusText()}}</p>
+
+<h3>Teams</h3>
+
+<div [class.horizontal]="layout.dndHorizontal"
+     [dndHorizontal]="layout.dndHorizontal"
+     (dndDrop)="onDropInTeam($event, teams)"
+     [dndDropzone]="['availablePlayer', 'team']"
+     class="dndList flexList"
+     dndDropzone
+     [dndDisableIf]="DisableDraggingTeams()"
+     dndEffectAllowed="copyMove">
+
+  <mat-card class="dndPlaceholder item" dndPlaceholderRef>
+    <mat-card-header>
+      <mat-card-title>-</mat-card-title>
+      <mat-card-subtitle>-</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content class="players-area">
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="item" *ngFor="let item of teams"
+            [dndDisableIf]="DisableDraggingTeams()"
+            [dndDraggable]="item"
+            dndEffectAllowed="move"
+            [dndType]="'team'"
+            (dndCanceled)="onDragged(item, teams, 'none')"
+            (dndEnd)="onDragEnd($event)"
+            (dndMoved)="onDragged(item, teams, 'move')"
+            (dndStart)="onDragStart(item, $event, GrabbedThing.Team)">
+    <mat-card-header>
+      <!--<div mat-card-avatar class="example-header-image"></div>-->
+      <mat-card-title>{{ item.captain.order }} - {{ item.teamName }}</mat-card-title>
+      <mat-card-subtitle>Captain: {{ item.captain.name }}</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content class="players-area" (dndDrop)="onDropPickInTeam($event, item)"
+                      [dndDropzone]="['availablePlayer', 'player']"
+                      [dndDisableIf]="DisableDraggingPlayerToTeam(item)"
+                      >
+      <div *ngFor="let player of item.players"
+           [dndDisableIf]="DisableDraggingPlayerFromTeam()"
+           [dndDraggable]="createDraggedPlayer(player, item)"
+           dndEffectAllowed="move"
+           [dndType]="'player'"
+           (dndCanceled)="onDragged(player, item.players, 'none')"
+           (dndEnd)="onDragEnd($event)"
+           (dndMoved)="onDragged(player, item.players, 'move')"
+           (dndStart)="onDragStart(player, $event, GrabbedThing.Player)">
+        {{ player.round }} {{ player.name }}
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+</div>
+
+<h3>Draft Pool</h3>
+
+<mat-list [class.horizontal]="layout.dndHorizontal"
+          [dndHorizontal]="layout.dndHorizontal"
+          (dndDrop)="onDropInPool($event, playerPool)"
+          class="dndList flexList"
+          dndDropzone
+          dndEffectAllowed="copyMove">
+
+  <mat-list-item class="dndPlaceholder item" dndPlaceholderRef>
+  </mat-list-item>
+
+  <mat-list-item *ngFor="let item of playerPool"
+                 class="item"
+                 [dndDisableIf]="DisableDraggingPlayerFromPool(item)"
+                 [dndDraggable]="item"
+                 dndEffectAllowed="move"
+                 [dndType]="'availablePlayer'"
+                 (dndCanceled)="onDragged(item, playerPool, 'none')"
+                 (dndEnd)="onDragEnd($event)"
+                 (dndMoved)="onDragged(item, playerPool, 'move')"
+                 (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)">
+    <span matListItemTitle>{{ item.name }}</span>
+    <span matListItemLine>effectAllowed: {{ item }}</span>
+  </mat-list-item>
+</mat-list>

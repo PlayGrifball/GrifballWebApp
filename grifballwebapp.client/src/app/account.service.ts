@@ -30,8 +30,12 @@ export class AccountService {
   })
 
   isEventOrganizer: Signal<boolean> = computed(() => {
+    const y = this.isLoggedIn();
+    const x = this.jwt();
 
-    let x = this.jwt();
+    if (y === false) {
+      return false;
+    }
 
     if (x === null) {
       return false;
@@ -42,7 +46,35 @@ export class AccountService {
       return false;
     }
 
-    return true;
+    const role = token.role as string | string[];
+
+    if (Array.isArray(role)) {
+      return role.includes("EventOrganizer");
+    }
+    else {
+      return role === "EventOrganizer";
+    }
+  })
+
+  personID: Signal<number | null> = computed(() => {
+    const y = this.isLoggedIn();
+    const x = this.jwt();
+
+    if (y === false) {
+      return null;
+    }
+
+    if (x === null) {
+      return null;
+    }
+
+    const token = this.jwtHelper.decodeToken(x);
+    if (!token.hasOwnProperty("PersonID")) {
+      return null;
+    }
+
+    const personID = token.PersonID as string;
+    return +personID;
   })
 
   constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService) {
