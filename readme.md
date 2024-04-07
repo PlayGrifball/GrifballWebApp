@@ -28,3 +28,16 @@ Full stack web application for planning and organizing Grifball tournaments, pul
 Up until now stats have been compiled into excel sheets, see Winter League 2023 Stats:
 https://docs.google.com/spreadsheets/d/14tRPXLkjauRV-xfQiegUD6VMlqso7_EYe68E9HY45_c
 https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240
+
+### Backend Technologies
+- [.NET 8](https://github.com/dotnet) - [source](https://github.com/dotnet)
+- [ASP.NET Core Web API](https://learn.microsoft.com/en-us/aspnet/core) - [source](https://github.com/dotnet/aspnetcore)
+- [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/) - [source](https://github.com/dotnet/efcore)
+- [Grunt API](https://github.com/NoahSurprenant/grunt) for pulling Halo Infinite stats
+
+### Frontend Technologies
+- [Angular 17](https://angular.io/) - [source](https://github.com/angular/angular)
+- [Angular Material](https://material.angular.io/) - [source](https://github.com/angular/components)
+- [ngx-drag-drop](https://reppners.github.io/ngx-drag-drop/) - [source](https://github.com/reppners/ngx-drag-drop) because [the standard angular dnd does not know how to flex](https://github.com/angular/components/issues/13372)
+- [ng-matero extensions](https://ng-matero.github.io/extensions/) - [source](https://github.com/ng-matero/extensions) for its DateTimepicker
+- [Luxon](https://moment.github.io/luxon) - [source](https://github.com/moment/luxon/) because Date + Javascript + Coordinated Lunar Time = :(
