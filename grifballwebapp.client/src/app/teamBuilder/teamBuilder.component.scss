@@ -56,6 +56,14 @@
   border: 4px black;
 }
 
+.player-pool-item {
+  padding: 16px;
+  display: inline-table;
+  max-width: 100px;
+  cursor: move;
+  border: 4px black;
+}
+
 .players-area {
   min-height: 96px;
   border: solid;

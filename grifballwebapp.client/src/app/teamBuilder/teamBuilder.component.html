@@ -70,11 +70,12 @@
           dndDropzone
           dndEffectAllowed="copyMove">
 
-  <mat-list-item class="dndPlaceholder item" dndPlaceholderRef>
+  <mat-list-item class="player-pool-item" dndPlaceholderRef>
+    <span matListItemTitle> *** </span>
   </mat-list-item>
 
   <mat-list-item *ngFor="let item of playerPool"
-                 class="item"
+                 class="player-pool-item"
                  [dndDisableIf]="DisableDraggingPlayerFromPool(item)"
                  [dndDraggable]="item"
                  dndEffectAllowed="move"
@@ -84,6 +85,5 @@
                  (dndMoved)="onDragged(item, playerPool, 'move')"
                  (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)">
     <span matListItemTitle>{{ item.name }}</span>
-    <span matListItemLine>effectAllowed: {{ item }}</span>
   </mat-list-item>
 </mat-list>
