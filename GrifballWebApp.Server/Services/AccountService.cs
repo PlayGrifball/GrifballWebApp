@@ -35,9 +35,10 @@ public class AccountService
             Subject = new ClaimsIdentity(new Claim[]
             {
                 new Claim(ClaimTypes.Name, username),
-                new Claim("PersonID", personID.ToString()),
+                new Claim("PersonID", personID.ToString(), ClaimValueTypes.Integer32),
             }),
             Expires = DateTime.UtcNow.AddMinutes(60),
+            //Expires = DateTime.UtcNow.AddSeconds(500), // TODO: must lower, do refresh tokens
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
         };
         foreach (var role in roles)

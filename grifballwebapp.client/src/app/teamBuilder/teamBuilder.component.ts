@@ -23,6 +23,7 @@ import { CaptainPlacementDto } from '../api/dtos/captainPlacementDto';
 import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { SignalRService } from '../api/signalR.service';
 
 interface DropzoneLayout {
   container: string;
@@ -76,7 +77,8 @@ export class TeamBuilderComponent {
   };
 
 
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBarService: MatSnackBar, public accountService: AccountService) {}
+  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBarService: MatSnackBar, public accountService: AccountService,
+    private signalR: SignalRService) {}
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -93,6 +95,289 @@ export class TeamBuilderComponent {
     else {
       this.load();
     }
+
+    this.signalR.addCaptain((dto) => {
+      if (this.seasonID != dto.seasonID)
+        return;
+
+      const player = this.playerPool.find((p => {
+        return p.personID === dto.personID;
+      }));
+
+      if (player === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      // Remove from player pool
+      const index = this.playerPool.indexOf(player);
+      this.playerPool.splice(index, 1);
+
+      // Add to teams
+      let newTeam = new TeamResponseDto();
+      newTeam.teamName = dto.teamName;
+      newTeam.captain = new CaptainDto();
+      newTeam.captain.name = dto.captainName;
+      newTeam.captain.order = dto.orderNumber;
+      newTeam.captain.personID = dto.personID;
+      newTeam.players = [];
+      this.teams.splice(dto.orderNumber - 1, 0, newTeam);
+
+      // Fix order
+      let trueIndex = 1;
+      this.teams.forEach((t, i) => {
+        t.captain.order = trueIndex++;
+      });
+
+      // TODO: may need to handle out of sync order, also what is user is currently dragging?
+    });
+
+    this.signalR.resortCaptain((dto) => {
+      if (this.seasonID != dto.seasonID)
+        return;
+
+      const team = this.teams.find((t => {
+        return t.captain.personID === dto.personID;
+      }));
+
+      if (team === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      // Remove from team
+      const index = this.teams.indexOf(team);
+      this.teams.splice(index, 1);
+
+      // Reinsert at new location
+      this.teams.splice(dto.orderNumber - 1, 0, team);
+
+      // Fix order
+      let trueIndex = 1;
+      this.teams.forEach((t, i) => {
+        t.captain.order = trueIndex++;
+      });
+
+      // TODO: may need to handle out of sync order, also what is user is currently dragging?
+    });
+
+    this.signalR.removeCaptain((dto) => {
+      if (this.seasonID != dto.seasonID)
+        return;
+
+      const team = this.teams.find((t => {
+        return t.captain.personID === dto.personID;
+      }));
+
+      if (team === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      // Remove from team
+      const index = this.teams.indexOf(team);
+      this.teams.splice(index, 1);
+
+      // Map captain to player
+      let captainPlayer = new PlayerDto();
+      captainPlayer.name = team.captain.name;
+      captainPlayer.personID = team.captain.personID;
+      captainPlayer.pick = null;
+      captainPlayer.round = null;
+      // Put captain back in pool
+      this.playerPool.splice(0, 0, captainPlayer);
+
+      // Put each player back in pool as well
+      team.players.forEach(p => {
+        p.pick = null;
+        p.round = null;
+        this.playerPool.splice(0, 0, p);
+      });
+
+      // Fix order of teams
+      let trueIndex = 1;
+      this.teams.forEach((t, i) => {
+        t.captain.order = trueIndex++;
+      });
+
+    });
+
+    this.signalR.addPlayerToTeam((dto) => {
+      if (dto.seasonID !== this.seasonID)
+        return;
+
+      // Find player from the pool
+      const player = this.playerPool.find((p => {
+        return p.personID === dto.personID;
+      }));
+
+      if (player === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      // Find team to add to
+      const team = this.teams.find((t => {
+        return t.captain.personID === dto.captainID;
+      }));
+
+      if (team === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      // Add player to team
+      team.players.push(player);
+
+      // Fix round
+      let trueIndex = 1;
+      team.players.forEach(p => {
+        p.round = trueIndex++;
+      });
+    });
+
+    this.signalR.movePlayerToTeam((dto) => {
+      if (dto.seasonID !== this.seasonID)
+        return;
+
+      // Player was moved from one team to another
+      if (dto.previousCaptainID != dto.newCaptainID) {
+        const team = this.teams.find((t => {
+          return t.captain.personID === dto.previousCaptainID;
+        }));
+
+        if (team === undefined) {
+          console.log('Detected out of sync');
+          this.load();
+          return;
+        }
+
+        const player = team.players.find(p => {
+          return p.personID === dto.personID;
+        });
+
+        if (player === undefined) {
+          console.log('Detected out of sync');
+          this.load();
+          return;
+        }
+
+        // Remove player from their old team
+        const index = team.players.indexOf(player);
+        team.players.splice(index, 1);
+
+        // Fix round
+        let trueIndex = 1;
+        team.players.forEach(p => {
+          p.round = trueIndex++;
+        })
+
+        const newTeam = this.teams.find((t => {
+          return t.captain.personID === dto.newCaptainID;
+        }));
+
+        if (newTeam === undefined) {
+          console.log('Detected out of sync');
+          this.load();
+          return;
+        }
+
+        newTeam.players.push(player);
+        // Fix round
+        let trueIndex2 = 1;
+        newTeam.players.forEach(p => {
+          p.round = trueIndex2++;
+        })
+      }
+      else { // Player was moved within existing team
+        const team = this.teams.find((t => {
+          return t.captain.personID === dto.newCaptainID;
+        }));
+
+        if (team === undefined) {
+          console.log('Detected out of sync');
+          this.load();
+          return;
+        }
+
+        const player = team.players.find(p => {
+          return p.personID === dto.personID;
+        });
+
+        if (player === undefined) {
+          console.log('Detected out of sync');
+          this.load();
+          return;
+        }
+
+        // Remove player from their team
+        const index = team.players.indexOf(player);
+        team.players.splice(index, 1);
+
+        team.players.push(player);
+        // Fix round
+        let trueIndex = 1;
+        team.players.forEach(p => {
+          p.round = trueIndex++;
+        })
+      }
+    });
+
+    this.signalR.removePlayerFromTeam((dto) => {
+      if (dto.seasonID !== this.seasonID)
+        return;
+
+      // Find team with player
+      const team = this.teams.find((t => {
+        return t.captain.personID === dto.captainID;
+      }));
+
+      if (team === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      const player = team.players.find(p => {
+        return p.personID === dto.personID;
+      });
+
+      if (player === undefined) {
+        console.log('Detected out of sync');
+        this.load();
+        return;
+      }
+
+      player.pick = null;
+      player.round = null;
+
+      const index = team.players.indexOf(player);
+      team.players.splice(index, 1);
+
+      let trueIndex = 1;
+      team.players.forEach(p => {
+        p.round = trueIndex++;
+      });
+
+      this.playerPool.splice(0, 0, player);
+    });
+
+    this.signalR.lockCaptains((seasonID) => {
+      if (seasonID !== this.seasonID)
+        return;
+      this.captainLocked = true;
+    });
+
+    this.signalR.unlockCaptains((seasonID) => {
+      if (seasonID !== this.seasonID)
+        return;
+      this.captainLocked = false;
+    });
   }
 
   load(): void {
@@ -116,13 +401,13 @@ export class TeamBuilderComponent {
 
   lockCaptainsButtonClicked(): void {
     if (this.captainLocked) {
-      this.api.unlockCaptains(this.seasonID)
+      this.api.unlockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe({
           next: r => this.captainLocked = false
         })
     }
     else {
-      this.api.lockCaptains(this.seasonID)
+      this.api.lockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe(
           {
             next: r => this.captainLocked = true
@@ -191,7 +476,7 @@ export class TeamBuilderComponent {
       dto.seasonID = this.seasonID;
       dto.personID = team.captain.personID;
       dto.orderNumber = team.captain.order!; // Order must not be null
-      this.api.addCaptain(dto)
+      this.api.addCaptain(dto, this.signalR.hubConnection.connectionId)
         .subscribe({next: r => console.log(r)});
       console.log('Added new captain ' + team.captain.name + ' with pick order ' + team.captain.order);
     }
@@ -212,7 +497,7 @@ export class TeamBuilderComponent {
       dto.seasonID = this.seasonID;
       dto.personID = team.captain.personID;
       dto.orderNumber = team.captain.order!; // Order must not be null
-      this.api.resortCaptain(dto).subscribe({ next: r => console.log(r) });;
+      this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });;
       console.log('Resorted captains ' + team.captain.name + ' now has pick order ' + team.captain.order);
       // Announce to backend that team has been resorted
     }
@@ -279,7 +564,7 @@ export class TeamBuilderComponent {
         seasonID: this.seasonID,
         captainID: grabbedPlayer.team.captain.personID,
         personID: player.personID,
-      }).subscribe({ next: r => console.log(r) });
+      }, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
     }
     // Team -> AvailablePlayer = Player is now available
     else if (this.grabbedThing === GrabbedThing.Team) {
@@ -304,7 +589,7 @@ export class TeamBuilderComponent {
       const dto = new CaptainPlacementDto();
       dto.seasonID = this.seasonID;
       dto.personID = player.personID;
-      this.api.removeCaptain(dto).subscribe({ next: r => console.log(r) });;
+      this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });;
 
     }
     else {
@@ -354,7 +639,7 @@ export class TeamBuilderComponent {
         newCaptainID: team.captain.personID,
         personID: player.personID,
         roundNumber: player.round!, // MUST NOT BE NULL :(
-      }).subscribe({next: r => console.log(r)});
+      }, this.signalR.hubConnection.connectionId).subscribe({next: r => console.log(r)});
     }
     else {
       // Announce player added to team
@@ -362,7 +647,7 @@ export class TeamBuilderComponent {
         seasonID: this.seasonID,
         captainID: team.captain.personID,
         personID: player.personID,
-      }).subscribe({ next: r => console.log(r) });
+      }, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
     }
 
     console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);

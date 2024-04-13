@@ -18,6 +18,7 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
+        builder.Services.AddSignalR();
 
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
@@ -79,6 +80,26 @@ public class Program
                     IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(builder.Configuration.GetValue<string>("JwtSecret")
                                                                                                             ?? throw new Exception("JwtSecret is missing"))),
                 };
+
+                options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents()
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        // TODO: may be able to use IsWebSocketRequest
+                        //var isWebSocketRequest = context.HttpContext.WebSockets.IsWebSocketRequest;
+                        // If the request is for our hub...
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/api/TeamsHub")))
+                        {
+                            // Read the token out of the query string
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+
             });
 
         builder.RegisterHaloInfiniteClientFactory();
@@ -100,6 +121,10 @@ public class Program
         app.UseAuthorization();
 
         app.MapControllers();
+        app.MapHub<TeamsHub>("api/TeamsHub", options =>
+        {
+            options.CloseOnAuthenticationExpiration = true;
+        });
 
         app.MapFallbackToFile("/index.html");
 

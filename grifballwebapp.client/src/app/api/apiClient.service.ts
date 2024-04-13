@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { Observable } from 'rxjs';
@@ -84,36 +84,48 @@ export class ApiClientService {
     return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
   }
 
-  addCaptain(dto: CaptainPlacementDto): Observable<Object> {
-    return this.http.post('/api/Teams/AddCaptain/', dto);
+  private prepareHeaders(connectionID: string | null) : Object | undefined {
+    if (connectionID === null)
+      return undefined;
+    let headers = new HttpHeaders();
+    headers = headers.append('SignalRConnectionID', connectionID);
+
+    const obj: Object = {
+      headers: headers
+    };
+    return obj;
   }
 
-  resortCaptain(dto: CaptainPlacementDto): Observable<Object> {
-    return this.http.post('/api/Teams/ResortCaptain/', dto);
+  addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
   }
 
-  removeCaptain(dto: RemoveCaptainDto): Observable<Object> {
-    return this.http.post('/api/Teams/RemoveCaptain/', dto);
+  resortCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/ResortCaptain/', dto, this.prepareHeaders(connectionID));
   }
 
-  removePlayerFromTeam(dto: RemovePlayerFromTeamRequestDto): Observable<Object> {
-    return this.http.post('/api/Teams/removePlayerFromTeam/', dto);
+  removeCaptain(dto: RemoveCaptainDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/RemoveCaptain/', dto, this.prepareHeaders(connectionID));
   }
 
-  movePlayerToTeam(dto: MovePlayerToTeamRequestDto): Observable<Object> {
-    return this.http.post('/api/Teams/movePlayerToTeam/', dto);
+  removePlayerFromTeam(dto: RemovePlayerFromTeamRequestDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/removePlayerFromTeam/', dto, this.prepareHeaders(connectionID));
   }
 
-  addPlayerToTeam(dto: AddPlayerToTeamRequestDto): Observable<Object> {
-    return this.http.post('/api/Teams/addPlayerToTeam/', dto);
+  movePlayerToTeam(dto: MovePlayerToTeamRequestDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/movePlayerToTeam/', dto, this.prepareHeaders(connectionID));
   }
 
-  lockCaptains(seasonID: number): Observable<Object> {
-    return this.http.get('/api/Teams/lockCaptains/' + seasonID);
+  addPlayerToTeam(dto: AddPlayerToTeamRequestDto, connectionID: string | null): Observable<Object> {
+    return this.http.post('/api/Teams/addPlayerToTeam/', dto, this.prepareHeaders(connectionID));
   }
 
-  unlockCaptains(seasonID: number): Observable<Object> {
-    return this.http.get('/api/Teams/unlockCaptains/' + seasonID);
+  lockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
+    return this.http.get('/api/Teams/lockCaptains/' + seasonID, this.prepareHeaders(connectionID));
+  }
+
+  unlockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
+    return this.http.get('/api/Teams/unlockCaptains/' + seasonID, this.prepareHeaders(connectionID));
   }
 
   areCaptainsLocked(seasonID: number): Observable<boolean> {

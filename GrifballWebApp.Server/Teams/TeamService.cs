@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Teams;
@@ -7,12 +8,15 @@ namespace GrifballWebApp.Server.Teams;
 public class TeamService
 {
     private readonly GrifballContext _context;
-    public TeamService(GrifballContext context)
+    private readonly IHubContext<TeamsHub, ITeamsHubClient> _hubContext;
+
+    public TeamService(GrifballContext context, IHubContext<TeamsHub, ITeamsHubClient> hubContext)
     {
         _context = context;
+        _hubContext = hubContext;
     }
 
-    public Task<List<TeamResponseDto>> GetTeams(int seasonID, CancellationToken ct)
+    public Task<List<TeamResponseDto>> GetTeams(int seasonID, CancellationToken ct = default)
     {
         return _context.Teams
             .AsNoTracking()
@@ -44,7 +48,7 @@ public class TeamService
             .ToListAsync(ct);
     }
 
-    public Task<List<PlayerDto>> GetPlayerPool(int seasonID, CancellationToken ct)
+    public Task<List<PlayerDto>> GetPlayerPool(int seasonID, CancellationToken ct = default)
     {
         return _context.SeasonSignups
             .AsNoTracking()
@@ -63,7 +67,7 @@ public class TeamService
             .ToListAsync(ct);
     }
 
-    public async Task AddCaptain(CaptainPlacementDto dto, bool resortOnly, CancellationToken ct)
+    public async Task AddCaptain(CaptainPlacementDto dto, bool resortOnly, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // Grab existing captains for this season
@@ -91,20 +95,20 @@ public class TeamService
                 TeamName = null,// Do a lookup
                 Captain = null, // Will be set after initial save changes
             };
-            var c = new TeamPlayer()
+            captain = new TeamPlayer()
             {
                 PlayerID = dto.PersonID,
                 DraftCaptainOrder = dto.OrderNumber,
             };
-            newTeam.TeamPlayers.Add(c);
+            newTeam.TeamPlayers.Add(captain);
 
             // TODO: lookup signup. Ensure team name is unique
-            var name = await _context.Persons.Where(p => p.PersonID == c.PlayerID).Select(x => x.Name).FirstOrDefaultAsync(ct);
+            var name = await _context.Persons.Where(p => p.PersonID == captain.PlayerID).Select(x => x.Name).FirstOrDefaultAsync(ct);
             newTeam.TeamName = $"{name}'s Team";
 
             await _context.Teams.AddAsync(newTeam, ct);
             await _context.SaveChangesAsync(ct);
-            newTeam.Captain = c;
+            newTeam.Captain = captain;
             await _context.SaveChangesAsync(ct);
 
             // TODO: make sure order number is valid
@@ -130,9 +134,25 @@ public class TeamService
         var f = _context.ChangeTracker.DebugView.ShortView;
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        if (resortOnly)
+        {
+            _ = _hubContext.Clients.AllExcept(signalRConnectionID).ResortCaptain(dto);
+        }
+        else
+        {
+            _ = _hubContext.Clients.AllExcept(signalRConnectionID).AddCaptain(new CaptainAddedDto()
+            {
+                SeasonID = dto.SeasonID,
+                PersonID = dto.PersonID,
+                CaptainName = await _context.Persons.Where(p => p.PersonID == captain.PlayerID).Select(p => p.Name).FirstOrDefaultAsync() ?? "Person",
+                TeamName = captain.Team?.TeamName ?? "Team",
+                OrderNumber = dto.OrderNumber,
+            });
+        }
     }
 
-    public async Task RemoveCaptain(RemoveCaptainDto dto, CancellationToken ct)
+    public async Task RemoveCaptain(RemoveCaptainDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // Grab existing captains for this season
@@ -165,9 +185,11 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        _ = _hubContext.Clients.AllExcept(signalRConnectionID).RemoveCaptain(dto);
     }
 
-    public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, CancellationToken ct)
+    public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
@@ -189,9 +211,11 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        _ = _hubContext.Clients.AllExcept(signalRConnectionID).RemovePlayerFromTeam(dto);
     }
 
-    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, CancellationToken ct)
+    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
@@ -216,9 +240,11 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        _ = _hubContext.Clients.AllExcept(signalRConnectionID).AddPlayerToTeam(dto);
     }
 
-    public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, CancellationToken ct)
+    public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.NewCaptainID, ct);
@@ -270,9 +296,11 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+
+        _ = _hubContext.Clients.AllExcept(signalRConnectionID).MovePlayerToTeam(dto);
     }
 
-    private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct)
+    private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct = default)
     {
         return _context.TeamPlayers
             .Include(tp => tp.Person)
@@ -283,7 +311,7 @@ public class TeamService
             .ToListAsync(ct);
     }
 
-    public async Task LockCaptains(int seasonID, bool @lock, CancellationToken ct)
+    public async Task LockCaptains(int seasonID, bool @lock, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         var season = await _context.Seasons
             .Where(s => s.SeasonID == seasonID)
@@ -295,9 +323,19 @@ public class TeamService
         season.CaptainsLocked = @lock;
 
         await _context.SaveChangesAsync(ct);
+
+        if (@lock)
+        {
+            _ = _hubContext.Clients.AllExcept(signalRConnectionID).LockCaptains(seasonID);
+        }
+        else
+        {
+            _ = _hubContext.Clients.AllExcept(signalRConnectionID).UnlockCaptains(seasonID);
+        }
+        
     }
 
-    public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct)
+    public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct = default)
     {
         if (!await _context.Seasons.Where(s => s.SeasonID == seasonID).AnyAsync(ct))
             throw new Exception("Season does not exist");
