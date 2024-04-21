@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Controllers;
 
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 public class StatsController : ControllerBase
 {

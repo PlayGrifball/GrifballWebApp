@@ -1,16 +1,44 @@
-import { type HttpInterceptorFn } from '@angular/common/http';
+import { type HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AccountService } from './account.service';
+import { catchError, concatMap, throwError } from 'rxjs';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const accountService = inject(AccountService);
-  const jwt = accountService.jwt();
 
-  if (jwt === null) {
+  const accessToken = accountService.accessToken();
+
+  // Not logged in so just send the request
+  if (accessToken === undefined || req.url === '/api/Identity/Refresh') {
     return next(req);
   }
 
-  const authReq = req.clone({ setHeaders: { Authorization: "Bearer " + jwt } });
+  // Add bearer token to the request
+  const authReq = req.clone({ setHeaders: { Authorization: "Bearer " + accessToken } });
 
-  return next(authReq);
+  return next(authReq).pipe(
+    catchError((err: any) => {
+      const unauthorized = err instanceof HttpErrorResponse && err.status === 401;
+      if (unauthorized === false)
+        return throwError(() => err);
+
+      const refreshObserve = accountService.refresh();
+      if (refreshObserve === null) {
+        console.log('No refresh token available');
+        return throwError(() => err);
+      }
+
+      return refreshObserve
+        .pipe(catchError((err: any) => {
+          console.log('Unable to retry request, failed to get new access token');
+          return throwError(() => err);
+        }))
+        .pipe(concatMap(r => {
+          console.log('Retrying request with new access token');
+          const authReq = req.clone({ setHeaders: { Authorization: "Bearer " + r.accessToken } });
+          return next(authReq);
+        }));
+
+    })
+  );
 };

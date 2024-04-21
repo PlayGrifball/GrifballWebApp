@@ -2,8 +2,6 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { Observable } from 'rxjs';
-import { LoginDto } from './dtos/loginDto';
-import { RegisterDto } from './dtos/registerDto';
 import { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
@@ -28,17 +26,6 @@ export class ApiClientService {
 
   getKills(): Observable<KillsDto[]> {
     return this.http.get<KillsDto[]>('/api/stats/TopKills');
-  }
-
-  login(loginDto: LoginDto): Observable<string> {
-    const requestOptions: Object = {
-      responseType: 'text'
-    };
-    return this.http.post<string>('/api/account/login', loginDto, requestOptions);
-  }
-
-  register(registerDto: RegisterDto) {
-    return this.http.post('/api/account/register', registerDto);
   }
 
   getSeasons(): Observable<SeasonDto[]> {

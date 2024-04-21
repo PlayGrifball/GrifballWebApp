@@ -50,14 +50,14 @@ internal class HostedService : BackgroundService
                 XboxUserID = 2535417961072277,
                 Gamertag = "string"
             },
-            Password = CreateDummyPassword(),
-            PersonRoles = new HashSet<PersonRole>()
-            {
-                new ()
-                {
-                    RoleID = 1,
-                }
-            }
+            //Password = CreateDummyPassword(),
+            //PersonRoles = new HashSet<PersonRole>()
+            //{
+            //    new ()
+            //    {
+            //        RoleID = 1,
+            //    }
+            //}
         };
 
         await context.Persons.AddAsync(dummySysAdmin);
@@ -67,14 +67,14 @@ internal class HostedService : BackgroundService
         var xboxUserID = 1;
         var personFaker = new Faker<Database.Models.Person>()
             .RuleFor(p => p.Name, faker => faker.Name.FirstName())
-            .RuleFor(p => p.Password, f => CreateDummyPassword())
-            .RuleFor(p => p.PersonRoles, f => new List<PersonRole>()
-            {
-                new PersonRole()
-                {
-                    RoleID = 2,
-                }
-            })
+            //.RuleFor(p => p.Password, f => CreateDummyPassword())
+            //.RuleFor(p => p.PersonRoles, f => new List<PersonRole>()
+            //{
+            //    new PersonRole()
+            //    {
+            //        RoleID = 2,
+            //    }
+            //})
             .RuleFor(p => p.XboxUser, f => new XboxUser()
             {
                 XboxUserID = xboxUserID++,
@@ -116,12 +116,12 @@ internal class HostedService : BackgroundService
         }
     }
 
-    private Password CreateDummyPassword()
-    {
-        return new Password()
-        {
-            Salt = "R3fE68fek82vNeGtezGUN9BGEXsPgrh8eTuPMOFVzlHzgxqU/VTaWfGEWHLJ+z65lyTx52AZFTtw2U545x7bwQ==",
-            Hash = "HKcVv1tGRBjwyNXlKJZy/kT2USea8tAelKTkYWHlJfEd4JIVW0A95Behmerw+TFYZxDBDt8aJr9AD0iZNAlSdw=="
-        };
-    }
+    //private Password CreateDummyPassword()
+    //{
+    //    return new Password()
+    //    {
+    //        Salt = "R3fE68fek82vNeGtezGUN9BGEXsPgrh8eTuPMOFVzlHzgxqU/VTaWfGEWHLJ+z65lyTx52AZFTtw2U545x7bwQ==",
+    //        Hash = "HKcVv1tGRBjwyNXlKJZy/kT2USea8tAelKTkYWHlJfEd4JIVW0A95Behmerw+TFYZxDBDt8aJr9AD0iZNAlSdw=="
+    //    };
+    //}
 }
