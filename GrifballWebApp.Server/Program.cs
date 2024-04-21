@@ -5,16 +5,11 @@ using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
-using Microsoft.AspNetCore.Authentication;
+using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Surprenant.Grunt.Models;
 using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server;
@@ -69,7 +64,7 @@ public class Program
 
         builder.Services.AddAuthorization();
 
-        builder.Services.AddIdentity<Database.Models.User, IdentityRole<int>>(options =>
+        builder.Services.AddIdentity<User, Role>(options =>
             {
                 options.SignIn.RequireConfirmedAccount = false;
                 options.SignIn.RequireConfirmedPhoneNumber = false;
@@ -79,7 +74,7 @@ public class Program
             .AddDefaultTokenProviders()
             .AddApiEndpoints()
             //.AddRoles<IdentityRole>()
-            .AddSignInManager<SignInManager<Database.Models.User>>()
+            .AddSignInManager<SignInManager<User>>()
             //.AddTokenProvider(IdentityConstants.BearerScheme, BearerToke)
             //.AddUserManager<UserManager<IdentityUser<string>>>()
             .AddEntityFrameworkStores<GrifballContext>();
@@ -123,6 +118,7 @@ public class Program
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
+        builder.Services.AddTransient<UserManagementService>();
 
         builder.Services.
             AddAuthentication(options =>
@@ -139,7 +135,7 @@ public class Program
             {
                 // Bearer defaults 1 hr
                 // Refresh defaults to 14 days
-                options.BearerTokenExpiration = TimeSpan.FromMinutes(1);
+                options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
                 //options.RefreshTokenExpiration = TimeSpan.FromMinutes(10);
             })
             .AddDiscord(options =>

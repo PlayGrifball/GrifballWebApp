@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace GrifballWebApp.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class init : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -248,6 +248,18 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:IsTemporal", true)
+                        .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
+                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
+                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
                     Name = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
@@ -261,18 +273,6 @@ namespace GrifballWebApp.Database.Migrations
                         .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                         .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
                     ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true)
-                        .Annotation("SqlServer:IsTemporal", true)
-                        .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
-                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
-                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
-                        .Annotation("SqlServer:IsTemporal", true)
-                        .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
-                        .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
-                        .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                        .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart"),
-                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
                         .Annotation("SqlServer:IsTemporal", true)
                         .Annotation("SqlServer:TemporalHistoryTableName", "RolesHistory")
                         .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")

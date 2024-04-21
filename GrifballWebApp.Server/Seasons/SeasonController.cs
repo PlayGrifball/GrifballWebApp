@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Seasons;
 
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 public class SeasonController : ControllerBase
 {

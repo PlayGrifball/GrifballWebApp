@@ -573,6 +573,80 @@ namespace GrifballWebApp.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex")
+                        .HasFilter("[NormalizedName] IS NOT NULL");
+
+                    b.ToTable("Roles", "Auth");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("RolesHistory", "Auth");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            ConcurrencyStamp = "cda78946-53d4-4154-b723-2b33b95341cc",
+                            Name = "Sysadmin",
+                            NormalizedName = "SYSADMIN"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            ConcurrencyStamp = "37ff5fdf-5cb8-403c-bb9e-81db05a5fcdd",
+                            Name = "Commissioner",
+                            NormalizedName = "COMMISSIONER"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            ConcurrencyStamp = "0be992c7-f824-40c7-8975-964068c7fbfe",
+                            Name = "Player",
+                            NormalizedName = "PLAYER"
+                        });
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -994,6 +1068,42 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("UserRoles", "Auth");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("UserRolesHistory", "Auth");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Property<long>("XboxUserID")
@@ -1026,80 +1136,6 @@ namespace GrifballWebApp.Database.Migrations
                                     .HasPeriodEnd("PeriodEnd")
                                     .HasColumnName("PeriodEnd");
                             }));
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("NormalizedName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("RoleNameIndex")
-                        .HasFilter("[NormalizedName] IS NOT NULL");
-
-                    b.ToTable("Roles", "Auth");
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("RolesHistory", "Auth");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            ConcurrencyStamp = "cda78946-53d4-4154-b723-2b33b95341cc",
-                            Name = "Sysadmin",
-                            NormalizedName = "SYSADMIN"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            ConcurrencyStamp = "37ff5fdf-5cb8-403c-bb9e-81db05a5fcdd",
-                            Name = "Commissioner",
-                            NormalizedName = "COMMISSIONER"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            ConcurrencyStamp = "0be992c7-f824-40c7-8975-964068c7fbfe",
-                            Name = "Player",
-                            NormalizedName = "PLAYER"
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -1225,42 +1261,6 @@ namespace GrifballWebApp.Database.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("UserLoginsHistory", "Auth");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
-                {
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
-                    b.HasKey("UserId", "RoleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("UserRoles", "Auth");
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("UserRolesHistory", "Auth");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -1520,9 +1520,28 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
+                    b.HasOne("GrifballWebApp.Database.Models.Role", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1540,21 +1559,6 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
-                {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1615,6 +1619,11 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
+                {
+                    b.Navigation("UserRoles");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Navigation("SeasonMatches");
@@ -1652,6 +1661,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("SeasonSignups");
 
                     b.Navigation("TeamPlayers");
+
+                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
