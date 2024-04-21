@@ -37,6 +37,16 @@ export class AccountService {
       this.accessTokenResponse.set(accessT);
     }
 
+    const metaInfoJson = localStorage.getItem("metaInfo");
+    if (metaInfoJson !== null) {
+      const r: MetaInfoResponse = JSON.parse(metaInfoJson);
+      this.isSysAdmin.set(r.isSysAdmin);
+      this.isEventOrganizer.set(r.isCommissioner);
+      this.isPlayer.set(r.isPlayer);
+      //this.personID.set(0);
+      this.displayName.set(r.displayName);
+    }
+
     effect(() => {
       const accessToken = this.accessToken();
       if (accessToken === undefined) {
@@ -53,6 +63,8 @@ export class AccountService {
             this.isPlayer.set(r.isPlayer);
             //this.personID.set(0);
             this.displayName.set(r.displayName);
+            const json = JSON.stringify(r);
+            localStorage.setItem("metaInfo", json);
           },
           error: e => console.log('error getting meta info')
         })

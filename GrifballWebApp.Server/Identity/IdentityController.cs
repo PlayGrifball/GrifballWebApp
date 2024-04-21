@@ -237,7 +237,7 @@ public class IdentityController : ControllerBase
     {
         return new MetaInfoResponse()
         {
-            IsSysAdmin = User.IsInRole("SysAdmin"),
+            IsSysAdmin = User.IsInRole("Sysadmin"),
             IsCommissioner = User.IsInRole("Commissioner"),
             IsPlayer = User.IsInRole("Player"),
             DisplayName = User?.Identity?.Name ?? "Friend"
