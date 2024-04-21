@@ -3,22 +3,22 @@
 using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
-public partial class Person// : IdentityUser
+public partial class User : IdentityUser<int>
 {
-    public Person()
+    public User()
     {
         TeamPlayers = new HashSet<TeamPlayer>();
-        PersonExperiences = new HashSet<PersonExperience>();
+        PersonExperiences = new HashSet<UserExperience>();
         SeasonSignups = new HashSet<SeasonSignup>();
+        SecurityStamp = Guid.NewGuid().ToString();
     }
-    public int PersonID { get; set; }
     public int? RegionID { get; set; }
     public Region Region { get; set; }
-    public string Name { get; set; }
+    public string DisplayName { get; set; }
     // TODO: Availablity
-    public long XboxUserID { get; set; }
+    public long? XboxUserID { get; set; }
     public XboxUser XboxUser { get; set; }
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
-    public virtual ICollection<PersonExperience> PersonExperiences { get; set; }
+    public virtual ICollection<UserExperience> PersonExperiences { get; set; }
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }
 }

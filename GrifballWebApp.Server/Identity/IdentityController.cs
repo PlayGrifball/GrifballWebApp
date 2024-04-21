@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Server.Dtos;
+﻿using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Dtos;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,11 +16,11 @@ namespace GrifballWebApp.Server.Identity;
 public class IdentityController : ControllerBase
 {
     private readonly ILogger<IdentityController> _logger;
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly SignInManager<IdentityUser> _signInManager;
+    private readonly UserManager<User> _userManager;
+    private readonly SignInManager<User> _signInManager;
     private readonly IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
-    public IdentityController(ILogger<IdentityController> logger, UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager,
+    public IdentityController(ILogger<IdentityController> logger, UserManager<User> userManager, SignInManager<User> signInManager,
         IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider)
     {
         _logger = logger;
@@ -67,7 +68,7 @@ public class IdentityController : ControllerBase
         if (string.IsNullOrEmpty(registerDto?.Password))
             return BadRequest("Password is required");
 
-        var user = new IdentityUser()
+        var user = new User()
         {
             UserName = registerDto.Username,
         };
@@ -170,7 +171,7 @@ public class IdentityController : ControllerBase
                 throw new Exception("Missing name");
             }
 
-            var user = new IdentityUser()
+            var user = new User()
             {
                 UserName = name,
                 Email = email,
@@ -219,7 +220,7 @@ public class IdentityController : ControllerBase
 
         if (refreshTicket?.Properties?.ExpiresUtc is not { } expiresUtc ||
                 _timeProvider.GetUtcNow() >= expiresUtc ||
-                await _signInManager.ValidateSecurityStampAsync(refreshTicket.Principal) is not IdentityUser user)
+                await _signInManager.ValidateSecurityStampAsync(refreshTicket.Principal) is not User user)
 
         {
             return Challenge();

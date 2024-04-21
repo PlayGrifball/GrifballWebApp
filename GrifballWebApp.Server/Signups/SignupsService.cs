@@ -20,7 +20,7 @@ public class SignupsService
             .Select(s => new SignupDateInfoDto()
             {
                 SeasonID = s.SeasonID,
-                IsSignedUp = s.SeasonSignups.Any(x => x.PersonID == personID),
+                IsSignedUp = s.SeasonSignups.Any(x => x.UserID == personID),
                 SignupsClose = s.SignupsClose,
                 SignupsOpen = s.SignupsOpen,
             })
@@ -34,8 +34,8 @@ public class SignupsService
             .Select(x => new SignupResponseDto()
             {
                 SeasonID = seasonID,
-                PersonID = x.PersonID,
-                PersonName = x.Person.Name,
+                PersonID = x.UserID,
+                PersonName = x.User.DisplayName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -46,12 +46,12 @@ public class SignupsService
     public Task<SignupResponseDto?> GetSignup(int seasonID, int personID, CancellationToken ct = default)
     {
         return _context.SeasonSignups
-            .Where(signup => signup.SeasonID == seasonID && signup.PersonID == personID)
+            .Where(signup => signup.SeasonID == seasonID && signup.UserID == personID)
             .Select(x => new SignupResponseDto()
             {
                 SeasonID = seasonID,
-                PersonID = x.PersonID,
-                PersonName = x.Person.Name,
+                PersonID = x.UserID,
+                PersonName = x.User.DisplayName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -77,7 +77,7 @@ public class SignupsService
 
 
         SeasonSignup? seasonSignup = await _context.SeasonSignups
-            .Where(signup => signup.SeasonID == dto.SeasonID && signup.PersonID == dto.PersonID)
+            .Where(signup => signup.SeasonID == dto.SeasonID && signup.UserID == dto.PersonID)
             .FirstOrDefaultAsync(ct);
 
         if (seasonSignup is null)
@@ -86,7 +86,7 @@ public class SignupsService
             await _context.SeasonSignups.AddAsync(seasonSignup, ct);
         }
 
-        seasonSignup.PersonID = dto.PersonID;
+        seasonSignup.UserID = dto.PersonID;
         seasonSignup.SeasonID = dto.SeasonID;
         seasonSignup.Timestamp = now;
         seasonSignup.TeamName = dto.TeamName;

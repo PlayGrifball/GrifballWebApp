@@ -11,15 +11,15 @@ public partial class SeasonSignupConfiguration : IEntityTypeConfiguration<Season
 
         entity.HasKey(e => e.SeasonSignupID);
 
-        entity.HasIndex(e => new { e.PersonID, e.SeasonID }).IsUnique();
+        entity.HasIndex(e => new { e.UserID, e.SeasonID }).IsUnique();
 
         entity.HasOne(d => d.Season)
             .WithMany(p => p.SeasonSignups)
             .HasForeignKey(d => d.SeasonID);
 
-        entity.HasOne(d => d.Person)
+        entity.HasOne(d => d.User)
             .WithMany(p => p.SeasonSignups)
-            .HasForeignKey(d => d.PersonID);
+            .HasForeignKey(d => d.UserID);
 
         OnConfigurePartial(entity);
     }

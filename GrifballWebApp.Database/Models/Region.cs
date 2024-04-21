@@ -5,9 +5,9 @@ public partial class Region
 {
     public Region()
     {
-        Persons = new List<Person>();
+        Users = new List<User>();
     }
     public int RegionID { get; set; }
     public string RegionName { get; set; }
-    public virtual ICollection<Person> Persons { get; set; }
+    public virtual ICollection<User> Users { get; set; }
 }

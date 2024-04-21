@@ -69,7 +69,7 @@ public class Program
 
         builder.Services.AddAuthorization();
 
-        builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+        builder.Services.AddIdentity<Database.Models.User, IdentityRole<int>>(options =>
             {
                 options.SignIn.RequireConfirmedAccount = false;
                 options.SignIn.RequireConfirmedPhoneNumber = false;
@@ -79,7 +79,7 @@ public class Program
             .AddDefaultTokenProviders()
             .AddApiEndpoints()
             //.AddRoles<IdentityRole>()
-            .AddSignInManager()
+            .AddSignInManager<SignInManager<Database.Models.User>>()
             //.AddTokenProvider(IdentityConstants.BearerScheme, BearerToke)
             //.AddUserManager<UserManager<IdentityUser<string>>>()
             .AddEntityFrameworkStores<GrifballContext>();

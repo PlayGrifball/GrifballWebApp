@@ -42,9 +42,9 @@ internal class HostedService : BackgroundService
         };
         await context.Seasons.AddAsync(season, ct);
 
-        var dummySysAdmin = new Database.Models.Person()
+        var dummySysAdmin = new Database.Models.User()
         {
-            Name = "string",
+            DisplayName = "string",
             XboxUser = new XboxUser()
             {
                 XboxUserID = 2535417961072277,
@@ -60,13 +60,13 @@ internal class HostedService : BackgroundService
             //}
         };
 
-        await context.Persons.AddAsync(dummySysAdmin);
+        await context.Users.AddAsync(dummySysAdmin);
 
         await context.SaveChangesAsync(ct);
 
         var xboxUserID = 1;
-        var personFaker = new Faker<Database.Models.Person>()
-            .RuleFor(p => p.Name, faker => faker.Name.FirstName())
+        var personFaker = new Faker<Database.Models.User>()
+            .RuleFor(p => p.DisplayName, faker => faker.Name.FirstName())
             //.RuleFor(p => p.Password, f => CreateDummyPassword())
             //.RuleFor(p => p.PersonRoles, f => new List<PersonRole>()
             //{
@@ -84,15 +84,15 @@ internal class HostedService : BackgroundService
         for (int i = 0; i < 6; i++)
         {
             var dummyCaptain = personFaker.Generate();
-            await context.Persons.AddAsync(dummyCaptain);
+            await context.Users.AddAsync(dummyCaptain);
             await context.SaveChangesAsync(ct);
 
             var signup = new SeasonSignup()
             {
                 Season = season,
-                Person = dummyCaptain,
+                User = dummyCaptain,
                 WillCaptain = true,
-                TeamName = $"{dummyCaptain.Name}'s Team",
+                TeamName = $"{dummyCaptain.DisplayName}'s Team",
             };
             await context.SeasonSignups.AddAsync(signup);
             await context.SaveChangesAsync(ct);
@@ -102,13 +102,13 @@ internal class HostedService : BackgroundService
         for (int i = 0; i < 24; i++)
         {
             var dummyPlayer = personFaker.Generate();
-            await context.Persons.AddAsync(dummyPlayer);
+            await context.Users.AddAsync(dummyPlayer);
             await context.SaveChangesAsync(ct);
 
             var signup = new SeasonSignup()
             {
                 Season = season,
-                Person = dummyPlayer,
+                User = dummyPlayer,
                 WillCaptain = false,
             };
             await context.SeasonSignups.AddAsync(signup);

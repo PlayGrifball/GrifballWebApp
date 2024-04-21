@@ -3,17 +3,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
-public partial class PersonConfiguration : IEntityTypeConfiguration<Person>
+public partial class UserConfiguration : IEntityTypeConfiguration<User>
 {
-    public void Configure(EntityTypeBuilder<Person> entity)
+    public void Configure(EntityTypeBuilder<User> entity)
     {
-        entity.ToTable("Persons", "ITS", tb => tb.IsTemporal());
+        entity.ToTable("Users", "Auth", tb => tb.IsTemporal());
 
-        entity.HasKey(e => e.PersonID);
+        //entity.HasKey(e => e.Id);
 
-        entity.Property(e => e.Name).HasMaxLength(30).IsRequired();
-
-        entity.HasIndex(e => e.Name).IsUnique();
+        entity.Property(e => e.DisplayName).HasMaxLength(30);
 
         //entity.HasOne(d => d.Password)
         //    .WithOne(d => d.Person)
@@ -21,11 +19,11 @@ public partial class PersonConfiguration : IEntityTypeConfiguration<Person>
         //    .IsRequired(false);
 
         entity.HasOne(d => d.Region)
-            .WithMany(p => p.Persons)
+            .WithMany(p => p.Users)
             .HasForeignKey(d => d.RegionID);
 
         OnConfigurePartial(entity);
     }
 
-    partial void OnConfigurePartial(EntityTypeBuilder<Person> entity);
+    partial void OnConfigurePartial(EntityTypeBuilder<User> entity);
 }

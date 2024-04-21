@@ -14,9 +14,9 @@ public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
         // Value always comes from 343
         entity.Property(e => e.XboxUserID).ValueGeneratedNever();
 
-        entity.HasOne(d => d.Person)
+        entity.HasOne(d => d.User)
             .WithOne(p => p.XboxUser)
-            .HasForeignKey<Person>(d => d.XboxUserID)
+            .HasForeignKey<User>(d => d.XboxUserID)
             .IsRequired(false);
 
         OnConfigurePartial(entity);
