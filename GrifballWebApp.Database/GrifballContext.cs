@@ -1,9 +1,11 @@
 ﻿using GrifballWebApp.Database.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Database;
 
-public partial class GrifballContext : DbContext
+public partial class GrifballContext : IdentityDbContext<User, Role, int, IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>
 {
     public GrifballContext() : base()
     {
@@ -22,21 +24,19 @@ public partial class GrifballContext : DbContext
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
     public virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
-    public virtual DbSet<Password> Passwords { get; set; }
-    public virtual DbSet<Person> Persons { get; set; }
-    public virtual DbSet<PersonExperience> PersonExperiences { get; set; }
-    public virtual DbSet<PersonRole> PersonRole { get; set; }
     public virtual DbSet<Region> Regions { get; set; }
-    public virtual DbSet<Role> Role { get; set; }
     public virtual DbSet<Season> Seasons { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
+    public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
@@ -46,10 +46,6 @@ public partial class GrifballContext : DbContext
         modelBuilder.ApplyConfiguration(new Configuration.MedalDifficultyConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalTypeConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PasswordConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PersonConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PersonExperienceConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PersonRoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RegionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
@@ -57,7 +53,23 @@ public partial class GrifballContext : DbContext
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserExperienceConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserRoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
+
+        modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
+        modelBuilder.Entity<IdentityUserClaim<int>>(b => b.ToTable("UserClaims", "Auth", tb => tb.IsTemporal()));
+        modelBuilder.Entity<IdentityUserLogin<int>>(b =>
+        {
+            b.ToTable("UserLogins", "Auth", tb => tb.IsTemporal());
+            b.HasKey(e => new { e.LoginProvider, e.ProviderKey });
+        });
+        modelBuilder.Entity<IdentityUserToken<int>>(b =>
+        {
+            b.ToTable("UserTokens", "Auth", tb => tb.IsTemporal());
+            b.HasKey(e => new { e.UserId, e.LoginProvider, e.Name });
+        });
 
         OnModelCreatingPartial(modelBuilder);
     }

@@ -1,22 +1,12 @@
-﻿#nullable disable
+﻿using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
-
-[Flags]
-public enum RoleNames
-{
-    Sysadmin = 1,
-    Player = 2,
-    EventOrganizer = 4,
-}
-
-public partial class Role
+public partial class Role : IdentityRole<int>
 {
     public Role()
     {
-        PersonRoles = new HashSet<PersonRole>();
+        UserRoles = new HashSet<UserRole>();
     }
-    public int RoleID { get; set; }
-    public RoleNames Name { get; set; }
-    public virtual ICollection<PersonRole> PersonRoles { get; set; }
+
+    public virtual ICollection<UserRole> UserRoles { get; set; }
 }

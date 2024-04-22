@@ -7,7 +7,7 @@ public partial class GameVersionConfiguration : IEntityTypeConfiguration<GameVer
 {
     public void Configure(EntityTypeBuilder<GameVersion> entity)
     {
-        entity.ToTable("GameVersions", "ITS", tb => tb.IsTemporal());
+        entity.ToTable("GameVersions", "Other", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.GameVesionID);
 

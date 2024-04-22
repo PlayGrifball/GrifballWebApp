@@ -5,9 +5,9 @@ public partial class GameVersion
 {
     public GameVersion()
     {
-        PersonExperiences = new HashSet<PersonExperience>();
+        UserExperiences = new HashSet<UserExperience>();
     }
     public int GameVesionID { get; set; }
     public string GameVersionName { get; set; }
-    public virtual ICollection<PersonExperience> PersonExperiences { get; set; }
+    public virtual ICollection<UserExperience> UserExperiences { get; set; }
 }

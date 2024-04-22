@@ -7,7 +7,7 @@ public partial class RegionConfiguration : IEntityTypeConfiguration<Region>
 {
     public void Configure(EntityTypeBuilder<Region> entity)
     {
-        entity.ToTable("Regions", "ITS", tb => tb.IsTemporal());
+        entity.ToTable("Regions", "Other", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.RegionID);
 

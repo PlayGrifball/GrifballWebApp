@@ -13,7 +13,7 @@ export class SignalRService {
   constructor(accountService: AccountService) {
     this.hubConnection = new HubConnectionBuilder()
       .withUrl('api/TeamsHub', {
-        accessTokenFactory: () => accountService.jwt() ?? ""
+        accessTokenFactory: () => accountService.accessToken() ?? ""
       })
       .withAutomaticReconnect()
       .build();
@@ -23,8 +23,8 @@ export class SignalRService {
     console.log('finished connection');
 
     effect(() => {
-      const jwt = accountService.jwt();
-      console.log("SignalR servie saw jwt change to " + jwt);
+      const accessToken = accountService.accessToken();
+      console.log("SignalR servie access token change");
       this.hubConnection.stop()
         .then(() => this.startConnection())
         .catch(err => console.log('Error while trying to restart the connection: ' + err));

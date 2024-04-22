@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { isEventOrganizerGuard } from './isEventOrganizer.guard';
+import { isSysAdminGuard } from './isSysAdmin.guard';
 
 export const APP_ROUTES: Routes = [
   {
@@ -59,6 +60,24 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./seasonEdit/seasonEdit.component').then(m => m.SeasonEditComponent),
     title: 'Season Edit',
     canActivate: [isEventOrganizerGuard]
+  },
+  {
+    path: 'usermanagement',
+    loadComponent: () => import('./userManagement/userManagement.component').then(m => m.UserManagementComponent),
+    title: 'User Management',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'usermanagement/createuser',
+    loadComponent: () => import('./userManagement/createUser/createUser.component').then(m => m.CreateUserComponent),
+    title: 'Create User',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'usermanagement/edituser/:userID',
+    loadComponent: () => import('./userManagement/editUser/editUser.component').then(m => m.EditUserComponent),
+    title: 'Edit User',
+    canActivate: [isSysAdminGuard]
   },
   {
     path: '**',

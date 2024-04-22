@@ -6,7 +6,7 @@ using Surprenant.Grunt.Models.HaloInfinite;
 using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server.Controllers;
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 public class AdminController : ControllerBase
 {

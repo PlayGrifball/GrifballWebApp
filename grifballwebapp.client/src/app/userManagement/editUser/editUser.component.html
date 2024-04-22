@@ -1,0 +1,48 @@
+<h2>Edit User {{model.userID}}</h2>
+
+<form class="app-form" #userForm="ngForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="app-full-width">
+    <mat-label>userName</mat-label>
+    <input matInput required [(ngModel)]="model.userName" name="userName">
+    <app-error-message [control]="userForm.controls['userName']" />
+  </mat-form-field>
+
+  <mat-form-field class="app-full-width">
+    <mat-label>lockoutEnd</mat-label>
+    <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="model.lockoutEnd" name="lockoutEnd">
+    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix></mtx-datetimepicker-toggle>
+    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+    <app-error-message [control]="userForm.controls['lockoutEnd']" />
+  </mat-form-field>
+
+  <mat-checkbox [(ngModel)]="model.lockoutEnabled" name="lockoutEnabled">
+    Lockout Enabled
+  </mat-checkbox>
+
+  <mat-checkbox [(ngModel)]="model.isDummyUser" name="isDummyUser">
+    Is Dummy User
+  </mat-checkbox>
+
+  <div>Roles:</div>
+  <div>
+    @for (role of model.roles; track i; let i = $index) {
+    <mat-checkbox [(ngModel)]="model.roles[i].hasRole" [ngModelOptions]="{standalone: true}">{{role.roleName}}</mat-checkbox>
+    }
+  </div>
+
+  <mat-form-field class="app-full-width">
+    <mat-label>displayName</mat-label>
+    <input matInput [(ngModel)]="model.displayName" name="displayName">
+    <app-error-message [control]="userForm.controls['displayName']" />
+  </mat-form-field>
+
+  <mat-form-field class="app-full-width">
+    <mat-label>gamertag</mat-label>
+    <input matInput [(ngModel)]="model.gamertag" name="gamertag">
+    <app-error-message [control]="userForm.controls['gamertag']" />
+  </mat-form-field>
+
+  <button mat-flat-button color="primary" [disabled]="!userForm.form.valid">
+    Update User
+  </button>
+</form>

@@ -1,0 +1,25 @@
+<h2>Create User</h2>
+
+<form class="form" #form="ngForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="full-width">
+    <mat-label>Display Name</mat-label>
+    <input matInput required [(ngModel)]="model.displayName" name="displayName">
+    <app-error-message [control]="form.controls['displayName']" />
+  </mat-form-field>
+
+  <mat-form-field class="full-width">
+    <mat-label>Gamertag</mat-label>
+    <input matInput required [(ngModel)]="model.gamertag" name="gamertag">
+    <app-error-message [control]="form.controls['gamertag']" />
+  </mat-form-field>
+
+  <mat-form-field class="full-width">
+    <mat-label>UserName</mat-label>
+    <input matInput required [(ngModel)]="model.userName" name="userName">
+    <app-error-message [control]="form.controls['userName']" />
+  </mat-form-field>
+
+  <button mat-flat-button color="primary" [disabled]="!form.form.valid">
+    Submit
+  </button>
+</form>

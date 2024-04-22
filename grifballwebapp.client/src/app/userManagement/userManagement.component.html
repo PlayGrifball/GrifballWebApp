@@ -1,0 +1,68 @@
+<h1>User Management</h1>
+
+<button mat-flat-button color="primary" [routerLink]="['createuser']">Create New User
+</button>
+
+<table mat-table [dataSource]="users" class="mat-elevation-z8">
+
+  <!--- Note that these columns can be defined in any order.
+        The actual rendered columns are set as a property on the row definition" -->
+  <!-- userID Column -->
+  <ng-container matColumnDef="userID">
+    <th mat-header-cell *matHeaderCellDef> userID </th>
+    <td mat-cell *matCellDef="let row"> {{row.userID}} </td>
+  </ng-container>
+
+  <!-- userName Column -->
+  <ng-container matColumnDef="userName">
+    <th mat-header-cell *matHeaderCellDef> userName </th>
+    <td mat-cell *matCellDef="let row"> {{row.userName}} </td>
+  </ng-container>
+
+  <!-- lockoutEnd Column -->
+  <ng-container matColumnDef="lockoutEnd">
+    <th mat-header-cell *matHeaderCellDef> lockoutEnd </th>
+    <td mat-cell *matCellDef="let row"> {{row.lockoutEnd | date:'short' }} </td>
+  </ng-container>
+
+  <!-- lockoutEnabled Column -->
+  <ng-container matColumnDef="lockoutEnabled">
+    <th mat-header-cell *matHeaderCellDef> lockoutEnabled </th>
+    <td mat-cell *matCellDef="let row"> {{row.lockoutEnabled}} </td>
+  </ng-container>
+
+  <!-- accessFailedCount Column -->
+  <ng-container matColumnDef="accessFailedCount">
+    <th mat-header-cell *matHeaderCellDef> accessFailedCount </th>
+    <td mat-cell *matCellDef="let row"> {{row.accessFailedCount}} </td>
+  </ng-container>
+
+  <!-- region Column -->
+  <ng-container matColumnDef="region">
+    <th mat-header-cell *matHeaderCellDef> region </th>
+    <td mat-cell *matCellDef="let row"> {{row.region}} </td>
+  </ng-container>
+
+  <!-- displayName Column -->
+  <ng-container matColumnDef="displayName">
+    <th mat-header-cell *matHeaderCellDef> displayName </th>
+    <td mat-cell *matCellDef="let row"> {{row.displayName}} </td>
+  </ng-container>
+
+  <!-- gamertag Column -->
+  <ng-container matColumnDef="gamertag">
+    <th mat-header-cell *matHeaderCellDef> gamertag </th>
+    <td mat-cell *matCellDef="let row"> {{row.gamertag}} </td>
+  </ng-container>
+
+  <!-- edit Column -->
+  <ng-container matColumnDef="edit">
+    <th mat-header-cell *matHeaderCellDef> edit </th>
+    <td mat-cell *matCellDef="let row">
+      <a mat-list-item [routerLink]="['edituser', row.userID]">EDIT</a>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>

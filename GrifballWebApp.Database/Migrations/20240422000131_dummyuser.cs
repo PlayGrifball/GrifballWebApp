@@ -5,21 +5,21 @@
 namespace GrifballWebApp.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCaptainsLocked : Migration
+    public partial class dummyuser : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<bool>(
-                name: "CaptainsLocked",
-                schema: "Event",
-                table: "Seasons",
+                name: "IsDummyUser",
+                schema: "Auth",
+                table: "Users",
                 type: "bit",
                 nullable: false,
                 defaultValue: false)
                 .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "SeasonsHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
         }
@@ -28,12 +28,12 @@ namespace GrifballWebApp.Database.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "CaptainsLocked",
-                schema: "Event",
-                table: "Seasons")
+                name: "IsDummyUser",
+                schema: "Auth",
+                table: "Users")
                 .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "SeasonsHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalHistoryTableName", "UsersHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Auth")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
         }

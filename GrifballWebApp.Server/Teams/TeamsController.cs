@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Teams;
 
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 public class TeamsController : ControllerBase
 {
@@ -26,42 +26,42 @@ public class TeamsController : ControllerBase
         return _teamService.GetPlayerPool(seasonID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "AddCaptain")]
     public Task AddCaptain([FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.AddCaptain(dto, resortOnly: false, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "ResortCaptain")]
     public Task ResortCaptain([FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.AddCaptain(dto, resortOnly: true, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "RemoveCaptain")]
     public Task RemoveCaptain([FromBody] RemoveCaptainDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.RemoveCaptain(dto, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "RemovePlayerFromTeam")]
     public Task RemovePlayerFromTeam([FromBody] RemovePlayerFromTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.RemovePlayerFromTeam(dto, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "MovePlayerToTeam")]
     public Task MovePlayerToTeam([FromBody] MovePlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.MovePlayerToTeam(dto, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer,Player")]
+    [Authorize(Roles = "Commissioner,Player")]
     [HttpPost(Name = "AddPlayerToTeam")]
     public Task AddPlayerToTeam([FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
@@ -69,14 +69,14 @@ public class TeamsController : ControllerBase
         return _teamService.AddPlayerToTeam(dto, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpGet("{seasonID:int}", Name = "LockCaptains")]
     public Task LockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.LockCaptains(seasonID, @lock: true, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     [HttpGet("{seasonID:int}", Name = "UnlockCaptains")]
     public Task UnlockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {

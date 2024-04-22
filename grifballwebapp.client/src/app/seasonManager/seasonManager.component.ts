@@ -33,9 +33,6 @@ export class SeasonManagerComponent implements OnInit {
     this.http.getSeasons().subscribe({
       next: (result) => this.seasons = result,
       error: (error) => console.error(error),
-      complete: () => {
-        //console.log("Got kills");
-      }
     });
   }
 }

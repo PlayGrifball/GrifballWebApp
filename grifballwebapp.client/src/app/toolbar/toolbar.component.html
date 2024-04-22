@@ -7,14 +7,15 @@
   <span class="app-spacer"></span>
   
   @if (accountService.isLoggedIn()) {
-  <button mat-icon-button class="example-icon" aria-label="Example icon-button with share icon">
+  <span>Hello {{accountService.displayName()}}</span>
+  <button mat-icon-button class="example-icon" aria-label="Profile icon">
     <mat-icon>account_box</mat-icon>
   </button>
   }
   @else {
   <button mat-icon-button
           class="example-icon favorite-icon"
-          aria-label="Example icon-button with heart icon"
+          aria-label="Login icon"
           [routerLink]="['/login']">
     <mat-icon>login</mat-icon>
   </button>

@@ -11,6 +11,7 @@ import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { RegexMatchValidValidatorDirective } from '../validation/directives/regexMatchValidValidatorDirective.directive';
 import { MatchFieldsValidatorDirective } from '../validation/directives/matchFieldsValidator.directive';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { AccountService } from '../account.service';
 
 @Component({
   selector: 'app-register',
@@ -40,7 +41,7 @@ export class RegisterComponent {
 
   model: RegisterFormModel = {} as RegisterFormModel
 
-  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar) {
+  constructor(private apiClient: AccountService, private snackBar: MatSnackBar) {
   }
 
   onSubmit() {

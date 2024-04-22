@@ -29,16 +29,16 @@ public class TeamService
                 TeamName = team.TeamName,
                 Captain = new CaptainDto()
                 {
-                    PersonID = team.Captain.Person.PersonID,
-                    Name = team.Captain.Person.Name,
+                    PersonID = team.Captain.User.Id,
+                    Name = team.Captain.User.DisplayName,
                     Order = team.Captain.DraftCaptainOrder,
                 },
                 Players = team.TeamPlayers
                     .Where(tp => tp.TeamPlayerID != team.CaptainID)
                     .Select(tp => new PlayerDto()
                     {
-                        Name = tp.Person.Name,
-                        PersonID = tp.PlayerID,
+                        Name = tp.User.DisplayName,
+                        PersonID = tp.UserID,
                         Pick = tp.DraftPick,
                         Round = tp.DraftRound,
                     })
@@ -56,13 +56,13 @@ public class TeamService
             // Filter only approved signups this season
             .Where(signup => signup.SeasonID == seasonID && signup.Approved)
             // Only care about the person
-            .Select(signup => signup.Person)
+            .Select(signup => signup.User)
             // Filter out any people that are already on a team for this season
-            .Where(person => !_context.TeamPlayers.Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.PlayerID == person.PersonID))
+            .Where(person => !_context.TeamPlayers.Where(tp => tp.Team.SeasonID == seasonID).Any(tp => tp.UserID == person.Id))
             .Select(person => new PlayerDto()
             {
-                PersonID = person.PersonID,
-                Name = person.Name,
+                PersonID = person.Id,
+                Name = person.DisplayName,
             })
             .ToListAsync(ct);
     }
@@ -78,7 +78,7 @@ public class TeamService
             .ToListAsync(ct);
 
         // also need check that we are not adding after teams are locked in
-        var captain = existingCaptains.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+        var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
 
         // If we are only doing a resort then the captain should not already exist
         if (resortOnly is false)
@@ -97,13 +97,13 @@ public class TeamService
             };
             captain = new TeamPlayer()
             {
-                PlayerID = dto.PersonID,
+                UserID = dto.PersonID,
                 DraftCaptainOrder = dto.OrderNumber,
             };
             newTeam.TeamPlayers.Add(captain);
 
             // TODO: lookup signup. Ensure team name is unique
-            var name = await _context.Persons.Where(p => p.PersonID == captain.PlayerID).Select(x => x.Name).FirstOrDefaultAsync(ct);
+            var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
             newTeam.TeamName = $"{name}'s Team";
 
             await _context.Teams.AddAsync(newTeam, ct);
@@ -145,7 +145,7 @@ public class TeamService
             {
                 SeasonID = dto.SeasonID,
                 PersonID = dto.PersonID,
-                CaptainName = await _context.Persons.Where(p => p.PersonID == captain.PlayerID).Select(p => p.Name).FirstOrDefaultAsync() ?? "Person",
+                CaptainName = await _context.Users.Where(p => p.Id == captain.UserID).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Person",
                 TeamName = captain.Team?.TeamName ?? "Team",
                 OrderNumber = dto.OrderNumber,
             });
@@ -162,7 +162,7 @@ public class TeamService
             .OrderBy(x => x.DraftCaptainOrder)
             .ToListAsync(ct);
 
-        var captain = existingCaptains.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+        var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
         
         if (captain is null)
             throw new Exception("Player is not a captain");
@@ -194,7 +194,7 @@ public class TeamService
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
-        var player = players.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+        var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
 
         if (player is null)
             throw new Exception("Player is not on this team");
@@ -220,7 +220,7 @@ public class TeamService
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
-        var player = players.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+        var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
 
         if (player is not null)
             throw new Exception("Player is already on this team team");
@@ -229,9 +229,9 @@ public class TeamService
         {
             TeamID = await _context.Teams
                 .Where(t => t.SeasonID == dto.SeasonID)
-                .Where(t => t.Captain.Person.PersonID == dto.CaptainID)
+                .Where(t => t.Captain.User.Id == dto.CaptainID)
                 .Select(x => x.TeamID).FirstOrDefaultAsync(ct),
-            PlayerID = dto.PersonID,
+            UserID = dto.PersonID,
             DraftRound = players.OrderByDescending(p => p.DraftRound).Select(p => p.DraftRound + 1).FirstOrDefault() ?? 1, // Always add to end, or round 1
         };
         if (player.TeamID is 0)
@@ -256,7 +256,7 @@ public class TeamService
         {
             var oldTeam = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.PreviousCaptainID, ct);
 
-            player = oldTeam.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+            player = oldTeam.FirstOrDefault(tp => tp.UserID == dto.PersonID);
             if (player is null)
                 throw new Exception("Player was not on that team");
 
@@ -269,7 +269,7 @@ public class TeamService
 
             player.TeamID = await _context.Teams
                 .Where(t => t.SeasonID == dto.SeasonID)
-                .Where(t => t.Captain.PlayerID == dto.NewCaptainID)
+                .Where(t => t.Captain.UserID == dto.NewCaptainID)
                 .Select(t => t.TeamID)
                 .FirstOrDefaultAsync(ct);
             if (player.TeamID is 0)
@@ -277,7 +277,7 @@ public class TeamService
         }
         else // otherwise Inter-team move
         {
-            player = players.FirstOrDefault(tp => tp.PlayerID == dto.PersonID);
+            player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
             if (player is null)
                 throw new Exception("Player is not on that team");
 
@@ -303,9 +303,9 @@ public class TeamService
     private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct = default)
     {
         return _context.TeamPlayers
-            .Include(tp => tp.Person)
+            .Include(tp => tp.User)
             .Where(tp => tp.Team.SeasonID == seasonID)
-            .Where(tp => tp.Team.Captain.Person.PersonID == captainID)
+            .Where(tp => tp.Team.Captain.User.Id == captainID)
             .Where(tp => tp.CaptainTeam == null)
             .OrderBy(x => x.DraftRound)
             .ToListAsync(ct);

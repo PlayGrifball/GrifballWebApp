@@ -16,14 +16,23 @@
     <app-error-message [control]="loginForm.controls['password']" />
   </mat-form-field>
 
-    <button mat-flat-button color="primary" [disabled]="!loginForm.form.valid" >
-      Submit
-    </button>
+  <button mat-flat-button color="primary" [disabled]="!loginForm.form.valid">
+    Submit
+  </button>
 </form>
 
 <div class="space"></div>
 
 <p>Not registered?</p>
-<button mat-flat-button color="primary" [routerLink]="['/register']" >
+<button mat-flat-button color="primary" [routerLink]="['/register']">
   Register
 </button>
+
+<h2>External Login Providers:</h2>
+
+<a href="/api/identity/externallogin">
+  <mat-card class="ext-login-card">
+    <img mat-card-image src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5061df29d55a92d945_full_logo_blurple_RGB.svg"
+         alt="Discord Logo">
+  </mat-card>
+</a>
