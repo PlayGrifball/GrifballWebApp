@@ -15,9 +15,32 @@
     <app-error-message [control]="userForm.controls['lockoutEnd']" />
   </mat-form-field>
 
-  @for (role of model.roles; track i; let i = $index) {
-  <mat-checkbox [(ngModel)]="model.roles[i].hasRole" [ngModelOptions]="{standalone: true}">{{role.roleName}}</mat-checkbox>
-  }
+  <mat-checkbox [(ngModel)]="model.lockoutEnabled" name="lockoutEnabled">
+    Lockout Enabled
+  </mat-checkbox>
+
+  <mat-checkbox [(ngModel)]="model.isDummyUser" name="isDummyUser">
+    Is Dummy User
+  </mat-checkbox>
+
+  <div>Roles:</div>
+  <div>
+    @for (role of model.roles; track i; let i = $index) {
+    <mat-checkbox [(ngModel)]="model.roles[i].hasRole" [ngModelOptions]="{standalone: true}">{{role.roleName}}</mat-checkbox>
+    }
+  </div>
+
+  <mat-form-field class="app-full-width">
+    <mat-label>displayName</mat-label>
+    <input matInput [(ngModel)]="model.displayName" name="displayName">
+    <app-error-message [control]="userForm.controls['displayName']" />
+  </mat-form-field>
+
+  <mat-form-field class="app-full-width">
+    <mat-label>gamertag</mat-label>
+    <input matInput [(ngModel)]="model.gamertag" name="gamertag">
+    <app-error-message [control]="userForm.controls['gamertag']" />
+  </mat-form-field>
 
   <button mat-flat-button color="primary" [disabled]="!userForm.form.valid">
     Update User

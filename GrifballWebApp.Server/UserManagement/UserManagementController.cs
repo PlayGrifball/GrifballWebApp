@@ -40,7 +40,10 @@ public class UserManagementController : ControllerBase
     [HttpPost(Name = "EditUser")]
     public async Task<IActionResult> EditUser([FromBody] UserResponseDto editUser, CancellationToken ct)
     {
-        await _userManagementService.EditUser(editUser, ct);
-        return Ok();
+        var result = await _userManagementService.EditUser(editUser, ct);
+        if (result is null)
+            return Ok();
+        else
+            return BadRequest(result);
     }
 }

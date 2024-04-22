@@ -5,6 +5,7 @@ export interface UserResponseDto {
   userName: string,
   lockoutEnd: DateTime,
   lockoutEnabled: boolean,
+  isDummyUser: boolean,
   accessFailedCount: number,
   region: string,
   displayName: string,

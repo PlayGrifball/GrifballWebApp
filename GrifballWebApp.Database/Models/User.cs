@@ -18,6 +18,7 @@ public partial class User : IdentityUser<int>
     public string DisplayName { get; set; }
     // TODO: Availablity
     public long? XboxUserID { get; set; }
+    public bool IsDummyUser { get; set; }
     public XboxUser XboxUser { get; set; }
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
     public virtual ICollection<UserExperience> PersonExperiences { get; set; }

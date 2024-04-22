@@ -13,10 +13,11 @@ public class UserResponseDto
     public string UserName { get; set; }
     public DateTimeOffset? LockoutEnd { get; set; }
     public bool LockoutEnabled { get; set; }
+    public bool IsDummyUser { get; set; }
     public int AccessFailedCount { get; set; }
     public string? Region { get; set; }
-    public string DisplayName { get; set; }
-    public string Gamertag { get; set; }
+    public string? DisplayName { get; set; }
+    public string? Gamertag { get; set; }
     public List<RoleDto> Roles { get; set; }
 }
 
@@ -48,6 +49,7 @@ public class UserManagementService
                 UserName = user.UserName,
                 LockoutEnd = user.LockoutEnd,
                 LockoutEnabled = user.LockoutEnabled,
+                IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
                 Region = user.Region.RegionName,
                 DisplayName = user.DisplayName,
@@ -72,6 +74,7 @@ public class UserManagementService
                 UserName = user.UserName,
                 LockoutEnd = user.LockoutEnd,
                 LockoutEnabled = user.LockoutEnabled,
+                IsDummyUser = user.IsDummyUser,
                 AccessFailedCount = user.AccessFailedCount,
                 Region = user.Region.RegionName,
                 DisplayName = user.DisplayName,
@@ -140,18 +143,80 @@ public class UserManagementService
         return null;
     }
 
-    public async Task EditUser(UserResponseDto editUser, CancellationToken ct)
+    public async Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct)
     {
         using var transaction = await _context.Database.BeginTransactionAsync();
 
-        var user = await _context.Users.Where(user => user.Id == editUser.UserID).FirstOrDefaultAsync(ct);
+        var user = await _context.Users
+            .Include(x => x.XboxUser)
+            .Where(user => user.Id == editUser.UserID).FirstOrDefaultAsync(ct);
 
         if (user is null)
             throw new Exception("User does not exist");
 
+        user.DisplayName = editUser.DisplayName;
+        user.IsDummyUser = editUser.IsDummyUser;
+
+        if (user.XboxUser?.Gamertag.ToLower() != editUser.Gamertag?.ToLower())
+        {
+            if (string.IsNullOrEmpty(editUser.Gamertag))
+            {
+                user.XboxUserID = null;
+            }
+            else
+            {
+                var xboxUser = await _context.XboxUsers
+                .Include(x => x.User)
+                .Where(x => x.Gamertag == editUser.Gamertag).FirstOrDefaultAsync();
+
+                if (xboxUser is null)
+                {
+                    var client = await _haloInfiniteClientFactory.CreateAsync();
+                    var xboxUserResult = await client.UserByGamertag(editUser.Gamertag);
+                    if (xboxUserResult.Result is null || string.IsNullOrEmpty(xboxUserResult.Result.xuid))
+                    {
+                        return $"Failed to get xbox user with gamertag {editUser.Gamertag}";
+                    }
+                    var parsed = long.TryParse(xboxUserResult.Result.xuid, out var xboxUserID);
+
+                    if (parsed is false)
+                        return "Contact Sysadmin";
+
+                    xboxUser = new Database.Models.XboxUser()
+                    {
+                        XboxUserID = xboxUserID,
+                        Gamertag = xboxUserResult.Result.gamertag,
+                    };
+                    await _context.XboxUsers.AddAsync(xboxUser);
+                }
+
+                if (xboxUser.User is not null)
+                    return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
+
+                user.XboxUser = xboxUser;
+            }
+            
+        }
+
         if (editUser.LockoutEnd != user.LockoutEnd)
         {
-            var r = await _userManager.SetLockoutEndDateAsync(user, editUser.LockoutEnd);
+            var result = await _userManager.SetLockoutEndDateAsync(user, editUser.LockoutEnd);
+            if (!result.Succeeded)
+                return "Failed to set lockout end date";
+        }
+
+        if (editUser.LockoutEnabled != user.LockoutEnabled)
+        {
+            var result = await _userManager.SetLockoutEnabledAsync(user, editUser.LockoutEnabled);
+            if (!result.Succeeded)
+                return "Failed to set lockout enabled";
+        }
+
+        if (editUser.UserName != user.UserName)
+        {
+            var result = await _userManager.SetUserNameAsync(user, editUser.UserName);
+            if (!result.Succeeded)
+                return "Failed to set username";
         }
 
         var currentRoles = await _userManager.GetRolesAsync(user);
@@ -160,10 +225,21 @@ public class UserManagementService
         var rolesToRemove = editUser.Roles.Where(x => !x.HasRole && currentRoles.Contains(x.RoleName)).Select(x => x.RoleName).ToList();
 
         if (rolesToAdd.Any())
-            await _userManager.AddToRolesAsync(user, rolesToAdd);
+        {
+            var result = await _userManager.AddToRolesAsync(user, rolesToAdd);
+            if (!result.Succeeded)
+                return "Failed to add roles";
+        }
+            
         if (rolesToRemove.Any())
-            await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+        {
+            var result = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+            if (!result.Succeeded)
+                return "Failed to remove roles";
+        }
 
+        await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        return null;
     }
 }
