@@ -30,7 +30,7 @@ public class IdentityController : ControllerBase
         _timeProvider = timeProvider;
     }
 
-    //[ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Login")]
     public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct)
@@ -98,17 +98,6 @@ public class IdentityController : ControllerBase
         redirectUrl = "login?callback=true";
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
-    }
-
-    // TODO: delete me
-    [Authorize(Roles = "Player")]
-    //[Authorize]
-    [HttpGet(Name = "Test")]
-    public IActionResult Test(CancellationToken ct)
-    {
-        var a = User;
-        var c = a.Claims.Any();
-        return Ok(c);
     }
 
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
@@ -211,6 +200,7 @@ public class IdentityController : ControllerBase
         }
     }
 
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest refreshRequest)
@@ -230,7 +220,7 @@ public class IdentityController : ControllerBase
         return SignIn(newPrincipal, authenticationScheme: IdentityConstants.BearerScheme);
     }
 
-    //[ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
     [Authorize]
     [HttpGet(Name = "MetaInfo")]
     public MetaInfoResponse MetaInfo()

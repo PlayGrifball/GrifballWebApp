@@ -11,7 +11,6 @@ import { AccountService } from '../account.service';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 
-
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -45,7 +44,6 @@ export class LoginComponent implements OnInit {
   }
 
   onSubmit() {
-    //console.log(this.model.username);
     this.accountService.login(this.model);
   }
 
@@ -53,12 +51,4 @@ export class LoginComponent implements OnInit {
     this.accountService.loginExternal();
   }
 
-  test() {
-    this.http.get("/api/Identity/Test").subscribe(
-      {
-        error: (e) => console.log(e),
-        next: (accessToken) => console.log('test next'),
-        complete: () => console.log('test complete'),
-      });
-  }
 }

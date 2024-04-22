@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.EventOrganizer;
 
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 [Authorize(Roles = "EventOrganizer,Sysadmin")]
 public class EventOrganizerController : ControllerBase

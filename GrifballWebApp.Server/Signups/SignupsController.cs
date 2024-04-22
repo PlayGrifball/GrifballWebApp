@@ -4,7 +4,7 @@ using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Signups;
 
-[Route("api/[controller]/[action]")]
+[Route("[controller]/[action]")]
 [ApiController]
 public class SignupsController : ControllerBase
 {
@@ -32,22 +32,22 @@ public class SignupsController : ControllerBase
     [HttpGet("{seasonID:int}", Name = "GetSignup")]
     public async Task<IActionResult> GetSignup([FromRoute] int seasonID, CancellationToken ct)
     {
-        var personID = GetPersonID();
-        if (personID == 0)
+        var userID = GetUserID();
+        if (userID == 0)
             return Forbid("You must be logged to get signup data");
 
-        return Ok(await _signupsService.GetSignup(seasonID: seasonID, personID: personID, ct));
+        return Ok(await _signupsService.GetSignup(seasonID: seasonID, userID: userID, ct));
     }
 
     [Authorize(Roles = "Player,Sysadmin")]
     [HttpPost(Name = "UpsertSignup")]
     public async Task<IActionResult> UpsertSignup([FromBody] SignupRequestDto signupDto, CancellationToken ct)
     {
-        var personID = GetPersonID();
-        if (personID == 0)
+        var userID = GetUserID();
+        if (userID == 0)
             return Forbid("You must be logged in to signup for a season");
 
-        signupDto.PersonID = personID;
+        signupDto.UserID = userID;
         try
         {
             await _signupsService.UpsertSignup(signupDto, ct);
@@ -59,13 +59,13 @@ public class SignupsController : ControllerBase
         }
     }
 
-    private int GetPersonID()
+    private int GetUserID()
     {
-        var personIDStr = User.FindFirstValue("PersonID");
-        if (personIDStr == null)
+        var userIDStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userIDStr == null)
             return 0;
-        int.TryParse(personIDStr, out var personID);
-        return personID;
+        int.TryParse(userIDStr, out var userID);
+        return userID;
     }
 
 }

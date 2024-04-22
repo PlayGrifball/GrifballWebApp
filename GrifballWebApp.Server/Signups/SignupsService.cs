@@ -34,7 +34,7 @@ public class SignupsService
             .Select(x => new SignupResponseDto()
             {
                 SeasonID = seasonID,
-                PersonID = x.UserID,
+                UserID = x.UserID,
                 PersonName = x.User.DisplayName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
@@ -43,14 +43,14 @@ public class SignupsService
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
 
-    public Task<SignupResponseDto?> GetSignup(int seasonID, int personID, CancellationToken ct = default)
+    public Task<SignupResponseDto?> GetSignup(int seasonID, int userID, CancellationToken ct = default)
     {
         return _context.SeasonSignups
-            .Where(signup => signup.SeasonID == seasonID && signup.UserID == personID)
+            .Where(signup => signup.SeasonID == seasonID && signup.UserID == userID)
             .Select(x => new SignupResponseDto()
             {
                 SeasonID = seasonID,
-                PersonID = x.UserID,
+                UserID = x.UserID,
                 PersonName = x.User.DisplayName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
@@ -77,7 +77,7 @@ public class SignupsService
 
 
         SeasonSignup? seasonSignup = await _context.SeasonSignups
-            .Where(signup => signup.SeasonID == dto.SeasonID && signup.UserID == dto.PersonID)
+            .Where(signup => signup.SeasonID == dto.SeasonID && signup.UserID == dto.UserID)
             .FirstOrDefaultAsync(ct);
 
         if (seasonSignup is null)
@@ -86,7 +86,7 @@ public class SignupsService
             await _context.SeasonSignups.AddAsync(seasonSignup, ct);
         }
 
-        seasonSignup.UserID = dto.PersonID;
+        seasonSignup.UserID = dto.UserID;
         seasonSignup.SeasonID = dto.SeasonID;
         seasonSignup.Timestamp = now;
         seasonSignup.TeamName = dto.TeamName;
