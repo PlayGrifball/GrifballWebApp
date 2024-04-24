@@ -20,6 +20,7 @@ public class DataPullService
     }
     public async Task DownloadMatch(Guid matchID)
     {
+        await _grifballContext.Matches.Where(x => x.MatchID == matchID).ExecuteDeleteAsync();
         if (await _grifballContext.Matches.AnyAsync(m => m.MatchID == matchID))
         {
             _logger.LogDebug("Match {MatchID} already exists", matchID);
@@ -37,13 +38,33 @@ public class DataPullService
 
         var playerIDs = response.Result.Players.Select(x => x.PlayerId.RemoveXUIDWrapper()).ToList();
         var users = await client.Users(playerIDs);
-
         var match = new Match()
         {
             MatchID = matchID,
             StartTime = response.Result.MatchInfo.StartTime.ToUniversalTime().DateTime,
             EndTime = response.Result.MatchInfo.EndTime.ToUniversalTime().DateTime,
+            Duration = response.Result.MatchInfo.Duration,
         };
+
+        var matchTeams = response.Result.Teams.Select(x =>
+        {
+            var outcome = x.Outcome switch
+            {
+                2 => Outcomes.Won,
+                3 => Outcomes.Lost,
+                _ => throw new ArgumentOutOfRangeException(nameof(x.Outcome), x.Outcome, "Outcome out of range"),
+            };
+            return new MatchTeam()
+            {
+                Match = match,
+                TeamID = x.TeamId,
+                Score = x.Stats.CoreStats.Score,
+                Outcome = outcome,
+            };
+        }).ToList();
+        await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
+
+        match.MatchTeams = matchTeams;
 
         var matchParticpants = response.Result.Players.Select(x =>
         {
@@ -83,7 +104,11 @@ public class DataPullService
             return new MatchParticipant()
             {
                 XboxUser = xboxUser,
-                TeamID = x.LastTeamId,
+                //MatchID = matchID,
+                //TeamID = x.LastTeamId,
+                MatchTeam = matchTeams.FirstOrDefault(t => t.TeamID == x.LastTeamId) ?? throw new Exception("Missing team!!!"),
+                Score = stats.Score,
+                PersonalScore = stats.PersonalScore,
                 Kills = stats.Kills,
                 Deaths = stats.Deaths,
                 Assists = stats.Assists,
@@ -111,8 +136,9 @@ public class DataPullService
                 
             };
         }).ToList();
+        await _grifballContext.MatchParticipants.AddRangeAsync(matchParticpants);
 
-        match.MatchParticipants = matchParticpants;
+        //match.MatchParticipants = matchParticpants;
         await _grifballContext.Matches.AddAsync(match);
         await _grifballContext.SaveChangesAsync();
     }

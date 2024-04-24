@@ -107,6 +107,7 @@ public class Program
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<UserManagementService>();
+        builder.Services.AddTransient<ExcelService>();
 
         builder.Services.
             AddAuthentication(options =>

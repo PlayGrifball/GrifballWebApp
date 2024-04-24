@@ -31,9 +31,9 @@ public class AdminController : ControllerBase
     
 
     [HttpGet(Name = "MatchStats")]
-    public async Task Get()
+    public async Task Get([FromQuery] string game)
     {
-        if (!Guid.TryParse("1fde4c2a-7935-4fb0-9706-e226f4d13683", out var guid))
+        if (!Guid.TryParse(game, out var guid))
         {
             throw new Exception("Not valid guid");
         }
