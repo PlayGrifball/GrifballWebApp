@@ -12,13 +12,15 @@ public class SeedController : ControllerBase
     private readonly GrifballContext _context;
     private readonly DataPullService _dataPullService;
     private readonly BracketService _bracketService;
+    private readonly ExcelService _e;
 
-    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService, BracketService bracketService)
+    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService, BracketService bracketService, ExcelService e)
     {
         _logger = logger;
         _context = grifballContext;
         _dataPullService = dataPullService;
         _bracketService = bracketService;
+        _e = e;
     }
 
     [HttpGet(Name = "Medals")]
@@ -28,5 +30,14 @@ public class SeedController : ControllerBase
         //await _bracketService.CreateBracket(8, 1, true);
         //var b = _bracketService.GetSeedMatchUps(16);
         await _dataPullService.DownloadMedals();
+    }
+
+    [HttpGet(Name = "Excel")]
+    public async Task Excel()
+    {
+        //_bracketService.CreateBracket(5, 1);
+        //await _bracketService.CreateBracket(8, 1, true);
+        //var b = _bracketService.GetSeedMatchUps(16);
+        _e.CreateExcelPerMatch();
     }
 }

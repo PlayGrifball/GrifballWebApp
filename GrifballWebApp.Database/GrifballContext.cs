@@ -20,6 +20,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
     public virtual DbSet<MatchLink> MatchLinks { get; set; }
     public virtual DbSet<MatchParticipant> MatchParticipants { get; set; }
+    public virtual DbSet<MatchTeam> MatchTeams { get; set; }
     public virtual DbSet<Medal> Medals { get; set; }
     public virtual DbSet<MedalDifficulty> MedalDifficulties { get; set; }
     public virtual DbSet<MedalEarned> MedalEarned { get; set; }
@@ -42,6 +43,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
         modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchLinkConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchParticipantConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MatchTeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalDifficultyConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());

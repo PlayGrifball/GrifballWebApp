@@ -8,11 +8,14 @@ public partial class MatchParticipant
         MedalEarned = new HashSet<MedalEarned>();
     }
 
-    public Guid MatchID { get; set; }
+    
     public long XboxUserID { get; set; }
 
     public int TeamID { get; set; }
+    public Guid MatchID { get; set; }
 
+    public int Score { get; set; }
+    public int PersonalScore { get; set; }
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
@@ -30,7 +33,7 @@ public partial class MatchParticipant
     public int MaxKillingSpree { get; set; }
     public int DamageTaken { get; set; }
 
-    public Match Match { get; set; }
+    public MatchTeam MatchTeam { get; set; }
     public XboxUser XboxUser { get; set; }
 
     public virtual ICollection<MedalEarned> MedalEarned { get; set; }
