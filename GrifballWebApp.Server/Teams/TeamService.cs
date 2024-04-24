@@ -79,20 +79,29 @@ public class TeamService
 
         // also need check that we are not adding after teams are locked in
         var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
-
-        // If we are only doing a resort then the captain should not already exist
+        
         if (resortOnly is false)
         {
+            // If we are only doing a resort then the captain should not already exist
             if (captain is not null)
                 throw new Exception("Player is already a captain");
 
-            
-            //await _context.SaveChangesAsync(ct);
+            var signup = await _context.SeasonSignups
+                .Where(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID && x.Approved == true)
+                .FirstOrDefaultAsync(ct);
+
+            if (signup is null)
+                throw new Exception("Player is not signed up");
+
+            // Also need to make sure they are not on another team
+            var isAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
+            if (isAlreadyOnTeam)
+                throw new Exception("Player is already on a team");
 
             var newTeam = new Team()
             {
                 SeasonID = dto.SeasonID,
-                TeamName = null,// Do a lookup
+                TeamName = signup.TeamName,
                 Captain = null, // Will be set after initial save changes
             };
             captain = new TeamPlayer()
@@ -102,9 +111,14 @@ public class TeamService
             };
             newTeam.TeamPlayers.Add(captain);
 
-            // TODO: lookup signup. Ensure team name is unique
-            var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
-            newTeam.TeamName = $"{name}'s Team";
+            // TODO: Need to ensure team name is unique, or remove unique constraint...
+            if (string.IsNullOrEmpty(newTeam.TeamName))
+            {
+                var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
+                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.XboxUser.Gamertag).FirstOrDefaultAsync(ct);
+                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.UserName).FirstOrDefaultAsync(ct);
+                newTeam.TeamName = $"{name}'s Team";
+            }
 
             await _context.Teams.AddAsync(newTeam, ct);
             await _context.SaveChangesAsync(ct);
@@ -218,6 +232,13 @@ public class TeamService
     public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        var isPlayerAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.User.Id == dto.PersonID, ct);
+        if (isPlayerAlreadyOnTeam)
+            throw new Exception("This player is already on a team");
+        var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(x => x.SeasonID == dto.SeasonID && x.Approved == true && x.UserID == dto.PersonID, ct);
+        if (!hasPlayerSignedUp)
+            throw new Exception("This player has not signed up");
+
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
         var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
