@@ -21,25 +21,6 @@ public class EventsController : ControllerBase
         _bracketService = bracketService;
     }
 
-    [HttpGet(Name = "CreateTeam")]
-    public async Task<ActionResult<int>> CreateTeam([FromQuery] string name)
-    {
-        if (name == null)
-        {
-            return BadRequest("You must provide name");
-        }
-
-        var team = new Team()
-        {
-            TeamName = name,
-        };
-
-        await _context.Teams.AddAsync(team);
-        await _context.SaveChangesAsync();
-
-        return Ok(team.TeamID);
-    }
-
     [HttpGet(Name = "CreateBracket")]
     public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination)
     {

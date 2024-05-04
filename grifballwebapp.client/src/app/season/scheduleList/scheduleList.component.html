@@ -1,0 +1,68 @@
+@if (accountService.isEventOrganizer()) {
+<button mat-flat-button color="primary" (click)="toggleEdit()">
+  {{isEditing === true ? 'Close Edit' : 'Show Edit'}}
+</button>
+}
+
+<div style="">
+
+  @for (week of scheduledMatches; track week) {
+  <mat-card style="max-width: 300px; margin: 5px; display: inline-flex">
+    <mat-card-header>
+      <mat-card-title>Week {{week.weekNumber}}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @for (match of week.games; track match) {
+      <mat-divider></mat-divider>
+      <span>{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
+      @if (accountService.isEventOrganizer() && isEditing) {
+      <form #f="ngForm" (ngSubmit)="onSubmit(match)">
+        <mat-form-field>
+          <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
+          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
+          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+          <app-error-message [control]="f.controls['time']" />
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" [disabled]="!f.form.valid">
+          Update
+        </button>
+      </form>
+      }
+      @else {
+      <span style="display: block">{{match.time.toString() | date:'EEEE'}} {{match.time.toString() | date:'short'}}</span>
+      }
+      }
+    </mat-card-content>
+  </mat-card>
+  }
+</div>
+
+
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Unscheduled Matches</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    @for (match of unscheduledMatches; track match.seasonMatchID) {
+    <mat-divider></mat-divider>
+    <div>
+      <span>{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
+      @if (accountService.isEventOrganizer() && isEditing) {
+      <form #f="ngForm" (ngSubmit)="onSubmit(match)">
+        <mat-form-field>
+          <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
+          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
+          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+          <app-error-message [control]="f.controls['time']" />
+        </mat-form-field>
+
+        <button mat-flat-button color="primary" [disabled]="!f.form.valid">
+          Update
+        </button>
+      </form>
+      }
+    </div>
+    }
+  </mat-card-content>
+</mat-card>

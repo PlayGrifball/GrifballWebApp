@@ -3,17 +3,19 @@ import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatButtonModule } from '@angular/material/button';
+import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
 
 @Component({
-  selector: 'app-season',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    MatButtonModule
-  ],
-  templateUrl: './season.component.html',
-  styleUrl: './season.component.scss',
+    selector: 'app-season',
+    standalone: true,
+    templateUrl: './season.component.html',
+    styleUrl: './season.component.scss',
+    imports: [
+        CommonModule,
+        RouterModule,
+        MatButtonModule,
+        ScheduleListComponent
+    ]
 })
 export class SeasonComponent implements OnInit {
   private seasonID : number = 0;
