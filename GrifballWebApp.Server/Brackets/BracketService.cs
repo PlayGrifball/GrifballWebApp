@@ -439,7 +439,8 @@ public class BracketService
                 .ThenInclude(bm => bm.AwayTeamPreviousMatchBracketInfo)
             .Include(sm => sm.HomeTeam)
             .Include(sm => sm.AwayTeam)
-            .Include(sm => sm.MatchLink.Match)
+            .Include(sm => sm.MatchLinks) // Not sure we even need this
+                .ThenInclude(l => l.Match)
             .Where(sm => sm.SeasonID == seasonID && sm.BracketMatch != null)
             .OrderBy(sm => sm.BracketMatch.MatchNumber)
             .AsSplitQuery()

@@ -4,6 +4,7 @@ using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    partial class GrifballContextModelSnapshot : ModelSnapshot
+    [Migration("20240512033148_renableaudit")]
+    partial class renableaudit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -778,22 +781,10 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("AwayTeamResult")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("AwayTeamScore")
-                        .HasColumnType("int");
-
                     b.Property<int>("BestOf")
                         .HasColumnType("int");
 
                     b.Property<int?>("HomeTeamID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("HomeTeamResult")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("HomeTeamScore")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("PeriodEnd")
@@ -820,10 +811,7 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.HasIndex("SeasonID");
 
-                    b.ToTable("SeasonMatches", "Event", t =>
-                        {
-                            t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "\r\n(HomeTeamID IS NULL) OR\r\n(AwayTeamID IS NULL) OR\r\n(HomeTeamID != AwayTeamID)\r\n");
-                        });
+                    b.ToTable("SeasonMatches", "Event");
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {

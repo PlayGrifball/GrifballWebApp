@@ -7,7 +7,17 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
 {
     public void Configure(EntityTypeBuilder<SeasonMatch> entity)
     {
-        entity.ToTable("SeasonMatches", "Event", tb => tb.IsTemporal());
+        entity.ToTable("SeasonMatches", "Event", tb =>
+        {
+            tb.IsTemporal();
+
+            // Make sure that at least 1 team is null. If both are not null then they must not be the same
+            tb.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", @"
+(HomeTeamID IS NULL) OR
+(AwayTeamID IS NULL) OR
+(HomeTeamID != AwayTeamID)
+");
+        });
 
         entity.HasKey(e => e.SeasonMatchID);
 
@@ -27,10 +37,10 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
             .HasForeignKey(d => d.HomeTeamID)
             .OnDelete(DeleteBehavior.NoAction);
 
-        entity.HasOne(d => d.MatchLink)
-            .WithOne(p => p.SeasonMatch)
-            .HasForeignKey<MatchLink>(d => d.SeasonMatchID)
-            .IsRequired(false);
+        //entity.HasOne(d => d.MatchLink)
+        //    .WithOne(p => p.SeasonMatch)
+        //    .HasForeignKey<MatchLink>(d => d.SeasonMatchID)
+        //    .IsRequired(false);
 
         OnConfigurePartial(entity);
     }
