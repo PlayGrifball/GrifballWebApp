@@ -1,0 +1,50 @@
+//One option is to import css in css
+@import 'https://cdn.jsdelivr.net/gh/Drarig29/brackets-viewer.js@09a5e578e4e6bd76db06b380e79ef2a3bedb8e92/dist/brackets-viewer.min.css';
+// https://cdn.jsdelivr.net/npm/brackets-viewer/dist/brackets-viewer.min.css
+
+//Then apply global css but only to host context. But ng-deep is deprecated
+:host ::ng-deep .name.bye {
+  font-style: italic;
+  color: var(--hint-color);
+}
+
+:host ::ng-deep h1 {
+  display: none;
+}
+
+:host ::ng-deep h2 {
+  margin-top: 30px !important;
+  margin-bottom: 40px !important;
+  font-size: 2em !important;
+  color: black !important;
+}
+
+:host ::ng-deep h3 {
+  display: none;
+}
+
+
+// Another option is to set encapsulation: ViewEncapsulation.None in ts file.
+// Include link to the external css in html
+// Then do overrides like below so css is not encapsulated yet still contained to only this component
+/*app-playoff-bracket {
+  .name.bye {
+    font-style: italic;
+    color: var(--hint-color);
+  }
+
+  h1 {
+    display: none;
+  }
+
+  h2 {
+    margin-top: 30px !important;
+    margin-bottom: 40px !important;
+    font-size: 2em !important;
+    color: black !important;
+  }
+
+  h3 {
+    display: none;
+  }
+}*/

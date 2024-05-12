@@ -11,15 +11,13 @@ public class SeedController : ControllerBase
     private readonly ILogger<SeedController> _logger;
     private readonly GrifballContext _context;
     private readonly DataPullService _dataPullService;
-    private readonly BracketService _bracketService;
     private readonly ExcelService _e;
 
-    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService, BracketService bracketService, ExcelService e)
+    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService, ExcelService e)
     {
         _logger = logger;
         _context = grifballContext;
         _dataPullService = dataPullService;
-        _bracketService = bracketService;
         _e = e;
     }
 

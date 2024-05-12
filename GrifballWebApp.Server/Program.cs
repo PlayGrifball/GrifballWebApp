@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Seasons;

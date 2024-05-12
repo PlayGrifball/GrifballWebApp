@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatButtonModule } from '@angular/material/button';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
+import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
 
 @Component({
     selector: 'app-season',
@@ -14,7 +15,8 @@ import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
         CommonModule,
         RouterModule,
         MatButtonModule,
-        ScheduleListComponent
+        ScheduleListComponent,
+        PlayoffBracketComponent
     ]
 })
 export class SeasonComponent implements OnInit {
@@ -25,7 +27,7 @@ export class SeasonComponent implements OnInit {
   
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
-
+    
     if (this.seasonID === 0) {
       this.api.getCurrentSeasonID()
         .subscribe({
