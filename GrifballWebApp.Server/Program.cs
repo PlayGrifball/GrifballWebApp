@@ -3,6 +3,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.MatchPlanner;
+using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Signups;
@@ -111,6 +112,7 @@ public class Program
         builder.Services.AddTransient<UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddTransient<MatchPlannerService>();
+        builder.Services.AddTransient<SeasonMatchService>();
 
         builder.Services.
             AddAuthentication(options =>

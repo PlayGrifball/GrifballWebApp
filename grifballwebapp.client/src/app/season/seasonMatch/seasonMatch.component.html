@@ -1,0 +1,14 @@
+<mat-grid-list cols="3" rowHeight="40px" style="width: 600px; margin: auto">
+  <mat-grid-tile colspan="3"><h1 [routerLink]="['/season', seasonMatch?.seasonID]">{{seasonMatch?.seasonName}}</h1></mat-grid-tile>
+  <mat-grid-tile [routerLink]="['/team', seasonMatch?.homeTeamID]">{{seasonMatch?.homeTeamName}}</mat-grid-tile>
+  <mat-grid-tile>vs</mat-grid-tile>
+  <mat-grid-tile [routerLink]="['/team', seasonMatch?.awayTeamID]">{{seasonMatch?.awayTeamName}}</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch?.homeTeamScore}}</mat-grid-tile>
+  <mat-grid-tile>-</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch?.awayTeamScore}}</mat-grid-tile>
+  <mat-grid-tile>Won</mat-grid-tile>
+  <mat-grid-tile></mat-grid-tile>
+  <mat-grid-tile>Won</mat-grid-tile>
+  <mat-grid-tile colspan="3">Best of {{seasonMatch?.bestOf}}</mat-grid-tile>
+  <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
+</mat-grid-list>

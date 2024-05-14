@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from '../../bracketTypes/types';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
@@ -18,7 +18,7 @@ import { ActivatedRoute } from '@angular/router';
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
 
-  constructor(private route: ActivatedRoute, private http: HttpClient) { }
+  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -50,13 +50,10 @@ export class PlayoffBracketComponent implements OnInit {
 
     let config: Partial<Config> = {};
 
-    config.onMatchClick = this.matchClicked;
+    window.bracketsViewer.onMatchClicked = (match: MatchWithMetadata) => {
+      this.router.navigate(['/seasonmatch/' + match.id]);
+    };
 
-    window.bracketsViewer.onMatchClicked = this.matchClicked; // Not sure what this even does. Does not seem to work
     window.bracketsViewer.render(viewerData, config);
-  }
-
-  matchClicked(match: MatchWithMetadata): void {
-    console.log(match.id + ' clicked');
   }
 }

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { UnscheduledMatchDto } from './unscheduledMatchDto';
 import { MatDividerModule } from '@angular/material/divider';
@@ -34,6 +34,7 @@ import { WeekDto, WeekGameDto } from './weekDto';
         MatInputModule,
         FormsModule,
         MatButtonModule,
+        RouterModule
     ]
 })
 export class ScheduleListComponent  implements OnInit {
