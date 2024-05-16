@@ -18,4 +18,16 @@ public class SeasonMatchController : ControllerBase
     {
         return _seasonMatchService.GetSeasonMatchPage(seasonMatchID, ct);
     }
+
+    [HttpGet("{seasonMatchID:int}/{matchID:Guid}", Name = "ReportMatch")]
+    public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct)
+    {
+        if (matchID == default)
+            return BadRequest("Provide valid Guid");
+
+        await _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct);
+
+        return Ok("Did thing");
+        //return _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct);
+    }
 }

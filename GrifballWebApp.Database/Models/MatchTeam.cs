@@ -18,7 +18,9 @@ public class MatchTeam
 
 public enum Outcomes
 {
+    Tie = 1, // Nevermind now seeing 1 is tie... confused what happened before
     // Does not appear that there is a 0 or 1? Ties also show as won
     Won = 2,
-    Lost = 3
+    Lost = 3,
+    DidNotFinish = 4,
 }

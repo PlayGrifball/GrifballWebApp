@@ -37,7 +37,7 @@ public class AdminController : ControllerBase
         {
             throw new Exception("Not valid guid");
         }
-        await _dataPullService.DownloadMatch(guid);
+        await _dataPullService.GetAndSaveMatch(guid);
         //var foo = new GrifballWebApp.Database.Models.XboxUser();
         ////foo.
         //var c = await _haloInfiniteClientFactory.CreateAsync();

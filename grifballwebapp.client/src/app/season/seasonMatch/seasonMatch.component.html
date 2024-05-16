@@ -12,3 +12,17 @@
   <mat-grid-tile colspan="3">Best of {{seasonMatch?.bestOf}}</mat-grid-tile>
   <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
 </mat-grid-list>
+
+<h2>Report Game</h2>
+
+<form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit()">
+  <mat-form-field class="app-full-width">
+    <mat-label>MatchID</mat-label>
+    <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
+    <app-error-message [control]="reportMatchForm.controls['MatchID']" />
+  </mat-form-field>
+
+  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid">
+    Submit
+  </button>
+</form>

@@ -3,6 +3,8 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
+using Surprenant.Grunt.Models.HaloInfinite;
+using System.Collections.Concurrent;
 
 namespace GrifballWebApp.Server.Services;
 
@@ -18,14 +20,84 @@ public class DataPullService
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _grifballContext = grifballContext;
     }
-    public async Task DownloadMatch(Guid matchID)
+    public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, CancellationToken ct = default)
     {
-        await _grifballContext.Matches.Where(x => x.MatchID == matchID).ExecuteDeleteAsync();
-        if (await _grifballContext.Matches.AnyAsync(m => m.MatchID == matchID))
+        var stringXboxIDs = xboxIDs.Distinct().Select(x => $"xuid({x})").ToList();
+
+        var client = await _haloInfiniteClientFactory.CreateAsync();
+
+        var matchIDBag = new ConcurrentBag<Guid>();
+
+        var parallelOptions = new ParallelOptions()
         {
-            _logger.LogDebug("Match {MatchID} already exists", matchID);
-            return;
+            CancellationToken = ct,
+            MaxDegreeOfParallelism = -1,
+        };
+
+        await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, ct) =>
+        {
+            var response = await client.StatsGetMatchHistory(xboxUserID, 0, 25, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+
+            if (response.Result is null)
+            {
+                _logger.LogWarning("Failed to get match history for user {XboxUserID}", xboxUserID);
+                return;
+            }
+
+            var guids = response.Result.Results.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
+            {
+                var stringMatchID = x.MatchId;
+                var parsed = Guid.TryParse(stringMatchID, out var guid);
+                if (parsed is false)
+                    _logger.LogWarning("Could not parse Guid {Guid} from player history for player {XboxUserID}", stringMatchID, xboxUserID);
+                return guid;
+            }).Where(x => x != default).ToArray();
+
+            foreach (var guid in guids)
+                matchIDBag.Add(guid);
+        });
+
+        var matchIDs = new List<Guid>();
+        matchIDs = matchIDBag.Distinct().ToList();
+
+        var matchesAlreadyDownloaded = await _grifballContext.Matches
+            .Where(x => matchIDs.Contains(x.MatchID))
+            .Select(x => x.MatchID)
+            .ToArrayAsync(ct);
+
+        matchIDs = matchIDs.Except(matchesAlreadyDownloaded).ToList();
+
+        var matchStatsBag = new ConcurrentBag<MatchStats>();
+
+        var options = new ParallelOptions()
+        {
+            CancellationToken = ct,
+            MaxDegreeOfParallelism = -1,
+        };
+
+        await Parallel.ForEachAsync(matchIDs, options, async (matchID, ct) =>
+        {
+            var matchStats = await GetMatch(matchID);
+
+            if (matchStats is null)
+            {
+                _logger.LogWarning("Failed to get match {MatchID}", matchID);
+            }
+            else
+            {
+                matchStatsBag.Add(matchStats);
+            }
+        });
+
+        // Could also do this in parallel foreach but would need a seperate context for each
+        foreach (var matchStats in matchStatsBag)
+        {
+            await SaveMatchStats(matchStats);
         }
+    }
+
+    public async Task<MatchStats?> GetMatch(Guid matchID)
+    {
         var client = await _haloInfiniteClientFactory.CreateAsync();
 
         var response = await client.StatsGetMatchStats(matchID);
@@ -33,25 +105,49 @@ public class DataPullService
         if (response.Result is null)
         {
             _logger.LogWarning("Match {MatchID} not found", matchID);
-            return;
+            return null;
         }
 
-        var playerIDs = response.Result.Players.Select(x => x.PlayerId.RemoveXUIDWrapper()).ToList();
-        var users = await client.Users(playerIDs);
+        return response.Result;
+    }
+
+    public async Task GetAndSaveMatch(Guid matchID)
+    {
+        //await _grifballContext.Matches.Where(x => x.MatchID == matchID).ExecuteDeleteAsync();
+        if (await _grifballContext.Matches.AnyAsync(m => m.MatchID == matchID))
+        {
+            _logger.LogDebug("Match {MatchID} already exists", matchID);
+            return;
+        }
+        
+        var matchStats = await GetMatch(matchID);
+
+        if (matchStats is null)
+            return;
+
+        await SaveMatchStats(matchStats);
+    }
+
+    public async Task SaveMatchStats(MatchStats matchStats)
+    {
+        var matchID = matchStats.MatchId;
+
         var match = new Match()
         {
             MatchID = matchID,
-            StartTime = response.Result.MatchInfo.StartTime.ToUniversalTime().DateTime,
-            EndTime = response.Result.MatchInfo.EndTime.ToUniversalTime().DateTime,
-            Duration = response.Result.MatchInfo.Duration,
+            StartTime = matchStats.MatchInfo.StartTime.ToUniversalTime().DateTime,
+            EndTime = matchStats.MatchInfo.EndTime.ToUniversalTime().DateTime,
+            Duration = matchStats.MatchInfo.Duration,
         };
 
-        var matchTeams = response.Result.Teams.Select(x =>
+        var matchTeams = matchStats.Teams.Select(x =>
         {
             var outcome = x.Outcome switch
             {
+                1 => Outcomes.Tie,
                 2 => Outcomes.Won,
                 3 => Outcomes.Lost,
+                4 => Outcomes.DidNotFinish,
                 _ => throw new ArgumentOutOfRangeException(nameof(x.Outcome), x.Outcome, "Outcome out of range"),
             };
             return new MatchTeam()
@@ -62,11 +158,18 @@ public class DataPullService
                 Outcome = outcome,
             };
         }).ToList();
+
+        if (matchTeams.Any() is false)
+        {
+            _logger.LogDebug("Ignoring non team match {MatchID}", matchID);
+            return;
+        }
+
         await _grifballContext.MatchTeams.AddRangeAsync(matchTeams);
 
         match.MatchTeams = matchTeams;
 
-        var matchParticpants = response.Result.Players.Select(x =>
+        var matchParticpants = await matchStats.Players.Where(p => p.BotAttributes is null).Select(async x =>
         {
             var xuid = x.PlayerId.RemoveXUIDWrapper();
 
@@ -79,6 +182,9 @@ public class DataPullService
 
             if (xboxUser is null) // Needs to be created
             {
+                var client = await _haloInfiniteClientFactory.CreateAsync();
+                var users = await client.Users(new List<string>() { xuid });
+
                 var user = users.Result.FirstOrDefault(u => u.xuid == xuid);
                 if (user is null)
                 {
@@ -133,9 +239,9 @@ public class DataPullService
                     Count = m.Count,
                     TotalPersonalScoreAwarded = m.TotalPersonalScoreAwarded,
                 }).ToList(),
-                
+
             };
-        }).ToList();
+        }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
         await _grifballContext.MatchParticipants.AddRangeAsync(matchParticpants);
 
         //match.MatchParticipants = matchParticpants;
@@ -174,7 +280,7 @@ public class DataPullService
 
         await _grifballContext.MedalDifficulties.AddRangeAsync(medalDifficulties);
 
-        var medals = response.Result.Medals.Select(medal => new Medal()
+        var medals = response.Result.Medals.Select(medal => new Database.Models.Medal()
         {
             MedalID = medal.NameID,
             MedalName = medal.Name.Value,

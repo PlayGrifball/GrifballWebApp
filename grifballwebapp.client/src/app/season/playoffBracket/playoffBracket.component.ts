@@ -17,7 +17,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 })
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
-
+  
   constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) { }
 
   ngOnInit(): void {

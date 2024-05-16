@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.4" />
     <PackageReference Include="Surprenant.Grunt" Version="0.0.0.5-beta" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
