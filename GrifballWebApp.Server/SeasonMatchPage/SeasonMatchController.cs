@@ -30,4 +30,10 @@ public class SeasonMatchController : ControllerBase
         return Ok("Did thing");
         //return _seasonMatchService.ReportMatch(seasonMatchID, matchID, ct);
     }
+
+    [HttpGet("{seasonMatchID:int}", Name = "GetPossibleMatches")]
+    public Task<List<PossibleMatchDto>> GetPossibleMatches([FromRoute] int seasonMatchID, CancellationToken ct)
+    {
+        return _seasonMatchService.GetPossibleMatches(seasonMatchID, ct);
+    }
 }

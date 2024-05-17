@@ -11,6 +11,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
+import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
+import { MatCardModule } from '@angular/material/card';
+import { MatListModule } from '@angular/material/list';
+import { MatTableModule } from '@angular/material/table';
 
 @Component({
   selector: 'app-season-match',
@@ -26,6 +30,9 @@ import { RegexMatchValidValidatorDirective } from '../../validation/directives/r
     ErrorMessageComponent,
     RegexMatchValidValidatorDirective,
     MtxDatetimepickerModule,
+    MatCardModule,
+    MatListModule,
+    MatTableModule
   ],
   templateUrl: './seasonMatch.component.html',
   styleUrl: './seasonMatch.component.scss'
@@ -33,6 +40,35 @@ import { RegexMatchValidValidatorDirective } from '../../validation/directives/r
 export class SeasonMatchComponent implements OnInit {
   private seasonMatchID: number = 0;
   seasonMatch: SeasonMatchPageDto | null = null;
+
+  isSubmittingMatch: boolean = false;
+
+  possibleMatches: PossibleMatchDto[] = [];
+
+  public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
+
+  columns = [
+    {
+      columnDef: 'gamertag',
+      header: 'Gamertag',
+      cell: (element: PossiblePlayerDto) => `${element.gamertag}`,
+    },
+    {
+      columnDef: 'score',
+      header: 'Score',
+      cell: (element: PossiblePlayerDto) => `${element.score}`,
+    },
+    {
+      columnDef: 'kills',
+      header: 'Kills',
+      cell: (element: PossiblePlayerDto) => `${element.kills}`,
+    },
+    {
+      columnDef: 'deaths',
+      header: 'Deaths',
+      cell: (element: PossiblePlayerDto) => `${element.deaths}`,
+    },
+  ];
 
   @ViewChild('reportMatchForm') reportMatchForm!: NgForm;
 
@@ -47,6 +83,8 @@ export class SeasonMatchComponent implements OnInit {
     this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
 
     this.getPageDto();
+
+    this.getPossibleMatches();
   }
 
   getPageDto(): void {
@@ -56,10 +94,20 @@ export class SeasonMatchComponent implements OnInit {
       });
   }
 
-  onSubmit(): void {
-    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID + '/' + this.matchID)
+  getPossibleMatches(): void {
+    this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID)
       .subscribe({
-        next: result => console.log(result),
+        next: result => this.possibleMatches = result,
       });
+  }
+
+  onSubmit(matchID: string): void {
+    this.isSubmittingMatch = true;
+
+    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID + '/' + matchID)
+        .subscribe({
+          next: result => console.log(result),
+          error: result => console.log(result),
+        }).add(() => this.isSubmittingMatch = false);
   }
 }

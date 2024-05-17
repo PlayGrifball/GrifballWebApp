@@ -15,14 +15,62 @@
 
 <h2>Report Game</h2>
 
-<form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit()">
+<form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
   <mat-form-field class="app-full-width">
     <mat-label>MatchID</mat-label>
     <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
     <app-error-message [control]="reportMatchForm.controls['MatchID']" />
   </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid">
+  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch">
     Submit
   </button>
 </form>
+
+@for (match of possibleMatches; track match) {
+<mat-card style="margin: 6px">
+  <mat-card-header>
+    <mat-card-title>{{match.matchID}}: {{match.homeTeam.score}} - {{match.awayTeam.score}}</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <div style="max-width: 50%; display: inline-block; margin: 6px">
+      <table mat-table [dataSource]="match.homeTeam.players" class="mat-elevation-z8">
+        @for (column of columns; track column) {
+        <ng-container [matColumnDef]="column.columnDef">
+          <th mat-header-cell *matHeaderCellDef>
+            {{column.header}}
+          </th>
+          <td mat-cell *matCellDef="let row">
+            {{column.cell(row)}}
+          </td>
+        </ng-container>
+        }
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    </div>
+
+    <div style="max-width: 50%; display: inline-block; margin: 6px">
+      <table mat-table [dataSource]="match.awayTeam.players" class="mat-elevation-z8">
+        @for (column of columns; track column) {
+        <ng-container [matColumnDef]="column.columnDef">
+          <th mat-header-cell *matHeaderCellDef>
+            {{column.header}}
+          </th>
+          <td mat-cell *matCellDef="let row">
+            {{column.cell(row)}}
+          </td>
+        </ng-container>
+        }
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    </div>
+  </mat-card-content>
+
+  <mat-card-actions>
+    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch" >SUBMIT</button>
+    <!--<button mat-button [routerLink]="['/match', match?.matchID]">FULL DETAILS</button>-->
+  </mat-card-actions>
+</mat-card>
+}
