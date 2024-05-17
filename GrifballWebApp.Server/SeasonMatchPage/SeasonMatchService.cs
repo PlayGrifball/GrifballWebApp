@@ -2,6 +2,7 @@
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
+using Surprenant.Grunt.Models.HaloInfinite;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -94,29 +95,13 @@ public class SeasonMatchService
         var possibleMatches = new List<PossibleMatchDto>();
         foreach (Match match in matches)
         {
-            var team1 = match.MatchTeams.ElementAt(0);
-            var team1HomeTeamCount = team1.MatchParticipants.Where(x => homeTeamIDs.Contains(x.XboxUserID)).Count();
-            var team1AwayTeamCount = team1.MatchParticipants.Where(x => awayTeamIDs.Contains(x.XboxUserID)).Count();
+            var teamsDto = GetTeams(match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
 
-            if (team1HomeTeamCount is 0 && team1AwayTeamCount is 0)
+            if (teamsDto is null)
                 continue;
 
-            var team2 = match.MatchTeams.ElementAt(1);
-            var team2HomeTeamCount = team2.MatchParticipants.Where(x => homeTeamIDs.Contains(x.XboxUserID)).Count();
-            var team2AwayTeamCount = team2.MatchParticipants.Where(x => awayTeamIDs.Contains(x.XboxUserID)).Count();
-
-            if (team2HomeTeamCount is 0 && team2AwayTeamCount is 0)
-                continue;
-
-            if (team1HomeTeamCount > 0 && team1AwayTeamCount > 0)
-                continue;
-
-            if (team2HomeTeamCount > 0 && team2AwayTeamCount > 0)
-                continue;
-
-            var homeTeam = team1HomeTeamCount > 0 ? team1 : team2;
-
-            var awayTeam = team1HomeTeamCount > 0 ? team2 : team1;
+            var homeTeam = teamsDto.HomeTeam;
+            var awayTeam = teamsDto.AwayTeam;
 
             var possibleMatchDto = new PossibleMatchDto()
             {
@@ -162,6 +147,130 @@ public class SeasonMatchService
     {
         await _dataPullService.GetAndSaveMatch(matchID);
 
-        var match = await _context.Matches.Where(m =>  m.MatchID == matchID).FirstOrDefaultAsync(ct);
+        var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var match = await _context.Matches.Where(m => m.MatchID == matchID)
+            .Include(m => m.MatchLink)
+            .Include(m => m.MatchTeams)
+                .ThenInclude(m => m.MatchParticipants)
+                    .ThenInclude(x => x.XboxUser)
+            .FirstOrDefaultAsync(ct);
+
+        if (match is null)
+            throw new Exception("Match does not exist");
+
+        if (match.MatchLink is not null)
+            throw new Exception("Match is already associated with a season match");
+
+        if (match.MatchTeams.Any(x => x.Outcome is Outcomes.Won) is false)
+            throw new Exception("There must be a winner for the match you are reporting");
+
+        var seasonMatch = await _context.SeasonMatches
+            .Include(sm => sm.HomeTeam.TeamPlayers)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(sm => sm.AwayTeam.TeamPlayers)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(sm => sm.MatchLinks)
+                .ThenInclude(ml => ml.Match)
+            .Where(sm => sm.SeasonMatchID == seasonMatchID)
+            .FirstOrDefaultAsync(ct);
+
+        if (seasonMatch is null)
+            throw new Exception("Season match does not exist");
+
+        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+
+        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+            throw new Exception("Results for this match have already been decided");
+
+        var homeTeamIDs = seasonMatch.HomeTeam.TeamPlayers.Select(x => x.User.XboxUser.XboxUserID).ToList();
+        var awayTeamIDs = seasonMatch.AwayTeam.TeamPlayers.Select(x => x.User.XboxUser.XboxUserID).ToList();
+
+        seasonMatch.MatchLinks.Add(new MatchLink()
+        {
+            Match = match,
+        });
+
+        if (seasonMatch.MatchLinks.Count > seasonMatch.BestOf)
+            throw new Exception("Cannot go over max number of matches. Something is wrong");
+
+        var orderedMatchLinks = seasonMatch.MatchLinks
+            .OrderBy(x => x.Match.StartTime)
+        .ToList();
+
+        seasonMatch.HomeTeamScore = 0;
+        seasonMatch.AwayTeamScore = 0;
+
+        foreach (var (index, matchLink) in orderedMatchLinks.Select((matchLink, index) => (index, matchLink)))
+        {
+            matchLink.MatchNumber = index + 1;
+
+            var teams = GetTeams(matchLink.Match, homeTeamIDs: homeTeamIDs, awayTeamIDs: awayTeamIDs);
+
+            if (teams is null)
+                throw new Exception("Unable to verify teams");
+
+            if (teams.HomeTeam.Outcome is Outcomes.Won)
+                seasonMatch.HomeTeamScore++;
+
+            if (teams.AwayTeam.Outcome is Outcomes.Won)
+                seasonMatch.AwayTeamScore++;
+        }
+
+        var winsRequired = Math.Ceiling(seasonMatch.BestOf * 0.5f);
+
+        if (seasonMatch.HomeTeamScore >= winsRequired)
+        {
+            seasonMatch.HomeTeamResult = SeasonMatchResult.Won;
+            seasonMatch.AwayTeamResult = SeasonMatchResult.Loss;
+        }
+        else if (seasonMatch.AwayTeamScore >= winsRequired)
+        {
+            seasonMatch.HomeTeamResult = SeasonMatchResult.Loss;
+            seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
+        }
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    private TeamsDto? GetTeams(Match match, List<long> homeTeamIDs, List<long> awayTeamIDs)
+    {
+        var team1 = match.MatchTeams.ElementAt(0);
+        var team1HomeTeamCount = team1.MatchParticipants.Where(x => homeTeamIDs.Contains(x.XboxUserID)).Count();
+        var team1AwayTeamCount = team1.MatchParticipants.Where(x => awayTeamIDs.Contains(x.XboxUserID)).Count();
+
+        if (team1HomeTeamCount is 0 && team1AwayTeamCount is 0)
+            return null;
+
+        var team2 = match.MatchTeams.ElementAt(1);
+        var team2HomeTeamCount = team2.MatchParticipants.Where(x => homeTeamIDs.Contains(x.XboxUserID)).Count();
+        var team2AwayTeamCount = team2.MatchParticipants.Where(x => awayTeamIDs.Contains(x.XboxUserID)).Count();
+
+        if (team2HomeTeamCount is 0 && team2AwayTeamCount is 0)
+            return null;
+
+        if (team1HomeTeamCount > 0 && team1AwayTeamCount > 0)
+            return null;
+
+        if (team2HomeTeamCount > 0 && team2AwayTeamCount > 0)
+            return null;
+
+        var homeTeam = team1HomeTeamCount > 0 ? team1 : team2;
+
+        var awayTeam = team1HomeTeamCount > 0 ? team2 : team1;
+
+        return new TeamsDto()
+        {
+            HomeTeam = homeTeam,
+            AwayTeam = awayTeam,
+        };
+    }
+
+    private class TeamsDto
+    {
+        public required MatchTeam HomeTeam { get; set; }
+        public required MatchTeam AwayTeam { get; set; }
     }
 }
