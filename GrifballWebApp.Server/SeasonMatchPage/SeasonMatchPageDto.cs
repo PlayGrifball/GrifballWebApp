@@ -14,6 +14,17 @@ public record SeasonMatchPageDto
     public required DateTime? ScheduledTime { get; set; }
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
+    public required BracketInfoDto? BracketInfo { get; set; }
+}
+
+public record BracketInfoDto
+{
+    public required int? HomeTeamSeed { get; set; }
+    public required int? AwayTeamSeed { get; set; }
+    public required int? HomeTeamPreviousMatchID { get; set; }
+    public required int? AwayTeamPreviousMatchID { get; set; }
+    public required int? WinnerNextMatchID { get; set; }
+    public required int? LoserNextMatchID { get; set; }
 }
 
 public record ReportedGameDto

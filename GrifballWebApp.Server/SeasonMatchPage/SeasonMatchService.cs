@@ -1,8 +1,9 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
-using Surprenant.Grunt.Models.HaloInfinite;
+using Match = GrifballWebApp.Database.Models.Match;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -10,10 +11,12 @@ public class SeasonMatchService
 {
     private readonly GrifballContext _context;
     private readonly DataPullService _dataPullService;
-    public SeasonMatchService(GrifballContext context, DataPullService dataPullService)
+    private readonly BracketService _bracketService;
+    public SeasonMatchService(GrifballContext context, DataPullService dataPullService, BracketService bracketService)
     {
         _context = context;
         _dataPullService = dataPullService;
+        _bracketService = bracketService;
     }
 
     public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
@@ -23,7 +26,15 @@ public class SeasonMatchService
             .Include(x => x.Season)
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
+            
             .Include(x => x.BracketMatch)
+                .ThenInclude(x => x.HomeTeamPreviousMatchBracketInfo)
+            .Include(x => x.BracketMatch)
+                .ThenInclude(x => x.AwayTeamPreviousMatchBracketInfo)
+            .Include(x => x.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
+            .Include(x => x.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .AsNoTracking()
             .AsSplitQuery()
@@ -31,6 +42,12 @@ public class SeasonMatchService
 
         if (seasonMatch is null)
             return null;
+
+        NextMatchesDto? nextMatch = null;
+        if (seasonMatch.BracketMatch is not null)
+        {
+            nextMatch = _bracketService.DetermineNextMatches(seasonMatch);
+        }
 
         return new SeasonMatchPageDto()
         {
@@ -50,6 +67,16 @@ public class SeasonMatchService
                 MatchID = x.MatchID,
                 MatchNumber = x.MatchNumber
             }).ToArray(),
+            BracketInfo = seasonMatch.BracketMatch is null ? null :
+            new BracketInfoDto()
+            {
+                HomeTeamSeed = seasonMatch.BracketMatch.HomeTeamSeedNumber,
+                AwayTeamSeed = seasonMatch.BracketMatch.AwayTeamSeedNumber,
+                HomeTeamPreviousMatchID = seasonMatch.BracketMatch.HomeTeamPreviousMatchBracketInfo?.SeasonMatchID,
+                AwayTeamPreviousMatchID = seasonMatch.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID,
+                WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
+                LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
+            }
         };
     }
 
@@ -89,7 +116,10 @@ public class SeasonMatchService
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
             .Take(100)
             .OrderByDescending(x => x.StartTime)
-            .AsSplitQuery().AsNoTracking()
+            //.AsSplitQuery() // Include does not work correctly when running as split query, with take 100, and order by desc.
+            // Split query causes the include to silently fail. Disabling split query for now but may want to revist this later
+            // and write multiple smaller queries to get matches
+            .AsNoTracking()
             .ToListAsync(ct);
 
         var possibleMatches = new List<PossibleMatchDto>();

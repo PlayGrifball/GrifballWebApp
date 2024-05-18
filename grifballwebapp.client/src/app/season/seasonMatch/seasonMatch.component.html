@@ -13,6 +13,36 @@
   <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
 </mat-grid-list>
 
+<h2>Bracket Info</h2>
+@if (seasonMatch?.bracketInfo === null) {
+  <p>Regular Season Match</p>
+} @else {
+
+  @if (seasonMatch?.bracketInfo?.homeTeamPreviousMatchID === null) {
+  <div>Home Team Seed {{seasonMatch?.bracketInfo?.homeTeamSeed}}</div>
+  } @else {
+  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
+  }
+
+  @if (seasonMatch?.bracketInfo?.awayTeamPreviousMatchID === null) {
+  <div>Away Team Seed {{seasonMatch?.bracketInfo?.awayTeamSeed}}</div>
+  } @else {
+  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
+  }
+
+  @if (seasonMatch?.bracketInfo?.winnerNextMatchID === null) {
+  <div>Winner wins playoffs</div>
+  } @else {
+  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
+  }
+
+  @if (seasonMatch?.bracketInfo?.loserNextMatchID === null) {
+  <div>Loser is eliminated from playoffs</div>
+  } @else {
+  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
+  }
+}
+
 <h2>Report Game</h2>
 
 <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">

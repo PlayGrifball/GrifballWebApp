@@ -13,6 +13,16 @@ export interface SeasonMatchPageDto {
   scheduledTime: DateTime | null,
   bestOf: number,
   reportedGame: ReportedGameDto[],
+  bracketInfo: BracketInfoDto | null,
+}
+
+export interface BracketInfoDto {
+  homeTeamSeed: number | null,
+  awayTeamSeed: number | null,
+  homeTeamPreviousMatchID: number | null,
+  awayTeamPreviousMatchID: number | null,
+  winnerNextMatchID: number | null,
+  loserNextMatchID: number | null, 
 }
 
 export interface ReportedGameDto {

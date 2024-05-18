@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Brackets;
@@ -8,9 +9,11 @@ namespace GrifballWebApp.Server.Brackets;
 public class BracketService
 {
     private readonly GrifballContext _grifballContext;
-    public BracketService(GrifballContext grifballContext)
+    private readonly TeamStandingsService _teamStandingsService;
+    public BracketService(GrifballContext grifballContext, TeamStandingsService teamStandingsService)
     {
         _grifballContext = grifballContext;
+        _teamStandingsService = teamStandingsService;
     }
 
     public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, CancellationToken ct = default)
@@ -681,4 +684,157 @@ public class BracketService
 
         return match.Number;
     }
+
+    public async Task SetSeeds(int seasonID, CancellationToken ct = default)
+    {
+        var transaction = await _grifballContext.Database.BeginTransactionAsync(ct);
+        var standings = await _teamStandingsService.GetTeamStandings(seasonID, ct);
+
+        var seeds = standings.Select((dto, index) => (++index, dto.TeamID)).ToDictionary();
+
+        var playoffMatches = await _grifballContext.SeasonMatches
+            .Include(sm => sm.BracketMatch)
+                .ThenInclude(bm => bm.HomeTeamPreviousMatchBracketInfo)
+            .Include(sm => sm.BracketMatch)
+                .ThenInclude(bm => bm.AwayTeamPreviousMatchBracketInfo)
+            .Where(x => x.SeasonID == seasonID)
+            .Where(x => x.BracketMatch != null)
+            .Where(x => x.BracketMatch.HomeTeamSeedNumber != null || x.BracketMatch.AwayTeamSeedNumber != null)
+            .ToListAsync(ct);
+
+        if (playoffMatches.Any(x => x.HomeTeamID is not null || x.AwayTeamID is not null))
+            throw new Exception("Teams have already been seeded");
+
+        foreach (var match in playoffMatches)
+        {
+            var foundHomeTeam = seeds.TryGetValue(match.BracketMatch.HomeTeamSeedNumber ?? throw new Exception("Missing home team seed number"), out var homeTeamID);
+
+            var foundAwayTeam = seeds.TryGetValue(match.BracketMatch.AwayTeamSeedNumber ?? throw new Exception("Missing away team seed number"), out var awayTeamID);
+
+            if (foundHomeTeam is false || foundAwayTeam is false)
+                throw new Exception("Missing home or away team. Byes are currently not supported");
+
+            match.HomeTeamID = homeTeamID;
+            match.AwayTeamID = awayTeamID;
+        }
+
+        await _grifballContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        //var winner = playoffMatches.Where(x => x.BracketMatch.Bracket is Bracket.Winner).Select(x => x.BracketMatch).ToList();
+
+        //var lsoer = playoffMatches.Where(x => x.BracketMatch.Bracket is Bracket.Loser).Select(x => x.BracketMatch).ToList();
+
+        //var grandfinal = playoffMatches.Select(x => x.BracketMatch).FirstOrDefault(x => x.Bracket is Bracket.GrandFinal);
+
+        //var sd = playoffMatches.Select(x => x.BracketMatch).FirstOrDefault(x => x.Bracket is Bracket.GrandFinalSuddenDeath);
+
+        //var match = playoffMatches.FirstOrDefault();
+
+        //var nextMatch = DetermineNextMatches(match);
+
+        //var foo = playoffMatches.Select(x => new
+        //{
+        //    Match = x,
+        //    NextMatches = DetermineNextMatches(x),
+        //}).ToList();
+
+        //var b = standings;
+    }
+
+    /// <summary>
+    /// Detemine the next match for the winner and the loser for a season match. Caller must include BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.SeasonMatch and BracketMatch.InverseAwayTeamNextMatchBracketInfo.SeasonMatch.
+    /// </summary>
+    /// <param name="seasonMatch"></param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    public NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch)
+    {
+        if (seasonMatch.BracketMatch.Bracket is Bracket.Winner)
+        {
+            var winnerNextHomeGame = seasonMatch.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.FirstOrDefault(x => x.Bracket is Bracket.Winner or Bracket.GrandFinal)?.SeasonMatch;
+            var winnerNextAwayGame = seasonMatch.BracketMatch.InverseAwayTeamNextMatchBracketInfo.FirstOrDefault(x => x.Bracket is Bracket.Winner or Bracket.GrandFinal)?.SeasonMatch;
+
+            var loserNextHomeGame = seasonMatch.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.FirstOrDefault(x => x.Bracket is Bracket.Loser)?.SeasonMatch;
+            var loserNextAwayGame = seasonMatch.BracketMatch.InverseAwayTeamNextMatchBracketInfo.FirstOrDefault(x => x.Bracket is Bracket.Loser)?.SeasonMatch;
+
+            return new NextMatchesDto()
+            {
+                Winner = winnerNextHomeGame is not null ? new NextGame()
+                            { Game = winnerNextHomeGame, IsHomeTeam = true } :
+                         winnerNextAwayGame is not null ? new NextGame()
+                            { Game = winnerNextAwayGame, IsHomeTeam = false } :
+                         null, // Should only ever happen if there is no grand final - single elimination
+                Loser = loserNextHomeGame is not null ? new NextGame()
+                         { Game = loserNextHomeGame, IsHomeTeam = true } :
+                         loserNextAwayGame is not null ? new NextGame()
+                         { Game = loserNextAwayGame, IsHomeTeam = false } :
+                         null, // Should only happen in single elimination
+            };
+        }
+        else if (seasonMatch.BracketMatch.Bracket is Bracket.Loser)
+        {
+            var winnerNextHomeGame = seasonMatch.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.FirstOrDefault()?.SeasonMatch;
+            var winnerNextAwayGame = seasonMatch.BracketMatch.InverseAwayTeamNextMatchBracketInfo.FirstOrDefault()?.SeasonMatch;
+
+            return new NextMatchesDto()
+            {
+                Winner = winnerNextHomeGame is not null ? new NextGame()
+                         { Game = winnerNextHomeGame, IsHomeTeam = true } :
+                         winnerNextAwayGame is not null ? new NextGame()
+                         { Game = winnerNextAwayGame, IsHomeTeam = false } :
+                         throw new Exception("Failed to determine winners next match from loser bracket"),
+                Loser = null,
+            };
+        }
+        else if (seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal)
+        {
+            var winnerNextHomeGame = seasonMatch.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.FirstOrDefault()?.SeasonMatch;
+            var loserNextAwayGame = seasonMatch.BracketMatch.InverseAwayTeamNextMatchBracketInfo.FirstOrDefault()?.SeasonMatch;
+
+            if (winnerNextHomeGame is null)
+                throw new Exception("Failed to find winner next match after grand final");
+
+            if (loserNextAwayGame is null)
+                throw new Exception("Failed to find loser next match after grand final");
+
+            return new NextMatchesDto()
+            {
+                Winner = new NextGame()
+                        { Game = winnerNextHomeGame, IsHomeTeam = true },
+                Loser = new NextGame()
+                        { Game = loserNextAwayGame, IsHomeTeam = false },
+                // Should be null if no sudden death?
+            };
+        }
+        else if (seasonMatch.BracketMatch.Bracket is Bracket.GrandFinalSuddenDeath)
+        {
+            return new NextMatchesDto()
+            {
+                Winner = null,
+                Loser = null,
+            };
+        }
+        else
+        {
+            throw new ArgumentOutOfRangeException();
+        }
+    }
+}
+
+public record NextMatchesDto
+{
+    public required NextGame? Winner { get; set; }
+    public required NextGame? Loser { get; set; }
+}
+
+public record NextGame
+{
+    //public NextGame(SeasonMatch game, bool isHomeTeam)
+    //{
+    //    Game = game;
+    //    IsHomeTeam = isHomeTeam;
+    //}
+    public required SeasonMatch Game { get; set; }
+    public required bool IsHomeTeam { get; set; }
 }

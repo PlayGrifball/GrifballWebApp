@@ -71,4 +71,12 @@ export class PlayoffBracketComponent implements OnInit {
       console.log(`Dialog result: ${result}`);
     });
   }
+
+  setSeeds() {
+    this.http.get("api/Brackets/SetSeeds/" + this.seasonID)
+      .subscribe({
+        next: r => console.log(r),
+        error: e => console.log(e),
+      });
+  }
 }

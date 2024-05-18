@@ -49,4 +49,10 @@ public class BracketsController : ControllerBase
         var bracketDto = await _bracketService.GetViewerDataAsync(seasonID);
         return Ok(bracketDto);
     }
+
+    [HttpGet("{seasonID:int}", Name = "SetSeeds")]
+    public Task SetSeeds([FromRoute] int seasonID, CancellationToken ct)
+    {
+        return _bracketService.SetSeeds(seasonID, ct);
+    }
 }
