@@ -1,0 +1,22 @@
+<form #bracketForm="ngForm" (ngSubmit)="onSubmit()" style="margin: 20px">
+  <div>
+    <mat-form-field>
+      <mat-label>Participants Count</mat-label>
+      <input matInput required [(ngModel)]="participantsCount" name="participantsCount" type="number">
+      <app-error-message [control]="bracketForm.controls['participantsCount']" />
+    </mat-form-field>
+  </div>
+
+  <div>
+    <mat-checkbox [(ngModel)]="doubleElimination" name="doubleElimination" color="primary">
+      Double Elimination
+    </mat-checkbox>
+    <app-error-message [control]="bracketForm.controls['doubleElimination']" />
+  </div>
+  
+  <div>
+    <button mat-flat-button color="primary" [disabled]="!bracketForm.form.valid">
+      Create Bracket
+    </button>
+  </div>
+</form>

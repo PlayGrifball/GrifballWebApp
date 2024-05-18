@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Server.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Brackets;
@@ -16,6 +17,7 @@ public class BracketsController : ControllerBase
         _bracketService = bracketService;
     }
 
+    [Authorize(Roles = "Commissioner")]
     [HttpGet(Name = "CreateBracket")]
     public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination)
     {

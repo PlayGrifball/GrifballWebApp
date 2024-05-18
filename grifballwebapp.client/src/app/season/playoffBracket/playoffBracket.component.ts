@@ -3,6 +3,9 @@ import { Component, OnInit } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from '../../bracketTypes/types';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
@@ -11,6 +14,8 @@ import { ActivatedRoute, Router } from '@angular/router';
   standalone: true,
   imports: [
     CommonModule,
+    MatButtonModule,
+    MatDialogModule,
   ],
   templateUrl: './playoffBracket.component.html',
   styleUrl: './playoffBracket.component.scss',
@@ -18,7 +23,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
   
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) { }
+  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -55,5 +60,15 @@ export class PlayoffBracketComponent implements OnInit {
     };
 
     window.bracketsViewer.render(viewerData, config);
+  }
+
+  openDialog() {
+    const dialogRef = this.dialog.open(CreateBracketDialogComponent, {
+      data: this.seasonID
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      console.log(`Dialog result: ${result}`);
+    });
   }
 }
