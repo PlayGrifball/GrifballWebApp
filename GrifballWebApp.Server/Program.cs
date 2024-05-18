@@ -8,6 +8,7 @@ using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -113,6 +114,7 @@ public class Program
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<SeasonMatchService>();
+        builder.Services.AddTransient<TeamStandingsService>();
 
         builder.Services.
             AddAuthentication(options =>

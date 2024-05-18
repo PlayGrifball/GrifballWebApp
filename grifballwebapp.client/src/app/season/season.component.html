@@ -1,11 +1,14 @@
 <h2>{{seasonName}}</h2>
 
-<a class="space" mat-flat-button color="primary" [routerLink]="['signups']" >View Signups</a>
+<a class="space" mat-flat-button color="primary" [routerLink]="['signups']">View Signups</a>
 
 <!--IF closed THEN signups closed ELIF Player THEN signup here ELIF not login in THEN register so you sign up ELSE only playes can signup  -->
-<a class="space" mat-flat-button color="primary" [routerLink]="['signupForm']" >Signup Here</a>
+<a class="space" mat-flat-button color="primary" [routerLink]="['signupForm']">Signup Here</a>
 
-<a class="space" mat-flat-button color="primary" [routerLink]="['teams']" >View Teams</a>
+<a class="space" mat-flat-button color="primary" [routerLink]="['teams']">View Teams</a>
+
+<p>Team Standings</p>
+<app-team-standings></app-team-standings>
 
 <p>Regular Season Schedule</p>
 <app-schedule-list></app-schedule-list>

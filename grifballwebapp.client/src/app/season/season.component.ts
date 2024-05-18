@@ -5,6 +5,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatButtonModule } from '@angular/material/button';
 import { ScheduleListComponent } from "./scheduleList/scheduleList.component";
 import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.component';
+import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 
 @Component({
     selector: 'app-season',
@@ -16,7 +17,8 @@ import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.compone
         RouterModule,
         MatButtonModule,
         ScheduleListComponent,
-        PlayoffBracketComponent
+        PlayoffBracketComponent,
+        TeamStandingsComponent
     ]
 })
 export class SeasonComponent implements OnInit {
