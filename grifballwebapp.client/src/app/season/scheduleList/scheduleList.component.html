@@ -14,7 +14,8 @@
     <mat-card-content>
       @for (match of week.games; track match) {
       <mat-divider></mat-divider>
-      <span [routerLink]="['/seasonmatch', match.seasonMatchID]">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
+      <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
+            [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
       @if (accountService.isEventOrganizer() && isEditing) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>
@@ -47,7 +48,8 @@
     @for (match of unscheduledMatches; track match.seasonMatchID) {
     <mat-divider></mat-divider>
     <div>
-      <span [routerLink]="['/seasonmatch', match?.seasonMatchID]">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
+      <span [routerLink]="['/seasonmatch', match?.seasonMatchID]"
+            [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
       @if (accountService.isEventOrganizer() && isEditing) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>

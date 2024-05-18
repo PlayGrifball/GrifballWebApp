@@ -110,6 +110,7 @@ export class ScheduleListComponent  implements OnInit {
       SeasonMatchID: value.seasonMatchID,
       HomeCaptainName: value.homeCaptain,
       AwayCaptainName: value.awayCaptain,
+      Complete: value.complete,
       Time: value.time,
       DateTime: dateTime,
       LocalWeekNumber: dateTime.localWeekNumber,
@@ -122,6 +123,7 @@ export class ScheduleListComponent  implements OnInit {
       seasonMatchID: value.SeasonMatchID,
       homeCaptainName: value.HomeCaptainName,
       awayCaptainName: value.AwayCaptainName,
+      complete: value.Complete,
       time: value.DateTime,
     }
   }

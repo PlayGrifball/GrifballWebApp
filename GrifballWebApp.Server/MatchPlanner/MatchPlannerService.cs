@@ -87,6 +87,7 @@ public class MatchPlannerService
                 SeasonMatchID = x.SeasonMatchID,
                 HomeCaptain = x.HomeTeam.Captain.User.XboxUser.Gamertag,
                 AwayCaptain = x.AwayTeam.Captain.User.XboxUser.Gamertag,
+                Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
                 Time = x.ScheduledTime ?? throw new Exception("No time on season match")
             });
         return ordered.ToList();
