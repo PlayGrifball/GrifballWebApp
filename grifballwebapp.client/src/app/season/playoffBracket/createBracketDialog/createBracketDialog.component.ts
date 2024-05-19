@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Inject, Input } from '@angular/core';
+import { Component, EventEmitter, Inject, Input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { HttpClient } from '@angular/common/http';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-create-bracket-dialog',
@@ -20,7 +21,8 @@ import { HttpClient } from '@angular/common/http';
     MatFormFieldModule,
     MatInputModule,
     ErrorMessageComponent,
-    MatCheckboxModule
+    MatCheckboxModule,
+    MatSnackBarModule
   ],
   templateUrl: './createBracketDialog.component.html',
   styleUrl: './createBracketDialog.component.scss',
@@ -32,15 +34,20 @@ export class CreateBracketDialogComponent {
   doubleElimination: boolean = true;
   bestOf: number | null = 3;
 
-  constructor(private http: HttpClient, @Inject(MAT_DIALOG_DATA) public data: number) {
+  bracketCreated = new EventEmitter();
+
+  constructor(private http: HttpClient, @Inject(MAT_DIALOG_DATA) public data: number, private snackBar: MatSnackBar) {
     this.seasonID = data;
   }
 
   onSubmit() {
     this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => console.log(r),
-        error: e => console.log(e),
+        next: r => this.bracketCreated.emit(),
+        error: e => {
+          console.log(e);
+          this.snackBar.open("Failed to create bracket", "Close");
+        },
       })
   }
 }

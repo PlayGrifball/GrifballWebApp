@@ -1,9 +1,8 @@
 //One option is to import css in css
-@import 'https://cdn.jsdelivr.net/gh/Drarig29/brackets-viewer.js@09a5e578e4e6bd76db06b380e79ef2a3bedb8e92/dist/brackets-viewer.min.css';
-// https://cdn.jsdelivr.net/npm/brackets-viewer/dist/brackets-viewer.min.css
+@import 'https://cdn.jsdelivr.net/npm/brackets-viewer@1.6.2/dist/brackets-viewer.min.css';
 
 //Then apply global css but only to host context. But ng-deep is deprecated
-:host ::ng-deep .name.bye {
+/*:host ::ng-deep .name.bye {
   font-style: italic;
   color: var(--hint-color);
 }
@@ -21,7 +20,7 @@
 
 :host ::ng-deep h3 {
   display: none;
-}
+}*/
 
 
 // Another option is to set encapsulation: ViewEncapsulation.None in ts file.

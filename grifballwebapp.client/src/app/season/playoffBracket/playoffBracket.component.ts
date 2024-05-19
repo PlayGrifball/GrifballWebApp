@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
@@ -16,6 +17,7 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
     CommonModule,
     MatButtonModule,
     MatDialogModule,
+    MatSnackBarModule
   ],
   templateUrl: './playoffBracket.component.html',
   styleUrl: './playoffBracket.component.scss',
@@ -23,7 +25,7 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
   
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog) { }
+  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -31,11 +33,18 @@ export class PlayoffBracketComponent implements OnInit {
     if (this.seasonID === 0)
       return;
 
+    this.getViewerData();
+  }
+
+  getViewerData(): void {
     this.http.get<ViewerData>("api/Brackets/GetViewerData?seasonID=" + this.seasonID)
       .subscribe(
         {
           next: r => this.render(r),
-          error: e => console.log(e)
+          error: e => {
+            console.log(e);
+            this.snackBar.open("Failed to get viewer data", "Close");
+          }
         });
   }
 
@@ -53,7 +62,9 @@ export class PlayoffBracketComponent implements OnInit {
       },
     });
 
-    let config: Partial<Config> = {};
+    let config: Config = {
+      clear: true
+    };
 
     window.bracketsViewer.onMatchClicked = (match: MatchWithMetadata) => {
       this.router.navigate(['/seasonmatch/' + match.id]);
@@ -67,16 +78,25 @@ export class PlayoffBracketComponent implements OnInit {
       data: this.seasonID
     });
 
+    const subcription = dialogRef.componentInstance.bracketCreated.subscribe(() => {
+      this.getViewerData();
+    });
+
     dialogRef.afterClosed().subscribe(result => {
-      console.log(`Dialog result: ${result}`);
+      subcription.unsubscribe();
     });
   }
 
   setSeeds() {
     this.http.get("api/Brackets/SetSeeds/" + this.seasonID)
       .subscribe({
-        next: r => console.log(r),
-        error: e => console.log(e),
+        next: r => {
+          this.getViewerData();
+        },
+        error: e => {
+          console.log(e);
+          this.snackBar.open("Failed to Set Seeds", "Close");
+        },
       });
   }
 }

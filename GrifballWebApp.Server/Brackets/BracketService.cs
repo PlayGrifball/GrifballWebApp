@@ -673,6 +673,7 @@ public class BracketService
         }
 
         //result.MatchGames - Does not seem to matter
+        result.MatchGames = new();
 
         return result;
     }
