@@ -72,6 +72,7 @@ public class MatchPlannerService
                 SeasonMatchID = x.SeasonMatchID,
                 HomeCaptain = x.HomeTeam.Captain.User.XboxUser.Gamertag,
                 AwayCaptain = x.AwayTeam.Captain.User.XboxUser.Gamertag,
+                Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
             });
         return ordered.ToList();
     }
