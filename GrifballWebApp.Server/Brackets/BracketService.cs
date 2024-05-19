@@ -16,7 +16,7 @@ public class BracketService
         _teamStandingsService = teamStandingsService;
     }
 
-    public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, CancellationToken ct = default)
+    public async Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default)
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var deletedCount = await _grifballContext.SeasonMatches
@@ -51,7 +51,8 @@ public class BracketService
                     AwayTeamSeedNumber = matchup.Away,
                     AwayTeamPreviousMatchBracketInfo = null,
                     Bracket = Bracket.Winner,
-                }
+                },
+                BestOf = bestOf,
             };
             matches.Add(match);
             matchNumber++;
@@ -83,7 +84,8 @@ public class BracketService
                         AwayTeamSeedNumber = null,
                         AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
                         Bracket = Bracket.Winner,
-                    }
+                    },
+                    BestOf = bestOf,
                 };
                 matches.Add(match);
                 matchNumber++;
@@ -111,13 +113,14 @@ public class BracketService
                     AwayTeamSeedNumber = null,
                     AwayTeamPreviousMatchBracketInfo = null, // TBD the winner of the loser bracket.
                     Bracket = Bracket.GrandFinal,
-                }
+                },
+                BestOf = bestOf,
             };
 
             matches.Add(grandFinal);
             matchNumber++;
 
-            // Losers force a second mathc
+            // Losers may force a second match
             var suddenDeath = new SeasonMatch()
             {
                 SeasonID = seasonID,
@@ -130,7 +133,8 @@ public class BracketService
                     AwayTeamSeedNumber = null,
                     AwayTeamPreviousMatchBracketInfo = grandFinal.BracketMatch, // is weird... is this how I want to do this?
                     Bracket = Bracket.GrandFinalSuddenDeath,
-                }
+                },
+                BestOf = bestOf,
             };
 
             matches.Add(suddenDeath);
@@ -188,6 +192,7 @@ public class BracketService
                                 AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
                                 Bracket = Bracket.Loser,
                             },
+                            BestOf = bestOf,
                         };
                         matchNumber++;
                         loserMatches.Add(loserMatch);
@@ -222,6 +227,7 @@ public class BracketService
                                 AwayTeamPreviousMatchBracketInfo = dependentMatches[1].BracketMatch,
                                 Bracket = Bracket.Loser,
                             },
+                            BestOf = bestOf,
                         };
                         matchNumber++;
                         loserMatches.Add(loserMatch);
@@ -272,6 +278,7 @@ public class BracketService
                             AwayTeamPreviousMatchBracketInfo = previousLoserMatch.BracketMatch,
                             Bracket = Bracket.Loser,
                         },
+                        BestOf = bestOf,
                     };
                     matchNumber++;
                     loserMatches.Add(loserMatch);

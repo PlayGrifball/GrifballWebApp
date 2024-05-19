@@ -19,14 +19,14 @@ public class BracketsController : ControllerBase
 
     [Authorize(Roles = "Commissioner")]
     [HttpGet(Name = "CreateBracket")]
-    public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination)
+    public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination, [FromQuery] int bestOf, CancellationToken ct)
     {
         if (participantsCount <= 0)
             return BadRequest("Please provide participantsCount");
         if (seasonID <= 0)
             return BadRequest("Please provide seasonID");
 
-        await _bracketService.CreateBracket(participantsCount, seasonID, doubleElimination);
+        await _bracketService.CreateBracket(participantsCount, seasonID, doubleElimination, bestOf, ct);
         return Ok();
     }
 

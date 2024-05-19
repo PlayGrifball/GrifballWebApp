@@ -13,7 +13,15 @@
     </mat-checkbox>
     <app-error-message [control]="bracketForm.controls['doubleElimination']" />
   </div>
-  
+
+  <div>
+    <mat-form-field>
+      <mat-label>Best Of</mat-label>
+      <input matInput required [(ngModel)]="bestOf" name="bestOf" type="number">
+      <app-error-message [control]="bracketForm.controls['bestOf']" />
+    </mat-form-field>
+  </div>
+
   <div>
     <button mat-flat-button color="primary" [disabled]="!bracketForm.form.valid">
       Create Bracket

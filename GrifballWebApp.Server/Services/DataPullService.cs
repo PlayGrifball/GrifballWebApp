@@ -20,7 +20,7 @@ public class DataPullService
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _grifballContext = grifballContext;
     }
-    public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, CancellationToken ct = default)
+    public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
     {
         var stringXboxIDs = xboxIDs.Distinct().Select(x => $"xuid({x})").ToList();
 
@@ -36,25 +36,46 @@ public class DataPullService
 
         await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, ct) =>
         {
-            var response = await client.StatsGetMatchHistory(xboxUserID, 0, 25, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
-
-            if (response.Result is null)
+            var source = new CancellationTokenSource();
+            var linked = CancellationTokenSource.CreateLinkedTokenSource(source.Token, ct);
+            var linkedToken = linked.Token;
+            try
             {
-                _logger.LogWarning("Failed to get match history for user {XboxUserID}", xboxUserID);
-                return;
+                await Parallel.ForAsync(startPage, endPage, async (page, linkedToken) =>
+                {
+                    var start = Math.Max(page * perPage - 1, 0);
+                    var response = await client.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+
+                    if (response.Result is null)
+                    {
+                        _logger.LogWarning("Failed to get match history for user {XboxUserID}", xboxUserID);
+                        return;
+                    }
+
+                    if (response.Result.Results.Any() is false)
+                    {
+                        _logger.LogWarning("Detected 0 matches for user {XboxUserID} bailing out", xboxUserID);
+                        await source.CancelAsync(); // Stop request matches for this user
+                        return;
+                    }
+
+                    var guids = response.Result.Results.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
+                    {
+                        var stringMatchID = x.MatchId;
+                        var parsed = Guid.TryParse(stringMatchID, out var guid);
+                        if (parsed is false)
+                            _logger.LogWarning("Could not parse Guid {Guid} from player history for player {XboxUserID}", stringMatchID, xboxUserID);
+                        return guid;
+                    }).Where(x => x != default).ToArray();
+
+                    foreach (var guid in guids)
+                        matchIDBag.Add(guid);
+                });
             }
-
-            var guids = response.Result.Results.Where(x => (int?)x.MatchInfo.GameVariantCategory is 41).Select(x =>
+            catch when (source.IsCancellationRequested is true)
             {
-                var stringMatchID = x.MatchId;
-                var parsed = Guid.TryParse(stringMatchID, out var guid);
-                if (parsed is false)
-                    _logger.LogWarning("Could not parse Guid {Guid} from player history for player {XboxUserID}", stringMatchID, xboxUserID);
-                return guid;
-            }).Where(x => x != default).ToArray();
-
-            foreach (var guid in guids)
-                matchIDBag.Add(guid);
+                _logger.LogWarning("Caught error while looking for matches {XboxUserID}. Will continue looking for other users matches", xboxUserID);
+            }
         });
 
         var matchIDs = new List<Guid>();

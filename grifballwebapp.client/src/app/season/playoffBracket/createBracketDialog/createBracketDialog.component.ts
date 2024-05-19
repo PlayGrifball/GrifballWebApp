@@ -30,13 +30,14 @@ export class CreateBracketDialogComponent {
 
   participantsCount: number | null = 8;
   doubleElimination: boolean = true;
+  bestOf: number | null = 3;
 
   constructor(private http: HttpClient, @Inject(MAT_DIALOG_DATA) public data: number) {
     this.seasonID = data;
   }
 
   onSubmit() {
-    this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination)
+    this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)
       .subscribe({
         next: r => console.log(r),
         error: e => console.log(e),

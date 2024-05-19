@@ -129,7 +129,8 @@ public class SeasonMatchService
             .Where(x => x.MatchTeams.Count == 2)
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
             .Where(x => x.MatchLink == null)
-            .Take(100)
+            .Where(x => x.MatchTeams.Any(x => x.Outcome == Outcomes.Won))
+            .Take(200)
             .OrderByDescending(x => x.StartTime)
             //.AsSplitQuery() // Include does not work correctly when running as split query, with take 100, and order by desc.
             // Split query causes the include to silently fail. Disabling split query for now but may want to revist this later
