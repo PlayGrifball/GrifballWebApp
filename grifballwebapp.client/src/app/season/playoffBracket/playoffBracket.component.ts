@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { AccountService } from '../../account.service';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
@@ -25,7 +26,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
   
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar) { }
+  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar, public accountService: AccountService) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

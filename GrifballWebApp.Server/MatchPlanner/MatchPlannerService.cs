@@ -14,7 +14,7 @@ public class MatchPlannerService
         _grifballContext = grifballContext;
     }
 
-    public async Task CreateSeasonMatches(int seasonID, CancellationToken ct = default)
+    public async Task CreateSeasonMatches(int seasonID, int homeMatchesPerTeam, int bestOf, CancellationToken ct = default)
     {
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var deletedCount = await _grifballContext.SeasonMatches
@@ -33,15 +33,19 @@ public class MatchPlannerService
         // Each team should have 1 home game against the other teams
         foreach (var homeTeam in teams)
         {
-            foreach (var awayTeam in teams.Where(team => team != homeTeam))
+            for (int i = 1; i <= homeMatchesPerTeam; i++)
             {
-                var newMatch = new SeasonMatch()
+                foreach (var awayTeam in teams.Where(team => team != homeTeam))
                 {
-                    SeasonID = seasonID,
-                    HomeTeam = homeTeam,
-                    AwayTeam = awayTeam,
-                };
-                newMatches.Add(newMatch);
+                    var newMatch = new SeasonMatch()
+                    {
+                        SeasonID = seasonID,
+                        HomeTeam = homeTeam,
+                        AwayTeam = awayTeam,
+                        BestOf = bestOf,
+                    };
+                    newMatches.Add(newMatch);
+                }
             }
         }
 

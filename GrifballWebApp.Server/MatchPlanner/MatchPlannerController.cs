@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Server.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.MatchPlanner;
@@ -16,13 +17,20 @@ public class MatchPlannerController : ControllerBase
         _matchPlannerService = matchPlannerService;
     }
 
+    [Authorize(Roles = "Commissioner")]
     [HttpGet(Name = "CreateSeasonMatches")]
-    public async Task<ActionResult> CreateSeasonMatches([FromQuery] int seasonID)
+    public async Task<ActionResult> CreateSeasonMatches([FromQuery] int seasonID, [FromQuery] int homeMatchesPerTeam, [FromQuery] int bestOf, CancellationToken ct)
     {
         if (seasonID <= 0)
             return BadRequest("Please provide seasonID");
 
-        await _matchPlannerService.CreateSeasonMatches(seasonID);
+        if (homeMatchesPerTeam <= 0)
+            return BadRequest("homeMatchesPerTeam should be at least 1");
+
+        if (bestOf <= 0)
+            return BadRequest("bestOf should be at least 1");
+
+        await _matchPlannerService.CreateSeasonMatches(seasonID: seasonID, homeMatchesPerTeam: homeMatchesPerTeam, bestOf: bestOf);
         return Ok();
     }
 
@@ -46,6 +54,7 @@ public class MatchPlannerController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "UpdateMatchTime")]
     public Task UpdateMatchTime([FromBody] UpdateMatchTimeDto dto)
     {

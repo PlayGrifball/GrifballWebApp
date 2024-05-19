@@ -1,7 +1,8 @@
 <!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/brackets-viewer@1.6.2/dist/brackets-viewer.min.css"/>-->
 
-
+@if (accountService.isEventOrganizer()) {
 <a mat-flat-button color="primary" (click)="openDialog()">Create Bracket</a>
-
 <a mat-flat-button color="primary" (click)="setSeeds()">Set Seeds</a>
+}
+
 <div class="brackets-viewer"></div>

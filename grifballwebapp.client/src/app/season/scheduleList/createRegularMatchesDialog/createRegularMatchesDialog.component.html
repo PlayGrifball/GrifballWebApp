@@ -1,0 +1,23 @@
+<form #regularMatchesForm="ngForm" (ngSubmit)="onSubmit()" style="margin: 20px">
+  <div>
+    <mat-form-field>
+      <mat-label>Home Matches Per Team</mat-label>
+      <input matInput required [(ngModel)]="homeMatchesPerTeam" name="homeMatchesPerTeam" type="number">
+      <app-error-message [control]="regularMatchesForm.controls['homeMatchesPerTeam']" />
+    </mat-form-field>
+  </div>
+
+  <div>
+    <mat-form-field>
+      <mat-label>Best Of</mat-label>
+      <input matInput required [(ngModel)]="bestOf" name="bestOf" type="number">
+      <app-error-message [control]="regularMatchesForm.controls['bestOf']" />
+    </mat-form-field>
+  </div>
+
+  <div>
+    <button mat-flat-button color="primary" [disabled]="!regularMatchesForm.form.valid">
+      Create Regular Matches
+    </button>
+  </div>
+</form>

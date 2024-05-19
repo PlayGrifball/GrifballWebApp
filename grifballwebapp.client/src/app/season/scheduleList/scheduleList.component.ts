@@ -18,6 +18,8 @@ import { DateTime, Settings } from 'luxon';
 import { TimeDto } from './timeDto';
 import * as _ from 'lodash';
 import { WeekDto, WeekGameDto } from './weekDto';
+import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 @Component({
     selector: 'app-schedule-list',
@@ -34,7 +36,8 @@ import { WeekDto, WeekGameDto } from './weekDto';
         MatInputModule,
         FormsModule,
         MatButtonModule,
-        RouterModule
+        RouterModule,
+        MatDialogModule,
     ]
 })
 export class ScheduleListComponent  implements OnInit {
@@ -43,7 +46,7 @@ export class ScheduleListComponent  implements OnInit {
   scheduledMatches: WeekDto[] = [];
   isEditing: boolean = false;
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService) {}
+  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private dialog: MatDialog) {}
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -53,6 +56,20 @@ export class ScheduleListComponent  implements OnInit {
     else {
       this.GetMatches();
     }
+  }
+
+  createRegularSeasonMatches() {
+    const dialogRef = this.dialog.open(CreateRegularMatchesDialogComponent, {
+      data: this.seasonID
+    });
+
+    const subcription = dialogRef.componentInstance.regularMatchesCreated.subscribe(() => {
+      this.GetMatches();
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      subcription.unsubscribe();
+    });
   }
 
   private GetMatches(): void {

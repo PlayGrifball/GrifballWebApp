@@ -50,6 +50,7 @@ public class BracketsController : ControllerBase
         return Ok(bracketDto);
     }
 
+    [Authorize(Roles = "Commissioner")]
     [HttpGet("{seasonID:int}", Name = "SetSeeds")]
     public Task SetSeeds([FromRoute] int seasonID, CancellationToken ct)
     {
