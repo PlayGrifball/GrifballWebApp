@@ -57,9 +57,11 @@ public class SeasonMatchService
             HomeTeamName = seasonMatch.HomeTeam?.TeamName,
             HomeTeamID = seasonMatch.HomeTeam?.TeamID,
             HomeTeamScore = seasonMatch.HomeTeamScore,
+            HomeTeamResult = MapToResult(seasonMatch.HomeTeamResult),
             AwayTeamName = seasonMatch.AwayTeam?.TeamName,
             AwayTeamID = seasonMatch.AwayTeam?.TeamID,
             AwayTeamScore = seasonMatch.AwayTeamScore,
+            AwayTeamResult = MapToResult(seasonMatch.AwayTeamResult),
             ScheduledTime = seasonMatch.ScheduledTime,
             BestOf = seasonMatch.BestOf,
             ReportedGames = seasonMatch.MatchLinks.Select(x => new ReportedGameDto()
@@ -77,6 +79,18 @@ public class SeasonMatchService
                 WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
             }
+        };
+    }
+
+    private SeasonMatchResultDto MapToResult(SeasonMatchResult? r)
+    {
+        return r switch
+        {
+            null => SeasonMatchResultDto.TBD,
+            SeasonMatchResult.Won => SeasonMatchResultDto.Won,
+            SeasonMatchResult.Loss => SeasonMatchResultDto.Loss,
+            SeasonMatchResult.Forfeit => SeasonMatchResultDto.Forfeit,
+            _ => throw new ArgumentOutOfRangeException(nameof(r), r, "Season match result out of range"),
         };
     }
 
@@ -114,6 +128,7 @@ public class SeasonMatchService
             .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => allIDs.Contains(x.XboxUserID))))
             .Where(x => x.MatchTeams.Count == 2)
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
+            .Where(x => x.MatchLink == null)
             .Take(100)
             .OrderByDescending(x => x.StartTime)
             //.AsSplitQuery() // Include does not work correctly when running as split query, with take 100, and order by desc.
@@ -202,6 +217,12 @@ public class SeasonMatchService
                 .ThenInclude(x => x.User.XboxUser)
             .Include(sm => sm.MatchLinks)
                 .ThenInclude(ml => ml.Match)
+                    .ThenInclude(m => m.MatchTeams)
+                        .ThenInclude(t => t.MatchParticipants)
+            .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
+            .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
             .Where(sm => sm.SeasonMatchID == seasonMatchID)
             .FirstOrDefaultAsync(ct);
 
@@ -261,8 +282,59 @@ public class SeasonMatchService
             seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
         }
 
+        if ((seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null) && seasonMatch.BracketMatch is not null)
+        {
+            HandleSettingNextMatchesInBracket(seasonMatch);
+        }
+
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+    }
+
+    private void HandleSettingNextMatchesInBracket(SeasonMatch seasonMatch)
+    {
+        if (seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal && seasonMatch.HomeTeamResult is SeasonMatchResult.Won)
+        {
+            return; // To not proceed to sudden death if the home team wins grand final
+        }
+
+        var nextMatches = _bracketService.DetermineNextMatches(seasonMatch);
+
+        if (nextMatches.Winner is not null)
+        {
+            var winningTeam = seasonMatch switch
+            {
+                _ when seasonMatch.HomeTeamResult is SeasonMatchResult.Won => seasonMatch.HomeTeamID,
+                _ when seasonMatch.AwayTeamResult is SeasonMatchResult.Won => seasonMatch.AwayTeamID,
+                _ => throw new Exception("Missing winning team") // TODO: Support byes?
+            };
+            if (nextMatches.Winner.IsHomeTeam)
+            {
+                nextMatches.Winner.Game.HomeTeamID = winningTeam;
+            }
+            else
+            {
+                nextMatches.Winner.Game.AwayTeamID = winningTeam;
+            }
+        }
+
+        if (nextMatches.Loser is not null)
+        {
+            var losingTeam = seasonMatch switch
+            {
+                _ when seasonMatch.HomeTeamResult is SeasonMatchResult.Loss or SeasonMatchResult.Forfeit => seasonMatch.HomeTeamID,
+                _ when seasonMatch.AwayTeamResult is SeasonMatchResult.Loss or SeasonMatchResult.Forfeit => seasonMatch.AwayTeamID,
+                _ => throw new Exception("Missing losing team") // TODO: ????
+            };
+            if (nextMatches.Loser.IsHomeTeam)
+            {
+                nextMatches.Loser.Game.HomeTeamID = losingTeam;
+            }
+            else
+            {
+                nextMatches.Loser.Game.AwayTeamID = losingTeam;
+            }
+        }
     }
 
     private TeamsDto? GetTeams(Match match, List<long> homeTeamIDs, List<long> awayTeamIDs)

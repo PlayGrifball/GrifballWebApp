@@ -6,9 +6,9 @@
   <mat-grid-tile>{{seasonMatch?.homeTeamScore}}</mat-grid-tile>
   <mat-grid-tile>-</mat-grid-tile>
   <mat-grid-tile>{{seasonMatch?.awayTeamScore}}</mat-grid-tile>
-  <mat-grid-tile>Won</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch?.homeTeamResult}}</mat-grid-tile>
   <mat-grid-tile></mat-grid-tile>
-  <mat-grid-tile>Won</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch?.awayTeamResult}}</mat-grid-tile>
   <mat-grid-tile colspan="3">Best of {{seasonMatch?.bestOf}}</mat-grid-tile>
   <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
 </mat-grid-list>

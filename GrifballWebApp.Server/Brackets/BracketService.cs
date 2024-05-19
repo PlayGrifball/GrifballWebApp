@@ -557,13 +557,17 @@ public class BracketService
             {
                 Id = sm.HomeTeamID,
                 Position = sm.BracketMatch.HomeTeamSeedNumber ?? null,
-                Forfeit = false,
+                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit,
+                Score = sm.HomeTeamScore,
+                Result = MapResult(sm.HomeTeamResult),
             },
             Opponent2 = new ParticpantResult()
             {
                 Id = sm.AwayTeamID,
                 Position = sm.BracketMatch.AwayTeamSeedNumber ?? null,
-                Forfeit = false,
+                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit,
+                Score = sm.AwayTeamScore,
+                Result = MapResult(sm.AwayTeamResult),
             }
         }).ToList();
 
@@ -583,13 +587,17 @@ public class BracketService
             {
                 Id = sm.HomeTeamID,
                 Position = GetWinnerMatchPosition(sm.BracketMatch.HomeTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = false,
+                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit,
+                Score = sm.HomeTeamScore,
+                Result = MapResult(sm.HomeTeamResult),
             },
             Opponent2 = new ParticpantResult()
             {
                 Id = sm.AwayTeamID,
                 Position = GetWinnerMatchPosition(sm.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = false,
+                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit,
+                Score = sm.AwayTeamScore,
+                Result = MapResult(sm.AwayTeamResult),
             }
         }).ToList();
         result.Matches.AddRange(mappedLosers);
@@ -610,13 +618,17 @@ public class BracketService
                 Opponent1 = new ParticpantResult()
                 {
                     Id = grandFinal.HomeTeamID,
-                    Forfeit = false,
+                    Forfeit = grandFinal.HomeTeamResult is SeasonMatchResult.Forfeit,
+                    Score = grandFinal.HomeTeamScore,
+                    Result = MapResult(grandFinal.HomeTeamResult),
                 },
                 Opponent2 = new ParticpantResult()
                 {
                     Id = grandFinal.AwayTeamID,
                     Position = 1, // There is only 1 game in loser bracket final so this is always 1
-                    Forfeit = false,
+                    Forfeit = grandFinal.AwayTeamResult is SeasonMatchResult.Forfeit,
+                    Score = grandFinal.AwayTeamScore,
+                    Result = MapResult(grandFinal.AwayTeamResult),
                 }
             };
             result.Matches.Add(mappedGrandFinal);
@@ -637,13 +649,16 @@ public class BracketService
                     Opponent1 = new ParticpantResult()
                     {
                         Id = grandFinalSuddenDeath.HomeTeamID,
-                        Forfeit = false,
-                        Score = 0,
+                        Forfeit = grandFinalSuddenDeath.HomeTeamResult is SeasonMatchResult.Forfeit,
+                        Score = grandFinalSuddenDeath.HomeTeamScore,
+                        Result = MapResult(grandFinalSuddenDeath.HomeTeamResult),
                     },
                     Opponent2 = new ParticpantResult()
                     {
                         Id = grandFinalSuddenDeath.AwayTeamID,
-                        Forfeit = false,
+                        Forfeit = grandFinalSuddenDeath.AwayTeamResult is SeasonMatchResult.Forfeit,
+                        Score = grandFinalSuddenDeath.AwayTeamScore,
+                        Result = MapResult(grandFinalSuddenDeath.AwayTeamResult),
                     }
                 };
                 result.Matches.Add(mappedGrandFinalSuddenDeath);
@@ -653,6 +668,18 @@ public class BracketService
         //result.MatchGames - Does not seem to matter
 
         return result;
+    }
+
+    private Result? MapResult(SeasonMatchResult? r)
+    {
+        return r switch
+        {
+            SeasonMatchResult.Won => Result.win,
+            SeasonMatchResult.Loss => Result.loss,
+            SeasonMatchResult.Forfeit => Result.loss,
+            null => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(r), r, "Season match result of range"),
+        };
     }
 
     private int GetMatchNumberWithinRound(SeasonMatch sm, List<SeasonMatch> seasonMatches)

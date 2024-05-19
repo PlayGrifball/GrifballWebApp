@@ -7,9 +7,11 @@ export interface SeasonMatchPageDto {
   homeTeamName: string | null,
   homeTeamID: number | null,
   homeTeamScore: number | null,
+  homeTeamResult: 'Won' | 'Loss' | 'Forfeit' | 'TBD'
   awayTeamName: string | null,
   awayTeamID: number | null,
   awayTeamScore: number | null,
+  awayTeamResult: 'Won' | 'Loss' | 'Forfeit' | 'TBD'
   scheduledTime: DateTime | null,
   bestOf: number,
   reportedGame: ReportedGameDto[],
