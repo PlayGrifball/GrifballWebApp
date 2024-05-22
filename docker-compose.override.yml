@@ -4,11 +4,19 @@ services:
   grifballwebapp.server:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_HTTP_PORTS=5295
+      - ASPNETCORE_HTTPS_PORTS=7210
     ports:
-      - "5295:8080"
-      - "7210:8081"
+     - "5295:5295"
+     - "7210:7210"
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+  grifballwebapp.client:
+    environment:
+      - NODE_ENV=development
+    build:
+      context: grifballwebapp.client
+      dockerfile: debug.Dockerfile
+    ports:
+     - "2552:4200"

@@ -26,5 +26,5 @@ services:
     build:
       context: grifballwebapp.client
       dockerfile: Dockerfile
-    ports:
-     - "2552:80"
+    #ports:
+    # - "2552:80"
