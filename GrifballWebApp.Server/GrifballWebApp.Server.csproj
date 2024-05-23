@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -28,7 +28,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj">
+    <!-- 
+    Honestly not sure why there is a reference to the front end here...
+    It is literally only causing problems in build process when using docker since we do not use the node image for the backend
+    Almost tempted to just delete it but for now we will just not include it when building docker
+    -->
+    <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj" Condition="!$(DefineConstants.Contains('DOCKER'))">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\GrifballWebApp.Database\GrifballWebApp.Database.csproj" />

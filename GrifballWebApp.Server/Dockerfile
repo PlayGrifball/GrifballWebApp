@@ -16,11 +16,11 @@ COPY ["GrifballWebApp.Server/GrifballWebApp.Server.csproj", "GrifballWebApp.Serv
 RUN dotnet restore "./GrifballWebApp.Server/GrifballWebApp.Server.csproj"
 COPY . .
 WORKDIR "/src/GrifballWebApp.Server"
-RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:DefineConstants=DOCKER_BUILD
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD
 
 FROM base AS final
 WORKDIR /app

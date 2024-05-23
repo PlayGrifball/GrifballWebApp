@@ -3,13 +3,14 @@
   <PropertyGroup Label="Globals">
     <ProjectVersion>2.1</ProjectVersion>
     <DockerTargetOS>Linux</DockerTargetOS>
-    <DockerPublishLocally>False</DockerPublishLocally>
+    <DockerPublishLocally>True</DockerPublishLocally>
     <ProjectGuid>94cab9e1-9ff5-48e8-a5c6-6e9051806946</ProjectGuid>
     <DockerLaunchAction>LaunchBrowser</DockerLaunchAction>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}/swagger</DockerServiceUrl>
     <DockerServiceName>grifballwebapp.server</DockerServiceName>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="release.yml" />
     <None Include="docker-compose.override.yml">
       <DependentUpon>docker-compose.yml</DependentUpon>
     </None>

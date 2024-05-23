@@ -1,0 +1,36 @@
+version: '3.4'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04
+    environment:
+      - SA_PASSWORD=Pass@word
+      - ACCEPT_EULA=Y
+    ports:
+      - "5434:1433"
+    volumes:
+      - type: bind
+        source: C:\Program Files\Microsoft SQL Server\MSSQL16.MSSQLSERVER\MSSQL\Backup
+        target: /backups
+  grifballwebapp.server:
+    image: ${DOCKER_REGISTRY-}grifballwebappserver
+    build:
+      context: .
+      dockerfile: GrifballWebApp.Server/Dockerfile
+    environment:
+      - ConnectionStrings__GrifballWebApp=Server=sqlserver,1433;Database=GrifballWebApp;Encrypt=False;User Id=sa;Password=Pass@word;
+      #- ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=5295
+      #- ASPNETCORE_HTTPS_PORTS=7210
+      - Discord__ClientId=SECRET
+      - Discord__ClientSecret=SECRET
+    ports:
+      - "5295:5295"
+      - "7210:7210"
+  grifballwebapp.client:
+    image: ${DOCKER_REGISTRY-}grifballwebappclient
+    build:
+      context: grifballwebapp.client
+      dockerfile: Dockerfile
+    ports:
+     - "2552:80"
