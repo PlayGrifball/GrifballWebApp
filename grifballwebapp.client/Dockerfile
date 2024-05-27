@@ -8,7 +8,7 @@ RUN npm run build
 
 # Stage 2
 FROM nginx:1.22.1-alpine
-#COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /usr/test/app/dist/grifballwebapp.client/browser /usr/share/nginx/html
 

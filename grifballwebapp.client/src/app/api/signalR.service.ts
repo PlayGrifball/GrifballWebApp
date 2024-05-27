@@ -12,7 +12,7 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
 export class SignalRService {
   constructor(accountService: AccountService) {
     this.hubConnection = new HubConnectionBuilder()
-      .withUrl('api/TeamsHub', {
+      .withUrl('hub/TeamsHub', {
         accessTokenFactory: () => accountService.accessToken() ?? ""
       })
       .withAutomaticReconnect()
