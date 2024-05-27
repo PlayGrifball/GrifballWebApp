@@ -161,6 +161,8 @@ public class Program
 
         var app = builder.Build();
 
+        app.UseForwardedHeaders();
+
         app.UseDefaultFiles();
         app.UseStaticFiles();
 

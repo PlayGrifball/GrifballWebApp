@@ -94,8 +94,7 @@ public class IdentityController : ControllerBase
     public IActionResult ExternalLogin()
     {
         var provider = "Discord";
-        var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Identity");
-        redirectUrl = "login?callback=true";
+        var redirectUrl = "login?callback=true";
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
     }
