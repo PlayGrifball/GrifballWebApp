@@ -45,6 +45,14 @@
 
 <h2>Report Game</h2>
 
+<h3>Forfeit</h3>
+
+<button mat-button (click)="homeForfeit()" [disabled]="isSubmittingMatch">Home Team Forfeit</button>
+
+<button mat-button (click)="awayForfeit()" [disabled]="isSubmittingMatch">Away Team Forfeit</button>
+
+<h3>Enter Match ID</h3>
+
 <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
   <mat-form-field class="app-full-width">
     <mat-label>MatchID</mat-label>
@@ -56,6 +64,8 @@
     Submit
   </button>
 </form>
+
+<h3>Possible Matches</h3>
 
 @for (match of possibleMatches; track match) {
 <mat-card style="margin: 6px">

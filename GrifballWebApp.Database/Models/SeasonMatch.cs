@@ -29,6 +29,7 @@ public enum SeasonMatchResult
     Won = 0,
     Loss = 1,
     Forfeit = 2,
+    Bye = 3,
 }
 
 public enum SeasonMatchStatus

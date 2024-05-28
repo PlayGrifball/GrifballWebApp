@@ -90,6 +90,7 @@ public class SeasonMatchService
             SeasonMatchResult.Won => SeasonMatchResultDto.Won,
             SeasonMatchResult.Loss => SeasonMatchResultDto.Loss,
             SeasonMatchResult.Forfeit => SeasonMatchResultDto.Forfeit,
+            SeasonMatchResult.Bye => SeasonMatchResultDto.Bye,
             _ => throw new ArgumentOutOfRangeException(nameof(r), r, "Season match result out of range"),
         };
     }
@@ -189,6 +190,25 @@ public class SeasonMatchService
         return possibleMatches;
     }
 
+    private Task<SeasonMatch?> GetSeasonMatch(int seasonMatchID, CancellationToken ct = default)
+    {
+        return _context.SeasonMatches
+            .Include(sm => sm.HomeTeam.TeamPlayers)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(sm => sm.AwayTeam.TeamPlayers)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(sm => sm.MatchLinks)
+                .ThenInclude(ml => ml.Match)
+                    .ThenInclude(m => m.MatchTeams)
+                        .ThenInclude(t => t.MatchParticipants)
+            .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
+            .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
+                .ThenInclude(x => x.SeasonMatch)
+            .Where(sm => sm.SeasonMatchID == seasonMatchID)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task ReportMatch(int seasonMatchID, Guid matchID, CancellationToken ct = default)
     {
         await _dataPullService.GetAndSaveMatch(matchID);
@@ -211,21 +231,7 @@ public class SeasonMatchService
         if (match.MatchTeams.Any(x => x.Outcome is Outcomes.Won) is false)
             throw new Exception("There must be a winner for the match you are reporting");
 
-        var seasonMatch = await _context.SeasonMatches
-            .Include(sm => sm.HomeTeam.TeamPlayers)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(sm => sm.AwayTeam.TeamPlayers)
-                .ThenInclude(x => x.User.XboxUser)
-            .Include(sm => sm.MatchLinks)
-                .ThenInclude(ml => ml.Match)
-                    .ThenInclude(m => m.MatchTeams)
-                        .ThenInclude(t => t.MatchParticipants)
-            .Include(sm => sm.BracketMatch.InverseHomeTeamPreviousMatchBracketInfo)
-                .ThenInclude(x => x.SeasonMatch)
-            .Include(sm => sm.BracketMatch.InverseAwayTeamNextMatchBracketInfo)
-                .ThenInclude(x => x.SeasonMatch)
-            .Where(sm => sm.SeasonMatchID == seasonMatchID)
-            .FirstOrDefaultAsync(ct);
+        var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 
         if (seasonMatch is null)
             throw new Exception("Season match does not exist");
@@ -369,6 +375,60 @@ public class SeasonMatchService
             HomeTeam = homeTeam,
             AwayTeam = awayTeam,
         };
+    }
+
+    public async Task HomeForfeit(int seasonMatchID, CancellationToken ct = default)
+    {
+        var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
+
+        if (seasonMatch is null)
+            throw new Exception("Season match does not exist");
+
+        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+
+        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+            throw new Exception("Results for this match have already been decided");
+
+        seasonMatch.HomeTeamResult = SeasonMatchResult.Forfeit;
+        seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
+
+        if (seasonMatch.BracketMatch is not null)
+        {
+            HandleSettingNextMatchesInBracket(seasonMatch);
+        }
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    public async Task AwayForfeit(int seasonMatchID, CancellationToken ct = default)
+    {
+        var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
+
+        if (seasonMatch is null)
+            throw new Exception("Season match does not exist");
+
+        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
+            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
+
+        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
+            throw new Exception("Results for this match have already been decided");
+
+        seasonMatch.HomeTeamResult = SeasonMatchResult.Won;
+        seasonMatch.AwayTeamResult = SeasonMatchResult.Forfeit;
+
+        if (seasonMatch.BracketMatch is not null)
+        {
+            HandleSettingNextMatchesInBracket(seasonMatch);
+        }
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
     }
 
     private class TeamsDto

@@ -108,6 +108,31 @@ export class SeasonMatchComponent implements OnInit {
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
-        }).add(() => this.isSubmittingMatch = false);
+        }).add(() => this.finishedReportingMatch());
+  }
+
+  homeForfeit(): void {
+    this.isSubmittingMatch = true;
+
+    this.http.get<string>('/api/SeasonMatch/HomeForfeit/' + this.seasonMatchID)
+      .subscribe({
+        next: result => console.log(result),
+        error: result => console.log(result),
+      }).add(() => this.finishedReportingMatch());
+  }
+
+  awayForfeit(): void {
+    this.isSubmittingMatch = true;
+
+    this.http.get<string>('/api/SeasonMatch/AwayForfeit/' + this.seasonMatchID)
+      .subscribe({
+        next: result => console.log(result),
+        error: result => console.log(result),
+      }).add(() => this.finishedReportingMatch());
+  }
+
+  finishedReportingMatch(): void {
+    this.isSubmittingMatch = false;
+    this.getPageDto();
   }
 }

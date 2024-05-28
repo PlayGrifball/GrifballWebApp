@@ -61,7 +61,8 @@ public class TeamsController : ControllerBase
         return _teamService.MovePlayerToTeam(dto, signalRConnectionID, ct);
     }
 
-    [Authorize(Roles = "Commissioner,Player")]
+    //[Authorize(Roles = "Commissioner,Player")] // TODO: bring back player access later
+    [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "AddPlayerToTeam")]
     public Task AddPlayerToTeam([FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {

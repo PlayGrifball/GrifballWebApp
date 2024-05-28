@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Controllers;
@@ -21,6 +22,7 @@ public class SeedController : ControllerBase
         _e = e;
     }
 
+    [Authorize(Roles = "Sysadmin")]
     [HttpGet(Name = "Medals")]
     public async Task Medals()
     {
@@ -30,6 +32,7 @@ public class SeedController : ControllerBase
         await _dataPullService.DownloadMedals();
     }
 
+    [Authorize(Roles = "Sysadmin")]
     [HttpGet(Name = "Excel")]
     public async Task Excel()
     {

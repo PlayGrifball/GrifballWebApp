@@ -27,6 +27,7 @@ public enum SeasonMatchResultDto
     Won,
     Loss,
     Forfeit,
+    Bye,
     TBD,
 }
 

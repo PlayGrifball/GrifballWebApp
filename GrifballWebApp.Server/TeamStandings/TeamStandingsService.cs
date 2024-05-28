@@ -22,8 +22,8 @@ public class TeamStandingsService
                 TeamName = t.TeamName,
                 Wins = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won).Count() +
                        t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won).Count(),
-                Losses = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Loss).Count() +
-                         t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Loss).Count(),
+                Losses = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Loss || x.HomeTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count() +
+                         t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Loss || x.AwayTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count(),
             })
             .OrderByDescending(x => x.Wins)
             .ThenBy(x => x.Losses)

@@ -98,7 +98,7 @@ public class DataPullService
 
         await Parallel.ForEachAsync(matchIDs, options, async (matchID, ct) =>
         {
-            var matchStats = await GetMatch(matchID);
+            var matchStats = await GetMatch(matchID, client);
 
             if (matchStats is null)
             {
@@ -117,9 +117,9 @@ public class DataPullService
         }
     }
 
-    public async Task<MatchStats?> GetMatch(Guid matchID)
+    public async Task<MatchStats?> GetMatch(Guid matchID, HaloInfiniteClient? client = null)
     {
-        var client = await _haloInfiniteClientFactory.CreateAsync();
+        client ??= await _haloInfiniteClientFactory.CreateAsync();
 
         var response = await client.StatsGetMatchStats(matchID);
 

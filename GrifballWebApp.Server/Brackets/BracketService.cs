@@ -564,7 +564,7 @@ public class BracketService
             {
                 Id = sm.HomeTeamID,
                 Position = sm.BracketMatch.HomeTeamSeedNumber ?? null,
-                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit,
+                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.HomeTeamScore,
                 Result = MapResult(sm.HomeTeamResult),
             },
@@ -572,7 +572,7 @@ public class BracketService
             {
                 Id = sm.AwayTeamID,
                 Position = sm.BracketMatch.AwayTeamSeedNumber ?? null,
-                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit,
+                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.AwayTeamScore,
                 Result = MapResult(sm.AwayTeamResult),
             }
@@ -594,7 +594,7 @@ public class BracketService
             {
                 Id = sm.HomeTeamID,
                 Position = GetWinnerMatchPosition(sm.BracketMatch.HomeTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit,
+                Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.HomeTeamScore,
                 Result = MapResult(sm.HomeTeamResult),
             },
@@ -602,7 +602,7 @@ public class BracketService
             {
                 Id = sm.AwayTeamID,
                 Position = GetWinnerMatchPosition(sm.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID, result.Matches),
-                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit,
+                Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.AwayTeamScore,
                 Result = MapResult(sm.AwayTeamResult),
             }
@@ -625,7 +625,7 @@ public class BracketService
                 Opponent1 = new ParticpantResult()
                 {
                     Id = grandFinal.HomeTeamID,
-                    Forfeit = grandFinal.HomeTeamResult is SeasonMatchResult.Forfeit,
+                    Forfeit = grandFinal.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                     Score = grandFinal.HomeTeamScore,
                     Result = MapResult(grandFinal.HomeTeamResult),
                 },
@@ -633,7 +633,7 @@ public class BracketService
                 {
                     Id = grandFinal.AwayTeamID,
                     Position = 1, // There is only 1 game in loser bracket final so this is always 1
-                    Forfeit = grandFinal.AwayTeamResult is SeasonMatchResult.Forfeit,
+                    Forfeit = grandFinal.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                     Score = grandFinal.AwayTeamScore,
                     Result = MapResult(grandFinal.AwayTeamResult),
                 }
@@ -656,14 +656,14 @@ public class BracketService
                     Opponent1 = new ParticpantResult()
                     {
                         Id = grandFinalSuddenDeath.HomeTeamID,
-                        Forfeit = grandFinalSuddenDeath.HomeTeamResult is SeasonMatchResult.Forfeit,
+                        Forfeit = grandFinalSuddenDeath.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                         Score = grandFinalSuddenDeath.HomeTeamScore,
                         Result = MapResult(grandFinalSuddenDeath.HomeTeamResult),
                     },
                     Opponent2 = new ParticpantResult()
                     {
                         Id = grandFinalSuddenDeath.AwayTeamID,
-                        Forfeit = grandFinalSuddenDeath.AwayTeamResult is SeasonMatchResult.Forfeit,
+                        Forfeit = grandFinalSuddenDeath.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                         Score = grandFinalSuddenDeath.AwayTeamScore,
                         Result = MapResult(grandFinalSuddenDeath.AwayTeamResult),
                     }

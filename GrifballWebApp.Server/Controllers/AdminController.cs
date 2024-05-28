@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Server.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models.HaloInfinite;
@@ -28,8 +29,8 @@ public class AdminController : ControllerBase
         _dataPullService = dataPullService;
     }
 
-    
 
+    [Authorize(Roles = "Sysadmin")]
     [HttpGet(Name = "MatchStats")]
     public async Task Get([FromQuery] string game)
     {
@@ -50,6 +51,7 @@ public class AdminController : ControllerBase
         //return response.Result;
     }
 
+    [Authorize(Roles = "Sysadmin")]
     [HttpGet(Name = "SetCode")]
     public async Task<ActionResult> SetCode([FromQuery] string code, [FromQuery] string state)
     {
