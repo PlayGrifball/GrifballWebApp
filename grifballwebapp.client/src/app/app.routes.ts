@@ -67,6 +67,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
+    path: 'infiniteclient',
+    loadComponent: () => import('./infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
+    title: 'Infinite Client',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'usermanagement',
     loadComponent: () => import('./userManagement/userManagement.component').then(m => m.UserManagementComponent),
     title: 'User Management',

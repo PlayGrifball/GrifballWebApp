@@ -1,0 +1,18 @@
+<p>Status: </p>
+<p>{{status}}</p>
+
+<button mat-flat-button color="primary" (click)="deleteTokens()">
+Delete Tokens
+</button>
+
+<form class="app-form" #form="ngForm" (ngSubmit)="setCode()">
+    <mat-form-field class="app-full-width">
+      <mat-label>Code</mat-label>
+      <input matInput required [(ngModel)]="code" name="code">
+      <app-error-message [control]="form.controls['code']" />
+    </mat-form-field>
+
+    <button mat-flat-button color="primary" [disabled]="!form.form.valid">
+      Set Code
+    </button>
+</form>
