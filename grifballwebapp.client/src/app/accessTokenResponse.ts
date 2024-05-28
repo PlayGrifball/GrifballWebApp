@@ -9,6 +9,7 @@ export interface MetaInfoResponse {
   isSysAdmin: boolean,
   isCommissioner: boolean,
   isPlayer: boolean,
-  displayName: string
+  displayName: string,
+  userID: number,
 }
 

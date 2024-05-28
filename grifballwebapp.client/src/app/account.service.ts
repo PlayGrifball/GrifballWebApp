@@ -43,7 +43,7 @@ export class AccountService {
       this.isSysAdmin.set(r.isSysAdmin);
       this.isEventOrganizer.set(r.isCommissioner);
       this.isPlayer.set(r.isPlayer);
-      //this.personID.set(0);
+      this.personID.set(r.userID);
       this.displayName.set(r.displayName);
     }
 

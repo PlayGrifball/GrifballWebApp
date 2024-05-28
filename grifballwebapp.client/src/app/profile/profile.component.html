@@ -1,0 +1,15 @@
+@if (settingGamertag) {
+<p>Please set your gamertag to assist with stat tracking</p>
+<form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
+  <mat-form-field class="app-full-width">
+    <mat-label>Gamertag</mat-label>
+    <input matInput required [(ngModel)]="gamertag" name="gamertag">
+    <app-error-message [control]="form.controls['gamertag']" />
+  </mat-form-field>
+  <button mat-flat-button color="primary" [disabled]="!form.form.valid">
+    Set Gamertag
+  </button>
+</form>
+} @else {
+<p>Gamertag: {{gamertag}}</p>
+}

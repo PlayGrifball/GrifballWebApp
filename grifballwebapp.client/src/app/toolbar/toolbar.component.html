@@ -8,7 +8,7 @@
   
   @if (accountService.isLoggedIn()) {
   <span>Hello {{accountService.displayName()}}</span>
-  <button mat-icon-button class="example-icon" aria-label="Profile icon">
+  <button mat-icon-button class="example-icon" aria-label="Profile icon" [routerLink]="['/profile', accountService.personID()]" >
     <mat-icon>account_box</mat-icon>
   </button>
   }

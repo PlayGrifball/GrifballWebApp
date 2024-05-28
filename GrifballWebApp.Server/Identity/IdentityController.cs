@@ -224,12 +224,23 @@ public class IdentityController : ControllerBase
     [HttpGet(Name = "MetaInfo")]
     public MetaInfoResponse MetaInfo()
     {
+        
         return new MetaInfoResponse()
         {
             IsSysAdmin = User.IsInRole("Sysadmin"),
             IsCommissioner = User.IsInRole("Commissioner"),
             IsPlayer = User.IsInRole("Player"),
-            DisplayName = User?.Identity?.Name ?? "Friend"
+            DisplayName = User?.Identity?.Name ?? "Friend",
+            UserID = GetUserID() ?? 0,
         };
+    }
+
+    private int? GetUserID()
+    {
+        var stringName = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (stringName == null)
+            return null;
+        var parsed = int.TryParse(stringName, out var id);
+        return parsed ? id : null;
     }
 }

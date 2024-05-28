@@ -85,6 +85,11 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'profile/:userID',
+    loadComponent: () => import('./profile/profile.component').then(m => m.ProfileComponent),
+    title: 'User Profile'
+  },
+  {
     path: '**',
     loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
     title: 'Page Not Found'

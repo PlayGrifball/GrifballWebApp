@@ -9,12 +9,6 @@
   </mat-form-field>
 
   <mat-form-field class="example-full-width">
-    <mat-label>Gamertag</mat-label>
-    <input matInput required [(ngModel)]="model.gamertag" name="gamertag">
-    <app-error-message [control]="registerForm.controls['gamertag']" />
-  </mat-form-field>
-
-  <mat-form-field class="example-full-width">
     <mat-label>Password</mat-label>
     <input matInput [type]="hidePassword ? 'password' : 'text'" required [regexExpression]="regex" [errorMessage]="regexErrorMessage"
            [(ngModel)]="model.password" name="password">
