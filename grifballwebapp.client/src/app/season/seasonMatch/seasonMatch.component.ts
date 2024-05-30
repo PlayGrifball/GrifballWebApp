@@ -15,6 +15,7 @@ import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
+import { AccountService } from '../../account.service';
 
 @Component({
   selector: 'app-season-match',
@@ -76,12 +77,11 @@ export class SeasonMatchComponent implements OnInit {
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
   regexErrorMessage: string = "Must be a valid GUID";
 
-  constructor(private route: ActivatedRoute, private http: HttpClient) {
+  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService) {
   }
 
   ngOnInit(): void {
     this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
-
     this.getPageDto();
 
     this.getPossibleMatches();

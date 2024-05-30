@@ -15,41 +15,44 @@
 
 <h2>Bracket Info</h2>
 @if (seasonMatch?.bracketInfo === null) {
-  <p>Regular Season Match</p>
+<p>Regular Season Match</p>
 } @else {
 
   @if (seasonMatch?.bracketInfo?.homeTeamPreviousMatchID === null) {
-  <div>Home Team Seed {{seasonMatch?.bracketInfo?.homeTeamSeed}}</div>
+<div>Home Team Seed {{seasonMatch?.bracketInfo?.homeTeamSeed}}</div>
   } @else {
-  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
   }
 
   @if (seasonMatch?.bracketInfo?.awayTeamPreviousMatchID === null) {
-  <div>Away Team Seed {{seasonMatch?.bracketInfo?.awayTeamSeed}}</div>
+<div>Away Team Seed {{seasonMatch?.bracketInfo?.awayTeamSeed}}</div>
   } @else {
-  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
   }
 
   @if (seasonMatch?.bracketInfo?.winnerNextMatchID === null) {
-  <div>Winner wins playoffs</div>
+<div>Winner wins playoffs</div>
   } @else {
-  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
   }
 
   @if (seasonMatch?.bracketInfo?.loserNextMatchID === null) {
-  <div>Loser is eliminated from playoffs</div>
+<div>Loser is eliminated from playoffs</div>
   } @else {
-  <a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
   }
 }
 
 <h2>Report Game</h2>
 
+@if (seasonMatch?.homeTeamResult !== 'TBD' || seasonMatch?.awayTeamResult !== 'TBD') {
+<p>This match has been completed.</p>
+} @else {
 <h3>Forfeit</h3>
 
-<button mat-button (click)="homeForfeit()" [disabled]="isSubmittingMatch">Home Team Forfeit</button>
+<button mat-button (click)="homeForfeit()" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">Home Team Forfeit</button>
 
-<button mat-button (click)="awayForfeit()" [disabled]="isSubmittingMatch">Away Team Forfeit</button>
+<button mat-button (click)="awayForfeit()" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">Away Team Forfeit</button>
 
 <h3>Enter Match ID</h3>
 
@@ -60,7 +63,7 @@
     <app-error-message [control]="reportMatchForm.controls['MatchID']" />
   </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch">
+  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch || !accountService.isEventOrganizer()">
     Submit
   </button>
 </form>
@@ -109,8 +112,9 @@
   </mat-card-content>
 
   <mat-card-actions>
-    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch" >SUBMIT</button>
+    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">SUBMIT</button>
     <!--<button mat-button [routerLink]="['/match', match?.matchID]">FULL DETAILS</button>-->
   </mat-card-actions>
 </mat-card>
+}
 }
