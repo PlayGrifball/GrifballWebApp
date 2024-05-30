@@ -14,7 +14,7 @@ export interface SeasonMatchPageDto {
   awayTeamResult: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | 'TBD'
   scheduledTime: DateTime | null,
   bestOf: number,
-  reportedGame: ReportedGameDto[],
+  reportedGames: ReportedGameDto[],
   bracketInfo: BracketInfoDto | null,
 }
 
