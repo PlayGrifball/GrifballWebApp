@@ -29,9 +29,13 @@ public class GradesService
                 //TotalDeaths = x.Sum(x => x.Deaths),
                 TotalPunches = x.Sum(x => x.Kills) - x.Sum(x => x.PowerWeaponKills), // Ball punches = Kills - Power Weapon Kills
                 TotalSprees = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalTypeID == 1 && z.Medal.MedalName != "Killjoy").Select(s => s.Count)).Sum(),
-                TotalDamageDealt = x.Sum(x => x.DamageDealt),
-                TotalDamageTaken = x.Sum(x => x.DamageTaken),
-                TotalMultiKills = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalTypeID == 3).Select(s => s.Count)).Sum(),
+                TotalDoubleKills = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Double Kill").Select(s => s.Count)).Sum(),
+                TotalTripleKills = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Triple Kill").Select(s => s.Count)).Sum(),
+                // Overkill and above difficulty is greater than 3
+                TotalMultiKills = x.SelectMany(b => b.MedalEarned
+                                                // Overkill and higher OR Grand Slam
+                                                .Where(z => (z.Medal.MedalTypeID == 3 && z.Medal.MedalDifficultyID > 3) || z.Medal.MedalName == "Grand Slam")
+                                                .Select(s => s.Count)).Sum(),
                 TotalXFactor = x.SelectMany(b => b.MedalEarned.Where(z => z.Medal.MedalName == "Pancake" || z.Medal.MedalName == "Killjoy" || z.Medal.MedalName == "Whiplash").Select(s => s.Count)).Sum(),
                 TotalKills = x.Sum(x => x.Kills),
                 // Game time - I see no simple way to get this
@@ -95,8 +99,8 @@ public class GradesService
                 KDSpreadPM = x.TotalKDSpread / x.TotalGameTime,
                 PunchesPM = x.TotalPunches / x.TotalGameTime,
                 SpreesPM = x.TotalSprees / x.TotalGameTime,
-                DamageDealtPM = x.TotalDamageDealt / x.TotalGameTime,
-                DamageTakenPM = x.TotalDamageDealt / x.TotalGameTime,
+                DoubleKillsPM = x.TotalDoubleKills / x.TotalGameTime,
+                TripleKillsPM = x.TotalTripleKills / x.TotalGameTime,
                 MultiKillsPM = x.TotalMultiKills / x.TotalGameTime,
                 XFactorPM = x.TotalXFactor / x.TotalGameTime,
                 KillsPM = x.TotalKills / x.TotalGameTime,
@@ -110,8 +114,8 @@ public class GradesService
         var kdSpreadPercentiles = GetLetterPercentiles(letters, pm, x => x.KDSpreadPM);
         var punchesPercentiles = GetLetterPercentiles(letters, pm, x => x.PunchesPM);
         var spreesPercentiles = GetLetterPercentiles(letters, pm, x => x.SpreesPM);
-        var damageDealtPercentiles = GetLetterPercentiles(letters, pm, x => x.DamageDealtPM);
-        var damageTakenPercentiles = GetLetterPercentiles(letters, pm, x => x.DamageTakenPM);
+        var doubleKillsPercentiles = GetLetterPercentiles(letters, pm, x => x.DoubleKillsPM);
+        var tripleKillsPercentiles = GetLetterPercentiles(letters, pm, x => x.TripleKillsPM);
         var multiKillsPercentiles = GetLetterPercentiles(letters, pm, x => x.MultiKillsPM);
         var xFactorPercentiles = GetLetterPercentiles(letters, pm, x => x.XFactorPM);
         var killsPercentiles = GetLetterPercentiles(letters, pm, x => x.KillsPM);
@@ -124,8 +128,8 @@ public class GradesService
             KDSpread = GetLetter(kdSpreadPercentiles, x.KDSpreadPM),
             Punches = GetLetter(punchesPercentiles, x.PunchesPM),
             Sprees = GetLetter(spreesPercentiles, x.SpreesPM),
-            DamageDealt = GetLetter(damageDealtPercentiles, x.DamageDealtPM),
-            DamageTaken = GetLetter(damageTakenPercentiles, x.DamageTakenPM),
+            DoubleKills = GetLetter(doubleKillsPercentiles, x.DoubleKillsPM),
+            TripleKills = GetLetter(tripleKillsPercentiles, x.TripleKillsPM),
             MultiKills = GetLetter(multiKillsPercentiles, x.MultiKillsPM),
             XFactor = GetLetter(xFactorPercentiles, x.XFactorPM),
             Kills = GetLetter(killsPercentiles, x.KillsPM),
@@ -133,8 +137,8 @@ public class GradesService
                            (.55d * GetLetterValue(kdSpreadPercentiles, x.KDSpreadPM)) +
                            (.15d * GetLetterValue(punchesPercentiles, x.PunchesPM)) +
                            (.35d * GetLetterValue(spreesPercentiles, x.SpreesPM)) +
-                           (.20d * GetLetterValue(damageDealtPercentiles, x.DamageDealtPM)) +
-                           (.25d * GetLetterValue(damageTakenPercentiles, x.DamageTakenPM)) +
+                           (.20d * GetLetterValue(doubleKillsPercentiles, x.DoubleKillsPM)) +
+                           (.25d * GetLetterValue(tripleKillsPercentiles, x.TripleKillsPM)) +
                            (.35d * GetLetterValue(multiKillsPercentiles, x.MultiKillsPM)) +
                            (.10d * GetLetterValue(xFactorPercentiles, x.XFactorPM)) +
                            (.25d * GetLetterValue(killsPercentiles, x.KillsPM))
