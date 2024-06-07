@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.SeasonMatchPage;
@@ -117,6 +118,7 @@ public class Program
         builder.Services.AddTransient<SeasonMatchService>();
         builder.Services.AddTransient<TeamStandingsService>();
         builder.Services.AddTransient<ProfileService>();
+        builder.Services.AddTransient<GradesService>();
 
         builder.Services.
             AddAuthentication(options =>
