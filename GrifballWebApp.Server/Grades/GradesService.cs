@@ -1,6 +1,5 @@
 ﻿using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
 namespace GrifballWebApp.Server.Grades;
 

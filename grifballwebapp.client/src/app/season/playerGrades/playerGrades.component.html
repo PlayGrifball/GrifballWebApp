@@ -1,0 +1,31 @@
+<h1>Player Grades</h1>
+
+<!--<table mat-table [dataSource]="pm" class="mat-elevation-z8">
+  @for (column of pmColumns; track column) {
+  <ng-container [matColumnDef]="column.columnDef">
+    <th mat-header-cell *matHeaderCellDef>
+      {{column.header}}
+    </th>
+    <td mat-cell *matCellDef="let row">
+      {{column.cell(row)}}
+    </td>
+  </ng-container>
+  }
+  <tr mat-header-row *matHeaderRowDef="pmDisplayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: pmDisplayedColumns;"></tr>
+</table>-->
+
+<table mat-table [dataSource]="letters" class="mat-elevation-z8">
+  @for (column of letterColumns; track column) {
+  <ng-container [matColumnDef]="column.columnDef">
+    <th mat-header-cell *matHeaderCellDef>
+      {{column.header}}
+    </th>
+    <td mat-cell *matCellDef="let row" [style.background]="column.style(row)" [style.color]="column.color">
+      {{column.cell(row)}}
+    </td>
+  </ng-container>
+  }
+  <tr mat-header-row *matHeaderRowDef="letterDisplayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: letterDisplayedColumns;"></tr>
+</table>
