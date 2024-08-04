@@ -47,6 +47,7 @@ export class AccountService {
       this.displayName.set(r.displayName);
     }
 
+    // Danger zone, need to be careful to not cause
     effect(() => {
       const accessToken = this.accessToken();
       if (accessToken === undefined) {
@@ -66,10 +67,17 @@ export class AccountService {
             const json = JSON.stringify(r);
             localStorage.setItem("metaInfo", json);
           },
-          error: e => console.log('error getting meta info')
+          error: e => {
+            console.log('error getting meta info');
+            this.isSysAdmin.set(false);
+            this.isEventOrganizer.set(false);
+            this.isPlayer.set(false);
+            this.personID.set(null);
+            this.displayName.set(null);
+          }
         })
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   register(registerDto: RegisterDto) {
@@ -103,7 +111,8 @@ export class AccountService {
 
     return this.http.post<AccessTokenResponse>("/api/Identity/Refresh", body)
       .pipe(catchError((err: any) => {
-        // Add logout or on login fail method?
+        console.log('Refresh failed, user must reauth');
+        this.logout();
         return throwError(() => err);
       }))
       .pipe(map(r => {

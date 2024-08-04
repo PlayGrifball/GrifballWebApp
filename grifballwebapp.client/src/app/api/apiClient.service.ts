@@ -52,10 +52,12 @@ export class ApiClientService {
     return this.http.get<SignupResponseDto[]>('/api/Signups/getSignups/' + seasonID);
   }
 
-  getSignup(seasonID: number, personID: number | null): Observable<SignupResponseDto> {
+  getSignup(seasonID: number, personID: number | null, offset: number | null): Observable<SignupResponseDto> {
     let path = '/api/Signups/getSignup/' + seasonID;
     if (personID !== null)
       path += '?personID=' + personID;
+    if (offset !== null)
+      path += '?offset=' + offset;
     return this.http.get<SignupResponseDto>(path);
   }
 

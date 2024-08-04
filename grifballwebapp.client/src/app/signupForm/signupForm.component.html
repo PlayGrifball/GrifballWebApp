@@ -23,3 +23,29 @@
     Submit
   </button>
 </form>
+
+
+<table mat-table [dataSource]="dtos" class="mat-elevation-z8">
+  @for (time of timeColumns; track time) {
+  <ng-container [matColumnDef]="time">
+    <th mat-header-cell *matHeaderCellDef (click)="timeClicked(time)">
+      {{time}}
+    </th>
+    <td mat-cell *matCellDef="let row">
+      <ng-container *ngIf="getCell(time, row) as cell">
+        @if (cell.isHeader) {
+        <div (click)="dayOfWeekClicked(cell.time, row)">
+          {{ cell.time }}
+        </div>
+        }
+        @else {
+        <mat-checkbox [(ngModel)]="cell.isChecked" [disabled]="cell.isDisabled">
+        </mat-checkbox>
+        }
+      </ng-container>
+    </td>
+  </ng-container>
+  }
+  <tr mat-header-row *matHeaderRowDef="timeColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: timeColumns;"></tr>
+</table>

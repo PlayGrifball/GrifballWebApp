@@ -22,6 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (unauthorized === false)
         return throwError(() => err);
 
+      // access token was not good so we need to try and get a new one
       const refreshObserve = accountService.refresh();
       if (refreshObserve === null) {
         console.log('No refresh token available');
@@ -34,11 +35,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           return throwError(() => err);
         }))
         .pipe(concatMap(r => {
+          // Successfully got a new access token, retry the original request with the new token
           console.log('Retrying request with new access token');
           const authReq = req.clone({ setHeaders: { Authorization: "Bearer " + r.accessToken } });
           return next(authReq);
         }));
-
     })
   );
 };

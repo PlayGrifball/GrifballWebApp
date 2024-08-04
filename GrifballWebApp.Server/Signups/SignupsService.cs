@@ -43,9 +43,16 @@ public class SignupsService
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
 
-    public Task<SignupResponseDto?> GetSignup(int seasonID, int userID, CancellationToken ct = default)
+    public async Task<SignupResponseDto?> GetSignup(int seasonID, int userID, CancellationToken ct = default)
     {
-        return _context.SeasonSignups
+        var timeslots = await _context.Availability.Select(x => new TimeslotDto()
+        {
+            DayOfWeek = x.DayOfWeek,
+            Time = x.Time,
+            IsChecked = false,
+        }).ToArrayAsync(ct);
+
+        return await _context.SeasonSignups
             .Where(signup => signup.SeasonID == seasonID && signup.UserID == userID)
             .Select(x => new SignupResponseDto()
             {
@@ -56,6 +63,7 @@ public class SignupsService
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
                 RequiresAssistanceDrafting = x.RequiresAssistanceDrafting,
+                Timeslots = timeslots,
             }).AsNoTracking().AsSplitQuery().FirstOrDefaultAsync(ct);
     }
 

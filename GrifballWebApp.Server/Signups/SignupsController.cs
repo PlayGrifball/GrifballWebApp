@@ -30,7 +30,7 @@ public class SignupsController : ControllerBase
 
     [Authorize(Roles = "Player,Sysadmin")]
     [HttpGet("{seasonID:int}", Name = "GetSignup")]
-    public async Task<IActionResult> GetSignup([FromRoute] int seasonID, CancellationToken ct)
+    public async Task<IActionResult> GetSignup([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
     {
         var userID = GetUserID();
         if (userID == 0)

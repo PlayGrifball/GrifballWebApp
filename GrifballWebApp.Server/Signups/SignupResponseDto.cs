@@ -9,4 +9,12 @@ public class SignupResponseDto
     public string? TeamName { get; set; }
     public bool WillCaptain { get; set; }
     public bool RequiresAssistanceDrafting { get; set; }
+    public TimeslotDto[] Timeslots { get; set; } = [];
+}
+
+public class TimeslotDto
+{
+    public DayOfWeek DayOfWeek { get; set; }
+    public TimeOnly Time { get; set; }
+    public bool IsChecked { get; set; }
 }

@@ -8,6 +8,7 @@ public partial class Team
         TeamPlayers = new HashSet<TeamPlayer>();
         HomeMatches = new HashSet<SeasonMatch>();
         AwayMatches = new HashSet<SeasonMatch>();
+        TeamAvailability = new HashSet<TeamAvailability>();
     }
     public int SeasonID { get; set; }
     public Season Season { get; set; }
@@ -18,4 +19,5 @@ public partial class Team
     public virtual ICollection<TeamPlayer> TeamPlayers { get; set; }
     public virtual ICollection<SeasonMatch> HomeMatches { get; set; }
     public virtual ICollection<SeasonMatch> AwayMatches { get; set; }
+    public virtual ICollection<TeamAvailability> TeamAvailability { get; set; }
 }

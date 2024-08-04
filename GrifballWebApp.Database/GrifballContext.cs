@@ -15,6 +15,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     {
     }
 
+    public virtual DbSet<AvailabilityGridOption> Availability { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
     public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
@@ -30,6 +31,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
+    public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
@@ -38,6 +40,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.ApplyConfiguration(new Configuration.AvailabilityGridOptionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
@@ -54,6 +57,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.TeamAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamPlayerConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.UserConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.UserExperienceConfiguration());

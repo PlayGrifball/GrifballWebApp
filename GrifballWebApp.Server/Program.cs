@@ -5,6 +5,7 @@ using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Profile;
+using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
@@ -119,6 +120,7 @@ public class Program
         builder.Services.AddTransient<TeamStandingsService>();
         builder.Services.AddTransient<ProfileService>();
         builder.Services.AddTransient<GradesService>();
+        builder.Services.AddTransient<ScheduleService>();
 
         builder.Services.
             AddAuthentication(options =>
@@ -164,6 +166,73 @@ public class Program
         builder.RegisterHaloInfiniteClientFactory();
 
         var app = builder.Build();
+
+        // Add test data
+        var fact = app.Services.GetRequiredService<IDbContextFactory<GrifballContext>>();
+
+        var c = fact.CreateDbContext();
+
+        var choices = c.Availability.ToArray();
+
+        var weekendBefore9 = choices.Where(x => x.DayOfWeek is DayOfWeek.Sunday or DayOfWeek.Saturday && x.Time < TimeOnly.FromTimeSpan(TimeSpan.FromHours(21)));
+
+        var weekdayAfter9 = choices.Where(x => x.DayOfWeek is not DayOfWeek.Sunday or DayOfWeek.Saturday && x.Time >= TimeOnly.FromTimeSpan(TimeSpan.FromHours(21)));
+        var before8 = choices.Where(x => x.Time < TimeOnly.FromTimeSpan(TimeSpan.FromHours(20)));
+
+        if (c.TeamAvailability.Any() is false)
+        {
+            var teams = c.Teams.ToList();
+
+            foreach (var team in teams)
+            {
+                var f = team.TeamName.ToCharArray()[0];
+
+                if (team.TeamName is "Crazy Guys")
+                {
+
+                    var a = weekendBefore9.Select(x => new TeamAvailability()
+                    {
+                        DayOfWeek = x.DayOfWeek,
+                        Time = x.Time,
+                    });
+                    foreach (var x in a)
+                        team.TeamAvailability.Add(x);
+
+                }
+                else if (team.TeamName is "Skill Diff" or "GET SHREKT")
+                {
+                    var a = weekdayAfter9.Select(x => new TeamAvailability()
+                    {
+                        DayOfWeek = x.DayOfWeek,
+                        Time = x.Time,
+                    });
+                    foreach (var x in a)
+                        team.TeamAvailability.Add(x);
+                }
+                else if (team.TeamName is "Post Grif Depression" or "Angry Duck Noises" or "Separate Intelligence" or "Paradox Warriors")
+                {
+                    var a = before8.Select(x => new TeamAvailability()
+                    {
+                        DayOfWeek = x.DayOfWeek,
+                        Time = x.Time,
+                    });
+                    foreach (var x in a)
+                        team.TeamAvailability.Add(x);
+                }
+                else
+                {
+                    var a = choices.Select(x => new TeamAvailability()
+                    {
+                        DayOfWeek = x.DayOfWeek,
+                        Time = x.Time,
+                    });
+                    foreach (var x in a)
+                        team.TeamAvailability.Add(x);
+                }
+            }
+
+            c.SaveChanges();
+        }
 
         app.UseForwardedHeaders();
 
