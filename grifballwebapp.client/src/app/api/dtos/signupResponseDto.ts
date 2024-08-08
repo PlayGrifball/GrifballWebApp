@@ -13,7 +13,7 @@ export class SignupResponseDto {
 
 export class TimeslotDto {
   id: number = 0;
-  dayOfWeek: number = 0;
+  dayOfWeek: string = '';
   time: string = '';
   isChecked: boolean = false;
   isDisabled: boolean = false;

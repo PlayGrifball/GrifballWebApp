@@ -36,7 +36,7 @@ public class SignupsController : ControllerBase
         if (userID == 0)
             return Forbid("You must be logged to get signup data");
 
-        return Ok(await _signupsService.GetSignup(seasonID: seasonID, userID: userID, ct));
+        return Ok(await _signupsService.GetSignup(seasonID: seasonID, offset: offset, userID: userID, ct));
     }
 
     [Authorize(Roles = "Player,Sysadmin")]

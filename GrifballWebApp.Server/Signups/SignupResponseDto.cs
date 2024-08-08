@@ -1,4 +1,6 @@
-﻿namespace GrifballWebApp.Server.Signups;
+﻿using System.Text.Json.Serialization;
+
+namespace GrifballWebApp.Server.Signups;
 
 public class SignupResponseDto
 {
@@ -14,6 +16,7 @@ public class SignupResponseDto
 
 public class TimeslotDto
 {
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public DayOfWeek DayOfWeek { get; set; }
     public TimeOnly Time { get; set; }
     public bool IsChecked { get; set; }

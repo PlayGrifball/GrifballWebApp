@@ -38,7 +38,21 @@ export class SignupFormComponent {
   @ViewChild('signupForm') registerForm!: NgForm;
   model: SignupRequestDto = {} as SignupRequestDto;
 
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBar: MatSnackBar) {}
+  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBar: MatSnackBar) { }
+
+  getDif(): number {
+    const detroitOffset = DateTime.now().setZone('America/Detroit').offset;
+    const localOffset = DateTime.now().offset;
+    const dif = localOffset - detroitOffset;
+    return dif;
+  }
+
+  private parseTime(time: string): string {
+    if (time === this.DayOfWeek)
+      return time;
+    let dateTime = DateTime.fromFormat(time, 'TT');
+    return dateTime.toFormat('t');
+  }
 
   ngOnInit(): void {
     // May need smart way to get seasonID
@@ -46,7 +60,7 @@ export class SignupFormComponent {
 
     // Fetch from backend
     if (seasonID > 0) {
-      this.api.getSignup(seasonID, null, DateTime.now().offset)
+      this.api.getSignup(seasonID, null, this.getDif())
         .subscribe({
           next: (result) =>
           {
@@ -63,6 +77,10 @@ export class SignupFormComponent {
 
               this.timeColumns = [this.DayOfWeek];
               this.timeColumns.push(...[...new Set(result.timeslots.map(item => item.time))]);
+
+              this.timeColumns = this.timeColumns.map(x => {
+                return this.parseTime(x);
+              })
 
               const rows: TimeslotDto[][] = [];
 
@@ -85,7 +103,7 @@ export class SignupFormComponent {
                   }
 
                   let data = result.timeslots.find((dto, index3, arr3) => {
-                    return dto.dayOfWeek === dayOfWeek && dto.time === time;
+                    return dto.dayOfWeek === dayOfWeek && this.parseTime(dto.time) === time;
                   });
 
                   if (data === undefined) {
@@ -100,6 +118,8 @@ export class SignupFormComponent {
                     // Set values not sent from api
                     data.isDisabled = false;
                     data.isHeader = false;
+                    // Parse time
+                    data.time = this.parseTime(data.time);
                   }
 
                   row.push(data);

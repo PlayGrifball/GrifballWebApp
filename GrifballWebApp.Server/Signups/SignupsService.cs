@@ -1,6 +1,5 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using GrifballWebApp.Server.EventOrganizer;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Signups;
@@ -42,8 +41,12 @@ public class SignupsService
                 RequiresAssistanceDrafting = x.RequiresAssistanceDrafting,
             }).AsNoTracking().AsSplitQuery().ToListAsync(ct);
     }
+    private static int MathMod(int a, int b)
+    {
+        return (Math.Abs(a * b) + a) % b;
+    }
 
-    public async Task<SignupResponseDto?> GetSignup(int seasonID, int userID, CancellationToken ct = default)
+    public async Task<SignupResponseDto?> GetSignup(int seasonID, int offset, int userID, CancellationToken ct = default)
     {
         var timeslots = await _context.Availability.Select(x => new TimeslotDto()
         {
@@ -51,6 +54,21 @@ public class SignupsService
             Time = x.Time,
             IsChecked = false,
         }).ToArrayAsync(ct);
+
+        var rollback = offset < 0;
+        var offsetTimespan = TimeSpan.FromMinutes(offset);
+
+        foreach (var item in timeslots)
+        {
+            var timespan = item.Time.ToTimeSpan();
+            var days = rollback ? timespan.Subtract(offsetTimespan).Days * -1
+                                : timespan.Add(offsetTimespan).Days;
+
+            item.Time = item.Time.Add(offsetTimespan);
+            item.DayOfWeek = (DayOfWeek)MathMod((int)item.DayOfWeek + days, 7);
+        }
+
+        timeslots = timeslots.OrderBy(x => x.DayOfWeek).ToArray();
 
         return await _context.SeasonSignups
             .Where(signup => signup.SeasonID == seasonID && signup.UserID == userID)
