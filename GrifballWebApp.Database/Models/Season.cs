@@ -8,6 +8,7 @@ public partial class Season
         Teams = new HashSet<Team>();
         SeasonMatches = new HashSet<SeasonMatch>();
         SeasonSignups = new HashSet<SeasonSignup>();
+        SeasonAvailability = new HashSet<SeasonAvailability>();
     }
     public int SeasonID { get; set; }
     public string SeasonName { get; set; }
@@ -20,4 +21,5 @@ public partial class Season
     public virtual ICollection<Team> Teams { get; set; }
     public virtual ICollection<SeasonMatch> SeasonMatches { get; set; }
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }
+    public virtual ICollection<SeasonAvailability> SeasonAvailability { get; set; }
 }

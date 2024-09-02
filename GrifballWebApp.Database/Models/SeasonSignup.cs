@@ -3,6 +3,10 @@
 namespace GrifballWebApp.Database.Models;
 public partial class SeasonSignup
 {
+    public SeasonSignup()
+    {
+        SignupAvailability = new HashSet<SignupAvailability>();
+    }
     public int SeasonSignupID { get; set; }
     public int UserID { get; set; }
     public int SeasonID { get; set; }
@@ -14,4 +18,5 @@ public partial class SeasonSignup
     public bool Approved { get; set; }
     public User User { get; set; }
     public Season Season { get; set; }
+    public ICollection<SignupAvailability> SignupAvailability { get; set; }
 }

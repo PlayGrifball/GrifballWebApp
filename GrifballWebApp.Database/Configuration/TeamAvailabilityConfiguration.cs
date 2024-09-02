@@ -9,15 +9,15 @@ public partial class TeamAvailabilityConfiguration : IEntityTypeConfiguration<Te
     {
         entity.ToTable("TeamAvailability", "Event", tb => tb.IsTemporal());
 
-        entity.HasKey(e => new { e.TeamID, e.DayOfWeek, e.Time });
+        entity.HasKey(e => new { e.TeamID, e.AvailabilityOptionID });
 
         entity.HasOne(d => d.Team)
             .WithMany(p => p.TeamAvailability)
             .HasForeignKey(d => d.TeamID);
 
-        entity.HasOne(d => d.AvailabilityGridOption)
+        entity.HasOne(d => d.AvailabilityOption)
             .WithMany(p => p.TeamAvailability)
-            .HasForeignKey(d => new { d.DayOfWeek, d.Time });
+            .HasForeignKey(d => d.AvailabilityOptionID);
 
         OnConfigurePartial(entity);
     }

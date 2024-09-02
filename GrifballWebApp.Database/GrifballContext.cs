@@ -15,7 +15,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     {
     }
 
-    public virtual DbSet<AvailabilityGridOption> Availability { get; set; }
+    public virtual DbSet<AvailabilityOption> Availability { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
     public virtual DbSet<MatchBracketInfo> MatchBracketInfo { get; set; }
@@ -28,8 +28,10 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     public virtual DbSet<MedalType> MedalTypes { get; set; }
     public virtual DbSet<Region> Regions { get; set; }
     public virtual DbSet<Season> Seasons { get; set; }
+    public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
+    public virtual DbSet<SignupAvailability> SignupAvailability { get; set; }
     public virtual DbSet<Team> Teams { get; set; }
     public virtual DbSet<TeamAvailability> TeamAvailability { get; set; }
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
@@ -40,7 +42,7 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.ApplyConfiguration(new Configuration.AvailabilityGridOptionConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.AvailabilityOptionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchBracketInfoConfiguration());
@@ -54,8 +56,10 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
         modelBuilder.ApplyConfiguration(new Configuration.RegionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.SignupAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.TeamPlayerConfiguration());

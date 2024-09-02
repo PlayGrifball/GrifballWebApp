@@ -10,7 +10,7 @@ public class SeasonScheduleChromosome : ChromosomeBase
     private readonly int _geneCount;
     private readonly DateTime _start;
     private readonly DateTime _end;
-    private readonly AvailabilityGridOption[] _options;
+    private readonly AvailabilityOption[] _options;
     static Random Random = new Random();
 
     /// <summary>
@@ -22,7 +22,7 @@ public class SeasonScheduleChromosome : ChromosomeBase
     /// <param name="end">End time in Eastern Standard Time</param>
     /// <param name="options"></param>
     /// <exception cref="ArgumentException"></exception>
-    public SeasonScheduleChromosome(List<SeasonMatch> matches, int geneCount, DateTime start, DateTime end, AvailabilityGridOption[] options) : base(geneCount)
+    public SeasonScheduleChromosome(List<SeasonMatch> matches, int geneCount, DateTime start, DateTime end, AvailabilityOption[] options) : base(geneCount)
     {
         if (geneCount != matches.Count)
         {

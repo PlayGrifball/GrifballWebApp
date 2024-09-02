@@ -5,8 +5,8 @@ namespace GrifballWebApp.Server.Scheduler;
 
 public class SeasonScheduleEvaluator : IFitness
 {
-    private readonly AvailabilityGridOption[] _options;
-    public SeasonScheduleEvaluator(AvailabilityGridOption[] options)
+    private readonly AvailabilityOption[] _options;
+    public SeasonScheduleEvaluator(AvailabilityOption[] options)
     {
         _options = options;
     }

@@ -22,13 +22,16 @@ namespace GrifballWebApp.Database.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityGridOption", b =>
+            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
-                    b.Property<int>("DayOfWeek")
+                    b.Property<int>("AvailabilityOptionID")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<TimeOnly>("Time")
-                        .HasColumnType("time");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AvailabilityOptionID"));
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -40,13 +43,19 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.HasKey("DayOfWeek", "Time");
+                    b.Property<TimeOnly>("Time")
+                        .HasColumnType("time");
 
-                    b.ToTable("AvailabilityGridOptions", "Event");
+                    b.HasKey("AvailabilityOptionID");
+
+                    b.HasIndex("DayOfWeek", "Time")
+                        .IsUnique();
+
+                    b.ToTable("AvailabilityOptions", "Event");
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
-                                ttb.UseHistoryTable("AvailabilityGridOptionsHistory", "Event");
+                                ttb.UseHistoryTable("AvailabilityOptionsHistory", "Event");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -54,288 +63,6 @@ namespace GrifballWebApp.Database.Migrations
                                     .HasPeriodEnd("PeriodEnd")
                                     .HasColumnName("PeriodEnd");
                             }));
-
-                    b.HasData(
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 0,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 1,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 2,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 3,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 4,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 5,
-                            Time = new TimeOnly(22, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(19, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(19, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(20, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(20, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(21, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(21, 30, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(22, 0, 0)
-                        },
-                        new
-                        {
-                            DayOfWeek = 6,
-                            Time = new TimeOnly(22, 30, 0)
-                        });
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
@@ -1083,6 +810,42 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("SeasonID", "AvailabilityOptionID");
+
+                    b.HasIndex("AvailabilityOptionID");
+
+                    b.ToTable("SeasonAvailability", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SeasonAvailabilityHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Property<int>("SeasonMatchID")
@@ -1213,6 +976,42 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
+                {
+                    b.Property<int>("SeasonSignupID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("SeasonSignupID", "AvailabilityOptionID");
+
+                    b.HasIndex("AvailabilityOptionID");
+
+                    b.ToTable("SignupAvailability", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SignupAvailabilityHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
                     b.Property<int>("TeamID")
@@ -1272,11 +1071,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("TeamID")
                         .HasColumnType("int");
 
-                    b.Property<int>("DayOfWeek")
+                    b.Property<int>("AvailabilityOptionID")
                         .HasColumnType("int");
-
-                    b.Property<TimeOnly>("Time")
-                        .HasColumnType("time");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -1288,9 +1084,9 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.HasKey("TeamID", "DayOfWeek", "Time");
+                    b.HasKey("TeamID", "AvailabilityOptionID");
 
-                    b.HasIndex("DayOfWeek", "Time");
+                    b.HasIndex("AvailabilityOptionID");
 
                     b.ToTable("TeamAvailability", "Event");
 
@@ -1854,6 +1650,25 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medal");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("SeasonAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany("SeasonAvailability")
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AvailabilityOption");
+
+                    b.Navigation("Season");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
@@ -1898,6 +1713,25 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("SignupAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.SeasonSignup", "SeasonSignup")
+                        .WithMany("SignupAvailability")
+                        .HasForeignKey("SeasonSignupID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AvailabilityOption");
+
+                    b.Navigation("SeasonSignup");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.TeamPlayer", "Captain")
@@ -1918,19 +1752,19 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability", b =>
                 {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("TeamAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
                         .WithMany("TeamAvailability")
                         .HasForeignKey("TeamID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityGridOption", "AvailabilityGridOption")
-                        .WithMany("TeamAvailability")
-                        .HasForeignKey("DayOfWeek", "Time")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AvailabilityGridOption");
+                    b.Navigation("AvailabilityOption");
 
                     b.Navigation("Team");
                 });
@@ -2043,8 +1877,12 @@ namespace GrifballWebApp.Database.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityGridOption", b =>
+            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
+                    b.Navigation("SeasonAvailability");
+
+                    b.Navigation("SignupAvailability");
+
                     b.Navigation("TeamAvailability");
                 });
 
@@ -2104,6 +1942,8 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("SeasonAvailability");
+
                     b.Navigation("SeasonMatches");
 
                     b.Navigation("SeasonSignups");
@@ -2116,6 +1956,11 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("BracketMatch");
 
                     b.Navigation("MatchLinks");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup", b =>
+                {
+                    b.Navigation("SignupAvailability");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>

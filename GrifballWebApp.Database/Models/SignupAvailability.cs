@@ -1,10 +1,10 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class TeamAvailability
+public partial class SignupAvailability
 {
-    public int TeamID { get; set; }
+    public int SeasonSignupID { get; set; }
     public int AvailabilityOptionID { get; set; }
-    public Team Team { get; set; }
+    public SeasonSignup SeasonSignup { get; set; }
     public AvailabilityOption AvailabilityOption { get; set; }
 }

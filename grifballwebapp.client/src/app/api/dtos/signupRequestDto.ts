@@ -1,3 +1,4 @@
+import { TimeslotDto } from "./signupResponseDto";
 
 export class SignupRequestDto {
   seasonID: number = 0;
@@ -5,4 +6,5 @@ export class SignupRequestDto {
   teamName: string | null = null;
   willCaptain: boolean = false;
   requiresAssistanceDrafting: boolean = false;
+  timeslots: TimeslotDto[] = [];
 }
