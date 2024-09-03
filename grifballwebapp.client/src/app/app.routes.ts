@@ -72,6 +72,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
+    path: 'seasonAvailability/:seasonID',
+    loadComponent: () => import('./seasonEdit/seasonAvailability/seasonAvailability.component').then(m => m.SeasonAvailabilityComponent),
+    title: 'Season Availability',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
     path: 'infiniteclient',
     loadComponent: () => import('./infiniteClient/infiniteClient.component').then(m => m.InfiniteClientComponent),
     title: 'Infinite Client',

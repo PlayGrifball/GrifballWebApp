@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -21,6 +21,7 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
     MatButtonModule,
     ErrorMessageComponent,
     MtxDatetimepickerModule,
+    RouterModule,
   ],
   templateUrl: './seasonEdit.component.html',
   styleUrl: './seasonEdit.component.scss'

@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Grades;
@@ -35,6 +36,7 @@ public class Program
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.Converters.Add(new DateTimeJsonConverter());
+                options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
             });
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -121,6 +123,7 @@ public class Program
         builder.Services.AddTransient<ProfileService>();
         builder.Services.AddTransient<GradesService>();
         builder.Services.AddTransient<ScheduleService>();
+        builder.Services.AddTransient<AvailabilityService>();
 
         builder.Services.
             AddAuthentication(options =>
