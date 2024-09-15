@@ -29,6 +29,7 @@
 
 <form #form2="ngForm">
   <button mat-raised-button (click)="saveChanges()" [disabled]="!form2.valid">Save Changes</button>
+  <button mat-raised-button (click)="add()">Add</button>
 
   @for (option of options; track option) {
   <div>
@@ -39,12 +40,14 @@
     </mat-form-field>
 
     <mat-form-field>
-      <mat-select [(value)]="option.dayOfWeek">
+      <mat-select [(ngModel)]="option.dayOfWeek" required [name]="'select' + $index">
         @for (dayOfWeek of daysOfWeek(); track dayOfWeek) {
         <mat-option [value]="dayOfWeek">{{dayOfWeek}}</mat-option>
         }
       </mat-select>
     </mat-form-field>
+
+    <button mat-raised-button (click)="delete($index)">Delete</button>
   </div>
 
   }

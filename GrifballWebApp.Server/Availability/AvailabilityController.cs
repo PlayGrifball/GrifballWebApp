@@ -1,5 +1,4 @@
-﻿using GrifballWebApp.Server.Availability;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Availability;
@@ -15,6 +14,12 @@ public class AvailabilityController : ControllerBase
     {
         _logger = logger;
         _availabilityService = availabilityService;
+    }
+
+    [HttpGet(Name = "GetSeasonAvailability")]
+    public Task<TimeslotDto[]> GetSeasonAvailability([FromQuery] int seasonID, CancellationToken ct)
+    {
+        return _availabilityService.GetSeasonAvailability(seasonID, ct);
     }
 
     [Authorize(Roles = "Commissioner")]

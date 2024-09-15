@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -9,6 +9,7 @@ import { DateTime } from 'luxon';
 import { AvailabilityOption } from '../../api/dtos/availabilityOption';
 import { MatSelect, MatSelectModule } from '@angular/material/select';
 import { HttpClient } from '@angular/common/http';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-season-availability',
@@ -26,9 +27,17 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './seasonAvailability.component.html',
   styleUrl: './seasonAvailability.component.scss'
 })
-export class SeasonAvailabilityComponent {
+export class SeasonAvailabilityComponent implements OnInit {
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private snackbar: MatSnackBar) { }
+
+  ngOnInit(): void {
+    this.getSeasonAvailability()
+    .subscribe({
+      next: x => this.options = x,
+      error: () => this.snackbar.open('Failed to get season availability'),
+    });
+  }
 
   @Input({ required: true })
   form!: NgForm;
@@ -97,11 +106,18 @@ export class SeasonAvailabilityComponent {
   }
 
   saveChanges(): void {
-    console.log(this.seasonID);
     this.updateSeasonAvailability().subscribe({
-      next: () => 1,
-      error: () => 2,
+      next: () => this.snackbar.open('Saved'),
+      error: () => this.snackbar.open('Failed to save'),
     });
+  }
+
+  add(): void {
+    this.options.unshift(new AvailabilityOption());
+  }
+
+  delete(index: number): void {
+    this.options.splice(index, 1);
   }
 
   updateSeasonAvailability() {
@@ -109,6 +125,10 @@ export class SeasonAvailabilityComponent {
       seasonID: this.seasonID,
       timeslots: this.options,
     });
+  }
+
+  getSeasonAvailability() {
+    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID);
   }
 }
 

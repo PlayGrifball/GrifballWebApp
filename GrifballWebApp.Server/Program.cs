@@ -42,6 +42,8 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(option =>
         {
+            option.CustomSchemaIds(x => x.FullName);
+
             option.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme()
             {
                 In = Microsoft.OpenApi.Models.ParameterLocation.Header,

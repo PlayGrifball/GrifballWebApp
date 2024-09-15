@@ -15,6 +15,19 @@ public class AvailabilityService
         _context = context;
     }
 
+    public Task<TimeslotDto[]> GetSeasonAvailability(int seasonID, CancellationToken ct)
+    {
+        return _context.SeasonAvailability
+            .Where(x => x.SeasonID == seasonID)
+            .Select(x => x.AvailabilityOption)
+            .Select(x => new TimeslotDto()
+            {
+                DayOfWeek = x.DayOfWeek,
+                Time = x.Time,
+            })
+            .ToArrayAsync(ct);
+    }
+
     public async Task UpdateSeasonAvailability(SeasonAvailabilityDto a, CancellationToken ct)
     {
         var mapped = a.Timeslots.Select(x => new AvailabilityOption()
