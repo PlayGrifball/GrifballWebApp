@@ -28,6 +28,16 @@ public class SignupsController : ControllerBase
         return _signupsService.GetSignups(seasonID: seasonID, ct);
     }
 
+    [HttpGet("{seasonID:int}", Name = "GetTimeslots")]
+    public async Task<IActionResult> GetTimeslots([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)
+    {
+        var userID = GetUserID();
+        if (userID == 0)
+            return Forbid("You must be logged to get timeslots");
+
+        return Ok(await _signupsService.GetTimeslots(seasonID: seasonID, offset: offset, userID: userID, ct));
+    }
+
     [Authorize(Roles = "Player,Sysadmin")]
     [HttpGet("{seasonID:int}", Name = "GetSignup")]
     public async Task<IActionResult> GetSignup([FromRoute] int seasonID, [FromQuery] int offset, CancellationToken ct)

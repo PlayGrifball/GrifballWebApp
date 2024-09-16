@@ -16,6 +16,7 @@ public class SignupResponseDto
 
 public class TimeslotDto
 {
+    public int OptionID { get; set; }
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public DayOfWeek DayOfWeek { get; set; }
     public TimeOnly Time { get; set; }

@@ -46,14 +46,23 @@ public class SignupsService
         return (Math.Abs(a * b) + a) % b;
     }
 
-    public async Task<SignupResponseDto?> GetSignup(int seasonID, int offset, int userID, CancellationToken ct = default)
+    public async Task<TimeslotDto[]> GetTimeslots(int seasonID, int offset, int userID, CancellationToken ct = default)
     {
-        var timeslots = await _context.Availability.Select(x => new TimeslotDto()
-        {
-            DayOfWeek = x.DayOfWeek,
-            Time = x.Time,
-            IsChecked = false,
-        }).ToArrayAsync(ct);
+        var signupID = await _context.SeasonSignups
+            .Where(signup => signup.SeasonID == seasonID && signup.UserID == userID)
+            .Select(x => x.SeasonSignupID)
+            .FirstOrDefaultAsync(ct);
+
+        var timeslots = await _context.SeasonAvailability
+            .Where(x => x.SeasonID == seasonID)
+            .Select(x => x.AvailabilityOption)
+            .Select(x => new TimeslotDto()
+            {
+                OptionID = x.AvailabilityOptionID,
+                DayOfWeek = x.DayOfWeek,
+                Time = x.Time,
+                IsChecked = x.SignupAvailability.Any(y => y.SeasonSignupID == signupID),
+            }).ToArrayAsync(ct);
 
         var rollback = offset < 0;
         var offsetTimespan = TimeSpan.FromMinutes(offset);
@@ -69,6 +78,12 @@ public class SignupsService
         }
 
         timeslots = timeslots.OrderBy(x => x.DayOfWeek).ToArray();
+        return timeslots;
+    }
+
+    public async Task<SignupResponseDto?> GetSignup(int seasonID, int offset, int userID, CancellationToken ct = default)
+    {
+        var timeslots = await GetTimeslots(seasonID, offset, userID, ct);
 
         return await _context.SeasonSignups
             .Where(signup => signup.SeasonID == seasonID && signup.UserID == userID)
@@ -101,8 +116,8 @@ public class SignupsService
         if (!(season.SignupsOpen <= now && now <= season.SignupsClose))
             throw new SignupsClosedException();
 
-
         SeasonSignup? seasonSignup = await _context.SeasonSignups
+            .Include(x => x.SignupAvailability)
             .Where(signup => signup.SeasonID == dto.SeasonID && signup.UserID == dto.UserID)
             .FirstOrDefaultAsync(ct);
 
@@ -118,6 +133,30 @@ public class SignupsService
         seasonSignup.TeamName = dto.TeamName;
         seasonSignup.WillCaptain = dto.WillCaptain;
         seasonSignup.RequiresAssistanceDrafting = dto.RequiresAssistanceDrafting;
+
+        var toRemove = seasonSignup.SignupAvailability.Where(x => dto.Timeslots.Any(y => y.OptionID == x.AvailabilityOptionID && y.IsChecked) is false).ToArray();
+        foreach (var item in toRemove)
+        {
+            seasonSignup.SignupAvailability.Remove(item);
+        }
+
+        var toAdd = dto.Timeslots.Where(x => x.IsChecked && seasonSignup.SignupAvailability.Any(y => y.AvailabilityOptionID == x.OptionID) is false)
+            .Select(x => x.OptionID).ToArray();
+
+        var validOptions = await _context.SeasonAvailability.Where(x => x.SeasonID == dto.SeasonID)
+            .Select(x => x.AvailabilityOptionID)
+            .ToArrayAsync(ct);
+        var invalidOptions = toAdd.Where(x => validOptions.Contains(x) is false);
+        if (invalidOptions.Any())
+            throw new Exception($"Cannot add options for season {dto.SeasonID}. The following are not valid {string.Join(',', invalidOptions)}");
+
+        foreach (var item in toAdd)
+        {
+            seasonSignup.SignupAvailability.Add(new SignupAvailability()
+            {
+                AvailabilityOptionID = item,
+            });
+        }
 
         await _context.SaveChangesAsync(ct);
     }

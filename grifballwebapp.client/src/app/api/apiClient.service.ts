@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { Observable } from 'rxjs';
 import { SeasonDto } from './dtos/seasonDto';
-import { SignupResponseDto } from './dtos/signupResponseDto';
+import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
 import { PlayerDto } from './dtos/playerDto';
@@ -11,6 +11,8 @@ import { CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDt
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
+import { DateTime } from 'luxon';
+import { cloneDeep } from 'lodash';
 
 @Injectable({
   providedIn: 'root'
@@ -52,17 +54,27 @@ export class ApiClientService {
     return this.http.get<SignupResponseDto[]>('/api/Signups/getSignups/' + seasonID);
   }
 
-  getSignup(seasonID: number, personID: number | null, offset: number | null): Observable<SignupResponseDto> {
+  getTimeslots(seasonID: number, offset: number): Observable<TimeslotDto[]> {
+    let path = '/api/Signups/getTimeslots/' + seasonID;
+    path += '?offset=' + offset;
+    return this.http.get<TimeslotDto[]>(path);
+  }
+
+  getSignup(seasonID: number, offset: number): Observable<SignupResponseDto> {
     let path = '/api/Signups/getSignup/' + seasonID;
-    if (personID !== null)
-      path += '?personID=' + personID;
-    if (offset !== null)
-      path += '?offset=' + offset;
+    path += '?offset=' + offset;
     return this.http.get<SignupResponseDto>(path);
   }
 
+  private parseTime(time: string): string {
+    let dateTime = DateTime.fromFormat(time, 't');
+    return dateTime.toFormat('TT');
+  }
+
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
-    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
+    const clone = cloneDeep(signupDto);
+    clone.timeslots.forEach(x => x.time = this.parseTime(x.time));
+    return this.http.post('/api/Signups/UpsertSignup/', clone);
   }
 
   getTeams(seasonID: number): Observable<TeamResponseDto[]> {

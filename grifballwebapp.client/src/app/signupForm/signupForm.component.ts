@@ -42,7 +42,7 @@ export class SignupFormComponent {
 
     // Fetch from backend
     if (seasonID > 0) {
-      this.api.getSignup(seasonID, null, this.availabilityService.getDif())
+      this.api.getSignup(seasonID, this.availabilityService.getDif())
         .subscribe({
           next: (result) =>
           {
@@ -50,12 +50,17 @@ export class SignupFormComponent {
             {
               this.model = {} as SignupRequestDto;
               this.model.seasonID = seasonID;
+              this.api.getTimeslots(seasonID, this.availabilityService.getDif()).subscribe({
+                next: (r) => this.model.timeslots = r,
+                error: () => this.snackBar.open('Failed to get timeslots'),
+              })
             }
             else
             {
               this.model = result;
             }
           },
+          error: () => this.snackBar.open('Failed to get signup'),
         });
       return;
     }
