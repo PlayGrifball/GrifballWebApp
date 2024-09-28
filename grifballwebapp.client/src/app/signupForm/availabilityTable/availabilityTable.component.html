@@ -1,6 +1,4 @@
 @if (dtos.length > 0) {
-hello {{dtos.length}}
-<div>hello</div>
 <table mat-table [dataSource]="dtos" class="mat-elevation-z8">
   @for (time of timeColumns; track time) {
   <ng-container [matColumnDef]="time">

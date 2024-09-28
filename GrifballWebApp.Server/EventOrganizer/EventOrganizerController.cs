@@ -28,7 +28,7 @@ public class EventOrganizerController : ControllerBase
     }
 
     [HttpPost(Name = "UpsertSeason")]
-    public async Task<IActionResult> UpsertSeason([FromBody] UpsertSeasonDto seasonDto, CancellationToken ct)
+    public async Task<IActionResult> UpsertSeason([FromBody] SeasonDto seasonDto, CancellationToken ct)
     {
         return Ok(await _eventOrganizerService.UpsertSeason(seasonDto, ct));
     }

@@ -12,4 +12,16 @@ public partial class TeamPlayer
     public int? DraftCaptainOrder { get; set; }
     public int? DraftRound { get; set; }
     public int? DraftPick { get; set; }
+    public TeamPlayer Copy(Team newTeam)
+    {
+        return new TeamPlayer()
+        {
+            User = User,
+            UserID = UserID,
+            CaptainTeam = CaptainTeam is null ? null : newTeam,
+            DraftCaptainOrder = DraftCaptainOrder,
+            DraftRound = DraftRound,
+            DraftPick = DraftPick,
+        };
+    }
 }

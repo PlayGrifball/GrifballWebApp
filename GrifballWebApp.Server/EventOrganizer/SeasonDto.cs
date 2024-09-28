@@ -12,4 +12,8 @@ public class SeasonDto
     public DateTime SeasonStart { get; set; }
     public DateTime SeasonEnd { get; set; }
     public int SignupsCount { get; set; }
+    public string? CopyFrom { get; set; }
+    public bool CopyAvailability { get; set; }
+    public bool CopySignups { get; set; }
+    public bool CopyTeams { get; set; }
 }

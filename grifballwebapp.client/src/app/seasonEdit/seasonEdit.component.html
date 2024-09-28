@@ -47,6 +47,18 @@
     <app-error-message [control]="seasonForm.controls['seasonEnd']" />
   </mat-form-field>
 
+  <mat-form-field class="app-full-width">
+    <mat-label>Copy From</mat-label>
+    <input matInput [(ngModel)]="model.copyFrom" name="copyFrom">
+    <app-error-message [control]="seasonForm.controls['copyFrom']" />
+  </mat-form-field>
+
+  @if (model.copyFrom != null) {
+  <mat-checkbox [(ngModel)]="model.copyAvailability" name="copyAvailability">Copy Availability</mat-checkbox>
+  <mat-checkbox [(ngModel)]="model.copySignups" name="copySignups">Copy Signups</mat-checkbox>
+  <mat-checkbox [(ngModel)]="model.copyTeams" name="copyTeams">Copy Teams</mat-checkbox>
+  }
+
   <button mat-flat-button color="primary" [disabled]="!seasonForm.form.valid">
     {{model.seasonID > 0 ? 'Save Season' : 'Create New Season'}}
   </button>

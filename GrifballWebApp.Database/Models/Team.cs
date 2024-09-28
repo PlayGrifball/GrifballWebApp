@@ -20,4 +20,24 @@ public partial class Team
     public virtual ICollection<SeasonMatch> HomeMatches { get; set; }
     public virtual ICollection<SeasonMatch> AwayMatches { get; set; }
     public virtual ICollection<TeamAvailability> TeamAvailability { get; set; }
+    /// <summary>
+    /// Copies team and team players, note that captains cannot be copied and must be set after initial save. It is returned as a out parameters to be set by caller after initial save changes
+    /// </summary>
+    public Team Copy(out TeamPlayer captain)
+    {
+        var teamPlayers = TeamPlayers.Select(x => x.Copy(this)).ToArray();
+        captain = teamPlayers.FirstOrDefault(x => x.CaptainTeam is not null);
+
+        if (captain is not null)
+        {
+            captain.CaptainTeam = null;
+        }
+
+        return new Team()
+        {
+           TeamName = TeamName,
+           TeamPlayers = teamPlayers,
+           TeamAvailability = TeamAvailability.Select(x => x.Copy()).ToArray(),
+        };
+    }
 }

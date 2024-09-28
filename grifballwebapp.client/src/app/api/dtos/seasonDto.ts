@@ -9,4 +9,8 @@ export class SeasonDto {
   seasonStart!: DateTime;
   seasonEnd!: DateTime;
   signupsCount: number = 0;
+  copyFrom: string | null = null;
+  copyAvailability: boolean = false;
+  copySignups: boolean = false;
+  copyTeams: boolean = false;
 }

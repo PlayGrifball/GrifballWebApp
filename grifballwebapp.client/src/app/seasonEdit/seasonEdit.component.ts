@@ -9,6 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
   selector: 'app-season-edit',
@@ -22,6 +23,7 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
     ErrorMessageComponent,
     MtxDatetimepickerModule,
     RouterModule,
+    MatCheckboxModule,
   ],
   templateUrl: './seasonEdit.component.html',
   styleUrl: './seasonEdit.component.scss'
