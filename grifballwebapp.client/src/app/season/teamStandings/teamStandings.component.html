@@ -4,7 +4,7 @@
         The actual rendered columns are set as a property on the row definition" -->
   <ng-container matColumnDef="teamName">
     <th mat-header-cell *matHeaderCellDef> Team Name </th>
-    <td mat-cell *matCellDef="let row" > <a [routerLink]="['/team', row.teamID]">{{row.teamName}}</a> </td>
+    <td mat-cell *matCellDef="let row" > <a [routerLink]="['team', row.teamID]">{{row.teamName}}</a> </td>
   </ng-container>
 
   <ng-container matColumnDef="wins">

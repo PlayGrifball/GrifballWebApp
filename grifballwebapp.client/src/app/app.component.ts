@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, computed } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnDestroy, OnInit, ViewChild, computed } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -8,6 +8,8 @@ import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
 import { CommonModule } from '@angular/common';
 import { ApiClientService } from './api/apiClient.service';
+import { themes, ThemeService } from './theme.service';
+import { toObservable } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-root',
@@ -26,6 +28,9 @@ import { ApiClientService } from './api/apiClient.service';
 })
 export class AppComponent implements OnDestroy, OnInit {
   @ViewChild('snav') snav!: MatSidenav;
+
+  @HostBinding('class')
+  theme: themes = '';
 
   mobileQuery: MediaQueryList;
   private _mobileQueryListener: () => void;
@@ -57,7 +62,16 @@ export class AppComponent implements OnDestroy, OnInit {
     }
   ];
 
-  constructor(changeDetectorRef: ChangeDetectorRef, media: MediaMatcher, public accountService: AccountService, public api: ApiClientService) {
+  constructor(changeDetectorRef: ChangeDetectorRef,
+    media: MediaMatcher,
+    public accountService: AccountService,
+    public api: ApiClientService,
+    private themeService: ThemeService) {
+    
+    this.theme = this.themeService.currentTheme();
+    toObservable(this.themeService.currentTheme)
+      .subscribe({next: v => this.theme = v});
+    
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
     this._mobileQueryListener = () => changeDetectorRef.detectChanges();
     this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);

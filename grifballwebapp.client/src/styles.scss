@@ -1,4 +1,8 @@
-/* You can add global styles to this file, and also import other style files */
+@use "./custom-theme" as theme;
+
+.light-theme {
+  @include theme.create-light-theme();
+}
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
@@ -11,4 +15,12 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   
 .app-full-width {
   width: 100%;
+}
+
+a {
+  all: unset;
+}
+
+a:hover {
+  cursor: pointer;
 }

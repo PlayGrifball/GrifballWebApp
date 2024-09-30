@@ -29,8 +29,21 @@ $grifballwebapp-theme: mat.define-dark-theme((
   )
 ));
 
+$grifballwebapp-theme-light: mat.define-light-theme((
+  color: (
+    primary: $grifballwebapp-primary,
+    accent: $grifballwebapp-accent,
+    warn: $grifballwebapp-warn,
+  )
+));
+
 // Include theme styles for core and each component used in your app.
 // Alternatively, you can import and @include the theme mixins for each component
 // that you are using.
 @include mat.all-component-themes($grifballwebapp-theme);
 @include mtx.all-component-themes($grifballwebapp-theme);
+
+@mixin create-light-theme() {
+  @include mat.all-component-colors($grifballwebapp-theme-light);
+  @include mtx.all-component-colors($grifballwebapp-theme-light);
+}
