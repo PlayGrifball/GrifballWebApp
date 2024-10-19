@@ -29,9 +29,6 @@ import { toObservable } from '@angular/core/rxjs-interop';
 export class AppComponent implements OnDestroy, OnInit {
   @ViewChild('snav') snav!: MatSidenav;
 
-  @HostBinding('class')
-  theme: themes = '';
-
   mobileQuery: MediaQueryList;
   private _mobileQueryListener: () => void;
 
@@ -67,10 +64,6 @@ export class AppComponent implements OnDestroy, OnInit {
     public accountService: AccountService,
     public api: ApiClientService,
     private themeService: ThemeService) {
-    
-    this.theme = this.themeService.currentTheme();
-    toObservable(this.themeService.currentTheme)
-      .subscribe({next: v => this.theme = v});
     
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
     this._mobileQueryListener = () => changeDetectorRef.detectChanges();
