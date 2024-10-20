@@ -5,4 +5,8 @@
 <a mat-flat-button color="primary" (click)="setSeeds()">Set Seeds</a>
 }
 
+@if(!hasBracket()) {
+    <div>No bracket created</div>
+    
+}
 <div class="brackets-viewer"></div>

@@ -1,69 +1,70 @@
 <mat-grid-list cols="3" rowHeight="40px" style="width: 600px; margin: auto">
-  <mat-grid-tile colspan="3"><h1 [routerLink]="['/season', seasonMatch?.seasonID]">{{seasonMatch?.seasonName}}</h1></mat-grid-tile>
-  <mat-grid-tile [routerLink]="['/season', seasonMatch?.seasonID, 'team', seasonMatch?.homeTeamID]">{{seasonMatch?.homeTeamName}}</mat-grid-tile>
+  <mat-grid-tile colspan="3"><h1 [routerLink]="['/season', seasonMatch()?.seasonID]">{{seasonMatch()?.seasonName}}</h1></mat-grid-tile>
+  <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.homeTeamID]">{{seasonMatch()?.homeTeamName}}</mat-grid-tile>
   <mat-grid-tile>vs</mat-grid-tile>
-  <mat-grid-tile [routerLink]="['/season', seasonMatch?.seasonID, 'team', seasonMatch?.awayTeamID]">{{seasonMatch?.awayTeamName}}</mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch?.homeTeamScore}}</mat-grid-tile>
+  <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.awayTeamID]">{{seasonMatch()?.awayTeamName}}</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch()?.homeTeamScore}}</mat-grid-tile>
   <mat-grid-tile>-</mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch?.awayTeamScore}}</mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch?.homeTeamResult}}</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch()?.awayTeamScore}}</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch()?.homeTeamResult}}</mat-grid-tile>
   <mat-grid-tile></mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch?.awayTeamResult}}</mat-grid-tile>
-  <mat-grid-tile colspan="3">Best of {{seasonMatch?.bestOf}}</mat-grid-tile>
-  <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
+  <mat-grid-tile>{{seasonMatch()?.awayTeamResult}}</mat-grid-tile>
+  <mat-grid-tile colspan="3">Best of {{seasonMatch()?.bestOf}}</mat-grid-tile>
+  <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch()?.scheduledTime?.toString() | date:'short' }}</mat-grid-tile>
 </mat-grid-list>
 
 <h2>Bracket Info</h2>
-@if (seasonMatch?.bracketInfo === null) {
+@if (seasonMatch()?.bracketInfo === null) {
 <p>Regular Season Match</p>
 } @else {
 
-  @if (seasonMatch?.bracketInfo?.homeTeamPreviousMatchID === null) {
-<div>Home Team Seed {{seasonMatch?.bracketInfo?.homeTeamSeed}}</div>
+  @if (seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID === null) {
+<div>Home Team Seed {{seasonMatch()?.bracketInfo?.homeTeamSeed}}</div>
   } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
   }
 
-  @if (seasonMatch?.bracketInfo?.awayTeamPreviousMatchID === null) {
-<div>Away Team Seed {{seasonMatch?.bracketInfo?.awayTeamSeed}}</div>
+  @if (seasonMatch()?.bracketInfo?.awayTeamPreviousMatchID === null) {
+<div>Away Team Seed {{seasonMatch()?.bracketInfo?.awayTeamSeed}}</div>
   } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
   }
 
-  @if (seasonMatch?.bracketInfo?.winnerNextMatchID === null) {
+  @if (seasonMatch()?.bracketInfo?.winnerNextMatchID === null) {
 <div>Winner wins playoffs</div>
   } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
   }
 
-  @if (seasonMatch?.bracketInfo?.loserNextMatchID === null) {
+  @if (seasonMatch()?.bracketInfo?.loserNextMatchID === null) {
 <div>Loser is eliminated from playoffs</div>
   } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
   }
 }
 
 <h2>Games Played</h2>
 
-@if (seasonMatch?.reportedGames?.length === 0) {
-<p>There do not appear to be any reported games for this season match</p>
+@if (seasonMatch()?.reportedGames?.length === 0) {
+<p>There are no reported games for this season match</p>
 } @else {
 
-@for (match of seasonMatch?.reportedGames; track match) {
+@for (match of seasonMatch()?.reportedGames; track match) {
 <p>Game {{match.matchNumber}} - {{match.matchID}}</p>
 }
 }
 
+@if (accountService.isEventOrganizer()) {
 <h2>Report Game</h2>
 
-@if (seasonMatch?.homeTeamResult !== 'TBD' || seasonMatch?.awayTeamResult !== 'TBD') {
+@if (seasonMatch()?.homeTeamResult !== 'TBD' || seasonMatch()?.awayTeamResult !== 'TBD') {
 <p>This match has been completed.</p>
 } @else {
 <h3>Forfeit</h3>
 
-<button mat-button (click)="homeForfeit()" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">Home Team Forfeit</button>
+<button mat-button (click)="homeForfeit()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Home Team Forfeit</button>
 
-<button mat-button (click)="awayForfeit()" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">Away Team Forfeit</button>
+<button mat-button (click)="awayForfeit()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Away Team Forfeit</button>
 
 <h3>Enter Match ID</h3>
 
@@ -74,14 +75,15 @@
     <app-error-message [control]="reportMatchForm.controls['MatchID']" />
   </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch || !accountService.isEventOrganizer()">
+  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch() || !accountService.isEventOrganizer()">
     Submit
   </button>
 </form>
+}
 
 <h3>Possible Matches</h3>
 
-@for (match of possibleMatches; track match) {
+@for (match of possibleMatches(); track match.matchID) {
 <mat-card style="margin: 6px">
   <mat-card-header>
     <mat-card-title>{{match.matchID}}: {{match.homeTeam.score}} - {{match.awayTeam.score}}</mat-card-title>
@@ -122,10 +124,12 @@
     </div>
   </mat-card-content>
 
+  @if (accountService.isEventOrganizer()) {
   <mat-card-actions>
-    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch || !accountService.isEventOrganizer()">SUBMIT</button>
+    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">SUBMIT</button>
     <!--<button mat-button [routerLink]="['/match', match?.matchID]">FULL DETAILS</button>-->
   </mat-card-actions>
+  }
 </mat-card>
 }
 }

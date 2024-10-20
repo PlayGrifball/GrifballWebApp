@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ViewChild } from '@angular/core';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { Component, effect, input, signal, Signal, ViewChild, WritableSignal } from '@angular/core';
+import { RouterModule } from '@angular/router';
 import { SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
@@ -38,13 +38,13 @@ import { AccountService } from '../../account.service';
   templateUrl: './seasonMatch.component.html',
   styleUrl: './seasonMatch.component.scss'
 })
-export class SeasonMatchComponent implements OnInit {
-  private seasonMatchID: number = 0;
-  seasonMatch: SeasonMatchPageDto | null = null;
+export class SeasonMatchComponent {
+  seasonMatchID: Signal<number> = input.required<number>()
+  seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
-  isSubmittingMatch: boolean = false;
+  isSubmittingMatch: WritableSignal<boolean> = signal(false);
 
-  possibleMatches: PossibleMatchDto[] = [];
+  possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
 
   public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
 
@@ -77,34 +77,32 @@ export class SeasonMatchComponent implements OnInit {
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
   regexErrorMessage: string = "Must be a valid GUID";
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService) {
-  }
-
-  ngOnInit(): void {
-    this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
-    this.getPageDto();
-
-    this.getPossibleMatches();
+  constructor(private http: HttpClient, public accountService: AccountService) {
+    effect(() => {
+      this.seasonMatchID();
+      this.getPageDto();
+      this.getPossibleMatches();
+    })
   }
 
   getPageDto(): void {
-    this.http.get<SeasonMatchPageDto>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID)
+    this.http.get<SeasonMatchPageDto>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
       .subscribe({
-        next: result => this.seasonMatch = result,
+        next: result => this.seasonMatch.set(result),
       });
   }
 
   getPossibleMatches(): void {
-    this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID)
+    this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID())
       .subscribe({
-        next: result => this.possibleMatches = result,
+        next: result => this.possibleMatches.set(result),
       });
   }
 
   onSubmit(matchID: string): void {
-    this.isSubmittingMatch = true;
+    this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID + '/' + matchID)
+    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -112,9 +110,9 @@ export class SeasonMatchComponent implements OnInit {
   }
 
   homeForfeit(): void {
-    this.isSubmittingMatch = true;
+    this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/HomeForfeit/' + this.seasonMatchID)
+    this.http.get<string>('/api/SeasonMatch/HomeForfeit/' + this.seasonMatchID())
       .subscribe({
         next: result => console.log(result),
         error: result => console.log(result),
@@ -122,9 +120,9 @@ export class SeasonMatchComponent implements OnInit {
   }
 
   awayForfeit(): void {
-    this.isSubmittingMatch = true;
+    this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/AwayForfeit/' + this.seasonMatchID)
+    this.http.get<string>('/api/SeasonMatch/AwayForfeit/' + this.seasonMatchID())
       .subscribe({
         next: result => console.log(result),
         error: result => console.log(result),
@@ -132,7 +130,7 @@ export class SeasonMatchComponent implements OnInit {
   }
 
   finishedReportingMatch(): void {
-    this.isSubmittingMatch = false;
+    this.isSubmittingMatch.set(false);
     this.getPageDto();
   }
 }

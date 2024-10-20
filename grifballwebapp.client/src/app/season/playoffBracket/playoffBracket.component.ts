@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from '../../bracketTypes/types';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -25,6 +25,8 @@ import { AccountService } from '../../account.service';
 })
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;
+
+  hasBracket = signal(false);
   
   constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar, public accountService: AccountService) { }
 
@@ -50,6 +52,12 @@ export class PlayoffBracketComponent implements OnInit {
   }
 
   render(viewerData: ViewerData) {
+    if (viewerData.participants.length === 0) {
+      this.hasBracket.set(false);
+      return;
+    } else {
+      this.hasBracket.set(true);
+    }
     window.bracketsViewer.addLocale('en', {
       common: {
         'group-name-winner-bracket': '{{stage.name}}',
