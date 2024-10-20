@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using Surprenant.Grunt.Util;
 
 namespace GrifballWebApp.Server;
@@ -27,9 +28,41 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .WriteTo.Debug(Serilog.Events.LogEventLevel.Verbose)
+                .WriteTo.Console(Serilog.Events.LogEventLevel.Verbose)
+                .MinimumLevel.Verbose()
+                .CreateBootstrapLogger();
+
+        Log.Logger.ForContext<Program>().Information("Starting up");
+        
+        try
+        {
+            Run(args);
+        }
+        catch (Exception ex)
+        {
+            Log.Logger.ForContext<Program>().Fatal(ex, "Fatal error");
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
+    }
+
+    public static void Run(string[] args)
+    {
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.Host.UseSerilog((context, services, configuration) => configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services));
+
         // Add services to the container.
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddProblemDetails();
+
         builder.Services.AddSignalR();
 
         builder.Services.AddControllers()
@@ -77,11 +110,11 @@ public class Program
         builder.Services.AddAuthorization();
 
         builder.Services.AddIdentity<User, Role>(options =>
-            {
-                options.SignIn.RequireConfirmedAccount = false;
-                options.SignIn.RequireConfirmedPhoneNumber = false;
-                options.SignIn.RequireConfirmedEmail = false;
-            })
+        {
+            options.SignIn.RequireConfirmedAccount = false;
+            options.SignIn.RequireConfirmedPhoneNumber = false;
+            options.SignIn.RequireConfirmedEmail = false;
+        })
             .AddDefaultTokenProviders()
             .AddSignInManager<SignInManager<User>>()
             .AddEntityFrameworkStores<GrifballContext>();
