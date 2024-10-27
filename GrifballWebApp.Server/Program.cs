@@ -21,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Surprenant.Grunt.Util;
+using System.Text.Json.Serialization;
 
 namespace GrifballWebApp.Server;
 
@@ -68,6 +69,7 @@ public class Program
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 options.JsonSerializerOptions.Converters.Add(new DateTimeJsonConverter());
                 options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
             });

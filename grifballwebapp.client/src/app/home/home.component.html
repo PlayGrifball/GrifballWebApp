@@ -1,0 +1,51 @@
+<h1>Current and upcoming events</h1>
+@if (currentAndFutureEvents().length === 0) {
+    <div>There are no current or upcoming events</div>
+}
+@for (event of currentAndFutureEvents(); track event) {
+    @switch (event.eventType) {
+        @case ("Signup") {
+            <div [routerLink]="['/season', event.seasonID, 'signups']">Signups for {{event.name}} are open from {{event.start | date:'short' }} to {{event.end | date:'short' }}</div>
+        }
+        @case ("Draft") {
+            <div [routerLink]="['/season', event.seasonID, 'teams']">The draft for {{event.name}} starts at {{event.start | date:'short' }}, and will run until all picks are made.</div>
+        }
+        @case ("Season") {
+            <div [routerLink]="['/season', event.seasonID]">The {{event.name}} season will run from {{event.start | date:'short' }} to {{event.end | date:'short' }}</div>
+        }
+    }
+}
+
+<h1>Past Seasons</h1>
+
+<table mat-table [dataSource]="pastSeasons" matSort >
+    <ng-container matColumnDef="name" >
+        <th mat-header-cell *matHeaderCellDef mat-sort-header >
+          Season Name
+        </th>
+        <td mat-cell *matCellDef="let row" [routerLink]="['/season', row.seasonID]" >
+          {{row.name}}
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="start" >
+        <th mat-header-cell *matHeaderCellDef mat-sort-header >
+          Start
+        </th>
+        <td mat-cell *matCellDef="let row" >
+            {{row.start | date: 'shortDate'}}
+        </td>
+    </ng-container>
+    <ng-container matColumnDef="end" >
+        <th mat-header-cell *matHeaderCellDef mat-sort-header >
+          End
+        </th>
+        <td mat-cell *matCellDef="let row" >
+            {{row.end | date: 'shortDate'}}
+        </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row [@rowsAnimation]="true" *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+<mat-paginator [pageSizeOptions]="[10, 20, 100]" showFirstLastButtons class="border-t" [length]="total()"
+aria-label="Select page">
+</mat-paginator>

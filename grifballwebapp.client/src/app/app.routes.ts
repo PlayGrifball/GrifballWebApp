@@ -5,8 +5,7 @@ import { isSysAdminGuard } from './isSysAdmin.guard';
 export const APP_ROUTES: Routes = [
   {
     path: '',
-    //loadComponent: () => import('./home/home.component').then(c => c.HomeComponent),
-    loadComponent: () => import('./top-stats/top-stats.component').then(m => m.TopStatsComponent),
+    loadComponent: () => import('./home/home.component').then(c => c.HomeComponent),
     title: 'Home',
   },
   {
