@@ -1,1 +1,75 @@
-<p>team works!</p>,
+<mat-card style="margin: 1em" appearance="raised">
+    <mat-card-header>
+        <h1>{{team()?.teamName}}</h1>
+    </mat-card-header>
+    <mat-card-content>
+        <div>{{team()?.wins}} - {{team()?.losses}}</div>
+
+        @if (team()?.tbd != 0) {
+            <div>{{team()?.tbd}} matches need to be played</div>
+        }
+        
+        <mat-card style="margin: 1em; width: fit-content;" appearance="outlined">
+            <mat-card-header>
+            </mat-card-header>
+            <mat-card-content>
+                @for (player of team()?.players; track player.teamPlayerID) {
+                    <div>
+                        {{player.gamertag}} - 
+                        @if (player.draftCaptainOrder != null) {
+                            Captain
+                        } @else {
+                            R{{player.draftRound}}
+                        }
+                    </div>
+                }
+            </mat-card-content>
+        </mat-card>
+        
+        <table mat-table [dataSource]="matches">
+            <ng-container matColumnDef="otherTeam">
+                <th mat-header-cell *matHeaderCellDef> Opposing Team </th>
+                <td mat-cell *matCellDef="let row">
+                    <span [routerLink]="['/season', seasonID(), 'team', row.otherTeamID]">{{row.otherTeamName}}</span>
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="score">
+                <th mat-header-cell *matHeaderCellDef> Score </th>
+                <td mat-cell *matCellDef="let row">
+                    @if (row.result == undefined) {
+                        TBD
+                    }
+                    @else if (row.score == undefined && (row.result == 'Forfeit' || row.otherResult == 'Forfeit' || row.result == 'Bye' || row.otherResult == 'Bye')) {
+                        N/A
+                    }
+                    @else {
+                        {{row.score}} - {{row.otherScore}}
+                    }
+                </td>
+            </ng-container>
+
+            <ng-container matColumnDef="result">
+                <th mat-header-cell *matHeaderCellDef> Result </th>
+                <td mat-cell *matCellDef="let row"> {{row.result ?? 'TBD'}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="scheduledTime">
+                <th mat-header-cell *matHeaderCellDef> Scheduled Time </th>
+                <td mat-cell *matCellDef="let row"> {{row.scheduledTime | date: 'short'}} </td>
+            </ng-container>
+
+            <ng-container matColumnDef="matchPage">
+                <th mat-header-cell *matHeaderCellDef> Details </th>
+                <td mat-cell *matCellDef="let row">
+                    <button mat-fab [routerLink]="['/seasonmatch', row.seasonMatchID]">
+                        <mat-icon>link</mat-icon>
+                    </button>
+                </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+    </mat-card-content>
+</mat-card>

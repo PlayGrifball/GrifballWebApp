@@ -39,7 +39,7 @@ public class TeamService
                     {
                         Name = tp.User.DisplayName,
                         PersonID = tp.UserID,
-                        Pick = tp.DraftPick,
+                        Pick = tp.DraftPick, // TODO: Investigate removing this prop
                         Round = tp.DraftRound,
                     })
                     .OrderBy(tp => tp.Round)
