@@ -13,15 +13,15 @@
 // Define the palettes for your theme using the Material Design palettes available in palette.scss
 // (imported above). For each palette, you can optionally specify a default, lighter, and darker
 // hue. Available color palettes: https://material.io/design/color/
-$grifballwebapp-primary: mat.define-palette(mat.$yellow-palette);
-$grifballwebapp-accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
+$grifballwebapp-primary: mat.m2-define-palette(mat.$m2-yellow-palette);
+$grifballwebapp-accent: mat.m2-define-palette(mat.$m2-pink-palette, A200, A100, A400);
 
 // The warn palette is optional (defaults to red).
-$grifballwebapp-warn: mat.define-palette(mat.$red-palette);
+$grifballwebapp-warn: mat.m2-define-palette(mat.$m2-red-palette);
 
 // Create the theme object. A theme consists of configurations for individual
 // theming systems such as "color" or "typography".
-$grifballwebapp-theme: mat.define-dark-theme((
+$grifballwebapp-theme: mat.m2-define-dark-theme((
   color: (
     primary: $grifballwebapp-primary,
     accent: $grifballwebapp-accent,
@@ -29,7 +29,7 @@ $grifballwebapp-theme: mat.define-dark-theme((
   )
 ));
 
-$grifballwebapp-theme-light: mat.define-light-theme((
+$grifballwebapp-theme-light: mat.m2-define-light-theme((
   color: (
     primary: $grifballwebapp-primary,
     accent: $grifballwebapp-accent,

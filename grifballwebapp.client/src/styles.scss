@@ -1,11 +1,85 @@
-@use "./custom-theme" as theme;
+// Custom Theming for Angular Material
+// For more information: https://material.angular.io/guide/theming
+@use '@ng-matero/extensions' as mtx;
+@use "@angular/material" as mat;
+// Plus imports for other components in your app.
 
-.light-theme {
-  @include theme.create-light-theme();
+// Include the common styles for Angular Material. We include this here so that you only
+// have to load a single css file for Angular Material in your app.
+// Be sure that you only ever include this mixin once!
+@include mat.core();
+
+@import "./../m3-theme.scss";
+
+html {
+  @include mat.all-component-themes($theme);
+  @include mtx.all-component-themes($theme);
 }
+
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+html {
+  --sys-primary: var(--primary-80);
+  --sys-surface-tint: var(--primary-80);
+  --sys-on-primary: var(--primary-20);
+  --sys-primary-container: var(--primary-30);
+  --sys-on-primary-container: var(--primary-90);
+  --sys-secondary: var(--secondary-80);
+  --sys-on-secondary: var(--secondary-20);
+  --sys-secondary-container: var(--secondary-30);
+  --sys-on-secondary-container: var(--secondary-90);
+  --sys-tertiary: var(--tertiary-80);
+  --sys-on-tertiary: var(--tertiary-20);
+  --sys-tertiary-container: var(--tertiary-30);
+  --sys-on-tertiary-container: var(--tertiary-90);
+  --sys-error: var(--error-80);
+  --sys-on-error: var(--error-20);
+  --sys-error-container: var(--error-30);
+  --sys-on-error-container: var(--error-90);
+  --sys-background: var(--neutral-6);
+  --sys-on-background: var(--neutral-90);
+  --sys-surface: var(--neutral-6);
+  --sys-on-surface: var(--neutral-90);
+  --sys-surface-variant: var(--neutral-variant-30);
+  --sys-on-surface-variant: var(--neutral-variant-90);
+  --sys-outline: var(--neutral-variant-60);
+  --sys-outline-variant: var(--neutral-variant-30);
+  --sys-shadow: var(--neutral-0);
+  --sys-scrim: var(--neutral-0);
+  --sys-inverse-surface: var(--neutral-90);
+  --sys-inverse-on-surface: var(--neutral-20);
+  --sys-inverse-primary: var(--primary-40);
+  --sys-primary-fixed: var(--primary-90);
+  --sys-on-primary-fixed: var(--primary-10);
+  --sys-primary-fixed-dim: var(--primary-80);
+  --sys-on-primary-fixed-variant: var(--primary-30);
+  --sys-secondary-fixed: var(--secondary-90);
+  --sys-on-secondary-fixed: var(--secondary-10);
+  --sys-secondary-fixed-dim: var(--secondary-80);
+  --sys-on-secondary-fixed-variant: var(--secondary-30);
+  --sys-tertiary-fixed: var(--tertiary-90);
+  --sys-on-tertiary-fixed: var(--tertiary-10);
+  --sys-tertiary-fixed-dim: var(--tertiary-80);
+  --sys-on-tertiary-fixed-variant: var(--tertiary-30);
+  --sys-surface-dim: var(--neutral-6);
+  --sys-surface-bright: var(--neutral-24);
+  --sys-surface-container-lowest: var(--neutral-4);
+  --sys-surface-container-low: var(--neutral-10);
+  --sys-surface-container: var(--neutral-12);
+  --sys-surface-container-high: var(--neutral-17);
+  --sys-surface-container-highest: var(--neutral-24);
+}
+
+body {
+  --mat-toolbar-container-background-color: var(--secondary);
+  --mat-toolbar-container-text-color: var(--primary);
+}
+
+body mat-icon {
+  color: var(--primary);
+}
 
 .app-form {
   min-width: 150px;

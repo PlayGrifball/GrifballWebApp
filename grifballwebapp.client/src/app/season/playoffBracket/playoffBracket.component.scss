@@ -47,3 +47,22 @@
     display: none;
   }
 }*/
+
+// TODO: setup better with theming light/dark
+.brackets-viewer {
+  --font-color: #ffffff;
+  --primary-background: none; // Background of entire div
+  --secondary-background: #333333; // Match hover color (overriden below) / round header
+  --match-background: #444444;
+  //--label-color: #000dc9; // Not sure
+  //--hint-color: #b4b4b4; // Seed numbers and previous match hint
+  --connector-color: #fff;
+  --border-color: #868686;
+  --border-hover-color: var(--primary);
+  //--border-selected-color: #48e200; // Not sure
+}
+
+::ng-deep .brackets-viewer .participant:hover {
+  background-color: var(--primary-50) !important; // Override secondary-background so hover color does not need to match the round header
+  cursor: pointer;
+}

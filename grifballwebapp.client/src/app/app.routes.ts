@@ -9,6 +9,11 @@ export const APP_ROUTES: Routes = [
     title: 'Home',
   },
   {
+    path: 'theme',
+    loadComponent: () => import('./theme/theme.component').then(m => m.ThemeComponent),
+    title: 'Theme'
+  },
+  {
     path: 'season/:seasonID',
     loadComponent: () => import('./season/season.component').then(m => m.SeasonComponent),
     title: 'Season'

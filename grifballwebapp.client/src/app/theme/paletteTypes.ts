@@ -1,0 +1,1 @@
+export type palette = 'primary' | 'secondary' | 'tertiary' | 'neutral' | 'neutral-variant' | 'error';

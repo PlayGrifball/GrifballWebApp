@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { KillsDto } from '../api/dtos/killsDto';
-import { HttpClientModule } from '@angular/common/http';
 import { MatTableModule } from '@angular/material/table';
 import { CommonModule } from '@angular/common';
 import { ApiClientService } from '../api/apiClient.service';
@@ -11,7 +10,6 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
   standalone: true,
   imports: [
     CommonModule,
-    HttpClientModule,
     MatTableModule,
     MatSnackBarModule
   ],

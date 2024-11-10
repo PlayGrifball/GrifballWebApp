@@ -1,0 +1,17 @@
+<mat-form-field>
+    <mat-label>Color picker</mat-label>
+    <input matInput [formControl]="color" [mtxColorpicker]="picker" format="hex">
+    <mtx-colorpicker-toggle matSuffix [for]="picker"></mtx-colorpicker-toggle>
+    <mtx-colorpicker #picker></mtx-colorpicker>
+</mat-form-field>
+
+<div class="flex">
+    <div>{{paletteName()}}</div>
+    <app-tile [paletteName]="paletteName()" [i]="null" class="inline-flex w-20"></app-tile>
+</div>
+
+<div class="flex">
+    @for (i of range(); track i) {
+        <app-tile [paletteName]="paletteName()" [i]="i" class="inline-flex w-20 h-24"></app-tile>
+    }
+</div>
