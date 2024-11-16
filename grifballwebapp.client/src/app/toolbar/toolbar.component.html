@@ -6,7 +6,7 @@
   <a mat-button [routerLink]="['/']">Play Grifball</a>
   <span class="app-spacer"></span>
 
-  <button mat-icon-button aria-label="Theme icon" [routerLink]="['/theme']">
+  <button mat-icon-button aria-label="Theme icon" (click)="theme()">
     <mat-icon>palette</mat-icon>
   </button>
   

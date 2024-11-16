@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    h1 {
+        @apply text-2xl;
+        @apply font-bold;
+    }
+    h2 {
+        @apply text-xl;
+        @apply font-bold;
+    }
+    h3 {
+        @apply text-lg;
+        @apply font-bold;
+    }
+    h4 {
+        @apply text-base;
+        @apply font-bold;
+    }
+    h5 {
+        @apply text-sm;
+        @apply font-bold;
+    }
+    h6 {
+        @apply text-xs;
+        @apply font-bold;
+    }
+}
+
 .mdc-notched-outline__notch {
     border-style: none;
 }

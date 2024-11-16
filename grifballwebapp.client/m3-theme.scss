@@ -143,10 +143,11 @@ $config: (
     primary: $_primary,
     tertiary: $_tertiary,
     use-system-variables: true,
-  )//,
-  //typography: (
-  //  use-system-variables: true,
-  //),
+  ),
+  typography: (
+    brand-family: "Roboto, 'Helvetica Neue', sans-serif",
+    use-system-variables: true,
+  ),
 );
 
 $theme: mat.private-deep-merge-all(
@@ -165,3 +166,39 @@ $theme: mat.private-deep-merge-all(
 //   //  use-system-variables: true,
 //   //),
 // ));
+
+.primary-button {
+  @include mat.button-color($theme, $color-variant: primary);
+}
+
+.secondary-button {
+  @include mat.button-color($theme, $color-variant: secondary);
+}
+
+.tertiary-button {
+  @include mat.button-color($theme, $color-variant: tertiary);
+}
+
+.primary-datepicker {
+  @include mat.datepicker-color($theme, $color-variant: primary);
+}
+
+.secondary-datepicker {
+  @include mat.datepicker-color($theme, $color-variant: secondary);
+}
+
+.tertiary-datepicker {
+  @include mat.datepicker-color($theme, $color-variant: tertiary);
+}
+
+.primary-icon {
+  @include mat.icon-color($theme, $color-variant: primary);
+}
+
+.secondary-icon {
+  @include mat.icon-color($theme, $color-variant: secondary);
+}
+
+.tertiary-icon {
+  @include mat.icon-color($theme, $color-variant: tertiary);
+}

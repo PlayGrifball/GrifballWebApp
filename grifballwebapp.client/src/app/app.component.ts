@@ -59,6 +59,7 @@ export class AppComponent implements OnDestroy, OnInit {
   ];
 
   setTheme = effect(() => {
+    this.themingService.setFont(this.themingService.font());
     this.themingService.setPrimaryShade(this.themingService.primary());
     this.themingService.setSecondaryShade(this.themingService.secondary());
     this.themingService.setTertiaryShade(this.themingService.tertiary());
