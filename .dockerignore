@@ -28,3 +28,17 @@ README.md
 !.git/config
 !.git/packed-refs
 !.git/refs/heads/**
+
+# Custom for Grunt
+
+## Contains token information for the registered client.
+GrifballWebApp.Server/client.json
+
+## Contains information about the Halo Waypoint communication tokens.
+GrifballWebApp.Server/grunt.json
+
+## Contains token information
+GrifballWebApp.Server/tokens.json
+
+## Contains one time use authorization code
+GrifballWebApp.Server/AccountAuthorization.txt
