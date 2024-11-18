@@ -12,7 +12,7 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { DateTime } from 'luxon';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 @Injectable({
   providedIn: 'root'

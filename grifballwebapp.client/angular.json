@@ -26,22 +26,6 @@
             "outputPath": "dist/grifballwebapp.client",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "externalDependencies": [
-              "http",
-              "https",
-              "url",
-              "util",
-              "net"
-            ],
-            "allowedCommonJsDependencies": [
-              "tough-cookie",
-              "node-fetch",
-              "fetch-cookie",
-              "abort-controller",
-              "ws",
-              "eventsource",
-              "lodash"
-            ],
             "polyfills": [
               "zone.js"
             ],
@@ -62,7 +46,7 @@
                 {
                   "type": "initial",
                   "maximumWarning": "500kb",
-                  "maximumError": "1mb"
+                  "maximumError": "2mb"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -71,6 +55,11 @@
                 }
               ],
               "outputHashing": "all"
+            },
+            "analyze-bundle": {
+              "sourceMap": true,
+              "outputHashing": "none",
+              "namedChunks": true
             },
             "development": {
               "optimization": false,

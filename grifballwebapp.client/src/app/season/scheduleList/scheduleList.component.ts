@@ -16,7 +16,7 @@ import { UpdateMatchTimeDto } from './updateMatchTimeDto';
 import { ScheduledMatchDto } from './scheduledMatchDto';
 import { DateTime, Settings } from 'luxon';
 import { TimeDto } from './timeDto';
-import * as _ from 'lodash';
+import { chain } from 'lodash-es';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -94,7 +94,7 @@ export class ScheduleListComponent  implements OnInit {
   private gotScheduledMatches(matches: ScheduledMatchDto[]): void {
     const mappedMatches = matches.map(this.map);
 
-    const groupedByWeek = _.chain(mappedMatches)
+    const groupedByWeek = chain(mappedMatches)
       .groupBy((match) => match.LocalWeekYear + "-" + match.LocalWeekNumber)
       .map((matches, key) => ({ key, matches }))
       .orderBy(group => Number(group.key), ['asc'])
