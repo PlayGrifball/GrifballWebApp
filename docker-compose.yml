@@ -1,8 +1,7 @@
-version: '3.4'
-
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04
+    restart: unless-stopped
     environment:
       - SA_PASSWORD=Pass@word
       - ACCEPT_EULA=Y
@@ -14,15 +13,18 @@ services:
         target: /backups
   grifballwebapp.server:
     image: ${DOCKER_REGISTRY-}grifballwebappserver
+    restart: unless-stopped
     build:
       context: .
       dockerfile: GrifballWebApp.Server/Dockerfile
     environment:
       - ConnectionStrings__GrifballWebApp=Server=sqlserver,1433;Database=GrifballWebApp;Encrypt=False;User Id=sa;Password=Pass@word;
+      - ApplyMigrations=true
     #ports:
     #  - "7210:8081"
   grifballwebapp.client:
     image: ${DOCKER_REGISTRY-}grifballwebappclient
+    restart: unless-stopped
     build:
       context: grifballwebapp.client
       dockerfile: Dockerfile

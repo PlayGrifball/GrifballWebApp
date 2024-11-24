@@ -16,8 +16,12 @@ using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Surprenant.Grunt.Util;
@@ -162,6 +166,9 @@ public class Program
         builder.Services.AddTransient<ScheduleService>();
         builder.Services.AddTransient<AvailabilityService>();
 
+        builder.Services.AddDataProtection()
+            .PersistKeysToDbContext<GrifballContext>();
+
         builder.Services.
             AddAuthentication(options =>
             {
@@ -207,10 +214,45 @@ public class Program
 
         var app = builder.Build();
 
-        app.UseForwardedHeaders();
+        {
+            using var scope = app.Services.CreateScope();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            
+            using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        app.UseDefaultFiles();
-        app.UseStaticFiles();
+            var exists = context.Database.GetService<IRelationalDatabaseCreator>().Exists();
+            var missingMigrations = context.Database.GetPendingMigrations();
+
+            if (exists is false || missingMigrations.Any())
+            {
+                if (exists is false)
+                    logger.LogWarning("Database does not exist");
+                else
+                    logger.LogWarning("Missing migrations: {MissingMigrations}", missingMigrations);
+
+                if (app.Services.GetRequiredService<IConfiguration>().GetValue("ApplyMigrations", false) is false)
+                {
+                    throw new Exception("Database is missing migrations or does not exist, ApplyMigrations is false so no attempt will be made to apply migrations");
+                }
+
+                if (exists is false && app.Services.GetRequiredService<IConfiguration>().GetValue("CreateDatabase", false) is false)
+                {
+                    throw new Exception("Database does not exist and CreateDatabase is false. Will not attempt to apply migrations");
+                }
+
+                logger.LogInformation("Applying migrations");
+                context.Database.Migrate();
+                logger.LogInformation("Migrations applied");
+            }
+        }
+
+        app.UseForwardedHeaders(new ForwardedHeadersOptions()
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+        });
+
+        //app.UseDefaultFiles();
+        //app.UseStaticFiles();
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
@@ -219,7 +261,7 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        //app.UseHttpsRedirection();
 
         app.UseAuthorization();
 
@@ -230,7 +272,7 @@ public class Program
             options.CloseOnAuthenticationExpiration = true;
         });
 
-        app.MapFallbackToFile("/index.html");
+        //app.MapFallbackToFile("/index.html");
 
         app.Run();
     }

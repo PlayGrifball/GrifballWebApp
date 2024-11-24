@@ -1,4 +1,4 @@
-FROM node:20.9.0-alpine AS build
+FROM node:20.11.1-alpine AS build
 
 RUN mkdir /usr/share/app
 WORKDIR /usr/share/app

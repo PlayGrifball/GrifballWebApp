@@ -1,11 +1,14 @@
 ﻿using GrifballWebApp.Database.Models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Database;
 
-public partial class GrifballContext : IdentityDbContext<User, Role, int, IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>
+public partial class GrifballContext :
+    IdentityDbContext<User, Role, int, IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>,
+    IDataProtectionKeyContext
 {
     public GrifballContext() : base()
     {
@@ -37,6 +40,8 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,6 +85,8 @@ public partial class GrifballContext : IdentityDbContext<User, Role, int, Identi
             b.ToTable("UserTokens", "Auth", tb => tb.IsTemporal());
             b.HasKey(e => new { e.UserId, e.LoginProvider, e.Name });
         });
+
+        modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
 
         OnModelCreatingPartial(modelBuilder);
     }
