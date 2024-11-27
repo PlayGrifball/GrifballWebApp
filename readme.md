@@ -30,7 +30,7 @@ https://docs.google.com/spreadsheets/d/14tRPXLkjauRV-xfQiegUD6VMlqso7_EYe68E9HY4
 https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240
 
 ### Backend Technologies
-- [.NET 8](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
+- [.NET 9](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
 - [ASP.NET Core Web API](https://learn.microsoft.com/en-us/aspnet/core) - [source](https://github.com/dotnet/aspnetcore)
 - [SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/) - [source](https://github.com/dotnet/aspnetcore/tree/main/src/SignalR)
 - [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/) - [source](https://github.com/dotnet/efcore)
