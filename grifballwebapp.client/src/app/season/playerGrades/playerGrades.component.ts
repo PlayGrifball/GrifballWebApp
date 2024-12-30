@@ -6,15 +6,14 @@ import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 
 @Component({
-  selector: 'app-player-grades',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-  ],
-  providers: [DecimalPipe],
-  templateUrl: './playerGrades.component.html',
-  styleUrl: './playerGrades.component.scss'
+    selector: 'app-player-grades',
+    imports: [
+        CommonModule,
+        MatTableModule,
+    ],
+    providers: [DecimalPipe],
+    templateUrl: './playerGrades.component.html',
+    styleUrl: './playerGrades.component.scss'
 })
 export class PlayerGradesComponent implements OnInit {
   private seasonID: number = 0;

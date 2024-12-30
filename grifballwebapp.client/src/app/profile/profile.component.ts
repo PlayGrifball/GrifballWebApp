@@ -11,19 +11,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-profile',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    ErrorMessageComponent,
-    MatInputModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatSnackBarModule
-  ],
-  templateUrl: './profile.component.html',
-  styleUrl: './profile.component.scss',
+    selector: 'app-profile',
+    imports: [
+        CommonModule,
+        FormsModule,
+        ErrorMessageComponent,
+        MatInputModule,
+        MatButtonModule,
+        MatFormFieldModule,
+        MatSnackBarModule
+    ],
+    templateUrl: './profile.component.html',
+    styleUrl: './profile.component.scss'
 })
 export class ProfileComponent implements OnInit {
   gamertag: string | null = null;

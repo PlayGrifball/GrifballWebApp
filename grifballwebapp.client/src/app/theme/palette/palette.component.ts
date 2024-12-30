@@ -9,21 +9,20 @@ import { MatInput } from '@angular/material/input';
 import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 
 @Component({
-  selector: 'app-palette',
-  standalone: true,
-  imports: [
-    CommonModule,
-    TileComponent,
-    MtxColorpickerModule,
-    MatFormFieldModule,
-    MatLabel,
-    MatInput,
-    FormsModule,
-    ReactiveFormsModule,
-  ],
-  templateUrl: './palette.component.html',
-  styleUrl: './palette.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'app-palette',
+    imports: [
+        CommonModule,
+        TileComponent,
+        MtxColorpickerModule,
+        MatFormFieldModule,
+        MatLabel,
+        MatInput,
+        FormsModule,
+        ReactiveFormsModule,
+    ],
+    templateUrl: './palette.component.html',
+    styleUrl: './palette.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaletteComponent implements OnInit {
   paletteName = input.required<palette>();

@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, input, signal, WritableSignal } from '@angular/core';
-import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
@@ -10,21 +9,19 @@ import { DateTime } from 'luxon';
 import { Observable } from 'rxjs';
 
 @Component({
-  selector: 'app-team',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatCard,
-    MatCardHeader,
-    MatCardContent,
-    MatTableModule,
-    RouterModule,
-    MatButton,
-    MatIcon,
-  ],
-  templateUrl: './team.component.html',
-  styleUrl: './team.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'app-team',
+    imports: [
+        CommonModule,
+        MatCard,
+        MatCardHeader,
+        MatCardContent,
+        MatTableModule,
+        RouterModule,
+        MatIcon,
+    ],
+    templateUrl: './team.component.html',
+    styleUrl: './team.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamComponent {
 

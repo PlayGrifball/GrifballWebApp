@@ -6,14 +6,13 @@ import { ActivatedRoute } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 
 @Component({
-  selector: 'app-signups',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-  ],
-  templateUrl: './signups.component.html',
-  styleUrl: './signups.component.scss',
+    selector: 'app-signups',
+    imports: [
+        CommonModule,
+        MatTableModule,
+    ],
+    templateUrl: './signups.component.html',
+    styleUrl: './signups.component.scss'
 })
 export class SignupsComponent implements OnInit {
   public signUps: SignupResponseDto[] = [];

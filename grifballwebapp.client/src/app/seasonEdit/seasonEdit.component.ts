@@ -12,21 +12,20 @@ import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
-  selector: 'app-season-edit',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-    MtxDatetimepickerModule,
-    RouterModule,
-    MatCheckboxModule,
-  ],
-  templateUrl: './seasonEdit.component.html',
-  styleUrl: './seasonEdit.component.scss'
+    selector: 'app-season-edit',
+    imports: [
+        CommonModule,
+        FormsModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+        MtxDatetimepickerModule,
+        RouterModule,
+        MatCheckboxModule,
+    ],
+    templateUrl: './seasonEdit.component.html',
+    styleUrl: './seasonEdit.component.scss'
 })
 export class SeasonEditComponent implements OnInit {
   @ViewChild('seasonForm') registerForm!: NgForm;

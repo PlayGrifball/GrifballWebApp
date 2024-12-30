@@ -11,19 +11,18 @@ import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterLink,
-    MatListModule,
-    MatSidenavModule,
-    RouterOutlet,
-    ToolbarComponent,
-  ],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css',
-  changeDetection: ChangeDetectionStrategy.Default
+    selector: 'app-root',
+    imports: [
+        CommonModule,
+        RouterLink,
+        MatListModule,
+        MatSidenavModule,
+        RouterOutlet,
+        ToolbarComponent,
+    ],
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.css',
+    changeDetection: ChangeDetectionStrategy.Default
 })
 export class AppComponent implements OnDestroy, OnInit {
   @ViewChild('snav') snav!: MatSidenav;

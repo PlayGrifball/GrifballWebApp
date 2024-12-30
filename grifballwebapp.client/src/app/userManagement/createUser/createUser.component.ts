@@ -10,18 +10,17 @@ import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-create-user',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-  ],
-  templateUrl: './createUser.component.html',
-  styleUrl: './createUser.component.scss'
+    selector: 'app-create-user',
+    imports: [
+        CommonModule,
+        FormsModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+    ],
+    templateUrl: './createUser.component.html',
+    styleUrl: './createUser.component.scss'
 })
 export class CreateUserComponent {
   model: CreateUserDto = {} as CreateUserDto;

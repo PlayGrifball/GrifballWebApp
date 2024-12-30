@@ -7,16 +7,15 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
-  selector: 'app-season-manager',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    RouterModule,
-    MatButtonModule
-  ],
-  templateUrl: './seasonManager.component.html',
-  styleUrl: './seasonManager.component.scss'
+    selector: 'app-season-manager',
+    imports: [
+        CommonModule,
+        MatTableModule,
+        RouterModule,
+        MatButtonModule
+    ],
+    templateUrl: './seasonManager.component.html',
+    styleUrl: './seasonManager.component.scss'
 })
 export class SeasonManagerComponent implements OnInit {
   public seasons: SeasonDto[] = [];

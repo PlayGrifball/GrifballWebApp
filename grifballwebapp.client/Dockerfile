@@ -9,7 +9,7 @@ COPY tsconfig.app.json ./
 COPY m3-theme.scss ./
 COPY tailwind.config.js ./
 COPY src src
-RUN npm install
+RUN npm install --force
 RUN npm run build
 
 # Stage 2

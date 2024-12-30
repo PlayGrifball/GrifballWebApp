@@ -32,18 +32,17 @@ interface DropzoneLayout {
 }
 
 @Component({
-  selector: 'app-team-builder',
-  standalone: true,
-  imports: [
-    CommonModule,
-    DndModule,
-    MatListModule,
-    MatIconModule,
-    MatButtonModule,
-    MatCardModule,
-  ],
-  templateUrl: './teamBuilder.component.html',
-  styleUrl: './teamBuilder.component.scss',
+    selector: 'app-team-builder',
+    imports: [
+        CommonModule,
+        DndModule,
+        MatListModule,
+        MatIconModule,
+        MatButtonModule,
+        MatCardModule,
+    ],
+    templateUrl: './teamBuilder.component.html',
+    styleUrl: './teamBuilder.component.scss'
 })
 export class TeamBuilderComponent {
   private seasonID: number = 0;

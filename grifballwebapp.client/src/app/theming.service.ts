@@ -1,7 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { argbFromHex, hexFromArgb, TonalPalette } from '@material/material-color-utilities';
-import { Subject } from 'rxjs';
 
 type Theme = {
   name: string;

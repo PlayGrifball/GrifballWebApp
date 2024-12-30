@@ -18,25 +18,24 @@ import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
 
 @Component({
-  selector: 'app-season-match',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatGridListModule,
-    RouterModule,
-    FormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-    RegexMatchValidValidatorDirective,
-    MtxDatetimepickerModule,
-    MatCardModule,
-    MatListModule,
-    MatTableModule
-  ],
-  templateUrl: './seasonMatch.component.html',
-  styleUrl: './seasonMatch.component.scss'
+    selector: 'app-season-match',
+    imports: [
+        CommonModule,
+        MatGridListModule,
+        RouterModule,
+        FormsModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+        RegexMatchValidValidatorDirective,
+        MtxDatetimepickerModule,
+        MatCardModule,
+        MatListModule,
+        MatTableModule
+    ],
+    templateUrl: './seasonMatch.component.html',
+    styleUrl: './seasonMatch.component.scss'
 })
 export class SeasonMatchComponent {
   seasonMatchID: Signal<number> = input.required<number>()

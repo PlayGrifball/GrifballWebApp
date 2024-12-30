@@ -9,7 +9,6 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
 
 @Component({
     selector: 'app-season',
-    standalone: true,
     templateUrl: './season.component.html',
     styleUrl: './season.component.scss',
     imports: [

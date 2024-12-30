@@ -143,10 +143,12 @@ $config: (
     primary: $_primary,
     tertiary: $_tertiary,
     use-system-variables: true,
+    //system-variables-prefix: sys,
   ),
   typography: (
     brand-family: "Roboto, 'Helvetica Neue', sans-serif",
     use-system-variables: true,
+    //system-variables-prefix: sys,
   ),
 );
 
@@ -161,9 +163,11 @@ $theme: mat.private-deep-merge-all(
 //     primary: $_primary,
 //     tertiary: $_tertiary,
 //     //use-system-variables: true,
+//    system-variables-prefix: sys,
 //   )//,
 //   //typography: (
 //   //  use-system-variables: true,
+//    system-variables-prefix: sys,
 //   //),
 // ));
 

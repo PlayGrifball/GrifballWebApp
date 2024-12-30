@@ -12,20 +12,19 @@ import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
-  selector: 'app-edit-user',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-    MtxDatetimepickerModule,
-    MatCheckboxModule
-  ],
-  templateUrl: './editUser.component.html',
-  styleUrl: './editUser.component.scss'
+    selector: 'app-edit-user',
+    imports: [
+        CommonModule,
+        FormsModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+        MtxDatetimepickerModule,
+        MatCheckboxModule
+    ],
+    templateUrl: './editUser.component.html',
+    styleUrl: './editUser.component.scss'
 })
 export class EditUserComponent {
   model: UserResponseDto = {} as UserResponseDto;

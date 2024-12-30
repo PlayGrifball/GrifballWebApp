@@ -14,21 +14,20 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 
 @Component({
-  selector: 'app-register',
-  standalone: true,
-  imports: [
-    MatInputModule,
-    MatFormFieldModule,
-    FormsModule,
-    MatIconModule,
-    MatButtonModule,
-    RouterLink,
-    ErrorMessageComponent,
-    RegexMatchValidValidatorDirective,
-    MatchFieldsValidatorDirective
-  ],
-  templateUrl: './register.component.html',
-  styleUrl: './register.component.scss',
+    selector: 'app-register',
+    imports: [
+        MatInputModule,
+        MatFormFieldModule,
+        FormsModule,
+        MatIconModule,
+        MatButtonModule,
+        RouterLink,
+        ErrorMessageComponent,
+        RegexMatchValidValidatorDirective,
+        MatchFieldsValidatorDirective
+    ],
+    templateUrl: './register.component.html',
+    styleUrl: './register.component.scss'
 })
 export class RegisterComponent {
   @ViewChild('registerForm') registerForm!: NgForm;

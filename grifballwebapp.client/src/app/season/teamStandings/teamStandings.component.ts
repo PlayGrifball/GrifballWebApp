@@ -6,15 +6,14 @@ import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
 
 @Component({
-  selector: 'app-team-standings',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    RouterModule
-  ],
-  templateUrl: './teamStandings.component.html',
-  styleUrl: './teamStandings.component.scss',
+    selector: 'app-team-standings',
+    imports: [
+        CommonModule,
+        MatTableModule,
+        RouterModule
+    ],
+    templateUrl: './teamStandings.component.html',
+    styleUrl: './teamStandings.component.scss'
 })
 export class TeamStandingsComponent implements OnInit {
   private seasonID: number = 0;

@@ -23,7 +23,6 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 @Component({
     selector: 'app-schedule-list',
-    standalone: true,
     templateUrl: './scheduleList.component.html',
     styleUrl: './scheduleList.component.scss',
     imports: [

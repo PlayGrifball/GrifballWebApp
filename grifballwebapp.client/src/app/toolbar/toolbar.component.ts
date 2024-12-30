@@ -10,18 +10,17 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ThemeComponent } from '../theme/theme.component';
 
 @Component({
-  selector: 'app-toolbar',
-  standalone: true,
-  imports: [
-    RouterLink,
-    CommonModule,
-    MatToolbarModule,
-    MatButtonModule,
-    MatIconModule,
-    MatDialogModule,
-  ],
-  templateUrl: './toolbar.component.html',
-  styleUrl: './toolbar.component.css'
+    selector: 'app-toolbar',
+    imports: [
+        RouterLink,
+        CommonModule,
+        MatToolbarModule,
+        MatButtonModule,
+        MatIconModule,
+        MatDialogModule,
+    ],
+    templateUrl: './toolbar.component.html',
+    styleUrl: './toolbar.component.css'
 })
 export class ToolbarComponent {
   @Input({ required: true }) snav!: MatSidenav;

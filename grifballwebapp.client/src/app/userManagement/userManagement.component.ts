@@ -7,16 +7,15 @@ import { UserResponseDto } from './userResponseDto';
 import { HttpClient } from '@angular/common/http';
 
 @Component({
-  selector: 'app-user-management',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    RouterModule,
-    MatButtonModule
-  ],
-  templateUrl: './userManagement.component.html',
-  styleUrl: './userManagement.component.scss'
+    selector: 'app-user-management',
+    imports: [
+        CommonModule,
+        MatTableModule,
+        RouterModule,
+        MatButtonModule
+    ],
+    templateUrl: './userManagement.component.html',
+    styleUrl: './userManagement.component.scss'
 })
 export class UserManagementComponent implements OnInit {
   public users: UserResponseDto[] = [];

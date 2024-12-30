@@ -12,16 +12,15 @@ import { AccountService } from '../../account.service';
 //import { BracketsManager } from 'brackets-manager/dist'
 
 @Component({
-  selector: 'app-playoff-bracket',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatSnackBarModule
-  ],
-  templateUrl: './playoffBracket.component.html',
-  styleUrl: './playoffBracket.component.scss',
+    selector: 'app-playoff-bracket',
+    imports: [
+        CommonModule,
+        MatButtonModule,
+        MatDialogModule,
+        MatSnackBarModule
+    ],
+    templateUrl: './playoffBracket.component.html',
+    styleUrl: './playoffBracket.component.scss'
 })
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;

@@ -10,30 +10,29 @@ import { RouterModule } from '@angular/router';
 import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 
 @Component({
-  selector: 'app-home',
-  standalone: true,
-  templateUrl: 'home.component.html',
-  imports: [
-    DatePipe,
-    RouterModule,
-    MatPaginator,
-    MatSortModule,
-    MatTable,
-    MatHeaderRow,
-    MatRow,
-    MatTableModule,
-  ],
-  animations: [
-    trigger('rowsAnimation', [
-      transition(':enter', [
-          style({ opacity: .1 }),
-          animate('350ms', style({ opacity: 1 }))
-      ]),
-      transition(':leave', [
-          style({ display: 'none' })
-      ])
-  ])
-  ],
+    selector: 'app-home',
+    templateUrl: 'home.component.html',
+    imports: [
+        DatePipe,
+        RouterModule,
+        MatPaginator,
+        MatSortModule,
+        MatTable,
+        MatHeaderRow,
+        MatRow,
+        MatTableModule,
+    ],
+    animations: [
+        trigger('rowsAnimation', [
+            transition(':enter', [
+                style({ opacity: .1 }),
+                animate('350ms', style({ opacity: 1 }))
+            ]),
+            transition(':leave', [
+                style({ display: 'none' })
+            ])
+        ])
+    ]
 })
 export class HomeComponent implements OnInit {
 

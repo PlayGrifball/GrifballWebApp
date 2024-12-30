@@ -14,20 +14,19 @@ import { AvailabilityTableComponent } from './availabilityTable/availabilityTabl
 import { AvailabilityService } from '../availability.service';
 
 @Component({
-  selector: 'app-signup-form',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-    MatCheckboxModule,
-    AvailabilityTableComponent,
-  ],
-  templateUrl: './signupForm.component.html',
-  styleUrl: './signupForm.component.scss',
+    selector: 'app-signup-form',
+    imports: [
+        CommonModule,
+        FormsModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+        MatCheckboxModule,
+        AvailabilityTableComponent,
+    ],
+    templateUrl: './signupForm.component.html',
+    styleUrl: './signupForm.component.scss'
 })
 export class SignupFormComponent {
 

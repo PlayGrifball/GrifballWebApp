@@ -4,9 +4,9 @@ RUN mkdir /usr/share/app
 WORKDIR /usr/share/app
 
 COPY package.json package.json
-RUN npm i -g @angular/cli@17.1.3
+RUN npm i -g @angular/cli@19.0.6
 COPY package-lock.json package-lock.json
-RUN npm i
+RUN npm i --force
 
 COPY . .
 

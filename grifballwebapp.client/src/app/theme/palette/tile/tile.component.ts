@@ -4,14 +4,13 @@ import { palette } from '../../paletteTypes';
 import { ThemingService } from '../../../theming.service';
 
 @Component({
-  selector: 'app-tile',
-  standalone: true,
-  imports: [
-    CommonModule,
-  ],
-  templateUrl: './tile.component.html',
-  styleUrl: './tile.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'app-tile',
+    imports: [
+        CommonModule,
+    ],
+    templateUrl: './tile.component.html',
+    styleUrl: './tile.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TileComponent {
   paletteName = input.required<palette>();

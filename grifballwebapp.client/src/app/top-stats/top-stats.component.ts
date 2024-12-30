@@ -6,15 +6,14 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-top-stats',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatTableModule,
-    MatSnackBarModule
-  ],
-  templateUrl: './top-stats.component.html',
-  styleUrl: './top-stats.component.css'
+    selector: 'app-top-stats',
+    imports: [
+        CommonModule,
+        MatTableModule,
+        MatSnackBarModule
+    ],
+    templateUrl: './top-stats.component.html',
+    styleUrl: './top-stats.component.css'
 })
 export class TopStatsComponent implements OnInit {
   public kills: KillsDto[] = [];

@@ -11,21 +11,20 @@ import { HttpClient } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-create-bracket-dialog',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatDialogModule,
-    MatButtonModule,
-    FormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    ErrorMessageComponent,
-    MatCheckboxModule,
-    MatSnackBarModule
-  ],
-  templateUrl: './createBracketDialog.component.html',
-  styleUrl: './createBracketDialog.component.scss',
+    selector: 'app-create-bracket-dialog',
+    imports: [
+        CommonModule,
+        MatDialogModule,
+        MatButtonModule,
+        FormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ErrorMessageComponent,
+        MatCheckboxModule,
+        MatSnackBarModule
+    ],
+    templateUrl: './createBracketDialog.component.html',
+    styleUrl: './createBracketDialog.component.scss'
 })
 export class CreateBracketDialogComponent {
   @Input({ required: true }) seasonID!: number;

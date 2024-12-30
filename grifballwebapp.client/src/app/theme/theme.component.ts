@@ -7,18 +7,17 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ThemingService } from '../theming.service';
 
 @Component({
-  selector: 'app-theme',
-  standalone: true,
-  imports: [
-    CommonModule,
-    PaletteComponent,
-    MatFormFieldModule,
-    MatSelectModule,
-    ReactiveFormsModule,
-  ],
-  templateUrl: './theme.component.html',
-  styleUrl: './theme.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'app-theme',
+    imports: [
+        CommonModule,
+        PaletteComponent,
+        MatFormFieldModule,
+        MatSelectModule,
+        ReactiveFormsModule,
+    ],
+    templateUrl: './theme.component.html',
+    styleUrl: './theme.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ThemeComponent implements OnInit {
   constructor(private themingService: ThemingService) {}

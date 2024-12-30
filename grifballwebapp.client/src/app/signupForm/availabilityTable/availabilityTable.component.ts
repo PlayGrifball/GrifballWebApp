@@ -7,16 +7,15 @@ import { AvailabilityService } from '../../availability.service';
 import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'app-availability-table',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatCheckboxModule,
-    MatTableModule,
-    FormsModule,
-  ],
-  templateUrl: './availabilityTable.component.html',
-  styleUrl: './availabilityTable.component.scss',
+    selector: 'app-availability-table',
+    imports: [
+        CommonModule,
+        MatCheckboxModule,
+        MatTableModule,
+        FormsModule,
+    ],
+    templateUrl: './availabilityTable.component.html',
+    styleUrl: './availabilityTable.component.scss'
 })
 export class AvailabilityTableComponent {
 

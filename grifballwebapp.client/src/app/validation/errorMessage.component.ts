@@ -4,12 +4,11 @@ import { AbstractControl, AbstractControlDirective, FormControl } from '@angular
 import { ValidationService } from './validationService';
 
 @Component({
-  selector: 'app-error-message',
-  standalone: true,
-  imports: [
-    CommonModule,
-  ],
-  template: `
+    selector: 'app-error-message',
+    imports: [
+        CommonModule,
+    ],
+    template: `
     <div *ngIf="errorMessage !== null">{{errorMessage}}</div>
     `
 })

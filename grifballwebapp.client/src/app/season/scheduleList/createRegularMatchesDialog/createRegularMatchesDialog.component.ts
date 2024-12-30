@@ -10,20 +10,19 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 
 @Component({
-  selector: 'app-create-regular-matches-dialog',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatDialogModule,
-    MatButtonModule,
-    FormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    ErrorMessageComponent,
-    MatSnackBarModule
-  ],
-  templateUrl: './createRegularMatchesDialog.component.html',
-  styleUrl: './createRegularMatchesDialog.component.scss',
+    selector: 'app-create-regular-matches-dialog',
+    imports: [
+        CommonModule,
+        MatDialogModule,
+        MatButtonModule,
+        FormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ErrorMessageComponent,
+        MatSnackBarModule
+    ],
+    templateUrl: './createRegularMatchesDialog.component.html',
+    styleUrl: './createRegularMatchesDialog.component.scss'
 })
 export class CreateRegularMatchesDialogComponent {
   @Input({ required: true }) seasonID!: number;

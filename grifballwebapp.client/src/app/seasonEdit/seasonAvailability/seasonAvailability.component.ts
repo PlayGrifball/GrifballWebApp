@@ -12,20 +12,19 @@ import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
-  selector: 'app-season-availability',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatCheckboxModule,
-    MtxDatetimepickerModule,
-    MatInputModule,
-    FormsModule,
-    MatFormField,
-    MatButton,
-    MatSelectModule,
-  ],
-  templateUrl: './seasonAvailability.component.html',
-  styleUrl: './seasonAvailability.component.scss'
+    selector: 'app-season-availability',
+    imports: [
+        CommonModule,
+        MatCheckboxModule,
+        MtxDatetimepickerModule,
+        MatInputModule,
+        FormsModule,
+        MatFormField,
+        MatButton,
+        MatSelectModule,
+    ],
+    templateUrl: './seasonAvailability.component.html',
+    styleUrl: './seasonAvailability.component.scss'
 })
 export class SeasonAvailabilityComponent implements OnInit {
 

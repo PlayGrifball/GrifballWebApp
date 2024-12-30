@@ -10,19 +10,18 @@ import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { ActivatedRoute } from '@angular/router';
 
 @Component({
-  selector: 'app-infinite-client',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatSnackBarModule,
-    MatInputModule,
-    MatFormFieldModule,
-    FormsModule,
-    MatButtonModule,
-    ErrorMessageComponent,
-  ],
-  templateUrl: './infiniteClient.component.html',
-  styleUrl: './infiniteClient.component.scss',
+    selector: 'app-infinite-client',
+    imports: [
+        CommonModule,
+        MatSnackBarModule,
+        MatInputModule,
+        MatFormFieldModule,
+        FormsModule,
+        MatButtonModule,
+        ErrorMessageComponent,
+    ],
+    templateUrl: './infiniteClient.component.html',
+    styleUrl: './infiniteClient.component.scss'
 })
 export class InfiniteClientComponent implements OnInit {
   code: string = "";
