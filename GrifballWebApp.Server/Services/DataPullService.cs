@@ -159,6 +159,7 @@ public class DataPullService
             StartTime = matchStats.MatchInfo.StartTime.ToUniversalTime().DateTime,
             EndTime = matchStats.MatchInfo.EndTime.ToUniversalTime().DateTime,
             Duration = matchStats.MatchInfo.Duration,
+            StatsPullDate = DateTime.UtcNow,
         };
 
         var matchTeams = matchStats.Teams.Select(x =>
@@ -252,6 +253,16 @@ public class DataPullService
                 DamageTaken = stats.DamageTaken,
                 CalloutAssists = stats.CalloutAssists,
                 MaxKillingSpree = stats.MaxKillingSpree,
+                FirstJoinedTime = x.ParticipationInfo.FirstJoinedTime.ToUniversalTime().DateTime,
+                JoinedInProgress = x.ParticipationInfo.JoinedInProgress,
+                LastLeaveTime = x.ParticipationInfo.LastLeaveTime.HasValue ? x.ParticipationInfo.LastLeaveTime.Value.ToUniversalTime().DateTime : null,
+                LeftInProgress = x.ParticipationInfo.LeftInProgress,
+                PresentAtBeginning = x.ParticipationInfo.PresentAtBeginning,
+                PresentAtCompletion = x.ParticipationInfo.PresentAtCompletion,
+                TimePlayed = x.ParticipationInfo.TimePlayed,
+                RoundsLost = stats.RoundsLost,
+                RoundsTied = stats.RoundsTied,
+                RoundsWon = stats.RoundsWon,
                 MedalEarned = stats.Medals.Select(m => new MedalEarned()
                 {
                     MedalID = m.NameId,

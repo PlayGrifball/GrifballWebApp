@@ -12,6 +12,8 @@ public partial class Match
     public DateTime? EndTime { get; set; }
     public TimeSpan Duration { get; set; }
 
+    public DateTime? StatsPullDate { get; set; }
+
     //[InverseProperty(nameof(MatchLink.Match))]
     public MatchLink MatchLink { get; set; }
 

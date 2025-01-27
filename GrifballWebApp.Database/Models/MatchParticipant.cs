@@ -33,6 +33,17 @@ public partial class MatchParticipant
     public int MaxKillingSpree { get; set; }
     public int DamageTaken { get; set; }
 
+    public DateTime FirstJoinedTime { get; set; }
+    public DateTime? LastLeaveTime { get; set; }
+    public bool JoinedInProgress { get; set; }
+    public bool LeftInProgress { get; set; }
+    public bool PresentAtBeginning { get; set; }
+    public bool PresentAtCompletion { get; set; }
+    public TimeSpan TimePlayed { get; set; }
+    public int RoundsWon { get; set; }
+    public int RoundsLost { get; set; }
+    public int RoundsTied { get; set; }
+
     public MatchTeam MatchTeam { get; set; }
     public XboxUser XboxUser { get; set; }
 

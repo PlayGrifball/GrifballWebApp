@@ -26,19 +26,22 @@ public class SeedController : ControllerBase
     [HttpGet(Name = "Medals")]
     public async Task Medals()
     {
-        //_bracketService.CreateBracket(5, 1);
-        //await _bracketService.CreateBracket(8, 1, true);
-        //var b = _bracketService.GetSeedMatchUps(16);
         await _dataPullService.DownloadMedals();
     }
 
-    [Authorize(Roles = "Sysadmin")]
+    //[Authorize(Roles = "EventOrganizer,Sysadmin")]
     [HttpGet(Name = "Excel")]
-    public async Task Excel()
+    public async Task<IActionResult> Excel()
     {
-        //_bracketService.CreateBracket(5, 1);
-        //await _bracketService.CreateBracket(8, 1, true);
-        //var b = _bracketService.GetSeedMatchUps(16);
-        _e.CreateExcelPerMatch();
+        try
+        {
+            await _e.ExportToSheets();
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, ex.Message);
+            throw;
+        }
     }
 }
