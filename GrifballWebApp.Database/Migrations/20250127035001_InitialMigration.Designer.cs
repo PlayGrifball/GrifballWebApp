@@ -12,18 +12,61 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20240512042031_moreseasonmatchcolumns")]
-    partial class moreseasonmatchcolumns
+    [Migration("20250127035001_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.4")
+                .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
+                {
+                    b.Property<int>("AvailabilityOptionID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AvailabilityOptionID"));
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<TimeOnly>("Time")
+                        .HasColumnType("time");
+
+                    b.HasKey("AvailabilityOptionID");
+
+                    b.HasIndex("DayOfWeek", "Time")
+                        .IsUnique();
+
+                    b.ToTable("AvailabilityOptions", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("AvailabilityOptionsHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
                 {
@@ -121,6 +164,9 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnName("PeriodStart");
 
                     b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StatsPullDate")
                         .HasColumnType("datetime2");
 
                     b.HasKey("MatchID");
@@ -290,11 +336,23 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("Deaths")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("FirstJoinedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("JoinedInProgress")
+                        .HasColumnType("bit");
+
                     b.Property<float>("Kda")
                         .HasColumnType("real");
 
                     b.Property<int>("Kills")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastLeaveTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("LeftInProgress")
+                        .HasColumnType("bit");
 
                     b.Property<int>("MaxKillingSpree")
                         .HasColumnType("int");
@@ -318,6 +376,21 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("PowerWeaponKills")
                         .HasColumnType("int");
 
+                    b.Property<bool>("PresentAtBeginning")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("PresentAtCompletion")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RoundsLost")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoundsTied")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoundsWon")
+                        .HasColumnType("int");
+
                     b.Property<int>("Score")
                         .HasColumnType("int");
 
@@ -332,6 +405,9 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.Property<int>("TeamID")
                         .HasColumnType("int");
+
+                    b.Property<TimeSpan>("TimePlayed")
+                        .HasColumnType("time");
 
                     b.HasKey("MatchID", "XboxUserID");
 
@@ -770,6 +846,42 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
+                {
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("SeasonID", "AvailabilityOptionID");
+
+                    b.HasIndex("AvailabilityOptionID");
+
+                    b.ToTable("SeasonAvailability", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SeasonAvailabilityHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.Property<int>("SeasonMatchID")
@@ -900,6 +1012,42 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
+                {
+                    b.Property<int>("SeasonSignupID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("SeasonSignupID", "AvailabilityOptionID");
+
+                    b.HasIndex("AvailabilityOptionID");
+
+                    b.ToTable("SignupAvailability", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("SignupAvailabilityHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
                     b.Property<int>("TeamID")
@@ -945,6 +1093,42 @@ namespace GrifballWebApp.Database.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("TeamsHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability", b =>
+                {
+                    b.Property<int>("TeamID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("TeamID", "AvailabilityOptionID");
+
+                    b.HasIndex("AvailabilityOptionID");
+
+                    b.ToTable("TeamAvailability", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("TeamAvailabilityHistory", "Event");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -1213,6 +1397,46 @@ namespace GrifballWebApp.Database.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("XboxUsersHistory", "Xbox");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys", "Auth");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("DataProtectionKeysHistory", "Auth");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -1502,6 +1726,25 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Medal");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("SeasonAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany("SeasonAvailability")
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AvailabilityOption");
+
+                    b.Navigation("Season");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
@@ -1546,6 +1789,25 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("SignupAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.SeasonSignup", "SeasonSignup")
+                        .WithMany("SignupAvailability")
+                        .HasForeignKey("SeasonSignupID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AvailabilityOption");
+
+                    b.Navigation("SeasonSignup");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.TeamPlayer", "Captain")
@@ -1562,6 +1824,25 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Captain");
 
                     b.Navigation("Season");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.AvailabilityOption", "AvailabilityOption")
+                        .WithMany("TeamAvailability")
+                        .HasForeignKey("AvailabilityOptionID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany("TeamAvailability")
+                        .HasForeignKey("TeamID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AvailabilityOption");
+
+                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
@@ -1672,6 +1953,15 @@ namespace GrifballWebApp.Database.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
+                {
+                    b.Navigation("SeasonAvailability");
+
+                    b.Navigation("SignupAvailability");
+
+                    b.Navigation("TeamAvailability");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
                 {
                     b.Navigation("UserExperiences");
@@ -1728,6 +2018,8 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
+                    b.Navigation("SeasonAvailability");
+
                     b.Navigation("SeasonMatches");
 
                     b.Navigation("SeasonSignups");
@@ -1742,11 +2034,18 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("MatchLinks");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup", b =>
+                {
+                    b.Navigation("SignupAvailability");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
                 {
                     b.Navigation("AwayMatches");
 
                     b.Navigation("HomeMatches");
+
+                    b.Navigation("TeamAvailability");
 
                     b.Navigation("TeamPlayers");
                 });
