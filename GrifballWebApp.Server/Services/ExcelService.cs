@@ -317,7 +317,7 @@ public class ExcelService
                         s.MedalEarned.Count("Mounted & Loaded"), // TODO: confirm spelling
                         s.MedalEarned.Count("Blind Fire"), // TODO: confirm spelling
                         s.MeleeKills,
-                        0, // Objectives completed
+                        s.ObjectivesCompleted,
                         s.PersonalScore,
                         s.PowerWeaponKills,
                         s.RoundsLost,
@@ -326,12 +326,12 @@ public class ExcelService
                         s.Score,
                         s.ShotsFired,
                         s.ShotsHit,
-                        s.Deaths + 1, // Spawns, wat?
+                        s.Spawns,
                         s.Suicides,
                         0, // Vehicle Destroys
                         s.TeamID,
                         1, // Player type
-                        0 // Rank TODO is this needed?
+                        s.Rank
                         //s.MatchTeam.Match.StartTime.ToString(),
                         //s.MatchTeam.Match.MatchID
                         );

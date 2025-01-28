@@ -226,7 +226,7 @@ public class DataPullService
 
             if (x.PlayerTeamStats.Any(pts => pts.TeamId != x.LastTeamId))
             {
-                _logger.LogWarning("Player {PlayerID} played on multiple teams in match {}", x.PlayerId, matchID);
+                _logger.LogWarning("Player {PlayerID} played on multiple teams in match {MatchID}", x.PlayerId, matchID);
             }
 
             return new MatchParticipant()
@@ -263,6 +263,9 @@ public class DataPullService
                 RoundsLost = stats.RoundsLost,
                 RoundsTied = stats.RoundsTied,
                 RoundsWon = stats.RoundsWon,
+                Rank = x.Rank,
+                Spawns = stats.Spawns,
+                ObjectivesCompleted = stats.ObjectivesCompleted,
                 MedalEarned = stats.Medals.Select(m => new MedalEarned()
                 {
                     MedalID = m.NameId,

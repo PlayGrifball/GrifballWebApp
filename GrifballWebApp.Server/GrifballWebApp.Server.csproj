@@ -30,7 +30,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageReference Include="Serilog.Sinks.MSSqlServer" Version="8.0.0" />
-    <PackageReference Include="Surprenant.Grunt" Version="0.0.0.5-beta" />
+    <PackageReference Include="Surprenant.Grunt" Version="0.0.0.6-beta" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.1.0" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>

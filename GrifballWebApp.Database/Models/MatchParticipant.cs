@@ -43,6 +43,9 @@ public partial class MatchParticipant
     public int RoundsWon { get; set; }
     public int RoundsLost { get; set; }
     public int RoundsTied { get; set; }
+    public int Rank { get; set; }
+    public int Spawns { get; set; }
+    public int ObjectivesCompleted { get; set; }
 
     public MatchTeam MatchTeam { get; set; }
     public XboxUser XboxUser { get; set; }
