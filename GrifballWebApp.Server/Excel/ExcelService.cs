@@ -7,8 +7,10 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Auth.OAuth2;
 using System.Text.RegularExpressions;
+using GrifballWebApp.Server.Services;
+using System;
 
-namespace GrifballWebApp.Server.Services;
+namespace GrifballWebApp.Server.Excel;
 
 public class ExcelService
 {
@@ -49,14 +51,14 @@ public class ExcelService
         string columnName = string.Empty;
         while (columnNumber >= 0)
         {
-            columnName = (char)('A' + (columnNumber % 26)) + columnName;
+            columnName = (char)('A' + columnNumber % 26) + columnName;
             columnNumber = columnNumber / 26 - 1;
         }
         return columnName;
     }
 
 
-    private async Task<List<Guid>> FetchDataToExport()
+    private async Task<List<Guid>> FetchMatchIDsFromExcel()
     {
         var guids = new List<Guid>();
 
@@ -69,7 +71,7 @@ public class ExcelService
         var rows = response.Values.Skip(1).SelectMany(x => x).Cast<string>().ToList();
 
         string pattern = @"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
-        foreach(var str in rows)
+        foreach (var str in rows)
         {
             MatchCollection matches = Regex.Matches(str, pattern);
             foreach (System.Text.RegularExpressions.Match match in matches)
@@ -78,7 +80,7 @@ public class ExcelService
             }
         }
 
-        foreach(var guid in guids)
+        foreach (var guid in guids)
         {
             await _dataPullService.GetAndSaveMatch(guid);
         }
@@ -86,14 +88,22 @@ public class ExcelService
         return guids;
     }
 
-
-    public async Task ExportToSheets()
+    public SheetInfo GetDefaultInfo()
     {
-        var guids = await FetchDataToExport();
         var spreadsheetID = _configuration.GetValue<string>("GoogleSheets:SpreadsheetID")
             ?? throw new Exception("Missing GoogleSheets:SpreadsheetID");
         var sheetName = _configuration.GetValue<string>("GoogleSheets:SheetName")
             ?? throw new Exception("Missing GoogleSheets:SheetName");
+        return new SheetInfo()
+        {
+            SheetName = sheetName,
+            SpreadsheetID = spreadsheetID
+        };
+    }
+
+    public async Task ExportAll(SheetInfo sheetInfo)
+    {
+        var guids = await FetchMatchIDsFromExcel();
 
         // Example tinker data
         //var testRange = "A2:GO12";
@@ -101,21 +111,53 @@ public class ExcelService
         //response.Values[0][11] = "Test";
         //await UpdateData(spreadsheetID, sheetName, response.Values);
 
+        await ExportToExcel(guids, sheetInfo, overwrite: true);
+    }
+
+    public async Task AppendMatch(SheetInfo sheetInfo, Guid matchID)
+    {
+        await _dataPullService.GetAndSaveMatch(matchID);
+
+        // Example tinker data
+        //var testRange = "A2:GO12";
+        //var response = await _sheetsService.Spreadsheets.Values.Get(spreadsheetID, sheetName + "!" + testRange).ExecuteAsync();
+        //response.Values[0][11] = "Test";
+        //await UpdateData(spreadsheetID, sheetName, response.Values);
+
+        await ExportToExcel([matchID], sheetInfo, overwrite: false);
+    }
+
+    /// <summary>
+    /// Exports match data to google sheet
+    /// </summary>
+    /// <param name="guids">MatchIDs to export</param>
+    /// <param name="sheetInfo">SpreadsheetID and SheetName to export to</param>
+    /// <param name="overwrite">If true all data in sheet is overriden. If false then perform append to end</param>
+    private async Task ExportToExcel(List<Guid> guids, SheetInfo sheetInfo, bool overwrite)
+    {
         var matches = _context.Matches
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.MedalEarned)
-                        .ThenInclude(x => x.Medal)
-            .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.XboxUser)
-            .OrderBy(x => x.StartTime)
-            .Where(x => guids.Contains(x.MatchID))
-            .ToArray();
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(x => x.MatchTeams)
+                        .ThenInclude(x => x.MatchParticipants)
+                            .ThenInclude(x => x.MedalEarned)
+                                .ThenInclude(x => x.Medal)
+                    .Include(x => x.MatchTeams)
+                        .ThenInclude(x => x.MatchParticipants)
+                            .ThenInclude(x => x.XboxUser)
+                    .OrderBy(x => x.StartTime)
+                    .Where(x => guids.Contains(x.MatchID))
+                    .ToArray();
 
         var startRow = 2;
+
+        if (overwrite is false)
+        {
+            // Find first empty row
+            var x = await _sheetsService.Spreadsheets.Values.Get(sheetInfo.SpreadsheetID, sheetInfo.SheetName + "!L:L").ExecuteAsync();
+            startRow = x.Values.Count + 1;
+        }
+
         var row = startRow;
         var data = new List<IList<object>>();
         foreach (var match in matches.OrderBy(x => x.StartTime))
@@ -129,8 +171,8 @@ public class ExcelService
                         "", // Bot att
                         s.MatchTeam.TeamID, // LastTeamID, not currently tracked
                         s.MatchTeam.Outcome, //Make sure int
-                        //s.MatchTeam.Outcome == Outcomes.Won ? 1 : 0, // Wins
-                        //s.MatchTeam.Outcome == Outcomes.Lost ? 1 : 0, // Losses
+                                             //s.MatchTeam.Outcome == Outcomes.Won ? 1 : 0, // Wins
+                                             //s.MatchTeam.Outcome == Outcomes.Lost ? 1 : 0, // Losses
                         "", // Confirmed participation
                         s.FirstJoinedTime,
                         s.JoinedInProgress,
@@ -337,13 +379,13 @@ public class ExcelService
                         );
                     row++;
                     data.Add(rowData);
-                }   
+                }
             }
         }
         if (data.Any() is false)
             return;
 
-        var response = await UpdateData(spreadsheetID, sheetName, data, startRow);
+        var response = await UpdateData(sheetInfo.SpreadsheetID, sheetInfo.SheetName, data, startRow);
     }
 
     private async Task<BatchUpdateValuesResponse> UpdateData(string spreadsheetID, string sheet, IList<IList<object>> data, int startRow = 2)
@@ -468,7 +510,7 @@ public class ExcelService
                     worksheet.Cells[row, column++].Value = s.Kills;
                     worksheet.Cells[row, column++].Value = s.Deaths;
                     worksheet.Cells[row, column++].Value = s.Kills - s.Deaths;
-                    worksheet.Cells[row, column++].Value = (decimal)s.Kills / (decimal)Math.Max(s.Deaths, 1); // Prevent division by 0
+                    worksheet.Cells[row, column++].Value = s.Kills / (decimal)Math.Max(s.Deaths, 1); // Prevent division by 0
                     worksheet.Cells[row, column++].Value = s.Assists;
                     worksheet.Cells[row, column++].Value = s.MatchTeam.Match.Duration.TotalMinutes;
                     worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killing Spree");

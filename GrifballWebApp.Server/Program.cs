@@ -3,6 +3,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Profile;

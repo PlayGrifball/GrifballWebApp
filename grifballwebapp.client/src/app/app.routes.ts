@@ -111,8 +111,14 @@ export const APP_ROUTES: Routes = [
     title: 'User Profile'
   },
   {
+    path: 'excel',
+    loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
+    title: 'Excel Exporter',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
     path: '**',
     loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
     title: 'Page Not Found'
-  }
+  },
 ];
