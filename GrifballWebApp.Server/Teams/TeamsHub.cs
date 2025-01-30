@@ -53,49 +53,49 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
         return _teamService.GetPlayerPool(seasonID);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task AddCaptain(CaptainPlacementDto dto)
     {
         return _teamService.AddCaptain(dto, resortOnly: false, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task ResortCaptain(CaptainPlacementDto dto)
     {
         return _teamService.AddCaptain(dto, resortOnly: true, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task RemoveCaptain(RemoveCaptainDto dto)
     {
         return _teamService.RemoveCaptain(dto, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto)
     {
         return _teamService.RemovePlayerFromTeam(dto, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto)
     {
         return _teamService.MovePlayerToTeam(dto, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer,Player")]
+    [Authorize(Roles = "Commissioner,Player")]
     public Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto)
     {
         return _teamService.AddPlayerToTeam(dto, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task LockCaptains(int seasonID)
     {
         return _teamService.LockCaptains(seasonID, @lock: true, Context.ConnectionId);
     }
 
-    [Authorize(Roles = "EventOrganizer")]
+    [Authorize(Roles = "Commissioner")]
     public Task UnlockCaptains(int seasonID)
     {
         return _teamService.LockCaptains(seasonID, @lock: false, Context.ConnectionId);

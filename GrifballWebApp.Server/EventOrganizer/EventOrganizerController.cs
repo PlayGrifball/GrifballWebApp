@@ -5,7 +5,7 @@ namespace GrifballWebApp.Server.EventOrganizer;
 
 [Route("[controller]/[action]")]
 [ApiController]
-[Authorize(Roles = "EventOrganizer,Sysadmin")]
+[Authorize(Roles = "Commissioner,Sysadmin")]
 public class EventOrganizerController : ControllerBase
 {
     private readonly EventOrganizerService _eventOrganizerService;

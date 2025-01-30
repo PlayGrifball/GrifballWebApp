@@ -13,14 +13,14 @@ public class ExcelController : ControllerBase
         _e = e;
     }
 
-    [Authorize(Roles = "EventOrganizer,Sysadmin")]
+    [Authorize(Roles = "Commissioner,Sysadmin")]
     [HttpGet(Name = "DefaultSheetInfo")]
     public IActionResult DefaultSheetInfo()
     {
         return Ok(_e.GetDefaultInfo());
     }
 
-    [Authorize(Roles = "EventOrganizer,Sysadmin")]
+    [Authorize(Roles = "Commissioner,Sysadmin")]
     [HttpPost(Name = "ExportAll")]
     public async Task<IActionResult> ExportAll([FromBody] SheetInfo sheetInfo)
     {
@@ -28,7 +28,7 @@ public class ExcelController : ControllerBase
         return Ok();
     }
 
-    [Authorize(Roles = "EventOrganizer,Sysadmin")]
+    [Authorize(Roles = "Commissioner,Sysadmin")]
     [HttpPost(Name = "AppendMatch")]
     public async Task<IActionResult> AppendMatch([FromBody] SheetInfo sheetInfo, [FromQuery] Guid matchID)
     {
