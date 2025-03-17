@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -14,9 +14,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { UpdateMatchTimeDto } from './updateMatchTimeDto';
 import { ScheduledMatchDto } from './scheduledMatchDto';
-import { DateTime, Settings } from 'luxon';
+import { DateTime } from 'luxon';
 import { TimeDto } from './timeDto';
-import { chain } from 'lodash-es';
+import { groupBy, map, orderBy } from 'lodash-es';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -93,11 +93,9 @@ export class ScheduleListComponent  implements OnInit {
   private gotScheduledMatches(matches: ScheduledMatchDto[]): void {
     const mappedMatches = matches.map(this.map);
 
-    const groupedByWeek = chain(mappedMatches)
-      .groupBy((match) => match.LocalWeekYear + "-" + match.LocalWeekNumber)
-      .map((matches, key) => ({ key, matches }))
-      .orderBy(group => Number(group.key), ['asc'])
-      .value()
+    const grouped = groupBy(mappedMatches, (match) => match.LocalWeekYear + "-" + match.LocalWeekNumber);
+    const mapped = map(grouped, (matches, key) => ({ key, matches }));
+    const groupedByWeek = orderBy(mapped, group => Number(group.key), ['asc']);
 
     let weeks: WeekDto[] = [];
 
