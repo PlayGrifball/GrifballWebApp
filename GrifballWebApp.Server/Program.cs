@@ -252,9 +252,6 @@ public class Program
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
         });
 
-        //app.UseDefaultFiles();
-        //app.UseStaticFiles();
-
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -273,7 +270,8 @@ public class Program
             options.CloseOnAuthenticationExpiration = true;
         });
 
-        //app.MapFallbackToFile("/index.html");
+        app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
+        app.MapGet("CommitDate", () => GitInfo.CommitDate);
 
         app.Run();
     }

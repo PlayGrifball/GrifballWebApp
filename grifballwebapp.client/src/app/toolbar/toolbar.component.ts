@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { MatIconModule} from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -8,6 +8,8 @@ import { MatSidenav } from '@angular/material/sidenav';
 import { AccountService } from '../account.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ThemeComponent } from '../theme/theme.component';
+import { DateTime } from 'luxon';
+import { ApiClientService } from '../api/apiClient.service';
 
 @Component({
     selector: 'app-toolbar',
@@ -22,10 +24,28 @@ import { ThemeComponent } from '../theme/theme.component';
     templateUrl: './toolbar.component.html',
     styleUrl: './toolbar.component.css'
 })
-export class ToolbarComponent {
+export class ToolbarComponent implements OnInit {
   @Input({ required: true }) snav!: MatSidenav;
 
-  constructor(public accountService: AccountService, private router: Router, private dialog: MatDialog) {
+  commitHash: string | null = null;
+  commitDate: DateTime | null = null;
+
+  constructor(public accountService: AccountService,
+    private router: Router,
+    private dialog: MatDialog,
+    private api: ApiClientService) {
+  }
+
+  ngOnInit(): void {
+    this.api.commitHash()
+      .subscribe({
+          next: (x) => this.commitHash = x,
+        });
+
+    this.api.commitDate()
+      .subscribe({
+          next: (x) => this.commitDate = x,
+        });
   }
 
   theme(): void {

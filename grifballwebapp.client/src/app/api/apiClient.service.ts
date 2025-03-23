@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
@@ -131,5 +131,14 @@ export class ApiClientService {
 
   areCaptainsLocked(seasonID: number): Observable<boolean> {
     return this.http.get<boolean>('/api/Teams/areCaptainsLocked/' + seasonID);
+  }
+
+  commitHash(): Observable<string> {
+    return this.http.get<string>('/api/CommitHash', this.text);
+  }
+
+  commitDate(): Observable<DateTime> {
+    return this.http.get<string>('/api/CommitDate', this.text)
+      .pipe(map(x => DateTime.fromISO(x)));
   }
 }

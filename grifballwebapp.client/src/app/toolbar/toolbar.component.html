@@ -6,6 +6,12 @@
   <a mat-button [routerLink]="['/']">Play Grifball</a>
   <span class="app-spacer"></span>
 
+  <span class="text-xs">
+    <a href="https://github.com/PlayGrifball/GrifballWebApp">
+      {{commitDate?.toString() | date:'short'}} {{commitHash}}
+    </a>
+  </span>
+
   <button mat-icon-button aria-label="Theme icon" (click)="theme()">
     <mat-icon>palette</mat-icon>
   </button>
