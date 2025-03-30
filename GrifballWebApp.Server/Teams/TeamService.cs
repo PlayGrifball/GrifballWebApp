@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using Microsoft.AspNetCore.SignalR;
+using GrifballWebApp.Server.Teams.Handlers;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Teams;
@@ -8,12 +9,12 @@ namespace GrifballWebApp.Server.Teams;
 public class TeamService
 {
     private readonly GrifballContext _context;
-    private readonly IHubContext<TeamsHub, ITeamsHubClient> _hubContext;
+    private readonly IPublisher _publisher;
 
-    public TeamService(GrifballContext context, IHubContext<TeamsHub, ITeamsHubClient> hubContext)
+    public TeamService(GrifballContext context, IPublisher publisher)
     {
+        _publisher = publisher;
         _context = context;
-        _hubContext = hubContext;
     }
 
     public Task<List<TeamResponseDto>> GetTeams(int seasonID, CancellationToken ct = default)
@@ -140,9 +141,7 @@ public class TeamService
 
         foreach (var (index, item) in existingCaptains.Select((item, index) => (index, item)))
         {
-            //var s = _context.Entry(item);
             item.DraftCaptainOrder = index + 1;
-            //var s2 = _context.Entry(item);
         }
 
         var f = _context.ChangeTracker.DebugView.ShortView;
@@ -151,18 +150,18 @@ public class TeamService
 
         if (resortOnly)
         {
-            _ = _hubContext.Clients.AllExcept(signalRConnectionID).ResortCaptain(dto);
+            _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
         }
         else
         {
-            _ = _hubContext.Clients.AllExcept(signalRConnectionID).AddCaptain(new CaptainAddedDto()
+            _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
             {
                 SeasonID = dto.SeasonID,
                 PersonID = dto.PersonID,
                 CaptainName = await _context.Users.Where(p => p.Id == captain.UserID).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Person",
                 TeamName = captain.Team?.TeamName ?? "Team",
                 OrderNumber = dto.OrderNumber,
-            });
+            }));
         }
     }
 
@@ -192,15 +191,13 @@ public class TeamService
 
         foreach (var (index, item) in existingCaptains.Select((item, index) => (index, item)))
         {
-            //var s = _context.Entry(item);
             item.DraftCaptainOrder = index + 1;
-            //var s2 = _context.Entry(item);
         }
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _hubContext.Clients.AllExcept(signalRConnectionID).RemoveCaptain(dto);
+        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
     public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
@@ -226,7 +223,7 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _hubContext.Clients.AllExcept(signalRConnectionID).RemovePlayerFromTeam(dto);
+        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
     public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
@@ -262,7 +259,7 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _hubContext.Clients.AllExcept(signalRConnectionID).AddPlayerToTeam(dto);
+        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
     public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
@@ -318,7 +315,7 @@ public class TeamService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        _ = _hubContext.Clients.AllExcept(signalRConnectionID).MovePlayerToTeam(dto);
+        _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
     private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct = default)
@@ -345,15 +342,7 @@ public class TeamService
 
         await _context.SaveChangesAsync(ct);
 
-        if (@lock)
-        {
-            _ = _hubContext.Clients.AllExcept(signalRConnectionID).LockCaptains(seasonID);
-        }
-        else
-        {
-            _ = _hubContext.Clients.AllExcept(signalRConnectionID).UnlockCaptains(seasonID);
-        }
-        
+        _ = _publisher.Publish(new LockChanged(@lock, seasonID, signalRConnectionID));
     }
 
     public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct = default)

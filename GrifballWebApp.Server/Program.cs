@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi.Models;
+using NetCord.Hosting.Gateway;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -151,6 +152,41 @@ public class Program
             };
         });
 
+        builder.Services.AddOptions<DiscordOptions>()
+            .Bind(builder.Configuration.GetSection("Discord"))
+            .Validate(options =>
+            {
+                var errors = new List<string>();
+                if (string.IsNullOrWhiteSpace(options.ClientId))
+                    errors.Add("ClientId is required");
+                if (string.IsNullOrWhiteSpace(options.ClientSecret))
+                    errors.Add("ClientSecret is required");
+                if (options.DisableGlobally)
+                {
+
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(options.Token))
+                        errors.Add("Token is required");
+                    if (options.DraftChannel is 0)
+                        errors.Add("DraftChannel is required");
+                }
+                
+                if (errors.Count > 0)
+                {
+                    throw new ArgumentException(string.Join(", ", errors));
+                }
+                return true;
+            })
+            .ValidateOnStart();
+
+        builder.Services.AddDiscordGateway();
+        builder.Services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+        });
+
         builder.Services.AddTransient<DataPullService>();
         builder.Services.AddTransient<BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
@@ -275,4 +311,13 @@ public class Program
 
         app.Run();
     }
+}
+
+public class DiscordOptions
+{
+    public string ClientId { get; set; } = null!;
+    public string ClientSecret { get; set; } = null!;
+    public string Token { get; set; } = null!;
+    public ulong DraftChannel { get; set; }
+    public bool DisableGlobally { get; set; } = false;
 }
