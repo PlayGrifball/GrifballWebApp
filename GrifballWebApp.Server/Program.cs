@@ -25,6 +25,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi.Models;
 using NetCord.Hosting.Gateway;
+using NetCord.Hosting.Services;
+using NetCord.Hosting.Services.ApplicationCommands;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -181,7 +183,7 @@ public class Program
             })
             .ValidateOnStart();
 
-        builder.Services.AddDiscordGateway();
+        builder.Services.AddDiscordGateway().AddApplicationCommands();
         builder.Services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
@@ -308,6 +310,9 @@ public class Program
 
         app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
         app.MapGet("CommitDate", () => GitInfo.CommitDate);
+
+        app.AddModules(typeof(Program).Assembly);
+        app.UseGatewayEventHandlers();
 
         app.Run();
     }

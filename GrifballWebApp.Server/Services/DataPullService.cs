@@ -41,7 +41,7 @@ public class DataPullService
             var linkedToken = linked.Token;
             try
             {
-                await Parallel.ForAsync(startPage, endPage, async (page, linkedToken) =>
+                await Parallel.ForAsync(startPage, endPage + 1, async (page, linkedToken) =>
                 {
                     var start = Math.Max(page * perPage - 1, 0);
                     var response = await client.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
