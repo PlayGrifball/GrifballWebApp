@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GrifballWebApp.Database;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 
@@ -12,12 +14,13 @@ public class RemovePlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubConte
     }
 }
 
-public class RemovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options) : DiscordHandler<Notification<RemovePlayerFromTeamRequestDto>>(restClient, options)
+public class RemovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> context)
+    : DiscordHandler<Notification<RemovePlayerFromTeamRequestDto>>(restClient, options, context)
 {
     public override async Task HandleEvent(Notification<RemovePlayerFromTeamRequestDto> request, CancellationToken cancellationToken)
     {
         var msg = new MessageProperties()
-            .WithContent($"{request.Value.PersonID} has returned to the player pool");
+            .WithContent($"{await GetUsername(request.Value.PersonID)} has returned to the player pool");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

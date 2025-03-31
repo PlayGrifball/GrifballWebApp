@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GrifballWebApp.Database;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 
@@ -12,12 +14,13 @@ public class RemoveCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubCont
     }
 }
 
-public class RemoveCaptainDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options) : DiscordHandler<Notification<RemoveCaptainDto>>(restClient, options)
+public class RemoveCaptainDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> context)
+    : DiscordHandler<Notification<RemoveCaptainDto>>(restClient, options, context)
 {
     public override async Task HandleEvent(Notification<RemoveCaptainDto> request, CancellationToken cancellationToken)
     {
         var msg = new MessageProperties()
-            .WithContent($"{request.Value.PersonID} is no longer a captain in the draft");
+            .WithContent($"{await GetUsername(request.Value.PersonID)} is no longer a captain in the draft");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

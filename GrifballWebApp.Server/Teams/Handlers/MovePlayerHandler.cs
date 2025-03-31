@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GrifballWebApp.Database;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 
@@ -12,12 +14,13 @@ public class MovePlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext
     }
 }
 
-public class MovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options) : DiscordHandler<Notification<MovePlayerToTeamRequestDto>>(restClient, options)
+public class MovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory)
+    : DiscordHandler<Notification<MovePlayerToTeamRequestDto>>(restClient, options, contextFactory)
 {
     public override async Task HandleEvent(Notification<MovePlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
         var msg = new MessageProperties()
-            .WithContent($"{request.Value.PersonID} is has been moved to {request.Value.NewCaptainID}'s team");
+            .WithContent($"{await GetUsername(request.Value.PersonID)} has been moved from {await GetUsername(request.Value.PreviousCaptainID)}'s team to {await GetUsername(request.Value.NewCaptainID)}'s team");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

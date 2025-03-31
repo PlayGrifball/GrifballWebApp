@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GrifballWebApp.Database;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 
@@ -12,12 +14,13 @@ public class ResortCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubCont
     }
 }
 
-public class ResortCaptainDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options) : DiscordHandler<Notification<CaptainPlacementDto>>(restClient, options)
+public class ResortCaptainDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory)
+    : DiscordHandler<Notification<CaptainPlacementDto>>(restClient, options, contextFactory)
 {
     public override async Task HandleEvent(Notification<CaptainPlacementDto> request, CancellationToken cancellationToken)
     {
         var msg = new MessageProperties()
-            .WithContent($"{request.Value.PersonID} is now {request.Value.OrderNumber} in the draft");
+            .WithContent($"{await GetUsername(request.Value.PersonID)} is now captain {request.Value.OrderNumber} in the draft");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

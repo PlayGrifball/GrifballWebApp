@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GrifballWebApp.Database;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 
@@ -12,12 +14,13 @@ public class AddPlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext)
     }
 }
 
-public class AddPlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options) : DiscordHandler<Notification<AddPlayerToTeamRequestDto>>(restClient, options)
+public class AddPlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory)
+    : DiscordHandler<Notification<AddPlayerToTeamRequestDto>>(restClient, options, contextFactory)
 {
     public override async Task HandleEvent(Notification<AddPlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
         var msg = new MessageProperties()
-            .WithContent($"{request.Value.PersonID} is now on {request.Value.CaptainID}'s team");
+            .WithContent($"{await GetUsername(request.Value.PersonID)} has been added to {await GetUsername(request.Value.CaptainID)}'s team");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }
