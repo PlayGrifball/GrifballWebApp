@@ -23,16 +23,11 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
         _dataPullService = dataPullService;
     }
 
-    [SlashCommand("test", "A test command")]
-    public async Task<string> Test()
-    {
-        await Task.Delay(3000);
-        return "foo";
-    }
-
     [SlashCommand("matches", "Get your recent matches")]
-    public async Task<InteractionCallback> RecentMatches()
+    public async Task RecentMatches()
     {
+        await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
+
         var xboxUser = await _context.DiscordUsers
             .Where(x => x.DiscordUserID == (long)Context.User.Id)
             .Select(x => x.XboxUser)
@@ -40,10 +35,20 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
 
         if (xboxUser == null)
         {
-            return InteractionCallback.Message("You must set your gamertag first");
+            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first"));
+            return;
         }
 
-        await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, 5);
+        try
+        {
+            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, 5);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
+            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Failed to fetch recent matches, if this continues to occur contact sysadmin"));
+            return;
+        }
 
         var matches = await _context.Matches
             .Include(x => x.MatchTeams)
@@ -58,9 +63,9 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
 
         var last = matches.FirstOrDefault()?.StartTime?.ToString() ?? "No idea";
 
-        var prop = new InteractionMessageProperties();
+        var list = new List<EmbedProperties>();
 
-        foreach(var match in matches)
+        foreach (var match in matches)
         {
             var outcome = match.MatchTeams.Where(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)).Select(x => x.Outcome).FirstOrDefault();
             var color = outcome switch
@@ -71,17 +76,19 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
                 _ => new Color(255, 255, 255) // Default to white for unknown
             };
 
+            var url = $"https://www.halowaypoint.com/halo-infinite/players/{Uri.EscapeDataString(xboxUser.Gamertag)}/matches/{match.MatchID}";
             var emded = new EmbedProperties()
             {
                 Title = "Halo Infinite Match",
                 Fields = [
-                    new EmbedFieldProperties().WithName("Match ID").WithValue(match.MatchID.ToString()).WithInline(true),
+                    new EmbedFieldProperties().WithName("Match ID").WithValue(match.MatchID.ToString().LinkMarkdown(url)).WithInline(true),
                     new EmbedFieldProperties().WithName("Start Time").WithValue(match.StartTime?.DiscordTimeEmbed()).WithInline(true),
                     new EmbedFieldProperties().WithName("Duration").WithValue(match.Duration.ToString()).WithInline(true),
                     ],
                 Color = color,
             };
-            foreach (var team in match.MatchTeams)
+
+            foreach (var (team, index) in match.MatchTeams.Select((team, index) => (team, index)))
             {
                 // Add team information to the embed
                 emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Team").WithValue(team.TeamID.ToString()).WithInline(true));
@@ -89,12 +96,16 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
                 emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Outcome").WithValue(team.Outcome.ToString()).WithInline(true));
                 var gts = string.Join(", ", team.MatchParticipants.Select(x => x.XboxUser.Gamertag));
                 emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Players").WithValue(gts).WithInline(false));
+                if (index != match.MatchTeams.Count - 1)
+                {
+                    emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("**-------------------------**").WithInline(false));
+                }
             }
 
-            prop = prop.AddEmbeds([emded]);
+            list.Add(emded);
         }
 
-        return InteractionCallback.Message(prop);
+        await Context.Interaction.ModifyResponseAsync(x => x.WithEmbeds(list));
     }
 
     [SlashCommand("setgamertag", "Set your gamertag")]
