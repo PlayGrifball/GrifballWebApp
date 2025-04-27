@@ -15,7 +15,8 @@ public partial class Match
     public DateTime? StatsPullDate { get; set; }
 
     //[InverseProperty(nameof(MatchLink.Match))]
-    public MatchLink MatchLink { get; set; }
+    public MatchLink MatchLink { get; set; } // Regular season
+    public MatchedMatch MatchedMatch { get; set; } // Late league
 
     public virtual ICollection<MatchTeam> MatchTeams { get; set; }
 }

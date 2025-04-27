@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -121,7 +122,6 @@ public class DisplayQueueService : BackgroundService
             // Remove from queue
             context.QueuedPlayer.RemoveRange(selectPlayers);
 
-
             var team1 = new List<QueuedPlayer>();
             var team2 = new List<QueuedPlayer>();
 
@@ -163,10 +163,48 @@ public class DisplayQueueService : BackgroundService
 
             await context.SaveChangesAsync(ct);
 
-            await transaction.CommitAsync(ct);
-            var f = 1;
+            // Grab the last 2 matches played for all players
+            var dataPuller = scope.ServiceProvider.GetRequiredService<DataPullService>();
+            var allXboxIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
+                .Select(x => x.DiscordUser.XboxUserID)
+                .Where(x => x is not null)
+                .Select(x => x!.Value)
+                .ToList();
+            await dataPuller.DownloadRecentMatchesForPlayers(allXboxIds, startPage: 0, endPage: 0, perPage: 2, ct);
 
-            //context.ma
+            // Now for each match check for any possible match
+            foreach(var match in activeMatches)
+            {
+                var t1 = match.HomeTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+                var t2 = match.AwayTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+
+                // TODO: does this work?
+                var matchFound = await context.Matches
+                    .Include(x => x.MatchTeams)
+                    .ThenInclude(x => x.MatchParticipants)
+                        .ThenInclude(x => x.XboxUser)
+                            .ThenInclude(x => x.User)
+                    .Where(x => x.MatchTeams.Count == 2)
+                    .Where(x => (x.MatchTeams.ElementAt(0).MatchParticipants.Select(x => x.XboxUserID).ToList() == t1 &&
+                                 x.MatchTeams.ElementAt(1).MatchParticipants.Select(x => x.XboxUserID).ToList() == t2) ||
+                                (x.MatchTeams.ElementAt(0).MatchParticipants.Select(x => x.XboxUserID).ToList() == t2 &&
+                                 x.MatchTeams.ElementAt(1).MatchParticipants.Select(x => x.XboxUserID).ToList() == t1))
+                    .Where(x => x.StartTime >= match.CreatedAt) // the match must have started after the match was created
+                    .OrderByDescending(x => x.StartTime) // Grab the most recent match
+                    .Select(x => x.MatchID)
+                    .FirstOrDefaultAsync(ct);
+
+                if (matchFound != default)
+                {
+                    match.MatchID = matchFound;
+                    match.Active = false;
+                    await context.SaveChangesAsync(ct);
+
+                    // TODO: Adjust player MMR
+                }
+            }
+
+            await transaction.CommitAsync(ct);
         }
         finally
         {
@@ -176,12 +214,7 @@ public class DisplayQueueService : BackgroundService
 
     private static string FormatDuration(DateTime date)
     {
-        var now = DateTime.UtcNow;
-        var duration = now - date;
-        var hours = duration.TotalHours;
-        var minutes = duration.Minutes;
-        // double check this is right lol
-        return $"{hours}h {minutes}m";
+        return $"<t:{date.ToUnix()}:R>";
     }
 
     private async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
@@ -210,7 +243,7 @@ public class DisplayQueueService : BackgroundService
                 var waitTime = FormatDuration(player.JoinedAt);
                 var rank = GetPlayerRank(player.DiscordUser, ranks);
                 // TODO: figure out emoji or img?
-                return $"{index + 1}. {player.DiscordUser.DiscordUsername} [{rank.Name}] (MMR: {player.DiscordUser.MMR}) = waiting for {waitTime}";
+                return $"{index + 1}. {player.DiscordUser.DiscordUsername} [{rank.Name}] (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
             });
 
             queueEmbed.AddFields(new EmbedFieldProperties()
@@ -241,7 +274,7 @@ public class DisplayQueueService : BackgroundService
             {
                 Color = new Color(59, 165, 92), // orange
                 Title = $"Match #{match.Id}",
-                Description = $"Duration: {matchDuration} ago",
+                Description = $"Duration: {matchDuration}",
                 Footer = new EmbedFooterProperties()
                 {
                     Text = $"Use /endmatch {match.Id} to Eagle|Cobra to end this match",

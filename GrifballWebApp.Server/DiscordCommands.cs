@@ -6,7 +6,6 @@ using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
 using Surprenant.Grunt.Core;
-using System.Collections.Generic;
 
 namespace GrifballWebApp.Server;
 
@@ -112,7 +111,7 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
     [SlashCommand("setgamertag", "Set your gamertag")]
     public async Task SetGamertag(string gamertag)
     {
-        await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
+        await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
 
         var discordUser = await _context.DiscordUsers
             .Where(x => x.DiscordUserID == (long)Context.User.Id)
@@ -136,7 +135,13 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
         {
             discordUser.XboxUser = xboxUser;
             await _context.SaveChangesAsync();
-            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Set Gamertag Successfully"));
+            await Context.Interaction.ModifyResponseAsync(x =>
+            {
+                x.WithContent("Set Gamertag Successfully");
+                x.WithFlags(MessageFlags.Ephemeral);
+            });
+            await Task.Delay(5000);
+            await Context.Interaction.DeleteResponseAsync();
             return;
         }
 
@@ -149,6 +154,8 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
         {
             _logger.LogCritical(ex, "Failed to create Halo Infinite Client");
             await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Fatal Error creating Infinite Client, contact sysadmin"));
+            await Task.Delay(5000);
+            await Context.Interaction.DeleteResponseAsync();
             return;
         }
 
@@ -156,7 +163,13 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
         var user = await client.UserByGamertag(gamertag);
         if (user.Result is null)
         {
-            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Gamertag not found"));
+            await Context.Interaction.ModifyResponseAsync(x =>
+            {
+                x.WithContent("Gamertag not found");
+                x.WithFlags(MessageFlags.Ephemeral);
+            });
+            await Task.Delay(5000);
+            await Context.Interaction.DeleteResponseAsync();
             return;
         }
 
@@ -171,7 +184,13 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
 
         await _context.SaveChangesAsync();
 
-        await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Set Gamertag Successfully"));
+        await Context.Interaction.ModifyResponseAsync(x =>
+        {
+            x.WithContent("Set Gamertag Successfully");
+            x.WithFlags(MessageFlags.Ephemeral);
+        });
+        await Task.Delay(5000);
+        await Context.Interaction.DeleteResponseAsync();
     }
 }
 

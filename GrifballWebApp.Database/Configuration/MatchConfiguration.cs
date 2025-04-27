@@ -19,6 +19,11 @@ public partial class MatchConfiguration : IEntityTypeConfiguration<Match>
             .HasForeignKey<MatchLink>(d => d.MatchID)
             .IsRequired(false);
 
+        entity.HasOne(x => x.MatchedMatch)
+            .WithOne(x => x.Match)
+            .HasForeignKey<MatchedMatch>(x => x.MatchID)
+            .IsRequired(false);
+
         OnConfigurePartial(entity);
     }
 

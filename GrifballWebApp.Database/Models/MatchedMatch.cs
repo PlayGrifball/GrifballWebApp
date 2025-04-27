@@ -9,4 +9,7 @@ public class MatchedMatch
     public MatchedTeam HomeTeam { get; set; }
     public MatchedTeam AwayTeam { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool Active { get; set; } = true;
+    public Match? Match { get; set; }
+    public Guid? MatchID { get; set; }
 }

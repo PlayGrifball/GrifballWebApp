@@ -11,7 +11,6 @@ public interface IQueueService
     Task<bool> RemovePlayerToQueue(ulong id, CancellationToken ct = default);
     Task<QueuedPlayer?> GetQueuePlayer(ulong id, CancellationToken ct = default);
     Task<QueuedPlayer[]> GetQueuePlayersWithInfo(CancellationToken ct);
-    Task<int> GetQueueSize(CancellationToken ct);
     Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct);
 }
 
@@ -34,10 +33,6 @@ public class QueryService : IQueueService
             .Include(x => x.DiscordUser.XboxUser)
             .ToArrayAsync(ct);
     }
-    public async Task<int> GetQueueSize(CancellationToken ct)
-    {
-        return await _context.QueuedPlayer.CountAsync(ct);
-    }
     public async Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct)
     {
         return await _context.MatchedMatchs
@@ -45,6 +40,7 @@ public class QueryService : IQueueService
                 .ThenInclude(x => x.DiscordUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.DiscordUser)
+            .Where(x => x.Active)
             .ToArrayAsync(ct);
     }
 
