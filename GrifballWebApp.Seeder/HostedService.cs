@@ -3,6 +3,7 @@ using Bogus.DataSets;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
@@ -15,13 +16,60 @@ namespace GrifballWebApp.Seeder;
 internal class HostedService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
 
-    public HostedService(IServiceProvider serviceProvider)
+    public HostedService(IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
+    }
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
+
+        await context.Database.MigrateAsync(ct);
+
+        if (await context.Ranks.AnyAsync(ct))
+            return;
+
+        var ranks = new List<Rank>()
+        {
+            new Rank { Name = "Iron 2", MmrThreshold = 99, Color = "#4D5458", Icon = await LoadIcon("Iron2.png", ct), Description = "iron" },
+            new Rank { Name = "Iron 1", MmrThreshold = 199, Color = "#4D5458", Icon = await LoadIcon("iron1.png", ct), Description = "iron" },
+            new Rank { Name = "Bronze 3", MmrThreshold = 299, Color = "#CD7F32", Icon = await LoadIcon("Bronze3.png", ct), Description = "bronze" },
+            new Rank { Name = "Bronze 2", MmrThreshold = 424, Color = "#CD7F32", Icon = await LoadIcon("Bronze2.png", ct), Description = "bronze" },
+            new Rank { Name = "Bronze 1", MmrThreshold = 549, Color = "#CD7F32", Icon = await LoadIcon("Bronze1.png", ct), Description = "bronze" },
+            new Rank { Name = "Silver 3", MmrThreshold = 699, Color = "#C0C0C0", Icon = await LoadIcon("Silver3.png", ct), Description = "silver" },
+            new Rank { Name = "Silver 2", MmrThreshold = 849, Color = "#C0C0C0", Icon = await LoadIcon("Silver2.png", ct), Description = "silver" },
+            new Rank { Name = "Silver 1", MmrThreshold = 999, Color = "#C0C0C0", Icon = await LoadIcon("Silver1.png", ct), Description = "silver" },
+            new Rank { Name = "Gold 3", MmrThreshold = 1149, Color = "#FFD700", Icon = await LoadIcon("gold3.png", ct), Description = "gold" },
+            new Rank { Name = "Gold 2", MmrThreshold = 1299, Color = "#FFD700", Icon = await LoadIcon("Gold2.png", ct), Description = "gold" },
+            new Rank { Name = "Gold 1", MmrThreshold = 1449, Color = "#FFD700", Icon = await LoadIcon("Gold1.png", ct), Description = "gold" },
+            new Rank { Name = "Platinum 3", MmrThreshold = 1649, Color = "#007f81", Icon = await LoadIcon("Platinum3.png", ct), Description = "platinum" },
+            new Rank { Name = "Platinum 2", MmrThreshold = 1849, Color = "#007f81", Icon = await LoadIcon("Platinum2.png", ct), Description = "platinum" },
+            new Rank { Name = "Platinum 1", MmrThreshold = 2049, Color = "#007f81", Icon = await LoadIcon("Platinum1.png", ct), Description = "platinum" },
+            new Rank { Name = "Diamond 3", MmrThreshold = 2274, Color = "#445fa5", Icon = await LoadIcon("Diamond3.png", ct), Description = "diamond" },
+            new Rank { Name = "Diamond 2", MmrThreshold = 2499, Color = "#445fa5", Icon = await LoadIcon("Diamond2.png", ct), Description = "diamond" },
+            new Rank { Name = "Diamond 1", MmrThreshold = 2749, Color = "#445fa5", Icon = await LoadIcon("Diamond1.png", ct), Description = "diamond" },
+            new Rank { Name = "Masters 3", MmrThreshold = 2999, Color = "#3BA55C", Icon = await LoadIcon("Masters3.png", ct), Description = "masters" },
+            new Rank { Name = "Masters 2", MmrThreshold = 3249, Color = "#3BA55C", Icon = await LoadIcon("Masters2.png", ct), Description = "masters" },
+            new Rank { Name = "Masters 1", MmrThreshold = 3499, Color = "#3BA55C", Icon = await LoadIcon("Masters1.png", ct), Description = "masters" },
+            new Rank { Name = "Challenger", MmrThreshold = 3500, Color = "#3BA55C", Icon = await LoadIcon("Challenger.png", ct), Description = "challenger" }
+        };
+
+        context.Ranks.AddRange(ranks);
+        await context.SaveChangesAsync();
     }
 
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    private async Task<byte[]> LoadIcon(string iconPath, CancellationToken ct = default)
+    {
+        var folderPath = _configuration.GetValue<string>("Folder") ?? throw new Exception("Missing Folder in configuration cannot load icon");
+        var fullPath = Path.Join(folderPath, iconPath);
+        return await File.ReadAllBytesAsync(fullPath, ct);
+    }
+
+    protected async Task Old(CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();

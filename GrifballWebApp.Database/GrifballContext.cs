@@ -41,7 +41,11 @@ public partial class GrifballContext :
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
-
+    public DbSet<Rank> Ranks { get; set; }
+    public DbSet<QueuedPlayer> QueuedPlayer { get; set; }
+    public DbSet<MatchedPlayer> MatchedPlayers { get; set; }
+    public DbSet<MatchedTeam> MatchedTeams { get; set; }
+    public DbSet<MatchedMatch> MatchedMatchs { get; set; }
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +78,11 @@ public partial class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.UserExperienceConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.UserRoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.RankConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.QueuedPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MatchedPlayerConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MatchedTeamConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MatchedMatchConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
         modelBuilder.Entity<IdentityUserClaim<int>>(b => b.ToTable("UserClaims", "Auth", tb => tb.IsTemporal()));

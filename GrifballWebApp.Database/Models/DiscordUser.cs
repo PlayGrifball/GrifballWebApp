@@ -5,4 +5,7 @@ public class DiscordUser
     public string DiscordUsername { get; set; }
     public long? XboxUserID { get; set; }
     public XboxUser? XboxUser { get; set; }
+    public QueuedPlayer? QueuedPlayer { get; set; }
+    public MatchedPlayer? MatchedPlayer { get; set; }
+    public int MMR { get; set; } = 1000; // Default MMR for new players
 }

@@ -5,6 +5,7 @@ using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Scheduler;
@@ -27,6 +28,7 @@ using Microsoft.OpenApi.Models;
 using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
+using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -183,7 +185,10 @@ public class Program
             })
             .ValidateOnStart();
 
-        builder.Services.AddDiscordGateway().AddApplicationCommands();
+        builder.Services.AddTransient<IQueueService, QueryService>();
+        builder.Services.AddSingleton<DisplayQueueService>();
+        builder.Services.AddHostedService<DisplayQueueService>();
+        builder.Services.AddDiscordGateway().AddApplicationCommands().AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>();
         builder.Services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
