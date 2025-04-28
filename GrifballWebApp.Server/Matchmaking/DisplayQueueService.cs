@@ -2,6 +2,7 @@
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 
@@ -52,14 +53,14 @@ public class DisplayQueueService : BackgroundService
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
-            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-            var queueChannel = configuration.GetValue<ulong>("Discord:QueueChannel");
+            var discordOptions = scope.ServiceProvider.GetRequiredService<IOptions<DiscordOptions>>();
+            var queueChannel = discordOptions.Value.QueueChannel;
             if (queueChannel is 0)
                 throw new Exception("Discord:QueueChannel is not set");
 
             var queueService = scope.ServiceProvider.GetRequiredService<IQueueService>();
 
-            var restClient = scope.ServiceProvider.GetRequiredService<RestClient>();
+            var restClient = scope.ServiceProvider.GetRequiredService<IDiscordClient>();
 
             var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 

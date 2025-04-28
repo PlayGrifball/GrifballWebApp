@@ -18,7 +18,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GrifballWebApp.Seeder", "Gr
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{94CAB9E1-9FF5-48E8-A5C6-6E9051806946}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrifballWebApp.Test", "..\GrifballWebApp.Test\GrifballWebApp.Test.csproj", "{D9630EF6-C700-4EDE-8583-FF807A06E6C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrifballWebApp.Test", "GrifballWebApp.Test\GrifballWebApp.Test.csproj", "{D9630EF6-C700-4EDE-8583-FF807A06E6C4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

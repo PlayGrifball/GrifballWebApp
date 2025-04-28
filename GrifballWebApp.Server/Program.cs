@@ -29,6 +29,7 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
+using NetCord.Rest;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -189,6 +190,7 @@ public class Program
         builder.Services.AddSingleton<DisplayQueueService>();
         builder.Services.AddHostedService<DisplayQueueService>();
         builder.Services.AddDiscordGateway().AddApplicationCommands().AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>();
+        builder.Services.AddSingleton<IDiscordClient, DiscordClient>();
         builder.Services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
@@ -330,4 +332,5 @@ public class DiscordOptions
     public string Token { get; set; } = null!;
     public ulong DraftChannel { get; set; }
     public bool DisableGlobally { get; set; } = false;
+    public ulong QueueChannel { get; set; }
 }
