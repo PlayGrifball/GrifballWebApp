@@ -105,7 +105,7 @@ public class DisplayQueueService : BackgroundService
             var transaction = await context.Database.BeginTransactionAsync(ct);
 
             // Remove timed out players??
-            var minPlayersRequired = 2;
+            var minPlayersRequired = discordOptions.Value.MatchPlayers;
             //var queueSize = await queueService.GetQueueSize(ct);
             var queueSize = queuePlayers.Length;
 
@@ -115,57 +115,69 @@ public class DisplayQueueService : BackgroundService
             // Create match
             // emit event to refresh display??
 
+            var take = (queueSize / minPlayersRequired) * minPlayersRequired;
+
             var selectPlayers = queuePlayers
                 .OrderBy(x => x.JoinedAt) // Longest queued get to play first
-                .Take(minPlayersRequired)
+                .Take(take)
+                .ToArray();
+
+            var groupedPlayers = selectPlayers
+                .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
+                .GroupBy(x => x.groupIndex)
+                .Select(group => group.Select(x => x.player).ToArray())
                 .ToArray();
 
             // Remove from queue
             context.QueuedPlayer.RemoveRange(selectPlayers);
 
-            var team1 = new List<QueuedPlayer>();
-            var team2 = new List<QueuedPlayer>();
-
-            foreach(var (player, index) in selectPlayers.Select((p, i) => (p, i)))
+            // Create match for each group
+            foreach(var group in groupedPlayers)
             {
-                if (index % 2 == 0)
+                var team1 = new List<QueuedPlayer>();
+                var team2 = new List<QueuedPlayer>();
+
+                foreach (var (player, index) in group.Select((p, i) => (p, i)))
                 {
-                    team1.Add(player);
+                    if (index % 2 == 0)
+                    {
+                        team1.Add(player);
+                    }
+                    else
+                    {
+                        team2.Add(player);
+                    }
                 }
-                else
+
+                var team1mmr = team1.Average(x => x.DiscordUser.MMR);
+                var team2mmr = team2.Average(x => x.DiscordUser.MMR);
+
+                var team1Obj = new MatchedTeam()
                 {
-                    team2.Add(player);
-                }
+                    Players = team1.Select(x => new MatchedPlayer()
+                    {
+                        DiscordUserID = x.DiscordUserID,
+                    }).ToList(),
+                };
+                var team2Obj = new MatchedTeam()
+                {
+                    Players = team2.Select(x => new MatchedPlayer()
+                    {
+                        DiscordUserID = x.DiscordUserID,
+                    }).ToList(),
+                };
+
+                context.MatchedMatchs.Add(new MatchedMatch()
+                {
+                    HomeTeam = team1Obj,
+                    AwayTeam = team2Obj,
+                });
+
+                await context.SaveChangesAsync(ct);
             }
 
-            var team1mmr = team1.Average(x => x.DiscordUser.MMR);
-            var team2mmr = team2.Average(x => x.DiscordUser.MMR);
-
-            var team1Obj = new MatchedTeam()
-            {
-                Players = team1.Select(x => new MatchedPlayer()
-                {
-                    DiscordUserID = x.DiscordUserID,
-                }).ToList(),
-            };
-            var team2Obj = new MatchedTeam()
-            {
-                Players = team2.Select(x => new MatchedPlayer()
-                {
-                    DiscordUserID = x.DiscordUserID,
-                }).ToList(),
-            };
-
-            context.MatchedMatchs.Add(new MatchedMatch()
-            {
-                HomeTeam = team1Obj,
-                AwayTeam = team2Obj,
-            });
-
-            await context.SaveChangesAsync(ct);
-
             // Grab the last 2 matches played for all players
-            var dataPuller = scope.ServiceProvider.GetRequiredService<DataPullService>();
+            var dataPuller = scope.ServiceProvider.GetRequiredService<IDataPullService>();
             var allXboxIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
                 .Select(x => x.DiscordUser.XboxUserID)
                 .Where(x => x is not null)
@@ -174,7 +186,7 @@ public class DisplayQueueService : BackgroundService
             await dataPuller.DownloadRecentMatchesForPlayers(allXboxIds, startPage: 0, endPage: 0, perPage: 2, ct);
 
             // Now for each match check for any possible match
-            foreach(var match in activeMatches)
+            foreach (var match in activeMatches)
             {
                 var t1 = match.HomeTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
                 var t2 = match.AwayTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();

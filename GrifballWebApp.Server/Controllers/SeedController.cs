@@ -11,9 +11,9 @@ public class SeedController : ControllerBase
 {
     private readonly ILogger<SeedController> _logger;
     private readonly GrifballContext _context;
-    private readonly DataPullService _dataPullService;
+    private readonly IDataPullService _dataPullService;
 
-    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, DataPullService dataPullService)
+    public SeedController(ILogger<SeedController> logger, GrifballContext grifballContext, IDataPullService dataPullService)
     {
         _logger = logger;
         _context = grifballContext;

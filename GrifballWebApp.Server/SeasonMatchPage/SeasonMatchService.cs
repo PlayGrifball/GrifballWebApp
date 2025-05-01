@@ -10,9 +10,9 @@ namespace GrifballWebApp.Server.SeasonMatchPage;
 public class SeasonMatchService
 {
     private readonly GrifballContext _context;
-    private readonly DataPullService _dataPullService;
+    private readonly IDataPullService _dataPullService;
     private readonly BracketService _bracketService;
-    public SeasonMatchService(GrifballContext context, DataPullService dataPullService, BracketService bracketService)
+    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, BracketService bracketService)
     {
         _context = context;
         _dataPullService = dataPullService;

@@ -196,7 +196,7 @@ public class Program
             cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
         });
 
-        builder.Services.AddTransient<DataPullService>();
+        builder.Services.AddTransient<IDataPullService, DataPullService>();
         builder.Services.AddTransient<BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
@@ -333,4 +333,5 @@ public class DiscordOptions
     public ulong DraftChannel { get; set; }
     public bool DisableGlobally { get; set; } = false;
     public ulong QueueChannel { get; set; }
+    public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
 }

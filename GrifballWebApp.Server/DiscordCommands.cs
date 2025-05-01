@@ -14,8 +14,8 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
     private readonly GrifballContext _context;
     private readonly HaloInfiniteClientFactory _clientFactory;
     private readonly ILogger<DiscordCommands> _logger;
-    private readonly DataPullService _dataPullService;
-    public DiscordCommands(GrifballContext context, HaloInfiniteClientFactory clientFactory, ILogger<DiscordCommands> logger, DataPullService dataPullService)
+    private readonly IDataPullService _dataPullService;
+    public DiscordCommands(GrifballContext context, HaloInfiniteClientFactory clientFactory, ILogger<DiscordCommands> logger, IDataPullService dataPullService)
     {
         _context = context;
         _clientFactory = clientFactory;

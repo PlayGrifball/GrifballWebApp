@@ -41,12 +41,12 @@ public partial class GrifballContext :
     public virtual DbSet<TeamPlayer> TeamPlayers { get; set; }
     public virtual DbSet<UserExperience> UserExperiences { get; set; }
     public virtual DbSet<XboxUser> XboxUsers { get; set; }
-    public DbSet<Rank> Ranks { get; set; }
-    public DbSet<QueuedPlayer> QueuedPlayer { get; set; }
-    public DbSet<MatchedPlayer> MatchedPlayers { get; set; }
-    public DbSet<MatchedTeam> MatchedTeams { get; set; }
-    public DbSet<MatchedMatch> MatchedMatchs { get; set; }
-    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
+    public virtual DbSet<Rank> Ranks { get; set; }
+    public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }
+    public virtual DbSet<MatchedPlayer> MatchedPlayers { get; set; }
+    public virtual DbSet<MatchedTeam> MatchedTeams { get; set; }
+    public virtual DbSet<MatchedMatch> MatchedMatchs { get; set; }
+    public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

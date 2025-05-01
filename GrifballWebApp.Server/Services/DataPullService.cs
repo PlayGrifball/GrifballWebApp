@@ -8,7 +8,7 @@ using System.Collections.Concurrent;
 
 namespace GrifballWebApp.Server.Services;
 
-public class DataPullService
+public class DataPullService : IDataPullService
 {
     private readonly ILogger<DataPullService> _logger;
     private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
@@ -331,4 +331,13 @@ public class DataPullService
 
         await _grifballContext.SaveChangesAsync();
     }
+}
+
+public interface IDataPullService
+{
+    Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
+    Task<MatchStats?> GetMatch(Guid matchID, HaloInfiniteClient? client = null);
+    Task GetAndSaveMatch(Guid matchID);
+    Task SaveMatchStats(MatchStats matchStats);
+    Task DownloadMedals();
 }

@@ -15,10 +15,10 @@ namespace GrifballWebApp.Server.Excel;
 public class ExcelService
 {
     private readonly GrifballContext _context;
-    private readonly DataPullService _dataPullService;
+    private readonly IDataPullService _dataPullService;
     private readonly SheetsService _sheetsService;
     private readonly IConfiguration _configuration;
-    public ExcelService(GrifballContext context, DataPullService dataPullService, IConfiguration configuration)
+    public ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration)
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         _context = context;
