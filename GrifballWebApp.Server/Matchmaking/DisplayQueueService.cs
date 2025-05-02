@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
+using System.Linq;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
@@ -109,71 +110,71 @@ public class DisplayQueueService : BackgroundService
             //var queueSize = await queueService.GetQueueSize(ct);
             var queueSize = queuePlayers.Length;
 
-            if (queueSize < minPlayersRequired)
-                return;
-
-            // Create match
-            // emit event to refresh display??
-
-            var take = (queueSize / minPlayersRequired) * minPlayersRequired;
-
-            var selectPlayers = queuePlayers
-                .OrderBy(x => x.JoinedAt) // Longest queued get to play first
-                .Take(take)
-                .ToArray();
-
-            var groupedPlayers = selectPlayers
-                .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
-                .GroupBy(x => x.groupIndex)
-                .Select(group => group.Select(x => x.player).ToArray())
-                .ToArray();
-
-            // Remove from queue
-            context.QueuedPlayer.RemoveRange(selectPlayers);
-
-            // Create match for each group
-            foreach(var group in groupedPlayers)
+            if (queueSize >= minPlayersRequired)
             {
-                var team1 = new List<QueuedPlayer>();
-                var team2 = new List<QueuedPlayer>();
+                // Create match
+                // emit event to refresh display??
 
-                foreach (var (player, index) in group.Select((p, i) => (p, i)))
+                var take = (queueSize / minPlayersRequired) * minPlayersRequired;
+
+                var selectPlayers = queuePlayers
+                    .OrderBy(x => x.JoinedAt) // Longest queued get to play first
+                    .Take(take)
+                    .ToArray();
+
+                var groupedPlayers = selectPlayers
+                    .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
+                    .GroupBy(x => x.groupIndex)
+                    .Select(group => group.Select(x => x.player).ToArray())
+                    .ToArray();
+
+                // Remove from queue
+                context.QueuedPlayer.RemoveRange(selectPlayers);
+
+                // Create match for each group
+                foreach (var group in groupedPlayers)
                 {
-                    if (index % 2 == 0)
+                    var team1 = new List<QueuedPlayer>();
+                    var team2 = new List<QueuedPlayer>();
+
+                    foreach (var (player, index) in group.Select((p, i) => (p, i)))
                     {
-                        team1.Add(player);
+                        if (index % 2 == 0)
+                        {
+                            team1.Add(player);
+                        }
+                        else
+                        {
+                            team2.Add(player);
+                        }
                     }
-                    else
+
+                    var team1mmr = team1.Average(x => x.DiscordUser.MMR);
+                    var team2mmr = team2.Average(x => x.DiscordUser.MMR);
+
+                    var team1Obj = new MatchedTeam()
                     {
-                        team2.Add(player);
-                    }
+                        Players = team1.Select(x => new MatchedPlayer()
+                        {
+                            DiscordUserID = x.DiscordUserID,
+                        }).ToList(),
+                    };
+                    var team2Obj = new MatchedTeam()
+                    {
+                        Players = team2.Select(x => new MatchedPlayer()
+                        {
+                            DiscordUserID = x.DiscordUserID,
+                        }).ToList(),
+                    };
+
+                    context.MatchedMatchs.Add(new MatchedMatch()
+                    {
+                        HomeTeam = team1Obj,
+                        AwayTeam = team2Obj,
+                    });
+
+                    await context.SaveChangesAsync(ct);
                 }
-
-                var team1mmr = team1.Average(x => x.DiscordUser.MMR);
-                var team2mmr = team2.Average(x => x.DiscordUser.MMR);
-
-                var team1Obj = new MatchedTeam()
-                {
-                    Players = team1.Select(x => new MatchedPlayer()
-                    {
-                        DiscordUserID = x.DiscordUserID,
-                    }).ToList(),
-                };
-                var team2Obj = new MatchedTeam()
-                {
-                    Players = team2.Select(x => new MatchedPlayer()
-                    {
-                        DiscordUserID = x.DiscordUserID,
-                    }).ToList(),
-                };
-
-                context.MatchedMatchs.Add(new MatchedMatch()
-                {
-                    HomeTeam = team1Obj,
-                    AwayTeam = team2Obj,
-                });
-
-                await context.SaveChangesAsync(ct);
             }
 
             // Grab the last 2 matches played for all players
@@ -191,18 +192,16 @@ public class DisplayQueueService : BackgroundService
                 var t1 = match.HomeTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
                 var t2 = match.AwayTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
 
-                // TODO: does this work?
                 var matchFound = await context.Matches
                     .Include(x => x.MatchTeams)
                     .ThenInclude(x => x.MatchParticipants)
                         .ThenInclude(x => x.XboxUser)
                             .ThenInclude(x => x.User)
                     .Where(x => x.MatchTeams.Count == 2)
-                    .Where(x => (x.MatchTeams.ElementAt(0).MatchParticipants.Select(x => x.XboxUserID).ToList() == t1 &&
-                                 x.MatchTeams.ElementAt(1).MatchParticipants.Select(x => x.XboxUserID).ToList() == t2) ||
-                                (x.MatchTeams.ElementAt(0).MatchParticipants.Select(x => x.XboxUserID).ToList() == t2 &&
-                                 x.MatchTeams.ElementAt(1).MatchParticipants.Select(x => x.XboxUserID).ToList() == t1))
+                    .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
+                                x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
                     .Where(x => x.StartTime >= match.CreatedAt) // the match must have started after the match was created
+                    .Where(x => x.MatchedMatch == null) // the match must not already be matched
                     .OrderByDescending(x => x.StartTime) // Grab the most recent match
                     .Select(x => x.MatchID)
                     .FirstOrDefaultAsync(ct);
@@ -214,6 +213,8 @@ public class DisplayQueueService : BackgroundService
                     await context.SaveChangesAsync(ct);
 
                     // TODO: Adjust player MMR
+
+                    // TODO: Requeue players?
                 }
             }
 

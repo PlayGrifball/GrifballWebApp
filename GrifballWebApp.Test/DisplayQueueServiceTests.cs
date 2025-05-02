@@ -13,6 +13,7 @@ using GrifballWebApp.Seeder;
 using EntityFrameworkCore.Testing.NSubstitute;
 using GrifballWebApp.Server.Services;
 using NetCord.Services;
+using Surprenant.Grunt.Models.HaloInfinite;
 
 
 namespace GrifballWebApp.Test;
@@ -107,18 +108,31 @@ public class DisplayQueueServiceTests
     {
         var now = DateTime.UtcNow;
         // Arrange
+        _context.XboxUsers.AddRange([
+            new() { XboxUserID = 1, Gamertag = "1" },
+            new() { XboxUserID = 2, Gamertag = "2" },
+            new() { XboxUserID = 3, Gamertag = "3" },
+            new() { XboxUserID = 4, Gamertag = "4" },
+            new() { XboxUserID = 5, Gamertag = "5" },
+            new() { XboxUserID = 6, Gamertag = "6" },
+            new() { XboxUserID = 7, Gamertag = "7" },
+            new() { XboxUserID = 8, Gamertag = "8" },
+            new() { XboxUserID = 9, Gamertag = "9" },
+            new() { XboxUserID = 10, Gamertag = "10" },
+            ]);
+        await _context.SaveChangesAsync();
         var queuedPlayers = new[]
         {
-            new QueuedPlayer { DiscordUserID = 1, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 1, DiscordUsername = "1" } },
-            new QueuedPlayer { DiscordUserID = 2, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 2, DiscordUsername = "2" } },
-            new QueuedPlayer { DiscordUserID = 3, JoinedAt = now.AddMinutes(-7), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 3, DiscordUsername = "3" } },
-            new QueuedPlayer { DiscordUserID = 4, JoinedAt = now.AddMinutes(-7), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 4, DiscordUsername = "4" } },
-            new QueuedPlayer { DiscordUserID = 5, JoinedAt = now.AddMinutes(-6), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 5, DiscordUsername = "5" } },
-            new QueuedPlayer { DiscordUserID = 6, JoinedAt = now.AddMinutes(-5), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 6, DiscordUsername = "6" } },
-            new QueuedPlayer { DiscordUserID = 7, JoinedAt = now.AddMinutes(-4), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 7, DiscordUsername = "7" } },
-            new QueuedPlayer { DiscordUserID = 8, JoinedAt = now.AddMinutes(-3), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 8, DiscordUsername = "8" } },
-            new QueuedPlayer { DiscordUserID = 9, JoinedAt = now.AddMinutes(-2), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 9, DiscordUsername = "9" } },
-            new QueuedPlayer { DiscordUserID = 10, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 10, DiscordUsername = "10" } },
+            new QueuedPlayer { DiscordUserID = 1, JoinedAt = now.AddMinutes(-9), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 1, DiscordUsername = "1", XboxUserID = 1 } },
+            new QueuedPlayer { DiscordUserID = 2, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 2, DiscordUsername = "2", XboxUserID = 2 } },
+            new QueuedPlayer { DiscordUserID = 3, JoinedAt = now.AddMinutes(-7), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 3, DiscordUsername = "3", XboxUserID = 3 } },
+            new QueuedPlayer { DiscordUserID = 4, JoinedAt = now.AddMinutes(-6), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 4, DiscordUsername = "4", XboxUserID = 4 } },
+            new QueuedPlayer { DiscordUserID = 5, JoinedAt = now.AddMinutes(-5), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 5, DiscordUsername = "5", XboxUserID = 5 } },
+            new QueuedPlayer { DiscordUserID = 6, JoinedAt = now.AddMinutes(-4), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 6, DiscordUsername = "6", XboxUserID = 6 } },
+            new QueuedPlayer { DiscordUserID = 7, JoinedAt = now.AddMinutes(-3), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 7, DiscordUsername = "7", XboxUserID = 7 } },
+            new QueuedPlayer { DiscordUserID = 8, JoinedAt = now.AddMinutes(-2), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 8, DiscordUsername = "8", XboxUserID = 8 } },
+            new QueuedPlayer { DiscordUserID = 9, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 9, DiscordUsername = "9", XboxUserID = 9 } },
+            new QueuedPlayer { DiscordUserID = 10, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 10, DiscordUsername = "10", XboxUserID = 10 } },
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
@@ -140,6 +154,65 @@ public class DisplayQueueServiceTests
 
         // Check the dataPullerService check match has been called 
         await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.Count == 0), 0, 0, 2, Arg.Any<CancellationToken>());
+
+        // Arrange - Fake match
+        var start = now.AddSeconds(10);
+        var end = now.AddMinutes(12);
+        var duration = end - start;
+        var match = new Match()
+        {
+            MatchID = Guid.NewGuid(),
+            StartTime = start,
+            EndTime = end,
+            Duration = duration,
+            StatsPullDate = DateTime.UtcNow,
+        };
+        _context.Matches.Add(match);
+
+        var team0 = new MatchTeam()
+        {
+            Match = match,
+            TeamID = 0,
+            Score = 5,
+            Outcome = Outcomes.Won,
+            MatchParticipants = [
+                new MatchParticipant { XboxUserID = 1},
+                new MatchParticipant { XboxUserID = 3},
+                new MatchParticipant { XboxUserID = 5},
+                new MatchParticipant { XboxUserID = 7},
+            ],
+        };
+        var team1 = new MatchTeam()
+        {
+            Match = match,
+            TeamID = 1,
+            Score = 3,
+            Outcome = Outcomes.Lost,
+            MatchParticipants = [
+                new MatchParticipant { XboxUserID = 2},
+                new MatchParticipant { XboxUserID = 4},
+                new MatchParticipant { XboxUserID = 6},
+                new MatchParticipant { XboxUserID = 8},
+            ],
+        };
+        await _context.MatchTeams.AddRangeAsync([team0, team1]);
+        match.MatchTeams = [team0, team1];
+
+        await _context.SaveChangesAsync();
+
+        // Act
+        await _service.Go(CancellationToken.None);
+
+        // Assert
+        // Matched match should be created now not be active. Players MMR adjusted
+        var count2 = await _context.MatchedMatchs
+            .Where(x => x.Active)
+            .CountAsync();
+        var count3 = await _context.MatchedMatchs
+            .Where(x => !x.Active)
+            .CountAsync();
+        Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
+        Assert.That(count3, Is.EqualTo(1), "There previously active match has been complete after we pull in a 'matched' infinite match");
     }
 
     [Test]
