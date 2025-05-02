@@ -19,6 +19,11 @@ public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
             .HasForeignKey<User>(d => d.XboxUserID)
             .IsRequired(false);
 
+        entity.HasOne(d => d.DiscordUser)
+            .WithOne(p => p.XboxUser)
+            .HasForeignKey<DiscordUser>(d => d.XboxUserID)
+            .IsRequired(false);
+
         OnConfigurePartial(entity);
     }
 

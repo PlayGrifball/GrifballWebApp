@@ -334,4 +334,11 @@ public class DiscordOptions
     public bool DisableGlobally { get; set; } = false;
     public ulong QueueChannel { get; set; }
     public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
+    public int KFactor { get; set; } = 32;
+    public int WinThreshold { get; set; } = 3;
+    public int BonusPerWin { get; set; } = 10;
+    public int MaxBonus { get; set; } = 20;
+    public int LossThreshold { get; set; } = 3;
+    public int PenaltyPerLoss { get; set; } = 10;
+    public int MaxPenalty { get; set; } = 20;
 }

@@ -196,23 +196,72 @@ public class DisplayQueueService : BackgroundService
                     .Include(x => x.MatchTeams)
                     .ThenInclude(x => x.MatchParticipants)
                         .ThenInclude(x => x.XboxUser)
-                            .ThenInclude(x => x.User)
+                            .ThenInclude(x => x.DiscordUser)
                     .Where(x => x.MatchTeams.Count == 2)
+                    .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
                     .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
                                 x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
                     .Where(x => x.StartTime >= match.CreatedAt) // the match must have started after the match was created
                     .Where(x => x.MatchedMatch == null) // the match must not already be matched
                     .OrderByDescending(x => x.StartTime) // Grab the most recent match
-                    .Select(x => x.MatchID)
                     .FirstOrDefaultAsync(ct);
 
-                if (matchFound != default)
+                if (matchFound != null)
                 {
-                    match.MatchID = matchFound;
+                    match.MatchID = matchFound.MatchID;
                     match.Active = false;
-                    await context.SaveChangesAsync(ct);
 
-                    // TODO: Adjust player MMR
+                    // Adjust player MMR
+
+                    var mmrGain = (int)Math.Round(discordOptions.Value.KFactor * 0.75);
+
+                    var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
+                        ?? throw new Exception("No winning team");
+                    foreach (var player in winningTeam.MatchParticipants)
+                    {
+                        var discordUser = player.XboxUser.DiscordUser
+                            ?? throw new Exception("Discord user missing for xbox user");
+                        
+                        discordUser.Wins++;
+                        discordUser.WinStreak++;
+                        discordUser.LossStreak = 0;
+
+                        var streakModifier = 0;
+                        if (discordUser.WinStreak >= discordOptions.Value.WinThreshold)
+                        {
+                            streakModifier = Math.Min(discordOptions.Value.MaxBonus, (discordUser.WinStreak - discordOptions.Value.WinThreshold + 1) * discordOptions.Value.BonusPerWin);
+                        }
+
+                        discordUser.MMR += mmrGain + streakModifier;
+                    }
+
+                    var mmrLoss = (int)Math.Round(discordOptions.Value.KFactor * 0.625);
+
+                    var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
+                        ?? throw new Exception("No losing team");
+                    foreach (var player in losingTeam.MatchParticipants)
+                    {
+                        var discordUser = player.XboxUser.DiscordUser
+                            ?? throw new Exception("Discord user missing for xbox user");
+
+                        discordUser.Losses++;
+                        discordUser.WinStreak = 0;
+                        discordUser.LossStreak++;
+
+                        var streakModifier = 0;
+                        if (discordUser.Losses >= discordOptions.Value.LossThreshold)
+                        {
+                            streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (discordUser.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
+                        }
+
+                        discordUser.MMR -= mmrGain - streakModifier;
+                        if (discordUser.MMR < 0)
+                        {
+                            discordUser.MMR = 0; // Prevent negative MMR
+                        }
+                    }
+
+                    await context.SaveChangesAsync(ct);
 
                     // TODO: Requeue players?
                 }

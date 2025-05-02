@@ -8,4 +8,8 @@ public class DiscordUser
     public QueuedPlayer? QueuedPlayer { get; set; }
     public MatchedPlayer? MatchedPlayer { get; set; }
     public int MMR { get; set; } = 1000; // Default MMR for new players
+    public int WinStreak { get; set; } = 0;
+    public int LossStreak { get; set; } = 0;
+    public int Wins { get; set; } = 0;
+    public int Losses { get; set; } = 0;
 }

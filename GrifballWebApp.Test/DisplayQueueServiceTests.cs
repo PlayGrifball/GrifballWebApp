@@ -124,15 +124,15 @@ public class DisplayQueueServiceTests
         var queuedPlayers = new[]
         {
             new QueuedPlayer { DiscordUserID = 1, JoinedAt = now.AddMinutes(-9), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 1, DiscordUsername = "1", XboxUserID = 1 } },
-            new QueuedPlayer { DiscordUserID = 2, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 2, DiscordUsername = "2", XboxUserID = 2 } },
+            new QueuedPlayer { DiscordUserID = 2, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 2, DiscordUsername = "2", XboxUserID = 2 } },
             new QueuedPlayer { DiscordUserID = 3, JoinedAt = now.AddMinutes(-7), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 3, DiscordUsername = "3", XboxUserID = 3 } },
-            new QueuedPlayer { DiscordUserID = 4, JoinedAt = now.AddMinutes(-6), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 4, DiscordUsername = "4", XboxUserID = 4 } },
+            new QueuedPlayer { DiscordUserID = 4, JoinedAt = now.AddMinutes(-6), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 4, DiscordUsername = "4", XboxUserID = 4 } },
             new QueuedPlayer { DiscordUserID = 5, JoinedAt = now.AddMinutes(-5), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 5, DiscordUsername = "5", XboxUserID = 5 } },
-            new QueuedPlayer { DiscordUserID = 6, JoinedAt = now.AddMinutes(-4), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 6, DiscordUsername = "6", XboxUserID = 6 } },
+            new QueuedPlayer { DiscordUserID = 6, JoinedAt = now.AddMinutes(-4), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 6, DiscordUsername = "6", XboxUserID = 6 } },
             new QueuedPlayer { DiscordUserID = 7, JoinedAt = now.AddMinutes(-3), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 7, DiscordUsername = "7", XboxUserID = 7 } },
-            new QueuedPlayer { DiscordUserID = 8, JoinedAt = now.AddMinutes(-2), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 8, DiscordUsername = "8", XboxUserID = 8 } },
-            new QueuedPlayer { DiscordUserID = 9, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 9, DiscordUsername = "9", XboxUserID = 9 } },
-            new QueuedPlayer { DiscordUserID = 10, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1200, DiscordUserID = 10, DiscordUsername = "10", XboxUserID = 10 } },
+            new QueuedPlayer { DiscordUserID = 8, JoinedAt = now.AddMinutes(-2), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 8, DiscordUsername = "8", XboxUserID = 8 } },
+            new QueuedPlayer { DiscordUserID = 9, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 9, DiscordUsername = "9", XboxUserID = 9 } },
+            new QueuedPlayer { DiscordUserID = 10, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 10, DiscordUsername = "10", XboxUserID = 10 } },
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
@@ -147,10 +147,13 @@ public class DisplayQueueServiceTests
         var stillQueued = await _context.QueuedPlayer
             .Select(x => x.DiscordUserID)
             .ToArrayAsync();
-        Assert.That(count, Is.EqualTo(1), "There should be one active match created when 8 players have been queued");
-        Assert.That(stillQueued.Count(), Is.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
-        Assert.That(stillQueued.Any(x => x is 9), Is.True, "Player 9 should still be in the queue since he queued recently");
-        Assert.That(stillQueued.Any(x => x is 10), Is.True, "Player 10 should still be in the queue since he queued recently");
+        Assert.Multiple(() =>
+        {
+            Assert.That(count, Is.EqualTo(1), "There should be one active match created when 8 players have been queued");
+            Assert.That(stillQueued.Count(), Is.EqualTo(2), "There should two players left in the queue since we started with 10 queued players");
+            Assert.That(stillQueued.Any(x => x is 9), Is.True, "Player 9 should still be in the queue since he queued recently");
+            Assert.That(stillQueued.Any(x => x is 10), Is.True, "Player 10 should still be in the queue since he queued recently");
+        });
 
         // Check the dataPullerService check match has been called 
         await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.Count == 0), 0, 0, 2, Arg.Any<CancellationToken>());
@@ -204,15 +207,36 @@ public class DisplayQueueServiceTests
         await _service.Go(CancellationToken.None);
 
         // Assert
-        // Matched match should be created now not be active. Players MMR adjusted
+        // Matched match should be created now not be active
         var count2 = await _context.MatchedMatchs
             .Where(x => x.Active)
             .CountAsync();
         var count3 = await _context.MatchedMatchs
             .Where(x => !x.Active)
             .CountAsync();
-        Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
-        Assert.That(count3, Is.EqualTo(1), "There previously active match has been complete after we pull in a 'matched' infinite match");
+        Assert.Multiple(() =>
+        {
+            Assert.That(count2, Is.EqualTo(0), "There should be no active matches after we pull in a 'matched' infinite match");
+            Assert.That(count3, Is.EqualTo(1), "There previously active match has been complete after we pull in a 'matched' infinite match");
+        });
+
+        // Check the players MMR has been adjusted
+        var winners = await _context.DiscordUsers
+            .Where(x => x.DiscordUserID == 1 || x.DiscordUserID == 3 || x.DiscordUserID == 5 || x.DiscordUserID == 7)
+            .Select(x => x.MMR)
+            .ToArrayAsync();
+        var losers = await _context.DiscordUsers
+            .Where(x => x.DiscordUserID == 2 || x.DiscordUserID == 4 || x.DiscordUserID == 6 || x.DiscordUserID == 8)
+            .Select(x => x.MMR)
+            .ToArrayAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(winners.Length, Is.EqualTo(4), "There should be 4 winners");
+            Assert.That(losers.Length, Is.EqualTo(4), "There should be 4 losers");
+            Assert.That(winners.All(x => x > 1000), Is.True, "All winners should have an MMR greater than 1000");
+            Assert.That(losers.All(x => x < 1000), Is.True, "All losers should have an MMR less than 1000");
+        });
     }
 
     [Test]

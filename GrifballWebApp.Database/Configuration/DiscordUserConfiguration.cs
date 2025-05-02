@@ -24,8 +24,8 @@ public partial class DiscordUserConfiguration : IEntityTypeConfiguration<Discord
             .HasForeignKey<MatchedPlayer>(x => x.DiscordUserID)
             .IsRequired(false);
 
-        entity.HasOne(d => d.XboxUser)
-            .WithMany()
-            .HasForeignKey(d => d.XboxUserID);
+        //entity.HasOne(d => d.XboxUser)
+        //    .WithOne(p => p.DiscordUser)
+        //    .HasForeignKey<XboxUser>(d => d.XboxUserID);
     }
 }
