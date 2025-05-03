@@ -69,8 +69,8 @@ public class DisplayQueueService : BackgroundService
 
             var messages = (await restClient.GetMessagesAsync(queueChannel, new PaginationProperties<ulong>()
             {
-                Limit = 20,
-            }).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
+                BatchSize = 20,
+            }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
 
             var filteredMessages = messages
                 .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is "Matchmaking Queue"))
