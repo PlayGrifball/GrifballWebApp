@@ -1,10 +1,10 @@
 <mat-toolbar class="app-toolbar">
-  <button mat-icon-button (click)="snav.toggle()" class="example-icon" aria-label="Example icon-button with menu icon">
+  <button mat-icon-button (click)="snav.toggle()" aria-label="menu icon">
     <mat-icon>menu</mat-icon>
   </button>
-  <img class="logo" src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true">
-  <a mat-button [routerLink]="['/']">Play Grifball</a>
-
+  <button mat-icon-button aria-label="grifball icon" [routerLink]="['/']">
+    <img src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true" >
+  </button>
   <ng-content></ng-content>
 
   <span class="text-xs">
@@ -19,13 +19,12 @@
   
   @if (accountService.isLoggedIn()) {
   <span>Hello {{accountService.displayName()}}</span>
-  <button mat-icon-button class="example-icon" aria-label="Profile icon" [routerLink]="['/profile', accountService.personID()]" >
+  <button mat-icon-button aria-label="Profile icon" [routerLink]="['/profile', accountService.personID()]" >
     <mat-icon>account_box</mat-icon>
   </button>
   }
   @else {
   <button mat-icon-button
-          class="example-icon favorite-icon"
           aria-label="Login icon"
           [routerLink]="['/login']">
     <mat-icon>login</mat-icon>
