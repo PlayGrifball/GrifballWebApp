@@ -34,21 +34,13 @@ export class AppComponent implements OnDestroy, OnInit {
     {
       title: "Home",
       path: "",
-      //show: false,
       show: computed(() => true),
     },
     {
       title: "Login",
       path: "/login",
-      //show: true,
       show: computed(() => true),
     },
-    // {
-    //   title: "Current Season",
-    //   path: "/season/0",
-    //   //show: true,
-    //   show: computed(() => true),
-    // },
     {
       title: "Season Manager",
       path: "/seasonManager",
@@ -65,8 +57,6 @@ export class AppComponent implements OnDestroy, OnInit {
     this.themingService.setNeutralShade(this.themingService.neutral());
     this.themingService.setNeutralVariantShade(this.themingService.neutralVariant());
     this.themingService.setErrorShade(this.themingService.error());
-  }, {
-    allowSignalWrites: true,
   });
 
   constructor(changeDetectorRef: ChangeDetectorRef,
@@ -84,6 +74,8 @@ export class AppComponent implements OnDestroy, OnInit {
   ngOnInit(): void {
     this.api.getCurrentSeasonID().subscribe({
       next: (result) => {
+        if (result == 0)
+          return;
         const sideBarDto = {
           title: "Current Season",
           path: "/season/" + result,
@@ -92,24 +84,7 @@ export class AppComponent implements OnDestroy, OnInit {
         this.navLinks.push(sideBarDto);
       },
     })
-    //this.accountService.isEventOrganizer.bind().
-    //this.navLinks = [
-    //  {
-    //    title: "Home",
-    //    path: "",
-    //    show: true,
-    //  },
-    //  {
-    //    title: "Login",
-    //    path: "/login",
-    //    show: true,
-    //  },
-    //  {
-    //    title: "Seasons",
-    //    path: "/seasons",
-    //    show: this.accountService.isLoggedIn(),
-    //  }
-    //];
+
   }
 
   ngOnDestroy(): void {

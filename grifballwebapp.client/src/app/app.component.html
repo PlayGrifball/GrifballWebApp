@@ -7,18 +7,16 @@
 
     <mat-sidenav #snav fixedTopGap="56"
     [fixedInViewport]="mobileQuery.matches" [mode]="'over'" >
-      <!--<mat-nav-list>
-        @for (nav of navLinks; track nav.path)
-        <div [style.visibility]="[navLinks.at($index)?.show()] ? 'visible' : 'hidden'">
-          <a mat-list-item [routerLink]="[navLinks.at($index)?.path]" [style.visibility]="[navLinks.at($index)?.show()] ? 'visible' : 'hidden'"
-             (click)="snav.toggle(false)">{{nav.title}} {{nav.show()}}</a>
-        </div>
+      @for (nav of navLinks; track nav) {
+        @if (nav.show()) {
+          <mat-nav-list>
+              <a mat-list-item [routerLink]="nav.path" (click)="snav.toggle(false)">
+                {{nav.title}}
+              </a>
+          </mat-nav-list>
         }
-      </mat-nav-list>-->
-      <mat-nav-list *ngFor="let nav of navLinks; index as index;">
-        <a mat-list-item [routerLink]="nav.path" [style.visibility]="nav.show() ? 'visible' : 'hidden'"
-           (click)="snav.toggle(false)">{{nav.title}}</a>
-      </mat-nav-list>
+      }
+      
     </mat-sidenav>
     
     <mat-sidenav-content class="bg-gradient-to-r from-secondary-10 to-tertiary-10 p-4">
