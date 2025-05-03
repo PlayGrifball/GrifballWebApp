@@ -77,7 +77,7 @@ export class AccountService {
           }
         })
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   register(registerDto: RegisterDto) {
