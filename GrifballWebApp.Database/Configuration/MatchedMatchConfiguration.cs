@@ -10,10 +10,5 @@ public class MatchedMatchConfiguration : IEntityTypeConfiguration<MatchedMatch>
         builder.ToTable("MatchedMatches", "Matchmaking", tb => tb.IsTemporal(true));
 
         builder.HasKey(x => x.Id);
-
-        // Explicitly configure Id as an identity column
-        //builder.Property(x => x.Id)
-        //    .ValueGeneratedOnAdd()
-        //    .UseIdentityColumn();
     }
 }

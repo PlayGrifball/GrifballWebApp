@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20250504035713_MatchedPlayerPKSystemVersion")]
-    partial class MatchedPlayerPKSystemVersion
+    [Migration("20250504184925_DiscordSupport")]
+    partial class DiscordSupport
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -538,7 +538,10 @@ namespace GrifballWebApp.Database.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Active")
                         .HasColumnType("bit");
@@ -566,6 +569,9 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnName("PeriodStart");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AwayTeamId")
+                        .IsUnique();
 
                     b.HasIndex("HomeTeamId")
                         .IsUnique();
@@ -602,6 +608,16 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("MatchedTeamID")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DiscordUserID");
@@ -610,10 +626,16 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.ToTable("MatchedPlayers", "Matchmaking");
 
-                    b
-                        .HasAnnotation("SqlServer:IsTemporal", false)
-                        .HasAnnotation("SqlServer:TemporalPeriodEndPropertyName", null)
-                        .HasAnnotation("SqlServer:TemporalPeriodStartPropertyName", null);
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchedPlayersHistory", "Matchmaking");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam", b =>
@@ -1968,15 +1990,13 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "HomeTeam")
-                        .WithOne("HomeMatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "HomeTeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "AwayTeam")
                         .WithOne("AwayMatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "Id");
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "AwayTeamId");
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "HomeTeam")
+                        .WithOne("HomeMatchedMatch")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "HomeTeamId");
 
                     b.HasOne("GrifballWebApp.Database.Models.Match", "Match")
                         .WithOne("MatchedMatch")

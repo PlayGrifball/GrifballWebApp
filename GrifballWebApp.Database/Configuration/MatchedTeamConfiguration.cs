@@ -13,12 +13,12 @@ public class MatchedTeamConfiguration : IEntityTypeConfiguration<MatchedTeam>
 
         builder.HasOne(x => x.HomeMatchedMatch)
             .WithOne(x => x.HomeTeam)
-            .HasForeignKey<MatchedMatch>(x => x.Id)
+            .HasForeignKey<MatchedMatch>(x => x.HomeTeamId)
             .IsRequired(false);
 
         builder.HasOne(x => x.AwayMatchedMatch)
             .WithOne(x => x.AwayTeam)
-            .HasForeignKey<MatchedMatch>(x => x.Id)
+            .HasForeignKey<MatchedMatch>(x => x.AwayTeamId)
             .IsRequired(false);
     }
 }

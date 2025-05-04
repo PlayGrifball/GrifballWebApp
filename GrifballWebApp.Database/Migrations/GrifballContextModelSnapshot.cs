@@ -535,7 +535,10 @@ namespace GrifballWebApp.Database.Migrations
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
                     b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Active")
                         .HasColumnType("bit");
@@ -563,6 +566,9 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnName("PeriodStart");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AwayTeamId")
+                        .IsUnique();
 
                     b.HasIndex("HomeTeamId")
                         .IsUnique();
@@ -1981,15 +1987,13 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "HomeTeam")
-                        .WithOne("HomeMatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "HomeTeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "AwayTeam")
                         .WithOne("AwayMatchedMatch")
-                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "Id");
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "AwayTeamId");
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "HomeTeam")
+                        .WithOne("HomeMatchedMatch")
+                        .HasForeignKey("GrifballWebApp.Database.Models.MatchedMatch", "HomeTeamId");
 
                     b.HasOne("GrifballWebApp.Database.Models.Match", "Match")
                         .WithOne("MatchedMatch")
