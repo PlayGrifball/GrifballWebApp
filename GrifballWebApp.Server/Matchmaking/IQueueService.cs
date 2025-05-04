@@ -45,7 +45,7 @@ public class QueryService : IQueueService
 
     public async Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct)
     {
-        return await _context.MatchedMatchs
+        return await _context.MatchedMatches
             .Include(x => x.HomeTeam.Players)
                 .ThenInclude(x => x.DiscordUser)
             .Include(x => x.AwayTeam.Players)

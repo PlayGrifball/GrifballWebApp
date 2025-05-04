@@ -183,7 +183,7 @@ public class DisplayQueueService : BackgroundService
                         HomeTeam = team1Obj,
                         AwayTeam = team2Obj,
                     };
-                    context.MatchedMatchs.Add(matchedMatch);
+                    context.MatchedMatches.Add(matchedMatch);
 
                     await context.SaveChangesAsync(ct);
 
@@ -232,6 +232,19 @@ public class DisplayQueueService : BackgroundService
                             _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user.DiscordUserID);
                         }
                     }
+
+                    var home = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Home", "Home Team Won", ButtonStyle.Primary);
+                    var away = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Away", "Away Team Won", ButtonStyle.Secondary);
+                    var cancel = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Cancel", "Cancel", ButtonStyle.Secondary);
+                    var foo = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":dsfds", "Break Me", ButtonStyle.Secondary);
+
+                    ActionRowProperties actionRow = new([home, away, cancel, foo]);
+                    await restClient.SendMessageAsync(thread.Id, new()
+                    {
+                        Content = $"The dough is rising",
+                        Components = [actionRow],
+                    }, null, ct);
+
                     matchedMatch.ThreadID = thread.Id;
                     await context.SaveChangesAsync();
                 }

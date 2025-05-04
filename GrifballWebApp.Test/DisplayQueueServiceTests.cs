@@ -141,7 +141,7 @@ public class DisplayQueueServiceTests
         await _service.Go(CancellationToken.None);
 
         // Assert
-        var count = await _context.MatchedMatchs
+        var count = await _context.MatchedMatches
             .Where(x => x.Active)
             .CountAsync();
         var stillQueued = await _context.QueuedPlayer
@@ -208,10 +208,10 @@ public class DisplayQueueServiceTests
 
         // Assert
         // Matched match should be created now not be active
-        var count2 = await _context.MatchedMatchs
+        var count2 = await _context.MatchedMatches
             .Where(x => x.Active)
             .CountAsync();
-        var count3 = await _context.MatchedMatchs
+        var count3 = await _context.MatchedMatches
             .Where(x => !x.Active)
             .CountAsync();
         Assert.Multiple(() =>
@@ -254,7 +254,7 @@ public class DisplayQueueServiceTests
         await _service.Go(CancellationToken.None);
 
         // Assert
-        var count = await _context.MatchedMatchs
+        var count = await _context.MatchedMatches
             .Where(x => x.Active)
             .CountAsync();
         Assert.That(count, Is.EqualTo(0), "There should be no active matches when only 1 player has been queued");

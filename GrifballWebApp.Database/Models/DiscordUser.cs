@@ -4,6 +4,7 @@ public class DiscordUser
     public DiscordUser()
     {
         MatchedPlayers = new HashSet<MatchedPlayer>();
+        MatchedWinnerVotes = new HashSet<MatchedWinnerVote>();
     }
     public long DiscordUserID { get; set; }
     public string DiscordUsername { get; set; }
@@ -16,4 +17,6 @@ public class DiscordUser
     public int LossStreak { get; set; } = 0;
     public int Wins { get; set; } = 0;
     public int Losses { get; set; } = 0;
+
+    public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
 }

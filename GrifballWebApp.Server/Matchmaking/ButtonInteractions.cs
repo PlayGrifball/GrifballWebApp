@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
@@ -106,5 +107,70 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
             await Task.Delay(5000);
             await Context.Interaction.DeleteResponseAsync();
         }
+    }
+
+    [ComponentInteraction("voteforwinner")]
+    public async Task VoteForWinner(int matchId, string winner)
+    {
+        var parsed = Enum.TryParse<WinnerVote>(winner, out var outValue);
+        if (parsed is false)
+        {
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"I could not parse the value {winner}. Contact developer, expected values are {string.Join(',', Enum.GetValues<WinnerVote>())}",
+            }));
+            return;
+        }
+
+        var match = await _context.MatchedMatches
+            .Include(x => x.HomeTeam)
+                .ThenInclude(x => x.Players)
+                    .ThenInclude(x => x.DiscordUser)
+            .Include(x => x.AwayTeam)
+                .ThenInclude(x => x.Players)
+                    .ThenInclude(x => x.DiscordUser)
+            .Where(x => x.Active)
+            .FirstOrDefaultAsync(x => x.Id == matchId);
+
+        if (match is null)
+        {
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"Match does not exist or it is no longer active",
+            }));
+            return;
+        }
+
+        var discordIDs = match.HomeTeam.Players
+            .Select(x => x.DiscordUser.DiscordUserID)
+            .Union(match.AwayTeam.Players.Select(x => x.DiscordUser.DiscordUserID))
+            .ToList();
+
+        if (discordIDs.Contains((long)Context.User.Id) is false)
+        {
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"You are not allowed to vote since you are not in this match",
+            }));
+            return;
+        }
+
+        var vote = await _context.MatchedWinnerVote
+            .FirstOrDefaultAsync(x => x.DiscordUser.DiscordUserID == (long)Context.User.Id && x.MatchId == matchId);
+
+        if (vote is null)
+        {
+            vote = new MatchedWinnerVote();
+            _context.MatchedWinnerVote.Add(vote);
+        }
+        vote.DiscordUserId = (long)Context.User.Id;
+        vote.MatchId = matchId;
+        vote.WinnerVote = outValue;
+        await _context.SaveChangesAsync();
+
+        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+        {
+            Content = $"Thanks for voting! You voted for {outValue}",
+        }));
     }
 }

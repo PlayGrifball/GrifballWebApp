@@ -3,6 +3,10 @@
 namespace GrifballWebApp.Database.Models;
 public class MatchedMatch
 {
+    public MatchedMatch()
+    {
+        MatchedWinnerVotes = new HashSet<MatchedWinnerVote>();
+    }
     public int Id { get; set; }
     public int HomeTeamId { get; set; }
     public int AwayTeamId { get; set; }
@@ -13,4 +17,5 @@ public class MatchedMatch
     public Match? Match { get; set; }
     public Guid? MatchID { get; set; }
     public ulong? ThreadID { get; set; }
+    public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
 }

@@ -45,7 +45,8 @@ public partial class GrifballContext :
     public virtual DbSet<QueuedPlayer> QueuedPlayer { get; set; }
     public virtual DbSet<MatchedPlayer> MatchedPlayers { get; set; }
     public virtual DbSet<MatchedTeam> MatchedTeams { get; set; }
-    public virtual DbSet<MatchedMatch> MatchedMatchs { get; set; }
+    public virtual DbSet<MatchedMatch> MatchedMatches { get; set; }
+    public virtual DbSet<MatchedWinnerVote> MatchedWinnerVote { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -83,6 +84,7 @@ public partial class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.MatchedPlayerConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchedTeamConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchedMatchConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.MatchedWinnerVoteConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
         modelBuilder.Entity<IdentityUserClaim<int>>(b => b.ToTable("UserClaims", "Auth", tb => tb.IsTemporal()));
