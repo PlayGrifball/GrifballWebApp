@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 using System.Linq;
+using System.Text;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
@@ -60,11 +61,8 @@ public class DisplayQueueService : BackgroundService
                 throw new Exception("Discord:QueueChannel is not set");
 
             var queueService = scope.ServiceProvider.GetRequiredService<IQueueService>();
-
             var restClient = scope.ServiceProvider.GetRequiredService<IDiscordClient>();
-
             var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-
             var me = await restClient.GetCurrentUserAsync(null, ct);
 
             var messages = (await restClient.GetMessagesAsync(queueChannel, new PaginationProperties<ulong>()
@@ -83,8 +81,24 @@ public class DisplayQueueService : BackgroundService
                 await restClient.DeleteMessagesAsync(queueChannel, cleanup.Select(x => x.Id), null, ct);
             }
 
+            // Start transaction here since we are going to be doing multiple db calls
+            var transaction = await context.Database.BeginTransactionAsync(ct);
+
             var queuePlayers = await queueService.GetQueuePlayersWithInfo(ct);
             var activeMatches = await queueService.GetActiveMatches(ct);
+
+            // Sanity check remove any players from queue that are in active match.
+            var activePlayerIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
+                .Select(x => x.DiscordUserID).ToArray();
+            if (activePlayerIds.Any())
+            {
+                var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.DiscordUserID)).ToArray();
+                if (playersToRemove.Any())
+                {
+                    context.QueuedPlayer.RemoveRange(playersToRemove);
+                    await context.SaveChangesAsync(ct);
+                }
+            }
 
             var message = filteredMessages.FirstOrDefault();
 
@@ -102,8 +116,6 @@ public class DisplayQueueService : BackgroundService
                     x.Components = msg.Components;
                 }, null, ct);
             }
-
-            var transaction = await context.Database.BeginTransactionAsync(ct);
 
             // Remove timed out players??
             var minPlayersRequired = discordOptions.Value.MatchPlayers;
@@ -167,13 +179,48 @@ public class DisplayQueueService : BackgroundService
                         }).ToList(),
                     };
 
-                    context.MatchedMatchs.Add(new MatchedMatch()
+                    var matchedMatch = new MatchedMatch()
                     {
                         HomeTeam = team1Obj,
                         AwayTeam = team2Obj,
-                    });
+                    };
+                    context.MatchedMatchs.Add(matchedMatch);
 
                     await context.SaveChangesAsync(ct);
+
+                    var matchEmbed = new EmbedProperties()
+                    {
+                        Title = "Match Created",
+                        Description = $"Match #{matchedMatch.Id} has been created successfully",
+                        Fields =
+                        [
+                            new EmbedFieldProperties()
+                            {
+                                Name = "Match ID",
+                                Value = matchedMatch.Id.ToString(),
+                                Inline = true,
+                            },
+                            new EmbedFieldProperties()
+                            {
+                                Name = "Players",
+                                Value = (matchedMatch.HomeTeam.Players.Count + matchedMatch.AwayTeam.Players.Count).ToString(),
+                                Inline = true,
+                            },
+                            new EmbedFieldProperties()
+                            {
+                                Name = "Channel",
+                                Value = "Unknown",
+                                Inline = true,
+                            },
+                        ],
+                    };
+
+                    var mp = new MessageProperties()
+                    {
+                        Content = $"Match #{matchedMatch.Id} has been created successfully",
+                        Embeds = [matchEmbed],
+                    };
+                    await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
                 }
             }
 
@@ -213,6 +260,8 @@ public class DisplayQueueService : BackgroundService
 
                     // Adjust player MMR
 
+                    var oldMMR = new Dictionary<long, int>();
+
                     var mmrGain = (int)Math.Round(discordOptions.Value.KFactor * 0.75);
 
                     var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
@@ -221,7 +270,9 @@ public class DisplayQueueService : BackgroundService
                     {
                         var discordUser = player.XboxUser.DiscordUser
                             ?? throw new Exception("Discord user missing for xbox user");
-                        
+
+                        oldMMR.TryAdd(discordUser.DiscordUserID, discordUser.MMR);
+
                         discordUser.Wins++;
                         discordUser.WinStreak++;
                         discordUser.LossStreak = 0;
@@ -244,6 +295,8 @@ public class DisplayQueueService : BackgroundService
                         var discordUser = player.XboxUser.DiscordUser
                             ?? throw new Exception("Discord user missing for xbox user");
 
+                        oldMMR.TryAdd(discordUser.DiscordUserID, discordUser.MMR);
+
                         discordUser.Losses++;
                         discordUser.WinStreak = 0;
                         discordUser.LossStreak++;
@@ -263,6 +316,52 @@ public class DisplayQueueService : BackgroundService
 
                     await context.SaveChangesAsync(ct);
 
+                    var mp = new MessageProperties()
+                    {
+                        Embeds = new[]
+                        {
+                            new EmbedProperties()
+                            {
+                                Title = "Match Ended",
+                                Description = $"Match #{match.Id} has been matched. Team {winningTeam.TeamID} is the winner",
+                                Fields =
+                                [
+                                    new EmbedFieldProperties()
+                                    {
+                                        Name = "Match ID",
+                                        Value = match.Id.ToString(),
+                                        Inline = true,
+                                    },
+                                    new EmbedFieldProperties()
+                                    {
+                                        Name = "Winning Team",
+                                        Value = winningTeam.TeamID.ToString(),
+                                        Inline = true,
+                                    },
+                                    new EmbedFieldProperties()
+                                    {
+                                        Name = "Duration",
+                                        Value = matchFound.Duration.ToString(),
+                                        Inline = true,
+                                    },
+                                    new EmbedFieldProperties()
+                                    {
+                                        Name = "Home Team MMR Changes",
+                                        Value = GetMMRChanges(oldMMR, match.HomeTeam),
+                                        Inline = true,
+                                    },
+                                    new EmbedFieldProperties()
+                                    {
+                                        Name = "Away Team MMR Changes",
+                                        Value = GetMMRChanges(oldMMR, match.AwayTeam),
+                                        Inline = true,
+                                    },
+                                ],
+                            },
+                        },
+                    };
+                    await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+
                     // TODO: Requeue players?
                 }
             }
@@ -273,6 +372,44 @@ public class DisplayQueueService : BackgroundService
         {
             _sempaphoreSlim.Release();
         }
+    }
+
+    private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedTeam team)
+    {
+        var sb = new StringBuilder();
+        foreach(var (player, index) in team.Players.Select((player, index) => (player, index)))
+        {
+            sb.Append(player.DiscordUser.DiscordUsername);
+            sb.Append(": ");
+            var found = oldMMR.TryGetValue(player.DiscordUserID, out var oldMmr);
+            int? OLDMMR = found ? oldMmr : null;
+            if (OLDMMR is not null)
+                sb.Append(OLDMMR);
+            else
+                sb.Append("UNK");
+
+            sb.Append(" -> ");
+
+            sb.Append(player.DiscordUser.MMR);
+
+            sb.Append(" (");
+            if (OLDMMR is null)
+            {
+                sb.Append("UNK");
+            }
+            else
+            {
+                var change = player.DiscordUser.MMR - OLDMMR.Value;
+                if (change > 0)
+                    sb.Append("+");
+                sb.Append(change);
+            }
+            sb.Append(")");
+
+            if (index != team.Players.Count - 1)
+                sb.AppendLine();
+        }
+        return sb.ToString();
     }
 
     private static string FormatDuration(DateTime date)
@@ -306,7 +443,10 @@ public class DisplayQueueService : BackgroundService
                 var waitTime = FormatDuration(player.JoinedAt);
                 var rank = GetPlayerRank(player.DiscordUser, ranks);
                 // TODO: figure out emoji or img?
-                return $"{index + 1}. {player.DiscordUser.DiscordUsername} [{rank.Name}] (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
+                if (rank is null)
+                    return $"{index + 1}. {player.DiscordUser.DiscordUsername} (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
+                else 
+                    return $"{index + 1}. {player.DiscordUser.DiscordUsername} [{rank.Name}] (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
             });
 
             queueEmbed.AddFields(new EmbedFieldProperties()
@@ -349,7 +489,7 @@ public class DisplayQueueService : BackgroundService
             var str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Team Eagle (Avg MMR: 0)",
+                Name = $"Team Eagle (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
@@ -359,7 +499,7 @@ public class DisplayQueueService : BackgroundService
             str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Team Eagle (Avg MMR: 0)",
+                Name = $"Team Eagle (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
@@ -375,8 +515,10 @@ public class DisplayQueueService : BackgroundService
         };
     }
 
-    private Rank GetPlayerRank(DiscordUser player, Rank[] ranks)
+    private Rank? GetPlayerRank(DiscordUser player, Rank[] ranks)
     {
+        if (ranks.Any() is false)
+            return null;
         // Find the highest rank that the player qualifies for based on their MMR
         var ordered = ranks.OrderByDescending(x => x.MmrThreshold);
         return ordered.FirstOrDefault(rank => player.MMR >= rank.MmrThreshold) ?? ordered.LastOrDefault()

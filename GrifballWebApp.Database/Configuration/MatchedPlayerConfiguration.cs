@@ -9,7 +9,7 @@ public class MatchedPlayerConfiguration : IEntityTypeConfiguration<MatchedPlayer
     {
         builder.ToTable("MatchedPlayers", "Matchmaking", tb => tb.IsTemporal(true));
 
-        builder.HasKey(x => x.DiscordUserID);
+        builder.HasKey(x => x.Id);
 
         // Value always comes from discord
         builder.Property(e => e.DiscordUserID).ValueGeneratedNever();

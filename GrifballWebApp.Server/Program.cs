@@ -333,6 +333,7 @@ public class DiscordOptions
     public ulong DraftChannel { get; set; }
     public bool DisableGlobally { get; set; } = false;
     public ulong QueueChannel { get; set; }
+    public ulong LogChannel { get; set; }
     public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
     public int KFactor { get; set; } = 32;
     public int WinThreshold { get; set; } = 3;

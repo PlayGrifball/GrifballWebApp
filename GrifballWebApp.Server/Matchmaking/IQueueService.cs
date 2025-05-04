@@ -10,6 +10,7 @@ public interface IQueueService
     Task<bool> AddPlayerToQueue(ulong id, CancellationToken ct = default);
     Task<bool> RemovePlayerToQueue(ulong id, CancellationToken ct = default);
     Task<QueuedPlayer?> GetQueuePlayer(ulong id, CancellationToken ct = default);
+    Task<bool> IsInMatch(ulong id, CancellationToken ct = default);
     Task<QueuedPlayer[]> GetQueuePlayersWithInfo(CancellationToken ct);
     Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct);
 }
@@ -27,12 +28,21 @@ public class QueryService : IQueueService
         return await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.DiscordUserID == (long)id, ct);
     }
 
+    public async Task<bool> IsInMatch(ulong id, CancellationToken ct)
+    {
+        return await _context.MatchedPlayers
+            .Where(x => x.DiscordUserID == (long)id)
+            .Where(x => x.MatchedTeam.HomeMatchedMatch!.Active == true || x.MatchedTeam.AwayMatchedMatch!.Active == true)
+            .AnyAsync(ct);
+    }
+
     public async Task<QueuedPlayer[]> GetQueuePlayersWithInfo(CancellationToken ct)
     {
         return await _context.QueuedPlayer
             .Include(x => x.DiscordUser.XboxUser)
             .ToArrayAsync(ct);
     }
+
     public async Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct)
     {
         return await _context.MatchedMatchs

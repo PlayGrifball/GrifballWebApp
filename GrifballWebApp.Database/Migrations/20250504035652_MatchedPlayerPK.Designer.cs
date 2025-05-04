@@ -4,6 +4,7 @@ using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    partial class GrifballContextModelSnapshot : ModelSnapshot
+    [Migration("20250504035652_MatchedPlayerPK")]
+    partial class MatchedPlayerPK
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -599,16 +602,6 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("MatchedTeamID")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
                     b.HasKey("Id");
 
                     b.HasIndex("DiscordUserID");
@@ -617,16 +610,10 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.ToTable("MatchedPlayers", "Matchmaking");
 
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("MatchedPlayersHistory", "Matchmaking");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
+                    b
+                        .HasAnnotation("SqlServer:IsTemporal", false)
+                        .HasAnnotation("SqlServer:TemporalPeriodEndPropertyName", null)
+                        .HasAnnotation("SqlServer:TemporalPeriodStartPropertyName", null);
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam", b =>

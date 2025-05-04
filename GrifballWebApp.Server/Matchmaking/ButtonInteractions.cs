@@ -38,12 +38,13 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         }
 
         var queuePlayer = await _queryService.GetQueuePlayer(Context.User.Id);
+        var inMatch = await _queryService.IsInMatch(Context.User.Id);
 
-        if (queuePlayer is not null)
+        if (queuePlayer is not null || inMatch)
         {
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
-                Content = "You are already in the queue!",
+                Content = queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!",
                 Flags = MessageFlags.Ephemeral,
             }));
             await Task.Delay(5000);
