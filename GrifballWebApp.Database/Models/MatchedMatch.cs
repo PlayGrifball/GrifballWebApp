@@ -12,4 +12,5 @@ public class MatchedMatch
     public bool Active { get; set; } = true;
     public Match? Match { get; set; }
     public Guid? MatchID { get; set; }
+    public ulong? ThreadID { get; set; }
 }

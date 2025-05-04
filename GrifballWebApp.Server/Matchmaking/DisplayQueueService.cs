@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
-using System.Linq;
 using System.Text;
 
 namespace GrifballWebApp.Server.Matchmaking;
@@ -206,12 +205,6 @@ public class DisplayQueueService : BackgroundService
                                 Value = (matchedMatch.HomeTeam.Players.Count + matchedMatch.AwayTeam.Players.Count).ToString(),
                                 Inline = true,
                             },
-                            new EmbedFieldProperties()
-                            {
-                                Name = "Channel",
-                                Value = "Unknown",
-                                Inline = true,
-                            },
                         ],
                     };
 
@@ -220,7 +213,27 @@ public class DisplayQueueService : BackgroundService
                         Content = $"Match #{matchedMatch.Id} has been created successfully",
                         Embeds = [matchEmbed],
                     };
-                    await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+                    var newMatchMessage = await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+                    var thread = await restClient.CreateGuildThreadAsync(discordOptions.Value.LogChannel, newMatchMessage.Id, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
+                    {
+                        Name = $"Match #{matchedMatch.Id}",
+                        AutoArchiveDuration = ThreadArchiveDuration.OneHour,
+                    }, null, ct);
+                    var discordUsers = matchedMatch.HomeTeam.Players.Select(x => x.DiscordUser).Concat(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser)).ToArray();
+                    foreach (var user in discordUsers)
+                    {
+                        // Going to wrap in try catch. My gut says maybe this could somehow fail is user for whatever reason is not in the guild anymore?
+                        try
+                        {
+                            await thread.AddUserAsync((ulong)user.DiscordUserID, null, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user.DiscordUserID);
+                        }
+                    }
+                    matchedMatch.ThreadID = thread.Id;
+                    await context.SaveChangesAsync();
                 }
             }
 
@@ -248,7 +261,7 @@ public class DisplayQueueService : BackgroundService
                     .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
                     .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
                                 x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
-                    .Where(x => x.StartTime >= match.CreatedAt) // the match must have started after the match was created
+                    .Where(x => x.StartTime >= match.CreatedAt.AddMinutes(-3)) // the match must have started after the match was created, with 3 minute buffer in case clock is off
                     .Where(x => x.MatchedMatch == null) // the match must not already be matched
                     .OrderByDescending(x => x.StartTime) // Grab the most recent match
                     .FirstOrDefaultAsync(ct);
@@ -361,6 +374,32 @@ public class DisplayQueueService : BackgroundService
                         },
                     };
                     await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+
+                    // Delete thread soon...
+                    if (match.ThreadID is not null)
+                    {
+                        try
+                        {
+                            await restClient.SendMessageAsync(match.ThreadID.Value, new() { Content = "Match Completed. This thread will be deleted in about 10 seconds..."});
+                            _ = Task.Run(async () =>
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(10));
+                                try
+                                {
+                                    // Needs permission to manage threads
+                                    await restClient.DeleteChannelAsync(match.ThreadID.Value, null, ct);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to delete thread {ThreadId}", match.ThreadID.Value);
+                                }
+                            }, ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to send message to thread {ThreadId}", match.ThreadID.Value);
+                        }
+                    }
 
                     // TODO: Requeue players?
                 }
@@ -489,7 +528,7 @@ public class DisplayQueueService : BackgroundService
             var str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Team Eagle (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
+                Name = $"Home (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
@@ -499,7 +538,7 @@ public class DisplayQueueService : BackgroundService
             str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Team Eagle (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
+                Name = $"Away (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
