@@ -17,5 +17,6 @@ public class MatchedMatch
     public Match? Match { get; set; }
     public Guid? MatchID { get; set; }
     public ulong? ThreadID { get; set; }
+    public ulong? VoteMessageID { get; set; }
     public ICollection<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
 }

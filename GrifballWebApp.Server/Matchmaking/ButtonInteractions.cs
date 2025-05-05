@@ -2,6 +2,7 @@
 using GrifballWebApp.Database.Models;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
@@ -13,12 +14,16 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     private readonly IQueueService _queryService;
     private readonly IPublisher _publisher;
     private readonly GrifballContext _context;
+    private readonly IDiscordClient _discordClient;
+    private readonly IOptions<DiscordOptions> _discordOptions;
 
-    public ButtonInteractions(IQueueService queryService, IPublisher publisher, GrifballContext context)
+    public ButtonInteractions(IQueueService queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions)
     {
         _queryService = queryService;
         _publisher = publisher;
         _context = context;
+        _discordClient = discordClient;
+        _discordOptions = discordOptions;
     }
 
     [ComponentInteraction("join_queue")]
@@ -137,6 +142,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"Match does not exist or it is no longer active",
+                Flags = MessageFlags.Ephemeral,
             }));
             return;
         }
@@ -151,6 +157,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"You are not allowed to vote since you are not in this match",
+                Flags = MessageFlags.Ephemeral,
             }));
             return;
         }
@@ -168,9 +175,38 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         vote.WinnerVote = outValue;
         await _context.SaveChangesAsync();
 
+        if (match.ThreadID is not null && match.ThreadID is not null)
+        {
+            var message = DisplayQueueService.CreateVoteMessage(match.Id);
+            var votes = await _context.MatchedWinnerVote
+                .Include(x => x.DiscordUser)
+                .Where(x => x.MatchId == match.Id)
+                .GroupBy(x => x.WinnerVote)
+                .AsNoTracking()
+                .ToListAsync();
+            foreach (var voteGroup in votes)
+            {
+                var count = voteGroup.Count();
+                message.AddEmbeds([new()
+                    {
+                    Title = $"{voteGroup.Key} ({count})",
+                    Description = string.Join(", ", voteGroup.Select(x => x.DiscordUser.DiscordUsername)),
+                    }]);
+            }
+            await _discordClient.ModifyMessageAsync(match.ThreadID.Value, match.VoteMessageID!.Value, x =>
+            {
+                x.Content = message.Content;
+                x.Components = message.Components;
+                x.Embeds = message.Embeds;
+            });
+        }
+
         await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
         {
             Content = $"Thanks for voting! You voted for {outValue}",
+            Flags = MessageFlags.Ephemeral,
         }));
+        await Task.Delay(5000);
+        await Context.Interaction.DeleteResponseAsync();
     }
 }

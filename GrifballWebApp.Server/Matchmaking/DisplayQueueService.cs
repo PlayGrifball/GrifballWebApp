@@ -233,19 +233,11 @@ public class DisplayQueueService : BackgroundService
                         }
                     }
 
-                    var home = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Home", "Home Team Won", ButtonStyle.Primary);
-                    var away = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Away", "Away Team Won", ButtonStyle.Secondary);
-                    var cancel = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":Cancel", "Cancel", ButtonStyle.Secondary);
-                    var foo = new ButtonProperties("voteforwinner:" + matchedMatch.Id + ":dsfds", "Break Me", ButtonStyle.Secondary);
-
-                    ActionRowProperties actionRow = new([home, away, cancel, foo]);
-                    await restClient.SendMessageAsync(thread.Id, new()
-                    {
-                        Content = $"The dough is rising",
-                        Components = [actionRow],
-                    }, null, ct);
+                    MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id);
+                    var voteMessage = await restClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
 
                     matchedMatch.ThreadID = thread.Id;
+                    matchedMatch.VoteMessageID = voteMessage.Id;
                     await context.SaveChangesAsync();
                 }
             }
@@ -279,77 +271,54 @@ public class DisplayQueueService : BackgroundService
                     .OrderByDescending(x => x.StartTime) // Grab the most recent match
                     .FirstOrDefaultAsync(ct);
 
+                var majority = (t1.Count + t2.Count) / 2;
+                var voteResult = await context.MatchedWinnerVote
+                    .Where(x => x.MatchId == match.Id)
+                    .GroupBy(x => x.WinnerVote)
+                    .Select(x => new { x.Key, Count = x.Count() })
+                    .Where(x => x.Count > majority)
+                    .FirstOrDefaultAsync();
+
                 if (matchFound != null)
                 {
                     match.MatchID = matchFound.MatchID;
                     match.Active = false;
-
-                    // Adjust player MMR
-
-                    var oldMMR = new Dictionary<long, int>();
-
-                    var mmrGain = (int)Math.Round(discordOptions.Value.KFactor * 0.75);
-
                     var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
                         ?? throw new Exception("No winning team");
-                    foreach (var player in winningTeam.MatchParticipants)
-                    {
-                        var discordUser = player.XboxUser.DiscordUser
-                            ?? throw new Exception("Discord user missing for xbox user");
-
-                        oldMMR.TryAdd(discordUser.DiscordUserID, discordUser.MMR);
-
-                        discordUser.Wins++;
-                        discordUser.WinStreak++;
-                        discordUser.LossStreak = 0;
-
-                        var streakModifier = 0;
-                        if (discordUser.WinStreak >= discordOptions.Value.WinThreshold)
-                        {
-                            streakModifier = Math.Min(discordOptions.Value.MaxBonus, (discordUser.WinStreak - discordOptions.Value.WinThreshold + 1) * discordOptions.Value.BonusPerWin);
-                        }
-
-                        discordUser.MMR += mmrGain + streakModifier;
-                    }
-
-                    var mmrLoss = (int)Math.Round(discordOptions.Value.KFactor * 0.625);
-
                     var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
                         ?? throw new Exception("No losing team");
-                    foreach (var player in losingTeam.MatchParticipants)
-                    {
-                        var discordUser = player.XboxUser.DiscordUser
-                            ?? throw new Exception("Discord user missing for xbox user");
+                    var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
+                    var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
+                    var winnerId = winningTeam.TeamID;
 
-                        oldMMR.TryAdd(discordUser.DiscordUserID, discordUser.MMR);
-
-                        discordUser.Losses++;
-                        discordUser.WinStreak = 0;
-                        discordUser.LossStreak++;
-
-                        var streakModifier = 0;
-                        if (discordUser.Losses >= discordOptions.Value.LossThreshold)
-                        {
-                            streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (discordUser.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
-                        }
-
-                        discordUser.MMR -= mmrGain - streakModifier;
-                        if (discordUser.MMR < 0)
-                        {
-                            discordUser.MMR = 0; // Prevent negative MMR
-                        }
-                    }
-
-                    await context.SaveChangesAsync(ct);
+                    await HandleWinnersAndLosers(discordOptions, restClient, context, match, matchFound.Duration, winners, losers, winnerId, ct);
+                }
+                else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away})
+                {
+                    // No Match Id since manually ended
+                    match.Active = false;
+                    var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
+                    var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
+                    var winners = winningTeam.Players.Select(x => x.DiscordUser);
+                    var losers = losingTeam.Players.Select(x => x.DiscordUser);
+                    var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
+                    await HandleWinnersAndLosers(discordOptions, restClient, context, match, null, winners, losers, winnerId, ct);
+                }
+                else if (voteResult is { Key: WinnerVote.Cancel })
+                {
+                    // Cancel the match
+                    match.Active = false;
+                    await context.SaveChangesAsync(ct); // No method calls save changes so do so here
 
                     var mp = new MessageProperties()
                     {
-                        Embeds = new[]
-                        {
+                        Embeds =
+                        [
                             new EmbedProperties()
                             {
-                                Title = "Match Ended",
-                                Description = $"Match #{match.Id} has been matched. Team {winningTeam.TeamID} is the winner",
+                                Title = "Match Canceled",
+                                Description = $"Match #{match.Id} has been canceled.",
+                                Color = new Color(255, 0, 0), // Red
                                 Fields =
                                 [
                                     new EmbedFieldProperties()
@@ -358,63 +327,12 @@ public class DisplayQueueService : BackgroundService
                                         Value = match.Id.ToString(),
                                         Inline = true,
                                     },
-                                    new EmbedFieldProperties()
-                                    {
-                                        Name = "Winning Team",
-                                        Value = winningTeam.TeamID.ToString(),
-                                        Inline = true,
-                                    },
-                                    new EmbedFieldProperties()
-                                    {
-                                        Name = "Duration",
-                                        Value = matchFound.Duration.ToString(),
-                                        Inline = true,
-                                    },
-                                    new EmbedFieldProperties()
-                                    {
-                                        Name = "Home Team MMR Changes",
-                                        Value = GetMMRChanges(oldMMR, match.HomeTeam),
-                                        Inline = true,
-                                    },
-                                    new EmbedFieldProperties()
-                                    {
-                                        Name = "Away Team MMR Changes",
-                                        Value = GetMMRChanges(oldMMR, match.AwayTeam),
-                                        Inline = true,
-                                    },
                                 ],
                             },
-                        },
+                        ],
                     };
                     await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
-
-                    // Delete thread soon...
-                    if (match.ThreadID is not null)
-                    {
-                        try
-                        {
-                            await restClient.SendMessageAsync(match.ThreadID.Value, new() { Content = "Match Completed. This thread will be deleted in about 10 seconds..."});
-                            _ = Task.Run(async () =>
-                            {
-                                await Task.Delay(TimeSpan.FromSeconds(10));
-                                try
-                                {
-                                    // Needs permission to manage threads
-                                    await restClient.DeleteChannelAsync(match.ThreadID.Value, null, ct);
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogWarning(ex, "Failed to delete thread {ThreadId}", match.ThreadID.Value);
-                                }
-                            }, ct);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to send message to thread {ThreadId}", match.ThreadID.Value);
-                        }
-                    }
-
-                    // TODO: Requeue players?
+                    await CloseThread(restClient, match.ThreadID, ct);
                 }
             }
 
@@ -424,6 +342,151 @@ public class DisplayQueueService : BackgroundService
         {
             _sempaphoreSlim.Release();
         }
+    }
+
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<DiscordUser> winners, IEnumerable<DiscordUser> losers, int winnerId, CancellationToken ct)
+    {
+        // Adjust player MMR
+        var oldMMR = new Dictionary<long, int>();
+
+        var mmrGain = (int)Math.Round(discordOptions.Value.KFactor * 0.75);
+
+        foreach (var player in winners)
+        {
+            oldMMR.TryAdd(player.DiscordUserID, player.MMR);
+
+            player.Wins++;
+            player.WinStreak++;
+            player.LossStreak = 0;
+
+            var streakModifier = 0;
+            if (player.WinStreak >= discordOptions.Value.WinThreshold)
+            {
+                streakModifier = Math.Min(discordOptions.Value.MaxBonus, (player.WinStreak - discordOptions.Value.WinThreshold + 1) * discordOptions.Value.BonusPerWin);
+            }
+
+            player.MMR += mmrGain + streakModifier;
+        }
+
+        var mmrLoss = (int)Math.Round(discordOptions.Value.KFactor * 0.625);
+
+
+        foreach (var player in losers)
+        {
+            oldMMR.TryAdd(player.DiscordUserID, player.MMR);
+
+            player.Losses++;
+            player.WinStreak = 0;
+            player.LossStreak++;
+
+            var streakModifier = 0;
+            if (player.Losses >= discordOptions.Value.LossThreshold)
+            {
+                streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (player.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
+            }
+
+            player.MMR -= mmrGain - streakModifier;
+            if (player.MMR < 0)
+            {
+                player.MMR = 0; // Prevent negative MMR
+            }
+        }
+
+        await context.SaveChangesAsync(ct);
+
+        var mp = new MessageProperties()
+        {
+            Embeds =
+            [
+                new EmbedProperties()
+                {
+                    Title = "Match Ended",
+                    Description = $"Match #{match.Id} has ended. Team {winnerId} is the winner",
+                    Color = new Color(0, 255, 0), // Green
+                    Fields =
+                    [
+                        new EmbedFieldProperties()
+                        {
+                            Name = "Match ID",
+                            Value = match.Id.ToString(),
+                            Inline = true,
+                        },
+                        new EmbedFieldProperties()
+                        {
+                            Name = "Winning Team",
+                            Value = winnerId.ToString(),
+                            Inline = true,
+                        },
+                        new EmbedFieldProperties()
+                        {
+                            Name = "Duration",
+                            Value = duration?.ToString() ?? "Unknown",
+                            Inline = true,
+                        },
+                        new EmbedFieldProperties()
+                        {
+                            Name = "Home Team MMR Changes",
+                            Value = GetMMRChanges(oldMMR, match.HomeTeam),
+                            Inline = true,
+                        },
+                        new EmbedFieldProperties()
+                        {
+                            Name = "Away Team MMR Changes",
+                            Value = GetMMRChanges(oldMMR, match.AwayTeam),
+                            Inline = true,
+                        },
+                    ],
+                },
+            ],
+        };
+        await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+        await CloseThread(restClient, match.ThreadID, ct);
+
+        // TODO: Requeue players?
+    }
+
+    private async Task CloseThread(IDiscordClient restClient, ulong? threadId, CancellationToken ct)
+    {
+        // Delete thread soon...
+        if (threadId is not null)
+        {
+            try
+            {
+                await restClient.SendMessageAsync(threadId.Value, new() { Content = "Match Completed. This thread will be deleted in about 10 seconds..." });
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(10));
+                    try
+                    {
+                        // Needs permission to manage threads
+                        await restClient.DeleteChannelAsync(threadId.Value, null, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete thread {ThreadId}", threadId.Value);
+                    }
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send message to thread {ThreadId}", threadId.Value);
+            }
+        }
+    }
+
+    public static MessageProperties CreateVoteMessage(int matchId)
+    {
+        var home = new ButtonProperties("voteforwinner:" + matchId + ":Home", "Home Team Won", ButtonStyle.Primary);
+        var away = new ButtonProperties("voteforwinner:" + matchId + ":Away", "Away Team Won", ButtonStyle.Secondary);
+        var cancel = new ButtonProperties("voteforwinner:" + matchId + ":Cancel", "Cancel", ButtonStyle.Secondary);
+
+        ActionRowProperties actionRow = new([home, away, cancel]);
+        var voteMessageProperties = new MessageProperties()
+        {
+            Content = $"This match can be now be started in game. Stats will automatically be recorded after the match. If needed, the match can be ended manually by majority vote using one of the options below:",
+            Components = [actionRow],
+        };
+        return voteMessageProperties;
     }
 
     private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedTeam team)
