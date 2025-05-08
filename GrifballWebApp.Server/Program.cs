@@ -189,7 +189,10 @@ public class Program
         builder.Services.AddTransient<IQueueService, QueryService>();
         builder.Services.AddSingleton<DisplayQueueService>();
         builder.Services.AddHostedService<DisplayQueueService>();
-        builder.Services.AddDiscordGateway().AddApplicationCommands().AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>();
+        builder.Services.AddDiscordGateway()
+            .AddApplicationCommands()
+            .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
+            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(); ;
         builder.Services.AddSingleton<IDiscordClient, DiscordClient>();
         builder.Services.AddMediatR(cfg =>
         {

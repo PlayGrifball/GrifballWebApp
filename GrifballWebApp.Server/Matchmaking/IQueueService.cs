@@ -33,6 +33,7 @@ public class QueryService : IQueueService
         return await _context.MatchedPlayers
             .Where(x => x.DiscordUserID == (long)id)
             .Where(x => x.MatchedTeam.HomeMatchedMatch!.Active == true || x.MatchedTeam.AwayMatchedMatch!.Active == true)
+            .Where(x => x.Kicked == false)
             .AnyAsync(ct);
     }
 

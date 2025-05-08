@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
+using NetCord.Services;
 using System.Text;
 
 namespace GrifballWebApp.Server.Matchmaking;
@@ -233,7 +234,11 @@ public class DisplayQueueService : BackgroundService
                         }
                     }
 
-                    MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id);
+                    var kickable = matchedMatch.HomeTeam.Players
+                        .Select(x => x.DiscordUser)
+                        .Union(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser))
+                        .ToArray();
+                    MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
                     var voteMessage = await restClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
 
                     matchedMatch.ThreadID = thread.Id;
@@ -254,8 +259,8 @@ public class DisplayQueueService : BackgroundService
             // Now for each match check for any possible match
             foreach (var match in activeMatches)
             {
-                var t1 = match.HomeTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
-                var t2 = match.AwayTeam.Players.Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+                var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+                var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
 
                 var matchFound = await context.Matches
                     .Include(x => x.MatchTeams)
@@ -272,8 +277,9 @@ public class DisplayQueueService : BackgroundService
                     .FirstOrDefaultAsync(ct);
 
                 var majority = (t1.Count + t2.Count) / 2;
-                var voteResult = await context.MatchedWinnerVote
+                var voteResult = await context.MatchedWinnerVotes
                     .Where(x => x.MatchId == match.Id)
+                    .Where(x => x.MatchedPlayer.Kicked == false)
                     .GroupBy(x => x.WinnerVote)
                     .Select(x => new { x.Key, Count = x.Count() })
                     .Where(x => x.Count > majority)
@@ -304,7 +310,7 @@ public class DisplayQueueService : BackgroundService
                     var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
                     await HandleWinnersAndLosers(discordOptions, restClient, context, match, null, winners, losers, winnerId, ct);
                 }
-                else if (voteResult is { Key: WinnerVote.Cancel })
+                else if (voteResult is { Key: WinnerVote.Cancel } || match.CreatedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
                 {
                     // Cancel the match
                     match.Active = false;
@@ -474,19 +480,75 @@ public class DisplayQueueService : BackgroundService
         }
     }
 
-    public static MessageProperties CreateVoteMessage(int matchId)
+    public static MessageProperties CreateVoteMessage(int matchId, DiscordUser[] kickablePlayers)
     {
         var home = new ButtonProperties("voteforwinner:" + matchId + ":Home", "Home Team Won", ButtonStyle.Primary);
         var away = new ButtonProperties("voteforwinner:" + matchId + ":Away", "Away Team Won", ButtonStyle.Secondary);
         var cancel = new ButtonProperties("voteforwinner:" + matchId + ":Cancel", "Cancel", ButtonStyle.Secondary);
 
+        var kickPlayerMenu = new StringMenuProperties("votetokick:" + matchId)
+        {
+            Placeholder = "Vote to kick",
+            CustomId = "votetokick:" + matchId,
+            Options = [.. kickablePlayers.Select(x => new StringMenuSelectOptionProperties(x.DiscordUsername, x.DiscordUserID.ToString()))],
+        };
+
         ActionRowProperties actionRow = new([home, away, cancel]);
         var voteMessageProperties = new MessageProperties()
         {
             Content = $"This match can be now be started in game. Stats will automatically be recorded after the match. If needed, the match can be ended manually by majority vote using one of the options below:",
-            Components = [actionRow],
+            Components = [actionRow, kickPlayerMenu],
         };
         return voteMessageProperties;
+    }
+
+
+    public async Task UpdateThreadMessage(MatchedMatch? match, GrifballContext _context, IDiscordClient _discordClient) // TODO: Use DI
+    {
+        if (match is not null && match.ThreadID is not null)
+        {
+            var kickable = match.HomeTeam.Players
+                .Union(match.AwayTeam.Players)
+                .Where(x => x.Kicked is false)
+                .Select(x => x.DiscordUser)
+                .ToArray();
+            var message = CreateVoteMessage(match.Id, kickable);
+            var votes = await _context.MatchedWinnerVotes
+                .Include(x => x.MatchedPlayer.DiscordUser)
+                .Where(x => x.MatchId == match.Id)
+                .Where(x => x.MatchedPlayer.Kicked == false)
+                .GroupBy(x => x.WinnerVote)
+                .AsNoTracking()
+                .ToListAsync();
+            if (votes.Any())
+            {
+                var playerCount = await _context.MatchedPlayers
+                    .Where(x => x.MatchedTeam!.HomeMatchedMatch!.Id == match.Id || x.MatchedTeam!.AwayMatchedMatch!.Id == match.Id)
+                    .Where(x => x.Kicked == false)
+                    .CountAsync();
+                var majority = (playerCount / 2) + 1;
+                message.AddEmbeds([new()
+                {
+                    Title = "Votes",
+                    Description = $"You need a majority of at least {majority} votes",
+                }]);
+            }
+            foreach (var voteGroup in votes)
+            {
+                var count = voteGroup.Count();
+                message.AddEmbeds([new()
+                    {
+                    Title = $"{voteGroup.Key} ({count})",
+                    Description = string.Join(", ", voteGroup.Select(x => x.MatchedPlayer.DiscordUser.DiscordUsername)),
+                    }]);
+            }
+            await _discordClient.ModifyMessageAsync(match.ThreadID.Value, match.VoteMessageID!.Value, x =>
+            {
+                x.Content = message.Content;
+                x.Components = message.Components;
+                x.Embeds = message.Embeds ?? [];
+            });
+        }
     }
 
     private string GetMMRChanges(Dictionary<long, int> oldMMR, MatchedTeam team)

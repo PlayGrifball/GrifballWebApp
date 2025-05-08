@@ -532,6 +532,47 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedKickVote", b =>
+                {
+                    b.Property<int>("MatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VoterMatchedPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("KickMatchedPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasKey("MatchId", "VoterMatchedPlayerId");
+
+                    b.HasIndex("KickMatchedPlayerId");
+
+                    b.HasIndex("VoterMatchedPlayerId");
+
+                    b.ToTable("MatchedKickVotes", "Matchmaking");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("MatchedKickVotesHistory", "Matchmaking");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
                     b.Property<int>("Id")
@@ -608,6 +649,9 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<long>("DiscordUserID")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("Kicked")
+                        .HasColumnType("bit");
+
                     b.Property<int>("MatchedTeamID")
                         .HasColumnType("int");
 
@@ -680,8 +724,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("MatchId")
                         .HasColumnType("int");
 
-                    b.Property<long>("DiscordUserId")
-                        .HasColumnType("bigint");
+                    b.Property<int>("MatchedPlayerId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -696,9 +740,9 @@ namespace GrifballWebApp.Database.Migrations
                     b.Property<int>("WinnerVote")
                         .HasColumnType("int");
 
-                    b.HasKey("MatchId", "DiscordUserId");
+                    b.HasKey("MatchId", "MatchedPlayerId");
 
-                    b.HasIndex("DiscordUserId");
+                    b.HasIndex("MatchedPlayerId");
 
                     b.ToTable("MatchedWinnerVotes", "Matchmaking");
 
@@ -2030,6 +2074,33 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("Match");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedKickVote", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedPlayer", "KickMatchedPlayer")
+                        .WithMany("KickMatchedKickVotes")
+                        .HasForeignKey("KickMatchedPlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedMatch", "MatchedMatch")
+                        .WithMany("MatchedKickVotes")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedPlayer", "VoterMatchedPlayer")
+                        .WithMany("VoterMatchedKickVotes")
+                        .HasForeignKey("VoterMatchedPlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("KickMatchedPlayer");
+
+                    b.Navigation("MatchedMatch");
+
+                    b.Navigation("VoterMatchedPlayer");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "AwayTeam")
@@ -2072,21 +2143,21 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedWinnerVote", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.DiscordUser", "DiscordUser")
-                        .WithMany("MatchedWinnerVotes")
-                        .HasForeignKey("DiscordUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.MatchedMatch", "MatchedMatch")
                         .WithMany("MatchedWinnerVotes")
                         .HasForeignKey("MatchId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DiscordUser");
+                    b.HasOne("GrifballWebApp.Database.Models.MatchedPlayer", "MatchedPlayer")
+                        .WithMany("MatchedWinnerVotes")
+                        .HasForeignKey("MatchedPlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("MatchedMatch");
+
+                    b.Navigation("MatchedPlayer");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Medal", b =>
@@ -2376,8 +2447,6 @@ namespace GrifballWebApp.Database.Migrations
                 {
                     b.Navigation("MatchedPlayers");
 
-                    b.Navigation("MatchedWinnerVotes");
-
                     b.Navigation("QueuedPlayer");
                 });
 
@@ -2414,7 +2483,18 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
                 {
+                    b.Navigation("MatchedKickVotes");
+
                     b.Navigation("MatchedWinnerVotes");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer", b =>
+                {
+                    b.Navigation("KickMatchedKickVotes");
+
+                    b.Navigation("MatchedWinnerVotes");
+
+                    b.Navigation("VoterMatchedKickVotes");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam", b =>

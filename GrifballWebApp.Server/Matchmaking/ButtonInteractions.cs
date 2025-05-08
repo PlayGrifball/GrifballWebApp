@@ -16,14 +16,16 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     private readonly GrifballContext _context;
     private readonly IDiscordClient _discordClient;
     private readonly IOptions<DiscordOptions> _discordOptions;
+    private readonly DisplayQueueService _displayQueueService;
 
-    public ButtonInteractions(IQueueService queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions)
+    public ButtonInteractions(IQueueService queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions, DisplayQueueService displayQueueService)
     {
         _queryService = queryService;
         _publisher = publisher;
         _context = context;
         _discordClient = discordClient;
         _discordOptions = discordOptions;
+        _displayQueueService = displayQueueService;
     }
 
     [ComponentInteraction("join_queue")]
@@ -147,12 +149,11 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
             return;
         }
 
-        var discordIDs = match.HomeTeam.Players
-            .Select(x => x.DiscordUser.DiscordUserID)
-            .Union(match.AwayTeam.Players.Select(x => x.DiscordUser.DiscordUserID))
-            .ToList();
+        var me = match.HomeTeam.Players
+            .Union(match.AwayTeam.Players)
+            .FirstOrDefault(x => x.DiscordUserID == (long)Context.User.Id);
 
-        if (discordIDs.Contains((long)Context.User.Id) is false)
+        if (me is null)
         {
             await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
@@ -161,45 +162,30 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
             }));
             return;
         }
+        else if (me.Kicked)
+        {
+            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"You are not allowed to vote since you have been kicked",
+                Flags = MessageFlags.Ephemeral,
+            }));
+            return;
+        }
 
-        var vote = await _context.MatchedWinnerVote
-            .FirstOrDefaultAsync(x => x.DiscordUser.DiscordUserID == (long)Context.User.Id && x.MatchId == matchId);
+        var vote = await _context.MatchedWinnerVotes
+            .FirstOrDefaultAsync(x => x.MatchedPlayerId == me.Id && x.MatchId == matchId);
 
         if (vote is null)
         {
             vote = new MatchedWinnerVote();
-            _context.MatchedWinnerVote.Add(vote);
+            _context.MatchedWinnerVotes.Add(vote);
         }
-        vote.DiscordUserId = (long)Context.User.Id;
+        vote.MatchedPlayerId = me.Id;
         vote.MatchId = matchId;
         vote.WinnerVote = outValue;
         await _context.SaveChangesAsync();
 
-        if (match.ThreadID is not null && match.ThreadID is not null)
-        {
-            var message = DisplayQueueService.CreateVoteMessage(match.Id);
-            var votes = await _context.MatchedWinnerVote
-                .Include(x => x.DiscordUser)
-                .Where(x => x.MatchId == match.Id)
-                .GroupBy(x => x.WinnerVote)
-                .AsNoTracking()
-                .ToListAsync();
-            foreach (var voteGroup in votes)
-            {
-                var count = voteGroup.Count();
-                message.AddEmbeds([new()
-                    {
-                    Title = $"{voteGroup.Key} ({count})",
-                    Description = string.Join(", ", voteGroup.Select(x => x.DiscordUser.DiscordUsername)),
-                    }]);
-            }
-            await _discordClient.ModifyMessageAsync(match.ThreadID.Value, match.VoteMessageID!.Value, x =>
-            {
-                x.Content = message.Content;
-                x.Components = message.Components;
-                x.Embeds = message.Embeds;
-            });
-        }
+        await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
 
         await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
         {
