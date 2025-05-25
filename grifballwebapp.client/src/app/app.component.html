@@ -1,4 +1,4 @@
-<div class="app-container" [class.app-is-mobile]="mobileQuery.matches">
+<div class="app-container">
 
   <app-toolbar [snav]="snav">
     <div class="toolbar-links w-full mx-3 flex">
@@ -29,11 +29,9 @@
     </div>
   </app-toolbar>
 
-  <mat-sidenav-container class="app-sidenav-container"
-                         [style.marginTop.px]="mobileQuery.matches ? 56 : 0">
+  <mat-sidenav-container class="app-sidenav-container">
 
-    <mat-sidenav #snav fixedTopGap="56"
-                 [fixedInViewport]="mobileQuery.matches" [mode]="'over'">
+    <mat-sidenav #snav [mode]="'over'">
       @for (nav of navLinks; track nav) {
         @if (nav.show()) {
           <mat-nav-list>
