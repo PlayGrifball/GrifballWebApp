@@ -20,7 +20,7 @@ public class ExcelService
     private readonly IConfiguration _configuration;
     public ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration)
     {
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        ExcelPackage.License.SetNonCommercialOrganization("PlayGrifball");
         _context = context;
         _dataPullService = dataPullService;
         _configuration = configuration;
