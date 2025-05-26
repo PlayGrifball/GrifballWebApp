@@ -5,48 +5,36 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Rest;
-using NetCord.Services;
 using System.Text;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
-public class DisplayQueueService : BackgroundService
+public class QueueService
 {
-    private readonly ILogger<DisplayQueueService> _logger;
-    private readonly SemaphoreSlim _sempaphoreSlim = new(1, 1);
-    private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly PeriodicTimer _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
-    private Task? _queueTask;
-    public DisplayQueueService(ILogger<DisplayQueueService> logger, IServiceScopeFactory serviceScopeFactory)
+    private readonly ILogger<QueueService> _logger;
+    private static SemaphoreSlim _sempaphoreSlim = new(1, 1);
+    private readonly IOptions<DiscordOptions> _discordOptions;
+    private readonly ulong _queueChannel;
+    private readonly IQueueRepository _queueRepository;
+    private readonly IDiscordClient _discordClient;
+    private readonly GrifballContext _context;
+    private readonly IDataPullService _dataPullService;
+    public QueueService(ILogger<QueueService> logger,
+        IOptions<DiscordOptions> discordOptions,
+        IQueueRepository queueRepository,
+        IDiscordClient discordClient,
+        GrifballContext context,
+        IDataPullService dataPullService)
     {
         _logger = logger;
-        _serviceScopeFactory = serviceScopeFactory;
-    }
-
-    protected override Task ExecuteAsync(CancellationToken ct)
-    {
-        _queueTask = Task.Run(async () =>
-        {
-            try
-            {
-                await Go(ct);
-            } catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while executing the DisplayQueueService");
-            }
-            while (await _timer.WaitForNextTickAsync(ct))
-            {
-                try
-                {
-                    await Go(ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "An error occurred while executing the DisplayQueueService");
-                }
-            };
-        }, ct);
-        return Task.CompletedTask;
+        _discordOptions = discordOptions;
+        _queueChannel = discordOptions.Value.QueueChannel;
+        if (_queueChannel is 0)
+            throw new Exception("Discord:QueueChannel is not set");
+        _queueRepository = queueRepository;
+        _discordClient = discordClient;
+        _context = context;
+        _dataPullService = dataPullService;
     }
 
     public async Task Go(CancellationToken ct)
@@ -54,273 +42,102 @@ public class DisplayQueueService : BackgroundService
         await _sempaphoreSlim.WaitAsync(ct);
         try
         {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var discordOptions = scope.ServiceProvider.GetRequiredService<IOptions<DiscordOptions>>();
-            var queueChannel = discordOptions.Value.QueueChannel;
-            if (queueChannel is 0)
-                throw new Exception("Discord:QueueChannel is not set");
-
-            var queueService = scope.ServiceProvider.GetRequiredService<IQueueService>();
-            var restClient = scope.ServiceProvider.GetRequiredService<IDiscordClient>();
-            var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-            var me = await restClient.GetCurrentUserAsync(null, ct);
-
-            var messages = (await restClient.GetMessagesAsync(queueChannel, new PaginationProperties<ulong>()
-            {
-                BatchSize = 20,
-            }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
-
-            var filteredMessages = messages
-                .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is "Matchmaking Queue"))
-                .OrderByDescending(x => x.CreatedAt)
-                .ToList();
-
-            if (filteredMessages.Count > 1)
-            {
-                var cleanup = filteredMessages.Skip(1).ToList();
-                await restClient.DeleteMessagesAsync(queueChannel, cleanup.Select(x => x.Id), null, ct);
-            }
-
             // Start transaction here since we are going to be doing multiple db calls
-            var transaction = await context.Database.BeginTransactionAsync(ct);
+            var transaction = await _context.Database.BeginTransactionAsync(ct);
 
-            var queuePlayers = await queueService.GetQueuePlayersWithInfo(ct);
-            var activeMatches = await queueService.GetActiveMatches(ct);
+            var queuePlayers = await _queueRepository.GetQueuePlayersWithInfo(ct);
+            var activeMatches = await _queueRepository.GetActiveMatches(ct);
 
-            // Sanity check remove any players from queue that are in active match.
-            var activePlayerIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
-                .Select(x => x.DiscordUserID).ToArray();
-            if (activePlayerIds.Any())
+            await RemoveActivePlayersFromQueue(queuePlayers, activeMatches, ct);
+
+            await UpdateQueueMessage(queuePlayers, activeMatches, ct);
+
+            await CreateMatches(queuePlayers, ct);
+            await FinishMatches(activeMatches, ct);
+
+            await transaction.CommitAsync(ct);
+        }
+        finally
+        {
+            _sempaphoreSlim.Release();
+        }
+    }
+
+    private async Task FinishMatches(MatchedMatch[] activeMatches, CancellationToken ct)
+    {
+        // Grab the last 2 matches played for all players
+        var allXboxIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
+            .Select(x => x.DiscordUser.XboxUserID)
+            .Where(x => x is not null)
+            .Select(x => x!.Value)
+            .ToList();
+        await _dataPullService.DownloadRecentMatchesForPlayers(allXboxIds, startPage: 0, endPage: 0, perPage: 2, ct);
+
+        // Now for each match check for any possible match
+        foreach (var match in activeMatches)
+        {
+            var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+            var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+
+            var matchFound = await _context.Matches
+                .Include(x => x.MatchTeams)
+                .ThenInclude(x => x.MatchParticipants)
+                    .ThenInclude(x => x.XboxUser)
+                        .ThenInclude(x => x.DiscordUser)
+                .Where(x => x.MatchTeams.Count == 2)
+                .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
+                .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
+                            x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
+                .Where(x => x.StartTime >= match.CreatedAt.AddMinutes(-3)) // the match must have started after the match was created, with 3 minute buffer in case clock is off
+                .Where(x => x.MatchedMatch == null) // the match must not already be matched
+                .OrderByDescending(x => x.StartTime) // Grab the most recent match
+                .FirstOrDefaultAsync(ct);
+
+            var majority = (t1.Count + t2.Count) / 2;
+            var voteResult = await _context.MatchedWinnerVotes
+                .Where(x => x.MatchId == match.Id)
+                .Where(x => x.MatchedPlayer.Kicked == false)
+                .GroupBy(x => x.WinnerVote)
+                .Select(x => new { x.Key, Count = x.Count() })
+                .Where(x => x.Count > majority)
+                .FirstOrDefaultAsync();
+
+            if (matchFound != null)
             {
-                var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.DiscordUserID)).ToArray();
-                if (playersToRemove.Any())
-                {
-                    context.QueuedPlayer.RemoveRange(playersToRemove);
-                    await context.SaveChangesAsync(ct);
-                }
+                match.MatchID = matchFound.MatchID;
+                match.Active = false;
+                var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
+                    ?? throw new Exception("No winning team");
+                var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
+                    ?? throw new Exception("No losing team");
+                var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
+                var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
+                var winnerId = winningTeam.TeamID;
+
+                await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
             }
-
-            var message = filteredMessages.FirstOrDefault();
-
-            if (message is null)
+            else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away })
             {
-                await restClient.SendMessageAsync(queueChannel, await CreateQueueMessage(queuePlayers, activeMatches, context), null, ct);
+                // No Match Id since manually ended
+                match.Active = false;
+                var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
+                var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
+                var winners = winningTeam.Players.Select(x => x.DiscordUser);
+                var losers = losingTeam.Players.Select(x => x.DiscordUser);
+                var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
+                await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
             }
-            else
+            else if (voteResult is { Key: WinnerVote.Cancel } || match.CreatedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
             {
-                var msg = await CreateQueueMessage(queuePlayers, activeMatches, context);
-                await restClient.ModifyMessageAsync(queueChannel, message.Id, (x) =>
+                // Cancel the match
+                match.Active = false;
+                await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
+
+                var mp = new MessageProperties()
                 {
-                    x.Content = msg.Content;
-                    x.Embeds = msg.Embeds;
-                    x.Components = msg.Components;
-                }, null, ct);
-            }
-
-            // Remove timed out players??
-            var minPlayersRequired = discordOptions.Value.MatchPlayers;
-            //var queueSize = await queueService.GetQueueSize(ct);
-            var queueSize = queuePlayers.Length;
-
-            if (queueSize >= minPlayersRequired)
-            {
-                // Create match
-                // emit event to refresh display??
-
-                var take = (queueSize / minPlayersRequired) * minPlayersRequired;
-
-                var selectPlayers = queuePlayers
-                    .OrderBy(x => x.JoinedAt) // Longest queued get to play first
-                    .Take(take)
-                    .ToArray();
-
-                var groupedPlayers = selectPlayers
-                    .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
-                    .GroupBy(x => x.groupIndex)
-                    .Select(group => group.Select(x => x.player).ToArray())
-                    .ToArray();
-
-                // Remove from queue
-                context.QueuedPlayer.RemoveRange(selectPlayers);
-
-                // Create match for each group
-                foreach (var group in groupedPlayers)
-                {
-                    var team1 = new List<QueuedPlayer>();
-                    var team2 = new List<QueuedPlayer>();
-
-                    foreach (var (player, index) in group.Select((p, i) => (p, i)))
-                    {
-                        if (index % 2 == 0)
-                        {
-                            team1.Add(player);
-                        }
-                        else
-                        {
-                            team2.Add(player);
-                        }
-                    }
-
-                    var team1mmr = team1.Average(x => x.DiscordUser.MMR);
-                    var team2mmr = team2.Average(x => x.DiscordUser.MMR);
-
-                    var team1Obj = new MatchedTeam()
-                    {
-                        Players = team1.Select(x => new MatchedPlayer()
-                        {
-                            DiscordUserID = x.DiscordUserID,
-                        }).ToList(),
-                    };
-                    var team2Obj = new MatchedTeam()
-                    {
-                        Players = team2.Select(x => new MatchedPlayer()
-                        {
-                            DiscordUserID = x.DiscordUserID,
-                        }).ToList(),
-                    };
-
-                    var matchedMatch = new MatchedMatch()
-                    {
-                        HomeTeam = team1Obj,
-                        AwayTeam = team2Obj,
-                    };
-                    context.MatchedMatches.Add(matchedMatch);
-
-                    await context.SaveChangesAsync(ct);
-
-                    var matchEmbed = new EmbedProperties()
-                    {
-                        Title = "Match Created",
-                        Description = $"Match #{matchedMatch.Id} has been created successfully",
-                        Fields =
-                        [
-                            new EmbedFieldProperties()
-                            {
-                                Name = "Match ID",
-                                Value = matchedMatch.Id.ToString(),
-                                Inline = true,
-                            },
-                            new EmbedFieldProperties()
-                            {
-                                Name = "Players",
-                                Value = (matchedMatch.HomeTeam.Players.Count + matchedMatch.AwayTeam.Players.Count).ToString(),
-                                Inline = true,
-                            },
-                        ],
-                    };
-
-                    var mp = new MessageProperties()
-                    {
-                        Content = $"Match #{matchedMatch.Id} has been created successfully",
-                        Embeds = [matchEmbed],
-                    };
-                    var newMatchMessage = await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
-                    var thread = await restClient.CreateGuildThreadAsync(discordOptions.Value.LogChannel, newMatchMessage.Id, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
-                    {
-                        Name = $"Match #{matchedMatch.Id}",
-                        AutoArchiveDuration = ThreadArchiveDuration.OneHour,
-                    }, null, ct);
-                    var discordUsers = matchedMatch.HomeTeam.Players.Select(x => x.DiscordUser).Concat(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser)).ToArray();
-                    foreach (var user in discordUsers)
-                    {
-                        // Going to wrap in try catch. My gut says maybe this could somehow fail is user for whatever reason is not in the guild anymore?
-                        try
-                        {
-                            await thread.AddUserAsync((ulong)user.DiscordUserID, null, ct);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user.DiscordUserID);
-                        }
-                    }
-
-                    var kickable = matchedMatch.HomeTeam.Players
-                        .Select(x => x.DiscordUser)
-                        .Union(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser))
-                        .ToArray();
-                    MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
-                    var voteMessage = await restClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
-
-                    matchedMatch.ThreadID = thread.Id;
-                    matchedMatch.VoteMessageID = voteMessage.Id;
-                    await context.SaveChangesAsync();
-                }
-            }
-
-            // Grab the last 2 matches played for all players
-            var dataPuller = scope.ServiceProvider.GetRequiredService<IDataPullService>();
-            var allXboxIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
-                .Select(x => x.DiscordUser.XboxUserID)
-                .Where(x => x is not null)
-                .Select(x => x!.Value)
-                .ToList();
-            await dataPuller.DownloadRecentMatchesForPlayers(allXboxIds, startPage: 0, endPage: 0, perPage: 2, ct);
-
-            // Now for each match check for any possible match
-            foreach (var match in activeMatches)
-            {
-                var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
-                var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
-
-                var matchFound = await context.Matches
-                    .Include(x => x.MatchTeams)
-                    .ThenInclude(x => x.MatchParticipants)
-                        .ThenInclude(x => x.XboxUser)
-                            .ThenInclude(x => x.DiscordUser)
-                    .Where(x => x.MatchTeams.Count == 2)
-                    .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
-                    .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
-                                x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
-                    .Where(x => x.StartTime >= match.CreatedAt.AddMinutes(-3)) // the match must have started after the match was created, with 3 minute buffer in case clock is off
-                    .Where(x => x.MatchedMatch == null) // the match must not already be matched
-                    .OrderByDescending(x => x.StartTime) // Grab the most recent match
-                    .FirstOrDefaultAsync(ct);
-
-                var majority = (t1.Count + t2.Count) / 2;
-                var voteResult = await context.MatchedWinnerVotes
-                    .Where(x => x.MatchId == match.Id)
-                    .Where(x => x.MatchedPlayer.Kicked == false)
-                    .GroupBy(x => x.WinnerVote)
-                    .Select(x => new { x.Key, Count = x.Count() })
-                    .Where(x => x.Count > majority)
-                    .FirstOrDefaultAsync();
-
-                if (matchFound != null)
-                {
-                    match.MatchID = matchFound.MatchID;
-                    match.Active = false;
-                    var winningTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Won)
-                        ?? throw new Exception("No winning team");
-                    var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
-                        ?? throw new Exception("No losing team");
-                    var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
-                    var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
-                    var winnerId = winningTeam.TeamID;
-
-                    await HandleWinnersAndLosers(discordOptions, restClient, context, match, matchFound.Duration, winners, losers, winnerId, ct);
-                }
-                else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away})
-                {
-                    // No Match Id since manually ended
-                    match.Active = false;
-                    var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
-                    var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
-                    var winners = winningTeam.Players.Select(x => x.DiscordUser);
-                    var losers = losingTeam.Players.Select(x => x.DiscordUser);
-                    var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
-                    await HandleWinnersAndLosers(discordOptions, restClient, context, match, null, winners, losers, winnerId, ct);
-                }
-                else if (voteResult is { Key: WinnerVote.Cancel } || match.CreatedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
-                {
-                    // Cancel the match
-                    match.Active = false;
-                    await context.SaveChangesAsync(ct); // No method calls save changes so do so here
-
-                    var mp = new MessageProperties()
-                    {
-                        Embeds =
-                        [
-                            new EmbedProperties()
+                    Embeds =
+                    [
+                        new EmbedProperties()
                             {
                                 Title = "Match Canceled",
                                 Description = $"Match #{match.Id} has been canceled.",
@@ -336,17 +153,197 @@ public class DisplayQueueService : BackgroundService
                                 ],
                             },
                         ],
-                    };
-                    await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
-                    await CloseThread(restClient, match.ThreadID, ct);
-                }
+                };
+                await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp);
+                await CloseThread(_discordClient, match.ThreadID, ct);
             }
-
-            await transaction.CommitAsync(ct);
         }
-        finally
+    }
+
+    private async Task CreateMatches(QueuedPlayer[] queuePlayers, CancellationToken ct)
+    {
+        // Remove timed out players??
+        var minPlayersRequired = _discordOptions.Value.MatchPlayers;
+        //var queueSize = await queueService.GetQueueSize(ct);
+        var queueSize = queuePlayers.Length;
+
+        if (queueSize >= minPlayersRequired)
         {
-            _sempaphoreSlim.Release();
+            // Create match
+            // emit event to refresh display??
+
+            var take = (queueSize / minPlayersRequired) * minPlayersRequired;
+
+            var selectPlayers = queuePlayers
+                .OrderBy(x => x.JoinedAt) // Longest queued get to play first
+                .Take(take)
+                .ToArray();
+
+            var groupedPlayers = selectPlayers
+                .Select((player, index) => new { player, groupIndex = index / minPlayersRequired })
+                .GroupBy(x => x.groupIndex)
+                .Select(group => group.Select(x => x.player).ToArray())
+                .ToArray();
+
+            // Remove from queue
+            _context.QueuedPlayer.RemoveRange(selectPlayers);
+
+            // Create match for each group
+            foreach (var group in groupedPlayers)
+            {
+                var team1 = new List<QueuedPlayer>();
+                var team2 = new List<QueuedPlayer>();
+
+                foreach (var (player, index) in group.Select((p, i) => (p, i)))
+                {
+                    if (index % 2 == 0)
+                    {
+                        team1.Add(player);
+                    }
+                    else
+                    {
+                        team2.Add(player);
+                    }
+                }
+
+                var team1mmr = team1.Average(x => x.DiscordUser.MMR);
+                var team2mmr = team2.Average(x => x.DiscordUser.MMR);
+
+                var team1Obj = new MatchedTeam()
+                {
+                    Players = team1.Select(x => new MatchedPlayer()
+                    {
+                        DiscordUserID = x.DiscordUserID,
+                    }).ToList(),
+                };
+                var team2Obj = new MatchedTeam()
+                {
+                    Players = team2.Select(x => new MatchedPlayer()
+                    {
+                        DiscordUserID = x.DiscordUserID,
+                    }).ToList(),
+                };
+
+                var matchedMatch = new MatchedMatch()
+                {
+                    HomeTeam = team1Obj,
+                    AwayTeam = team2Obj,
+                };
+                _context.MatchedMatches.Add(matchedMatch);
+
+                await _context.SaveChangesAsync(ct);
+
+                var matchEmbed = new EmbedProperties()
+                {
+                    Title = "Match Created",
+                    Description = $"Match #{matchedMatch.Id} has been created successfully",
+                    Fields =
+                    [
+                        new EmbedFieldProperties()
+                            {
+                                Name = "Match ID",
+                                Value = matchedMatch.Id.ToString(),
+                                Inline = true,
+                            },
+                            new EmbedFieldProperties()
+                            {
+                                Name = "Players",
+                                Value = (matchedMatch.HomeTeam.Players.Count + matchedMatch.AwayTeam.Players.Count).ToString(),
+                                Inline = true,
+                            },
+                        ],
+                };
+
+                var mp = new MessageProperties()
+                {
+                    Content = $"Match #{matchedMatch.Id} has been created successfully",
+                    Embeds = [matchEmbed],
+                };
+                var newMatchMessage = await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp);
+                var thread = await _discordClient.CreateGuildThreadAsync(_discordOptions.Value.LogChannel, newMatchMessage.Id, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
+                {
+                    Name = $"Match #{matchedMatch.Id}",
+                    AutoArchiveDuration = ThreadArchiveDuration.OneHour,
+                }, null, ct);
+                var discordUsers = matchedMatch.HomeTeam.Players.Select(x => x.DiscordUser).Concat(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser)).ToArray();
+                foreach (var user in discordUsers)
+                {
+                    // Going to wrap in try catch. My gut says maybe this could somehow fail is user for whatever reason is not in the guild anymore?
+                    try
+                    {
+                        await thread.AddUserAsync((ulong)user.DiscordUserID, null, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user.DiscordUserID);
+                    }
+                }
+
+                var kickable = matchedMatch.HomeTeam.Players
+                    .Select(x => x.DiscordUser)
+                    .Union(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser))
+                    .ToArray();
+                MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
+                var voteMessage = await _discordClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
+
+                matchedMatch.ThreadID = thread.Id;
+                matchedMatch.VoteMessageID = voteMessage.Id;
+                await _context.SaveChangesAsync();
+            }
+        }
+    }
+
+    private async Task RemoveActivePlayersFromQueue(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, CancellationToken ct)
+    {
+        // Sanity check remove any players from queue that are in active match.
+        var activePlayerIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
+            .Select(x => x.DiscordUserID).ToArray();
+        if (activePlayerIds.Any())
+        {
+            var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.DiscordUserID)).ToArray();
+            if (playersToRemove.Any())
+            {
+                _context.QueuedPlayer.RemoveRange(playersToRemove);
+                await _context.SaveChangesAsync(ct);
+            }
+        }
+    }
+
+    private async Task UpdateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, CancellationToken ct)
+    {
+        var me = await _discordClient.GetCurrentUserAsync(null, ct);
+
+        var messages = (await _discordClient.GetMessagesAsync(_queueChannel, new PaginationProperties<ulong>()
+        {
+            BatchSize = 20,
+        }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
+
+        var filteredMessages = messages
+            .Where(x => x.Author.Id == me.Id && x.Embeds.Any(embed => embed.Title is "Matchmaking Queue"))
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
+
+        if (filteredMessages.Count > 1)
+        {
+            var cleanup = filteredMessages.Skip(1).ToList();
+            await _discordClient.DeleteMessagesAsync(_queueChannel, cleanup.Select(x => x.Id), null, ct);
+        }
+
+        var message = filteredMessages.FirstOrDefault();
+
+        if (message is null)
+        {
+            await _discordClient.SendMessageAsync(_queueChannel, await CreateQueueMessage(queuePlayers, activeMatches, _context), null, ct);
+        }
+        else
+        {
+            var msg = await CreateQueueMessage(queuePlayers, activeMatches, _context);
+            await _discordClient.ModifyMessageAsync(_queueChannel, message.Id, (x) =>
+            {
+                x.Content = msg.Content;
+                x.Embeds = msg.Embeds;
+                x.Components = msg.Components;
+            }, null, ct);
         }
     }
 

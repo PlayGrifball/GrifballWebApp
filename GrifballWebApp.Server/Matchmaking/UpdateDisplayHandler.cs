@@ -4,8 +4,8 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class UpdateDisplayHandler : INotificationHandler<UpdateDisplayNotification>
 {
-    private readonly DisplayQueueService _displayQueueService;
-    public UpdateDisplayHandler(DisplayQueueService displayQueueService)
+    private readonly QueueService _displayQueueService;
+    public UpdateDisplayHandler(QueueService displayQueueService)
     {
         _displayQueueService = displayQueueService;
     }

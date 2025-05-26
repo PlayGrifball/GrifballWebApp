@@ -11,14 +11,14 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionContext>
 {
-    private readonly IQueueService _queryService;
+    private readonly IQueueRepository _queryService;
     private readonly IPublisher _publisher;
     private readonly GrifballContext _context;
     private readonly IDiscordClient _discordClient;
     private readonly IOptions<DiscordOptions> _discordOptions;
-    private readonly DisplayQueueService _displayQueueService;
+    private readonly QueueService _displayQueueService;
 
-    public ButtonInteractions(IQueueService queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions, DisplayQueueService displayQueueService)
+    public ButtonInteractions(IQueueRepository queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions, QueueService displayQueueService)
     {
         _queryService = queryService;
         _publisher = publisher;

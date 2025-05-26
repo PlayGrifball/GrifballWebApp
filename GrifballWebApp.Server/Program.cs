@@ -186,9 +186,9 @@ public class Program
             })
             .ValidateOnStart();
 
-        builder.Services.AddTransient<IQueueService, QueryService>();
-        builder.Services.AddSingleton<DisplayQueueService>();
-        builder.Services.AddHostedService<DisplayQueueService>();
+        builder.Services.AddTransient<IQueueRepository, QueueRepository>();
+        builder.Services.AddTransient<QueueService>();
+        builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddDiscordGateway()
             .AddApplicationCommands()
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()

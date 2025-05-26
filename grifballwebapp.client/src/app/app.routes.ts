@@ -117,6 +117,11 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
+    path: 'lateLeague',
+    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
+    title: 'Late League',
+  },
+  {
     path: '**',
     loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
     title: 'Page Not Found'

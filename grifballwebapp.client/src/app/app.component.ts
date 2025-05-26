@@ -39,6 +39,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   public navLinks: SideBarDto[] = [
     { title: "Home", path: "", show: computed(() => true) },
+    { title: "Late League", path: "/lateLeague", show: computed(() => true) },
     { title: "Login", path: "/login", show: computed(() => true) },
     { title: "Season Manager", path: "/seasonManager", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },

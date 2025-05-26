@@ -5,7 +5,7 @@ using QueuedPlayer = GrifballWebApp.Database.Models.QueuedPlayer;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
-public interface IQueueService
+public interface IQueueRepository
 {
     Task<bool> AddPlayerToQueue(ulong id, CancellationToken ct = default);
     Task<bool> RemovePlayerToQueue(ulong id, CancellationToken ct = default);
@@ -15,10 +15,10 @@ public interface IQueueService
     Task<MatchedMatch[]> GetActiveMatches(CancellationToken ct);
 }
 
-public class QueryService : IQueueService
+public class QueueRepository : IQueueRepository
 {
     private readonly GrifballContext _context;
-    public QueryService(GrifballContext context)
+    public QueueRepository(GrifballContext context)
     {
         _context = context;
     }

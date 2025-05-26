@@ -11,8 +11,8 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
 {
     private readonly GrifballContext _context;
     private readonly IDiscordClient _discordClient;
-    private readonly DisplayQueueService _displayQueueService;
-    public StringMenuInteractions(GrifballContext context, IDiscordClient discordClient, DisplayQueueService displayQueueService)
+    private readonly QueueService _displayQueueService;
+    public StringMenuInteractions(GrifballContext context, IDiscordClient discordClient, QueueService displayQueueService)
     {
         _context = context;
         _discordClient = discordClient;

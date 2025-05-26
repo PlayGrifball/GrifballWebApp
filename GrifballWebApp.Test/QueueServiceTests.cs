@@ -2,37 +2,30 @@
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Microsoft.Extensions.Configuration;
 using GrifballWebApp.Server;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using GrifballWebApp.Seeder;
 using EntityFrameworkCore.Testing.NSubstitute;
 using GrifballWebApp.Server.Services;
-using NetCord.Services;
-using Surprenant.Grunt.Models.HaloInfinite;
-
+using NetCord.Rest;
 
 namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public class DisplayQueueServiceTests
+public class QueueServiceTests
 {
-    private ILogger<DisplayQueueService> _logger;
-    private IServiceScopeFactory _serviceScopeFactory;
-    private IServiceScope _serviceScope;
-    private IQueueService _queueService;
+    private ILogger<QueueService> _logger;
+    private IQueueRepository _queueRepository;
     private IDataPullService _dataPullService;
     private GrifballContext _context;
-    private IDiscordClient _restClient;
-    private IConfiguration _configuration;
+    private IDiscordClient _discordClient;
     private IOptions<DiscordOptions> _discordOptions;
 
-    private DisplayQueueService _service;
+    private QueueService _service;
 
     [SetUp]
     public async Task Setup()
@@ -46,13 +39,24 @@ public class DisplayQueueServiceTests
         _context = Create.MockedDbContextFor<GrifballContext>(options);
 
         // Substitute dependencies
-        _logger = Substitute.For<ILogger<DisplayQueueService>>();
-        _serviceScopeFactory = Substitute.For<IServiceScopeFactory>();
-        _serviceScope = Substitute.For<IServiceScope>();
-        _queueService = new QueryService(_context);
+        _logger = Substitute.For<ILogger<QueueService>>();
+        _queueRepository = new QueueRepository(_context);
         _dataPullService = Substitute.For<IDataPullService>();
-        _restClient = Substitute.For<IDiscordClient>();
-        _configuration = Substitute.For<IConfiguration>();
+        _discordClient = Substitute.For<IDiscordClient>();
+        _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(new Server.RestMessage()
+            {
+                Author = new Author()
+                {
+                    Id = 1, // Should match bot id
+                },
+                Embeds = [],
+            });
+        _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(new GuildThread()
+            {
+                Id = 1,
+            });
         _discordOptions = Substitute.For<IOptions<DiscordOptions>>();
         _discordOptions.Value.Returns(new DiscordOptions
         {
@@ -60,22 +64,8 @@ public class DisplayQueueServiceTests
             MatchPlayers = 8,
         });
 
-        // Setup service scope factory
-        _serviceScopeFactory.CreateScope().Returns(_serviceScope);
-
-        // Setup service provider
-        var serviceProvider = Substitute.For<IServiceProvider>();
-        serviceProvider.GetService(typeof(IQueueService)).Returns(_queueService);
-        serviceProvider.GetService(typeof(IDataPullService)).Returns(_dataPullService);
-        serviceProvider.GetService(typeof(GrifballContext)).Returns(_context);
-        serviceProvider.GetService(typeof(IDiscordClient)).Returns(_restClient);
-        serviceProvider.GetService(typeof(IConfiguration)).Returns(_configuration);
-        serviceProvider.GetService(typeof(IOptions<DiscordOptions>)).Returns(_discordOptions);
-
-        _serviceScope.ServiceProvider.Returns(serviceProvider);
-
         // Initialize the service
-        _service = new DisplayQueueService(_logger, _serviceScopeFactory);
+        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
 
         // Seed ranks
         await new RankSeeder(_context, new TestReader()).SeedRanks();
@@ -84,10 +74,7 @@ public class DisplayQueueServiceTests
     [TearDown]
     public void TearDown()
     {
-        _serviceScope.Dispose();
         _context.Dispose();
-        //_restClient.Dispose();
-        _service.Dispose();
     }
 
     [Test]
