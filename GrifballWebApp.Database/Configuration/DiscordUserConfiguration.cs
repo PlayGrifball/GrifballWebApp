@@ -14,13 +14,9 @@ public partial class DiscordUserConfiguration : IEntityTypeConfiguration<Discord
         // Value always comes from discord
         entity.Property(e => e.DiscordUserID).ValueGeneratedNever();
 
-        entity.HasOne(x => x.QueuedPlayer)
-            .WithOne(x => x.DiscordUser)
-            .HasForeignKey<QueuedPlayer>(x => x.DiscordUserID)
+        entity.HasOne(d => d.User)
+            .WithOne(p => p.DiscordUser)
+            .HasForeignKey<User>(d => d.DiscordUserID)
             .IsRequired(false);
-
-        entity.HasMany(x => x.MatchedPlayers)
-            .WithOne(x => x.DiscordUser)
-            .HasForeignKey(x => x.DiscordUserID);
     }
 }

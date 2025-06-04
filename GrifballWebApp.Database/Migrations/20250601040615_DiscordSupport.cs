@@ -28,6 +28,53 @@ namespace GrifballWebApp.Database.Migrations
                 oldType: "nvarchar(max)",
                 oldNullable: true);
 
+            migrationBuilder.AddColumn<long>(
+                name: "DiscordUserID",
+                schema: "Auth",
+                table: "Users",
+                type: "bigint",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "LossStreak",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Losses",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "MMR",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "WinStreak",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Wins",
+                schema: "Auth",
+                table: "Users",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
             migrationBuilder.CreateTable(
                 name: "Discord",
                 schema: "User",
@@ -35,12 +82,6 @@ namespace GrifballWebApp.Database.Migrations
                 {
                     DiscordUserID = table.Column<long>(type: "bigint", nullable: false),
                     DiscordUsername = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    XboxUserID = table.Column<long>(type: "bigint", nullable: true),
-                    MMR = table.Column<int>(type: "int", nullable: false),
-                    WinStreak = table.Column<int>(type: "int", nullable: false),
-                    LossStreak = table.Column<int>(type: "int", nullable: false),
-                    Wins = table.Column<int>(type: "int", nullable: false),
-                    Losses = table.Column<int>(type: "int", nullable: false),
                     PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
                         .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
                     PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -49,12 +90,6 @@ namespace GrifballWebApp.Database.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Discord", x => x.DiscordUserID);
-                    table.ForeignKey(
-                        name: "FK_Discord_XboxUsers_XboxUserID",
-                        column: x => x.XboxUserID,
-                        principalSchema: "Xbox",
-                        principalTable: "XboxUsers",
-                        principalColumn: "XboxUserID");
                 })
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "DiscordHistory")
@@ -85,6 +120,34 @@ namespace GrifballWebApp.Database.Migrations
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.CreateTable(
+                name: "QueuedPlayers",
+                schema: "Matchmaking",
+                columns: table => new
+                {
+                    UserID = table.Column<int>(type: "int", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QueuedPlayers", x => x.UserID);
+                    table.ForeignKey(
+                        name: "FK_QueuedPlayers_Users_UserID",
+                        column: x => x.UserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "QueuedPlayersHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Matchmaking")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
                 name: "Ranks",
                 schema: "Matchmaking",
                 columns: table => new
@@ -107,34 +170,6 @@ namespace GrifballWebApp.Database.Migrations
                 })
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "RanksHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Matchmaking")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.CreateTable(
-                name: "QueuedPlayers",
-                schema: "Matchmaking",
-                columns: table => new
-                {
-                    DiscordUserID = table.Column<long>(type: "bigint", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
-                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
-                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
-                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QueuedPlayers", x => x.DiscordUserID);
-                    table.ForeignKey(
-                        name: "FK_QueuedPlayers_Discord_DiscordUserID",
-                        column: x => x.DiscordUserID,
-                        principalSchema: "User",
-                        principalTable: "Discord",
-                        principalColumn: "DiscordUserID");
-                })
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "QueuedPlayersHistory")
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Matchmaking")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
@@ -193,7 +228,7 @@ namespace GrifballWebApp.Database.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    DiscordUserID = table.Column<long>(type: "bigint", nullable: false),
+                    UserID = table.Column<int>(type: "int", nullable: false),
                     Kicked = table.Column<bool>(type: "bit", nullable: false),
                     MatchedTeamID = table.Column<int>(type: "int", nullable: false),
                     PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -205,18 +240,18 @@ namespace GrifballWebApp.Database.Migrations
                 {
                     table.PrimaryKey("PK_MatchedPlayers", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_MatchedPlayers_Discord_DiscordUserID",
-                        column: x => x.DiscordUserID,
-                        principalSchema: "User",
-                        principalTable: "Discord",
-                        principalColumn: "DiscordUserID",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
                         name: "FK_MatchedPlayers_MatchedTeams_MatchedTeamID",
                         column: x => x.MatchedTeamID,
                         principalSchema: "Matchmaking",
                         principalTable: "MatchedTeams",
                         principalColumn: "MatchedTeamId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MatchedPlayers_Users_UserID",
+                        column: x => x.UserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("SqlServer:IsTemporal", true)
@@ -307,12 +342,12 @@ namespace GrifballWebApp.Database.Migrations
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Discord_XboxUserID",
-                schema: "User",
-                table: "Discord",
-                column: "XboxUserID",
+                name: "IX_Users_DiscordUserID",
+                schema: "Auth",
+                table: "Users",
+                column: "DiscordUserID",
                 unique: true,
-                filter: "[XboxUserID] IS NOT NULL");
+                filter: "[DiscordUserID] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchedKickVotes_KickMatchedPlayerId",
@@ -349,27 +384,50 @@ namespace GrifballWebApp.Database.Migrations
                 filter: "[MatchID] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_MatchedPlayers_DiscordUserID",
-                schema: "Matchmaking",
-                table: "MatchedPlayers",
-                column: "DiscordUserID");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_MatchedPlayers_MatchedTeamID",
                 schema: "Matchmaking",
                 table: "MatchedPlayers",
                 column: "MatchedTeamID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchedPlayers_UserID",
+                schema: "Matchmaking",
+                table: "MatchedPlayers",
+                column: "UserID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchedWinnerVotes_MatchedPlayerId",
                 schema: "Matchmaking",
                 table: "MatchedWinnerVotes",
                 column: "MatchedPlayerId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Users_Discord_DiscordUserID",
+                schema: "Auth",
+                table: "Users",
+                column: "DiscordUserID",
+                principalSchema: "User",
+                principalTable: "Discord",
+                principalColumn: "DiscordUserID");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_Users_Discord_DiscordUserID",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropTable(
+                name: "Discord",
+                schema: "User")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "DiscordHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "User")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
             migrationBuilder.DropTable(
                 name: "MatchedKickVotes",
                 schema: "Matchmaking")
@@ -425,15 +483,6 @@ namespace GrifballWebApp.Database.Migrations
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
 
             migrationBuilder.DropTable(
-                name: "Discord",
-                schema: "User")
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "DiscordHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "User")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.DropTable(
                 name: "MatchedTeams",
                 schema: "Matchmaking")
                 .Annotation("SqlServer:IsTemporal", true)
@@ -441,6 +490,41 @@ namespace GrifballWebApp.Database.Migrations
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Matchmaking")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropIndex(
+                name: "IX_Users_DiscordUserID",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "DiscordUserID",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "LossStreak",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "Losses",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "MMR",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "WinStreak",
+                schema: "Auth",
+                table: "Users");
+
+            migrationBuilder.DropColumn(
+                name: "Wins",
+                schema: "Auth",
+                table: "Users");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Gamertag",

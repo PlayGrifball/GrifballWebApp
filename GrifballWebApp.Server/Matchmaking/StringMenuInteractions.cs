@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
@@ -19,39 +20,45 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
         _displayQueueService = displayQueueService;
     }
 
+    private async Task<Database.Models.User?> UserGuard()
+    {
+        var user = await _context.Users
+                    .Include(x => x.XboxUser)
+                    .Where(x => x.DiscordUserID == (long)Context.User.Id)
+                    .FirstOrDefaultAsync();
+        if (user is null || user.XboxUser is null)
+        {
+            await Context.TempResponse("You must set your gamertag first");
+            return null;
+        }
+
+        return user;
+    }
+
     [ComponentInteraction("votetokick")]
     public async Task VoteToKick(int matchId)
     {
+        var user = await UserGuard();
+        if (user is null) return;
+
         var value = Context.SelectedValues.Select(long.Parse).First();
 
         var match = await _context.MatchedMatches
             .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.DiscordUser)
+                .ThenInclude(x => x.User)
             .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.DiscordUser)
+                .ThenInclude(x => x.User)
             .Where(m => m.Id == matchId)
             .FirstOrDefaultAsync();
 
         if (match is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"This match does not exist",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("This match does not exist");
             return;
         }
         else if (match.Active is false)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"This match is over",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("This match is over");
             return;
         }
 
@@ -59,51 +66,27 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
                 .Union(match.AwayTeam.Players)
                 .ToArray();
 
-        var me = all.FirstOrDefault(x => x.DiscordUserID == (long)Context.User.Id);
-        var them = all.FirstOrDefault(x => x.DiscordUserID == value);
+        var me = all.FirstOrDefault(x => x.UserID == user.Id);
+        var them = all.FirstOrDefault(x => x.UserID == value);
 
         if (me is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"You are not in this match",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("You are not in this match");
             return;
         }
         else if (me.Kicked)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"You have been kicked. You cannot vote.",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("You have been kicked. You cannot vote.");
             return;
         }
         else if (them is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"They are not in this match",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("They are not in this match");
             return;
         }
         else if (them.Kicked)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"{them.DiscordUser.DiscordUsername} has already been kicked",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse($"{them.ToDisplayName()} has already been kicked");
             return;
         }
 
@@ -140,7 +123,7 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
 
             if (thresholdReached)
             {
-                var player = all.FirstOrDefault(x => x.DiscordUserID == value);
+                var player = all.FirstOrDefault(x => x.UserID == value);
                 if (player is not null)
                 {
                     player.Kicked = true;
@@ -148,7 +131,7 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
 
                     await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
                     {
-                        Content = $"{them.DiscordUser.DiscordUsername} has been kicked",
+                        Content = $"{them.ToDisplayName()} has been kicked",
                     }));
                     await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
                     return;
@@ -161,13 +144,7 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
         }
         else
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = $"You have already voted to kick {them.DiscordUser.DiscordUsername}",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse($"You have already voted to kick {them.ToDisplayName()}");
             return;
         }
 
@@ -175,7 +152,7 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
 
         await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
         {
-            Content = $"{me.DiscordUser.DiscordUsername} has voted to kick {them.DiscordUser.DiscordUsername}",
+            Content = $"{me.ToDisplayName()} has voted to kick {them.ToDisplayName()}",
         }));
     }
 }

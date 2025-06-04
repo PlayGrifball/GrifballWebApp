@@ -13,12 +13,14 @@ public class DataPullService : IDataPullService
     private readonly ILogger<DataPullService> _logger;
     private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly GrifballContext _grifballContext;
+    private readonly GetsertXboxUserService _getsertXboxUserService;
 
-    public DataPullService(ILogger<DataPullService> logger, HaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext)
+    public DataPullService(ILogger<DataPullService> logger, HaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, GetsertXboxUserService getsertXboxUserService)
     {
         _logger = logger;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _grifballContext = grifballContext;
+        _getsertXboxUserService = getsertXboxUserService;
     }
     public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
     {
@@ -200,26 +202,7 @@ public class DataPullService : IDataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = _grifballContext.XboxUsers.FirstOrDefault(x => x.XboxUserID == xuidLong);
-
-            if (xboxUser is null) // Needs to be created
-            {
-                var client = await _haloInfiniteClientFactory.CreateAsync();
-                var users = await client.Users(new List<string>() { xuid });
-
-                var user = users.Result.FirstOrDefault(u => u.xuid == xuid);
-                if (user is null)
-                {
-                    _logger.LogError("User {UserID} not found", x.PlayerId);
-                    throw new Exception("Failed to find user");
-                }
-
-                xboxUser = new XboxUser()
-                {
-                    XboxUserID = xuidLong,
-                    Gamertag = user.gamertag,
-                };
-            }
+            var xboxUser = await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");

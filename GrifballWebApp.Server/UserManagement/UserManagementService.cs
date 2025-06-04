@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
@@ -32,11 +33,13 @@ public class UserManagementService
     private readonly GrifballContext _context;
     private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly UserManager<User> _userManager;
-    public UserManagementService(GrifballContext grifballContext, HaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager)
+    private readonly GetsertXboxUserService _getsertXboxUserService;
+    public UserManagementService(GrifballContext grifballContext, HaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager, GetsertXboxUserService getsertXboxUserService)
     {
         _context = grifballContext;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _userManager = userManager;
+        _getsertXboxUserService = getsertXboxUserService;
     }
 
     public Task<List<UserResponseDto>> GetUsers(CancellationToken ct)
@@ -94,30 +97,10 @@ public class UserManagementService
         if (userNameTaken)
             return "User name is taken";
 
-        var xboxUser = await _context.XboxUsers
-            .Include(x => x.User)
-            .Where(x => x.Gamertag == createUserRequest.Gamertag).FirstOrDefaultAsync(ct);
+        var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(createUserRequest.Gamertag, ct);
 
         if (xboxUser is null)
-        {
-            var client = await _haloInfiniteClientFactory.CreateAsync();
-            var xboxUserResult = await client.UserByGamertag(createUserRequest.Gamertag);
-            if (xboxUserResult.Result is null || string.IsNullOrEmpty(xboxUserResult.Result.xuid))
-            {
-                return $"Failed to get xbox user with gamertag {createUserRequest.Gamertag}";
-            }
-            var parsed = long.TryParse(xboxUserResult.Result.xuid, out var xboxUserID);
-
-            if (parsed is false)
-                return "Contact Sysadmin";
-
-            xboxUser = new Database.Models.XboxUser()
-            {
-                XboxUserID = xboxUserID,
-                Gamertag = xboxUserResult.Result.gamertag,
-            };
-            await _context.XboxUsers.AddAsync(xboxUser);
-        }
+            return msg ?? "Failed to get xbox user, unknown reason";
 
         if (xboxUser.User is not null)
             return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
@@ -165,30 +148,10 @@ public class UserManagementService
             }
             else
             {
-                var xboxUser = await _context.XboxUsers
-                .Include(x => x.User)
-                .Where(x => x.Gamertag == editUser.Gamertag).FirstOrDefaultAsync();
+                var (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(editUser.Gamertag, ct);
 
                 if (xboxUser is null)
-                {
-                    var client = await _haloInfiniteClientFactory.CreateAsync();
-                    var xboxUserResult = await client.UserByGamertag(editUser.Gamertag);
-                    if (xboxUserResult.Result is null || string.IsNullOrEmpty(xboxUserResult.Result.xuid))
-                    {
-                        return $"Failed to get xbox user with gamertag {editUser.Gamertag}";
-                    }
-                    var parsed = long.TryParse(xboxUserResult.Result.xuid, out var xboxUserID);
-
-                    if (parsed is false)
-                        return "Contact Sysadmin";
-
-                    xboxUser = new Database.Models.XboxUser()
-                    {
-                        XboxUserID = xboxUserID,
-                        Gamertag = xboxUserResult.Result.gamertag,
-                    };
-                    await _context.XboxUsers.AddAsync(xboxUser);
-                }
+                    return msg ?? "Failed to get xbox user, unknown reason";
 
                 if (xboxUser.User is not null)
                     return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";

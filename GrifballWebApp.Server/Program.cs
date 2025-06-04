@@ -192,7 +192,8 @@ public class Program
         builder.Services.AddDiscordGateway()
             .AddApplicationCommands()
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
-            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(); ;
+            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
+            .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
         builder.Services.AddSingleton<IDiscordClient, DiscordClient>();
         builder.Services.AddMediatR(cfg =>
         {
@@ -214,6 +215,8 @@ public class Program
         builder.Services.AddTransient<GradesService>();
         builder.Services.AddTransient<ScheduleService>();
         builder.Services.AddTransient<AvailabilityService>();
+        builder.Services.AddTransient<DiscordSetGamertag>();
+        builder.Services.AddTransient<GetsertXboxUserService>();
 
         builder.Services.AddDataProtection()
             .PersistKeysToDbContext<GrifballContext>();

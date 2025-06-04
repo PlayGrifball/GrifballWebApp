@@ -110,16 +110,16 @@ public class QueueServiceTests
         await _context.SaveChangesAsync();
         var queuedPlayers = new[]
         {
-            new QueuedPlayer { DiscordUserID = 1, JoinedAt = now.AddMinutes(-9), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 1, DiscordUsername = "1", XboxUserID = 1 } },
-            new QueuedPlayer { DiscordUserID = 2, JoinedAt = now.AddMinutes(-8), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 2, DiscordUsername = "2", XboxUserID = 2 } },
-            new QueuedPlayer { DiscordUserID = 3, JoinedAt = now.AddMinutes(-7), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 3, DiscordUsername = "3", XboxUserID = 3 } },
-            new QueuedPlayer { DiscordUserID = 4, JoinedAt = now.AddMinutes(-6), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 4, DiscordUsername = "4", XboxUserID = 4 } },
-            new QueuedPlayer { DiscordUserID = 5, JoinedAt = now.AddMinutes(-5), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 5, DiscordUsername = "5", XboxUserID = 5 } },
-            new QueuedPlayer { DiscordUserID = 6, JoinedAt = now.AddMinutes(-4), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 6, DiscordUsername = "6", XboxUserID = 6 } },
-            new QueuedPlayer { DiscordUserID = 7, JoinedAt = now.AddMinutes(-3), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 7, DiscordUsername = "7", XboxUserID = 7 } },
-            new QueuedPlayer { DiscordUserID = 8, JoinedAt = now.AddMinutes(-2), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 8, DiscordUsername = "8", XboxUserID = 8 } },
-            new QueuedPlayer { DiscordUserID = 9, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 9, DiscordUsername = "9", XboxUserID = 9 } },
-            new QueuedPlayer { DiscordUserID = 10, JoinedAt = now.AddMinutes(-1), DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 10, DiscordUsername = "10", XboxUserID = 10 } },
+            new QueuedPlayer { UserID = 1, JoinedAt = now.AddMinutes(-9), User = new User { MMR = 1000, Id = 1, XboxUserID = 1 } },
+            new QueuedPlayer { UserID = 2, JoinedAt = now.AddMinutes(-8), User = new User { MMR = 1000, Id = 2, XboxUserID = 2 } },
+            new QueuedPlayer { UserID = 3, JoinedAt = now.AddMinutes(-7), User = new User { MMR = 1000, Id = 3, XboxUserID = 3 } },
+            new QueuedPlayer { UserID = 4, JoinedAt = now.AddMinutes(-6), User = new User { MMR = 1000, Id = 4, XboxUserID = 4 } },
+            new QueuedPlayer { UserID = 5, JoinedAt = now.AddMinutes(-5), User = new User { MMR = 1000, Id = 5, XboxUserID = 5 } },
+            new QueuedPlayer { UserID = 6, JoinedAt = now.AddMinutes(-4), User = new User { MMR = 1000, Id = 6, XboxUserID = 6 } },
+            new QueuedPlayer { UserID = 7, JoinedAt = now.AddMinutes(-3), User = new User { MMR = 1000, Id = 7, XboxUserID = 7 } },
+            new QueuedPlayer { UserID = 8, JoinedAt = now.AddMinutes(-2), User = new User { MMR = 1000, Id = 8, XboxUserID = 8 } },
+            new QueuedPlayer { UserID = 9, JoinedAt = now.AddMinutes(-1), User = new User { MMR = 1000, Id = 9, XboxUserID = 9 } },
+            new QueuedPlayer { UserID = 10, JoinedAt = now.AddMinutes(-1), User = new User { MMR = 1000, Id = 10, XboxUserID = 10 } },
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
@@ -132,7 +132,7 @@ public class QueueServiceTests
             .Where(x => x.Active)
             .CountAsync();
         var stillQueued = await _context.QueuedPlayer
-            .Select(x => x.DiscordUserID)
+            .Select(x => x.UserID)
             .ToArrayAsync();
         Assert.Multiple(() =>
         {
@@ -208,12 +208,12 @@ public class QueueServiceTests
         });
 
         // Check the players MMR has been adjusted
-        var winners = await _context.DiscordUsers
-            .Where(x => x.DiscordUserID == 1 || x.DiscordUserID == 3 || x.DiscordUserID == 5 || x.DiscordUserID == 7)
+        var winners = await _context.Users
+            .Where(x => x.Id == 1 || x.Id == 3 || x.Id == 5 || x.Id == 7)
             .Select(x => x.MMR)
             .ToArrayAsync();
-        var losers = await _context.DiscordUsers
-            .Where(x => x.DiscordUserID == 2 || x.DiscordUserID == 4 || x.DiscordUserID == 6 || x.DiscordUserID == 8)
+        var losers = await _context.Users
+            .Where(x => x.Id == 2 || x.Id == 4 || x.Id == 6 || x.Id == 8)
             .Select(x => x.MMR)
             .ToArrayAsync();
 
@@ -232,7 +232,7 @@ public class QueueServiceTests
         //Arrange
         var queuedPlayers = new[]
         {
-            new QueuedPlayer { DiscordUserID = 9, DiscordUser = new DiscordUser { MMR = 1000, DiscordUserID = 9, DiscordUsername = "9" } },
+            new QueuedPlayer { UserID = 9, User = new User { MMR = 1000, Id = 9 } },
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();

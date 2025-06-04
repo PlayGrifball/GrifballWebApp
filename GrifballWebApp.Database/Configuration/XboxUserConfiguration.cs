@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
-public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
+public class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
 {
     public void Configure(EntityTypeBuilder<XboxUser> entity)
     {
@@ -18,14 +18,5 @@ public partial class XboxUserConfiguration : IEntityTypeConfiguration<XboxUser>
             .WithOne(p => p.XboxUser)
             .HasForeignKey<User>(d => d.XboxUserID)
             .IsRequired(false);
-
-        entity.HasOne(d => d.DiscordUser)
-            .WithOne(p => p.XboxUser)
-            .HasForeignKey<DiscordUser>(d => d.XboxUserID)
-            .IsRequired(false);
-
-        OnConfigurePartial(entity);
     }
-
-    partial void OnConfigurePartial(EntityTypeBuilder<XboxUser> entity);
 }

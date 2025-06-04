@@ -1,43 +1,86 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
 using NetCord.Services.ApplicationCommands;
-using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Server;
+
+public class GamertagAutocomplete : IAutocompleteProvider<AutocompleteInteractionContext>
+{
+    private readonly GrifballContext _context;
+    public GamertagAutocomplete(GrifballContext context)
+    {
+        _context = context;
+    }
+    public ValueTask<IEnumerable<ApplicationCommandOptionChoiceProperties>?> GetChoicesAsync(ApplicationCommandInteractionDataOption option,
+        AutocompleteInteractionContext context)
+    {
+        var input = option.Value!;
+
+        var result = _context.XboxUsers
+            .Select(x => x.Gamertag)
+            .Where(x => x.Contains(input))
+            .Take(25)
+            .Select(x => new ApplicationCommandOptionChoiceProperties(x, x));
+
+        return new(result);
+    }
+}
 
 public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContext>
 {
     private readonly GrifballContext _context;
-    private readonly HaloInfiniteClientFactory _clientFactory;
     private readonly ILogger<DiscordCommands> _logger;
     private readonly IDataPullService _dataPullService;
-    public DiscordCommands(GrifballContext context, HaloInfiniteClientFactory clientFactory, ILogger<DiscordCommands> logger, IDataPullService dataPullService)
+    private readonly DiscordSetGamertag _discordSetGamertag;
+    private readonly GetsertXboxUserService _getsertXboxUserService;
+    public DiscordCommands(GrifballContext context,
+        ILogger<DiscordCommands> logger,
+        IDataPullService dataPullService,
+        DiscordSetGamertag discordSetGamertag,
+        GetsertXboxUserService getsertXboxUserService)
     {
         _context = context;
-        _clientFactory = clientFactory;
         _logger = logger;
         _dataPullService = dataPullService;
+        _discordSetGamertag = discordSetGamertag;
+        _getsertXboxUserService = getsertXboxUserService;
     }
 
-    [SlashCommand("matches", "Get your recent matches")]
-    public async Task RecentMatches()
+
+    [SlashCommand("matches", "Get recent matches")]
+    public async Task RecentMatches([SlashCommandParameter(Description = "Gamertag to search matches for", AutocompleteProviderType = typeof(GamertagAutocomplete))] string? gamertag = null)
     {
         await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage());
 
-        var xboxUser = await _context.DiscordUsers
-            .Where(x => x.DiscordUserID == (long)Context.User.Id)
-            .Select(x => x.XboxUser)
-            .FirstOrDefaultAsync();
+        XboxUser? xboxUser = null;
+        string? msg = null;
 
-        if (xboxUser == null)
+        if (!string.IsNullOrWhiteSpace(gamertag))
         {
-            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first"));
-            return;
+            (xboxUser, msg) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag);
+            if (xboxUser is null)
+            {
+                await Context.Interaction.ModifyResponseAsync(x => x.WithContent(msg));
+                return;
+            }
         }
+        else
+        {
+            xboxUser = await _context.DiscordUsers
+                .Where(x => x.DiscordUserID == (long)Context.User.Id)
+                .Select(x => x.User!.XboxUser)
+                .FirstOrDefaultAsync();
+            if (xboxUser == null)
+            {
+                await Context.Interaction.ModifyResponseAsync(x => x.WithContent("You must set your gamertag first, or provide someone else's gamertag to search for"));
+                return;
+            }
+        } 
 
         try
         {
@@ -105,92 +148,20 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
             list.Add(emded);
         }
 
-        await Context.Interaction.ModifyResponseAsync(x => x.WithEmbeds(list));
+        if (list.Any())
+        {
+            await Context.Interaction.ModifyResponseAsync(x => x.WithEmbeds(list));
+        }
+        else
+        {
+            await Context.Interaction.ModifyResponseAsync(x => x.WithContent($"I found no matches for {gamertag}"));
+        }
     }
 
     [SlashCommand("setgamertag", "Set your gamertag")]
     public async Task SetGamertag(string gamertag)
     {
-        await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
-
-        var discordUser = await _context.DiscordUsers
-            .Where(x => x.DiscordUserID == (long)Context.User.Id)
-            .FirstOrDefaultAsync();
-
-        if (discordUser == null)
-        {
-            discordUser = new DiscordUser()
-            {
-                DiscordUserID = (long)Context.User.Id,
-                DiscordUsername = Context.User.Username
-            };
-            _context.DiscordUsers.Add(discordUser);
-        }
-
-        var xboxUser = await _context.XboxUsers
-            .Where(x => x.Gamertag == gamertag)
-            .FirstOrDefaultAsync();
-
-        if (xboxUser is not null)
-        {
-            discordUser.XboxUser = xboxUser;
-            await _context.SaveChangesAsync();
-            await Context.Interaction.ModifyResponseAsync(x =>
-            {
-                x.WithContent("Set Gamertag Successfully");
-                x.WithFlags(MessageFlags.Ephemeral);
-            });
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
-            return;
-        }
-
-        HaloInfiniteClient? client = await _clientFactory.CreateAsync();
-        try
-        {
-            client = await _clientFactory.CreateAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogCritical(ex, "Failed to create Halo Infinite Client");
-            await Context.Interaction.ModifyResponseAsync(x => x.WithContent("Fatal Error creating Infinite Client, contact sysadmin"));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
-            return;
-        }
-
-
-        var user = await client.UserByGamertag(gamertag);
-        if (user.Result is null)
-        {
-            await Context.Interaction.ModifyResponseAsync(x =>
-            {
-                x.WithContent("Gamertag not found");
-                x.WithFlags(MessageFlags.Ephemeral);
-            });
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
-            return;
-        }
-
-        xboxUser = new XboxUser()
-        {
-            XboxUserID = long.Parse(user.Result.xuid),
-            Gamertag = user.Result.gamertag,
-        };
-        _context.XboxUsers.Add(xboxUser);
-
-        discordUser.XboxUser = xboxUser;
-
-        await _context.SaveChangesAsync();
-
-        await Context.Interaction.ModifyResponseAsync(x =>
-        {
-            x.WithContent("Set Gamertag Successfully");
-            x.WithFlags(MessageFlags.Ephemeral);
-        });
-        await Task.Delay(5000);
-        await Context.Interaction.DeleteResponseAsync();
+        await _discordSetGamertag.SetGamertag(Context, gamertag);
     }
 }
 

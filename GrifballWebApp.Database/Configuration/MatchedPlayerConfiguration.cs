@@ -11,8 +11,8 @@ public class MatchedPlayerConfiguration : IEntityTypeConfiguration<MatchedPlayer
 
         builder.HasKey(x => x.Id);
 
-        // Value always comes from discord
-        builder.Property(e => e.DiscordUserID).ValueGeneratedNever();
+        // Value always comes from User table
+        builder.Property(e => e.UserID).ValueGeneratedNever();
 
         builder.HasOne(x => x.MatchedTeam)
             .WithMany(x => x.Players)

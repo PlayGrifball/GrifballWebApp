@@ -2,7 +2,7 @@
 namespace GrifballWebApp.Database.Models;
 public class QueuedPlayer
 {
-    public long DiscordUserID { get; set; }
-    public DiscordUser DiscordUser { get; set; }
+    public int UserID { get; set; }
+    public User User { get; set; } = null!;
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }

@@ -1,11 +1,9 @@
 ﻿namespace GrifballWebApp.Server.EventOrganizer;
 
-#nullable disable
-
 public class SeasonDto
 {
     public int SeasonID { get; set; }
-    public string SeasonName { get; set; }
+    public string SeasonName { get; set; } = null!;
     public DateTime SignupsOpen { get; set; }
     public DateTime SignupsClose { get; set; }
     public DateTime DraftStart { get; set; }

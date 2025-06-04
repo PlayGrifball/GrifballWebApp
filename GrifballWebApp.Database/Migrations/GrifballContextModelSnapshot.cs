@@ -74,15 +74,6 @@ namespace GrifballWebApp.Database.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("LossStreak")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Losses")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MMR")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
@@ -93,20 +84,7 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.Property<int>("WinStreak")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Wins")
-                        .HasColumnType("int");
-
-                    b.Property<long?>("XboxUserID")
-                        .HasColumnType("bigint");
-
                     b.HasKey("DiscordUserID");
-
-                    b.HasIndex("XboxUserID")
-                        .IsUnique()
-                        .HasFilter("[XboxUserID] IS NOT NULL");
 
                     b.ToTable("Discord", "User");
 
@@ -646,9 +624,6 @@ namespace GrifballWebApp.Database.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<long>("DiscordUserID")
-                        .HasColumnType("bigint");
-
                     b.Property<bool>("Kicked")
                         .HasColumnType("bit");
 
@@ -665,11 +640,14 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DiscordUserID");
-
                     b.HasIndex("MatchedTeamID");
+
+                    b.HasIndex("UserID");
 
                     b.ToTable("MatchedPlayers", "Matchmaking");
 
@@ -929,8 +907,8 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.QueuedPlayer", b =>
                 {
-                    b.Property<long>("DiscordUserID")
-                        .HasColumnType("bigint");
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("datetime2");
@@ -945,7 +923,7 @@ namespace GrifballWebApp.Database.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
 
-                    b.HasKey("DiscordUserID");
+                    b.HasKey("UserID");
 
                     b.ToTable("QueuedPlayers", "Matchmaking");
 
@@ -1583,6 +1561,9 @@ namespace GrifballWebApp.Database.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("DisplayName")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
@@ -1602,6 +1583,15 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("LossStreak")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Losses")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MMR")
+                        .HasColumnType("int");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -1643,10 +1633,20 @@ namespace GrifballWebApp.Database.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<int>("WinStreak")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Wins")
+                        .HasColumnType("int");
+
                     b.Property<long?>("XboxUserID")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DiscordUserID")
+                        .IsUnique()
+                        .HasFilter("[DiscordUserID] IS NOT NULL");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -1995,15 +1995,6 @@ namespace GrifballWebApp.Database.Migrations
                             }));
                 });
 
-            modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser", b =>
-                {
-                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
-                        .WithOne("DiscordUser")
-                        .HasForeignKey("GrifballWebApp.Database.Models.DiscordUser", "XboxUserID");
-
-                    b.Navigation("XboxUser");
-                });
-
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
                 {
                     b.HasOne("GrifballWebApp.Database.Models.MatchBracketInfo", "AwayTeamPreviousMatchBracketInfo")
@@ -2124,21 +2115,21 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.DiscordUser", "DiscordUser")
-                        .WithMany("MatchedPlayers")
-                        .HasForeignKey("DiscordUserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.MatchedTeam", "MatchedTeam")
                         .WithMany("Players")
                         .HasForeignKey("MatchedTeamID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DiscordUser");
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
+                        .WithMany("MatchedPlayers")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("MatchedTeam");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedWinnerVote", b =>
@@ -2200,11 +2191,11 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.QueuedPlayer", b =>
                 {
-                    b.HasOne("GrifballWebApp.Database.Models.DiscordUser", "DiscordUser")
+                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
                         .WithOne("QueuedPlayer")
-                        .HasForeignKey("GrifballWebApp.Database.Models.QueuedPlayer", "DiscordUserID");
+                        .HasForeignKey("GrifballWebApp.Database.Models.QueuedPlayer", "UserID");
 
-                    b.Navigation("DiscordUser");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
@@ -2347,6 +2338,10 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User", b =>
                 {
+                    b.HasOne("GrifballWebApp.Database.Models.DiscordUser", "DiscordUser")
+                        .WithOne("User")
+                        .HasForeignKey("GrifballWebApp.Database.Models.User", "DiscordUserID");
+
                     b.HasOne("GrifballWebApp.Database.Models.Region", "Region")
                         .WithMany("Users")
                         .HasForeignKey("RegionID");
@@ -2354,6 +2349,8 @@ namespace GrifballWebApp.Database.Migrations
                     b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
                         .WithOne("User")
                         .HasForeignKey("GrifballWebApp.Database.Models.User", "XboxUserID");
+
+                    b.Navigation("DiscordUser");
 
                     b.Navigation("Region");
 
@@ -2445,9 +2442,7 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser", b =>
                 {
-                    b.Navigation("MatchedPlayers");
-
-                    b.Navigation("QueuedPlayer");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
@@ -2572,7 +2567,11 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User", b =>
                 {
+                    b.Navigation("MatchedPlayers");
+
                     b.Navigation("PersonExperiences");
+
+                    b.Navigation("QueuedPlayer");
 
                     b.Navigation("SeasonSignups");
 
@@ -2583,8 +2582,6 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
-                    b.Navigation("DiscordUser");
-
                     b.Navigation("MatchParticipants");
 
                     b.Navigation("User");

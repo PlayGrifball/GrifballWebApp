@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -67,7 +68,7 @@ public class QueueService
     {
         // Grab the last 2 matches played for all players
         var allXboxIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
-            .Select(x => x.DiscordUser.XboxUserID)
+            .Select(x => x.User.XboxUserID)
             .Where(x => x is not null)
             .Select(x => x!.Value)
             .ToList();
@@ -76,14 +77,16 @@ public class QueueService
         // Now for each match check for any possible match
         foreach (var match in activeMatches)
         {
-            var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
-            var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.DiscordUser.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+            var t1 = match.HomeTeam.Players.Where(x => x.Kicked is false).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
+            var t2 = match.AwayTeam.Players.Where(x => x.Kicked is false).Select(x => x.User.XboxUserID).Where(x => x is not null).Select(x => x!.Value).ToList();
 
             var matchFound = await _context.Matches
                 .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.XboxUser)
-                        .ThenInclude(x => x.DiscordUser)
+                    .ThenInclude(x => x.MatchParticipants)
+                        .ThenInclude(x => x.XboxUser.User!.XboxUser)
+                .Include(x => x.MatchTeams)
+                    .ThenInclude(x => x.MatchParticipants)
+                        .ThenInclude(x => x.XboxUser.User!.DiscordUser)
                 .Where(x => x.MatchTeams.Count == 2)
                 .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
                 .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
@@ -110,8 +113,8 @@ public class QueueService
                     ?? throw new Exception("No winning team");
                 var losingTeam = matchFound.MatchTeams.FirstOrDefault(x => x.Outcome == Outcomes.Lost)
                     ?? throw new Exception("No losing team");
-                var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
-                var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.DiscordUser!);
+                var winners = winningTeam.MatchParticipants.Select(x => x.XboxUser.User!);
+                var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.User!);
                 var winnerId = winningTeam.TeamID;
 
                 await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
@@ -122,8 +125,8 @@ public class QueueService
                 match.Active = false;
                 var winningTeam = voteResult.Key == WinnerVote.Home ? match.HomeTeam : match.AwayTeam;
                 var losingTeam = voteResult.Key == WinnerVote.Home ? match.AwayTeam : match.HomeTeam;
-                var winners = winningTeam.Players.Select(x => x.DiscordUser);
-                var losers = losingTeam.Players.Select(x => x.DiscordUser);
+                var winners = winningTeam.Players.Select(x => x.User);
+                var losers = losingTeam.Players.Select(x => x.User);
                 var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
                 await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
             }
@@ -206,21 +209,21 @@ public class QueueService
                     }
                 }
 
-                var team1mmr = team1.Average(x => x.DiscordUser.MMR);
-                var team2mmr = team2.Average(x => x.DiscordUser.MMR);
+                var team1mmr = team1.Average(x => x.User.MMR);
+                var team2mmr = team2.Average(x => x.User.MMR);
 
                 var team1Obj = new MatchedTeam()
                 {
                     Players = team1.Select(x => new MatchedPlayer()
                     {
-                        DiscordUserID = x.DiscordUserID,
+                        UserID = x.UserID,
                     }).ToList(),
                 };
                 var team2Obj = new MatchedTeam()
                 {
                     Players = team2.Select(x => new MatchedPlayer()
                     {
-                        DiscordUserID = x.DiscordUserID,
+                        UserID = x.UserID,
                     }).ToList(),
                 };
 
@@ -265,23 +268,25 @@ public class QueueService
                     Name = $"Match #{matchedMatch.Id}",
                     AutoArchiveDuration = ThreadArchiveDuration.OneHour,
                 }, null, ct);
-                var discordUsers = matchedMatch.HomeTeam.Players.Select(x => x.DiscordUser).Concat(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser)).ToArray();
+                var discordUsers = matchedMatch.HomeTeam.Players.Select(x => x.User.DiscordUser).Concat(matchedMatch.AwayTeam.Players.Select(x => x.User.DiscordUser))
+                    .Where(x => x != null)
+                    .ToArray();
                 foreach (var user in discordUsers)
                 {
                     // Going to wrap in try catch. My gut says maybe this could somehow fail is user for whatever reason is not in the guild anymore?
                     try
                     {
-                        await thread.AddUserAsync((ulong)user.DiscordUserID, null, ct);
+                        await thread.AddUserAsync((ulong)user!.DiscordUserID, null, ct);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user.DiscordUserID);
+                        _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user?.DiscordUserID);
                     }
                 }
 
                 var kickable = matchedMatch.HomeTeam.Players
-                    .Select(x => x.DiscordUser)
-                    .Union(matchedMatch.AwayTeam.Players.Select(x => x.DiscordUser))
+                    .Select(x => x.User)
+                    .Union(matchedMatch.AwayTeam.Players.Select(x => x.User))
                     .ToArray();
                 MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
                 var voteMessage = await _discordClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
@@ -297,10 +302,10 @@ public class QueueService
     {
         // Sanity check remove any players from queue that are in active match.
         var activePlayerIds = activeMatches.SelectMany(match => match.HomeTeam.Players.Concat(match.AwayTeam.Players))
-            .Select(x => x.DiscordUserID).ToArray();
+            .Select(x => x.UserID).ToArray();
         if (activePlayerIds.Any())
         {
-            var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.DiscordUserID)).ToArray();
+            var playersToRemove = queuePlayers.Where(x => activePlayerIds.Contains(x.UserID)).ToArray();
             if (playersToRemove.Any())
             {
                 _context.QueuedPlayer.RemoveRange(playersToRemove);
@@ -347,7 +352,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<DiscordUser> winners, IEnumerable<DiscordUser> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -356,7 +361,7 @@ public class QueueService
 
         foreach (var player in winners)
         {
-            oldMMR.TryAdd(player.DiscordUserID, player.MMR);
+            oldMMR.TryAdd(player.Id, player.MMR);
 
             player.Wins++;
             player.WinStreak++;
@@ -376,7 +381,7 @@ public class QueueService
 
         foreach (var player in losers)
         {
-            oldMMR.TryAdd(player.DiscordUserID, player.MMR);
+            oldMMR.TryAdd(player.Id, player.MMR);
 
             player.Losses++;
             player.WinStreak = 0;
@@ -477,7 +482,7 @@ public class QueueService
         }
     }
 
-    public static MessageProperties CreateVoteMessage(int matchId, DiscordUser[] kickablePlayers)
+    public static MessageProperties CreateVoteMessage(int matchId, Database.Models.User[] kickablePlayers)
     {
         var home = new ButtonProperties("voteforwinner:" + matchId + ":Home", "Home Team Won", ButtonStyle.Primary);
         var away = new ButtonProperties("voteforwinner:" + matchId + ":Away", "Away Team Won", ButtonStyle.Secondary);
@@ -487,7 +492,7 @@ public class QueueService
         {
             Placeholder = "Vote to kick",
             CustomId = "votetokick:" + matchId,
-            Options = [.. kickablePlayers.Select(x => new StringMenuSelectOptionProperties(x.DiscordUsername, x.DiscordUserID.ToString()))],
+            Options = [.. kickablePlayers.Select(x => new StringMenuSelectOptionProperties(x.XboxUser?.Gamertag ?? x.DiscordUser?.DiscordUsername ?? x.DisplayName ?? x.Id.ToString(), x.Id.ToString()))],
         };
 
         ActionRowProperties actionRow = new([home, away, cancel]);
@@ -507,11 +512,11 @@ public class QueueService
             var kickable = match.HomeTeam.Players
                 .Union(match.AwayTeam.Players)
                 .Where(x => x.Kicked is false)
-                .Select(x => x.DiscordUser)
+                .Select(x => x.User)
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
             var votes = await _context.MatchedWinnerVotes
-                .Include(x => x.MatchedPlayer.DiscordUser)
+                .Include(x => x.MatchedPlayer.User)
                 .Where(x => x.MatchId == match.Id)
                 .Where(x => x.MatchedPlayer.Kicked == false)
                 .GroupBy(x => x.WinnerVote)
@@ -536,7 +541,7 @@ public class QueueService
                 message.AddEmbeds([new()
                     {
                     Title = $"{voteGroup.Key} ({count})",
-                    Description = string.Join(", ", voteGroup.Select(x => x.MatchedPlayer.DiscordUser.DiscordUsername)),
+                    Description = string.Join(", ", voteGroup.Select(x => x.MatchedPlayer.User.XboxUser?.Gamertag ?? x.MatchedPlayer.User.DiscordUser?.DiscordUsername ?? x.MatchedPlayer.User.Id.ToString())),
                     }]);
             }
             await _discordClient.ModifyMessageAsync(match.ThreadID.Value, match.VoteMessageID!.Value, x =>
@@ -553,9 +558,9 @@ public class QueueService
         var sb = new StringBuilder();
         foreach(var (player, index) in team.Players.Select((player, index) => (player, index)))
         {
-            sb.Append(player.DiscordUser.DiscordUsername);
+            sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);
             sb.Append(": ");
-            var found = oldMMR.TryGetValue(player.DiscordUserID, out var oldMmr);
+            var found = oldMMR.TryGetValue(player.Id, out var oldMmr);
             int? OLDMMR = found ? oldMmr : null;
             if (OLDMMR is not null)
                 sb.Append(OLDMMR);
@@ -564,7 +569,7 @@ public class QueueService
 
             sb.Append(" -> ");
 
-            sb.Append(player.DiscordUser.MMR);
+            sb.Append(player.User.MMR);
 
             sb.Append(" (");
             if (OLDMMR is null)
@@ -573,7 +578,7 @@ public class QueueService
             }
             else
             {
-                var change = player.DiscordUser.MMR - OLDMMR.Value;
+                var change = player.User.MMR - OLDMMR.Value;
                 if (change > 0)
                     sb.Append("+");
                 sb.Append(change);
@@ -596,8 +601,9 @@ public class QueueService
         //var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties(1365830914873098341), ButtonStyle.Success);
         var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties("✅"), ButtonStyle.Success);
         var leave = new ButtonProperties("leave_queue", "Leave Queue", new EmojiProperties("❌"), ButtonStyle.Danger);
-        
-        ActionRowProperties actionRow = new([join, leave]);
+        var gt = new ButtonProperties("set_gamertag", "Set Gamertag", ButtonStyle.Primary);
+
+        ActionRowProperties actionRow = new([join, leave, gt]);
 
         var queueEmbed = new EmbedProperties()
         {
@@ -615,12 +621,12 @@ public class QueueService
             var map = queuePlayers.Select((player, index) =>
             {
                 var waitTime = FormatDuration(player.JoinedAt);
-                var rank = GetPlayerRank(player.DiscordUser, ranks);
+                var rank = GetPlayerRank(player.User, ranks);
                 // TODO: figure out emoji or img?
                 if (rank is null)
-                    return $"{index + 1}. {player.DiscordUser.DiscordUsername} (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
+                    return $"{index + 1}. {player.ToDisplayName()} (MMR: {player.User.MMR}) = Queued {waitTime}";
                 else 
-                    return $"{index + 1}. {player.DiscordUser.DiscordUsername} [{rank.Name}] (MMR: {player.DiscordUser.MMR}) = Queued {waitTime}";
+                    return $"{index + 1}. {player.ToDisplayName()} [{rank.Name}] (MMR: {player.User.MMR}) = Queued {waitTime}";
             });
 
             queueEmbed.AddFields(new EmbedFieldProperties()
@@ -659,21 +665,21 @@ public class QueueService
             };
 
             var team = match.HomeTeam;
-            var players = team.Players.Select(player => $"{player.DiscordUser.DiscordUsername} (MMR: {player.DiscordUser.MMR})");
+            var players = team.Players.Select(player => $"{player.ToDisplayName()} (MMR: {player.User.MMR})");
             var str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Home (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
+                Name = $"Home (Avg MMR: {team.Players.Average(x => x.User.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
 
             team = match.AwayTeam;
-            players = team.Players.Select(player => $"{player.DiscordUser.DiscordUsername} (MMR: {player.DiscordUser.MMR})");
+            players = team.Players.Select(player => $"{player.ToDisplayName()} (MMR: {player.User.MMR})");
             str = string.Join("\n", players);
             matchEmbed.AddFields(new EmbedFieldProperties()
             {
-                Name = $"Away (Avg MMR: {team.Players.Average(x => x.DiscordUser.MMR)})",
+                Name = $"Away (Avg MMR: {team.Players.Average(x => x.User.MMR)})",
                 Value = string.IsNullOrWhiteSpace(str) ? "No players" : str,
                 Inline = true,
             });
@@ -689,7 +695,7 @@ public class QueueService
         };
     }
 
-    private Rank? GetPlayerRank(DiscordUser player, Rank[] ranks)
+    private Rank? GetPlayerRank(Database.Models.User player, Rank[] ranks)
     {
         if (ranks.Any() is false)
             return null;

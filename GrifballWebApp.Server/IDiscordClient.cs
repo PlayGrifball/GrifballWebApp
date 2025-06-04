@@ -136,7 +136,7 @@ public class Embed : IEmbed
 public interface IGuildThread
 {
     ulong Id { get; set; }
-    Task AddUserAsync(ulong userId, RestRequestProperties restRequestProperties = null, CancellationToken cancellationToken = default);
+    Task AddUserAsync(ulong userId, RestRequestProperties? restRequestProperties = null, CancellationToken cancellationToken = default);
 }
 
 public class GuildThread : IGuildThread
@@ -156,7 +156,7 @@ public class GuildThread : IGuildThread
         _thread = thread;
     }
 
-    public async Task AddUserAsync(ulong userId, RestRequestProperties restRequestProperties = null, CancellationToken cancellationToken = default)
+    public async Task AddUserAsync(ulong userId, RestRequestProperties? restRequestProperties = null, CancellationToken cancellationToken = default)
     {
         if (_thread is not null)
             await _thread.AddUserAsync(userId, restRequestProperties, cancellationToken);

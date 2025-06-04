@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -28,97 +29,84 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         _displayQueueService = displayQueueService;
     }
 
+    private async Task<Database.Models.User?> UserGuard()
+    {
+        var user = await _context.Users
+                    .Include(x => x.XboxUser)
+                    .Where(x => x.DiscordUserID == (long)Context.User.Id)
+                    .FirstOrDefaultAsync();
+        if (user is null || user.XboxUser is null)
+        {
+            await Context.TempResponse("You must set your gamertag first");
+            return null;
+        }
+
+        return user;
+    }
+
+    [ComponentInteraction("set_gamertag")]
+    public async Task SetGamertag()
+    {
+        var modal = new ModalProperties("set_gamertag", "Set Gamertag")
+            .AddComponents(new TextInputProperties("gamertag", TextInputStyle.Short, "Gamertag")
+            {
+                Required = true,
+                MaxLength = 20,
+            });
+
+        
+       await Context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+
     [ComponentInteraction("join_queue")]
     public async Task JoinQueue()
     {
-        var discordUser = await _context.DiscordUsers
-            .FirstOrDefaultAsync(x => x.DiscordUserID == (long)Context.User.Id);
-        if (discordUser is null)
-        {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = "You must set your gamertag first",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
-            return;
-        }
+        var user = await UserGuard();
+        if (user is null) return;
 
-        var queuePlayer = await _queryService.GetQueuePlayer(Context.User.Id);
-        var inMatch = await _queryService.IsInMatch(Context.User.Id);
+        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
+        var inMatch = await _queryService.IsInMatch(user.Id);
 
         if (queuePlayer is not null || inMatch)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse(queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!");
         }
         else
         {
-            await _queryService.AddPlayerToQueue(Context.User.Id);
+            await _queryService.AddPlayerToQueue(user.Id);
 
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = "You have joined the queue! 🎉",
-                Flags = MessageFlags.Ephemeral,
-            }));
             _ = _publisher.Publish(new UpdateDisplayNotification());
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("You have joined the queue! 🎉");
         }
     }
 
     [ComponentInteraction("leave_queue")]
     public async Task LeaveQueue()
     {
-        var discordUser = await _context.DiscordUsers
-            .FirstOrDefaultAsync(x => x.DiscordUserID == (long)Context.User.Id);
-        if (discordUser is null)
-        {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = "You must set your gamertag first",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
-            return;
-        }
+        var user = await UserGuard();
+        if (user is null) return;
 
-        var queuePlayer = await _queryService.GetQueuePlayer(Context.User.Id);
+        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
 
         if (queuePlayer is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = "You are not in the matchmaking queue.",
-                Flags = MessageFlags.Ephemeral,
-            }));
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("You are not in the matchmaking queue.");
         }
         else
         {
-            await _queryService.RemovePlayerToQueue(Context.User.Id);
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-            {
-                Content = "You have left the queue",
-                Flags = MessageFlags.Ephemeral,
-            }));
+            await _queryService.RemovePlayerToQueue(user.Id);
             _ = _publisher.Publish(new UpdateDisplayNotification());
-            await Task.Delay(5000);
-            await Context.Interaction.DeleteResponseAsync();
+            await Context.TempResponse("You have left the queue");
         }
     }
 
     [ComponentInteraction("voteforwinner")]
     public async Task VoteForWinner(int matchId, string winner)
     {
+        var user = await UserGuard();
+        if (user is null) return;
+
         var parsed = Enum.TryParse<WinnerVote>(winner, out var outValue);
         if (parsed is false)
         {
@@ -132,10 +120,10 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         var match = await _context.MatchedMatches
             .Include(x => x.HomeTeam)
                 .ThenInclude(x => x.Players)
-                    .ThenInclude(x => x.DiscordUser)
+                    .ThenInclude(x => x.User)
             .Include(x => x.AwayTeam)
                 .ThenInclude(x => x.Players)
-                    .ThenInclude(x => x.DiscordUser)
+                    .ThenInclude(x => x.User)
             .Where(x => x.Active)
             .FirstOrDefaultAsync(x => x.Id == matchId);
 
@@ -151,7 +139,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         var me = match.HomeTeam.Players
             .Union(match.AwayTeam.Players)
-            .FirstOrDefault(x => x.DiscordUserID == (long)Context.User.Id);
+            .FirstOrDefault(x => x.UserID == user.Id);
 
         if (me is null)
         {
@@ -187,12 +175,6 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
 
-        await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
-        {
-            Content = $"Thanks for voting! You voted for {outValue}",
-            Flags = MessageFlags.Ephemeral,
-        }));
-        await Task.Delay(5000);
-        await Context.Interaction.DeleteResponseAsync();
+        await Context.TempResponse($"Thanks for voting! You voted for {outValue}");
     }
 }

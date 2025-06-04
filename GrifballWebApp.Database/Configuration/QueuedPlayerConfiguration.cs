@@ -9,9 +9,9 @@ public class QueuedPlayerConfiguration : IEntityTypeConfiguration<QueuedPlayer>
     {
         builder.ToTable("QueuedPlayers", "Matchmaking", tb => tb.IsTemporal(true));
 
-        builder.HasKey(e => e.DiscordUserID);
+        builder.HasKey(e => e.UserID);
 
-        // Value always comes from discord
-        builder.Property(e => e.DiscordUserID).ValueGeneratedNever();
+        // Value always comes from User table
+        builder.Property(e => e.UserID).ValueGeneratedNever();
     }
 }
