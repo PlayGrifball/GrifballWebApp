@@ -37,12 +37,12 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
     private readonly ILogger<DiscordCommands> _logger;
     private readonly IDataPullService _dataPullService;
     private readonly DiscordSetGamertag _discordSetGamertag;
-    private readonly GetsertXboxUserService _getsertXboxUserService;
+    private readonly IGetsertXboxUserService _getsertXboxUserService;
     public DiscordCommands(GrifballContext context,
         ILogger<DiscordCommands> logger,
         IDataPullService dataPullService,
         DiscordSetGamertag discordSetGamertag,
-        GetsertXboxUserService getsertXboxUserService)
+        IGetsertXboxUserService getsertXboxUserService)
     {
         _context = context;
         _logger = logger;

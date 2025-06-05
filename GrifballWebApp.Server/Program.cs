@@ -216,7 +216,7 @@ public class Program
         builder.Services.AddTransient<ScheduleService>();
         builder.Services.AddTransient<AvailabilityService>();
         builder.Services.AddTransient<DiscordSetGamertag>();
-        builder.Services.AddTransient<GetsertXboxUserService>();
+        builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
 
         builder.Services.AddDataProtection()
             .PersistKeysToDbContext<GrifballContext>();

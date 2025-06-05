@@ -6,7 +6,13 @@ using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Server.Services;
 
-public class GetsertXboxUserService
+public interface IGetsertXboxUserService
+{
+    Task<(XboxUser?, string?)> GetsertXboxUserByGamertag(string gamertag, CancellationToken ct = default);
+    Task<XboxUser> GetsertXboxUserByXuid(long xuid, CancellationToken ct = default);
+}
+
+public class GetsertXboxUserService : IGetsertXboxUserService
 {
     private readonly ILogger<GetsertXboxUserService> _logger;
     private readonly GrifballContext _grifballContext;

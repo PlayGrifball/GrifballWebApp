@@ -1,20 +1,16 @@
 ﻿using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
-using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Server.Profile;
 
 public class ProfileService
 {
     private readonly GrifballContext _context;
-    private readonly HaloInfiniteClientFactory _infiniteClientFactory;
-    private readonly GetsertXboxUserService _getsertXboxUserService;
-    public ProfileService(GrifballContext context, HaloInfiniteClientFactory clientFactory, GetsertXboxUserService getsertXboxUserService)
+    private readonly IGetsertXboxUserService _getsertXboxUserService;
+    public ProfileService(GrifballContext context, IGetsertXboxUserService getsertXboxUserService)
     {
         _context = context;
-        _infiniteClientFactory = clientFactory;
         _getsertXboxUserService = getsertXboxUserService;
     }
 
@@ -69,7 +65,10 @@ public class ProfileService
             signups.ForEach(x => x.UserID = userID);
 
             // Delete just in case it doesnt cascade
-            await _context.UserRoles.Where(x => x.UserId == existingUserID).ExecuteDeleteAsync(ct);
+            var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == existingUserID).ToArrayAsync(ct);
+            _context.UserRoles.RemoveRange(rolesToDelete);
+            //ExecuteDeleteAsync does not work in with in memory test
+            //await _context.UserRoles.Where(x => x.UserId == existingUserID).ExecuteDeleteAsync(ct);
 
             await _context.SaveChangesAsync(ct);
 

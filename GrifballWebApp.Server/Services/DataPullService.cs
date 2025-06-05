@@ -13,9 +13,9 @@ public class DataPullService : IDataPullService
     private readonly ILogger<DataPullService> _logger;
     private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly GrifballContext _grifballContext;
-    private readonly GetsertXboxUserService _getsertXboxUserService;
+    private readonly IGetsertXboxUserService _getsertXboxUserService;
 
-    public DataPullService(ILogger<DataPullService> logger, HaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, GetsertXboxUserService getsertXboxUserService)
+    public DataPullService(ILogger<DataPullService> logger, HaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
     {
         _logger = logger;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
