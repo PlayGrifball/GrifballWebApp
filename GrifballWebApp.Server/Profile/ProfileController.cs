@@ -11,9 +11,9 @@ namespace GrifballWebApp.Server.Profile;
 public class ProfileController : ControllerBase
 {
     private readonly GrifballContext _context;
-    private readonly ProfileService _profileSevice;
+    private readonly IProfileService _profileSevice;
 
-    public ProfileController(GrifballContext context, ProfileService profileService)
+    public ProfileController(GrifballContext context, IProfileService profileService)
     {
         _context = context;
         _profileSevice = profileService;

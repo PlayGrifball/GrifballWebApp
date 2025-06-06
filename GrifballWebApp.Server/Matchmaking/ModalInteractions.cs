@@ -1,4 +1,5 @@
-﻿using NetCord;
+﻿using DiscordInterfaces;
+using NetCord;
 using NetCord.Services.ComponentInteractions;
 
 namespace GrifballWebApp.Server.Matchmaking;
@@ -15,6 +16,6 @@ public class ModalInteractions : ComponentInteractionModule<ModalInteractionCont
     public async Task SetGamertag()
     {
         var gamertag = ((TextInput)Context.Components[0]).Value;
-        await _discordSetGamertag.SetGamertag(Context, gamertag);
+        await _discordSetGamertag.SetGamertag(Context.ToDiscordContext(), gamertag);
     }
 }

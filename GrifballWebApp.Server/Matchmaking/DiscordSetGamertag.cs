@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterfaces;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Profile;
@@ -16,19 +17,19 @@ public class DiscordSetGamertag
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordSetGamertag> _logger;
     private readonly UserManager<Database.Models.User> _userManager;
-    private readonly ProfileService _profileService;
+    private readonly IProfileService _profileService;
     public DiscordSetGamertag(
         GrifballContext context,
         ILogger<DiscordSetGamertag> logger,
         UserManager<Database.Models.User> userManager,
-        ProfileService profileService)
+        IProfileService profileService)
     {
         _context = context;
         _logger = logger;
         _userManager = userManager;
         _profileService = profileService;
     }
-    public async Task SetGamertag(IInteractionContext Context, string gamertag)
+    public async Task SetGamertag(IDiscordInteractionContext Context, string gamertag)
     {
         await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));
 

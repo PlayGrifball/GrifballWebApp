@@ -4,7 +4,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Profile;
 
-public class ProfileService
+public interface IProfileService
+{
+    Task<string?> SetGamertag(int userID, string gamertag, CancellationToken ct = default);
+}
+
+public class ProfileService : IProfileService
 {
     private readonly GrifballContext _context;
     private readonly IGetsertXboxUserService _getsertXboxUserService;

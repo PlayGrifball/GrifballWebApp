@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterfaces;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
@@ -161,7 +162,7 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
     [SlashCommand("setgamertag", "Set your gamertag")]
     public async Task SetGamertag(string gamertag)
     {
-        await _discordSetGamertag.SetGamertag(Context, gamertag);
+        await _discordSetGamertag.SetGamertag(Context.ToDiscordContext(), gamertag);
     }
 }
 
