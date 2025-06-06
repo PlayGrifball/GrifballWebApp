@@ -20,7 +20,7 @@ Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-co
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrifballWebApp.Test", "GrifballWebApp.Test\GrifballWebApp.Test.csproj", "{D9630EF6-C700-4EDE-8583-FF807A06E6C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordInterfaces", "..\DiscordInterfaces\DiscordInterfaces.csproj", "{DEF6B069-4200-48C3-B798-EF3379658C72}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordInterfaces", "DiscordInterfaces\DiscordInterfaces.csproj", "{DEF6B069-4200-48C3-B798-EF3379658C72}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

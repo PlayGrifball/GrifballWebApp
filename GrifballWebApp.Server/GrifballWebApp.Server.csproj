@@ -47,7 +47,7 @@
     It is literally only causing problems in build process when using docker since we do not use the node image for the backend
     Almost tempted to just delete it but for now we will just not include it when building docker
     -->
-    <ProjectReference Include="..\..\DiscordInterfaces\DiscordInterfaces.csproj" />
+    <ProjectReference Include="..\DiscordInterfaces\DiscordInterfaces.csproj" />
     <ProjectReference Include="..\grifballwebapp.client\grifballwebapp.client.esproj" Condition="!$(DefineConstants.Contains('DOCKER'))">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
