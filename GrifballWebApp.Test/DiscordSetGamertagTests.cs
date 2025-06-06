@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NetCord.Rest;
 using NSubstitute;
 using Role = GrifballWebApp.Database.Models.Role;
 using User = GrifballWebApp.Database.Models.User;
@@ -90,6 +91,16 @@ public class DiscordSetGamertagTests
             Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
             Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
             Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                    .ModifyResponseAsync(Arg.Any<Action<MessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            }, "Message should be modified");
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                await _interactionContext.Interaction.Received(1)
+                .DeleteResponseAsync();
+            }, "Message should be deleted");
         });
         
     }
