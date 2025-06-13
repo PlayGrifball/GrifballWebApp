@@ -4,16 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Profile;
 
-public interface IProfileService
+public interface ISetGamertagService
 {
     Task<string?> SetGamertag(int userID, string gamertag, CancellationToken ct = default);
 }
 
-public class ProfileService : IProfileService
+public class SetGamertagService : ISetGamertagService
 {
     private readonly GrifballContext _context;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
-    public ProfileService(GrifballContext context, IGetsertXboxUserService getsertXboxUserService)
+    public SetGamertagService(GrifballContext context, IGetsertXboxUserService getsertXboxUserService)
     {
         _context = context;
         _getsertXboxUserService = getsertXboxUserService;
@@ -54,12 +54,20 @@ public class ProfileService : IProfileService
                 return "That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect";
             }
 
+            // TODO: We may want to more this remaining logic to a AccountMergerService so it can be reused by admins instead of only when taking gamertag from dummy account
+
             // Now we either must transfer everything to the dummy account and delete this account
             // or we transfer from the dummy account and delete the dummy. I think I'll do the latter
 
             // We'll grab most of the things that the user owns, but we'll leave roles just because muh security
             // TODO: review that we are transfer any new tables that user 'owns' now that did not when this service was written
             var existingUserID = existingUser.Id;
+
+            if (existingUser.DiscordUserID is not null)
+            {
+                user.DiscordUserID = existingUser.DiscordUserID;
+            }
+
             var teamPlayers = await _context.TeamPlayers.Where(tp => tp.UserID == existingUserID).ToListAsync(ct);
             teamPlayers.ForEach(tp => tp.UserID = userID);
 

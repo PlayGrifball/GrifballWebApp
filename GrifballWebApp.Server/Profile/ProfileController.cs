@@ -11,12 +11,12 @@ namespace GrifballWebApp.Server.Profile;
 public class ProfileController : ControllerBase
 {
     private readonly GrifballContext _context;
-    private readonly IProfileService _profileSevice;
+    private readonly ISetGamertagService _setGamertagService;
 
-    public ProfileController(GrifballContext context, IProfileService profileService)
+    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService)
     {
         _context = context;
-        _profileSevice = profileService;
+        _setGamertagService = setGamertagService;
     }
 
     [HttpGet("{userID:int}", Name = "GetGamertag")]
@@ -39,7 +39,7 @@ public class ProfileController : ControllerBase
         if (id != userID)
             throw new Exception("Cannot set another user's gamertag");
 
-        return _profileSevice.SetGamertag(userID, gamertag, ct);
+        return _setGamertagService.SetGamertag(userID, gamertag, ct);
     }
 
     private int? GetUserID()

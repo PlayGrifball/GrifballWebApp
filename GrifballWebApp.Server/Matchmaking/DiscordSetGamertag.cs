@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NetCord;
 using NetCord.Rest;
-using NetCord.Services;
 using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Matchmaking;
@@ -17,17 +16,17 @@ public class DiscordSetGamertag
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordSetGamertag> _logger;
     private readonly UserManager<Database.Models.User> _userManager;
-    private readonly IProfileService _profileService;
+    private readonly ISetGamertagService _setGamertagService;
     public DiscordSetGamertag(
         GrifballContext context,
         ILogger<DiscordSetGamertag> logger,
         UserManager<Database.Models.User> userManager,
-        IProfileService profileService)
+        ISetGamertagService setGamertagService)
     {
         _context = context;
         _logger = logger;
         _userManager = userManager;
-        _profileService = profileService;
+        _setGamertagService = setGamertagService;
     }
     public async Task SetGamertag(IDiscordInteractionContext Context, string gamertag)
     {
@@ -90,7 +89,7 @@ public class DiscordSetGamertag
             // TODO: We need visibility on external auth in admin panel
         }
 
-        var msg = await _profileService.SetGamertag(discordUser.User.Id, gamertag);
+        var msg = await _setGamertagService.SetGamertag(discordUser.User.Id, gamertag);
 
         if (msg is not null)
         {

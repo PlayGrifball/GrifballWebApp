@@ -211,7 +211,7 @@ public class Program
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<SeasonMatchService>();
         builder.Services.AddTransient<TeamStandingsService>();
-        builder.Services.AddTransient<IProfileService, ProfileService>();
+        builder.Services.AddTransient<ISetGamertagService, SetGamertagService>();
         builder.Services.AddTransient<GradesService>();
         builder.Services.AddTransient<ScheduleService>();
         builder.Services.AddTransient<AvailabilityService>();
