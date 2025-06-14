@@ -1,5 +1,5 @@
 # Stage 1
-FROM node:20.11.1-alpine AS build
+FROM node:22.12.0-alpine AS build
 WORKDIR /usr/build
 COPY package.json ./
 COPY package-lock.json ./
