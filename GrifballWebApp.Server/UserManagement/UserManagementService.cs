@@ -1,6 +1,9 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.QueryableExtensions;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.Sorting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
@@ -42,9 +45,9 @@ public class UserManagementService
         _getsertXboxUserService = getsertXboxUserService;
     }
 
-    public Task<List<UserResponseDto>> GetUsers(CancellationToken ct)
+    public async Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, CancellationToken ct)
     {
-        return _context.Users
+        var query = _context.Users
             .AsNoTracking().AsSplitQuery()
             .Select(user => new UserResponseDto()
             {
@@ -62,8 +65,18 @@ public class UserManagementService
                     RoleName = r.Name,
                     HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
                 }).ToList(),
-            })
-            .ToListAsync(ct);
+            });
+
+        if (filter.SortColumn is null)
+        {
+            query = query.OrderByDescending(x => x.UserID);
+        }
+        else
+        {
+            query = query.OrderBy(filter);
+        }
+
+        return await query.PaginationResult(filter, ct);
     }
 
     public Task<UserResponseDto?> GetUser(int userID, CancellationToken ct)

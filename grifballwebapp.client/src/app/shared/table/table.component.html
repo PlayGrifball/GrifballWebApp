@@ -1,0 +1,29 @@
+<table mat-table [dataSource]="current().results" matSort (matSortChange)="onSortChange($event)">
+    @for (column of columns(); track column) {
+        <ng-container [matColumnDef]="column.columnDef">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{column.header}}
+            </th>
+            <!-- Not sure why @if (column.template) doesnt work on its own... so well check not equal undefined -->
+            @if (column.template !== undefined) {
+                <td mat-cell *matCellDef="let row">
+                <ng-container 
+                    *ngTemplateOutlet="rowTemplates.get(column.template); context: { $implicit: row }">
+                </ng-container>
+                </td>
+            } @else {
+                <td mat-cell *matCellDef="let row">
+                {{column.cell(row)}}
+                </td>
+            }
+            
+        </ng-container>
+    }
+    <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+    <tr mat-row [@rowsAnimation]="true" *matRowDef="let row; columns: displayedColumns();"></tr>
+</table>
+<mat-paginator [pageSizeOptions]="[10, 20, 100]"
+  (page)="onPageChange($event)"
+  [length]="current().totalCount"
+  showFirstLastButtons>
+</mat-paginator>

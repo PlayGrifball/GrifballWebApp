@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using GrifballWebApp.Server.Dtos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.UserManagement;
@@ -16,9 +17,9 @@ public class UserManagementController : ControllerBase
     }
 
     [HttpGet(Name = "GetUsers")]
-    public Task<List<UserResponseDto>> GetUsers(CancellationToken ct)
+    public Task<PaginationResult<UserResponseDto>> GetUsers([FromQuery] PaginationFilter filter, CancellationToken ct)
     {
-        return _userManagementService.GetUsers(ct);
+        return _userManagementService.GetUsers(filter, ct);
     }
 
     [HttpGet("{userID:int}", Name = "GetUser")]

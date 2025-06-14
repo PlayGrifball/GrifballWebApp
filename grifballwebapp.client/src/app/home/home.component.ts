@@ -8,6 +8,7 @@ import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/s
 import { MatHeaderRow, MatRow, MatTable, MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
+import { PaginationResult } from '../shared/paginationResult';
 
 @Component({
     selector: 'app-home',
@@ -116,10 +117,4 @@ export interface Event
   start: string,
   end: string,
   eventType: 'Signup' | 'Draft' | 'Season'
-}
-
-export interface PaginationResult<T>
-{
-  totalCount: number,
-  results: T[],
 }
