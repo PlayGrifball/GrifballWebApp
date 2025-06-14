@@ -15,6 +15,7 @@ public class SetGamertagServiceTests
 {
     private GrifballContext _context;
     private IGetsertXboxUserService _getsertXboxUserService;
+    private IUserMergeService _userMergeService;
     private SetGamertagService _setGamertagService;
 
     [SetUp]
@@ -30,9 +31,13 @@ public class SetGamertagServiceTests
 
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
 
+        // We'll test user merge service too
+        _userMergeService = new UserMergeService(_context);
+
         _setGamertagService = new SetGamertagService(
             _context,
-            _getsertXboxUserService
+            _getsertXboxUserService,
+            _userMergeService
         );
     }
 
