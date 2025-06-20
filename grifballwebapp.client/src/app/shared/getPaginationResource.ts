@@ -1,10 +1,12 @@
 import { httpResource, HttpResourceRef } from "@angular/common/http";
 import { PaginationResult } from "./paginationResult";
 import { linkedSignal } from "@angular/core";
+import { Filter } from "./table/table.component";
 
 export function getPaginationResource<T>(
     url: () => string,
     paginationFilter: PaginationFilter,
+    additionalFilters?: () => Filter[] | undefined,
 ) {
     const resource = httpResource<PaginationResult<T>>(
         () => {
@@ -23,6 +25,17 @@ export function getPaginationResource<T>(
                 }
             }
 
+            if (additionalFilters) {
+                const filters = additionalFilters();
+                if (filters) {
+                    for (const filter of filters) {
+                        if (filter.value) {
+                            x.set(filter.column, filter.value.toString());
+                        }
+                    }
+                }
+            }
+            
             return `${url()}?${x}`;
         },
         { defaultValue: PAGINATION_RESPONSE_DEFAULT }

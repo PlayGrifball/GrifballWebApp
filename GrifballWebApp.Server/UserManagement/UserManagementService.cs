@@ -45,7 +45,7 @@ public class UserManagementService
         _getsertXboxUserService = getsertXboxUserService;
     }
 
-    public async Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, CancellationToken ct)
+    public async Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, string search, CancellationToken ct)
     {
         var query = _context.Users
             .AsNoTracking().AsSplitQuery()
@@ -66,6 +66,11 @@ public class UserManagementService
                     HasRole = r.UserRoles.Any(ur => ur.UserId == user.Id),
                 }).ToList(),
             });
+
+        if (search != string.Empty)
+        {
+            query = query.Where(x => x.UserName.Contains(search) || x.DisplayName!.Contains(search) || x.Gamertag!.Contains(search));
+        }
 
         if (filter.SortColumn is null)
         {

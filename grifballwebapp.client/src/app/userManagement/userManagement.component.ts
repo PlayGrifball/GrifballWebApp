@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { UserResponseDto } from './userResponseDto';
-import { Column, TableComponent } from '../shared/table/table.component';
+import { Column, Filter, TableComponent } from '../shared/table/table.component';
+import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 
 @Component({
     selector: 'app-user-management',
@@ -12,6 +13,7 @@ import { Column, TableComponent } from '../shared/table/table.component';
         RouterModule,
         MatButtonModule,
         TableComponent,
+        SearchBoxComponent,
     ],
     templateUrl: './userManagement.component.html',
     styleUrl: './userManagement.component.scss',
@@ -20,6 +22,16 @@ import { Column, TableComponent } from '../shared/table/table.component';
 export class UserManagementComponent {
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'edit'];
   url = '/api/UserManagement/GetUsers';
+
+  filter = signal<string>('');
+  filters = computed<Filter[]>(() => {
+    return [
+      {
+        column: 'search',
+        value: this.filter(),
+      }
+    ];
+  });
 
   columns: Column<UserResponseDto>[] = [
     {
@@ -68,6 +80,7 @@ export class UserManagementComponent {
       header: 'edit',
       cell: (element: UserResponseDto) => `IGNOREME`,
       template: 0,
+      isSortable: false,
     },
   ];
 }

@@ -3,11 +3,13 @@
 <button mat-flat-button color="primary" [routerLink]="['createuser']">Create New User
 </button>
 
+<app-search-box [(value)]="filter"></app-search-box>
+
 <!--
   Columns are almost entirely setup in ts,
   but we allow the use of templates that can be used in the ts via index
  -->
-<app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns">
+<app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()">
   <ng-template let-row>
     <a mat-list-item [routerLink]="['edituser', row.userID]">EDIT</a>
   </ng-template>

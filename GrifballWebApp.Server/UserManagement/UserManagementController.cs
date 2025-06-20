@@ -17,9 +17,10 @@ public class UserManagementController : ControllerBase
     }
 
     [HttpGet(Name = "GetUsers")]
-    public Task<PaginationResult<UserResponseDto>> GetUsers([FromQuery] PaginationFilter filter, CancellationToken ct)
+    public Task<PaginationResult<UserResponseDto>> GetUsers([FromQuery] PaginationFilter filter, [FromQuery] string? search, CancellationToken ct)
     {
-        return _userManagementService.GetUsers(filter, ct);
+        search = search?.Trim() ?? "";
+        return _userManagementService.GetUsers(filter, search, ct);
     }
 
     [HttpGet("{userID:int}", Name = "GetUser")]

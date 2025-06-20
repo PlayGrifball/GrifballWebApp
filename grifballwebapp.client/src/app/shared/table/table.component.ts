@@ -34,6 +34,8 @@ import { RouterModule } from '@angular/router';
 export class TableComponent<T> {
   @ContentChild(TemplateRef) rowTemplate!: TemplateRef<any>;
   @ContentChildren(TemplateRef) rowTemplates!: QueryList<TemplateRef<any>>;
+
+  filters = input<Filter[]>();
   
   displayedColumns = input.required<string[]>();
   url = input.required<string>();
@@ -41,6 +43,9 @@ export class TableComponent<T> {
   pageSize = signal(10);
   pageNumber = signal(1);
   sort = signal<Sort | undefined>(undefined);
+
+  // We default to true to allow sorting, but the parent component can override this in case there are not many sortable columns
+  isSortableDefault = input<boolean>(true);
 
   onPageChange(event: PageEvent) {
     this.pageNumber.set(event.pageIndex + 1);
@@ -56,7 +61,7 @@ export class TableComponent<T> {
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,
       sortColumn: () => this.sort()?.active,
-    });
+    }, () => this.filters());
   x = this.paginationResource.resource;
   current = this.paginationResource.current;
 }
@@ -66,7 +71,12 @@ export interface Column<T> {
   header: string;
   cell: (element: T) => string;
   template?: number; // Optional, if you want to render custom template. cell will be ignored if template is provided.
-  //isSortable?: boolean;
+  isSortable?: boolean;
   //isFilterable?: boolean;
   //filterValue?: (element: T) => string | number | boolean;
 };
+
+export interface Filter {
+  column: string;
+  value: string | number | boolean;
+}

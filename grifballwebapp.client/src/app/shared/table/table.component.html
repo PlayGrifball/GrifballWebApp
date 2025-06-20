@@ -1,9 +1,15 @@
 <table mat-table [dataSource]="current().results" matSort (matSortChange)="onSortChange($event)">
     @for (column of columns(); track column) {
         <ng-container [matColumnDef]="column.columnDef">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>
-            {{column.header}}
+            @if (column.isSortable === false || (column.isSortable === undefined && isSortableDefault() === false)) {
+            <th mat-header-cell *matHeaderCellDef>
+                {{column.header}}
             </th>
+            } @else {
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>
+                {{column.header}}
+            </th>
+            }
             <!-- Not sure why @if (column.template) doesnt work on its own... so well check not equal undefined -->
             @if (column.template !== undefined) {
                 <td mat-cell *matCellDef="let row">
