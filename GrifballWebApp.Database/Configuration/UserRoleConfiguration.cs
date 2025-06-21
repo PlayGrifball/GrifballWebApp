@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace GrifballWebApp.Database.Configuration;
-public partial class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
+public class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
 {
     public void Configure(EntityTypeBuilder<UserRole> entity)
     {
@@ -18,9 +18,31 @@ public partial class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
         entity.HasOne(d => d.Role)
             .WithMany(p => p.UserRoles)
             .HasForeignKey(d => d.RoleId);
-
-        OnConfigurePartial(entity);
     }
+}
 
-    partial void OnConfigurePartial(EntityTypeBuilder<UserRole> entity);
+public class UserLoginConfiguration : IEntityTypeConfiguration<UserLogin>
+{
+    public void Configure(EntityTypeBuilder<UserLogin> entity)
+    {
+        entity.ToTable("UserLogins", "Auth", tb => tb.IsTemporal());
+
+        entity.HasKey(e => new { e.LoginProvider, e.ProviderKey });
+
+        entity.HasOne(d => d.User)
+            .WithMany(p => p.UserLogins)
+            .HasForeignKey(d => d.UserId);
+    }
+}
+
+public class UserClaimConfiguration : IEntityTypeConfiguration<UserClaim>
+{
+    public void Configure(EntityTypeBuilder<UserClaim> entity)
+    {
+        entity.ToTable("UserClaims", "Auth", tb => tb.IsTemporal());
+
+        entity.HasOne(d => d.User)
+            .WithMany(p => p.UserClaims)
+            .HasForeignKey(d => d.UserId);
+    }
 }

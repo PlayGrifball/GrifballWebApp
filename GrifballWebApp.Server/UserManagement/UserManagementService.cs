@@ -19,9 +19,11 @@ public class UserResponseDto
     public bool LockoutEnabled { get; set; }
     public bool IsDummyUser { get; set; }
     public int AccessFailedCount { get; set; }
-    public string? Region { get; set; }
-    public string? DisplayName { get; set; }
-    public string? Gamertag { get; set; }
+    public required string? Region { get; set; }
+    public required string? DisplayName { get; set; }
+    public required string? Gamertag { get; set; }
+    public required string? Discord { get; set; }
+    public required int ExternalAuthCount { get; set; }
     public List<RoleDto> Roles { get; set; }
 }
 
@@ -60,6 +62,8 @@ public class UserManagementService
                 Region = user.Region.RegionName,
                 DisplayName = user.DisplayName,
                 Gamertag = user.XboxUser.Gamertag,
+                Discord = user.DiscordUser.DiscordUsername,
+                ExternalAuthCount = user.UserLogins.Count,
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,
@@ -100,6 +104,8 @@ public class UserManagementService
                 Region = user.Region.RegionName,
                 DisplayName = user.DisplayName,
                 Gamertag = user.XboxUser.Gamertag,
+                Discord = user.DiscordUser.DiscordUsername,
+                ExternalAuthCount = user.UserLogins.Count,
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,

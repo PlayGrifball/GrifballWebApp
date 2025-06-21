@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GrifballWebApp.Database;
 
 public partial class GrifballContext :
-    IdentityDbContext<User, Role, int, IdentityUserClaim<int>, UserRole, IdentityUserLogin<int>, IdentityRoleClaim<int>, IdentityUserToken<int>>,
+    IdentityDbContext<User, Role, int, UserClaim, UserRole, UserLogin, IdentityRoleClaim<int>, IdentityUserToken<int>>,
     IDataProtectionKeyContext
 {
     public GrifballContext() : base()
@@ -79,6 +79,8 @@ public partial class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.UserConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.UserExperienceConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.UserRoleConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserLoginConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.UserClaimConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxUserConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RankConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.QueuedPlayerConfiguration());
@@ -89,12 +91,6 @@ public partial class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.MatchedKickVoteConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
-        modelBuilder.Entity<IdentityUserClaim<int>>(b => b.ToTable("UserClaims", "Auth", tb => tb.IsTemporal()));
-        modelBuilder.Entity<IdentityUserLogin<int>>(b =>
-        {
-            b.ToTable("UserLogins", "Auth", tb => tb.IsTemporal());
-            b.HasKey(e => new { e.LoginProvider, e.ProviderKey });
-        });
         modelBuilder.Entity<IdentityUserToken<int>>(b =>
         {
             b.ToTable("UserTokens", "Auth", tb => tb.IsTemporal());

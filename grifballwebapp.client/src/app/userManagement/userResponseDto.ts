@@ -10,6 +10,8 @@ export interface UserResponseDto {
   region: string,
   displayName: string,
   gamertag: string,
+  discord: string,
+  externalAuthCount: number,
   roles: RoleDto[]
 }
 

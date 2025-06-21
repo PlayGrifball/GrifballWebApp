@@ -38,7 +38,7 @@ namespace GrifballWebApp.Server;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
                 .Enrich.FromLogContext()
@@ -51,7 +51,7 @@ public class Program
         
         try
         {
-            Run(args);
+            await Run(args);
         }
         catch (Exception ex)
         {
@@ -63,7 +63,7 @@ public class Program
         }
     }
 
-    public static void Run(string[] args)
+    public static async Task Run(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -218,6 +218,7 @@ public class Program
         builder.Services.AddTransient<DiscordSetGamertag>();
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
+        builder.Services.AddTransient<TransferLegacyDiscordService>();
 
         builder.Services.AddDataProtection()
             .PersistKeysToDbContext<GrifballContext>();
@@ -294,9 +295,12 @@ public class Program
                 }
 
                 logger.LogInformation("Applying migrations");
-                context.Database.Migrate();
+                await context.Database.MigrateAsync();
                 logger.LogInformation("Migrations applied");
             }
+
+            var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
+            await legacyTransferService.TransferAllAsync();
         }
 
         app.UseForwardedHeaders(new ForwardedHeadersOptions()

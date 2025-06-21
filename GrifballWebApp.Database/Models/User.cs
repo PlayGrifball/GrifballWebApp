@@ -25,6 +25,8 @@ public class User : IdentityUser<int>
     public virtual ICollection<UserExperience> PersonExperiences { get; set; }
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }
     public virtual ICollection<UserRole> UserRoles { get; set; }
+    public virtual ICollection<UserLogin> UserLogins { get; set; }
+    public virtual ICollection<UserClaim> UserClaims { get; set; }
 
     // Late League:
     public QueuedPlayer? QueuedPlayer { get; set; }

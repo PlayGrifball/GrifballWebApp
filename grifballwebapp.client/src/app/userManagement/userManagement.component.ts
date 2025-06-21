@@ -20,7 +20,7 @@ import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserManagementComponent {
-  public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'edit'];
+  public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'edit'];
   url = '/api/UserManagement/GetUsers';
 
   filter = signal<string>('');
@@ -74,6 +74,16 @@ export class UserManagementComponent {
       columnDef: 'gamertag',
       header: 'gamertag',
       cell: (element: UserResponseDto) => `${element.gamertag}`,
+    },
+    {
+      columnDef: 'discord',
+      header: 'Discord',
+      cell: (element: UserResponseDto) => `${element.discord}`,
+    },
+    {
+      columnDef: 'externalAuthCount',
+      header: 'External Auth Count',
+      cell: (element: UserResponseDto) => `${element.externalAuthCount}`,
     },
     {
       columnDef: 'edit',
