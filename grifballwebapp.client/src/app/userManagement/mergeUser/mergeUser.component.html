@@ -1,0 +1,24 @@
+<div class="flex gap-4">
+  <div class="flex-1">
+    <h2>Merge From</h2>
+    <app-search-box [(value)]="mergeFromId" type="number"></app-search-box>
+    <app-user-detail [user]="mergeFrom.value()"></app-user-detail>
+  </div>
+  <div class="flex-1">
+    <h2>Merge To</h2>
+    <app-search-box [(value)]="mergeToId" type="number"></app-search-box>
+    <app-user-detail [user]="mergeTo.value()"></app-user-detail>
+  </div>
+</div>
+
+<div class="flex flex-col gap-4">
+    <mat-slide-toggle [(ngModel)]="transferDiscord">Transfer Discord</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="transferXbox">Transfer Xbox</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="transferTeamPlayers">Transfer Team Players</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="transferExperiences">Transfer Experiences</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="transferSignups">Transfer Signups</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="deleteMergeFrom">Delete Merge From</mat-slide-toggle>
+    <div>
+        <button mat-flat-button (click)="submit()" [disabled]="mergeTo.value() == null || mergeFrom.value() == null || (mergeFromId() == mergeToId())">Merge Users</button>
+    </div>
+</div>

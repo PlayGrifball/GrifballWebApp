@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace GrifballWebApp.Database;
 
-public partial class GrifballContext :
+public class GrifballContext :
     IdentityDbContext<User, Role, int, UserClaim, UserRole, UserLogin, IdentityRoleClaim<int>, IdentityUserToken<int>>,
     IDataProtectionKeyContext
 {
@@ -98,9 +99,71 @@ public partial class GrifballContext :
         });
 
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
-
-        OnModelCreatingPartial(modelBuilder);
     }
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+    private IDbContextTransaction? transaction;
+    private byte transactionLayer;
+
+    public virtual async Task StartTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        PreventRollover();
+        transactionLayer++;
+
+        if (transactionLayer == 1 && transaction is null)
+        {
+            transaction = await Database.BeginTransactionAsync(cancellationToken);
+        }
+    }
+
+    private void PreventRollover()
+    {
+        if (transactionLayer == byte.MaxValue)
+        {
+            throw new Exception("There is a maximum of 255 transaction layers and somehow you have managed to use them all. Frankly, I am impressed and disgusted.");
+        }
+    }
+
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        PreventNoTransactionOnCommit();
+        PreventOuterCommitOnInnerRollback();
+        transactionLayer--;
+
+        if (transaction is not null && transactionLayer == 0)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            transaction = null;
+        }
+    }
+
+    private void PreventNoTransactionOnCommit()
+    {
+        if (transaction is null && transactionLayer == 0)
+        {
+            throw new InvalidOperationException("No transaction to commit.");
+        }
+    }
+
+    private void PreventOuterCommitOnInnerRollback()
+    {
+        if (transaction is null && transactionLayer > 1)
+        {
+            throw new Exception("An inner transaction has rolled back and this transaction can no longer be committed.");
+        }
+    }
+
+    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        PreventNoTransactionOnRollback();
+        await transaction!.RollbackAsync(cancellationToken);
+        transaction = null;
+    }
+
+    private void PreventNoTransactionOnRollback()
+    {
+        if (transaction is null)
+        {
+            throw new InvalidOperationException("No transaction to rollback.");
+        }
+    }
 }

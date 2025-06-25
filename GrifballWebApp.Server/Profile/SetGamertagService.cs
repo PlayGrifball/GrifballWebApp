@@ -23,7 +23,7 @@ public class SetGamertagService : ISetGamertagService
 
     public async Task<string?> SetGamertag(int userID, string gamertag, CancellationToken ct = default)
     {
-        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await _context.StartTransactionAsync(ct);
 
         var user = await _context.Users
             .Include(x => x.XboxUser)
@@ -56,11 +56,11 @@ public class SetGamertagService : ISetGamertagService
                 return "That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect";
             }
 
-            await _userMergeService.Merge(userID, existingUser.Id, ct);
+            await _userMergeService.Merge(userID, existingUser.Id, null, ct);
         }
 
         await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+        await _context.CommitTransactionAsync(ct);
 
         return null; // Success, no error message
     }

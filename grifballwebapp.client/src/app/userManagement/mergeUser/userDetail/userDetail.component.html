@@ -1,0 +1,10 @@
+@if (user() == null) {
+    <p>User not found.</p>
+} @else {
+    <p><strong>ID:</strong> {{ user()?.userID }}</p>
+    <p><strong>Username:</strong> {{ user()?.userName }}</p>
+    <p><strong>Display Name:</strong> {{ user()?.displayName }}</p>
+    <p><strong>Gamertag:</strong> {{ user()?.gamertag }}</p>
+    <p><strong>Discord:</strong> {{ user()?.discord }}</p>
+    <p><strong>External Auth Count:</strong> {{ user()?.externalAuthCount }}</p>
+}

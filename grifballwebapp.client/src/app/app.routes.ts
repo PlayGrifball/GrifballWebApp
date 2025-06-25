@@ -106,6 +106,24 @@ export const APP_ROUTES: Routes = [
     canActivate: [isSysAdminGuard]
   },
   {
+    path: 'usermanagement/mergeuser',
+    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    title: 'Merge User',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'usermanagement/mergeuser/:fromInput',
+    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    title: 'Merge User',
+    canActivate: [isSysAdminGuard]
+  },
+  {
+    path: 'usermanagement/mergeuser/:fromInput/:toInput',
+    loadComponent: () => import('./userManagement/mergeUser/mergeUser.component').then(m => m.MergeUserComponent),
+    title: 'Merge User',
+    canActivate: [isSysAdminGuard]
+  },
+  {
     path: 'profile/:userID',
     loadComponent: () => import('./profile/profile.component').then(m => m.ProfileComponent),
     title: 'User Profile'

@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +11,12 @@ namespace GrifballWebApp.Server.UserManagement;
 public class UserManagementController : ControllerBase
 {
     private readonly UserManagementService _userManagementService;
+    private readonly IUserMergeService _userMergeService;
 
-    public UserManagementController(UserManagementService userManagementService)
+    public UserManagementController(UserManagementService userManagementService, IUserMergeService userMergeService)
     {
         _userManagementService = userManagementService;
+        _userMergeService = userMergeService;
     }
 
     [HttpGet(Name = "GetUsers")]
@@ -48,4 +51,19 @@ public class UserManagementController : ControllerBase
         else
             return BadRequest(result);
     }
+
+    [HttpPost(Name = "MergeUser")]
+    public async Task<IActionResult> MergeUser([FromBody] MergeRequest mergeRequest, CancellationToken ct)
+    {
+        await _userMergeService.Merge(mergeRequest.MergeToId, mergeRequest.MergeFromId, mergeRequest.MergeOptions, ct);
+        return Ok();
+    }
+}
+
+
+public class MergeRequest
+{
+    public required int MergeToId { get; set; }
+    public required int MergeFromId { get; set; }
+    public required MergeOptions MergeOptions { get; set; }
 }
