@@ -11,9 +11,10 @@ public interface IDiscordClient
     Task<IRestMessage> SendMessageAsync(ulong channelId, MessageProperties message, RestRequestProperties? properties = null, CancellationToken ct = default);
     Task<IGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, GuildThreadFromMessageProperties threadFromMessageProperties, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
     Task<IRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<MessageOptions> action, RestRequestProperties? properties = null, CancellationToken ct = default);
-    Task<Channel> DeleteChannelAsync(ulong channelId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<IReadOnlyList<IGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<Channel> GetChannelAsync(ulong channelId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
+    Task<Channel> DeleteChannelAsync(ulong channelId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default);
+    Task<Channel> GetChannelAsync(ulong channelId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default);
+    Task<IRestMessage> UpsertMessageAsync(ulong channelId, ulong? messageId, MessageProperties message, RestRequestProperties? properties = null, CancellationToken ct = default);
 }
 
 public class DiscordClient : IDiscordClient
@@ -68,12 +69,36 @@ public class DiscordClient : IDiscordClient
     {
         return await _client.GetChannelAsync(channelId, properties, cancellationToken);
     }
+
+    /// <summary>
+    /// Sends or modifies a message in the specified channel. If messageId is null sends, otherwise modifies the message with the specified ID.
+    /// </summary>
+    /// <returns></returns>
+    public async Task<IRestMessage> UpsertMessageAsync(ulong channelId, ulong? messageId, MessageProperties message, RestRequestProperties? properties = null, CancellationToken ct = default)
+    {
+        if (messageId is null)
+        {
+            return await SendMessageAsync(channelId, message, properties, ct);
+        }
+        else
+        {
+            return await ModifyMessageAsync(channelId, messageId.Value,
+                (x) => x.WithContent(message.Content)
+                .WithAttachments(message.Attachments)
+                .WithEmbeds(message.Embeds)
+                .WithAllowedMentions(message.AllowedMentions)
+                .WithComponents(message.Components)
+                .WithFlags(message.Flags),
+                properties, ct);
+        }
+    }
 }
 
 public interface IRestMessage
 {
     DateTimeOffset CreatedAt { get; }
     IAuthor Author { get; }
+    string Content { get; }
     IReadOnlyList<IEmbed> Embeds { get; }
     ulong Id { get; }
 }
@@ -89,14 +114,15 @@ public class RestMessage : IRestMessage
         Author = new Author(message.Author)
         {
             Id = message.Author.Id // This is necessary to ensure the Id is set correctly, as the Author class has a required Id property.
-        }
-        ;
+        };
+        Content = message.Content;
         Embeds = message.Embeds.Select(embed => new Embed(embed)).ToList().AsReadOnly();
         Id = message.Id;
     }
 
     public DateTimeOffset CreatedAt { get; set; }
     public IAuthor Author { get; set; }
+    public string Content { get; set; }
     public IReadOnlyList<IEmbed> Embeds { get; set; }
     public ulong Id { get; set; }
 }

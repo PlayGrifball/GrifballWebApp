@@ -3,6 +3,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.Matchmaking;
@@ -29,7 +30,6 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
-using NetCord.Rest;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -186,9 +186,12 @@ public class Program
             })
             .ValidateOnStart();
 
+        builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
         builder.Services.AddHostedService<QueueBackgroundService>();
+        builder.Services.AddTransient<EventsService>();
+        builder.Services.AddHostedService<EventsBackgroundService>();
         builder.Services.AddDiscordGateway()
             .AddApplicationCommands()
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
@@ -344,6 +347,7 @@ public class DiscordOptions
     public ulong DraftChannel { get; set; }
     public bool DisableGlobally { get; set; } = false;
     public ulong QueueChannel { get; set; }
+    public ulong EventsChannel { get; set; }
     public ulong LogChannel { get; set; }
     public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
     public int KFactor { get; set; } = 32;

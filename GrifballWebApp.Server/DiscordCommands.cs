@@ -1,6 +1,7 @@
 ﻿using DiscordInterfaces;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -163,26 +164,5 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
     public async Task SetGamertag(string gamertag)
     {
         await _discordSetGamertag.SetGamertag(Context.ToDiscordContext(), gamertag);
-    }
-}
-
-public static class Ext
-{
-    public static long ToUnix(this DateTime toUnix)
-    {
-        return new DateTimeOffset(toUnix, TimeSpan.FromTicks(0)).ToUnixTimeSeconds();
-    }
-
-    public static string DiscordTimeEmbed(this DateTime t)
-    {
-        return $"<t:{t.ToUnix()}>";
-    }
-
-    public static string LinkMarkdown(this string display, string url)
-    {
-        if (url is null)
-            return display;
-        else
-            return $"[{display}]({url})";
     }
 }

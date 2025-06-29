@@ -7,6 +7,7 @@ import { HttpClient } from '@angular/common/http';
 import { AccessTokenResponse, MetaInfoResponse } from './accessTokenResponse';
 import { RegisterDto } from './api/dtos/registerDto';
 import { Observable, catchError, map, throwError, timer } from 'rxjs';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root',
@@ -30,7 +31,7 @@ export class AccountService {
   personID: WritableSignal<number | null> = signal(null);
   displayName: WritableSignal<string | null> = signal(null);
 
-  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService, private http: HttpClient) {
+  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService, private http: HttpClient, private router: Router) {
     let accessToken = localStorage.getItem("access_token");
     if (accessToken !== null) {
       const accessT: AccessTokenResponse = JSON.parse(accessToken)
@@ -92,11 +93,11 @@ export class AccountService {
       });
   }
 
-  loginExternal(): void {
+  loginExternal(followUp: string): void {
     this.http.get<AccessTokenResponse>("/api/Identity/ExternalLoginCallback").subscribe(
       {
         error: (e) => this.snackBar.open("Login failed", "Close"),
-        next: (accessToken) => this.onLoginSuccess(accessToken),
+        next: (accessToken) => this.onLoginSuccess(accessToken, followUp),
       });
   }
 
@@ -121,7 +122,7 @@ export class AccountService {
       }))
   }
 
-  private onLoginSuccess(accessToken: AccessTokenResponse) {
+  private onLoginSuccess(accessToken: AccessTokenResponse, followUp?: string): void {
     this.accessTokenResponse.set(accessToken);
 
     timer((accessToken.expiresIn * 1000) / 2)
@@ -130,6 +131,12 @@ export class AccountService {
       });
     const json = JSON.stringify(accessToken);
     localStorage.setItem("access_token", json);
+
+    if (followUp) {
+      // Naviate to the follow up page with angular router
+      console.log('Navigating to follow up:', followUp);
+      this.router.navigate([followUp]);
+    }
   }
 
   logout(): void {

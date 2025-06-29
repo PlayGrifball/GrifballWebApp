@@ -13,6 +13,10 @@ public partial class Season
     public int SeasonID { get; set; }
     public string SeasonName { get; set; }
     public bool CaptainsLocked { get; set; }
+    /// <summary>
+    /// The date and time when the season is/was made public. If this date has not passed then the season will only be visible to admins and commissioner.
+    /// </summary>
+    public DateTime PublicAt { get; set; }
     public DateTime SignupsOpen { get; set; }
     public DateTime SignupsClose { get; set; }
     public DateTime DraftStart { get; set; }

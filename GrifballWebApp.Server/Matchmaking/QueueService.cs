@@ -484,14 +484,14 @@ public class QueueService
 
     public static MessageProperties CreateVoteMessage(int matchId, Database.Models.User[] kickablePlayers)
     {
-        var home = new ButtonProperties("voteforwinner:" + matchId + ":Home", "Home Team Won", ButtonStyle.Primary);
-        var away = new ButtonProperties("voteforwinner:" + matchId + ":Away", "Away Team Won", ButtonStyle.Secondary);
-        var cancel = new ButtonProperties("voteforwinner:" + matchId + ":Cancel", "Cancel", ButtonStyle.Secondary);
+        var home = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Home), "Home Team Won", ButtonStyle.Primary);
+        var away = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Away), "Away Team Won", ButtonStyle.Secondary);
+        var cancel = new ButtonProperties(DiscordButtonContants.VoteForWinnerWithParams(matchId, WinnerVote.Cancel), "Cancel", ButtonStyle.Secondary);
 
-        var kickPlayerMenu = new StringMenuProperties("votetokick:" + matchId)
+        var kickPlayerMenu = new StringMenuProperties(DiscordStringMenuContants.VoteToKickWithParams(matchId))
         {
             Placeholder = "Vote to kick",
-            CustomId = "votetokick:" + matchId,
+            CustomId = DiscordStringMenuContants.VoteToKickWithParams(matchId),
             Options = [.. kickablePlayers.Select(x => new StringMenuSelectOptionProperties(x.XboxUser?.Gamertag ?? x.DiscordUser?.DiscordUsername ?? x.DisplayName ?? x.Id.ToString(), x.Id.ToString()))],
         };
 
@@ -599,9 +599,9 @@ public class QueueService
     private async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
     {
         //var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties(1365830914873098341), ButtonStyle.Success);
-        var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties("✅"), ButtonStyle.Success);
-        var leave = new ButtonProperties("leave_queue", "Leave Queue", new EmojiProperties("❌"), ButtonStyle.Danger);
-        var gt = new ButtonProperties("set_gamertag", "Set Gamertag", ButtonStyle.Primary);
+        var join = new ButtonProperties(DiscordButtonContants.JoinQueue, "Join Queue", new EmojiProperties("✅"), ButtonStyle.Success);
+        var leave = new ButtonProperties(DiscordButtonContants.LeaveQueue, "Leave Queue", new EmojiProperties("❌"), ButtonStyle.Danger);
+        var gt = new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary);
 
         ActionRowProperties actionRow = new([join, leave, gt]);
 

@@ -123,7 +123,7 @@ public class GrifballContext :
         }
     }
 
-    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    public virtual async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
     {
         PreventNoTransactionOnCommit();
         PreventOuterCommitOnInnerRollback();
@@ -152,7 +152,7 @@ public class GrifballContext :
         }
     }
 
-    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+    public virtual async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
     {
         PreventNoTransactionOnRollback();
         await transaction!.RollbackAsync(cancellationToken);

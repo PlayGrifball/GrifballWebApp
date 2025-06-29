@@ -44,10 +44,10 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         return user;
     }
 
-    [ComponentInteraction("set_gamertag")]
+    [ComponentInteraction(DiscordButtonContants.SetGamertag)]
     public async Task SetGamertag()
     {
-        var modal = new ModalProperties("set_gamertag", "Set Gamertag")
+        var modal = new ModalProperties(DiscordModalsContants.SetGamertag, "Set Gamertag")
             .AddComponents(new TextInputProperties("gamertag", TextInputStyle.Short, "Gamertag")
             {
                 Required = true,
@@ -59,7 +59,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     }
 
 
-    [ComponentInteraction("join_queue")]
+    [ComponentInteraction(DiscordButtonContants.JoinQueue)]
     public async Task JoinQueue()
     {
         var user = await UserGuard();
@@ -81,7 +81,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         }
     }
 
-    [ComponentInteraction("leave_queue")]
+    [ComponentInteraction(DiscordButtonContants.LeaveQueue)]
     public async Task LeaveQueue()
     {
         var user = await UserGuard();
@@ -101,7 +101,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         }
     }
 
-    [ComponentInteraction("voteforwinner")]
+    [ComponentInteraction(DiscordButtonContants.VoteForWinner)]
     public async Task VoteForWinner(int matchId, string winner)
     {
         var user = await UserGuard();

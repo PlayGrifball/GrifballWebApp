@@ -28,6 +28,10 @@ public class SetGamertagServiceTests
             .Options;
 
         _context = Create.MockedDbContextFor<GrifballContext>(options);
+        // TODO: Mock transaction methods better, or switch to testcontainers.
+        _context.StartTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _context.CommitTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _context.RollbackTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
 

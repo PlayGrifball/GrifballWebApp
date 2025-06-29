@@ -35,7 +35,7 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
         return user;
     }
 
-    [ComponentInteraction("votetokick")]
+    [ComponentInteraction(DiscordStringMenuContants.VoteToKick)]
     public async Task VoteToKick(int matchId)
     {
         var user = await UserGuard();

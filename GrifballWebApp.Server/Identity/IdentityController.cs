@@ -89,12 +89,13 @@ public class IdentityController : ControllerBase
         return Ok();
     }
 
-
     [HttpGet(Name = "ExternalLogin")]
-    public IActionResult ExternalLogin()
+    public IActionResult ExternalLogin([FromQuery] string? followUp)
     {
         var provider = "Discord";
         var redirectUrl = "login?callback=true";
+        if (followUp is not null)
+            redirectUrl += "&followUp=" + Uri.UnescapeDataString(followUp);
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
     }

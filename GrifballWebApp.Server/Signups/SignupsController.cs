@@ -15,6 +15,7 @@ public class SignupsController : ControllerBase
         _signupsService = signupsService;
     }
 
+    // TODO: Can this be removed? I don't see it being called
     [HttpGet(Name = "GetSignupDateInfo")]
     public async Task<IActionResult> GetSignupDateInfo(CancellationToken ct)
     {
