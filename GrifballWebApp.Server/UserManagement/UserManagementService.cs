@@ -127,7 +127,12 @@ public class UserManagementService
             return msg ?? "Failed to get xbox user, unknown reason";
 
         if (xboxUser.User is not null)
-            return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
+        {
+            //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
+            // Take gamertag
+            xboxUser.User.XboxUserID = null;
+        }
+            
 
         var user = new User()
         {
@@ -178,7 +183,12 @@ public class UserManagementService
                     return msg ?? "Failed to get xbox user, unknown reason";
 
                 if (xboxUser.User is not null)
-                    return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
+                {
+                    //return $"Gamertag is already used by {xboxUser.User.UserName ?? xboxUser.User.DisplayName}";
+                    // Take gamertag...
+                    xboxUser.User.XboxUserID = null;
+                }
+                    
 
                 user.XboxUser = xboxUser;
             }

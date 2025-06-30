@@ -35,6 +35,12 @@ public class DiscordStringMenuContants
     {
         return $"{VoteToKick}:{matchId}";
     }
+
+    public const string DraftPick = "draftpick";
+    public static string DraftPickWithParams(int seasonId, int captainId, int index)
+    {
+        return $"{DraftPick}:{seasonId}:{captainId}:{index}";
+    }
 }
 
 /// <summary>

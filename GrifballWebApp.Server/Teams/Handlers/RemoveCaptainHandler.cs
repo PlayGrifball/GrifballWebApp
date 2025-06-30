@@ -19,8 +19,8 @@ public class RemoveCaptainDiscordHandler(RestClient restClient, IOptions<Discord
 {
     public override async Task HandleEvent(Notification<RemoveCaptainDto> request, CancellationToken cancellationToken)
     {
-        var msg = new MessageProperties()
-            .WithContent($"{await GetUsername(request.Value.PersonID)} is no longer a captain in the draft");
-        await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
+        //var msg = new MessageProperties()
+        //    .WithContent($"{await GetUsername(request.Value.PersonID)} is no longer a captain in the draft");
+        //await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

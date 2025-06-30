@@ -31,14 +31,14 @@ public class TeamService
                 Captain = new CaptainDto()
                 {
                     PersonID = team.Captain.User.Id,
-                    Name = team.Captain.User.DisplayName,
+                    Name = team.Captain.User.XboxUser!.Gamertag ?? team.Captain.User.DiscordUser!.DiscordUsername ?? team.Captain.User.DisplayName ?? team.Captain.User.UserName ?? "",
                     Order = team.Captain.DraftCaptainOrder,
                 },
                 Players = team.TeamPlayers
                     .Where(tp => tp.TeamPlayerID != team.CaptainID)
                     .Select(tp => new PlayerDto()
                     {
-                        Name = tp.User.DisplayName,
+                        Name = tp.User.XboxUser!.Gamertag ?? tp.User.DiscordUser!.DiscordUsername ?? tp.User.DisplayName ?? tp.User.UserName ?? "",
                         PersonID = tp.UserID,
                         Pick = tp.DraftPick, // TODO: Investigate removing this prop
                         Round = tp.DraftRound,
@@ -55,7 +55,7 @@ public class TeamService
             .AsNoTracking()
             .AsSplitQuery()
             // Filter only approved signups this season
-            .Where(signup => signup.SeasonID == seasonID && signup.Approved)
+            .Where(signup => signup.SeasonID == seasonID)
             // Only care about the person
             .Select(signup => signup.User)
             // Filter out any people that are already on a team for this season
@@ -63,7 +63,7 @@ public class TeamService
             .Select(person => new PlayerDto()
             {
                 PersonID = person.Id,
-                Name = person.DisplayName,
+                Name = person.XboxUser!.Gamertag ?? person.DiscordUser!.DiscordUsername ?? person.DisplayName ?? person.UserName ?? "",
             })
             .ToListAsync(ct);
     }
@@ -85,19 +85,19 @@ public class TeamService
         {
             // If we are only doing a resort then the captain should not already exist
             if (captain is not null)
-                throw new Exception("Player is already a captain");
+                throw new TeamServiceException("Player is already a captain");
 
             var signup = await _context.SeasonSignups
-                .Where(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID && x.Approved == true)
+                .Where(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID)
                 .FirstOrDefaultAsync(ct);
 
             if (signup is null)
-                throw new Exception("Player is not signed up");
+                throw new TeamServiceException("Player is not signed up");
 
             // Also need to make sure they are not on another team
             var isAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
             if (isAlreadyOnTeam)
-                throw new Exception("Player is already on a team");
+                throw new TeamServiceException("Player is already on a team");
 
             var newTeam = new Team()
             {
@@ -112,13 +112,16 @@ public class TeamService
             };
             newTeam.TeamPlayers.Add(captain);
 
-            // TODO: Need to ensure team name is unique, or remove unique constraint...
             if (string.IsNullOrEmpty(newTeam.TeamName))
             {
-                var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
-                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.XboxUser.Gamertag).FirstOrDefaultAsync(ct);
+                var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.XboxUser.Gamertag).FirstOrDefaultAsync(ct);
+                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DiscordUser.DiscordUsername).FirstOrDefaultAsync(ct);
+                name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
                 name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.UserName).FirstOrDefaultAsync(ct);
                 newTeam.TeamName = $"{name}'s Team";
+                var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == newTeam.TeamName && x.SeasonID == dto.SeasonID, ct);
+                if (teamNameTaken)
+                    newTeam.TeamName = $"{name}'s Team {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
             }
 
             await _context.Teams.AddAsync(newTeam, ct);
@@ -132,7 +135,7 @@ public class TeamService
         else // If we are doing a resort
         {
             if (captain is null)
-                throw new Exception("Player is not a captain");
+                throw new TeamServiceException("Player is not a captain");
 
             existingCaptains.Remove(captain);
             // TODO: make sure order number is valid
@@ -178,7 +181,7 @@ public class TeamService
         var captain = existingCaptains.FirstOrDefault(tp => tp.UserID == dto.PersonID);
         
         if (captain is null)
-            throw new Exception("Player is not a captain");
+            throw new TeamServiceException("Player is not a captain");
 
         existingCaptains.Remove(captain);
 
@@ -208,7 +211,7 @@ public class TeamService
         var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
 
         if (player is null)
-            throw new Exception("Player is not on this team");
+            throw new TeamServiceException("Player is not on this team");
 
         // Mark for deletion
         _context.TeamPlayers.Remove(player);
@@ -226,40 +229,78 @@ public class TeamService
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
-    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
+    public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
         var isPlayerAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.User.Id == dto.PersonID, ct);
         if (isPlayerAlreadyOnTeam)
-            throw new Exception("This player is already on a team");
-        var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(x => x.SeasonID == dto.SeasonID && x.Approved == true && x.UserID == dto.PersonID, ct);
+            throw new TeamServiceException("This player is already on a team");
+        var hasPlayerSignedUp = await _context.SeasonSignups.AnyAsync(x => x.SeasonID == dto.SeasonID && x.UserID == dto.PersonID, ct);
         if (!hasPlayerSignedUp)
-            throw new Exception("This player has not signed up");
+            throw new TeamServiceException("This player has not signed up");
 
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
         var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
 
         if (player is not null)
-            throw new Exception("Player is already on this team team");
+            throw new TeamServiceException("Player is already on this team team");
+
+        var team = await _context.Teams
+                .Include(t => t.Captain)
+                .Where(t => t.SeasonID == dto.SeasonID)
+                .Where(t => t.Captain.User.Id == dto.CaptainID)
+                .FirstOrDefaultAsync(ct) ?? throw new TeamServiceException("Team not found");
+
+        // Need check that player is captain and is their turn
+        var isCommissioner = await _context.Users
+            .Where(u => u.Id == requestorId)
+            .Where(u => u.UserRoles.Any(r => r.Role.Name == "Commissioner"))
+            .AnyAsync(ct);
+
+        // Make sure it is valid for this person to be making this request
+        if (isCommissioner is false)
+        {
+            var isCaptain = team.Captain.UserID == requestorId;
+
+            if (isCaptain is false)
+            {
+                throw new TeamServiceException("You cannot make picks on behalf of another captain unless you are the commissioner");
+            }
+
+            Team onDeck = await OnDeck(dto.SeasonID, ct) ?? throw new TeamServiceException("Failed to find on deck team");
+
+            if (onDeck.Captain.UserID != requestorId)
+            {
+                throw new TeamServiceException($"It is not your turn to be making a draft pick. It is {onDeck.Captain.UserID}'s turn");
+            }
+        }
 
         player = new TeamPlayer()
         {
-            TeamID = await _context.Teams
-                .Where(t => t.SeasonID == dto.SeasonID)
-                .Where(t => t.Captain.User.Id == dto.CaptainID)
-                .Select(x => x.TeamID).FirstOrDefaultAsync(ct),
+            TeamID = team.TeamID,
             UserID = dto.PersonID,
             DraftRound = players.OrderByDescending(p => p.DraftRound).Select(p => p.DraftRound + 1).FirstOrDefault() ?? 1, // Always add to end, or round 1
         };
         if (player.TeamID is 0)
-            throw new Exception("Could not find team with that captain and season");
+            throw new TeamServiceException("Could not find team with that captain and season");
         await _context.TeamPlayers.AddAsync(player);
 
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
+    }
+
+    public async Task<Team?> OnDeck(int seasonId, CancellationToken ct)
+    {
+        return await _context.Teams
+                        .Include(t => t.Captain)
+                        .Where(t => t.SeasonID == seasonId)
+                        .OrderBy(t => t.TeamPlayers.Count)
+                        .ThenBy(t => t.Captain.DraftCaptainOrder)
+                        .FirstOrDefaultAsync(ct);
     }
 
     public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
@@ -276,7 +317,7 @@ public class TeamService
 
             player = oldTeam.FirstOrDefault(tp => tp.UserID == dto.PersonID);
             if (player is null)
-                throw new Exception("Player was not on that team");
+                throw new TeamServiceException("Player was not on that team");
 
             oldTeam.Remove(player);
             // Then we must fix the round numbers for the old team
@@ -291,13 +332,13 @@ public class TeamService
                 .Select(t => t.TeamID)
                 .FirstOrDefaultAsync(ct);
             if (player.TeamID is 0)
-                throw new Exception("New team does not exist");
+                throw new TeamServiceException("New team does not exist");
         }
         else // otherwise Inter-team move
         {
             player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
             if (player is null)
-                throw new Exception("Player is not on that team");
+                throw new TeamServiceException("Player is not on that team");
 
             // We must remove from the current position
             players.Remove(player);
@@ -336,7 +377,7 @@ public class TeamService
             .FirstOrDefaultAsync(ct);
 
         if (season == null)
-            throw new Exception("Season does not exist");
+            throw new TeamServiceException("Season does not exist");
 
         season.CaptainsLocked = @lock;
 
@@ -348,11 +389,22 @@ public class TeamService
     public async Task<bool> AreCaptainsLocked(int seasonID, CancellationToken ct = default)
     {
         if (!await _context.Seasons.Where(s => s.SeasonID == seasonID).AnyAsync(ct))
-            throw new Exception("Season does not exist");
+            throw new TeamServiceException("Season does not exist");
 
         return await _context.Seasons
             .Where(s => s.SeasonID == seasonID)
             .Select(s => s.CaptainsLocked)
             .FirstOrDefaultAsync(ct);
+    }
+}
+
+
+public class TeamServiceException : Exception
+{
+    public TeamServiceException(string message) : base(message)
+    {
+    }
+    public TeamServiceException(string message, Exception innerException) : base(message, innerException)
+    {
     }
 }

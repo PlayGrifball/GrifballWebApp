@@ -19,8 +19,8 @@ public class AddCaptainDiscordHandler(RestClient restClient, IOptions<DiscordOpt
 {
     public override async Task HandleEvent(Notification<CaptainAddedDto> request, CancellationToken cancellationToken)
     {
-        var msg = new MessageProperties()
-            .WithContent($"{await GetUsername(request.Value.PersonID)} has been added as captain {request.Value.OrderNumber} in the draft");
-        await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
+        //var msg = new MessageProperties()
+        //    .WithContent($"{await GetUsername(request.Value.PersonID)} has been added as captain {request.Value.OrderNumber} in the draft");
+        //await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }

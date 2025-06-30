@@ -34,7 +34,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.DisplayName,
+                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,
@@ -91,7 +91,7 @@ public class SignupsService
             {
                 SeasonID = seasonID,
                 UserID = x.UserID,
-                PersonName = x.User.DisplayName,
+                PersonName = x.User.XboxUser!.Gamertag ?? x.User.DiscordUser!.DiscordUsername ?? x.User.DisplayName ?? x.User.UserName,
                 Timestamp = x.Timestamp,
                 TeamName = x.TeamName,
                 WillCaptain = x.WillCaptain,

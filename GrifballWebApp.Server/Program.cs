@@ -186,6 +186,7 @@ public class Program
             })
             .ValidateOnStart();
 
+        builder.Services.AddTransient<DiscordOnDeckMessages>();
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();

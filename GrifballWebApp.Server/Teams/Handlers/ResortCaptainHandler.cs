@@ -19,9 +19,9 @@ public class ResortCaptainDiscordHandler(RestClient restClient, IOptions<Discord
 {
     public override async Task HandleEvent(Notification<CaptainPlacementDto> request, CancellationToken cancellationToken)
     {
-        var msg = new MessageProperties()
-            .WithContent($"{await GetUsername(request.Value.PersonID)} is now captain {request.Value.OrderNumber} in the draft");
-        await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
+        //var msg = new MessageProperties()
+        //    .WithContent($"{await GetUsername(request.Value.PersonID)} is now captain {request.Value.OrderNumber} in the draft");
+        //await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
     }
 }
 

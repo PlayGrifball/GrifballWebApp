@@ -14,13 +14,18 @@ public class AddPlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext)
     }
 }
 
-public class AddPlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory)
+public class AddPlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory, IServiceScopeFactory factory)
     : DiscordHandler<Notification<AddPlayerToTeamRequestDto>>(restClient, options, contextFactory)
 {
     public override async Task HandleEvent(Notification<AddPlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
+        using var scope = factory.CreateScope();
+        var onDeck = scope.ServiceProvider.GetRequiredService<DiscordOnDeckMessages>();
+
         var msg = new MessageProperties()
             .WithContent($"{await GetUsername(request.Value.PersonID)} has been added to {await GetUsername(request.Value.CaptainID)}'s team");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
+
+        await onDeck.SendMessageAsync(request.Value.SeasonID, cancellationToken);
     }
 }

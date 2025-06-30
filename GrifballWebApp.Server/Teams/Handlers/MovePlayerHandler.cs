@@ -14,13 +14,18 @@ public class MovePlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext
     }
 }
 
-public class MovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory)
+public class MovePlayerDiscordHandler(RestClient restClient, IOptions<DiscordOptions> options, IDbContextFactory<GrifballContext> contextFactory, IServiceScopeFactory factory)
     : DiscordHandler<Notification<MovePlayerToTeamRequestDto>>(restClient, options, contextFactory)
 {
     public override async Task HandleEvent(Notification<MovePlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
+        using var scope = factory.CreateScope();
+        var onDeck = scope.ServiceProvider.GetRequiredService<DiscordOnDeckMessages>();
+
         var msg = new MessageProperties()
             .WithContent($"{await GetUsername(request.Value.PersonID)} has been moved from {await GetUsername(request.Value.PreviousCaptainID)}'s team to {await GetUsername(request.Value.NewCaptainID)}'s team");
         await _restClient.SendMessageAsync(DraftChannelID, msg, cancellationToken: cancellationToken);
+
+        await onDeck.SendMessageAsync(request.Value.SeasonID, cancellationToken);
     }
 }

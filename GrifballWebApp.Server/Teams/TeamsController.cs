@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Teams;
 
@@ -61,13 +62,17 @@ public class TeamsController : ControllerBase
         return _teamService.MovePlayerToTeam(dto, signalRConnectionID, ct);
     }
 
-    //[Authorize(Roles = "Commissioner,Player")] // TODO: bring back player access later
-    [Authorize(Roles = "Commissioner")]
+    [Authorize(Roles = "Commissioner,Player")]
     [HttpPost(Name = "AddPlayerToTeam")]
-    public Task AddPlayerToTeam([FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<IActionResult> AddPlayerToTeam([FromBody] AddPlayerToTeamRequestDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        // Need check that player is captain and is their turn
-        return _teamService.AddPlayerToTeam(dto, signalRConnectionID, ct);
+        var userID = GetUserID();
+        if (userID == 0)
+            return BadRequest("You must be logged in to add a player to a team");
+
+        await _teamService.AddPlayerToTeam(dto, userID, signalRConnectionID, ct);
+
+        return Ok();
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -88,5 +93,14 @@ public class TeamsController : ControllerBase
     public Task<bool> AreCaptainsLocked([FromRoute] int seasonID, CancellationToken ct)
     {
         return _teamService.AreCaptainsLocked(seasonID, ct);
+    }
+
+    private int GetUserID()
+    {
+        var userIDStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userIDStr == null)
+            return 0;
+        int.TryParse(userIDStr, out var userID);
+        return userID;
     }
 }

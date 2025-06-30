@@ -25,6 +25,7 @@ public abstract class DiscordHandler<T>(RestClient restClient, IOptions<DiscordO
 
     public abstract Task HandleEvent(T request, CancellationToken cancellationToken);
 
+    // TODO: Refactor into class
     protected async Task<string> GetUsername(int userID)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();

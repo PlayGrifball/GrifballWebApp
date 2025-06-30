@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Teams;
 
@@ -13,15 +14,6 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     {
         _teamService = teamService;
     }
-
-    //private int? GetPersonID()
-    //{
-    //    var personIDStr = Context.User?.Claims?.FirstOrDefault(x => x.Type is "PersonID")?.Value;
-    //    if (personIDStr is null)
-    //        return null;
-    //    else
-    //        return Convert.ToInt32(personIDStr);
-    //}
 
     //private IEnumerable<string> GetConnections(int? personID)
     //{
@@ -86,7 +78,11 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     [Authorize(Roles = "Commissioner,Player")]
     public Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto)
     {
-        return _teamService.AddPlayerToTeam(dto, Context.ConnectionId);
+        var userID = GetUserID();
+        if (userID is null)
+            throw new Exception("You must be logged in to add a player to a team");
+
+        return _teamService.AddPlayerToTeam(dto, userID.Value, Context.ConnectionId);
     }
 
     [Authorize(Roles = "Commissioner")]
@@ -104,6 +100,15 @@ public class TeamsHub : Hub<ITeamsHubClient>, ITeamsHubServer
     public Task<bool> AreCaptainsLocked(int seasonID)
     {
         return _teamService.AreCaptainsLocked(seasonID);
+    }
+
+    private int? GetUserID()
+    {
+        var userIDStr = Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userIDStr == null)
+            return null;
+        var parsed = int.TryParse(userIDStr, out var userID);
+        return parsed ? userID : null;
     }
 }
 
