@@ -29,12 +29,20 @@ public class DiscordOnDeckMessages
         if (onDeck is null)
         {
             var msg = new MessageProperties()
-                .WithContent("Draft is over");
+                .WithContent("Failed to find team");
             await _restClient.SendMessageAsync(_draftChannel, msg, cancellationToken: cancellationToken);
             return;
         }
 
         var pool = (await _teamService.GetPlayerPool(seasonId, cancellationToken)).OrderBy(x => x.Name);
+
+        if (pool.Any() is false)
+        {
+            var msg = new MessageProperties()
+                .WithContent("Draft has been completed");
+            await _restClient.SendMessageAsync(_draftChannel, msg, cancellationToken: cancellationToken);
+            return;
+        }
 
         // Split pool into groups of 25
         var poolGroups = pool
