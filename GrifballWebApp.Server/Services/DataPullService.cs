@@ -112,10 +112,28 @@ public class DataPullService : IDataPullService
             }
         });
 
+        var xboxUserIds = matchStatsBag
+            .SelectMany(x => x.Players)
+            .Where(p => p.BotAttributes is null)
+            .Select(p => long.Parse(p.PlayerId.RemoveXUIDWrapper()))
+            .Distinct()
+            .ToList();
+
+        var existingIds = await _grifballContext.XboxUsers
+            .Where(x => xboxUserIds.Contains(x.XboxUserID))
+            .Select(x => x.XboxUserID)
+            .ToListAsync(ct);
+
+        var needToPull = xboxUserIds.Except(existingIds).ToList();
+
+        // Grab all missing xbox users now in one go to avoid harsh rate limits when pulling one at a time
+        await _getsertXboxUserService.GetsertXboxUsersByXuid([.. needToPull], client, ct);
+
         // Could also do this in parallel foreach but would need a seperate context for each
         foreach (var matchStats in matchStatsBag)
         {
-            await SaveMatchStats(matchStats);
+            // Let's also pass down the client to avoid creating new one (although it shouldn't be needed since we just fetched all the xbox users)
+            await SaveMatchStats(matchStats, client);
         }
     }
 
@@ -151,7 +169,7 @@ public class DataPullService : IDataPullService
         await SaveMatchStats(matchStats);
     }
 
-    public async Task SaveMatchStats(MatchStats matchStats)
+    public async Task SaveMatchStats(MatchStats matchStats, HaloInfiniteClient? client = null)
     {
         var matchID = matchStats.MatchId;
 
@@ -202,7 +220,7 @@ public class DataPullService : IDataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong);
+            var xboxUser = await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, client);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -260,10 +278,14 @@ public class DataPullService : IDataPullService
 
             };
         }).ToAsyncEnumerable().SelectAwait(async x => await x).ToListAsync();
-        await _grifballContext.MatchParticipants.AddRangeAsync(matchParticpants);
+        _grifballContext.MatchParticipants.AddRange(matchParticpants);
 
-        //match.MatchParticipants = matchParticpants;
-        await _grifballContext.Matches.AddAsync(match);
+        var statusBefore = _grifballContext.Entry(match).State;
+        // GesertXboxUser may call save changes, do not want to add match more than once
+        if (statusBefore is EntityState.Detached)
+        {
+            _grifballContext.Matches.Add(match);
+        }
         await _grifballContext.SaveChangesAsync();
     }
 
@@ -321,6 +343,6 @@ public interface IDataPullService
     Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
     Task<MatchStats?> GetMatch(Guid matchID, HaloInfiniteClient? client = null);
     Task GetAndSaveMatch(Guid matchID);
-    Task SaveMatchStats(MatchStats matchStats);
+    Task SaveMatchStats(MatchStats matchStats, HaloInfiniteClient? client = null);
     Task DownloadMedals();
 }
