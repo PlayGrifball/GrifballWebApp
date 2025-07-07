@@ -1,10 +1,8 @@
-﻿using EntityFrameworkCore.Testing.NSubstitute;
-using GrifballWebApp.Database;
+﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -19,19 +17,9 @@ public class SetGamertagServiceTests
     private SetGamertagService _setGamertagService;
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
-        // Configure in-memory database with unique name per test
-        var options = new DbContextOptionsBuilder<GrifballContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique database per test
-            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-
-        _context = Create.MockedDbContextFor<GrifballContext>(options);
-        // TODO: Mock transaction methods better, or switch to testcontainers.
-        _context.StartTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
-        _context.CommitTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
-        _context.RollbackTransactionAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        _context = await SetUpFixture.NewGrifballContext();
 
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
 
@@ -48,7 +36,9 @@ public class SetGamertagServiceTests
     [Test]
     public async Task CanSetGamertag()
     {
-        // Arrange  
+        // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var user = new User
         {
             Id = 1
@@ -62,6 +52,7 @@ public class SetGamertagServiceTests
                 Gamertag = "Grunt Padre",
                 User = null // Simulating a new gamertag not associated with any user
             }, null));
+        await transaction.CommitAsync();
 
         // Act  
         var result = await _setGamertagService.SetGamertag(1, "Grunt Padre");
@@ -82,7 +73,9 @@ public class SetGamertagServiceTests
     [Test]
     public async Task CannotStealGamertag()
     {
-        // Arrange  
+        // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var user = new User
         {
             Id = 1,
@@ -101,6 +94,7 @@ public class SetGamertagServiceTests
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((user.XboxUser, null));
+        await transaction.CommitAsync();
 
         // Act  
         var result = await _setGamertagService.SetGamertag(2, "Grunt Padre");
@@ -120,7 +114,9 @@ public class SetGamertagServiceTests
     [Test]
     public async Task CannotSetAlreadySetGamertag()
     {
-        // Arrange  
+        // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var user = new User
         {
             Id = 1,
@@ -132,6 +128,7 @@ public class SetGamertagServiceTests
         };
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         // Act  
         var result = await _setGamertagService.SetGamertag(1, "New Example Tag - Doesn't matter for test");
@@ -142,7 +139,9 @@ public class SetGamertagServiceTests
     [Test]
     public async Task HandleGetsertError()
     {
-        // Arrange  
+        // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var user = new User
         {
             Id = 1,
@@ -151,6 +150,7 @@ public class SetGamertagServiceTests
         await _context.SaveChangesAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((null, "foobar"));
+        await transaction.CommitAsync();
 
         // Act  
         var result = await _setGamertagService.SetGamertag(1, "New Example Tag - Doesn't matter for test");
@@ -162,6 +162,8 @@ public class SetGamertagServiceTests
     public async Task AllowDummyTakeover()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var season = new Season()
         {
             SeasonName = "Test Season",
@@ -208,6 +210,8 @@ public class SetGamertagServiceTests
         };
         _context.Users.Add(user2);
         await _context.SaveChangesAsync();
+        await _context.EnableContraints("[Auth].[Users]");
+        await transaction.CommitAsync();
         _getsertXboxUserService.GetsertXboxUserByGamertag(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((user.XboxUser, null));
 

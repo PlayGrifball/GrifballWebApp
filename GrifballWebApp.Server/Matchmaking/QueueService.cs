@@ -83,7 +83,7 @@ public class QueueService
             var matchFound = await _context.Matches
                 .Include(x => x.MatchTeams)
                     .ThenInclude(x => x.MatchParticipants)
-                        .ThenInclude(x => x.XboxUser.User!.XboxUser)
+                        //.ThenInclude(x => x.XboxUser.User!.XboxUser) // Do not include because EF will include for us?
                 .Include(x => x.MatchTeams)
                     .ThenInclude(x => x.MatchParticipants)
                         .ThenInclude(x => x.XboxUser.User!.DiscordUser)

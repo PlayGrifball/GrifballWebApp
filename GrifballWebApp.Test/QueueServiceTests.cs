@@ -6,9 +6,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using GrifballWebApp.Server;
 using Microsoft.Extensions.Options;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using GrifballWebApp.Seeder;
-using EntityFrameworkCore.Testing.NSubstitute;
 using GrifballWebApp.Server.Services;
 using NetCord.Rest;
 
@@ -30,13 +28,7 @@ public class QueueServiceTests
     [SetUp]
     public async Task Setup()
     {
-        // Configure in-memory database with unique name per test
-        var options = new DbContextOptionsBuilder<GrifballContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique database per test
-            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-
-        _context = Create.MockedDbContextFor<GrifballContext>(options);
+        _context = await SetUpFixture.NewGrifballContext();
 
         // Substitute dependencies
         _logger = Substitute.For<ILogger<QueueService>>();
@@ -95,6 +87,8 @@ public class QueueServiceTests
     {
         var now = DateTime.UtcNow;
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         _context.XboxUsers.AddRange([
             new() { XboxUserID = 1, Gamertag = "1" },
             new() { XboxUserID = 2, Gamertag = "2" },
@@ -123,6 +117,7 @@ public class QueueServiceTests
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         // Act
         await _service.Go(CancellationToken.None);
@@ -230,12 +225,15 @@ public class QueueServiceTests
     public async Task Go_ShouldNotCreateMatch_WhenNotEnoughPlayersInQueue()
     {
         //Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.DisableContraints("[Auth].[Users]");
         var queuedPlayers = new[]
         {
             new QueuedPlayer { UserID = 9, User = new User { MMR = 1000, Id = 9 } },
         };
         _context.QueuedPlayer.AddRange(queuedPlayers);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         // Act
         await _service.Go(CancellationToken.None);

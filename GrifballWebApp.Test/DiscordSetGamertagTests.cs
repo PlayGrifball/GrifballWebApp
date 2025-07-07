@@ -1,12 +1,10 @@
 ﻿using DiscordInterfaces;
-using EntityFrameworkCore.Testing.NSubstitute;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NetCord.Rest;
@@ -29,15 +27,9 @@ public class DiscordSetGamertagTests
     private IDiscordInteractionContext _interactionContext;
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
-        // Configure in-memory database with unique name per test
-        var options = new DbContextOptionsBuilder<GrifballContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique database per test
-            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
-
-        _context = Create.MockedDbContextFor<GrifballContext>(options);
+        _context = await SetUpFixture.NewGrifballContext();
 
         // All this to get a UserManager<User> instance, not mocking it cause I sort of want to be sure its working
         var services = new ServiceCollection();
@@ -66,6 +58,13 @@ public class DiscordSetGamertagTests
         );
 
         _interactionContext = Substitute.For<IDiscordInteractionContext>();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _scope.Dispose();
+        _context.Dispose();
     }
 
     // Test in different scenerios that may occur.
