@@ -135,6 +135,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [isEventOrganizerGuard]
   },
   {
+    path: 'excel/:inputSpreadsheetId/:inputSheetName',
+    loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
+    title: 'Excel Exporter',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
     path: 'lateLeague',
     loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
     title: 'Late League',

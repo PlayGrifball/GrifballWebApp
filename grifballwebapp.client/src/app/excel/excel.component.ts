@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, OnInit, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,6 +25,8 @@ import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 })
 export class ExcelComponent implements OnInit {
 
+  inputSpreadsheetId = input<string>('');
+  inputSheetName = input<string>('');
   matchID: string = "";
   spreadsheetID: string = "";
   sheetName: string = "";
@@ -35,13 +37,21 @@ export class ExcelComponent implements OnInit {
   constructor(private httpClient: HttpClient) {}
 
   ngOnInit(): void {
-    this.httpClient.get<SheetInfo>('/api/Excel/DefaultSheetInfo')
+
+    if (this.inputSpreadsheetId() && this.inputSheetName()) {
+      this.spreadsheetID = this.inputSpreadsheetId();
+      this.sheetName = this.inputSheetName();
+    } else {
+      this.httpClient.get<SheetInfo>('/api/Excel/DefaultSheetInfo')
     .subscribe({
       next: (v) => {
         this.spreadsheetID = v.spreadsheetID;
         this.sheetName = v.sheetName;
       }
-    })
+    });
+    }
+
+    
   }
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
