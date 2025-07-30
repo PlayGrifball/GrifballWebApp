@@ -1,30 +1,10 @@
 <h1>Export to Google Sheet</h1>
 
-@if (isSubmittingMatch()) {
-    <mat-spinner></mat-spinner>
-} @else {
-    <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-        <mat-form-field class="app-full-width">
-            <mat-label>SpreadsheetID</mat-label>
-            <input matInput required [(ngModel)]="spreadsheetID" name="spreadsheetID">
-            <app-error-message [control]="reportMatchForm.controls['spreadsheetID']" />
-        </mat-form-field>
-
-        <mat-form-field class="app-full-width">
-            <mat-label>Sheet Name</mat-label>
-            <input matInput required [(ngModel)]="sheetName" name="sheetName">
-            <app-error-message [control]="reportMatchForm.controls['sheetName']" />
-        </mat-form-field>
-
-        <mat-form-field class="app-full-width">
-          <mat-label>MatchID</mat-label>
-          <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
-          <app-error-message [control]="reportMatchForm.controls['MatchID']" />
-        </mat-form-field>
-      
-        <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch()">
-          Submit
-        </button>
-    </form>
+@for (sheet of sheetInfo(); track sheet) {
+    <app-excel-form
+    class="inline-block px-4"
+    [inputSpreadsheetId]="sheet.spreadsheetID"
+    [inputSheetName]="sheet.sheetName"
+    [inputName]="sheet.name">
+    </app-excel-form>
 }
-

@@ -88,17 +88,19 @@ public class ExcelService
         return guids;
     }
 
-    public SheetInfo GetDefaultInfo()
+    public SheetInfo[] GetDefaultInfo()
     {
-        var spreadsheetID = _configuration.GetValue<string>("GoogleSheets:SpreadsheetID")
-            ?? throw new Exception("Missing GoogleSheets:SpreadsheetID");
-        var sheetName = _configuration.GetValue<string>("GoogleSheets:SheetName")
-            ?? throw new Exception("Missing GoogleSheets:SheetName");
-        return new SheetInfo()
-        {
-            SheetName = sheetName,
-            SpreadsheetID = spreadsheetID
-        };
+        var info = _configuration.GetRequiredSection("GoogleSheets:Sheets").Get<SheetInfo[]>();
+        if (info is null || info.Length == 0)
+            return [
+                new SheetInfo()
+                    {
+                        Name = "Enter your spreadsheetID and sheet name below",
+                        SheetName = "",
+                        SpreadsheetID = "",
+                    }
+                ];
+        return info;
     }
 
     public async Task ExportAll(SheetInfo sheetInfo)
