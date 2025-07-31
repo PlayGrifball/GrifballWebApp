@@ -5,6 +5,7 @@ namespace GrifballWebApp.Server;
 
 public interface IDiscordClient
 {
+    Task<IRestMessage> GetMessageAsync(ulong channelId, ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default);
     Task<CurrentUser> GetCurrentUserAsync(RestRequestProperties? properties = null, CancellationToken ct = default);
     IAsyncEnumerable<IRestMessage> GetMessagesAsync(ulong channelId, PaginationProperties<ulong>? paginationProperties = null, RestRequestProperties? properties = null);
     Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, RestRequestProperties? properties = null, CancellationToken ct = default);
@@ -23,6 +24,11 @@ public class DiscordClient : IDiscordClient
     public DiscordClient(RestClient restClient)
     {
         _client = restClient;
+    }
+
+    public async Task<IRestMessage> GetMessageAsync(ulong channelId, ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default)
+    {
+        return new RestMessage(await _client.GetMessageAsync(channelId, messageId, properties, cancellationToken));
     }
 
     public async Task<CurrentUser> GetCurrentUserAsync(RestRequestProperties? properties = null, CancellationToken ct = default)
@@ -130,6 +136,7 @@ public class RestMessage : IRestMessage
 public interface IAuthor
 {
     ulong Id { get; set; }
+    bool IsBot { get; set; }
 }
 
 public class Author : IAuthor
@@ -140,8 +147,10 @@ public class Author : IAuthor
     public Author(NetCord.User author)
     {
         Id = author.Id;
+        IsBot = author.IsBot;
     }
     public ulong Id { get; set; }
+    public bool IsBot { get; set; }
 }
 
 public interface IEmbed

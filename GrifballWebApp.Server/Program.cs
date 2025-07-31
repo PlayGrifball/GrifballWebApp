@@ -193,7 +193,11 @@ public class Program
         builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
         builder.Services.AddHostedService<EventsBackgroundService>();
-        builder.Services.AddDiscordGateway()
+        builder.Services.AddDiscordGateway(options =>
+            {
+                options.Intents = NetCord.Gateway.GatewayIntents.MessageContent | NetCord.Gateway.GatewayIntents.GuildMessages | NetCord.Gateway.GatewayIntents.DirectMessages;
+            })
+            .AddGatewayEventHandlers(typeof(Program).Assembly)
             .AddApplicationCommands()
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()

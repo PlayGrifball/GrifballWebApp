@@ -20,6 +20,7 @@ public class GrifballContext :
     }
 
     public virtual DbSet<DiscordUser> DiscordUsers { get; set; }
+    public virtual DbSet<DiscordMessage> DiscordMessages { get; set; }
     public virtual DbSet<AvailabilityOption> Availability { get; set; }
     public virtual DbSet<GameVersion> GameVersions { get; set; }
     public virtual DbSet<Match> Matches { get; set; }
@@ -56,6 +57,7 @@ public class GrifballContext :
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfiguration(new Configuration.DiscordUserConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.DiscordMessageConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.AvailabilityOptionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GameVersionConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchConfiguration());
