@@ -125,16 +125,22 @@ In future updates, users should be able to interact with the bot using natural l
                 responseBuilder.Append(chunk);
                 bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
                 bool charsAdded = responseBuilder.Length - lastLength >= charThreshold;
-                if ((charsAdded && timeElapsed)) // Only update if enough time has passed or enough characters have been added
+                if (charsAdded && timeElapsed) // Only update if enough time has passed or enough characters have been added
                 {
                     var currentResponse = responseBuilder.ToString();
-                    if (restMessage is null)
+                    while (currentResponse.Length > 2000)
                     {
-                        restMessage = await message.ReplyAsync(currentResponse);
+                        var first2000 = currentResponse[..2000]; // Get the first 2000 characters, send it now
+                        restMessage = await SendOrModify(message, restMessage, first2000);
+                        await SaveMessageToDb(UserId, BotID, context, restMessage);
+                        restMessage = null; // Null out the message so we do not try to save or send it again
+                        currentResponse = currentResponse[2000..]; // Get everything after the first 2000 characters
+                        responseBuilder.Clear(); // Clear the response builder to avoid duplication
+                        responseBuilder.Append(currentResponse); // Append the remaining characters to the builder
                     }
-                    else
+                    if (string.IsNullOrEmpty(currentResponse) is false)
                     {
-                        restMessage = await restMessage.ModifyAsync(x => x.WithContent(currentResponse));
+                        restMessage = await SendOrModify(message, restMessage, currentResponse);
                     }
                     lastUpdate = stopwatch.Elapsed;
                     lastLength = currentResponse.Length;
@@ -147,7 +153,7 @@ In future updates, users should be able to interact with the bot using natural l
             await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, new ChatOptions()
             {
                 Instructions = instructions,
-                
+
                 Tools =
                 [
                     AIFunctionFactory.Create(GetTime),
@@ -169,16 +175,56 @@ In future updates, users should be able to interact with the bot using natural l
         // Final update to ensure the full response is shown
         var finalResponse = responseBuilder.ToString();
 
+        while (finalResponse.Length > 2000)
+        {
+            var first2000 = finalResponse[..2000]; // Get the first 2000 characters, send it now
+            restMessage = await SendOrModify(message, restMessage, first2000);
+            await SaveMessageToDb(UserId, BotID, context, restMessage);
+            restMessage = null; // Null out the message so we do not try to save or send it again
+            finalResponse = finalResponse[2000..]; // Get everything after the first 2000 characters
+            responseBuilder.Clear(); // Clear the response builder to avoid duplication
+            responseBuilder.Append(finalResponse); // Append the remaining characters to the builder
+        }
+
         if (restMessage is null)
         {
-            restMessage = await message.ReplyAsync(finalResponse);
+            if (string.IsNullOrEmpty(finalResponse) is false)
+            {
+                // The finalResponse may be empty if we cleared the responseBuilder above
+                restMessage = await message.ReplyAsync(finalResponse);
+                await SaveMessageToDb(UserId, BotID, context, restMessage);
+            }
+            
         }
         else if (restMessage.Content.Length != finalResponse.Length)
         {
             restMessage = await restMessage.ModifyAsync(x => x.WithContent(finalResponse));
+            await SaveMessageToDb(UserId, BotID, context, restMessage);
         }
+    }
 
-        var newMessage2 = new DiscordMessage()
+    /// <summary>
+    /// This method sends a response to message, or modifies an existing message.
+    /// </summary>
+    /// <param name="messageToRespondTo"></param>
+    /// <param name="existingMessage"></param>
+    /// <param name="content"></param>
+    /// <returns></returns>
+    private static async Task<NetCord.Rest.RestMessage> SendOrModify(Message messageToRespondTo, NetCord.Rest.RestMessage? existingMessage, string content)
+    {
+        if (existingMessage is null)
+        {
+            return await messageToRespondTo.ReplyAsync(content);
+        }
+        else
+        {
+            return await existingMessage.ModifyAsync(x => x.WithContent(content));
+        }
+    }
+
+    private static async Task SaveMessageToDb(long UserId, long BotID, GrifballContext context, NetCord.Rest.RestMessage restMessage)
+    {
+        var newMessage = new DiscordMessage()
         {
             Id = (long)restMessage.Id,
             FromDiscordUserId = BotID,
@@ -186,7 +232,7 @@ In future updates, users should be able to interact with the bot using natural l
             Content = restMessage.Content,
             Timestamp = restMessage.CreatedAt.UtcDateTime,
         };
-        context.DiscordMessages.Add(newMessage2);
+        context.DiscordMessages.Add(newMessage);
         await context.SaveChangesAsync();
     }
 
@@ -198,7 +244,7 @@ In future updates, users should be able to interact with the bot using natural l
         return url;
     }
 
-    private async Task<List<MatchDTO>> RecentMatches(string xboxGamertag)
+    private async Task<List<MatchDTO>> RecentMatches(string xboxGamertag, int matchCount = 5)
     {
         using var scope = scopeFactory.CreateScope();
         var xboxUserService = scope.ServiceProvider.GetRequiredService<IGetsertXboxUserService>();
@@ -214,7 +260,7 @@ In future updates, users should be able to interact with the bot using natural l
         var _context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
         try
         {
-            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, 5);
+            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, matchCount);
         }
         catch (Exception ex)
         {
@@ -224,7 +270,7 @@ In future updates, users should be able to interact with the bot using natural l
         var matches = await _context.Matches
             .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)))
             .OrderByDescending(x => x.StartTime)
-            .Take(5)
+            .Take(matchCount)
             .Select(x => new MatchDTO
             {
                 Id = x.MatchID,
