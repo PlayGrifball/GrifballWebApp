@@ -5,6 +5,8 @@ using Microsoft.Extensions.AI;
 using NetCord.Gateway;
 using NetCord.Hosting.Gateway;
 using OllamaSharp;
+using System.Text;
+using System.Threading.Channels;
 
 namespace GrifballWebApp.Server;
 
@@ -92,14 +94,6 @@ public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactor
             .Select(x => new ChatMessage(x.FromDiscordUserId == BotID ? ChatRole.Assistant : ChatRole.User, x.Content))
             .ToList();
 
-        var response = "";
-        NetCord.Rest.RestMessage? restMessage = null;
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var lastUpdate = stopwatch.Elapsed;
-        int lastLength = 0;
-        const int charThreshold = 25;
-        var timeThreshold = TimeSpan.FromSeconds(1);
-
         var instructions = @"
 You are a Discord bot, and all messages must stay under the 2000-character limit.
 Your primary purpose is to provide stats and information about Grifball.
@@ -107,44 +101,78 @@ You currently support standard Discord slash commands.
 In future updates, users should be able to interact with the bot using natural language commands directly (without the slash).
 ";
 
-        await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, new ChatOptions()
-        {
-            Instructions = instructions,
-        }))
-        {
-            response += item.Text;
-            bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
-            bool charsAdded = response.Length - lastLength >= charThreshold;
+        var channel = Channel.CreateUnbounded<string>();
+        var responseBuilder = new StringBuilder();
+        NetCord.Rest.RestMessage? restMessage = null;
 
-            if (restMessage is null || timeElapsed || charsAdded)
+        // Background task for incremental updates
+        var updateTask = Task.Run(async () =>
+        {
+            var timeThreshold = TimeSpan.FromSeconds(1);
+            const int charThreshold = 25;
+            int lastLength = 0;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var lastUpdate = stopwatch.Elapsed;
+            await foreach (var chunk in channel.Reader.ReadAllAsync())
             {
-                if (restMessage is null)
+                responseBuilder.Append(chunk);
+                bool timeElapsed = stopwatch.Elapsed - lastUpdate > timeThreshold;
+                bool charsAdded = responseBuilder.Length - lastLength >= charThreshold;
+                if ((charsAdded && timeElapsed)) // Only update if enough time has passed or enough characters have been added
                 {
-                    restMessage = await message.ReplyAsync(response);
+                    var currentResponse = responseBuilder.ToString();
+                    if (restMessage is null)
+                    {
+                        restMessage = await message.ReplyAsync(currentResponse);
+                    }
+                    else
+                    {
+                        restMessage = await restMessage.ModifyAsync(x => x.WithContent(currentResponse));
+                    }
+                    lastUpdate = stopwatch.Elapsed;
+                    lastLength = currentResponse.Length;
                 }
-                else
-                {
-                    restMessage = await restMessage.ModifyAsync(x => x.WithContent(response));
-                }
-                lastUpdate = stopwatch.Elapsed;
-                lastLength = response.Length;
+            }
+        });
+
+        try
+        {
+            await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, new ChatOptions()
+            {
+                Instructions = instructions,
+            }))
+            {
+                await channel.Writer.WriteAsync(item.Text);
             }
         }
+        finally
+        {
+            // Always complete the writer so background thread never hangs even if an error occurs
+            channel.Writer.Complete();
+        }
+        await updateTask;
 
         // Final update to ensure the full response is shown
-        if (restMessage is not null && restMessage.Content.Length != response.Length)
+        var finalResponse = responseBuilder.ToString();
+
+        if (restMessage is null)
         {
-            await restMessage.ModifyAsync(x => x.WithContent(response));
-            var newMessage2 = new DiscordMessage()
-            {
-                Id = (long)restMessage.Id,
-                FromDiscordUserId = BotID,
-                ToDiscordUserId = UserId,
-                Content = restMessage.Content,
-                Timestamp = restMessage.CreatedAt.UtcDateTime,
-            };
-            context.DiscordMessages.Add(newMessage2);
-            await context.SaveChangesAsync();
+            restMessage = await message.ReplyAsync(finalResponse);
         }
+        else if (restMessage.Content.Length != finalResponse.Length)
+        {
+            restMessage = await restMessage.ModifyAsync(x => x.WithContent(finalResponse));
+        }
+
+        var newMessage2 = new DiscordMessage()
+        {
+            Id = (long)restMessage.Id,
+            FromDiscordUserId = BotID,
+            ToDiscordUserId = UserId,
+            Content = restMessage.Content,
+            Timestamp = restMessage.CreatedAt.UtcDateTime,
+        };
+        context.DiscordMessages.Add(newMessage2);
+        await context.SaveChangesAsync();
     }
 }
