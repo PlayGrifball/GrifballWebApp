@@ -1,5 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using NetCord.Gateway;
@@ -11,7 +13,7 @@ using System.Threading.Channels;
 namespace GrifballWebApp.Server;
 
 [GatewayEvent(nameof(GatewayClient.MessageCreate))]
-public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration) : IGatewayEventHandler<Message>
+public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IGatewayEventHandler<Message>
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
@@ -44,6 +46,11 @@ public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactor
     private async ValueTask HandleResponse(Message message)
     {
         IChatClient chatClient = new OllamaApiClient(new Uri("http://localhost:11434/"), "llama3.1:latest");
+
+        chatClient = new ChatClientBuilder(chatClient)
+            .UseFunctionInvocation()
+            .Build();
+
 
         var UserId = (long)message.Author.Id;
         var BotID = (long)BotId;
@@ -140,6 +147,13 @@ In future updates, users should be able to interact with the bot using natural l
             await foreach (ChatResponseUpdate item in chatClient.GetStreamingResponseAsync(chatHistory, new ChatOptions()
             {
                 Instructions = instructions,
+                
+                Tools =
+                [
+                    AIFunctionFactory.Create(GetTime),
+                    AIFunctionFactory.Create(RecentMatches),
+                    AIFunctionFactory.Create(RecentMatchesUrl, null, "This method is used to get a waypoint url by a match id and gamertag. Do not ever remove %20 from the final response if it is present in the result."),
+                ],
             }))
             {
                 await channel.Writer.WriteAsync(item.Text);
@@ -175,4 +189,71 @@ In future updates, users should be able to interact with the bot using natural l
         context.DiscordMessages.Add(newMessage2);
         await context.SaveChangesAsync();
     }
+
+    private string GetTime() => DateTime.UtcNow.DiscordTimeEmbed();
+
+    public string RecentMatchesUrl(string xboxGamertag, Guid matchId)
+    {
+        var url = $"https://www.halowaypoint.com/halo-infinite/players/{Uri.EscapeDataString(xboxGamertag)}/matches/{matchId}";
+        return url;
+    }
+
+    private async Task<List<MatchDTO>> RecentMatches(string xboxGamertag)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var xboxUserService = scope.ServiceProvider.GetRequiredService<IGetsertXboxUserService>();
+
+        var x = await xboxUserService.GetsertXboxUserByGamertag(xboxGamertag);
+
+        if (x.Item1 is null)
+            throw new InvalidOperationException(x.Item2);
+
+        var xboxUser = x.Item1;
+
+        var _dataPullService = scope.ServiceProvider.GetRequiredService<IDataPullService>();
+        var _context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
+        try
+        {
+            await _dataPullService.DownloadRecentMatchesForPlayers([xboxUser.XboxUserID], startPage: 0, endPage: 0, 5);
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
+        }
+
+        var matches = await _context.Matches
+            .Where(x => x.MatchTeams.Any(x => x.MatchParticipants.Any(x => x.XboxUserID == xboxUser.XboxUserID)))
+            .OrderByDescending(x => x.StartTime)
+            .Take(5)
+            .Select(x => new MatchDTO
+            {
+                Id = x.MatchID,
+                StartTime = x.StartTime ?? DateTime.MinValue,
+                Teams = x.MatchTeams.Select(t => new MatchTeamDTO
+                {
+                    Id = t.TeamID,
+                    Score = t.Score,
+                    Outcome = t.Outcome,
+                    Players = t.MatchParticipants.Select(p => p.XboxUser.Gamertag).ToList()
+                }).ToList()
+            })
+            .AsNoTracking()
+            .ToListAsync();
+        return matches;
+    }
+}
+
+public class MatchDTO
+{
+    public Guid Id { get; set; }
+    public DateTime? StartTime { get; set; }
+    public List<MatchTeamDTO> Teams { get; set; }
+}
+
+public class MatchTeamDTO
+{
+    public int Id { get; set; }
+    public int Score { get; set; }
+    public Outcomes Outcome { get; set; }
+    public List<string> Players { get; set; }
 }

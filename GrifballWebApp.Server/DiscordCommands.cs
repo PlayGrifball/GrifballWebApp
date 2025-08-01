@@ -106,8 +106,6 @@ public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContex
             .AsNoTracking()
             .ToListAsync();
 
-        var last = matches.FirstOrDefault()?.StartTime?.ToString() ?? "No idea";
-
         var list = new List<EmbedProperties>();
 
         foreach (var match in matches)

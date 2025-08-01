@@ -27,6 +27,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>9.0.4</Version>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.AI" Version="9.7.1" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.4" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.2" />
     <PackageReference Include="NetCord.Hosting.Services" Version="1.0.0-alpha.365" />
