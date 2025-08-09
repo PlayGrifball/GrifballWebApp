@@ -25,6 +25,9 @@ public partial class TeamConfiguration : IEntityTypeConfiguration<Team>
         // Team name must be unique for any given season
         entity.HasIndex(e => new { e.TeamName, e.SeasonID }).IsUnique();
 
+        // Configure audit fields
+        AuditableEntityConfiguration<Team>.ConfigureAuditFields(entity);
+
         OnConfigurePartial(entity);
     }
 

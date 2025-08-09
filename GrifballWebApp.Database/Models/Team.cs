@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class Team
+public partial class Team : AuditableEntity
 {
     public Team()
     {

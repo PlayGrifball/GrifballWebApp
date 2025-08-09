@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class Season
+public partial class Season : AuditableEntity
 {
     public Season()
     {
