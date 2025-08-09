@@ -2,17 +2,16 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Database.Interceptors;
 
 public class AuditInterceptor : SaveChangesInterceptor
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AuditInterceptor(IServiceProvider serviceProvider)
+    public AuditInterceptor(ICurrentUserService currentUserService)
     {
-        _serviceProvider = serviceProvider;
+        _currentUserService = currentUserService;
     }
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
@@ -35,14 +34,13 @@ public class AuditInterceptor : SaveChangesInterceptor
         if (context == null)
             return;
 
+        var now = DateTime.UtcNow;
         var currentUserId = GetCurrentUserId();
 
         var auditableEntries = context.ChangeTracker.Entries<IAuditable>();
 
         foreach (var entry in auditableEntries)
         {
-            var now = DateTime.UtcNow;
-
             switch (entry.State)
             {
                 case EntityState.Added:
@@ -63,17 +61,6 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private int? GetCurrentUserId()
     {
-        try
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var currentUserService = scope.ServiceProvider.GetService<ICurrentUserService>();
-            return currentUserService?.GetCurrentUserId();
-        }
-        catch
-        {
-            // If we can't get the current user service (e.g., during migrations, tests, etc.)
-            // just return null to indicate system/unknown user
-            return null;
-        }
+        return _currentUserService.GetCurrentUserId();
     }
 }

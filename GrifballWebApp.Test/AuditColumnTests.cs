@@ -1,6 +1,5 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
 

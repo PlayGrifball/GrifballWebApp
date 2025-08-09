@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
@@ -118,12 +119,12 @@ public class Program
 
         // Add HTTP context accessor for audit interceptor
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<GrifballWebApp.Database.Services.ICurrentUserService, GrifballWebApp.Database.Services.CurrentUserService>();
+        builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         builder.Services.AddDbContextFactory<GrifballContext>((services, options)
             => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
             ?? throw new Exception("GrifballContext failed to configure"))
-            .AddInterceptors(new GrifballWebApp.Database.Interceptors.AuditInterceptor(services)));
+            .AddInterceptors(new Database.Interceptors.AuditInterceptor(services.GetRequiredService<ICurrentUserService>())));
 
         builder.Services.AddAuthorization();
 

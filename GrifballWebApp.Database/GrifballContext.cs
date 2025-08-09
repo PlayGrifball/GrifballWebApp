@@ -1,5 +1,4 @@
 ﻿using GrifballWebApp.Database.Models;
-using GrifballWebApp.Database.Interceptors;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
