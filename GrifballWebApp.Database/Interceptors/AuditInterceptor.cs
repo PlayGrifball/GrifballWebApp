@@ -1,6 +1,8 @@
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GrifballWebApp.Database.Interceptors;
 
@@ -33,8 +35,6 @@ public class AuditInterceptor : SaveChangesInterceptor
         if (context == null)
             return;
 
-        // For now, we'll set the user ID to a default value or get from service provider
-        // This can be enhanced to get the current user from HttpContext or other sources
         var currentUserId = GetCurrentUserId();
 
         var auditableEntries = context.ChangeTracker.Entries<IAuditable>();
@@ -63,14 +63,17 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private int? GetCurrentUserId()
     {
-        // This is a placeholder implementation.
-        // In a real application, you would get the current user ID from:
-        // - HttpContext.User claims
-        // - Current user service
-        // - Authentication context
-        
-        // For now, return null to indicate system/unknown user
-        // This can be enhanced based on the application's authentication setup
-        return null;
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var currentUserService = scope.ServiceProvider.GetService<ICurrentUserService>();
+            return currentUserService?.GetCurrentUserId();
+        }
+        catch
+        {
+            // If we can't get the current user service (e.g., during migrations, tests, etc.)
+            // just return null to indicate system/unknown user
+            return null;
+        }
     }
 }
