@@ -145,6 +145,59 @@ cd grifballwebapp.client
 ng test
 ```
 
+### Testing Requirements for New Pull Requests
+**All new pull requests MUST include unit tests following these requirements:**
+
+#### Required Testing Framework and Libraries
+- **Test Framework**: NUnit 4.x (already configured)
+- **Mocking Library**: **NSubstitute 5.x ONLY** - Never use Moq
+- **Database Testing**: Testcontainers with SQL Server (Testcontainers.MsSql 4.6+)
+
+#### Testing Patterns for Database Operations
+When testing code that uses `GrifballContext`, always use testcontainers with the existing SetUpFixture pattern:
+
+```csharp
+[SetUp]
+public async Task Setup()
+{
+    _context = await SetUpFixture.NewGrifballContext();
+    
+    // Setup mocks using NSubstitute
+    _mockService = Substitute.For<IYourService>();
+    
+    // Configure mock behavior
+    _mockService.Method(Arg.Any<Type>()).Returns(expectedResult);
+}
+
+[TearDown]
+public void TearDown()
+{
+    _context.Dispose();
+}
+```
+
+#### NSubstitute Examples
+```csharp
+// Creating mocks
+var mockLogger = Substitute.For<ILogger<MyService>>();
+var mockRepository = Substitute.For<IMyRepository>();
+
+// Setting up method returns
+mockRepository.GetAsync(Arg.Any<int>()).Returns(expectedEntity);
+
+// Verifying method calls
+await mockRepository.Received(1).SaveAsync(Arg.Any<MyEntity>());
+
+// Argument matching
+mockService.Process(Arg.Is<string>(x => x.Contains("test")));
+```
+
+#### Test Structure Requirements
+- Use `[TestFixture]` and `[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]` for test classes
+- Include descriptive test method names following the pattern: `MethodName_Should[Expected]_When[Condition]`
+- Use `Assert.Multiple()` for multiple related assertions
+- Always dispose of contexts in `[TearDown]` methods
+
 ### Known Test Issues
 - Some unit tests may require database migrations to be current
 - Angular tests may show peer dependency warnings (these are normal)
@@ -282,5 +335,27 @@ ApplyMigrations=true
 - `appsettings.json`: Base configuration
 - `appsettings.Development.json`: Development overrides
 - `launchSettings.json`: Development server configuration
+
+## Documentation Organization
+
+### Documentation Structure
+All project documentation should be organized in the `docs/` folder to keep the repository root clean:
+
+```
+docs/
+├── api/                    # API documentation
+├── architecture/           # Technical architecture docs
+├── deployment/             # Deployment guides
+├── development/            # Development guides
+├── user/                  # User documentation
+└── README.md              # Documentation index
+```
+
+### Documentation Guidelines
+- **Never place documentation files in the repository root** (except README.md)
+- Use the `docs/` folder for all documentation changes and additions
+- Reference external documentation files from the main README.md when needed
+- Keep documentation up to date with code changes
+- Use clear, descriptive filenames and organize by topic
 
 This setup provides a fully functional development environment for the GrifballWebApp with all necessary tools, dependencies, and workflows properly configured.
