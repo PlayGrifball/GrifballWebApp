@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.MsSql;
 
 namespace GrifballWebApp.Test;
@@ -14,7 +15,7 @@ internal class Utility
         await server.StartAsync();
         return server;
     }
-    internal static async Task<GrifballContext> NewGrifballContext(MsSqlContainer server)
+    internal static async Task<GrifballContext> NewGrifballContext(MsSqlContainer server, params IInterceptor[] interceptors)
     {
         // Create a unique database name per test
         var dbName = $"TestDb_{Guid.NewGuid():N}";
@@ -37,6 +38,7 @@ internal class Utility
         }.ConnectionString;
         var options = new DbContextOptionsBuilder<GrifballContext>()
             .UseSqlServer(testDbConnectionString)
+            .AddInterceptors(interceptors)
             .Options;
 
         var context = new GrifballContext(options);

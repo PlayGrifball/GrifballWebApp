@@ -1,4 +1,5 @@
 ﻿using GrifballWebApp.Database;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.MsSql;
 
 namespace GrifballWebApp.Test;
@@ -20,8 +21,8 @@ public class SetUpFixture
         await MsSqlContainer.DisposeAsync();
     }
 
-    public static async Task<GrifballContext> NewGrifballContext()
+    public static async Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
     {
-        return await Utility.NewGrifballContext(SetUpFixture.MsSqlContainer);
+        return await Utility.NewGrifballContext(SetUpFixture.MsSqlContainer, interceptors);
     }
 }
