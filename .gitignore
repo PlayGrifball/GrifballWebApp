@@ -410,3 +410,14 @@ tokens.json
 
 ## Contains one time use authorization code
 AccountAuthorization.txt
+
+# SDK and large binary files - do not commit to repository
+*.tar.gz
+*.zip
+*-sdk-*
+dotnet-install.*
+dotnet-sdk-*
+node-v*
+*.msi
+*.pkg
+*.dmg
