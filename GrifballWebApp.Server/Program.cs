@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Availability;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.EventOrganizer;
@@ -13,6 +14,7 @@ using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
@@ -22,6 +24,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -75,7 +78,11 @@ public class Program
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddSignalR();
+        builder.Services.AddSignalR(options =>
+        {
+            options.AddFilter<ExceptionLogHubFilter>();
+            options.AddFilter<UserContextHubFilter>();
+        });
 
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
@@ -116,9 +123,14 @@ public class Program
             });
         });
 
+        // Add HTTP context accessor for audit interceptor
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
         builder.Services.AddDbContextFactory<GrifballContext>((services, options)
             => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
-            ?? throw new Exception("GrifballContext failed to configure")));
+            ?? throw new Exception("GrifballContext failed to configure"))
+            .AddInterceptors(new Database.Interceptors.AuditInterceptor(services.GetRequiredService<ICurrentUserService>())));
 
         builder.Services.AddAuthorization();
 

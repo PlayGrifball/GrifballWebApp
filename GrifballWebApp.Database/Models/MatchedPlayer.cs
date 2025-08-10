@@ -1,6 +1,6 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
-public class MatchedPlayer
+public class MatchedPlayer : AuditableEntity
 {
     public MatchedPlayer()
     {

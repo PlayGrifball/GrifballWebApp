@@ -1,5 +1,5 @@
 ﻿namespace GrifballWebApp.Database.Models;
-public class DiscordUser
+public class DiscordUser : AuditableEntity
 {
     public DiscordUser()
     {

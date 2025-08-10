@@ -1,7 +1,7 @@
 ﻿
 
 namespace GrifballWebApp.Database.Models;
-public partial class AvailabilityOption
+public class AvailabilityOption : AuditableEntity
 {
     public AvailabilityOption()
     {

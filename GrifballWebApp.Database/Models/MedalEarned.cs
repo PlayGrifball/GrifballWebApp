@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class MedalEarned
+public class MedalEarned : AuditableEntity
 {
     public long MedalID { get; set; }
     // Composite FK MatchID + XboxUserID

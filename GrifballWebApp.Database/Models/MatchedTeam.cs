@@ -1,6 +1,6 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
-public class MatchedTeam
+public class MatchedTeam : AuditableEntity
 {
     public int MatchedTeamId { get; set; }
     public List<MatchedPlayer> Players { get; set; } = new List<MatchedPlayer>();

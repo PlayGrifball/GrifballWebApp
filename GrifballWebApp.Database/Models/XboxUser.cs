@@ -1,7 +1,7 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
 
-public class XboxUser
+public class XboxUser : AuditableEntity
 {
     public XboxUser()
     {

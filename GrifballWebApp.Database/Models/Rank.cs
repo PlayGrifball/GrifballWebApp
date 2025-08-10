@@ -1,5 +1,5 @@
 ﻿namespace GrifballWebApp.Database.Models;
-public class Rank
+public class Rank : AuditableEntity
 {
     public int Id { get; set; }
     public string Name { get; set; } = null!;

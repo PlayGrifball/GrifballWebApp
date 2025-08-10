@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
-public class User : IdentityUser<int>
+public class User : IdentityUser<int>, IAuditable
 {
     public User()
     {
@@ -36,4 +36,8 @@ public class User : IdentityUser<int>
     public int LossStreak { get; set; } = 0;
     public int Wins { get; set; } = 0;
     public int Losses { get; set; } = 0;
+    public int? CreatedByID { get; set; }
+    public int? ModifiedByID { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime ModifiedAt { get; set; }
 }

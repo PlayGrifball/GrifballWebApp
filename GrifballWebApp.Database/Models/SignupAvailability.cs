@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class SignupAvailability
+public class SignupAvailability : AuditableEntity
 {
     public int SeasonSignupID { get; set; }
     public int AvailabilityOptionID { get; set; }

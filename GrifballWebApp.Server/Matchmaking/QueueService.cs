@@ -91,7 +91,7 @@ public class QueueService
                 .Where(x => x.MatchTeams.All(t => t.Outcome == Outcomes.Won || t.Outcome == Outcomes.Lost))
                 .Where(x => x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t1.Contains(x))) &&
                             x.MatchTeams.Any(t => t.MatchParticipants.Select(p => p.XboxUserID).All(x => t2.Contains(x))))
-                .Where(x => x.StartTime >= match.CreatedAt.AddMinutes(-3)) // the match must have started after the match was created, with 3 minute buffer in case clock is off
+                .Where(x => x.StartTime >= match.StartedAt.AddMinutes(-3)) // the match must have started after the match was created, with 3 minute buffer in case clock is off
                 .Where(x => x.MatchedMatch == null) // the match must not already be matched
                 .OrderByDescending(x => x.StartTime) // Grab the most recent match
                 .FirstOrDefaultAsync(ct);
@@ -130,7 +130,7 @@ public class QueueService
                 var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
                 await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
             }
-            else if (voteResult is { Key: WinnerVote.Cancel } || match.CreatedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
+            else if (voteResult is { Key: WinnerVote.Cancel } || match.StartedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
             {
                 // Cancel the match
                 match.Active = false;
@@ -652,7 +652,7 @@ public class QueueService
 
         foreach(var match in activeMatches)
         {
-            var matchDuration = FormatDuration(match.CreatedAt);
+            var matchDuration = FormatDuration(match.StartedAt);
             var matchEmbed = new EmbedProperties()
             {
                 Color = new Color(59, 165, 92), // orange
