@@ -51,3 +51,10 @@ jobs:
         path: TestResults/*.trx
         reporter: dotnet-trx
         fail-on-error: true
+
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        files: TestResults/**/coverage.cobertura.xml
+        name: codecov-coverage
