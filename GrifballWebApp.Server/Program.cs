@@ -128,10 +128,21 @@ public class Program
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddScoped<Database.Interceptors.AuditInterceptor>();
 
-        builder.Services.AddDbContextFactory<GrifballContext>((services, options)
-            => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
+        builder.Services.AddDbContext<GrifballContext>((services, options) =>
+        {
+            options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
             ?? throw new Exception("GrifballContext failed to configure"))
-            .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>()));
+            .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
+        });
+
+        // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
+        builder.Services.AddDbContextFactory<GrifballContext, GrifballContextFactory>();
+
+        //builder.Services.AddDbContextFactory<GrifballContext>((services, options)
+        //    => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
+        //    ?? throw new Exception("GrifballContext failed to configure")));
+
+        
 
         builder.Services.AddAuthorization();
 
