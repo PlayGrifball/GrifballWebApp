@@ -14,6 +14,7 @@ using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
@@ -23,6 +24,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -76,7 +78,11 @@ public class Program
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddSignalR();
+        builder.Services.AddSignalR(options =>
+        {
+            options.AddFilter<ExceptionLogHubFilter>();
+            options.AddFilter<UserContextHubFilter>();
+        });
 
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
