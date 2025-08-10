@@ -31,21 +31,21 @@ jobs:
       run: dotnet restore GrifballWebApp.sln
       
     - name: Build
-      run: dotnet build GrifballWebApp.sln --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
       
     - name: Test
       run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/ --collect:"XPlat Code Coverage"
       
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
-      if: always()
+      #if: always()
       with:
         name: test-results
         path: TestResults/
         
     - name: Publish Test Results
       uses: dorny/test-reporter@v1
-      if: always()
+      #if: always()
       with:
         name: .NET Test Results
         path: TestResults/*.trx
@@ -54,7 +54,8 @@ jobs:
 
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: always()
+      #if: always()
       with:
         files: TestResults/**/coverage.cobertura.xml
         name: codecov-coverage
+        fail_ci_if_error: true
