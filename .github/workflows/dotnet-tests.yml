@@ -8,10 +8,15 @@ on:
 
 env:
   DOTNET_VERSION: '9.0.x'
+  # Testcontainers configuration
+  TESTCONTAINERS_REUSE_ENABLE: false
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout code
@@ -29,8 +34,15 @@ jobs:
       run: dotnet build GrifballWebApp.sln --no-restore --configuration Release
       
     - name: Test
-      run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/
+      run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/ --collect:"XPlat Code Coverage"
       
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: TestResults/
+        
     - name: Publish Test Results
       uses: dorny/test-reporter@v1
       if: always()
