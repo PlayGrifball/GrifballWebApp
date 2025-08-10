@@ -14,7 +14,7 @@ public class AuditColumnTests
     public async Task Setup()
     {
         var sub = Substitute.For<ICurrentUserService>();
-        sub.GetCurrentUserId().Returns((int?)null); // No current user in tests
+        sub.GetCurrentUserId().Returns(9001);
         var auditInterceptor = new Database.Interceptors.AuditInterceptor(sub);
         _context = await SetUpFixture.NewGrifballContext([auditInterceptor]);
     }
@@ -48,9 +48,8 @@ public class AuditColumnTests
         Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(season.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(season.CreatedAt, Is.EqualTo(season.ModifiedAt).Within(TimeSpan.FromSeconds(1)));
-        
-        // CreatedByID and ModifiedByID can be null in our current implementation
-        // as we don't have a current user context in tests
+        Assert.That(season.CreatedByID, Is.EqualTo(9001));
+        Assert.That(season.ModifiedByID, Is.EqualTo(9001));
     }
 
     [Test]
@@ -84,6 +83,8 @@ public class AuditColumnTests
         // Assert
         Assert.That(season.CreatedAt, Is.EqualTo(originalCreatedAt), "CreatedAt should not change on update");
         Assert.That(season.ModifiedAt, Is.GreaterThan(originalModifiedAt), "ModifiedAt should be updated");
+        Assert.That(season.CreatedByID, Is.EqualTo(9001));
+        Assert.That(season.ModifiedByID, Is.EqualTo(9001));
     }
 
     [Test]
@@ -118,6 +119,8 @@ public class AuditColumnTests
         Assert.That(team.CreatedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(team.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(team.CreatedAt, Is.EqualTo(team.ModifiedAt).Within(TimeSpan.FromSeconds(1)));
+        Assert.That(team.CreatedByID, Is.EqualTo(9001));
+        Assert.That(team.ModifiedByID, Is.EqualTo(9001));
     }
 
     [Test]
@@ -139,5 +142,30 @@ public class AuditColumnTests
         Assert.That(match.CreatedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(match.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
         Assert.That(match.CreatedAt, Is.EqualTo(match.ModifiedAt).Within(TimeSpan.FromSeconds(1)));
+        Assert.That(match.CreatedByID, Is.EqualTo(9001));
+        Assert.That(match.ModifiedByID, Is.EqualTo(9001));
+    }
+
+    [Test]
+    public async Task CreatingUser_SetsAuditFields()
+    {
+        // Arrange
+        var user = new User
+        {
+            UserName = "testuser",
+            DisplayName = "Test User",
+            Email = "testuser@example.com"
+        };
+
+        // Act
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        // Assert - Check that audit fields are populated
+        Assert.That(user.CreatedAt, Is.Not.EqualTo(default(DateTime)), "CreatedAt should be set");
+        Assert.That(user.ModifiedAt, Is.Not.EqualTo(default(DateTime)), "ModifiedAt should be set");
+        Assert.That(user.CreatedAt, Is.EqualTo(user.ModifiedAt).Within(TimeSpan.FromSeconds(1)), "CreatedAt and ModifiedAt should be nearly equal on creation");
+        Assert.That(user.CreatedByID, Is.EqualTo(9001), "CreatedByID should match current user id");
+        Assert.That(user.ModifiedByID, Is.EqualTo(9001), "ModifiedByID should match current user id");
     }
 }

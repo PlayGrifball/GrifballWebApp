@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class GameVersion
+public class GameVersion : AuditableEntity
 {
     public GameVersion()
     {

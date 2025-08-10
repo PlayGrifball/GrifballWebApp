@@ -1,7 +1,7 @@
 ﻿
 
 namespace GrifballWebApp.Database.Models;
-public class MatchedMatch
+public class MatchedMatch : AuditableEntity
 {
     public MatchedMatch()
     {
@@ -13,7 +13,7 @@ public class MatchedMatch
     public int AwayTeamId { get; set; }
     public MatchedTeam HomeTeam { get; set; } = null!;
     public MatchedTeam AwayTeam { get; set; } = null!;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public bool Active { get; set; } = true;
     public Match? Match { get; set; }
     public Guid? MatchID { get; set; }

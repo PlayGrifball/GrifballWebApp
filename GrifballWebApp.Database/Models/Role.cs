@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
 namespace GrifballWebApp.Database.Models;
-public partial class Role : IdentityRole<int>
+public class Role : IdentityRole<int>, IAuditable
 {
     public Role()
     {
@@ -9,4 +9,8 @@ public partial class Role : IdentityRole<int>
     }
 
     public virtual ICollection<UserRole> UserRoles { get; set; }
+    public int? CreatedByID { get; set; }
+    public int? ModifiedByID { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime ModifiedAt { get; set; }
 }

@@ -15,9 +15,6 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
 
         entity.HasIndex(e => e.SeasonName).IsUnique();
 
-        // Configure audit fields
-        AuditableEntityConfiguration<Season>.ConfigureAuditFields(entity);
-
         OnConfigurePartial(entity);
     }
 

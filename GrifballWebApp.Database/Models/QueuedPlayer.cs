@@ -1,6 +1,6 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
-public class QueuedPlayer
+public class QueuedPlayer : AuditableEntity
 {
     public int UserID { get; set; }
     public User User { get; set; } = null!;

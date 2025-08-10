@@ -1,6 +1,6 @@
 ﻿
 namespace GrifballWebApp.Database.Models;
-public class MatchedWinnerVote
+public class MatchedWinnerVote : AuditableEntity
 {
     public int MatchId { get; set; }
     public MatchedMatch MatchedMatch { get; set; } = null!;

@@ -24,9 +24,6 @@ public partial class MatchConfiguration : IEntityTypeConfiguration<Match>
             .HasForeignKey<MatchedMatch>(x => x.MatchID)
             .IsRequired(false);
 
-        // Configure audit fields
-        AuditableEntityConfiguration<Match>.ConfigureAuditFields(entity);
-
         OnConfigurePartial(entity);
     }
 

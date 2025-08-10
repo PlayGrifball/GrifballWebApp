@@ -1,5 +1,5 @@
 ﻿namespace GrifballWebApp.Database.Models;
-public class DiscordMessage
+public class DiscordMessage : AuditableEntity
 {
     public required long Id { get; set; }
     public required long FromDiscordUserId { get; set; }

@@ -1,7 +1,7 @@
 ﻿#nullable disable
 
 namespace GrifballWebApp.Database.Models;
-public partial class MatchLink
+public partial class MatchLink : AuditableEntity
 {
     public int MatchLinkID { get; set; }
 
