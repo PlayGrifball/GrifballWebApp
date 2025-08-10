@@ -31,7 +31,7 @@ jobs:
       run: dotnet restore GrifballWebApp.sln
       
     - name: Build
-      run: dotnet build GrifballWebApp.sln --no-restore --configuration Release
+      run: dotnet build GrifballWebApp.sln --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
       
     - name: Test
       run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/ --collect:"XPlat Code Coverage"
