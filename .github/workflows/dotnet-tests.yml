@@ -1,0 +1,41 @@
+name: .NET Tests
+
+on:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore GrifballWebApp.sln
+      
+    - name: Build
+      run: dotnet build GrifballWebApp.sln --no-restore --configuration Release
+      
+    - name: Test
+      run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/
+      
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: .NET Test Results
+        path: TestResults/*.trx
+        reporter: dotnet-trx
+        fail-on-error: true
