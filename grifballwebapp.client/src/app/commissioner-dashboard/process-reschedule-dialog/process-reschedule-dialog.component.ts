@@ -7,8 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiClientService } from '../../api/apiClient.service';
 import { RescheduleDto } from '../commissioner-dashboard.component';
+import { HttpClient } from '@angular/common/http';
 
 interface ProcessRescheduleRequest {
   approved: boolean;
@@ -39,7 +39,7 @@ export class ProcessRescheduleDialogComponent {
   constructor(
     public dialogRef: MatDialogRef<ProcessRescheduleDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public reschedule: RescheduleDto,
-    private apiClient: ApiClientService
+    private httpClient: HttpClient
   ) {}
 
   formatDateTime(dateStr?: string): string {
@@ -50,22 +50,26 @@ export class ProcessRescheduleDialogComponent {
   async processReschedule(): Promise<void> {
     if (this.decision === null) return;
 
+    const request: ProcessRescheduleRequest = {
+      approved: this.decision === 'approve',
+      commissionerNotes: this.commissionerNotes.trim() || undefined
+    };
+
     this.processing = true;
 
-    try {
-      const request: ProcessRescheduleRequest = {
-        approved: this.decision === 'approve',
-        commissionerNotes: this.commissionerNotes.trim() || undefined
-      };
-
-      await this.apiClient.post(`Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request);
-      this.dialogRef.close(true); // Signal success
-    } catch (error) {
-      console.error('Failed to process reschedule:', error);
-      // You might want to show an error message here
-    } finally {
-      this.processing = false;
-    }
+    this.httpClient.post(`Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
+    .subscribe({
+      next: () => {
+        this.dialogRef.close(true); // Signal success
+        this.processing = false;
+      },
+      error: (error) => {
+        console.error('Failed to process reschedule:', error);
+        // You might want to show an error message here
+        this.processing = false;
+      }
+    });
+    
   }
 
   onCancel(): void {

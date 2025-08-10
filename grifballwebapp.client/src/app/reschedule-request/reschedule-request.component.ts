@@ -10,7 +10,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { ApiClientService } from '../api/apiClient.service';
+import { HttpClient } from '@angular/common/http';
 
 interface RescheduleRequest {
   seasonMatchID: number;
@@ -45,8 +45,8 @@ export class RescheduleRequestComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private router: Router,
-    private apiClient: ApiClientService,
+    public router: Router,
+    private httpClient: HttpClient,
     private snackBar: MatSnackBar
   ) {}
 
@@ -57,7 +57,7 @@ export class RescheduleRequestComponent implements OnInit {
     }
   }
 
-  async submitRescheduleRequest(): Promise<void> {
+  submitRescheduleRequest(): void {
     if (!this.reason.trim()) {
       this.snackBar.open('Please provide a reason for the reschedule', 'Close', { duration: 3000 });
       return;
@@ -65,30 +65,32 @@ export class RescheduleRequestComponent implements OnInit {
 
     this.submitting = true;
 
-    try {
-      let newScheduledTime: string | undefined;
-      if (this.newDate && this.newTime) {
-        const [hours, minutes] = this.newTime.split(':').map(Number);
-        const dateTime = new Date(this.newDate);
-        dateTime.setHours(hours, minutes, 0, 0);
-        newScheduledTime = dateTime.toISOString();
-      }
-
-      const request: RescheduleRequest = {
-        seasonMatchID: this.seasonMatchID,
-        newScheduledTime,
-        reason: this.reason.trim()
-      };
-
-      await this.apiClient.post('Reschedule/RequestReschedule', request);
-      
-      this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
-      this.router.navigate(['/']);
-    } catch (error) {
-      console.error('Failed to submit reschedule request:', error);
-      this.snackBar.open('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
-    } finally {
-      this.submitting = false;
+    let newScheduledTime: string | undefined;
+    if (this.newDate && this.newTime) {
+      const [hours, minutes] = this.newTime.split(':').map(Number);
+      const dateTime = new Date(this.newDate);
+      dateTime.setHours(hours, minutes, 0, 0);
+      newScheduledTime = dateTime.toISOString();
     }
+
+    const request: RescheduleRequest = {
+      seasonMatchID: this.seasonMatchID,
+      newScheduledTime,
+      reason: this.reason.trim()
+    };
+
+    this.httpClient.post('Reschedule/RequestReschedule', request)
+    .subscribe({
+      next: () => {
+        this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
+        this.router.navigate(['/']); // TODO: confirm this is the correct navigation
+        this.submitting = false;
+      },
+      error: (error) => {
+        console.error('Failed to submit reschedule request:', error);
+        this.snackBar.open('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
+        this.submitting = false;
+      }
+    });
   }
 }

@@ -1,18 +1,23 @@
 <div class="dashboard-container">
   <h1>Commissioner Dashboard</h1>
   
-  <div *ngIf="loading" class="loading-container">
+  @if (loading) {
+  <div class="loading-container">
     <mat-icon>hourglass_empty</mat-icon>
     <p>Loading dashboard data...</p>
   </div>
+  }
 
-  <div *ngIf="error" class="error-container">
+  @if (error) {
+  <div class="error-container">
     <mat-icon color="warn">error</mat-icon>
     <p>{{ error }}</p>
     <button mat-raised-button color="primary" (click)="loadDashboardData()">Retry</button>
   </div>
+  }
 
-  <div *ngIf="dashboardData && !loading" class="dashboard-content">
+  @if (dashboardData && !loading) {
+  <div class="dashboard-content">
     
     <!-- Summary Cards -->
     <div class="summary-cards">
@@ -43,8 +48,9 @@
           </div>
         </mat-card-content>
       </mat-card>
-
-      <mat-card class="summary-card critical" *ngIf="dashboardData.summary.criticalOverdueCount > 0">
+      
+      @if (dashboardData.summary.criticalOverdueCount > 0) {
+      <mat-card class="summary-card critical">
         <mat-card-header>
           <mat-card-title>
             <mat-icon>priority_high</mat-icon>
@@ -57,6 +63,7 @@
           </div>
         </mat-card-content>
       </mat-card>
+      }
     </div>
 
     <!-- Tabs for detailed data -->
@@ -67,18 +74,23 @@
         <ng-template mat-tab-label>
           <mat-icon>schedule</mat-icon>
           Pending Reschedules
-          <span class="tab-badge" *ngIf="dashboardData.pendingReschedules.length > 0">
+          @if (dashboardData.pendingReschedules.length > 0) {
+          <span class="tab-badge">
             {{ dashboardData.pendingReschedules.length }}
           </span>
+          }
         </ng-template>
         
         <div class="tab-content">
-          <div *ngIf="dashboardData.pendingReschedules.length === 0" class="empty-state">
+          @if (dashboardData.pendingReschedules.length === 0) {
+          <div class="empty-state">
             <mat-icon>check_circle</mat-icon>
             <p>No pending reschedule requests</p>
           </div>
-
-          <div *ngIf="dashboardData.pendingReschedules.length > 0">
+          }
+          
+          @if (dashboardData.pendingReschedules.length > 0) {
+          <div>
             <mat-table [dataSource]="dashboardData.pendingReschedules" class="reschedule-table">
               
               <ng-container matColumnDef="match">
@@ -131,16 +143,17 @@
                       <mat-icon>gavel</mat-icon>
                       Process
                     </button>
+                    @if (!reschedule.discordThreadID) {
                     <button mat-icon-button 
-                            *ngIf="!reschedule.discordThreadID" 
                             (click)="createDiscordThread(reschedule)"
                             matTooltip="Create Discord Thread">
                       <mat-icon>forum</mat-icon>
                     </button>
-                    <mat-chip *ngIf="reschedule.discordThreadID" color="accent">
+                    <mat-chip color="accent">
                       <mat-icon>forum</mat-icon>
                       Thread Created
                     </mat-chip>
+                    }
                   </div>
                 </mat-cell>
               </ng-container>
@@ -149,6 +162,7 @@
               <mat-row *matRowDef="let row; columns: rescheduleDisplayedColumns;"></mat-row>
             </mat-table>
           </div>
+          }
         </div>
       </mat-tab>
 
@@ -157,18 +171,23 @@
         <ng-template mat-tab-label>
           <mat-icon>warning</mat-icon>
           Overdue Matches
-          <span class="tab-badge" *ngIf="dashboardData.overdueMatches.length > 0">
+          @if (dashboardData.overdueMatches.length > 0) {
+          <span class="tab-badge">
             {{ dashboardData.overdueMatches.length }}
           </span>
+          }
         </ng-template>
         
         <div class="tab-content">
-          <div *ngIf="dashboardData.overdueMatches.length === 0" class="empty-state">
+          @if (dashboardData.overdueMatches.length === 0) {
+          <div class="empty-state">
             <mat-icon>check_circle</mat-icon>
             <p>No overdue matches</p>
           </div>
-
-          <div *ngIf="dashboardData.overdueMatches.length > 0">
+          }
+          
+          @if (dashboardData.overdueMatches.length > 0) {
+          <div>
             <mat-table [dataSource]="dashboardData.overdueMatches" class="overdue-table">
               
               <ng-container matColumnDef="match">
@@ -208,8 +227,10 @@
                        [class.warning-row]="row.hoursOverdue > 48 && row.hoursOverdue <= 72"></mat-row>
             </mat-table>
           </div>
+          }
         </div>
       </mat-tab>
     </mat-tab-group>
   </div>
+  }
 </div>

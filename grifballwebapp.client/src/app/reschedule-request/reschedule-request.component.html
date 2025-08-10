@@ -55,9 +55,11 @@
                       rows="4"
                       placeholder="e.g., Player unavailable due to family emergency, team conflict with another tournament, etc.">
             </textarea>
-            <mat-error *ngIf="rescheduleForm.submitted && !reason.trim()">
+            @if (rescheduleForm.submitted && !reason.trim()) {
+            <mat-error>
               A reason is required for reschedule requests
             </mat-error>
+            }
           </mat-form-field>
         </div>
 
@@ -78,6 +80,11 @@
     </mat-card-content>
 
     <mat-card-actions align="end">
+      <!--
+      TODO: confirm this is the correct navigation
+      This button should navigate back to the dashboard or previous page
+      but appears to go to the home page
+      -->
       <button mat-button 
               type="button" 
               (click)="router.navigate(['/'])"
@@ -88,8 +95,12 @@
               color="primary" 
               (click)="submitRescheduleRequest()"
               [disabled]="submitting || !reason.trim()">
-        <mat-icon *ngIf="submitting">hourglass_empty</mat-icon>
-        <mat-icon *ngIf="!submitting">send</mat-icon>
+        @if (submitting) {
+        <mat-icon>hourglass_empty</mat-icon>
+        }
+        @else {
+        <mat-icon>send</mat-icon>
+        }
         {{ submitting ? 'Submitting...' : 'Submit Request' }}
       </button>
     </mat-card-actions>

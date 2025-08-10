@@ -2,7 +2,7 @@
 
 namespace GrifballWebApp.Database.Models;
 
-public partial class MatchReschedule
+public class MatchReschedule : AuditableEntity
 {
     public int MatchRescheduleID { get; set; }
     public int SeasonMatchID { get; set; }

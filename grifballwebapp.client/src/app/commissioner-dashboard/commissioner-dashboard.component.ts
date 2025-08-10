@@ -8,8 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-import { ApiClientService } from '../api/apiClient.service';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/process-reschedule-dialog.component';
+import { HttpClient } from '@angular/common/http';
 
 export interface CommissionerDashboardDto {
   pendingReschedules: RescheduleDto[];
@@ -71,7 +71,7 @@ export class CommissionerDashboardComponent implements OnInit {
   overdueDisplayedColumns: string[] = ['match', 'scheduledTime', 'hoursOverdue', 'severity'];
 
   constructor(
-    private apiClient: ApiClientService,
+    private httpClient: HttpClient,
     private dialog: MatDialog
   ) {}
 
@@ -79,17 +79,21 @@ export class CommissionerDashboardComponent implements OnInit {
     this.loadDashboardData();
   }
 
-  async loadDashboardData(): Promise<void> {
-    try {
-      this.loading = true;
-      this.error = null;
-      this.dashboardData = await this.apiClient.get<CommissionerDashboardDto>('CommissionerDashboard/GetDashboardData');
-    } catch (error) {
-      this.error = 'Failed to load dashboard data';
-      console.error('Dashboard load error:', error);
-    } finally {
-      this.loading = false;
-    }
+  loadDashboardData(): void {
+    this.loading = true;
+    this.error = null;
+    this.httpClient.get<CommissionerDashboardDto>('CommissionerDashboard/GetDashboardData')
+      .subscribe({
+        next: (data) => {
+          this.dashboardData = data;
+          this.loading = false;
+        },
+        error: (err) => {
+          this.error = 'Failed to load dashboard data';
+          console.error('Dashboard load error:', err);
+          this.loading = false;
+        }
+      });
   }
 
   formatDateTime(dateStr?: string): string {
@@ -122,14 +126,19 @@ export class CommissionerDashboardComponent implements OnInit {
     });
   }
 
-  async createDiscordThread(reschedule: RescheduleDto): Promise<void> {
-    try {
-      // You'll need to configure the channel ID in your app config
-      const channelId = '1234567890'; // Replace with actual channel ID
-      await this.apiClient.post(`Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, { channelId });
-      this.loadDashboardData(); // Refresh to show the thread ID
-    } catch (error) {
-      console.error('Failed to create Discord thread:', error);
-    }
+  createDiscordThread(reschedule: RescheduleDto): void {
+    // You'll need to configure the channel ID in your app config
+    const channelId = '1234567890'; // Replace with actual channel ID
+    // TODO: This logic should probably be in the backend? Or at least the frontend currently does not have this info..
+    this.httpClient.post(`Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, { channelId })
+    .subscribe({
+      next: (response: any) => {
+        this.loadDashboardData(); // Refresh to show the thread ID
+      },
+      error: (error) => {
+        this.loadDashboardData(); // Refresh to show the thread ID
+        console.error('Failed to create Discord thread:', error);
+      }
+    });
   }
 }

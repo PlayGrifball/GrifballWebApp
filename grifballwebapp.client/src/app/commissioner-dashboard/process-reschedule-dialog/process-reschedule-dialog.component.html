@@ -68,9 +68,18 @@
             [color]="decision === 'approve' ? 'primary' : 'warn'"
             (click)="processReschedule()" 
             [disabled]="!decision || processing">
-      <mat-icon *ngIf="processing">hourglass_empty</mat-icon>
-      <mat-icon *ngIf="!processing && decision === 'approve'">check_circle</mat-icon>
-      <mat-icon *ngIf="!processing && decision === 'reject'">cancel</mat-icon>
+      @if (processing)
+      {
+        <mat-icon>hourglass_empty</mat-icon>
+      }
+      @if (!processing && decision === 'approve')
+      {
+        <mat-icon>check_circle</mat-icon>
+      }
+      @if (!processing && decision === 'reject')
+      {
+        <mat-icon>cancel</mat-icon>
+      }
       {{ processing ? 'Processing...' : (decision === 'approve' ? 'Approve' : 'Reject') }}
     </button>
   </mat-dialog-actions>
