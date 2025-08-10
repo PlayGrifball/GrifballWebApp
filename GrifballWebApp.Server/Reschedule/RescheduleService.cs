@@ -176,11 +176,11 @@ public class RescheduleService
                                $"**Requested By:** {reschedule.RequestedByUser.XboxUser.Gamertag}\n" +
                                $"**Reason:** {reschedule.Reason}";
 
-            var message = await _discordClient.SendMessageAsync(channelId, new NetCord.MessageProperties { Content = messageContent }, cancellationToken: ct);
+            var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, ct: ct);
 
             var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser.Gamertag}";
             var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id, 
-                new NetCord.GuildThreadFromMessageProperties { Name = threadName }, cancellationToken: ct);
+                new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
 
             reschedule.DiscordThreadID = thread.Id;
             await _context.SaveChangesAsync(ct);

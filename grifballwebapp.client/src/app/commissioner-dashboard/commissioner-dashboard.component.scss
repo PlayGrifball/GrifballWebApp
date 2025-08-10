@@ -5,7 +5,7 @@
 }
 
 h1 {
-  color: mat.get-color-from-palette($primary, 500);
+  // color: mat.get-color-from-palette(theme.$primary, 90);
   margin-bottom: 24px;
   display: flex;
   align-items: center;
@@ -53,12 +53,12 @@ h1 {
     .metric-value {
       font-size: 2.5rem;
       font-weight: bold;
-      color: mat.get-color-from-palette($primary, 500);
+      //color: mat.get-color-from-palette($primary, 500);
     }
   }
   
   &.critical {
-    border-left: 4px solid mat.get-color-from-palette($warn, 500);
+    //border-left: 4px solid mat.get-color-from-palette($warn, 500);
     
     .metric-value {
       color: mat.get-color-from-palette($warn, 500);
@@ -70,7 +70,7 @@ h1 {
   margin-top: 24px;
   
   .tab-badge {
-    background-color: mat.get-color-from-palette($accent, 500);
+    //background-color: mat.get-color-from-palette($accent, 500);
     color: white;
     border-radius: 12px;
     padding: 2px 8px;
@@ -88,14 +88,14 @@ h1 {
   flex-direction: column;
   align-items: center;
   padding: 40px;
-  color: mat.get-color-from-palette($foreground, secondary-text);
+  //color: mat.get-color-from-palette($foreground, secondary-text);
   
   mat-icon {
     font-size: 64px;
     width: 64px;
     height: 64px;
     margin-bottom: 16px;
-    color: mat.get-color-from-palette($primary, 300);
+    //color: mat.get-color-from-palette($primary, 300);
   }
 }
 

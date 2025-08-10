@@ -18,17 +18,17 @@ mat-card-title {
   margin-bottom: 32px;
   
   h3 {
-    color: mat.get-color-from-palette($primary, 600);
+    //color: mat.get-color-from-palette($primary, 600);
     margin-bottom: 8px;
     font-size: 1.1rem;
     
     .required {
-      color: mat.get-color-from-palette($warn, 500);
+      //color: mat.get-color-from-palette($warn, 500);
     }
   }
   
   .help-text {
-    color: mat.get-color-from-palette($foreground, secondary-text);
+    //color: mat.get-color-from-palette($foreground, secondary-text);
     font-size: 0.9rem;
     margin-bottom: 16px;
     line-height: 1.4;
@@ -50,8 +50,8 @@ mat-card-title {
 }
 
 .notice-box {
-  background-color: mat.get-color-from-palette($accent, 50);
-  border: 1px solid mat.get-color-from-palette($accent, 200);
+  //background-color: mat.get-color-from-palette($accent, 50);
+  //border: 1px solid mat.get-color-from-palette($accent, 200);
   border-radius: 8px;
   padding: 16px;
   display: flex;

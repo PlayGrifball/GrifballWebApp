@@ -11,7 +11,7 @@ h2 {
 }
 
 h3 {
-  color: mat.get-color-from-palette($primary, 600);
+  //color: mat.get-color-from-palette($primary, 600);
   margin-bottom: 12px;
   font-size: 1.1rem;
 }
@@ -19,9 +19,9 @@ h3 {
 .match-details {
   margin-bottom: 24px;
   padding: 16px;
-  background-color: mat.get-color-from-palette($background, background);
+  //background-color: mat.get-color-from-palette($background, background);
   border-radius: 8px;
-  border: 1px solid mat.get-color-from-palette($foreground, divider);
+  //border: 1px solid mat.get-color-from-palette($foreground, divider);
 }
 
 .detail-row {
@@ -39,9 +39,9 @@ h3 {
 
 .reason-box {
   padding: 16px;
-  background-color: mat.get-color-from-palette($background, card);
+  //background-color: mat.get-color-from-palette($background, card);
   border-radius: 8px;
-  border: 1px solid mat.get-color-from-palette($foreground, divider);
+  //border: 1px solid mat.get-color-from-palette($foreground, divider);
   font-style: italic;
   line-height: 1.5;
 }
