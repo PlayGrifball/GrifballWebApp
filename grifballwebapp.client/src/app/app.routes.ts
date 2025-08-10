@@ -146,6 +146,17 @@ export const APP_ROUTES: Routes = [
     title: 'Late League',
   },
   {
+    path: 'commissioner-dashboard',
+    loadComponent: () => import('./commissioner-dashboard/commissioner-dashboard.component').then(m => m.CommissionerDashboardComponent),
+    title: 'Commissioner Dashboard',
+    canActivate: [isEventOrganizerGuard]
+  },
+  {
+    path: 'reschedule-request/:seasonMatchID',
+    loadComponent: () => import('./reschedule-request/reschedule-request.component').then(m => m.RescheduleRequestComponent),
+    title: 'Request Reschedule'
+  },
+  {
     path: '**',
     loadComponent: () => import('./notFound/notFound.component').then(m => m.NotFoundComponent),
     title: 'Page Not Found'
