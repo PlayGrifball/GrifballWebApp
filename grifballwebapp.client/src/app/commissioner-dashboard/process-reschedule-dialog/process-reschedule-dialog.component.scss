@@ -1,0 +1,87 @@
+.dialog-content {
+  min-width: 500px;
+  max-width: 600px;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+h3 {
+  color: mat.get-color-from-palette($primary, 600);
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+}
+
+.match-details {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: mat.get-color-from-palette($background, background);
+  border-radius: 8px;
+  border: 1px solid mat.get-color-from-palette($foreground, divider);
+}
+
+.detail-row {
+  margin-bottom: 8px;
+  
+  strong {
+    min-width: 140px;
+    display: inline-block;
+  }
+}
+
+.reason-section {
+  margin-bottom: 24px;
+}
+
+.reason-box {
+  padding: 16px;
+  background-color: mat.get-color-from-palette($background, card);
+  border-radius: 8px;
+  border: 1px solid mat.get-color-from-palette($foreground, divider);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.decision-section {
+  margin-bottom: 24px;
+}
+
+.decision-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+  
+  mat-radio-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .mat-radio-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+}
+
+.notes-section {
+  margin-bottom: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+mat-dialog-actions {
+  padding: 16px 0 0 0;
+  margin: 0;
+  
+  button {
+    margin-left: 8px;
+  }
+}

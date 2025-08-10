@@ -239,6 +239,7 @@ public class Program
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
         builder.Services.AddTransient<TransferLegacyDiscordService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
         builder.Services.AddDataProtection()
             .PersistKeysToDbContext<GrifballContext>();

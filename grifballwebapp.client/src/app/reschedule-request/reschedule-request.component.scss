@@ -1,0 +1,83 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.reschedule-card {
+  max-width: 100%;
+}
+
+mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-section {
+  margin-bottom: 32px;
+  
+  h3 {
+    color: mat.get-color-from-palette($primary, 600);
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+    
+    .required {
+      color: mat.get-color-from-palette($warn, 500);
+    }
+  }
+  
+  .help-text {
+    color: mat.get-color-from-palette($foreground, secondary-text);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+}
+
+.datetime-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+.notice-box {
+  background-color: mat.get-color-from-palette($accent, 50);
+  border: 1px solid mat.get-color-from-palette($accent, 200);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  
+  mat-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+    
+    li {
+      margin-bottom: 4px;
+    }
+  }
+}
+
+mat-card-actions {
+  padding: 16px 24px 24px 24px;
+  margin: 0;
+  
+  button {
+    margin-left: 8px;
+  }
+}
