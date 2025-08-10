@@ -126,11 +126,12 @@ public class Program
         // Add HTTP context accessor for audit interceptor
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+        builder.Services.AddScoped<Database.Interceptors.AuditInterceptor>();
 
         builder.Services.AddDbContextFactory<GrifballContext>((services, options)
             => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
             ?? throw new Exception("GrifballContext failed to configure"))
-            .AddInterceptors(new Database.Interceptors.AuditInterceptor(services.GetRequiredService<ICurrentUserService>())));
+            .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>()));
 
         builder.Services.AddAuthorization();
 
