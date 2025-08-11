@@ -16,7 +16,7 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
 (HomeTeamID IS NULL) OR
 (AwayTeamID IS NULL) OR
 (HomeTeamID != AwayTeamID)
-");
+".Replace(Environment.NewLine, " ").Trim()); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
         });
 
         entity.HasKey(e => e.SeasonMatchID);

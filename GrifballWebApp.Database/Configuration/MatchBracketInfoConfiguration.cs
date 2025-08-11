@@ -13,11 +13,11 @@ public partial class MatchBracketInfoConfiguration : IEntityTypeConfiguration<Ma
             tb.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", @"
 (HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousMatchBracketInfoID IS NULL) OR
 (HomeTeamPreviousMatchBracketInfoID IS NOT NULL AND HomeTeamSeedNumber IS NULL)
-");
+".Replace(Environment.NewLine, " ").Trim()); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
             tb.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireAwaySeedOrPreviousMatch", @"
 (AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousMatchBracketInfoID IS NULL) OR
 (AwayTeamPreviousMatchBracketInfoID IS NOT NULL AND AwayTeamSeedNumber IS NULL)
-");
+".Replace(Environment.NewLine, " ").Trim()); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
         });
 
         entity.HasKey(e => e.MatchBracketInfoID);
