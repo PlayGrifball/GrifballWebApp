@@ -4,6 +4,7 @@ using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    partial class GrifballContextModelSnapshot : ModelSnapshot
+    [Migration("20250811021822_FixProblematicConstraints")]
+    partial class FixProblematicConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -624,79 +627,6 @@ namespace GrifballWebApp.Database.Migrations
                                     .HasPeriodEnd("PeriodEnd")
                                     .HasColumnName("PeriodEnd");
                             }));
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchReschedule", b =>
-                {
-                    b.Property<int>("MatchRescheduleID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MatchRescheduleID"));
-
-                    b.Property<int?>("ApprovedByUserID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CommissionerNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("DiscordThreadID")
-                        .HasColumnType("decimal(20,0)");
-
-                    b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("NewScheduledTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("OriginalScheduledTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RequestedByUserID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SeasonMatchID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("MatchRescheduleID");
-
-                    b.HasIndex("ApprovedByUserID");
-
-                    b.HasIndex("DiscordThreadID");
-
-                    b.HasIndex("RequestedAt");
-
-                    b.HasIndex("RequestedByUserID");
-
-                    b.HasIndex("SeasonMatchID");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("MatchReschedules");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>
@@ -2657,32 +2587,6 @@ namespace GrifballWebApp.Database.Migrations
                     b.Navigation("MatchTeam");
 
                     b.Navigation("XboxUser");
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchReschedule", b =>
-                {
-                    b.HasOne("GrifballWebApp.Database.Models.User", "ApprovedByUser")
-                        .WithMany()
-                        .HasForeignKey("ApprovedByUserID")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("GrifballWebApp.Database.Models.User", "RequestedByUser")
-                        .WithMany()
-                        .HasForeignKey("RequestedByUserID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("GrifballWebApp.Database.Models.SeasonMatch", "SeasonMatch")
-                        .WithMany()
-                        .HasForeignKey("SeasonMatchID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ApprovedByUser");
-
-                    b.Navigation("RequestedByUser");
-
-                    b.Navigation("SeasonMatch");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam", b =>

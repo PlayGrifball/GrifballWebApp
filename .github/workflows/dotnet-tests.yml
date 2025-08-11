@@ -1,0 +1,70 @@
+name: .NET Tests
+
+on:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  # Testcontainers configuration
+  TESTCONTAINERS_REUSE_ENABLE: false
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore GrifballWebApp.sln
+      
+    - name: Build
+      run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
+      
+    - name: Test
+      run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults/ --collect:"XPlat Code Coverage"
+      
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: TestResults/
+        
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: .NET Test Results
+        path: TestResults/*.trx
+        reporter: dotnet-trx
+        fail-on-error: true
+
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: TestResults/**/coverage.cobertura.xml
+        name: codecov-coverage
+        fail_ci_if_error: true
+
+    - name: Upload Test Results to Codecov (Test Analytics)
+      uses: codecov/test-results-action@v1
+      if: always()
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: TestResults/*.trx
+        fail_ci_if_error: true
