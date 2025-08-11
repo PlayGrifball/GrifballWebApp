@@ -82,7 +82,7 @@ export class CommissionerDashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.loading = true;
     this.error = null;
-    this.httpClient.get<CommissionerDashboardDto>('CommissionerDashboard/GetDashboardData')
+    this.httpClient.get<CommissionerDashboardDto>('/api/CommissionerDashboard/GetDashboardData')
       .subscribe({
         next: (data) => {
           this.dashboardData = data;
@@ -130,7 +130,7 @@ export class CommissionerDashboardComponent implements OnInit {
     // You'll need to configure the channel ID in your app config
     const channelId = '1234567890'; // Replace with actual channel ID
     // TODO: This logic should probably be in the backend? Or at least the frontend currently does not have this info..
-    this.httpClient.post(`Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, { channelId })
+    this.httpClient.post(`/api/Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, { channelId })
     .subscribe({
       next: (response: any) => {
         this.loadDashboardData(); // Refresh to show the thread ID

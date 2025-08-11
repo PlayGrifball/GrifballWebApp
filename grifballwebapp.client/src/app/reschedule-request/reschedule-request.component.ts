@@ -79,7 +79,7 @@ export class RescheduleRequestComponent implements OnInit {
       reason: this.reason.trim()
     };
 
-    this.httpClient.post('Reschedule/RequestReschedule', request)
+    this.httpClient.post('/api/Reschedule/RequestReschedule', request)
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });

@@ -57,7 +57,7 @@ export class ProcessRescheduleDialogComponent {
 
     this.processing = true;
 
-    this.httpClient.post(`Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
+    this.httpClient.post(`/api/Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
     .subscribe({
       next: () => {
         this.dialogRef.close(true); // Signal success
