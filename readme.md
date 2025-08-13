@@ -1,6 +1,7 @@
+[![codecov](https://codecov.io/gh/PlayGrifball/GrifballWebApp/branch/master/graph/badge.svg)](https://codecov.io/gh/PlayGrifball/GrifballWebApp)
+[![.NET Tests](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml/badge.svg)](https://github.com/PlayGrifball/GrifballWebApp/actions/workflows/dotnet-tests.yml)
 # Grifball Web App
 Full stack web application for planning and organizing Grifball tournaments, pulling match stats, and providing data insights.
-
 
 ## Objectives
 - Users of this application are primarily expected to be players, event organizers, and/or viewers.
