@@ -35,7 +35,8 @@ jobs:
       run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
       
     - name: Test
-      run: dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
+      run: |
+        dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj \
         --no-build \
         --configuration Release \
         --verbosity normal \
