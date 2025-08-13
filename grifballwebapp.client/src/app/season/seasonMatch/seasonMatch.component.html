@@ -54,6 +54,13 @@
 }
 }
 
+<!-- TODO: Can we lock down front end to captain or event organizer only?
+  Also this button should be disabled if the match has been completed. 
+-->
+@if (accountService.isPlayer() || accountService.isEventOrganizer()) {
+  <button mat-button [routerLink]="['/reschedule-request', seasonMatchID()]">Reschedule</button>
+}
+
 @if (accountService.isEventOrganizer()) {
 <h2>Report Game</h2>
 

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -11,6 +11,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
+import { Location } from '@angular/common';
 
 interface RescheduleRequest {
   seasonMatchID: number;
@@ -45,16 +46,13 @@ export class RescheduleRequestComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    public router: Router,
+    public location: Location,
     private httpClient: HttpClient,
     private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
     this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
-    if (!this.seasonMatchID) {
-      this.router.navigate(['/']);
-    }
   }
 
   submitRescheduleRequest(): void {
@@ -83,7 +81,7 @@ export class RescheduleRequestComponent implements OnInit {
     .subscribe({
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
-        this.router.navigate(['/']); // TODO: confirm this is the correct navigation
+        this.location.back();
         this.submitting = false;
       },
       error: (error) => {

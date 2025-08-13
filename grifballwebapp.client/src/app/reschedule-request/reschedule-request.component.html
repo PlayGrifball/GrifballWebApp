@@ -80,14 +80,9 @@
     </mat-card-content>
 
     <mat-card-actions align="end">
-      <!--
-      TODO: confirm this is the correct navigation
-      This button should navigate back to the dashboard or previous page
-      but appears to go to the home page
-      -->
       <button mat-button 
               type="button" 
-              (click)="router.navigate(['/'])"
+              (click)="this.location.back();"
               [disabled]="submitting">
         Cancel
       </button>
