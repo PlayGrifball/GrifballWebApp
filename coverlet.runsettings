@@ -1,0 +1,16 @@
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Exclude>
+            <Module>[GrifballWebApp.Database.Migrations]*</Module>
+          </Exclude>
+          <ExcludeByFile>
+            <File>**/GrifballWebApp.Database/Migrations/*.cs</File>
+          </ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
