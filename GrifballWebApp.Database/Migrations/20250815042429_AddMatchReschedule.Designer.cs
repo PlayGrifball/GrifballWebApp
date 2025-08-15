@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Database.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20250810025252_AddMatchReschedule")]
+    [Migration("20250815042429_AddMatchReschedule")]
     partial class AddMatchReschedule
     {
         /// <inheritdoc />
@@ -405,9 +405,9 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.ToTable("MatchBracketInfo", "Event", t =>
                         {
-                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireAwaySeedOrPreviousMatch", "\r\n(AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousMatchBracketInfoID IS NULL) OR\r\n(AwayTeamPreviousMatchBracketInfoID IS NOT NULL AND AwayTeamSeedNumber IS NULL)\r\n");
+                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireAwaySeedOrPreviousMatch", "(AwayTeamSeedNumber IS NOT NULL AND AwayTeamPreviousMatchBracketInfoID IS NULL) OR (AwayTeamPreviousMatchBracketInfoID IS NOT NULL AND AwayTeamSeedNumber IS NULL)");
 
-                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", "\r\n(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousMatchBracketInfoID IS NULL) OR\r\n(HomeTeamPreviousMatchBracketInfoID IS NOT NULL AND HomeTeamSeedNumber IS NULL)\r\n");
+                            t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", "(HomeTeamSeedNumber IS NOT NULL AND HomeTeamPreviousMatchBracketInfoID IS NULL) OR (HomeTeamPreviousMatchBracketInfoID IS NOT NULL AND HomeTeamSeedNumber IS NULL)");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -1689,6 +1689,9 @@ namespace GrifballWebApp.Database.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeasonMatchID"));
 
+                    b.Property<int?>("ActiveRescheduleRequestId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("AwayTeamID")
                         .HasColumnType("int");
 
@@ -1740,6 +1743,10 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.HasKey("SeasonMatchID");
 
+                    b.HasIndex("ActiveRescheduleRequestId")
+                        .IsUnique()
+                        .HasFilter("[ActiveRescheduleRequestId] IS NOT NULL");
+
                     b.HasIndex("AwayTeamID");
 
                     b.HasIndex("HomeTeamID");
@@ -1748,7 +1755,7 @@ namespace GrifballWebApp.Database.Migrations
 
                     b.ToTable("SeasonMatches", "Event", t =>
                         {
-                            t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "\r\n(HomeTeamID IS NULL) OR\r\n(AwayTeamID IS NULL) OR\r\n(HomeTeamID != AwayTeamID)\r\n");
+                            t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "(HomeTeamID IS NULL) OR (AwayTeamID IS NULL) OR (HomeTeamID != AwayTeamID)");
                         });
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
@@ -2853,6 +2860,11 @@ namespace GrifballWebApp.Database.Migrations
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
                 {
+                    b.HasOne("GrifballWebApp.Database.Models.MatchReschedule", "ActiveRescheduleRequest")
+                        .WithOne()
+                        .HasForeignKey("GrifballWebApp.Database.Models.SeasonMatch", "ActiveRescheduleRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("GrifballWebApp.Database.Models.Team", "AwayTeam")
                         .WithMany("AwayMatches")
                         .HasForeignKey("AwayTeamID")
@@ -2868,6 +2880,8 @@ namespace GrifballWebApp.Database.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ActiveRescheduleRequest");
 
                     b.Navigation("AwayTeam");
 

@@ -11,6 +11,13 @@ namespace GrifballWebApp.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<int>(
+                name: "ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches",
+                type: "int",
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "MatchReschedules",
                 columns: table => new
@@ -60,6 +67,14 @@ namespace GrifballWebApp.Database.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_SeasonMatches_ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches",
+                column: "ActiveRescheduleRequestId",
+                unique: true,
+                filter: "[ActiveRescheduleRequestId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchReschedules_ApprovedByUserID",
                 table: "MatchReschedules",
                 column: "ApprovedByUserID");
@@ -88,13 +103,37 @@ namespace GrifballWebApp.Database.Migrations
                 name: "IX_MatchReschedules_Status",
                 table: "MatchReschedules",
                 column: "Status");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_SeasonMatches_MatchReschedules_ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches",
+                column: "ActiveRescheduleRequestId",
+                principalTable: "MatchReschedules",
+                principalColumn: "MatchRescheduleID",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_SeasonMatches_MatchReschedules_ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches");
+
             migrationBuilder.DropTable(
                 name: "MatchReschedules");
+
+            migrationBuilder.DropIndex(
+                name: "IX_SeasonMatches_ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches");
+
+            migrationBuilder.DropColumn(
+                name: "ActiveRescheduleRequestId",
+                schema: "Event",
+                table: "SeasonMatches");
         }
     }
 }
