@@ -19,6 +19,7 @@ public record SeasonMatchPageDto
     public required int BestOf { get; set; }
     public required ReportedGameDto[] ReportedGames { get; set; }
     public required BracketInfoDto? BracketInfo { get; set; }
+    public int? ActiveRescheduleRequestId { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

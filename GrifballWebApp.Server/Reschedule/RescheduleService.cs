@@ -40,6 +40,10 @@ public class RescheduleService
             if (seasonMatch == null)
                 throw new ArgumentException("Season match not found");
 
+            // Prevent new request if there is already an active one
+            if (seasonMatch.ActiveRescheduleRequestId.HasValue)
+                throw new InvalidOperationException("There is already an active reschedule request for this match.");
+
             // Create the reschedule request
             var reschedule = new MatchReschedule
             {
@@ -52,6 +56,10 @@ public class RescheduleService
             };
 
             _context.MatchReschedules.Add(reschedule);
+            await _context.SaveChangesAsync(ct);
+
+            // Set the active request ID on the match
+            seasonMatch.ActiveRescheduleRequestId = reschedule.MatchRescheduleID;
             await _context.SaveChangesAsync(ct);
 
             await transaction.CommitAsync(ct);
@@ -90,6 +98,9 @@ public class RescheduleService
             {
                 reschedule.SeasonMatch.ScheduledTime = reschedule.NewScheduledTime;
             }
+
+            // Clear the active request if processed
+            reschedule.SeasonMatch.ActiveRescheduleRequestId = null;
 
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);

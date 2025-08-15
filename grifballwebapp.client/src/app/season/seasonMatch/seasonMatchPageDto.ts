@@ -16,6 +16,7 @@ export interface SeasonMatchPageDto {
   bestOf: number,
   reportedGames: ReportedGameDto[],
   bracketInfo: BracketInfoDto | null,
+  activeRescheduleRequestId: number | null,
 }
 
 export interface BracketInfoDto {

@@ -22,6 +22,8 @@ public class SeasonMatch : AuditableEntity
     public int BestOf { get; set; }
     public ICollection<MatchLink> MatchLinks { get; set; }
     public MatchBracketInfo BracketMatch { get; set; }
+    public MatchReschedule? ActiveRescheduleRequest { get; set; }
+    public int? ActiveRescheduleRequestId { get; set; }
 }
 
 public enum SeasonMatchResult
