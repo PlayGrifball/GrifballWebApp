@@ -77,9 +77,4 @@ public enum RescheduleStatus
     /// Reschedule request has been rejected
     /// </summary>
     Rejected = 2,
-    
-    /// <summary>
-    /// Reschedule request was cancelled by the requester
-    /// </summary>
-    Cancelled = 3
 }

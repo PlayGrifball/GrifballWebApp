@@ -61,22 +61,11 @@ public class RescheduleController : ControllerBase
         return Ok(reschedules);
     }
 
-    [HttpPost("{rescheduleId:int}/thread", Name = "CreateDiscordThread")]
+    [HttpPost("{rescheduleId:int}", Name = "CreateDiscordThread")]
     [Authorize(Roles = "Commissioner,Sysadmin")]
-    public async Task<IActionResult> CreateDiscordThread(int rescheduleId, [FromBody] CreateThreadDto dto, CancellationToken ct)
+    public async Task<IActionResult> CreateDiscordThread([FromRoute] int rescheduleId, CancellationToken ct)
     {
-        try
-        {
-            var reschedule = await _rescheduleService.CreateDiscordThreadAsync(rescheduleId, dto.ChannelId, ct);
-            if (reschedule?.DiscordThreadID.HasValue == true)
-            {
-                return Ok(new { ThreadId = reschedule.DiscordThreadID.Value });
-            }
-            return BadRequest("Failed to create Discord thread");
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, $"Error creating Discord thread: {ex.Message}");
-        }
+        await _rescheduleService.CreateDiscordThreadAsync(rescheduleId, ct);
+        return Ok();
     }
 }

@@ -15,11 +15,6 @@ public class ProcessRescheduleDto
     public string? CommissionerNotes { get; set; }
 }
 
-public class CreateThreadDto
-{
-    public ulong ChannelId { get; set; }
-}
-
 public class RescheduleDto
 {
     public int MatchRescheduleID { get; set; }

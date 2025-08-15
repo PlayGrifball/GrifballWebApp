@@ -1,6 +1,10 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Text;
+using System.Threading;
 
 namespace GrifballWebApp.Server.Reschedule;
 
@@ -9,12 +13,14 @@ public class RescheduleService
     private readonly GrifballContext _context;
     private readonly IDiscordClient _discordClient;
     private readonly ILogger<RescheduleService> _logger;
+    private readonly IOptions<DiscordOptions> _options;
 
-    public RescheduleService(GrifballContext context, IDiscordClient discordClient, ILogger<RescheduleService> logger)
+    public RescheduleService(GrifballContext context, IDiscordClient discordClient, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
     {
         _context = context;
         _discordClient = discordClient;
         _logger = logger;
+        _options = options;
     }
 
     public async Task<MatchReschedule> RequestRescheduleAsync(RescheduleRequestDto dto, int requestedByUserId, CancellationToken ct = default)
@@ -88,6 +94,13 @@ public class RescheduleService
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
+            if (reschedule.DiscordThreadID is not null)
+            {
+                await _discordClient.SendMessageAsync(reschedule.DiscordThreadID.Value,
+                new NetCord.Rest.MessageProperties { Content = $"Your request has been {reschedule.Status} by {reschedule.ApprovedByUserID}" },
+                ct: ct);
+            }
+
             return reschedule;
         }
         catch
@@ -153,7 +166,7 @@ public class RescheduleService
         }).ToList();
     }
 
-    public async Task<MatchReschedule?> CreateDiscordThreadAsync(int rescheduleId, ulong channelId, CancellationToken ct = default)
+    public async Task CreateDiscordThreadAsync(int rescheduleId, CancellationToken ct = default)
     {
         var reschedule = await _context.MatchReschedules
             .Include(mr => mr.SeasonMatch)
@@ -163,34 +176,74 @@ public class RescheduleService
             .Include(mr => mr.RequestedByUser.XboxUser)
             .FirstOrDefaultAsync(mr => mr.MatchRescheduleID == rescheduleId, ct);
 
-        if (reschedule == null || reschedule.DiscordThreadID.HasValue)
-            return reschedule;
+        if (reschedule == null)
+            throw new ArgumentException("Reschedule request not found");
 
-        try
+        if (reschedule.DiscordThreadID.HasValue)
+            return; // Thread already exists
+
+        var channelId = _options.Value.ReschedulesChannel;
+
+        // Create a message first to create thread from
+        var messageContent = $"🔄 **Match Reschedule Request**\n" +
+                            $"**Match:** {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser?.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser?.Gamertag}\n" +
+                            $"**Original Time:** {reschedule.OriginalScheduledTime?.DiscordTimeEmbed() ?? "Not scheduled"}\n" +
+                            $"**Requested New Time:** {reschedule.NewScheduledTime?.DiscordTimeEmbed() ?? "TBD"}\n" +
+                            $"**Requested By:** {reschedule.RequestedByUser.XboxUser?.Gamertag}\n" +
+                            $"**Reason:** {reschedule.Reason}";
+
+        var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, ct: ct);
+
+        var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser?.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser?.Gamertag}";
+        var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id,
+            new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
+
+        await AddUsersToThread(reschedule, thread, ct);
+
+        reschedule.DiscordThreadID = thread.Id;
+        await _context.SaveChangesAsync(ct);
+    }
+
+    private async Task AddUsersToThread(MatchReschedule reschedule, IGuildThread thread, CancellationToken ct)
+    {
+        var sb = new StringBuilder();
+        await AddUserToThread(reschedule.SeasonMatch.HomeTeam.Captain.User, thread, sb, ct);
+        await AddUserToThread(reschedule.SeasonMatch.AwayTeam.Captain.User, thread, sb, ct);
+
+        var commisioners = await _context.Users
+            .Where(u => u.UserRoles.Any(ur => ur.Role.Name == "Commissioner"))
+            .ToListAsync(ct);
+        foreach (var commisioner in commisioners)
         {
-            // Create a message first to create thread from
-            var messageContent = $"🔄 **Match Reschedule Request**\n" +
-                               $"**Match:** {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser.Gamertag}\n" +
-                               $"**Original Time:** {reschedule.OriginalScheduledTime?.ToString("yyyy-MM-dd HH:mm") ?? "Not scheduled"}\n" +
-                               $"**Requested New Time:** {reschedule.NewScheduledTime?.ToString("yyyy-MM-dd HH:mm") ?? "TBD"}\n" +
-                               $"**Requested By:** {reschedule.RequestedByUser.XboxUser.Gamertag}\n" +
-                               $"**Reason:** {reschedule.Reason}";
-
-            var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, ct: ct);
-
-            var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser.Gamertag}";
-            var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id, 
-                new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
-
-            reschedule.DiscordThreadID = thread.Id;
-            await _context.SaveChangesAsync(ct);
-
-            return reschedule;
+            await AddUserToThread(commisioner, thread, sb, ct);
         }
-        catch (Exception ex)
+        var finalErrors = sb.ToString();
+        if (!string.IsNullOrEmpty(finalErrors))
         {
-            _logger.LogError(ex, "Failed to create Discord thread for reschedule {RescheduleId}", rescheduleId);
-            return reschedule;
+            await _discordClient.SendMessageAsync(thread.Id,
+                new NetCord.Rest.MessageProperties { Content = finalErrors },
+                ct: ct);
+        }
+    }
+
+    private async Task AddUserToThread(User user, IGuildThread thread, StringBuilder sb, CancellationToken ct)
+    {
+        var discordUserId = (ulong?)user.DiscordUserID;
+        if (discordUserId.HasValue)
+        {
+            try
+            {
+                await thread.AddUserAsync(discordUserId.Value, null, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to add {DiscordUserId} to thread {ThreadId}", discordUserId.Value, thread.Id);   
+                sb.Append($"Could not add {user.DisplayName ?? user.UserName} to thread, exception thrown");
+            }
+        }
+        else
+        {
+            sb.AppendLine($"Could not add {user.DisplayName ?? user.UserName} to thread, missing discord id.");
         }
     }
 }

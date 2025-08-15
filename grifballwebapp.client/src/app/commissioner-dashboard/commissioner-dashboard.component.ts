@@ -67,7 +67,7 @@ export class CommissionerDashboardComponent implements OnInit {
   loading = true;
   error: string | null = null;
 
-  rescheduleDisplayedColumns: string[] = ['match', 'originalTime', 'newTime', 'requestedBy', 'reason', 'requestedAt', 'actions'];
+  rescheduleDisplayedColumns: string[] = ['match', 'originalTime', 'newTime', 'requestedBy', 'reason', 'requestedAt', 'process', 'thread'];
   overdueDisplayedColumns: string[] = ['match', 'scheduledTime', 'hoursOverdue', 'severity'];
 
   constructor(
@@ -127,10 +127,7 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   createDiscordThread(reschedule: RescheduleDto): void {
-    // You'll need to configure the channel ID in your app config
-    const channelId = '1234567890'; // Replace with actual channel ID
-    // TODO: This logic should probably be in the backend? Or at least the frontend currently does not have this info..
-    this.httpClient.post(`/api/Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, { channelId })
+    this.httpClient.post(`/api/Reschedule/CreateDiscordThread/${reschedule.matchRescheduleID}`, null)
     .subscribe({
       next: (response: any) => {
         this.loadDashboardData(); // Refresh to show the thread ID

@@ -378,6 +378,7 @@ public class DiscordOptions
     public bool DisableGlobally { get; set; } = false;
     public ulong QueueChannel { get; set; }
     public ulong EventsChannel { get; set; }
+    public ulong ReschedulesChannel { get; set; }
     public ulong LogChannel { get; set; }
     public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
     public int KFactor { get; set; } = 32;
