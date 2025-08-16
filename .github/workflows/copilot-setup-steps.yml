@@ -38,6 +38,7 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+          cache-dependency-path: grifballwebapp.client/package-lock.json
 
       - name: Install Angular CLI
         run: npm install -g @angular/cli
