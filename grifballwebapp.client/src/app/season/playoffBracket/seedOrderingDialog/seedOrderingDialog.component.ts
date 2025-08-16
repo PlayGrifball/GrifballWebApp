@@ -71,13 +71,19 @@ export class SeedOrderingDialogComponent implements OnInit {
     if (event.dropEffect === 'move') {
       const draggedTeam = event.data as TeamStanding;
       const draggedIndex = this.teams.findIndex(t => t.teamID === draggedTeam.teamID);
+      let newIndex = event.index;
       
-      if (draggedIndex !== -1) {
+      if (draggedIndex !== -1 && typeof newIndex !== 'undefined') {
         // Remove from old position
         this.teams.splice(draggedIndex, 1);
         
+        // Adjust index if we're moving down in the same list
+        if (draggedIndex < newIndex) {
+          newIndex--;
+        }
+        
         // Insert at new position
-        this.teams.splice(event.index!, 0, draggedTeam);
+        this.teams.splice(newIndex, 0, draggedTeam);
         
         // Update seed numbers
         this.teams.forEach((team, index) => {

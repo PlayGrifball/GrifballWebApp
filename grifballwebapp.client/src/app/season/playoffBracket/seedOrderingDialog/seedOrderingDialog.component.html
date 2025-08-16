@@ -11,6 +11,16 @@
          [dndDropzone]="['team']"
          (dndDrop)="onDrop($event)">
       
+      <!-- Placeholder for drag and drop -->
+      <div class="seed-item dndPlaceholder" dndPlaceholderRef>
+        <div class="seed-content">
+          <div class="seed-number">-</div>
+          <div class="team-info">
+            <div class="team-name">Drop here</div>
+          </div>
+        </div>
+      </div>
+      
       <div class="seed-item"
            *ngFor="let team of teams; let i = index"
            [dndDraggable]="team"

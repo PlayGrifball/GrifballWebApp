@@ -77,15 +77,16 @@
 }
 
 .dndPlaceholder {
-  background: #f5f5f5;
-  border: 2px dashed #ccc;
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #999;
+  background: #f5f5f5 !important;
+  border: 2px dashed #ccc !important;
   
-  &::before {
-    content: "Drop here";
+  .seed-number {
+    background: #ccc !important;
+    color: #999 !important;
+  }
+  
+  .team-name {
+    color: #999 !important;
+    font-style: italic;
   }
 }
