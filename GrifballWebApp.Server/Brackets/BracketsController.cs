@@ -56,4 +56,11 @@ public class BracketsController : ControllerBase
     {
         return _bracketService.SetSeeds(seasonID, ct);
     }
+
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonID:int}", Name = "SetCustomSeeds")]
+    public Task SetCustomSeeds([FromRoute] int seasonID, [FromBody] CustomSeedDto[] customSeeds, CancellationToken ct)
+    {
+        return _bracketService.SetCustomSeeds(seasonID, customSeeds, ct);
+    }
 }
