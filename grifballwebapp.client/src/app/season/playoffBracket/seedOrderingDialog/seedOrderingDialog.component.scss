@@ -1,0 +1,91 @@
+.seed-list {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.seed-item {
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: move;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.seed-content {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  gap: 12px;
+}
+
+.seed-number {
+  background: #3f51b5;
+  color: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.team-info {
+  flex: 1;
+}
+
+.team-name {
+  font-weight: 500;
+  font-size: 16px;
+  color: #333;
+}
+
+.team-record {
+  font-size: 14px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.drag-handle {
+  color: #999;
+  cursor: grab;
+  
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// Drag and drop styles
+.dndDragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+.dndPlaceholder {
+  background: #f5f5f5;
+  border: 2px dashed #ccc;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  
+  &::before {
+    content: "Drop here";
+  }
+}

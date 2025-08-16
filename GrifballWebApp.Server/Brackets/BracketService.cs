@@ -776,6 +776,43 @@ public class BracketService
         //var b = standings;
     }
 
+    public async Task SetCustomSeeds(int seasonID, CustomSeedDto[] customSeeds, CancellationToken ct = default)
+    {
+        var transaction = await _grifballContext.Database.BeginTransactionAsync(ct);
+        
+        // Create a dictionary mapping seed numbers to team IDs based on custom ordering
+        var seeds = customSeeds.ToDictionary(cs => cs.Seed, cs => cs.TeamID);
+
+        var playoffMatches = await _grifballContext.SeasonMatches
+            .Include(sm => sm.BracketMatch)
+                .ThenInclude(bm => bm.HomeTeamPreviousMatchBracketInfo)
+            .Include(sm => sm.BracketMatch)
+                .ThenInclude(bm => bm.AwayTeamPreviousMatchBracketInfo)
+            .Where(x => x.SeasonID == seasonID)
+            .Where(x => x.BracketMatch != null)
+            .Where(x => x.BracketMatch.HomeTeamSeedNumber != null || x.BracketMatch.AwayTeamSeedNumber != null)
+            .ToListAsync(ct);
+
+        if (playoffMatches.Any(x => x.HomeTeamID is not null || x.AwayTeamID is not null))
+            throw new Exception("Teams have already been seeded");
+
+        foreach (var match in playoffMatches)
+        {
+            var foundHomeTeam = seeds.TryGetValue(match.BracketMatch.HomeTeamSeedNumber ?? throw new Exception("Missing home team seed number"), out var homeTeamID);
+
+            var foundAwayTeam = seeds.TryGetValue(match.BracketMatch.AwayTeamSeedNumber ?? throw new Exception("Missing away team seed number"), out var awayTeamID);
+
+            if (foundHomeTeam is false || foundAwayTeam is false)
+                throw new Exception("Missing home or away team. Byes are currently not supported");
+
+            match.HomeTeamID = homeTeamID;
+            match.AwayTeamID = awayTeamID;
+        }
+
+        await _grifballContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
     /// <summary>
     /// Detemine the next match for the winner and the loser for a season match. Caller must include BracketMatch.InverseHomeTeamPreviousMatchBracketInfo.SeasonMatch and BracketMatch.InverseAwayTeamNextMatchBracketInfo.SeasonMatch.
     /// </summary>

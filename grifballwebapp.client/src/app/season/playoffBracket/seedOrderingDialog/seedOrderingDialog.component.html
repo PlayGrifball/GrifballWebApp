@@ -1,0 +1,41 @@
+<h2 mat-dialog-title>Set Custom Seed Order</h2>
+
+<mat-dialog-content>
+  @if (loading) {
+    <p>Loading team standings...</p>
+  } @else {
+    <p>Drag and drop teams to reorder their seeding:</p>
+    
+    <div class="seed-list"
+         dndDropzone
+         [dndDropzone]="['team']"
+         (dndDrop)="onDrop($event)">
+      
+      <div class="seed-item"
+           *ngFor="let team of teams; let i = index"
+           [dndDraggable]="team"
+           dndEffectAllowed="move"
+           [dndType]="'team'">
+        
+        <div class="seed-content">
+          <div class="seed-number">{{ team.seed }}</div>
+          <div class="team-info">
+            <div class="team-name">{{ team.teamName }}</div>
+            <div class="team-record">{{ team.wins }}W - {{ team.losses }}L</div>
+          </div>
+          <mat-icon class="drag-handle">drag_indicator</mat-icon>
+        </div>
+      </div>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions>
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button mat-flat-button 
+          color="primary" 
+          (click)="onSubmit()" 
+          [disabled]="loading">
+    Set Seeds
+  </button>
+</mat-dialog-actions>

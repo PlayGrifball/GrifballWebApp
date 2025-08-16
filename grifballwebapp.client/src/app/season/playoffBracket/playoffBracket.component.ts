@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
+import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 //import { BracketsViewer } from 'brackets-viewer';
@@ -96,15 +97,18 @@ export class PlayoffBracketComponent implements OnInit {
   }
 
   setSeeds() {
-    this.http.get("api/Brackets/SetSeeds/" + this.seasonID)
-      .subscribe({
-        next: r => {
-          this.getViewerData();
-        },
-        error: e => {
-          console.log(e);
-          this.snackBar.open("Failed to Set Seeds", "Close");
-        },
-      });
+    const dialogRef = this.dialog.open(SeedOrderingDialogComponent, {
+      data: this.seasonID,
+      width: '600px',
+      maxHeight: '80vh'
+    });
+
+    const subscription = dialogRef.componentInstance.seedingOrder.subscribe(() => {
+      this.getViewerData();
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      subscription.unsubscribe();
+    });
   }
 }
