@@ -36,7 +36,7 @@
     "jest-editor-support": "*",
     "lodash-es": "^4.17.21",
     "luxon": "^3.4.4",
-    "ngx-drag-drop": "^18.0.2",
+    "ngx-drag-drop": "^20.0.1",
     "run-script-os": "*",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
