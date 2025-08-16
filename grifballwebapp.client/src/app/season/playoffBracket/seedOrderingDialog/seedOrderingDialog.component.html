@@ -21,11 +21,11 @@
         </div>
       </div>
       
-      <div class="seed-item"
-           *ngFor="let team of teams; let i = index"
-           [dndDraggable]="team"
-           dndEffectAllowed="move"
-           [dndType]="'team'">
+      @for (team of teams; track team.teamID; let i = $index) {
+        <div class="seed-item"
+             [dndDraggable]="team"
+             dndEffectAllowed="move"
+             [dndType]="'team'">
         
         <div class="seed-content">
           <div class="seed-number">{{ team.seed }}</div>
@@ -36,6 +36,7 @@
           <mat-icon class="drag-handle">drag_indicator</mat-icon>
         </div>
       </div>
+      }
     </div>
   }
 </mat-dialog-content>
