@@ -78,7 +78,8 @@ public class SeasonMatchService
                 AwayTeamPreviousMatchID = seasonMatch.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID,
                 WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
-            }
+            },
+            ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
         };
     }
 

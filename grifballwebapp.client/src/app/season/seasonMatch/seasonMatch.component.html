@@ -54,6 +54,25 @@
 }
 }
 
+@if (seasonMatch()?.activeRescheduleRequestId) {
+<div>
+  <mat-card color="warn" style="margin-bottom: 16px;">
+    <mat-card-content>
+      <strong>Reschedule Request Active:</strong>
+      There is an active reschedule request for this match.<br>
+      <span>Request ID: {{ seasonMatch()?.activeRescheduleRequestId }}</span>
+    </mat-card-content>
+  </mat-card>
+</div>
+} @else {
+  <!-- TODO: Can we lock down front end to captain or event organizer only?
+    Also this button should be disabled if the match has been completed. 
+  -->
+  @if (accountService.isPlayer() || accountService.isEventOrganizer()) {
+    <button mat-button [routerLink]="['/reschedule-request', seasonMatchID()]">Reschedule</button>
+  }
+}
+
 @if (accountService.isEventOrganizer()) {
 <h2>Report Game</h2>
 

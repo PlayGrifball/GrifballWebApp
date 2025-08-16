@@ -1,0 +1,103 @@
+<div class="container">
+  <mat-card class="reschedule-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>schedule</mat-icon>
+        Request Match Reschedule
+      </mat-card-title>
+      <mat-card-subtitle>
+        Submit a request to reschedule your match
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form (ngSubmit)="submitRescheduleRequest()" #rescheduleForm="ngForm">
+        
+        <!-- New Date/Time Section -->
+        <div class="form-section">
+          <h3>Proposed New Time (Optional)</h3>
+          <p class="help-text">
+            If you have a specific time in mind, please provide it. Otherwise, the commissioner will work with both teams to find a suitable time.
+          </p>
+          
+          <div class="datetime-row">
+            <mat-form-field appearance="outline">
+              <mat-label>New Date</mat-label>
+              <input matInput 
+                     [matDatepicker]="picker" 
+                     [(ngModel)]="newDate" 
+                     name="newDate"
+                     placeholder="Choose a date">
+              <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>New Time</mat-label>
+              <input matInput 
+                     type="time" 
+                     [(ngModel)]="newTime" 
+                     name="newTime"
+                     placeholder="HH:MM">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Reason Section -->
+        <div class="form-section">
+          <h3>Reason for Reschedule <span class="required">*</span></h3>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Please explain why you need to reschedule</mat-label>
+            <textarea matInput 
+                      [(ngModel)]="reason" 
+                      name="reason" 
+                      required 
+                      rows="4"
+                      placeholder="e.g., Player unavailable due to family emergency, team conflict with another tournament, etc.">
+            </textarea>
+            @if (rescheduleForm.submitted && !reason.trim()) {
+            <mat-error>
+              A reason is required for reschedule requests
+            </mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        <!-- Important Notice -->
+        <div class="notice-box">
+          <mat-icon color="accent">info</mat-icon>
+          <div>
+            <strong>Important:</strong> 
+            <ul>
+              <li>Reschedule requests must be submitted as soon as possible</li>
+              <li>Both teams must agree to any new proposed time</li>
+              <li>The commissioner will review and approve/reject your request</li>
+              <li>You will be notified via Discord about the decision</li>
+            </ul>
+          </div>
+        </div>
+      </form>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button 
+              type="button" 
+              (click)="this.location.back();"
+              [disabled]="submitting">
+        Cancel
+      </button>
+      <button mat-raised-button 
+              color="primary" 
+              (click)="submitRescheduleRequest()"
+              [disabled]="submitting || !reason.trim()">
+        @if (submitting) {
+        <mat-icon>hourglass_empty</mat-icon>
+        }
+        @else {
+        <mat-icon>send</mat-icon>
+        }
+        {{ submitting ? 'Submitting...' : 'Submit Request' }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

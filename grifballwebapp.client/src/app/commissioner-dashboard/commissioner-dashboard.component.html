@@ -1,0 +1,243 @@
+<div class="dashboard-container">
+  <h1>Commissioner Dashboard</h1>
+  
+  @if (loading) {
+  <div class="loading-container">
+    <mat-icon>hourglass_empty</mat-icon>
+    <p>Loading dashboard data...</p>
+  </div>
+  }
+
+  @if (error) {
+  <div class="error-container">
+    <mat-icon color="warn">error</mat-icon>
+    <p>{{ error }}</p>
+    <button mat-raised-button color="primary" (click)="loadDashboardData()">Retry</button>
+  </div>
+  }
+
+  @if (dashboardData && !loading) {
+  <div class="dashboard-content">
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>schedule</mat-icon>
+            Pending Reschedules
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric">
+            <span class="metric-value">{{ dashboardData.summary.pendingRescheduleCount }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>warning</mat-icon>
+            Overdue Matches
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric">
+            <span class="metric-value">{{ dashboardData.summary.overdueMatchCount }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      
+      @if (dashboardData.summary.criticalOverdueCount > 0) {
+      <mat-card class="summary-card critical">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>priority_high</mat-icon>
+            Critical Overdue
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric">
+            <span class="metric-value">{{ dashboardData.summary.criticalOverdueCount }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      }
+    </div>
+
+    <!-- Tabs for detailed data -->
+    <mat-tab-group class="dashboard-tabs">
+      
+      <!-- Pending Reschedules Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>schedule</mat-icon>
+          Pending Reschedules
+          @if (dashboardData.pendingReschedules.length > 0) {
+          <span class="tab-badge">
+            {{ dashboardData.pendingReschedules.length }}
+          </span>
+          }
+        </ng-template>
+        
+        <div class="tab-content">
+          @if (dashboardData.pendingReschedules.length === 0) {
+          <div class="empty-state">
+            <mat-icon>check_circle</mat-icon>
+            <p>No pending reschedule requests</p>
+          </div>
+          }
+          
+          @if (dashboardData.pendingReschedules.length > 0) {
+          <div>
+            <mat-table [dataSource]="dashboardData.pendingReschedules" class="reschedule-table">
+              
+              <ng-container matColumnDef="match">
+                <mat-header-cell *matHeaderCellDef>Match</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  <strong>{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</strong>
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="originalTime">
+                <mat-header-cell *matHeaderCellDef>Original Time</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  {{ formatDateTime(reschedule.originalScheduledTime) }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="newTime">
+                <mat-header-cell *matHeaderCellDef>Requested Time</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  {{ formatDateTime(reschedule.newScheduledTime) }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="requestedBy">
+                <mat-header-cell *matHeaderCellDef>Requested By</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  {{ reschedule.requestedByGamertag }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="reason">
+                <mat-header-cell *matHeaderCellDef>Reason</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  <div class="reason-cell">{{ reschedule.reason }}</div>
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="requestedAt">
+                <mat-header-cell *matHeaderCellDef>Requested</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  {{ formatDateTime(reschedule.requestedAt) }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="process">
+                <mat-header-cell *matHeaderCellDef>Process</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                  <div class="action-buttons">
+                    <button mat-raised-button color="primary" (click)="openProcessRescheduleDialog(reschedule)">
+                      <mat-icon>gavel</mat-icon>
+                      Process
+                    </button>
+                  </div>
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="thread">
+                <mat-header-cell *matHeaderCellDef>Thread</mat-header-cell>
+                <mat-cell *matCellDef="let reschedule">
+                    @if (!reschedule.discordThreadID) {
+                    <button mat-icon-button 
+                            (click)="createDiscordThread(reschedule)"
+                            matTooltip="Create Discord Thread">
+                      <mat-icon>forum</mat-icon>
+                    </button>
+                    } @else {
+                      <mat-chip color="accent">
+                      <mat-icon>forum</mat-icon>
+                      Thread Created
+                      </mat-chip>
+                    }
+                </mat-cell>
+              </ng-container>
+
+              <mat-header-row *matHeaderRowDef="rescheduleDisplayedColumns"></mat-header-row>
+              <mat-row *matRowDef="let row; columns: rescheduleDisplayedColumns;"></mat-row>
+            </mat-table>
+          </div>
+          }
+        </div>
+      </mat-tab>
+
+      <!-- Overdue Matches Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>warning</mat-icon>
+          Overdue Matches
+          @if (dashboardData.overdueMatches.length > 0) {
+          <span class="tab-badge">
+            {{ dashboardData.overdueMatches.length }}
+          </span>
+          }
+        </ng-template>
+        
+        <div class="tab-content">
+          @if (dashboardData.overdueMatches.length === 0) {
+          <div class="empty-state">
+            <mat-icon>check_circle</mat-icon>
+            <p>No overdue matches</p>
+          </div>
+          }
+          
+          @if (dashboardData.overdueMatches.length > 0) {
+          <div>
+            <mat-table [dataSource]="dashboardData.overdueMatches" class="overdue-table">
+              
+              <ng-container matColumnDef="match">
+                <mat-header-cell *matHeaderCellDef>Match</mat-header-cell>
+                <mat-cell *matCellDef="let match">
+                  <strong>{{ match.homeCaptain }} vs {{ match.awayCaptain }}</strong>
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="scheduledTime">
+                <mat-header-cell *matHeaderCellDef>Scheduled Time</mat-header-cell>
+                <mat-cell *matCellDef="let match">
+                  {{ formatDateTime(match.scheduledTime) }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="hoursOverdue">
+                <mat-header-cell *matHeaderCellDef>Hours Overdue</mat-header-cell>
+                <mat-cell *matCellDef="let match">
+                  <strong>{{ match.hoursOverdue }}h</strong>
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="severity">
+                <mat-header-cell *matHeaderCellDef>Severity</mat-header-cell>
+                <mat-cell *matCellDef="let match">
+                  <mat-chip [color]="getOverdueSeverityColor(match.hoursOverdue)">
+                    <mat-icon>{{ match.hoursOverdue > 72 ? 'priority_high' : match.hoursOverdue > 48 ? 'warning' : 'info' }}</mat-icon>
+                    {{ getOverdueSeverity(match.hoursOverdue) | titlecase }}
+                  </mat-chip>
+                </mat-cell>
+              </ng-container>
+
+              <mat-header-row *matHeaderRowDef="overdueDisplayedColumns"></mat-header-row>
+              <mat-row *matRowDef="let row; columns: overdueDisplayedColumns;"
+                       [class.critical-row]="row.hoursOverdue > 72"
+                       [class.warning-row]="row.hoursOverdue > 48 && row.hoursOverdue <= 72"></mat-row>
+            </mat-table>
+          </div>
+          }
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+  }
+</div>

@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GrifballWebApp.Database", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F8C101D1-59A3-48D5-A73D-714F0D035110}"
 	ProjectSection(SolutionItems) = preProject
+		.mcp.json = .mcp.json
+		.github\copilot-instructions.md = .github\copilot-instructions.md
 		readme.md = readme.md
 	EndProjectSection
 EndProject

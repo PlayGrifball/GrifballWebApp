@@ -1,0 +1,86 @@
+<div class="dialog-content">
+  <h2 mat-dialog-title>
+    <mat-icon>gavel</mat-icon>
+    Process Reschedule Request
+  </h2>
+
+  <mat-dialog-content>
+    <!-- Match Details -->
+    <div class="match-details">
+      <h3>Match Details</h3>
+      <div class="detail-row">
+        <strong>Teams:</strong> {{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}
+      </div>
+      <div class="detail-row">
+        <strong>Original Time:</strong> {{ formatDateTime(reschedule.originalScheduledTime) }}
+      </div>
+      <div class="detail-row">
+        <strong>Requested Time:</strong> {{ formatDateTime(reschedule.newScheduledTime) }}
+      </div>
+      <div class="detail-row">
+        <strong>Requested By:</strong> {{ reschedule.requestedByGamertag }}
+      </div>
+      <div class="detail-row">
+        <strong>Requested:</strong> {{ formatDateTime(reschedule.requestedAt) }}
+      </div>
+    </div>
+
+    <!-- Reason -->
+    <div class="reason-section">
+      <h3>Reason for Reschedule</h3>
+      <div class="reason-box">
+        {{ reschedule.reason }}
+      </div>
+    </div>
+
+    <!-- Decision -->
+    <div class="decision-section">
+      <h3>Commissioner Decision</h3>
+      <mat-radio-group [(ngModel)]="decision" class="decision-radio-group">
+        <mat-radio-button value="approve" color="primary">
+          <mat-icon>check_circle</mat-icon>
+          Approve Reschedule
+        </mat-radio-button>
+        <mat-radio-button value="reject" color="warn">
+          <mat-icon>cancel</mat-icon>
+          Reject Reschedule
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+
+    <!-- Commissioner Notes -->
+    <div class="notes-section">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Commissioner Notes (Optional)</mat-label>
+        <textarea matInput 
+                  [(ngModel)]="commissionerNotes" 
+                  rows="3" 
+                  placeholder="Add any additional notes about this decision..."></textarea>
+      </mat-form-field>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()" [disabled]="processing">
+      Cancel
+    </button>
+    <button mat-raised-button 
+            [color]="decision === 'approve' ? 'primary' : 'warn'"
+            (click)="processReschedule()" 
+            [disabled]="!decision || processing">
+      @if (processing)
+      {
+        <mat-icon>hourglass_empty</mat-icon>
+      }
+      @if (!processing && decision === 'approve')
+      {
+        <mat-icon>check_circle</mat-icon>
+      }
+      @if (!processing && decision === 'reject')
+      {
+        <mat-icon>cancel</mat-icon>
+      }
+      {{ processing ? 'Processing...' : (decision === 'approve' ? 'Approve' : 'Reject') }}
+    </button>
+  </mat-dialog-actions>
+</div>
