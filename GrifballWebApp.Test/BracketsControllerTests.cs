@@ -5,6 +5,7 @@ using GrifballWebApp.Server.TeamStandings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace GrifballWebApp.Test;
 
@@ -50,7 +51,7 @@ public class BracketsControllerTests
         await _controller.SetCustomSeeds(seasonID, customSeeds, cancellationToken);
 
         // Assert
-        await _bracketService.Received(1).SetCustomSeeds(seasonID, customSeeds, cancellationToken);
+        await _bracketService.Received(1).SetSeeds(seasonID, customSeeds, cancellationToken);
     }
 
     [Test]
@@ -70,7 +71,7 @@ public class BracketsControllerTests
         await _controller.SetCustomSeeds(seasonID, customSeeds, cancellationToken);
 
         // Assert
-        await _bracketService.Received(1).SetCustomSeeds(
+        await _bracketService.Received(1).SetSeeds(
             Arg.Is<int>(x => x == seasonID),
             Arg.Is<CustomSeedDto[]>(x => 
                 x.Length == 3 &&
@@ -90,11 +91,11 @@ public class BracketsControllerTests
             new() { TeamID = 1, Seed = 1 }
         };
         var expectedException = new Exception("Test exception");
-        _bracketService.SetCustomSeeds(Arg.Any<int>(), Arg.Any<CustomSeedDto[]>(), Arg.Any<CancellationToken>())
+        _bracketService.SetSeeds(Arg.Any<int>(), Arg.Any<CustomSeedDto[]>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(expectedException);
 
         // Act & Assert
-        var actualException = await Assert.ThrowsAsync<Exception>(
+        var actualException = Assert.ThrowsAsync<Exception>(
             () => _controller.SetCustomSeeds(seasonID, customSeeds, CancellationToken.None));
         
         Assert.That(actualException, Is.EqualTo(expectedException));
@@ -112,6 +113,6 @@ public class BracketsControllerTests
         await _controller.SetCustomSeeds(seasonID, customSeeds, cancellationToken);
 
         // Assert
-        await _bracketService.Received(1).SetCustomSeeds(seasonID, customSeeds, cancellationToken);
+        await _bracketService.Received(1).SetSeeds(seasonID, customSeeds, cancellationToken);
     }
 }

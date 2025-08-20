@@ -54,13 +54,13 @@ public class BracketsController : ControllerBase
     [HttpGet("{seasonID:int}", Name = "SetSeeds")]
     public Task SetSeeds([FromRoute] int seasonID, CancellationToken ct)
     {
-        return _bracketService.SetSeeds(seasonID, ct);
+        return _bracketService.SetSeeds(seasonID, null, ct);
     }
 
     [Authorize(Roles = "Commissioner")]
     [HttpPost("{seasonID:int}", Name = "SetCustomSeeds")]
     public Task SetCustomSeeds([FromRoute] int seasonID, [FromBody] CustomSeedDto[] customSeeds, CancellationToken ct)
     {
-        return _bracketService.SetCustomSeeds(seasonID, customSeeds, ct);
+        return _bracketService.SetSeeds(seasonID, customSeeds, ct);
     }
 }

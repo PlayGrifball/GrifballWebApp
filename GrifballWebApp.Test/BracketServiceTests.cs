@@ -34,12 +34,12 @@ public class BracketServiceTests
     {
         // Arrange
         const int seasonID = 1;
-        var team1 = new SeasonTeam { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new SeasonTeam { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
-        var team3 = new SeasonTeam { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
-        var team4 = new SeasonTeam { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
+        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
+        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
+        var team4 = new Team { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
 
-        await _context.SeasonTeams.AddRangeAsync([team1, team2, team3, team4]);
+        await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
 
         var bracket1 = new MatchBracketInfo
         {
@@ -85,7 +85,7 @@ public class BracketServiceTests
         };
 
         // Act
-        await _service.SetCustomSeeds(seasonID, customSeeds);
+        await _service.SetSeeds(seasonID, customSeeds);
 
         // Assert
         var updatedMatches = await _context.SeasonMatches
@@ -137,8 +137,7 @@ public class BracketServiceTests
         };
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<Exception>(
-            () => _service.SetCustomSeeds(seasonID, customSeeds));
+        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         
         Assert.That(exception.Message, Is.EqualTo("Teams have already been seeded"));
     }
@@ -174,8 +173,7 @@ public class BracketServiceTests
         };
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<Exception>(
-            () => _service.SetCustomSeeds(seasonID, customSeeds));
+        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         
         Assert.That(exception.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
     }
@@ -211,8 +209,7 @@ public class BracketServiceTests
         };
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<Exception>(
-            () => _service.SetCustomSeeds(seasonID, customSeeds));
+        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         
         Assert.That(exception.Message, Is.EqualTo("Missing home team seed number"));
     }
@@ -248,8 +245,7 @@ public class BracketServiceTests
         };
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<Exception>(
-            () => _service.SetCustomSeeds(seasonID, customSeeds));
+        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         
         Assert.That(exception.Message, Is.EqualTo("Missing away team seed number"));
     }
@@ -259,12 +255,12 @@ public class BracketServiceTests
     {
         // Arrange
         const int seasonID = 1;
-        var team1 = new SeasonTeam { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
-        var team2 = new SeasonTeam { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
-        var team3 = new SeasonTeam { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
-        var team4 = new SeasonTeam { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
+        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
+        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
+        var team4 = new Team { TeamID = 4, SeasonID = seasonID, TeamName = "Team4" };
 
-        await _context.SeasonTeams.AddRangeAsync([team1, team2, team3, team4]);
+        await _context.Teams.AddRangeAsync([team1, team2, team3, team4]);
 
         // Round 1 matches
         var bracket1 = new MatchBracketInfo { MatchNumber = 1, RoundNumber = 1, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 4 };
@@ -289,7 +285,7 @@ public class BracketServiceTests
         };
 
         // Act
-        await _service.SetCustomSeeds(seasonID, customSeeds);
+        await _service.SetSeeds(seasonID, customSeeds);
 
         // Assert
         var round1Matches = await _context.SeasonMatches
@@ -351,7 +347,7 @@ public class BracketServiceTests
         };
 
         // Act
-        await _service.SetCustomSeeds(seasonID, customSeeds);
+        await _service.SetSeeds(seasonID, customSeeds);
 
         // Assert
         var allMatches = await _context.SeasonMatches
