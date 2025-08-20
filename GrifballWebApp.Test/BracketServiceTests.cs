@@ -29,11 +29,25 @@ public class BracketServiceTests
         _context.Dispose();
     }
 
+    private async Task EnsureSeasonExists(int seasonID)
+    {
+        if (!await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID))
+        {
+            await _context.DisableContraints("[Event].[Seasons]");
+            var season = new Season { SeasonID = seasonID, SeasonName = $"Season {seasonID}" };
+            await _context.Seasons.AddAsync(season);
+            await _context.SaveChangesAsync();
+            await _context.EnableContraints("[Event].[Seasons]");
+        }
+    }
+
     [Test]
     public async Task SetCustomSeeds_Should_SetTeamIDsCorrectly_When_ValidCustomSeedsProvided()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
         var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
         var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
@@ -74,7 +88,9 @@ public class BracketServiceTests
         };
 
         await _context.SeasonMatches.AddRangeAsync([match1, match2]);
+        await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
+        await _context.EnableContraints("[Event].[Teams]");
 
         var customSeeds = new CustomSeedDto[]
         {
@@ -83,6 +99,7 @@ public class BracketServiceTests
             new() { TeamID = 4, Seed = 3 }, // Team4 becomes seed 3
             new() { TeamID = 3, Seed = 4 }  // Team3 becomes seed 4
         };
+        await transaction.CommitAsync();
 
         // Act
         await _service.SetSeeds(seasonID, customSeeds);
@@ -110,7 +127,9 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_ThrowException_When_TeamsAlreadySeeded()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var bracket = new MatchBracketInfo
         {
             MatchNumber = 1,
@@ -119,26 +138,32 @@ public class BracketServiceTests
             AwayTeamSeedNumber = 2
         };
 
+        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
+        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        await _context.Teams.AddRangeAsync([team1, team2]);
+
         var match = new SeasonMatch
         {
             SeasonID = seasonID,
             BracketMatch = bracket,
-            HomeTeamID = 1, // Already seeded
-            AwayTeamID = 2  // Already seeded
+            HomeTeamID = 1,
+            AwayTeamID = 2,
         };
 
         await _context.SeasonMatches.AddAsync(match);
+        await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
+        await _context.EnableContraints("[Event].[Teams]");
 
         var customSeeds = new CustomSeedDto[]
         {
             new() { TeamID = 1, Seed = 1 },
             new() { TeamID = 2, Seed = 2 }
         };
+        await transaction.CommitAsync();
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
-        
         Assert.That(exception.Message, Is.EqualTo("Teams have already been seeded"));
     }
 
@@ -146,7 +171,9 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_ThrowException_When_MissingSeedNumber()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var bracket = new MatchBracketInfo
         {
             MatchNumber = 1,
@@ -171,10 +198,10 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 1 },
             // Missing seed 3
         };
+        await transaction.CommitAsync();
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
-        
         Assert.That(exception.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
     }
 
@@ -182,11 +209,14 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_ThrowException_When_HomeTeamSeedNumberIsNull()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var bracket = new MatchBracketInfo
         {
             MatchNumber = 1,
             RoundNumber = 1,
+            HomeTeamPreviousMatchBracketInfoID = 1, // Hack because we got to set this if we want to set null home seed number to abide by check constraint
             HomeTeamSeedNumber = null, // Missing home team seed number
             AwayTeamSeedNumber = 2
         };
@@ -207,10 +237,10 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 1 },
             new() { TeamID = 2, Seed = 2 }
         };
+        await transaction.CommitAsync();
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
-        
         Assert.That(exception.Message, Is.EqualTo("Missing home team seed number"));
     }
 
@@ -218,12 +248,15 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_ThrowException_When_AwayTeamSeedNumberIsNull()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var bracket = new MatchBracketInfo
         {
             MatchNumber = 1,
             RoundNumber = 1,
             HomeTeamSeedNumber = 1,
+            AwayTeamPreviousMatchBracketInfoID = 1, // Hack because we got to set this if we want to set null away seed number to abide by check constraint
             AwayTeamSeedNumber = null // Missing away team seed number
         };
 
@@ -243,10 +276,10 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 1 },
             new() { TeamID = 2, Seed = 2 }
         };
+        await transaction.CommitAsync();
 
         // Act & Assert
         var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
-        
         Assert.That(exception.Message, Is.EqualTo("Missing away team seed number"));
     }
 
@@ -254,7 +287,9 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_HandleMultipleRounds_When_BracketHasMultipleRounds()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
         var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
         var team3 = new Team { TeamID = 3, SeasonID = seasonID, TeamName = "Team3" };
@@ -267,14 +302,16 @@ public class BracketServiceTests
         var bracket2 = new MatchBracketInfo { MatchNumber = 2, RoundNumber = 1, HomeTeamSeedNumber = 2, AwayTeamSeedNumber = 3 };
         
         // Round 2 match (final) - no seed numbers, should be ignored
-        var bracket3 = new MatchBracketInfo { MatchNumber = 3, RoundNumber = 2, HomeTeamSeedNumber = null, AwayTeamSeedNumber = null };
+        var bracket3 = new MatchBracketInfo { MatchNumber = 3, RoundNumber = 2, HomeTeamPreviousMatchBracketInfoID = 1, AwayTeamPreviousMatchBracketInfoID = 2 };
 
         var match1 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket1, HomeTeamID = null, AwayTeamID = null };
         var match2 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket2, HomeTeamID = null, AwayTeamID = null };
         var match3 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket3, HomeTeamID = null, AwayTeamID = null };
 
         await _context.SeasonMatches.AddRangeAsync([match1, match2, match3]);
+        await _context.DisableContraints("[Event].[Teams]");
         await _context.SaveChangesAsync();
+        await _context.EnableContraints("[Event].[Teams]");
 
         var customSeeds = new CustomSeedDto[]
         {
@@ -283,6 +320,7 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 3 },
             new() { TeamID = 2, Seed = 4 }
         };
+        await transaction.CommitAsync();
 
         // Act
         await _service.SetSeeds(seasonID, customSeeds);
@@ -317,7 +355,9 @@ public class BracketServiceTests
     public async Task SetCustomSeeds_Should_IgnoreMatchesWithoutSeedNumbers_When_BracketHasMixedMatches()
     {
         // Arrange
+        using var transaction = await _context.Database.BeginTransactionAsync();
         const int seasonID = 1;
+        await EnsureSeasonExists(seasonID);
         var bracket1 = new MatchBracketInfo
         {
             MatchNumber = 1,
@@ -331,7 +371,9 @@ public class BracketServiceTests
             MatchNumber = 2,
             RoundNumber = 1,
             HomeTeamSeedNumber = null,
-            AwayTeamSeedNumber = null
+            AwayTeamSeedNumber = null,
+            HomeTeamPreviousMatchBracketInfoID = 1, // Hack to allow null seed numbers, bypass the check constraint
+            AwayTeamPreviousMatchBracketInfoID = 1,
         };
 
         var match1 = new SeasonMatch { SeasonID = seasonID, BracketMatch = bracket1, HomeTeamID = null, AwayTeamID = null };
@@ -345,6 +387,13 @@ public class BracketServiceTests
             new() { TeamID = 1, Seed = 1 },
             new() { TeamID = 2, Seed = 2 }
         };
+        var team1 = new Team { TeamID = 1, SeasonID = seasonID, TeamName = "Team1" };
+        var team2 = new Team { TeamID = 2, SeasonID = seasonID, TeamName = "Team2" };
+        await _context.Teams.AddRangeAsync([team1, team2]);
+        await _context.DisableContraints("[Event].[Teams]");
+        await _context.SaveChangesAsync();
+        await _context.EnableContraints("[Event].[Teams]");
+        await transaction.CommitAsync();
 
         // Act
         await _service.SetSeeds(seasonID, customSeeds);

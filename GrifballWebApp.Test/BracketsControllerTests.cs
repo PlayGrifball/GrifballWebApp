@@ -1,8 +1,5 @@
-using GrifballWebApp.Database;
 using GrifballWebApp.Server.Brackets;
 using GrifballWebApp.Server.Dtos;
-using GrifballWebApp.Server.TeamStandings;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -14,25 +11,15 @@ namespace GrifballWebApp.Test;
 public class BracketsControllerTests
 {
     private ILogger<BracketsController> _logger;
-    private GrifballContext _context;
-    private TeamStandingsService _teamStandingsService;
-    private BracketService _bracketService;
+    private IBracketService _bracketService;
     private BracketsController _controller;
 
     [SetUp]
     public async Task Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
         _logger = Substitute.For<ILogger<BracketsController>>();
-        _teamStandingsService = new TeamStandingsService(_context);
-        _bracketService = Substitute.For<BracketService>(_context, _teamStandingsService);
+        _bracketService = Substitute.For<IBracketService>();
         _controller = new BracketsController(_logger, _bracketService);
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
-        _context.Dispose();
     }
 
     [Test]

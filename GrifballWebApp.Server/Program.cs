@@ -233,7 +233,7 @@ public class Program
         });
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
-        builder.Services.AddTransient<BracketService>();
+        builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<SeasonService>();

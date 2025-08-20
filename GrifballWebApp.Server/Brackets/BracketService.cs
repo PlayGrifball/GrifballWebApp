@@ -6,7 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Brackets;
 
-public class BracketService
+public interface IBracketService
+{
+    Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default);
+    Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default);
+    Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
+    Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default);
+    NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
+}
+
+public class BracketService : IBracketService
 {
     private readonly GrifballContext _grifballContext;
     private readonly TeamStandingsService _teamStandingsService;

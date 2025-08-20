@@ -9,9 +9,9 @@ namespace GrifballWebApp.Server.Brackets;
 public class BracketsController : ControllerBase
 {
     private readonly ILogger<BracketsController> _logger;
-    private readonly BracketService _bracketService;
+    private readonly IBracketService _bracketService;
 
-    public BracketsController(ILogger<BracketsController> logger, BracketService bracketService)
+    public BracketsController(ILogger<BracketsController> logger, IBracketService bracketService)
     {
         _logger = logger;
         _bracketService = bracketService;
