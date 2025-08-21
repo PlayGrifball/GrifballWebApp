@@ -31,7 +31,7 @@ interface TeamStanding {
     styleUrl: './seedOrderingDialog.component.scss'
 })
 export class SeedOrderingDialogComponent implements OnInit {
-  seedingOrder = new EventEmitter<void>();
+  @Output() seedingOrder = new EventEmitter<void>();
   teams: TeamStanding[] = [];
   loading = true;
   private seasonID: number;
