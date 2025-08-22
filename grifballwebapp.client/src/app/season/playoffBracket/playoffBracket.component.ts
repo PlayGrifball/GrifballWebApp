@@ -6,11 +6,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
+import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
+@UntilDestroy()
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
@@ -86,25 +89,24 @@ export class PlayoffBracketComponent implements OnInit {
       data: this.seasonID
     });
 
-    const subcription = dialogRef.componentInstance.bracketCreated.subscribe(() => {
+    dialogRef.componentInstance.bracketCreated
+    .pipe(untilDestroyed(this))
+    .subscribe(() => {
       this.getViewerData();
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      subcription.unsubscribe();
     });
   }
 
   setSeeds() {
-    this.http.get("api/Brackets/SetSeeds/" + this.seasonID)
-      .subscribe({
-        next: r => {
-          this.getViewerData();
-        },
-        error: e => {
-          console.log(e);
-          this.snackBar.open("Failed to Set Seeds", "Close");
-        },
-      });
+    const dialogRef = this.dialog.open(SeedOrderingDialogComponent, {
+      data: this.seasonID,
+      width: '600px',
+      maxHeight: '80vh'
+    });
+
+    dialogRef.componentInstance.seedingOrder
+    .pipe(untilDestroyed(this))
+    .subscribe(() => {
+      this.getViewerData();
+    });
   }
 }

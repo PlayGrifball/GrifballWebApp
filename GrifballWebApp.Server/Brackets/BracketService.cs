@@ -6,7 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Brackets;
 
-public class BracketService
+public interface IBracketService
+{
+    Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default);
+    Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default);
+    Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
+    Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default);
+    NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
+}
+
+public class BracketService : IBracketService
 {
     private readonly GrifballContext _grifballContext;
     private readonly TeamStandingsService _teamStandingsService;
@@ -720,12 +729,15 @@ public class BracketService
         return match.Number;
     }
 
-    public async Task SetSeeds(int seasonID, CancellationToken ct = default)
+    public async Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default)
     {
         var transaction = await _grifballContext.Database.BeginTransactionAsync(ct);
+
+        // If custom seeds are not provided, use the current standings
         var standings = await _teamStandingsService.GetTeamStandings(seasonID, ct);
 
-        var seeds = standings.Select((dto, index) => (++index, dto.TeamID)).ToDictionary();
+        // Create a dictionary mapping seed numbers to team IDs based on custom ordering, fallback to standings if custom seeds are null
+        var seeds = customSeeds?.ToDictionary(cs => cs.Seed, cs => cs.TeamID) ?? standings.Select((dto, index) => (++index, dto.TeamID)).ToDictionary();
 
         var playoffMatches = await _grifballContext.SeasonMatches
             .Include(sm => sm.BracketMatch)
@@ -755,25 +767,6 @@ public class BracketService
 
         await _grifballContext.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        //var winner = playoffMatches.Where(x => x.BracketMatch.Bracket is Bracket.Winner).Select(x => x.BracketMatch).ToList();
-
-        //var lsoer = playoffMatches.Where(x => x.BracketMatch.Bracket is Bracket.Loser).Select(x => x.BracketMatch).ToList();
-
-        //var grandfinal = playoffMatches.Select(x => x.BracketMatch).FirstOrDefault(x => x.Bracket is Bracket.GrandFinal);
-
-        //var sd = playoffMatches.Select(x => x.BracketMatch).FirstOrDefault(x => x.Bracket is Bracket.GrandFinalSuddenDeath);
-
-        //var match = playoffMatches.FirstOrDefault();
-
-        //var nextMatch = DetermineNextMatches(match);
-
-        //var foo = playoffMatches.Select(x => new
-        //{
-        //    Match = x,
-        //    NextMatches = DetermineNextMatches(x),
-        //}).ToList();
-
-        //var b = standings;
     }
 
     /// <summary>

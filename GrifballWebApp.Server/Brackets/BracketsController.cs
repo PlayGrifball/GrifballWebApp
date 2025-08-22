@@ -9,9 +9,9 @@ namespace GrifballWebApp.Server.Brackets;
 public class BracketsController : ControllerBase
 {
     private readonly ILogger<BracketsController> _logger;
-    private readonly BracketService _bracketService;
+    private readonly IBracketService _bracketService;
 
-    public BracketsController(ILogger<BracketsController> logger, BracketService bracketService)
+    public BracketsController(ILogger<BracketsController> logger, IBracketService bracketService)
     {
         _logger = logger;
         _bracketService = bracketService;
@@ -54,6 +54,13 @@ public class BracketsController : ControllerBase
     [HttpGet("{seasonID:int}", Name = "SetSeeds")]
     public Task SetSeeds([FromRoute] int seasonID, CancellationToken ct)
     {
-        return _bracketService.SetSeeds(seasonID, ct);
+        return _bracketService.SetSeeds(seasonID, null, ct);
+    }
+
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonID:int}", Name = "SetCustomSeeds")]
+    public Task SetCustomSeeds([FromRoute] int seasonID, [FromBody] CustomSeedDto[] customSeeds, CancellationToken ct)
+    {
+        return _bracketService.SetSeeds(seasonID, customSeeds, ct);
     }
 }

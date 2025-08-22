@@ -11,8 +11,8 @@ public class SeasonMatchService
 {
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
-    private readonly BracketService _bracketService;
-    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, BracketService bracketService)
+    private readonly IBracketService _bracketService;
+    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, IBracketService bracketService)
     {
         _context = context;
         _dataPullService = dataPullService;
