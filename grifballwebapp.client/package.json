@@ -29,6 +29,7 @@
     "@microsoft/signalr": "^8.0.7",
     "@ng-matero/extensions": "^20.0.3",
     "@ng-matero/extensions-luxon-adapter": "^20.0.0",
+    "@ngneat/until-destroy": "^10.0.0",
     "@types/luxon": "^3.4.2",
     "brackets-manager": "^1.6.4",
     "brackets-model": "^1.5.0",

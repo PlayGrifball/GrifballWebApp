@@ -20,7 +20,9 @@ import { groupBy, map, orderBy } from 'lodash-es';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 
+@UntilDestroy()
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -62,12 +64,10 @@ export class ScheduleListComponent  implements OnInit {
       data: this.seasonID
     });
 
-    const subcription = dialogRef.componentInstance.regularMatchesCreated.subscribe(() => {
+    dialogRef.componentInstance.regularMatchesCreated
+    .pipe(untilDestroyed(this))
+    .subscribe(() => {
       this.GetMatches();
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      subcription.unsubscribe();
     });
   }
 

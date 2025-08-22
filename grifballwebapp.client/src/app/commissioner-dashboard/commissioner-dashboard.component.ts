@@ -10,6 +10,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/process-reschedule-dialog.component';
 import { HttpClient } from '@angular/common/http';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 
 export interface CommissionerDashboardDto {
   pendingReschedules: RescheduleDto[];
@@ -45,6 +46,7 @@ export interface DashboardSummaryDto {
   criticalOverdueCount: number;
 }
 
+@UntilDestroy()
 @Component({
   selector: 'app-commissioner-dashboard',
   standalone: true,
@@ -119,7 +121,9 @@ export class CommissionerDashboardComponent implements OnInit {
       data: reschedule
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed()
+    .pipe(untilDestroyed(this))
+    .subscribe(result => {
       if (result) {
         this.loadDashboardData(); // Refresh data after processing
       }

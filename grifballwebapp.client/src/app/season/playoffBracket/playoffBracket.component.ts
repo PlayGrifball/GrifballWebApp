@@ -9,9 +9,11 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 //import { BracketsViewer } from 'brackets-viewer';
 //import { BracketsManager } from 'brackets-manager/dist'
 
+@UntilDestroy()
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
@@ -87,12 +89,10 @@ export class PlayoffBracketComponent implements OnInit {
       data: this.seasonID
     });
 
-    const subcription = dialogRef.componentInstance.bracketCreated.subscribe(() => {
+    dialogRef.componentInstance.bracketCreated
+    .pipe(untilDestroyed(this))
+    .subscribe(() => {
       this.getViewerData();
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      subcription.unsubscribe();
     });
   }
 
@@ -103,12 +103,10 @@ export class PlayoffBracketComponent implements OnInit {
       maxHeight: '80vh'
     });
 
-    const subscription = dialogRef.componentInstance.seedingOrder.subscribe(() => {
+    dialogRef.componentInstance.seedingOrder
+    .pipe(untilDestroyed(this))
+    .subscribe(() => {
       this.getViewerData();
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      subscription.unsubscribe();
     });
   }
 }
