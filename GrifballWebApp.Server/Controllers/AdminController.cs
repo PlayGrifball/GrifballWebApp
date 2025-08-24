@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Surprenant.Grunt.Core;
+using Surprenant.Grunt.Core.Storage;
 using Surprenant.Grunt.Models;
-using Surprenant.Grunt.Util;
 using System.Collections.Specialized;
 
 namespace GrifballWebApp.Server.Controllers;
@@ -13,12 +13,12 @@ namespace GrifballWebApp.Server.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly ILogger<AdminController> _logger;
-    private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
+    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly IAccountAuthorization _accountAuthorization;
     private readonly IDataPullService _dataPullService;
     private readonly IOptionsMonitor<ClientConfiguration> _options;
 
-    public AdminController(ILogger<AdminController> logger, HaloInfiniteClientFactory haloInfiniteClientFactory,
+    public AdminController(ILogger<AdminController> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory,
         IAccountAuthorization accountAuthorization, IDataPullService dataPullService,
         IOptionsMonitor<ClientConfiguration> optionsMonitor)
     {
@@ -98,9 +98,7 @@ public class AdminController : ControllerBase
     {
         try
         {
-            var client = await _haloInfiniteClientFactory.CreateAsync();
-
-            var response = await client.StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
+            var response = await _haloInfiniteClientFactory.StatsGetMatchStats("1fde4c2a-7935-4fb0-9706-e226f4d13683");
 
             return "Good";
         }
