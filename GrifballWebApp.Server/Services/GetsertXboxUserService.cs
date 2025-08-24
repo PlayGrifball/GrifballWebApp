@@ -71,7 +71,10 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (missing.Any() is false)
             return existing;
 
-        var xuidStr = xuid.Select(x => x.ToString());
+        // Prep the XUIDs as strings for the API call
+        var xuidStr = xuid
+            .Except(existing.Select(x => x.XboxUserID)) // But do not query for existing users.
+            .Select(x => x.ToString());
         var users = await _infiniteClientFactory.Users(xuidStr);
 
         if (users.Result is null)
