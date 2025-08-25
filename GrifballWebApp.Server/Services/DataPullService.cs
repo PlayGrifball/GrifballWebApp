@@ -11,11 +11,11 @@ namespace GrifballWebApp.Server.Services;
 public class DataPullService : IDataPullService
 {
     private readonly ILogger<DataPullService> _logger;
-    private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
+    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly GrifballContext _grifballContext;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
 
-    public DataPullService(ILogger<DataPullService> logger, HaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
+    public DataPullService(ILogger<DataPullService> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory, GrifballContext grifballContext, IGetsertXboxUserService getsertXboxUserService)
     {
         _logger = logger;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
@@ -26,13 +26,12 @@ public class DataPullService : IDataPullService
     {
         var stringXboxIDs = xboxIDs.Distinct().Select(x => $"xuid({x})").ToList();
 
-        var client = await _haloInfiniteClientFactory.CreateAsync();
-
         var matchIDBag = new ConcurrentBag<Guid>();
 
         var parallelOptions = new ParallelOptions()
         {
             CancellationToken = ct,
+            //MaxDegreeOfParallelism = 1,
             MaxDegreeOfParallelism = -1,
         };
 
@@ -43,10 +42,10 @@ public class DataPullService : IDataPullService
             var linkedToken = linked.Token;
             try
             {
-                await Parallel.ForAsync(startPage, endPage + 1, async (page, linkedToken) =>
+                await Parallel.ForAsync(startPage, endPage + 1, parallelOptions, async (page, linkedToken) =>
                 {
                     var start = Math.Max(page * perPage - 1, 0);
-                    var response = await client.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+                    var response = await _haloInfiniteClientFactory.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
 
                     if (response.Result is null)
                     {
@@ -92,15 +91,9 @@ public class DataPullService : IDataPullService
 
         var matchStatsBag = new ConcurrentBag<MatchStats>();
 
-        var options = new ParallelOptions()
+        await Parallel.ForEachAsync(matchIDs, parallelOptions, async (matchID, ct) =>
         {
-            CancellationToken = ct,
-            MaxDegreeOfParallelism = -1,
-        };
-
-        await Parallel.ForEachAsync(matchIDs, options, async (matchID, ct) =>
-        {
-            var matchStats = await GetMatch(matchID, client);
+            var matchStats = await GetMatch(matchID);
 
             if (matchStats is null)
             {
@@ -127,21 +120,19 @@ public class DataPullService : IDataPullService
         var needToPull = xboxUserIds.Except(existingIds).ToList();
 
         // Grab all missing xbox users now in one go to avoid harsh rate limits when pulling one at a time
-        await _getsertXboxUserService.GetsertXboxUsersByXuid([.. needToPull], client, ct);
+        await _getsertXboxUserService.GetsertXboxUsersByXuid([.. needToPull], ct);
 
         // Could also do this in parallel foreach but would need a seperate context for each
         foreach (var matchStats in matchStatsBag)
         {
             // Let's also pass down the client to avoid creating new one (although it shouldn't be needed since we just fetched all the xbox users)
-            await SaveMatchStats(matchStats, client);
+            await SaveMatchStats(matchStats);
         }
     }
 
-    public async Task<MatchStats?> GetMatch(Guid matchID, HaloInfiniteClient? client = null)
+    public async Task<MatchStats?> GetMatch(Guid matchID)
     {
-        client ??= await _haloInfiniteClientFactory.CreateAsync();
-
-        var response = await client.StatsGetMatchStats(matchID);
+        var response = await _haloInfiniteClientFactory.StatsGetMatchStats(matchID);
 
         if (response.Result is null)
         {
@@ -169,7 +160,7 @@ public class DataPullService : IDataPullService
         await SaveMatchStats(matchStats);
     }
 
-    public async Task SaveMatchStats(MatchStats matchStats, HaloInfiniteClient? client = null)
+    public async Task SaveMatchStats(MatchStats matchStats)
     {
         var matchID = matchStats.MatchId;
 
@@ -220,7 +211,7 @@ public class DataPullService : IDataPullService
                 _logger.LogError("Could not parse {XUID}, not long", xuid);
                 throw new Exception("XUID not long");
             }
-            var xboxUser = await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong, client);
+            var xboxUser = await _getsertXboxUserService.GetsertXboxUserByXuid(xuidLong);
 
             var stats = x.PlayerTeamStats.Where(pts => pts.TeamId == x.LastTeamId).FirstOrDefault()?.Stats.CoreStats
                 ?? throw new Exception("Failed to find last team stats");
@@ -295,9 +286,7 @@ public class DataPullService : IDataPullService
         {
             throw new Exception("You already have medals!");
         }
-        var client = await _haloInfiniteClientFactory.CreateAsync();
-
-        var response = await client.Medals();
+        var response = await _haloInfiniteClientFactory.Medals();
 
         if (response.Result is null)
         {
@@ -341,8 +330,8 @@ public class DataPullService : IDataPullService
 public interface IDataPullService
 {
     Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default);
-    Task<MatchStats?> GetMatch(Guid matchID, HaloInfiniteClient? client = null);
+    Task<MatchStats?> GetMatch(Guid matchID);
     Task GetAndSaveMatch(Guid matchID);
-    Task SaveMatchStats(MatchStats matchStats, HaloInfiniteClient? client = null);
+    Task SaveMatchStats(MatchStats matchStats);
     Task DownloadMedals();
 }

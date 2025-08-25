@@ -8,16 +8,16 @@ namespace GrifballWebApp.Server.Services;
 public interface IGetsertXboxUserService
 {
     Task<(XboxUser?, string?)> GetsertXboxUserByGamertag(string gamertag, CancellationToken ct = default);
-    Task<XboxUser> GetsertXboxUserByXuid(long xuid, HaloInfiniteClient? client = null, CancellationToken ct = default);
-    Task<XboxUser[]> GetsertXboxUsersByXuid(long[] xuid, HaloInfiniteClient? client = null, CancellationToken ct = default);
+    Task<XboxUser> GetsertXboxUserByXuid(long xuid, CancellationToken ct = default);
+    Task<XboxUser[]> GetsertXboxUsersByXuid(long[] xuid, CancellationToken ct = default);
 }
 
 public class GetsertXboxUserService : IGetsertXboxUserService
 {
     private readonly ILogger<GetsertXboxUserService> _logger;
     private readonly GrifballContext _grifballContext;
-    private readonly HaloInfiniteClientFactory _infiniteClientFactory;
-    public GetsertXboxUserService(ILogger<GetsertXboxUserService> logger, GrifballContext context, HaloInfiniteClientFactory factory)
+    private readonly IHaloInfiniteClientFactory _infiniteClientFactory;
+    public GetsertXboxUserService(ILogger<GetsertXboxUserService> logger, GrifballContext context, IHaloInfiniteClientFactory factory)
     {
         _logger = logger;
         _grifballContext = context;
@@ -34,9 +34,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (xboxUser is not null)
             return (xboxUser, null);
 
-        var client = await _infiniteClientFactory.CreateAsync();
-
-        var response = await client.UserByGamertag(gamertag);
+        var response = await _infiniteClientFactory.UserByGamertag(gamertag);
 
         if (response is null || response.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
         {
@@ -60,7 +58,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         return (newXboxUser, null);
     }
 
-    public async Task<XboxUser[]> GetsertXboxUsersByXuid(long[] xuid, HaloInfiniteClient? client = null, CancellationToken ct = default)
+    public async Task<XboxUser[]> GetsertXboxUsersByXuid(long[] xuid, CancellationToken ct = default)
     {
         var existing = await _grifballContext.XboxUsers
             .Where(x => xuid.Contains(x.XboxUserID))
@@ -73,10 +71,11 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (missing.Any() is false)
             return existing;
 
-        client ??= await _infiniteClientFactory.CreateAsync();
-
-        var xuidStr = xuid.Select(x => x.ToString());
-        var users = await client.Users(xuidStr);
+        // Prep the XUIDs as strings for the API call
+        var xuidStr = xuid
+            .Except(existing.Select(x => x.XboxUserID)) // But do not query for existing users.
+            .Select(x => x.ToString());
+        var users = await _infiniteClientFactory.Users(xuidStr);
 
         if (users.Result is null)
             throw new Exception("Failed to resolved gamertag: " + users.Error.Message);
@@ -105,7 +104,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         return existing.Concat(newXboxUsers).ToArray();
     }
 
-    public async Task<XboxUser> GetsertXboxUserByXuid(long xuid, HaloInfiniteClient? client = null, CancellationToken ct = default)
+    public async Task<XboxUser> GetsertXboxUserByXuid(long xuid, CancellationToken ct = default)
     {
         var xboxUser = await _grifballContext.XboxUsers
             .Where(x => x.XboxUserID == xuid)
@@ -114,10 +113,8 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (xboxUser is not null)
             return xboxUser;
 
-        client ??= await _infiniteClientFactory.CreateAsync();
-
         var xuidStr = xuid.ToString();//.AddXUIDWrapper();
-        var users = await client.Users([xuidStr]);
+        var users = await _infiniteClientFactory.Users([xuidStr]);
 
         if (users.Result is null)
             throw new Exception("Failed to resolved gamertag: " + users.Error.Message);

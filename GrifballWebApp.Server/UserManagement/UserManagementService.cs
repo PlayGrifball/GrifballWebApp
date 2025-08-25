@@ -36,10 +36,10 @@ public class RoleDto
 public class UserManagementService
 {
     private readonly GrifballContext _context;
-    private readonly HaloInfiniteClientFactory _haloInfiniteClientFactory;
+    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly UserManager<User> _userManager;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
-    public UserManagementService(GrifballContext grifballContext, HaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
+    public UserManagementService(GrifballContext grifballContext, IHaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
     {
         _context = grifballContext;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
