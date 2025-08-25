@@ -77,6 +77,104 @@ public class DataPullServiceTests
     }
 
     [Test]
+    public async Task GetAndSaveMatch_ShouldSave()
+    {
+        var matchId = Guid.NewGuid();
+        var teamId = 1;
+        var xuid = "123456789";
+        var matchStats = new MatchStats
+        {
+            MatchId = matchId,
+            MatchInfo = new MatchInfo
+            {
+                StartTime = DateTimeOffset.UtcNow,
+                EndTime = DateTimeOffset.UtcNow.AddMinutes(10),
+                Duration = TimeSpan.FromMinutes(10),
+            },
+            Teams =
+            [
+                new Team
+                {
+                    TeamId = teamId,
+                    Outcome = 2, // Won
+                    Stats = new Stats
+                    {
+                        CoreStats = new CoreStats
+                        {
+                            Score = 10
+                        }
+                    }
+                }
+            ],
+            Players =
+            [
+                new Player
+                {
+                    PlayerId = $"xuid({xuid})",
+                    LastTeamId = teamId,
+                    PlayerTeamStats =
+                    [
+                        new PlayerTeamStat
+                        {
+                            TeamId = teamId,
+                            Stats = new Stats
+                            {
+                                CoreStats = new CoreStats
+                                {
+                                    Score = 5,
+                                    PersonalScore = 3,
+                                    Kills = 2,
+                                    Deaths = 1,
+                                    Assists = 1,
+                                    KDA = 2.0f,
+                                    Suicides = 0,
+                                    Betrayals = 0,
+                                    AverageLifeDuration = TimeSpan.FromSeconds(30),
+                                    MeleeKills = 1,
+                                    PowerWeaponKills = 0,
+                                    ShotsFired = 10,
+                                    ShotsHit = 5,
+                                    Accuracy = 50.0f,
+                                    DamageDealt = 100,
+                                    DamageTaken = 80,
+                                    CalloutAssists = 0,
+                                    MaxKillingSpree = 1,
+                                    RoundsLost = 0,
+                                    RoundsTied = 0,
+                                    RoundsWon = 1,
+                                    Spawns = 1,
+                                    ObjectivesCompleted = 0,
+                                    Medals = []
+                                }
+                            }
+                        }
+                    ],
+                    ParticipationInfo = new ParticipationInfo
+                    {
+                        FirstJoinedTime = DateTimeOffset.UtcNow,
+                        JoinedInProgress = false,
+                        LastLeaveTime = null,
+                        LeftInProgress = false,
+                        PresentAtBeginning = true,
+                        PresentAtCompletion = true,
+                        TimePlayed = TimeSpan.FromMinutes(10)
+                    },
+                    Rank = 1
+                }
+            ]
+        };
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
+        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Any<long>()).Returns(new Database.Models.XboxUser { XboxUserID = long.Parse(xuid), Gamertag = "TestUser" });
+        await _service.GetAndSaveMatch(matchId);
+        var match = await _context.Matches
+            .Include(x => x.MatchTeams)
+                .ThenInclude(mt => mt.MatchParticipants)
+                    .ThenInclude(mp => mp.XboxUser)
+            .FirstOrDefaultAsync(x => x.MatchID == matchId);
+        Assert.That(match, Is.Not.Null);
+    }
+
+    [Test]
     public async Task DownloadMedals_ShouldThrow_WhenMedalsExist()
     {
         _context.MedalDifficulties.Add(new Database.Models.MedalDifficulty { MedalDifficultyID = 1, MedalDifficultyName = "Test" });
