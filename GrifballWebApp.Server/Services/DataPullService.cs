@@ -31,6 +31,7 @@ public class DataPullService : IDataPullService
         var parallelOptions = new ParallelOptions()
         {
             CancellationToken = ct,
+            //MaxDegreeOfParallelism = 1,
             MaxDegreeOfParallelism = -1,
         };
 
@@ -41,7 +42,7 @@ public class DataPullService : IDataPullService
             var linkedToken = linked.Token;
             try
             {
-                await Parallel.ForAsync(startPage, endPage + 1, async (page, linkedToken) =>
+                await Parallel.ForAsync(startPage, endPage + 1, parallelOptions, async (page, linkedToken) =>
                 {
                     var start = Math.Max(page * perPage - 1, 0);
                     var response = await _haloInfiniteClientFactory.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
@@ -90,13 +91,7 @@ public class DataPullService : IDataPullService
 
         var matchStatsBag = new ConcurrentBag<MatchStats>();
 
-        var options = new ParallelOptions()
-        {
-            CancellationToken = ct,
-            MaxDegreeOfParallelism = -1,
-        };
-
-        await Parallel.ForEachAsync(matchIDs, options, async (matchID, ct) =>
+        await Parallel.ForEachAsync(matchIDs, parallelOptions, async (matchID, ct) =>
         {
             var matchStats = await GetMatch(matchID);
 

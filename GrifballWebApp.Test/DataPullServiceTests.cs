@@ -6,6 +6,7 @@ using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models.HaloInfinite;
 using Surprenant.Grunt.Models;
 using Microsoft.EntityFrameworkCore;
+using MatchType = Surprenant.Grunt.Models.HaloInfinite.MatchType;
 
 namespace GrifballWebApp.Test;
 
@@ -213,5 +214,126 @@ public class DataPullServiceTests
             Assert.That(_context.MedalDifficulties.Any(), Is.True);
             Assert.That(_context.Medals.Any(), Is.True);
         });
+    }
+
+    [Test]
+    public async Task DownloadRecentMatchesForPlayers_ShouldSaveMatches()
+    {
+        var xuid = 123456789L;
+        var matchId = Guid.NewGuid();
+        var teamId = 1;
+        var gamertag = "TestUser";
+        var xboxIDs = new List<long> { xuid };
+        // Mock match history response
+        var matchHistoryResult = new MatchHistoryResponse
+        {
+            Results = [
+                new PlayerMatchHistoryRecord
+                {
+                    MatchId = matchId.ToString(),
+                    MatchInfo = new MatchInfo
+                    {
+                        GameVariantCategory = (GameVariantCategory)41,
+                    }
+                }
+            ]
+        };
+        // All other pages return empty
+        _haloInfiniteClientFactory.StatsGetMatchHistory(Arg.Is<string>("xuid(123456789)"), Arg.Any<int>(), Arg.Is(25), Arg.Any<MatchType>())
+            .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(new MatchHistoryResponse()
+            {
+                Count = 0,
+                Results = [],
+            }, null));
+        // Mock the first page
+        _haloInfiniteClientFactory.StatsGetMatchHistory(Arg.Is<string>("xuid(123456789)"), Arg.Is(0), Arg.Is(25), Arg.Any<MatchType>())
+            .Returns(new HaloApiResultContainer<MatchHistoryResponse, HaloApiErrorContainer>(matchHistoryResult, null));
+        
+        // Mock match stats response
+        var matchStats = new MatchStats
+        {
+            MatchId = matchId,
+            MatchInfo = new MatchInfo
+            {
+                StartTime = DateTimeOffset.UtcNow,
+                EndTime = DateTimeOffset.UtcNow.AddMinutes(10),
+                Duration = TimeSpan.FromMinutes(10),
+            },
+            Teams = [
+                new Team
+                {
+                    TeamId = teamId,
+                    Outcome = 2,
+                    Stats = new Stats
+                    {
+                        CoreStats = new CoreStats { Score = 10 }
+                    }
+                }
+            ],
+            Players = [
+                new Player
+                {
+                    PlayerId = $"xuid({xuid})",
+                    LastTeamId = teamId,
+                    PlayerTeamStats = [
+                        new PlayerTeamStat
+                        {
+                            TeamId = teamId,
+                            Stats = new Stats
+                            {
+                                CoreStats = new CoreStats
+                                {
+                                    Score = 5,
+                                    PersonalScore = 3,
+                                    Kills = 2,
+                                    Deaths = 1,
+                                    Assists = 1,
+                                    KDA = 2.0f,
+                                    Suicides = 0,
+                                    Betrayals = 0,
+                                    AverageLifeDuration = TimeSpan.FromSeconds(30),
+                                    MeleeKills = 1,
+                                    PowerWeaponKills = 0,
+                                    ShotsFired = 10,
+                                    ShotsHit = 5,
+                                    Accuracy = 50.0f,
+                                    DamageDealt = 100,
+                                    DamageTaken = 80,
+                                    CalloutAssists = 0,
+                                    MaxKillingSpree = 1,
+                                    RoundsLost = 0,
+                                    RoundsTied = 0,
+                                    RoundsWon = 1,
+                                    Spawns = 1,
+                                    ObjectivesCompleted = 0,
+                                    Medals = []
+                                }
+                            }
+                        }
+                    ],
+                    ParticipationInfo = new ParticipationInfo
+                    {
+                        FirstJoinedTime = DateTimeOffset.UtcNow,
+                        JoinedInProgress = false,
+                        LastLeaveTime = null,
+                        LeftInProgress = false,
+                        PresentAtBeginning = true,
+                        PresentAtCompletion = true,
+                        TimePlayed = TimeSpan.FromMinutes(10)
+                    },
+                    Rank = 1
+                }
+            ]
+        };
+        _haloInfiniteClientFactory.StatsGetMatchStats(matchId).Returns(new HaloApiResultContainer<MatchStats, HaloApiErrorContainer>(matchStats, null));
+
+        _getsertXboxUserService.GetsertXboxUsersByXuid(Arg.Is<long[]>(x => x.Length == 1 && x.Contains(xuid)), Arg.Any<CancellationToken>())
+            .Returns([new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag }]);
+        _getsertXboxUserService.GetsertXboxUserByXuid(Arg.Is(xuid), Arg.Any<CancellationToken>())
+            .Returns(new Database.Models.XboxUser { XboxUserID = xuid, Gamertag = gamertag });
+
+        await _service.DownloadRecentMatchesForPlayers(xboxIDs, endPage: 0);
+        var matchExists = await _context.Matches.AnyAsync(x => x.MatchID == matchId);
+        Assert.That(matchExists, Is.True);
     }
 }
