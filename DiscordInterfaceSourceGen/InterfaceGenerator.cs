@@ -1,5 +1,8 @@
 ﻿using NetCord.Services;
 using System.Text;
+using System.Linq;
+using System.Collections.Immutable;
+using System.Collections.Generic;
 
 namespace DiscordInterfaceSourceGen;
 
@@ -9,7 +12,8 @@ public class Program
     {
         // Output directory can be passed as an argument, defaults to current directory
         var outputDir = Directory.GetCurrentDirectory();
-        outputDir = new DirectoryInfo(outputDir).Parent?.Parent?.Parent?.FullName ?? throw new Exception("Failed to get project dir");
+        outputDir = new DirectoryInfo(outputDir).Parent?.Parent?.Parent?.Parent?.FullName ?? throw new Exception("Failed to find sln folder");
+        outputDir = Path.Combine(outputDir, "DiscordInterfaces");
 
         // Find IInteractionContext interface
         var interactionContextType = typeof(IInteractionContext);
@@ -22,6 +26,8 @@ public class Program
         sb.AppendLine("namespace DiscordInterfaceSourceGen;");
         sb.AppendLine();
         sb.AppendLine("using System.Collections.Immutable;");
+        sb.AppendLine("using System.Linq;");
+        sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();
         // Start with the root interface
         interfaceQueue.Enqueue(interactionContextType);
@@ -81,6 +87,42 @@ public class Program
         foreach (var prop in type.GetProperties())
         {
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
+            // Handle IReadOnlyList<T> of generated interface
+            if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+            {
+                var argType = prop.PropertyType.GetGenericArguments()[0];
+                var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
+                if (argTypeName.StartsWith("IDiscord"))
+                {
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType)}";
+                    classSb.AppendLine($"    public {memberTypeName} {prop.Name} => _original.{prop.Name}.Select(x => new {argClassName}(x)).ToList();");
+                    continue;
+                }
+            }
+            // Handle ImmutableDictionary<TKey, TValue> of generated interface
+            if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(ImmutableDictionary<,>))
+            {
+                var valueType = prop.PropertyType.GetGenericArguments()[1];
+                var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
+                if (valueTypeName.StartsWith("IDiscord"))
+                {
+                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType)}";
+                    classSb.AppendLine($"    public {memberTypeName} {prop.Name} => _original.{prop.Name}.ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    continue;
+                }
+            }
+            // Handle IReadOnlyDictionary<TKey, TValue> of generated interface
+            if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
+            {
+                var valueType = prop.PropertyType.GetGenericArguments()[1];
+                var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
+                if (valueTypeName.StartsWith("IDiscord"))
+                {
+                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType)}";
+                    classSb.AppendLine($"    public {memberTypeName} {prop.Name} => _original.{prop.Name}.ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    continue;
+                }
+            }
             // If the property type is a generated interface, construct the corresponding class
             if (memberTypeName.StartsWith("IDiscord"))
             {
