@@ -4840,15 +4840,15 @@ public class DiscordMessageOptions : IDiscordMessageOptions
     public IDiscordMessageOptions WithContent(string content) => new DiscordMessageOptions(_original.WithContent(content));
     public IDiscordMessageOptions WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageOptions(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordMessageOptions AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageOptions(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageOptions(_original.AddEmbeds(embeds.Original));
+    public IDiscordMessageOptions AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageOptions(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags) => new DiscordMessageOptions(_original.WithFlags(flags));
     public IDiscordMessageOptions WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordMessageOptions(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageOptions(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageOptions(_original.AddComponents(components.Original));
+    public IDiscordMessageOptions AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordMessageOptions WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageOptions(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordMessageOptions AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageOptions(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageOptions(_original.AddAttachments(attachments.Original));
+    public IDiscordMessageOptions AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageOptions(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
 }
 
 
@@ -4873,15 +4873,15 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
     public IDiscordInteractionMessageProperties WithContent(string content) => new DiscordInteractionMessageProperties(_original.WithContent(content));
     public IDiscordInteractionMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordInteractionMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds.Original));
+    public IDiscordInteractionMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordInteractionMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordInteractionMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordInteractionMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordInteractionMessageProperties(_original.WithFlags(flags));
     public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordInteractionMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordInteractionMessageProperties(_original.AddComponents(components.Original));
+    public IDiscordInteractionMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordInteractionMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordInteractionMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordInteractionMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordInteractionMessageProperties(_original.AddAttachments(attachments.Original));
+    public IDiscordInteractionMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordInteractionMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
     public IDiscordInteractionMessageProperties WithPoll(IDiscordMessagePollProperties poll) => new DiscordInteractionMessageProperties(_original.WithPoll(poll.Original));
 }
 
@@ -5442,7 +5442,7 @@ public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRulePro
     public IDiscordAutoModerationRuleProperties WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) => new DiscordAutoModerationRuleProperties(_original.WithTriggerMetadata(triggerMetadata.Original));
     public IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.WithActions(actions?.Select(x => x.Original)));
     public IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Original));
+    public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original).ToArray()));
     public IDiscordAutoModerationRuleProperties WithEnabled(bool enabled = true) => new DiscordAutoModerationRuleProperties(_original.WithEnabled(enabled));
     public IDiscordAutoModerationRuleProperties WithExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleProperties(_original.WithExemptRoles(exemptRoles));
     public IDiscordAutoModerationRuleProperties AddExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
@@ -5473,7 +5473,7 @@ public class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOption
     public IDiscordAutoModerationRuleOptions WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) => new DiscordAutoModerationRuleOptions(_original.WithTriggerMetadata(triggerMetadata.Original));
     public IDiscordAutoModerationRuleOptions WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleOptions(_original.WithActions(actions?.Select(x => x.Original)));
     public IDiscordAutoModerationRuleOptions AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleOptions(_original.AddActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Original));
+    public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original).ToArray()));
     public IDiscordAutoModerationRuleOptions WithEnabled(bool? enabled = true) => new DiscordAutoModerationRuleOptions(_original.WithEnabled(enabled));
     public IDiscordAutoModerationRuleOptions WithExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleOptions(_original.WithExemptRoles(exemptRoles));
     public IDiscordAutoModerationRuleOptions AddExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
@@ -5811,7 +5811,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public IDiscordGuildChannelProperties WithPosition(int? position) => new DiscordGuildChannelProperties(_original.WithPosition(position));
     public IDiscordGuildChannelProperties WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelProperties(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
     public IDiscordGuildChannelProperties AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Original));
+    public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
     public IDiscordGuildChannelProperties WithParentId(ulong? parentId) => new DiscordGuildChannelProperties(_original.WithParentId(parentId));
     public IDiscordGuildChannelProperties WithNsfw(bool? nsfw = true) => new DiscordGuildChannelProperties(_original.WithNsfw(nsfw));
     public IDiscordGuildChannelProperties WithRtcRegion(string rtcRegion) => new DiscordGuildChannelProperties(_original.WithRtcRegion(rtcRegion));
@@ -5820,7 +5820,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public IDiscordGuildChannelProperties WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) => new DiscordGuildChannelProperties(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
     public IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelProperties(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
     public IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Original));
+    public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
     public IDiscordGuildChannelProperties WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) => new DiscordGuildChannelProperties(_original.WithDefaultSortOrder(defaultSortOrder));
     public IDiscordGuildChannelProperties WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) => new DiscordGuildChannelProperties(_original.WithDefaultForumLayout(defaultForumLayout));
     public IDiscordGuildChannelProperties WithDefaultThreadSlowmode(int? defaultThreadSlowmode) => new DiscordGuildChannelProperties(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
@@ -6185,7 +6185,7 @@ public class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOption
     public IDiscordGuildWelcomeScreenOptions WithEnabled(bool? enabled = true) => new DiscordGuildWelcomeScreenOptions(_original.WithEnabled(enabled));
     public IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.WithWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
     public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
-    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Original));
+    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original).ToArray()));
     public IDiscordGuildWelcomeScreenOptions WithDescription(string description) => new DiscordGuildWelcomeScreenOptions(_original.WithDescription(description));
 }
 
@@ -6220,7 +6220,7 @@ public class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions
     public NetCord.Rest.GuildOnboardingMode? Mode => _original.Mode;
     public IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) => new DiscordGuildOnboardingOptions(_original.WithPrompts(prompts?.Select(x => x.Original)));
     public IDiscordGuildOnboardingOptions AddPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) => new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) => new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Original));
+    public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) => new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original).ToArray()));
     public IDiscordGuildOnboardingOptions WithDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.WithDefaultChannelIds(defaultChannelIds));
     public IDiscordGuildOnboardingOptions AddDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
     public IDiscordGuildOnboardingOptions AddDefaultChannelIds(ulong[] defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
@@ -6470,7 +6470,7 @@ public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOption
     public IDiscordApplicationCommandOptions WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) => new DiscordApplicationCommandOptions(_original.WithDescriptionLocalizations(descriptionLocalizations));
     public IDiscordApplicationCommandOptions WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptions(_original.WithOptions(options?.Select(x => x.Original)));
     public IDiscordApplicationCommandOptions AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptions(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptions(_original.AddOptions(options.Original));
+    public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original).ToArray()));
     public IDiscordApplicationCommandOptions WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) => new DiscordApplicationCommandOptions(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
     public IDiscordApplicationCommandOptions WithDMPermission(bool? dMPermission = true) => new DiscordApplicationCommandOptions(_original.WithDMPermission(dMPermission));
     public IDiscordApplicationCommandOptions WithDefaultPermission(bool? defaultPermission = true) => new DiscordApplicationCommandOptions(_original.WithDefaultPermission(defaultPermission));
@@ -6583,10 +6583,10 @@ public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSea
     public int? BatchSize => _original.BatchSize;
     public IDiscordGuildUsersSearchPaginationProperties WithOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.WithOrQuery(orQuery?.Select(x => x.Original)));
     public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Original));
+    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original).ToArray()));
     public IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery?.Select(x => x.Original)));
     public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Original));
+    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original).ToArray()));
     public IDiscordGuildUsersSearchPaginationProperties WithFrom(NetCord.Rest.GuildUsersSearchTimestamp? from) => new DiscordGuildUsersSearchPaginationProperties(_original.WithFrom(from));
     public IDiscordGuildUsersSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordGuildUsersSearchPaginationProperties(_original.WithDirection(direction));
     public IDiscordGuildUsersSearchPaginationProperties WithBatchSize(int? batchSize) => new DiscordGuildUsersSearchPaginationProperties(_original.WithBatchSize(batchSize));
@@ -6675,15 +6675,15 @@ public class DiscordMessageProperties : IDiscordMessageProperties
     public IDiscordMessageProperties WithTts(bool tts = true) => new DiscordMessageProperties(_original.WithTts(tts));
     public IDiscordMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageProperties(_original.AddAttachments(attachments.Original));
+    public IDiscordMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
     public IDiscordMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageProperties(_original.AddEmbeds(embeds.Original));
+    public IDiscordMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordMessageProperties WithMessageReference(IDiscordMessageReferenceProperties messageReference) => new DiscordMessageProperties(_original.WithMessageReference(messageReference.Original));
     public IDiscordMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageProperties(_original.AddComponents(components.Original));
+    public IDiscordMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordMessageProperties(_original.WithStickerIds(stickerIds));
     public IDiscordMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
     public IDiscordMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
@@ -7147,15 +7147,15 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
     public IDiscordReplyMessageProperties WithTts(bool tts = true) => new DiscordReplyMessageProperties(_original.WithTts(tts));
     public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordReplyMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Original));
+    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
     public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordReplyMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Original));
+    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordReplyMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordReplyMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true) => new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
     public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordReplyMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordReplyMessageProperties(_original.AddComponents(components.Original));
+    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
     public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
     public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
@@ -7210,7 +7210,7 @@ public class DiscordEmbedProperties : IDiscordEmbedProperties
     public IDiscordEmbedProperties WithAuthor(IDiscordEmbedAuthorProperties author) => new DiscordEmbedProperties(_original.WithAuthor(author.Original));
     public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties> fields) => new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
     public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) => new DiscordEmbedProperties(_original.AddFields(fields?.Select(x => x.Original)));
-    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) => new DiscordEmbedProperties(_original.AddFields(fields.Original));
+    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) => new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original).ToArray()));
 }
 
 
@@ -7288,7 +7288,7 @@ public class DiscordMessagePollProperties : IDiscordMessagePollProperties
     public IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question) => new DiscordMessagePollProperties(_original.WithQuestion(question.Original));
     public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) => new DiscordMessagePollProperties(_original.WithAnswers(answers?.Select(x => x.Original)));
     public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) => new DiscordMessagePollProperties(_original.AddAnswers(answers?.Select(x => x.Original)));
-    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) => new DiscordMessagePollProperties(_original.AddAnswers(answers.Original));
+    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) => new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
     public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) => new DiscordMessagePollProperties(_original.WithDurationInHours(durationInHours));
     public IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true) => new DiscordMessagePollProperties(_original.WithAllowMultiselect(allowMultiselect));
     public IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType) => new DiscordMessagePollProperties(_original.WithLayoutType(layoutType));
@@ -7353,14 +7353,14 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     public IDiscordGuildChannelOptions WithUserLimit(int? userLimit) => new DiscordGuildChannelOptions(_original.WithUserLimit(userLimit));
     public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
     public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Original));
+    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
     public IDiscordGuildChannelOptions WithParentId(ulong? parentId) => new DiscordGuildChannelOptions(_original.WithParentId(parentId));
     public IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion) => new DiscordGuildChannelOptions(_original.WithRtcRegion(rtcRegion));
     public IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) => new DiscordGuildChannelOptions(_original.WithVideoQualityMode(videoQualityMode));
     public IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) => new DiscordGuildChannelOptions(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
     public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
     public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Original));
+    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
     public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) => new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
     public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) => new DiscordGuildChannelOptions(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
     public IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags) => new DiscordGuildChannelOptions(_original.WithFlags(flags));
@@ -7923,7 +7923,7 @@ public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPro
     public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) => new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
     public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options?.Select(x => x.Original)));
     public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Original));
+    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
     public IDiscordGuildOnboardingPromptProperties WithTitle(string title) => new DiscordGuildOnboardingPromptProperties(_original.WithTitle(title));
     public IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true) => new DiscordGuildOnboardingPromptProperties(_original.WithSingleSelect(singleSelect));
     public IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true) => new DiscordGuildOnboardingPromptProperties(_original.WithRequired(required));
@@ -8070,10 +8070,10 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     public IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true) => new DiscordApplicationCommandOptionProperties(_original.WithRequired(required));
     public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) => new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
     public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) => new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) => new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Original));
+    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) => new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
     public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
     public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Original));
+    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
     public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
     public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
     public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
@@ -8618,14 +8618,14 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
     public IDiscordWebhookMessageProperties WithTts(bool tts = true) => new DiscordWebhookMessageProperties(_original.WithTts(tts));
     public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Original));
+    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordWebhookMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordWebhookMessageProperties(_original.AddComponents(components.Original));
+    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordWebhookMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Original));
+    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
     public IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordWebhookMessageProperties(_original.WithFlags(flags));
     public IDiscordWebhookMessageProperties WithThreadName(string threadName) => new DiscordWebhookMessageProperties(_original.WithThreadName(threadName));
     public IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordWebhookMessageProperties(_original.WithAppliedTags(appliedTags));
@@ -9616,10 +9616,10 @@ public class DiscordGuildProperties : IDiscordGuildProperties
     public IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter) => new DiscordGuildProperties(_original.WithContentFilter(contentFilter));
     public IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties> roles) => new DiscordGuildProperties(_original.WithRoles(roles?.Select(x => x.Original)));
     public IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles) => new DiscordGuildProperties(_original.AddRoles(roles?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) => new DiscordGuildProperties(_original.AddRoles(roles.Original));
+    public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) => new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original).ToArray()));
     public IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties> channels) => new DiscordGuildProperties(_original.WithChannels(channels?.Select(x => x.Original)));
     public IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels) => new DiscordGuildProperties(_original.AddChannels(channels?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) => new DiscordGuildProperties(_original.AddChannels(channels.Original));
+    public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) => new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original).ToArray()));
     public IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId) => new DiscordGuildProperties(_original.WithAfkChannelId(afkChannelId));
     public IDiscordGuildProperties WithAfkTimeout(int? afkTimeout) => new DiscordGuildProperties(_original.WithAfkTimeout(afkTimeout));
     public IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId) => new DiscordGuildProperties(_original.WithSystemChannelId(systemChannelId));
@@ -10082,17 +10082,17 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
     public IDiscordForumGuildThreadMessageProperties WithContent(string content) => new DiscordForumGuildThreadMessageProperties(_original.WithContent(content));
     public IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordForumGuildThreadMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
     public IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds.Original));
+    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
     public IDiscordForumGuildThreadMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordForumGuildThreadMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
     public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Original));
+    public IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     public IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.WithStickerIds(stickerIds));
     public IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
     public IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
     public IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
     public IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments.Original));
+    public IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
     public IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordForumGuildThreadMessageProperties(_original.WithFlags(flags));
 }
 

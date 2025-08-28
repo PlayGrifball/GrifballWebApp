@@ -297,6 +297,20 @@ public class Program
                         }
                     }
 
+                    if (param.ParameterType.IsArray)
+                    {
+                        var trueType = param.ParameterType.GetElementType();
+                        if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
+                        {
+                            var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
+                            if (trueTypeName.StartsWith("IDiscord"))
+                            {
+                                argNames.Add($"{param.Name}.Select(x => x.Original).ToArray()");
+                                continue;
+                            }
+                        }
+                    }
+
                     if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         argNames.Add($"{param.Name}.Original");
