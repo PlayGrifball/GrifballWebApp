@@ -1196,15 +1196,15 @@ public interface IDiscordGuildChannelPositionProperties
 }
 
 
-public interface IDiscordPaginationProperties<ulong>
+public interface IDiscordPaginationProperties<T>
 {
-    NetCord.Rest.PaginationProperties`1[[System.UInt64, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] Original { get; }
-    ulong? From { get; }
+    NetCord.Rest.PaginationProperties<T> Original { get; }
+    T? From { get; }
     NetCord.Rest.PaginationDirection? Direction { get; }
     int? BatchSize { get; }
-    IDiscordPaginationProperties<ulong> WithFrom(ulong? from);
-    IDiscordPaginationProperties<ulong> WithDirection(NetCord.Rest.PaginationDirection? direction);
-    IDiscordPaginationProperties<ulong> WithBatchSize(int? batchSize);
+    IDiscordPaginationProperties<T> WithFrom(T? from);
+    IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction);
+    IDiscordPaginationProperties<T> WithBatchSize(int? batchSize);
 }
 
 
@@ -2433,18 +2433,6 @@ public interface IDiscordGuildThreadProperties
 }
 
 
-public interface IDiscordPaginationProperties<System.DateTimeOffset>
-{
-    NetCord.Rest.PaginationProperties`1[[System.DateTimeOffset, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] Original { get; }
-    System.DateTimeOffset? From { get; }
-    NetCord.Rest.PaginationDirection? Direction { get; }
-    int? BatchSize { get; }
-    IDiscordPaginationProperties<System.DateTimeOffset> WithFrom(System.DateTimeOffset? from);
-    IDiscordPaginationProperties<System.DateTimeOffset> WithDirection(NetCord.Rest.PaginationDirection? direction);
-    IDiscordPaginationProperties<System.DateTimeOffset> WithBatchSize(int? batchSize);
-}
-
-
 public interface IDiscordIncomingWebhook
 {
     NetCord.Rest.IncomingWebhook Original { get; }
@@ -2600,7 +2588,7 @@ public interface IDiscordAuditLogEntryInfo
 
 public interface IDiscordAuditLogChange<TValue>
 {
-     Original { get; }
+    NetCord.AuditLogChange<TValue> Original { get; }
     TValue NewValue { get; }
     TValue OldValue { get; }
     string Key { get; }
@@ -5720,20 +5708,20 @@ public class DiscordGuildChannelPositionProperties : IDiscordGuildChannelPositio
 }
 
 
-public class DiscordPaginationProperties<ulong> : IDiscordPaginationProperties<ulong>
+public class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> where T : struct
 {
-    private readonly NetCord.Rest.PaginationProperties`1[[System.UInt64, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] _original;
-    public DiscordPaginationProperties<ulong>(NetCord.Rest.PaginationProperties`1[[System.UInt64, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] original)
+    private readonly NetCord.Rest.PaginationProperties<T> _original;
+    public DiscordPaginationProperties(NetCord.Rest.PaginationProperties<T> original)
     {
         _original = original;
     }
-    public NetCord.Rest.PaginationProperties`1[[System.UInt64, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] Original => _original;
-    public ulong? From => _original.From;
+    public NetCord.Rest.PaginationProperties<T> Original => _original;
+    public T? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordPaginationProperties<ulong> WithFrom(ulong? from) => new DiscordPaginationProperties`1(_original.WithFrom(from));
-    public IDiscordPaginationProperties<ulong> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties`1(_original.WithDirection(direction));
-    public IDiscordPaginationProperties<ulong> WithBatchSize(int? batchSize) => new DiscordPaginationProperties`1(_original.WithBatchSize(batchSize));
+    public IDiscordPaginationProperties<T> WithFrom(T? from) => new DiscordPaginationProperties`1(_original.WithFrom(from));
+    public IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties`1(_original.WithDirection(direction));
+    public IDiscordPaginationProperties<T> WithBatchSize(int? batchSize) => new DiscordPaginationProperties`1(_original.WithBatchSize(batchSize));
 }
 
 
@@ -7342,23 +7330,6 @@ public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties
 }
 
 
-public class DiscordPaginationProperties<System.DateTimeOffset> : IDiscordPaginationProperties<System.DateTimeOffset>
-{
-    private readonly NetCord.Rest.PaginationProperties`1[[System.DateTimeOffset, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] _original;
-    public DiscordPaginationProperties<System.DateTimeOffset>(NetCord.Rest.PaginationProperties`1[[System.DateTimeOffset, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.PaginationProperties`1[[System.DateTimeOffset, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]] Original => _original;
-    public System.DateTimeOffset? From => _original.From;
-    public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
-    public int? BatchSize => _original.BatchSize;
-    public IDiscordPaginationProperties<System.DateTimeOffset> WithFrom(System.DateTimeOffset? from) => new DiscordPaginationProperties`1(_original.WithFrom(from));
-    public IDiscordPaginationProperties<System.DateTimeOffset> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties`1(_original.WithDirection(direction));
-    public IDiscordPaginationProperties<System.DateTimeOffset> WithBatchSize(int? batchSize) => new DiscordPaginationProperties`1(_original.WithBatchSize(batchSize));
-}
-
-
 public class DiscordIncomingWebhook : IDiscordIncomingWebhook
 {
     private readonly NetCord.Rest.IncomingWebhook _original;
@@ -7562,14 +7533,14 @@ public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo
 }
 
 
-public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue>
+public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> where T : struct
 {
-    private readonly  _original;
-    public DiscordAuditLogChange<TValue>( original)
+    private readonly NetCord.AuditLogChange<TValue> _original;
+    public DiscordAuditLogChange(NetCord.AuditLogChange<TValue> original)
     {
         _original = original;
     }
-    public  Original => _original;
+    public NetCord.AuditLogChange<TValue> Original => _original;
     public TValue NewValue => _original.NewValue;
     public TValue OldValue => _original.OldValue;
     public string Key => _original.Key;

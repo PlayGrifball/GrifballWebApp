@@ -70,6 +70,7 @@ public class Program
         }
         if (type.IsGenericType)
         {
+            type = type.GetGenericTypeDefinition();
             typeName = type.Name.Split('`')[0];
             var types = type.GetGenericArguments();
             var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue))); // nothing should really be enqueued here...
@@ -88,7 +89,16 @@ public class Program
         sb.AppendLine($"public interface {interfaceName}");
         sb.AppendLine("{");
         // Add Original property to interface
-        sb.AppendLine($"    {type.FullName} Original {{ get; }}");
+        if (type.IsGenericType)
+        {
+            var genericArgs = string.Join(", ", type.GetGenericArguments().Select(t => t.Name));
+            var fullTypeName = $"{type.FullName?.Split('`')[0]}<{genericArgs}>";
+            sb.AppendLine($"    {fullTypeName} Original {{ get; }}");
+        }
+        else
+        {
+            sb.AppendLine($"    {type.FullName} Original {{ get; }}");
+        }
         foreach (var prop in type.GetProperties())
         {
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
@@ -99,15 +109,35 @@ public class Program
         interfaceBodies.Add(sb.ToString());
         // Class
         var classSb = new StringBuilder();
-        classSb.AppendLine($"public class {className} : {interfaceName}");
+
+        var genericConstraint = type.IsGenericType ? " where T : struct" : "";
+        classSb.AppendLine($"public class {className} : {interfaceName}{genericConstraint}");
         classSb.AppendLine("{");
-        classSb.AppendLine($"    private readonly {type.FullName} _original;");
-        classSb.AppendLine($"    public {className}({type.FullName} original)");
-        classSb.AppendLine("    {");
-        classSb.AppendLine("        _original = original;");
-        classSb.AppendLine("    }");
-        // Add Original property to class
-        classSb.AppendLine($"    public {type.FullName} Original => _original;");
+        if (type.IsGenericType)
+        {
+            var genericArgs = string.Join(", ", type.GetGenericArguments().Select(t => t.Name));
+            var fullTypeName = $"{type.FullName?.Split('`')[0]}<{genericArgs}>";
+
+            classSb.AppendLine($"    private readonly {fullTypeName} _original;");
+            var actualClassName = className.Split('<')[0];
+            classSb.AppendLine($"    public {actualClassName}({fullTypeName} original)");
+            classSb.AppendLine("    {");
+            classSb.AppendLine("        _original = original;");
+            classSb.AppendLine("    }");
+            // Add Original property to class
+            classSb.AppendLine($"    public {fullTypeName} Original => _original;");
+        }
+        else
+        {
+            classSb.AppendLine($"    private readonly {type.FullName} _original;");
+            classSb.AppendLine($"    public {className}({type.FullName} original)");
+            classSb.AppendLine("    {");
+            classSb.AppendLine("        _original = original;");
+            classSb.AppendLine("    }");
+            // Add Original property to class
+            classSb.AppendLine($"    public {type.FullName} Original => _original;");
+        }
+        
         foreach (var prop in type.GetProperties())
         {
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
