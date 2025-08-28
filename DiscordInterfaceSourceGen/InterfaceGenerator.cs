@@ -177,9 +177,6 @@ public class Program
 
     private static void AddMethods(Type type, Queue<Type> interfaceQueue, StringBuilder sb, bool forInterface)
     {
-        // Add methods
-        //var foo = type.GetMethods().Where(m => m.Name.Contains("GetAsync")).ToList();
-        //var ff = foo.Select(x => new { Type = x, FOO = x.DeclaringType == type });
         string[] ignored = ["GetType", "ToString", "Equals", "GetHashCode", "TryFormat", "<Clone>$", "Clone"];
         var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !m.IsStatic && !ignored.Contains(m.Name)).ToArray();
         foreach (var method in methods)
@@ -241,9 +238,13 @@ public class Program
                     }
                 }
             }
+            // Add generic parameter list to method signature if method is generic
+            var genericDecl = method.IsGenericMethod
+                ? $"<{string.Join(", ", method.GetGenericArguments().Select(t => t.Name))}>"
+                : "";
             if (forInterface)
             {
-                sb.AppendLine($"    {returnType} {method.Name}({string.Join(", ", paramStrings)});");
+                sb.AppendLine($"    {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)});");
             }
             else
             {
@@ -265,7 +266,7 @@ public class Program
                         if (argTypeName.StartsWith("IDiscord"))
                         {
                             var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType)}";
-                            sb.AppendLine($"    public async {returnType} {method.Name}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x));");
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x));");
                             continue;
                         }
                     }
@@ -277,7 +278,7 @@ public class Program
                         if (argTypeName.StartsWith("IDiscord"))
                         {
                             var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType)}";
-                            sb.AppendLine($"    public async {returnType} {method.Name}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x)).ToList();");
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x)).ToList();");
                             continue;
                         }
                     }
@@ -289,7 +290,7 @@ public class Program
                         if (valueTypeName.StartsWith("IDiscord"))
                         {
                             var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType)}";
-                            sb.AppendLine($"    public async {returnType} {method.Name}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
                             continue;
                         }
                     }
@@ -301,7 +302,7 @@ public class Program
                         if (valueTypeName.StartsWith("IDiscord"))
                         {
                             var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType)}";
-                            sb.AppendLine($"    public async {returnType} {method.Name}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => (await _original.{method.Name}({string.Join(", ", argNames)})).ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
                             continue;
                         }
                     }
@@ -309,11 +310,11 @@ public class Program
                     if (discordTaskReturnType.StartsWith("IDiscord"))
                     {
                         var returnClassName = discordTaskReturnType.TrimStart('I');
-                        sb.AppendLine($"    public async {returnType} {method.Name}({string.Join(", ", paramStrings)}) => new {returnClassName}(await _original.{method.Name}({string.Join(", ", argNames)}));");
+                        sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => new {returnClassName}(await _original.{method.Name}({string.Join(", ", argNames)}));");
                     }
                     else
                     {
-                        sb.AppendLine($"    public {returnType} {method.Name}({string.Join(", ", paramStrings)}) => _original.{method.Name}({string.Join(", ", argNames)});");
+                        sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => _original.{method.Name}({string.Join(", ", argNames)});");
                     }
                 }
                 else
@@ -322,11 +323,11 @@ public class Program
                     if (returnType.StartsWith("IDiscord"))
                     {
                         var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType)}";
-                        sb.AppendLine($"    public {returnType} {method.Name}({string.Join(", ", paramStrings)}) => new {returnClassName}(_original.{method.Name}({string.Join(", ", argNames)}));");
+                        sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => new {returnClassName}(_original.{method.Name}({string.Join(", ", argNames)}));");
                     }
                     else
                     {
-                        sb.AppendLine($"    public {returnType} {method.Name}({string.Join(", ", paramStrings)}) => _original.{method.Name}({string.Join(", ", argNames)});");
+                        sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) => _original.{method.Name}({string.Join(", ", argNames)});");
                     }
                 }
             }
@@ -335,6 +336,9 @@ public class Program
 
     private static string GetDiscordTypeName(Type type, Queue<Type> interfaceQueue)
     {
+        // If this is a generic type parameter, just use its name and do not enqueue for generation
+        if (type.IsGenericParameter)
+            return type.Name;
         if (type.Name.Contains("PaginationProperties"))
         {
             var b = 1;

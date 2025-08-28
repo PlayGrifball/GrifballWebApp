@@ -801,10 +801,10 @@ public interface IDiscordRestAuditLogEntry
     string Reason { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    bool TryGetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, IDiscordAuditLogChange`1& change);
-    IDiscordAuditLogChange<IDiscordTValue> GetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression);
-    bool TryGetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, JsonTypeInfo<IDiscordTValue> jsonTypeInfo, IDiscordAuditLogChange`1& change);
-    IDiscordAuditLogChange<IDiscordTValue> GetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, JsonTypeInfo<IDiscordTValue> jsonTypeInfo);
+    bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, IDiscordAuditLogChange`1& change);
+    IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression);
+    bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo, IDiscordAuditLogChange`1& change);
+    IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo);
 }
 
 
@@ -2575,8 +2575,8 @@ public interface IDiscordAuditLogChange
     string Key { get; }
     bool HasNewValue { get; }
     bool HasOldValue { get; }
-    IDiscordAuditLogChange<IDiscordTValue> WithValues(JsonTypeInfo<IDiscordTValue> jsonTypeInfo);
-    IDiscordAuditLogChange<IDiscordTValue> WithValues();
+    IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo);
+    IDiscordAuditLogChange<TValue> WithValues<TValue>();
 }
 
 
@@ -2598,29 +2598,16 @@ public interface IDiscordAuditLogEntryInfo
 }
 
 
-public interface IDiscordTObject
+public interface IDiscordAuditLogChange<TValue>
 {
      Original { get; }
-    ulong Id { get; }
-}
-
-
-public interface IDiscordTValue
-{
-     Original { get; }
-}
-
-
-public interface IDiscordAuditLogChange<IDiscordTValue>
-{
-     Original { get; }
-    IDiscordTValue NewValue { get; }
-    IDiscordTValue OldValue { get; }
+    TValue NewValue { get; }
+    TValue OldValue { get; }
     string Key { get; }
     bool HasNewValue { get; }
     bool HasOldValue { get; }
-    IDiscordAuditLogChange<IDiscordTValue> WithValues(JsonTypeInfo<IDiscordTValue> jsonTypeInfo);
-    IDiscordAuditLogChange<IDiscordTValue> WithValues();
+    IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo);
+    IDiscordAuditLogChange<TValue> WithValues<TValue>();
 }
 
 
@@ -5283,10 +5270,10 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     public string Reason => _original.Reason;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public bool TryGetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, change.Original);
-    public IDiscordAuditLogChange<IDiscordTValue> GetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression) => new DiscordAuditLogChange`1(_original.GetChange(expression));
-    public bool TryGetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, JsonTypeInfo<IDiscordTValue> jsonTypeInfo, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, jsonTypeInfo, change.Original);
-    public IDiscordAuditLogChange<IDiscordTValue> GetChange(Expression<Func<IDiscordTObject, IDiscordTValue>> expression, JsonTypeInfo<IDiscordTValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.GetChange(expression, jsonTypeInfo));
+    public bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, change.Original);
+    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression) => new DiscordAuditLogChange`1(_original.GetChange(expression));
+    public bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, jsonTypeInfo, change.Original);
+    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.GetChange(expression, jsonTypeInfo));
 }
 
 
@@ -7547,8 +7534,8 @@ public class DiscordAuditLogChange : IDiscordAuditLogChange
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<IDiscordTValue> WithValues(JsonTypeInfo<IDiscordTValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
-    public IDiscordAuditLogChange<IDiscordTValue> WithValues() => new DiscordAuditLogChange`1(_original.WithValues());
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange`1(_original.WithValues());
 }
 
 
@@ -7575,44 +7562,21 @@ public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo
 }
 
 
-public class DiscordTObject : IDiscordTObject
+public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue>
 {
     private readonly  _original;
-    public DiscordTObject( original)
+    public DiscordAuditLogChange<TValue>( original)
     {
         _original = original;
     }
     public  Original => _original;
-    public ulong Id => _original.Id;
-}
-
-
-public class DiscordTValue : IDiscordTValue
-{
-    private readonly  _original;
-    public DiscordTValue( original)
-    {
-        _original = original;
-    }
-    public  Original => _original;
-}
-
-
-public class DiscordAuditLogChange<IDiscordTValue> : IDiscordAuditLogChange<IDiscordTValue>
-{
-    private readonly  _original;
-    public DiscordAuditLogChange<IDiscordTValue>( original)
-    {
-        _original = original;
-    }
-    public  Original => _original;
-    public IDiscordTValue NewValue => new DiscordTValue(_original.NewValue);
-    public IDiscordTValue OldValue => new DiscordTValue(_original.OldValue);
+    public TValue NewValue => _original.NewValue;
+    public TValue OldValue => _original.OldValue;
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<IDiscordTValue> WithValues(JsonTypeInfo<IDiscordTValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
-    public IDiscordAuditLogChange<IDiscordTValue> WithValues() => new DiscordAuditLogChange`1(_original.WithValues());
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange`1(_original.WithValues());
 }
 
 
