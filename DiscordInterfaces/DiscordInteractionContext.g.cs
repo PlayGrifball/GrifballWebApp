@@ -309,8 +309,8 @@ public interface IDiscordInteractionCallback
 {
     NetCord.Rest.InteractionCallback Original { get; }
     NetCord.Rest.InteractionCallbackType Type { get; }
-    IDiscordInteractionCallback Pong { get; }
-    IDiscordInteractionCallback DeferredModifyMessage { get; }
+    static IDiscordInteractionCallback Pong { get; }
+    static IDiscordInteractionCallback DeferredModifyMessage { get; }
     HttpContent Serialize();
 }
 
@@ -2228,8 +2228,8 @@ public interface IDiscordAllowedMentionsProperties
     IEnumerable<ulong> AllowedRoles { get; }
     IEnumerable<ulong> AllowedUsers { get; }
     bool ReplyMention { get; }
-    IDiscordAllowedMentionsProperties All { get; }
-    IDiscordAllowedMentionsProperties None { get; }
+    static IDiscordAllowedMentionsProperties All { get; }
+    static IDiscordAllowedMentionsProperties None { get; }
     IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true);
     IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles);
     IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles);
@@ -4724,8 +4724,8 @@ public class DiscordInteractionCallback : IDiscordInteractionCallback
     }
     public NetCord.Rest.InteractionCallback Original => _original;
     public NetCord.Rest.InteractionCallbackType Type => _original.Type;
-    public IDiscordInteractionCallback Pong => new DiscordInteractionCallback(_original.Pong);
-    public IDiscordInteractionCallback DeferredModifyMessage => new DiscordInteractionCallback(_original.DeferredModifyMessage);
+    public static IDiscordInteractionCallback Pong => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.Pong);
+    public static IDiscordInteractionCallback DeferredModifyMessage => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.DeferredModifyMessage);
     public HttpContent Serialize() => _original.Serialize();
 }
 
@@ -7226,8 +7226,8 @@ public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsPropertie
     public IEnumerable<ulong> AllowedRoles => _original.AllowedRoles;
     public IEnumerable<ulong> AllowedUsers => _original.AllowedUsers;
     public bool ReplyMention => _original.ReplyMention;
-    public IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(_original.All);
-    public IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(_original.None);
+    public static IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.All);
+    public static IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.None);
     public IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true) => new DiscordAllowedMentionsProperties(_original.WithEveryone(everyone));
     public IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordAllowedMentionsProperties(_original.WithAllowedRoles(allowedRoles));
     public IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));

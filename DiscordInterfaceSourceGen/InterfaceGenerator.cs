@@ -102,7 +102,9 @@ public class Program
         foreach (var prop in type.GetProperties())
         {
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
-            sb.AppendLine($"    {memberTypeName} {prop.Name} {{ get; }}");
+            var isStatic = prop.GetMethod?.IsStatic is true;
+            var staticModifier = isStatic ? "static " : "";
+            sb.AppendLine($"    {staticModifier}{memberTypeName} {prop.Name} {{ get; }}");
         }
         AddMethods(type, interfaceQueue, sb, forInterface: true);
         sb.AppendLine("}");
@@ -141,6 +143,14 @@ public class Program
         foreach (var prop in type.GetProperties())
         {
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
+
+            if (prop.GetMethod?.IsStatic is true)
+            {
+                var withoutI = memberTypeName.Substring(1);
+                classSb.AppendLine($"    public static {memberTypeName} {prop.Name} => new {withoutI}({type.FullName}.{prop.Name});");
+                continue;
+            }
+
             // Handle IEnumerable<T> of generated interface
             if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             {
