@@ -278,11 +278,6 @@ public class Program
             }
             else
             {
-                var f = method.Name is "ModifyFollowupMessageAsync";
-                if (f)
-                {
-                    var b = 1;
-                }
                 if (method.ReturnType.Name == "Task`1")
                 {
                     var taskReturnType = method.ReturnType.GetGenericArguments()[0];
@@ -349,6 +344,25 @@ public class Program
                 }
                 else
                 {
+                    // Handle IAsyncEnumerable<T> of generated interface
+                    if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>))
+                    {
+                        var argType = method.ReturnType.GetGenericArguments()[0];
+                        var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
+                        if (argTypeName.StartsWith("IDiscord"))
+                        {
+                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType)}";
+                            sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)})");
+                            sb.AppendLine($"    {{");
+                            sb.AppendLine($"        await foreach(var original in _original.{method.Name}({string.Join(", ", argNames)}))");
+                            sb.AppendLine($"        {{");
+                            sb.AppendLine($"            yield return new {argClassName}(original);");
+                            sb.AppendLine($"        }}");
+                            sb.AppendLine($"    }}");
+                            continue;
+                        }
+                    }
+
                     // is method.ReturnType generic type?
                     if (returnType.StartsWith("IDiscord"))
                     {
