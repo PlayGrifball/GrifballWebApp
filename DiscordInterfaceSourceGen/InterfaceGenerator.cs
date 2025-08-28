@@ -454,6 +454,13 @@ public class Program
     private static string GetTypeNameWithoutLeadingI(Type type)
     {
         var typeName = type.Name;
+        if (type.IsGenericType)
+        {
+            typeName = type.Name.Split('`')[0];
+            var types = type.GetGenericArguments();
+            var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, new Queue<Type>())));
+            typeName = $"{typeName}<{final}>";
+        }
         if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
             typeName = typeName.Substring(1);
         return typeName;

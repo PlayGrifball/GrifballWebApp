@@ -5259,9 +5259,9 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
     public bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, change.Original);
-    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression) => new DiscordAuditLogChange`1(_original.GetChange(expression));
+    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression) => new DiscordAuditLogChange<TValue>(_original.GetChange(expression));
     public bool TryGetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo, IDiscordAuditLogChange`1& change) => _original.TryGetChange(expression, jsonTypeInfo, change.Original);
-    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.GetChange(expression, jsonTypeInfo));
+    public IDiscordAuditLogChange<TValue> GetChange<TObject, TValue>(Expression<Func<TObject, TValue>> expression, JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange<TValue>(_original.GetChange(expression, jsonTypeInfo));
 }
 
 
@@ -5719,9 +5719,9 @@ public class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> wh
     public T? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordPaginationProperties<T> WithFrom(T? from) => new DiscordPaginationProperties`1(_original.WithFrom(from));
-    public IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties`1(_original.WithDirection(direction));
-    public IDiscordPaginationProperties<T> WithBatchSize(int? batchSize) => new DiscordPaginationProperties`1(_original.WithBatchSize(batchSize));
+    public IDiscordPaginationProperties<T> WithFrom(T? from) => new DiscordPaginationProperties<T>(_original.WithFrom(from));
+    public IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties<T>(_original.WithDirection(direction));
+    public IDiscordPaginationProperties<T> WithBatchSize(int? batchSize) => new DiscordPaginationProperties<T>(_original.WithBatchSize(batchSize));
 }
 
 
@@ -7505,8 +7505,8 @@ public class DiscordAuditLogChange : IDiscordAuditLogChange
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
-    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange`1(_original.WithValues());
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange<TValue>(_original.WithValues(jsonTypeInfo));
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange<TValue>(_original.WithValues());
 }
 
 
@@ -7546,8 +7546,8 @@ public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> wher
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange`1(_original.WithValues(jsonTypeInfo));
-    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange`1(_original.WithValues());
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>(JsonTypeInfo<TValue> jsonTypeInfo) => new DiscordAuditLogChange<TValue>(_original.WithValues(jsonTypeInfo));
+    public IDiscordAuditLogChange<TValue> WithValues<TValue>() => new DiscordAuditLogChange<TValue>(_original.WithValues());
 }
 
 
