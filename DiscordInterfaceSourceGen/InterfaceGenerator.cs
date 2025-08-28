@@ -228,7 +228,7 @@ public class Program
                 paramStrings.Add(paramStr);
                 if (!forInterface)
                 {
-                    if (param.ParameterType.Assembly.FullName.StartsWith("NetCord"))
+                    if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         argNames.Add($"{param.Name}.Original");
                     }

@@ -4472,8 +4472,8 @@ public class DiscordGuild : IDiscordGuild
     public IDiscordGuild With(Action<IDiscordGuild> action) => new DiscordGuild(_original.With(action));
     public int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) => _original.Compare(x.Original, y.Original);
     public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format.Original));
-    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format.Original));
+    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format));
+    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format));
     public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
     public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) => new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
     public IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) => _original.GetAuditLogAsync(paginationProperties.Original, properties.Original);
@@ -4515,7 +4515,7 @@ public class DiscordGuild : IDiscordGuild
     public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyRolePositionsAsync(positions, properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyRoleAsync(roleId, action, properties.Original, cancellationToken));
     public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel.Original, properties.Original, cancellationToken);
+    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel, properties.Original, cancellationToken);
     public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
     public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PruneAsync(pruneProperties.Original, properties.Original, cancellationToken);
     public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetVoiceRegionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
@@ -5087,7 +5087,7 @@ public class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent
     public IDiscordGuildScheduledEventRecurrenceRule RecurrenceRule => new DiscordGuildScheduledEventRecurrenceRule(_original.RecurrenceRule);
     public bool HasCoverImage => _original.HasCoverImage;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetCoverImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverImageUrl(format.Original));
+    public IDiscordImageUrl GetCoverImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverImageUrl(format));
     public async Task<IDiscordGuildScheduledEvent> GetAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.GetAsync(withUserCount, properties.Original, cancellationToken));
     public async Task<IDiscordGuildScheduledEvent> ModifyAsync(Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.ModifyAsync(action, properties.Original, cancellationToken));
     public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
@@ -5117,7 +5117,7 @@ public class DiscordRole : IDiscordRole
     public NetCord.RoleFlags Flags => _original.Flags;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format.Original));
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
     public int CompareTo(IDiscordRole other) => _original.CompareTo(other.Original);
     public async Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyAsync(action, properties.Original, cancellationToken));
     public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
@@ -5144,7 +5144,7 @@ public class DiscordGuildEmoji : IDiscordGuildEmoji
     public async Task<IDiscordGuildEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.GetAsync(properties.Original, cancellationToken));
     public async Task<IDiscordGuildEmoji> ModifyAsync(Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.ModifyAsync(action, properties.Original, cancellationToken));
     public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format.Original));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
 }
 
 
@@ -5181,7 +5181,7 @@ public class DiscordGuildSticker : IDiscordGuildSticker
     public async Task<IDiscordGuildSticker> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.GetAsync(properties.Original, cancellationToken));
     public async Task<IDiscordGuildSticker> ModifyAsync(Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.ModifyAsync(action, properties.Original, cancellationToken));
     public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format.Original));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
 }
 
 
@@ -5341,8 +5341,8 @@ public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRulePro
     public IEnumerable<ulong> ExemptRoles => _original.ExemptRoles;
     public IEnumerable<ulong> ExemptChannels => _original.ExemptChannels;
     public IDiscordAutoModerationRuleProperties WithName(string name) => new DiscordAutoModerationRuleProperties(_original.WithName(name));
-    public IDiscordAutoModerationRuleProperties WithEventType(NetCord.AutoModerationRuleEventType eventType) => new DiscordAutoModerationRuleProperties(_original.WithEventType(eventType.Original));
-    public IDiscordAutoModerationRuleProperties WithTriggerType(NetCord.AutoModerationRuleTriggerType triggerType) => new DiscordAutoModerationRuleProperties(_original.WithTriggerType(triggerType.Original));
+    public IDiscordAutoModerationRuleProperties WithEventType(NetCord.AutoModerationRuleEventType eventType) => new DiscordAutoModerationRuleProperties(_original.WithEventType(eventType));
+    public IDiscordAutoModerationRuleProperties WithTriggerType(NetCord.AutoModerationRuleTriggerType triggerType) => new DiscordAutoModerationRuleProperties(_original.WithTriggerType(triggerType));
     public IDiscordAutoModerationRuleProperties WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) => new DiscordAutoModerationRuleProperties(_original.WithTriggerMetadata(triggerMetadata.Original));
     public IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.WithActions(actions));
     public IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions));
@@ -5400,7 +5400,7 @@ public class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties
     public NetCord.Rest.ImageProperties Image => _original.Image;
     public IEnumerable<ulong> AllowedRoles => _original.AllowedRoles;
     public IDiscordGuildEmojiProperties WithName(string name) => new DiscordGuildEmojiProperties(_original.WithName(name));
-    public IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordGuildEmojiProperties(_original.WithImage(image.Original));
+    public IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordGuildEmojiProperties(_original.WithImage(image));
     public IDiscordGuildEmojiProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiProperties(_original.WithAllowedRoles(allowedRoles));
     public IDiscordGuildEmojiProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
     public IDiscordGuildEmojiProperties AddAllowedRoles(ulong[] allowedRoles) => new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
@@ -5481,8 +5481,8 @@ public class DiscordRestGuild : IDiscordRestGuild
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
     public int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) => _original.Compare(x.Original, y.Original);
     public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format.Original));
-    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format.Original));
+    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format));
+    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format));
     public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
     public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) => new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
     public IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) => _original.GetAuditLogAsync(paginationProperties.Original, properties.Original);
@@ -5524,7 +5524,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyRolePositionsAsync(positions, properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyRoleAsync(roleId, action, properties.Original, cancellationToken));
     public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel.Original, properties.Original, cancellationToken);
+    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel, properties.Original, cancellationToken);
     public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
     public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PruneAsync(pruneProperties.Original, properties.Original, cancellationToken);
     public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetVoiceRegionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
@@ -5677,7 +5677,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public NetCord.ForumLayoutType? DefaultForumLayout => _original.DefaultForumLayout;
     public int? DefaultThreadSlowmode => _original.DefaultThreadSlowmode;
     public IDiscordGuildChannelProperties WithName(string name) => new DiscordGuildChannelProperties(_original.WithName(name));
-    public IDiscordGuildChannelProperties WithType(NetCord.ChannelType type) => new DiscordGuildChannelProperties(_original.WithType(type.Original));
+    public IDiscordGuildChannelProperties WithType(NetCord.ChannelType type) => new DiscordGuildChannelProperties(_original.WithType(type));
     public IDiscordGuildChannelProperties WithTopic(string topic) => new DiscordGuildChannelProperties(_original.WithTopic(topic));
     public IDiscordGuildChannelProperties WithBitrate(int? bitrate) => new DiscordGuildChannelProperties(_original.WithBitrate(bitrate));
     public IDiscordGuildChannelProperties WithUserLimit(int? userLimit) => new DiscordGuildChannelProperties(_original.WithUserLimit(userLimit));
@@ -6123,11 +6123,11 @@ public class DiscordGuildScheduledEventProperties : IDiscordGuildScheduledEventP
     public IDiscordGuildScheduledEventProperties WithChannelId(ulong? channelId) => new DiscordGuildScheduledEventProperties(_original.WithChannelId(channelId));
     public IDiscordGuildScheduledEventProperties WithMetadata(IDiscordGuildScheduledEventMetadataProperties metadata) => new DiscordGuildScheduledEventProperties(_original.WithMetadata(metadata.Original));
     public IDiscordGuildScheduledEventProperties WithName(string name) => new DiscordGuildScheduledEventProperties(_original.WithName(name));
-    public IDiscordGuildScheduledEventProperties WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel privacyLevel) => new DiscordGuildScheduledEventProperties(_original.WithPrivacyLevel(privacyLevel.Original));
+    public IDiscordGuildScheduledEventProperties WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel privacyLevel) => new DiscordGuildScheduledEventProperties(_original.WithPrivacyLevel(privacyLevel));
     public IDiscordGuildScheduledEventProperties WithScheduledStartTime(System.DateTimeOffset scheduledStartTime) => new DiscordGuildScheduledEventProperties(_original.WithScheduledStartTime(scheduledStartTime));
     public IDiscordGuildScheduledEventProperties WithScheduledEndTime(System.DateTimeOffset? scheduledEndTime) => new DiscordGuildScheduledEventProperties(_original.WithScheduledEndTime(scheduledEndTime));
     public IDiscordGuildScheduledEventProperties WithDescription(string description) => new DiscordGuildScheduledEventProperties(_original.WithDescription(description));
-    public IDiscordGuildScheduledEventProperties WithEntityType(NetCord.GuildScheduledEventEntityType entityType) => new DiscordGuildScheduledEventProperties(_original.WithEntityType(entityType.Original));
+    public IDiscordGuildScheduledEventProperties WithEntityType(NetCord.GuildScheduledEventEntityType entityType) => new DiscordGuildScheduledEventProperties(_original.WithEntityType(entityType));
     public IDiscordGuildScheduledEventProperties WithImage(NetCord.Rest.ImageProperties? image) => new DiscordGuildScheduledEventProperties(_original.WithImage(image));
 }
 
@@ -6311,10 +6311,10 @@ public class DiscordApplicationCommandProperties : IDiscordApplicationCommandPro
     public IDiscordApplicationCommandProperties WithDefaultPermission(bool? defaultPermission = true) => new DiscordApplicationCommandProperties(_original.WithDefaultPermission(defaultPermission));
     public IDiscordApplicationCommandProperties WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandProperties(_original.WithIntegrationTypes(integrationTypes));
     public IDiscordApplicationCommandProperties AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes.Original));
+    public IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
     public IDiscordApplicationCommandProperties WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandProperties(_original.WithContexts(contexts));
     public IDiscordApplicationCommandProperties AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandProperties(_original.AddContexts(contexts.Original));
+    public IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
     public IDiscordApplicationCommandProperties WithNsfw(bool nsfw = true) => new DiscordApplicationCommandProperties(_original.WithNsfw(nsfw));
 }
 
@@ -6350,10 +6350,10 @@ public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOption
     public IDiscordApplicationCommandOptions WithDefaultPermission(bool? defaultPermission = true) => new DiscordApplicationCommandOptions(_original.WithDefaultPermission(defaultPermission));
     public IDiscordApplicationCommandOptions WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandOptions(_original.WithIntegrationTypes(integrationTypes));
     public IDiscordApplicationCommandOptions AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes.Original));
+    public IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
     public IDiscordApplicationCommandOptions WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandOptions(_original.WithContexts(contexts));
     public IDiscordApplicationCommandOptions AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandOptions(_original.AddContexts(contexts.Original));
+    public IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
     public IDiscordApplicationCommandOptions WithNsfw(bool? nsfw = true) => new DiscordApplicationCommandOptions(_original.WithNsfw(nsfw));
 }
 
@@ -6385,7 +6385,7 @@ public class DiscordApplicationCommandGuildPermissionProperties : IDiscordApplic
     public NetCord.ApplicationCommandGuildPermissionType Type => _original.Type;
     public bool Permission => _original.Permission;
     public IDiscordApplicationCommandGuildPermissionProperties WithId(ulong id) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithId(id));
-    public IDiscordApplicationCommandGuildPermissionProperties WithType(NetCord.ApplicationCommandGuildPermissionType type) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithType(type.Original));
+    public IDiscordApplicationCommandGuildPermissionProperties WithType(NetCord.ApplicationCommandGuildPermissionType type) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithType(type));
     public IDiscordApplicationCommandGuildPermissionProperties WithPermission(bool permission = true) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithPermission(permission));
 }
 
@@ -6403,7 +6403,7 @@ public class DiscordGuildStickerProperties : IDiscordGuildStickerProperties
     public IEnumerable<string> Tags => _original.Tags;
     public HttpContent Serialize() => _original.Serialize();
     public IDiscordGuildStickerProperties WithAttachment(IDiscordAttachmentProperties attachment) => new DiscordGuildStickerProperties(_original.WithAttachment(attachment.Original));
-    public IDiscordGuildStickerProperties WithFormat(NetCord.StickerFormat format) => new DiscordGuildStickerProperties(_original.WithFormat(format.Original));
+    public IDiscordGuildStickerProperties WithFormat(NetCord.StickerFormat format) => new DiscordGuildStickerProperties(_original.WithFormat(format));
     public IDiscordGuildStickerProperties WithTags(IEnumerable<string> tags) => new DiscordGuildStickerProperties(_original.WithTags(tags));
     public IDiscordGuildStickerProperties AddTags(IEnumerable<string> tags) => new DiscordGuildStickerProperties(_original.AddTags(tags));
     public IDiscordGuildStickerProperties AddTags(string[] tags) => new DiscordGuildStickerProperties(_original.AddTags(tags));
@@ -6815,11 +6815,11 @@ public class DiscordApplication : IDiscordApplication
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
     public string CustomInstallUrl => _original.CustomInstallUrl;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format.Original));
-    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format.Original));
-    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format.Original));
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format.Original));
-    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format.Original));
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
+    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format));
+    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
+    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
+    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
     public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
     public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
     public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties.Original, cancellationToken));
@@ -7059,7 +7059,7 @@ public class DiscordEmbedProperties : IDiscordEmbedProperties
     public IDiscordEmbedProperties WithDescription(string description) => new DiscordEmbedProperties(_original.WithDescription(description));
     public IDiscordEmbedProperties WithUrl(string url) => new DiscordEmbedProperties(_original.WithUrl(url));
     public IDiscordEmbedProperties WithTimestamp(System.DateTimeOffset? timestamp) => new DiscordEmbedProperties(_original.WithTimestamp(timestamp));
-    public IDiscordEmbedProperties WithColor(NetCord.Color color) => new DiscordEmbedProperties(_original.WithColor(color.Original));
+    public IDiscordEmbedProperties WithColor(NetCord.Color color) => new DiscordEmbedProperties(_original.WithColor(color));
     public IDiscordEmbedProperties WithFooter(IDiscordEmbedFooterProperties footer) => new DiscordEmbedProperties(_original.WithFooter(footer.Original));
     public IDiscordEmbedProperties WithImage(IDiscordEmbedImageProperties image) => new DiscordEmbedProperties(_original.WithImage(image.Original));
     public IDiscordEmbedProperties WithThumbnail(IDiscordEmbedThumbnailProperties thumbnail) => new DiscordEmbedProperties(_original.WithThumbnail(thumbnail.Original));
@@ -7245,7 +7245,7 @@ public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteP
     public NetCord.Permissions? Allowed => _original.Allowed;
     public NetCord.Permissions? Denied => _original.Denied;
     public IDiscordPermissionOverwriteProperties WithId(ulong id) => new DiscordPermissionOverwriteProperties(_original.WithId(id));
-    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) => new DiscordPermissionOverwriteProperties(_original.WithType(type.Original));
+    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) => new DiscordPermissionOverwriteProperties(_original.WithType(type));
     public IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed) => new DiscordPermissionOverwriteProperties(_original.WithAllowed(allowed));
     public IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied) => new DiscordPermissionOverwriteProperties(_original.WithDenied(denied));
 }
@@ -7632,7 +7632,7 @@ public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoMo
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
     public IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithPresets(presets));
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets.Original));
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
     public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string> allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
@@ -7651,7 +7651,7 @@ public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActio
     public NetCord.AutoModerationActionProperties Original => _original;
     public NetCord.AutoModerationActionType Type => _original.Type;
     public IDiscordAutoModerationActionMetadataProperties Metadata => new DiscordAutoModerationActionMetadataProperties(_original.Metadata);
-    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) => new DiscordAutoModerationActionProperties(_original.WithType(type.Original));
+    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) => new DiscordAutoModerationActionProperties(_original.WithType(type));
     public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties metadata) => new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata.Original));
 }
 
@@ -7793,7 +7793,7 @@ public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPro
     public bool Required => _original.Required;
     public bool InOnboarding => _original.InOnboarding;
     public IDiscordGuildOnboardingPromptProperties WithId(ulong? id) => new DiscordGuildOnboardingPromptProperties(_original.WithId(id));
-    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) => new DiscordGuildOnboardingPromptProperties(_original.WithType(type.Original));
+    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) => new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
     public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options));
     public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options));
     public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Original));
@@ -7935,7 +7935,7 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     public int? MinLength => _original.MinLength;
     public int? MaxLength => _original.MaxLength;
     public bool? Autocomplete => _original.Autocomplete;
-    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) => new DiscordApplicationCommandOptionProperties(_original.WithType(type.Original));
+    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) => new DiscordApplicationCommandOptionProperties(_original.WithType(type));
     public IDiscordApplicationCommandOptionProperties WithName(string name) => new DiscordApplicationCommandOptionProperties(_original.WithName(name));
     public IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandOptionProperties(_original.WithNameLocalizations(nameLocalizations));
     public IDiscordApplicationCommandOptionProperties WithDescription(string description) => new DiscordApplicationCommandOptionProperties(_original.WithDescription(description));
@@ -7949,7 +7949,7 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Original));
     public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
     public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes.Original));
+    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
     public IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue) => new DiscordApplicationCommandOptionProperties(_original.WithMinValue(minValue));
     public IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue) => new DiscordApplicationCommandOptionProperties(_original.WithMaxValue(maxValue));
     public IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength) => new DiscordApplicationCommandOptionProperties(_original.WithMinLength(minLength));
@@ -8027,7 +8027,7 @@ public class DiscordMessageReferenceProperties : IDiscordMessageReferencePropert
     public ulong? ChannelId => _original.ChannelId;
     public ulong MessageId => _original.MessageId;
     public bool FailIfNotExists => _original.FailIfNotExists;
-    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) => new DiscordMessageReferenceProperties(_original.WithType(type.Original));
+    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) => new DiscordMessageReferenceProperties(_original.WithType(type));
     public IDiscordMessageReferenceProperties WithChannelId(ulong? channelId) => new DiscordMessageReferenceProperties(_original.WithChannelId(channelId));
     public IDiscordMessageReferenceProperties WithMessageId(ulong messageId) => new DiscordMessageReferenceProperties(_original.WithMessageId(messageId));
     public IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true) => new DiscordMessageReferenceProperties(_original.WithFailIfNotExists(failIfNotExists));
@@ -8190,7 +8190,7 @@ public class DiscordTeam : IDiscordTeam
     public string Name => _original.Name;
     public ulong OwnerId => _original.OwnerId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format.Original));
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
 }
 
 
@@ -8238,7 +8238,7 @@ public class DiscordApplicationEmoji : IDiscordApplicationEmoji
     public async Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetAsync(properties.Original, cancellationToken));
     public async Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.ModifyAsync(action, properties.Original, cancellationToken));
     public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format.Original));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
 }
 
 
@@ -8253,7 +8253,7 @@ public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiPropert
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties Image => _original.Image;
     public IDiscordApplicationEmojiProperties WithName(string name) => new DiscordApplicationEmojiProperties(_original.WithName(name));
-    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordApplicationEmojiProperties(_original.WithImage(image.Original));
+    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordApplicationEmojiProperties(_original.WithImage(image));
 }
 
 
@@ -8730,7 +8730,7 @@ public class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicati
     public IDiscordApplicationCommandOptionChoiceProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithNameLocalizations(nameLocalizations));
     public IDiscordApplicationCommandOptionChoiceProperties WithStringValue(string stringValue) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithStringValue(stringValue));
     public IDiscordApplicationCommandOptionChoiceProperties WithNumericValue(double? numericValue) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithNumericValue(numericValue));
-    public IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithValueType(valueType.Original));
+    public IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithValueType(valueType));
 }
 
 
@@ -8909,7 +8909,7 @@ public class DiscordRestClient : IDiscordRestClient
     public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyGuildRolePositionsAsync(guildId, positions, properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyGuildRoleAsync(guildId, roleId, action, properties.Original, cancellationToken));
     public Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildRoleAsync(guildId, roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel.Original, properties.Original, cancellationToken);
+    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel, properties.Original, cancellationToken);
     public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetGuildPruneCountAsync(guildId, days, roles, properties.Original, cancellationToken);
     public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GuildPruneAsync(guildId, pruneProperties.Original, properties.Original, cancellationToken);
     public async Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildVoiceRegionsAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
@@ -9081,11 +9081,11 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
     public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.CreateTestEntitlementAsync(testEntitlementProperties.Original, properties.Original, cancellationToken));
     public Task DeleteTestEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteTestEntitlementAsync(entitlementId, properties.Original, cancellationToken);
     public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetSkusAsync(properties.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format.Original));
-    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format.Original));
-    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format.Original));
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format.Original));
-    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format.Original));
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
+    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format));
+    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
+    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
+    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
     public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
     public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
     public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties.Original, cancellationToken));
@@ -9158,7 +9158,7 @@ public class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplic
     public IReadOnlyDictionary<string, string> NameLocalizations => _original.NameLocalizations;
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string> DescriptionLocalizations => _original.DescriptionLocalizations;
-    public IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithType(type.Original));
+    public IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithType(type));
     public IDiscordApplicationRoleConnectionMetadataProperties WithKey(string key) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithKey(key));
     public IDiscordApplicationRoleConnectionMetadataProperties WithName(string name) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithName(name));
     public IDiscordApplicationRoleConnectionMetadataProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithNameLocalizations(nameLocalizations));
@@ -9402,7 +9402,7 @@ public class DiscordTestEntitlementProperties : IDiscordTestEntitlementPropertie
     public NetCord.Rest.TestEntitlementOwnerType OwnerType => _original.OwnerType;
     public IDiscordTestEntitlementProperties WithSkuId(ulong skuId) => new DiscordTestEntitlementProperties(_original.WithSkuId(skuId));
     public IDiscordTestEntitlementProperties WithOwnerId(ulong ownerId) => new DiscordTestEntitlementProperties(_original.WithOwnerId(ownerId));
-    public IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType) => new DiscordTestEntitlementProperties(_original.WithOwnerType(ownerType.Original));
+    public IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType) => new DiscordTestEntitlementProperties(_original.WithOwnerType(ownerType));
 }
 
 
@@ -9478,7 +9478,7 @@ public class DiscordStandardSticker : IDiscordStandardSticker
     public IReadOnlyList<string> Tags => _original.Tags;
     public NetCord.StickerFormat Format => _original.Format;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format.Original));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
 }
 
 
@@ -9831,7 +9831,7 @@ public class DiscordSticker : IDiscordSticker
     public IReadOnlyList<string> Tags => _original.Tags;
     public NetCord.StickerFormat Format => _original.Format;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format.Original));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
 }
 
 
