@@ -268,6 +268,27 @@ public class Program
                 paramStrings.Add(paramStr);
                 if (!forInterface)
                 {
+                    var foo = method.Name.Contains("BulkOverwriteGuildApplicationCommandsAsync");
+                    if (foo)
+                    {
+                        var f = 1;
+                    }
+                    //var openType = param.ParameterType.GetGenericTypeDefinition();
+                    if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                    {
+                        var trueType = param.ParameterType.GetGenericArguments()[0];
+                        if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
+                        {
+                            var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
+                            if (trueTypeName.StartsWith("IDiscord"))
+                            {
+                                var trueClassName = $"Discord{GetTypeNameWithoutLeadingI(trueType)}";
+                                argNames.Add($"{param.Name}?.Select(x => x.Original)");
+                                continue;
+                            }
+                        }
+                    }
+
                     if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         argNames.Add($"{param.Name}.Original");
