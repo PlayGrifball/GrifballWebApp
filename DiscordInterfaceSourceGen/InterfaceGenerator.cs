@@ -237,10 +237,15 @@ public class Program
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
+            var anyOutParams = parameters.Any(p => p.IsOut);
             foreach (var param in parameters)
             {
                 var paramType = GetDiscordTypeName(param.ParameterType, interfaceQueue, method.IsGenericMethod);
                 var paramStr = $"{paramType} {param.Name}";
+                if (param.IsOut)
+                {
+                    paramStr = $"out {paramType.Split("`")[0]} {param.Name}";
+                }
                 if (param.HasDefaultValue)
                 {
                     if (param.DefaultValue == null && param.ParameterType.IsValueType) // Value types are default not null.
@@ -317,7 +322,11 @@ public class Program
                         }
                     }
 
-                    if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
+                    if (param.IsOut) // Can't call original on out parameters
+                    {
+                        argNames.Add($"out var {param.Name}Temp");
+                    }
+                    else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord")) 
                     {
                         argNames.Add($"{param.Name}.Original");
                     }
@@ -337,6 +346,44 @@ public class Program
             }
             else
             {
+                // Have to map out parameter to original
+                if (anyOutParams)
+                {
+                    if (returnType.StartsWith("IDiscord"))
+                    {
+                        var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, method.IsGenericMethod)}";
+                        sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)})");
+                        sb.AppendLine("    {");
+                        sb.AppendLine($"        var result = new {returnClassName}(_original.{CallMethod(method)}({string.Join(", ", argNames)}));");
+                        var outParams = parameters.Where(p => p.IsOut).Select(p => p.Name);
+                        foreach (var outParam in outParams)
+                        {
+                            var bar = GetDiscordTypeName(parameters.First(p => p.Name == outParam).ParameterType, interfaceQueue);
+                            var withoutI = bar.Split("`")[0].Substring(1);
+                            sb.AppendLine($"        {outParam} = new {withoutI}({outParam}Temp);");
+                        }
+                        sb.AppendLine($"        return result;");
+                        sb.AppendLine("    }");
+                        continue;
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)})");
+                        sb.AppendLine("    {");
+                        sb.AppendLine($"        var result = _original.{CallMethod(method)}({string.Join(", ", argNames)});");
+                        var outParams = parameters.Where(p => p.IsOut).Select(p => p.Name);
+                        foreach (var outParam in outParams)
+                        {
+                            var bar = GetDiscordTypeName(parameters.First(p => p.Name == outParam).ParameterType, interfaceQueue);
+                            var withoutI = bar.Split("`")[0].Substring(1);
+                            sb.AppendLine($"        {outParam} = new {withoutI}({outParam}Temp);");
+                        }
+                        sb.AppendLine($"        return result;");
+                        sb.AppendLine("    }");
+                        continue;
+                    }
+                }
+
                 if (method.ReturnType.Name == "Task`1")
                 {
                     var taskReturnType = method.ReturnType.GetGenericArguments()[0];
