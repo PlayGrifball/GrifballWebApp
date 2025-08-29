@@ -85,9 +85,23 @@ public class Program
         if (generatedTypes.Contains(interfaceName))
             return;
         generatedTypes.Add(interfaceName);
+
+        var genericConstraint = " ";
+        if (type.IsGenericType)
+        {
+            genericConstraint += string.Join(" ", type.GetGenericArguments().Where(x => x.BaseType != null && x.BaseType != typeof(object))
+                .Select(t =>
+                {
+                    var typ = t.BaseType.FullName;
+                    if (typ == "System.ValueType")
+                        return $"where {t.Name} : struct";
+                    return $"where {t.Name} : {t.BaseType.FullName}";
+                }));
+        }
+
         // Interface
         var sb = new StringBuilder();
-        sb.AppendLine($"public interface {interfaceName}");
+        sb.AppendLine($"public interface {interfaceName} {genericConstraint}");
         sb.AppendLine("{");
         // Add Original property to interface
         if (type.IsGenericType)
@@ -112,13 +126,6 @@ public class Program
         interfaceBodies.Add(sb.ToString());
         // Class
         var classSb = new StringBuilder();
-
-        var genericConstraint = "";
-        if (type.IsGenericType)
-        {
-            genericConstraint = string.Join(" ", type.GetGenericArguments().Where(x => x.BaseType != typeof(object)).Select(t => $" where {t.Name} : struct"));
-        }
-
         classSb.AppendLine($"public class {className} : {interfaceName}{genericConstraint}");
         classSb.AppendLine("{");
         if (type.IsGenericType)
