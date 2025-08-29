@@ -29,6 +29,7 @@ public class Program
         sb.AppendLine("using System.Linq.Expressions;");
         sb.AppendLine("using System.Collections.Immutable;");
         sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Text.Json;");
         sb.AppendLine("using System.Text.Json.Serialization.Metadata;");
         sb.AppendLine();
         sb.AppendLine("namespace DiscordInterfaceSourceGen;");
@@ -112,7 +113,12 @@ public class Program
         // Class
         var classSb = new StringBuilder();
 
-        var genericConstraint = type.IsGenericType ? " where T : struct" : "";
+        var genericConstraint = "";
+        if (type.IsGenericType)
+        {
+            genericConstraint = string.Join(" ", type.GetGenericArguments().Select(t => $" where {t.Name} : struct"));
+        }
+
         classSb.AppendLine($"public class {className} : {interfaceName}{genericConstraint}");
         classSb.AppendLine("{");
         if (type.IsGenericType)
@@ -436,10 +442,6 @@ public class Program
         // If this is a generic type parameter, just use its name and do not enqueue for generation
         if (type.IsGenericParameter)
             return type.Name;
-        if (type.Name.Contains("PaginationProperties"))
-        {
-            var b = 1;
-        }
         // Map .NET types to C# aliases
         var typeMap = new Dictionary<string, string>
         {
@@ -457,7 +459,8 @@ public class Program
             ["Double"] = "double",
             ["Single"] = "float",
             ["Decimal"] = "decimal",
-            ["Object"] = "object"
+            ["Object"] = "object",
+            ["Void"] = "void",
         };
         // Handle Nullable<T> as T?
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
