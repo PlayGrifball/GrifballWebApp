@@ -20,14 +20,14 @@ public interface IDiscordInteraction
     ulong Id { get; }
     ulong ApplicationId { get; }
     ulong? GuildId { get; }
-    IDiscordInteractionGuildReference GuildReference { get; }
-    IDiscordGuild Guild { get; }
+    IDiscordInteractionGuildReference? GuildReference { get; }
+    IDiscordGuild? Guild { get; }
     IDiscordTextChannel Channel { get; }
     IDiscordUser User { get; }
     string Token { get; }
     NetCord.Permissions AppPermissions { get; }
     string UserLocale { get; }
-    string GuildLocale { get; }
+    string? GuildLocale { get; }
     IReadOnlyList<IDiscordEntitlement> Entitlements { get; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get; }
     NetCord.InteractionContextType Context { get; }
@@ -72,11 +72,11 @@ public interface IDiscordGuild
     ulong Id { get; }
     string Name { get; }
     bool HasIcon { get; }
-    string IconHash { get; }
+    string? IconHash { get; }
     bool HasSplash { get; }
-    string SplashHash { get; }
+    string? SplashHash { get; }
     bool HasDiscoverySplash { get; }
-    string DiscoverySplashHash { get; }
+    string? DiscoverySplashHash { get; }
     ulong OwnerId { get; }
     NetCord.Permissions? Permissions { get; }
     ulong? AfkChannelId { get; }
@@ -96,10 +96,10 @@ public interface IDiscordGuild
     ulong? RulesChannelId { get; }
     int? MaxPresences { get; }
     int? MaxUsers { get; }
-    string VanityUrlCode { get; }
-    string Description { get; }
+    string? VanityUrlCode { get; }
+    string? Description { get; }
     bool HasBanner { get; }
-    string BannerHash { get; }
+    string? BannerHash { get; }
     int PremiumTier { get; }
     int? PremiumSubscriptionCount { get; }
     string PreferredLocale { get; }
@@ -108,21 +108,21 @@ public interface IDiscordGuild
     int? MaxStageVideoChannelUsers { get; }
     int? ApproximateUserCount { get; }
     int? ApproximatePresenceCount { get; }
-    IDiscordGuildWelcomeScreen WelcomeScreen { get; }
+    IDiscordGuildWelcomeScreen? WelcomeScreen { get; }
     NetCord.NsfwLevel NsfwLevel { get; }
     ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get; }
     bool PremiumProgressBarEnabled { get; }
     ulong? SafetyAlertsChannelId { get; }
-    IDiscordRole EveryoneRole { get; }
+    IDiscordRole? EveryoneRole { get; }
     System.DateTimeOffset CreatedAt { get; }
     IDiscordGuild With(Action<IDiscordGuild> action);
-    int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y);
-    IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default);
+    int? Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y);
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
     IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default);
-    IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestAuditLogEntry>? GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -142,7 +142,7 @@ public interface IDiscordGuild
     Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUser>? GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -150,7 +150,7 @@ public interface IDiscordGuild
     Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildBan>? GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -162,7 +162,7 @@ public interface IDiscordGuild
     Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<int>? GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -181,7 +181,7 @@ public interface IDiscordGuild
     Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildScheduledEventUser>? GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -201,7 +201,7 @@ public interface IDiscordGuild
     Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUserInfo>? SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -222,7 +222,7 @@ public interface IDiscordTextChannel
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordTextChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordTextChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -241,7 +241,7 @@ public interface IDiscordTextChannel
     Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -309,8 +309,8 @@ public interface IDiscordInteractionCallback
 {
     NetCord.Rest.InteractionCallback Original { get; }
     NetCord.Rest.InteractionCallbackType Type { get; }
-    static IDiscordInteractionCallback Pong { get; }
-    static IDiscordInteractionCallback DeferredModifyMessage { get; }
+    static IDiscordInteractionCallback Pong => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.Pong);
+    static IDiscordInteractionCallback DeferredModifyMessage => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.DeferredModifyMessage);
     HttpContent Serialize();
 }
 
@@ -343,27 +343,27 @@ public interface IDiscordRestMessage
     IReadOnlyList<IDiscordAttachment> Attachments { get; }
     IReadOnlyList<IDiscordEmbed> Embeds { get; }
     IReadOnlyList<IDiscordMessageReaction> Reactions { get; }
-    string Nonce { get; }
+    string? Nonce { get; }
     bool IsPinned { get; }
     ulong? WebhookId { get; }
     NetCord.MessageType Type { get; }
-    IDiscordMessageActivity Activity { get; }
-    IDiscordApplication Application { get; }
+    IDiscordMessageActivity? Activity { get; }
+    IDiscordApplication? Application { get; }
     ulong? ApplicationId { get; }
     NetCord.MessageFlags Flags { get; }
-    IDiscordMessageReference MessageReference { get; }
+    IDiscordMessageReference? MessageReference { get; }
     IReadOnlyList<IDiscordMessageSnapshot> MessageSnapshots { get; }
-    IDiscordRestMessage ReferencedMessage { get; }
-    IDiscordMessageInteractionMetadata InteractionMetadata { get; }
-    IDiscordMessageInteraction Interaction { get; }
-    IDiscordGuildThread StartedThread { get; }
+    IDiscordRestMessage? ReferencedMessage { get; }
+    IDiscordMessageInteractionMetadata? InteractionMetadata { get; }
+    IDiscordMessageInteraction? Interaction { get; }
+    IDiscordGuildThread? StartedThread { get; }
     IReadOnlyList<IDiscordComponent> Components { get; }
     IReadOnlyList<IDiscordMessageSticker> Stickers { get; }
     int? Position { get; }
-    IDiscordRoleSubscriptionData RoleSubscriptionData { get; }
-    IDiscordInteractionResolvedData ResolvedData { get; }
-    IDiscordMessagePoll Poll { get; }
-    IDiscordMessageCall Call { get; }
+    IDiscordRoleSubscriptionData? RoleSubscriptionData { get; }
+    IDiscordInteractionResolvedData? ResolvedData { get; }
+    IDiscordMessagePoll? Poll { get; }
+    IDiscordMessageCall? Call { get; }
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordRestMessage> ReplyAsync(IDiscordReplyMessageProperties replyMessage, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -380,7 +380,7 @@ public interface IDiscordRestMessage
     Task PinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetPollAnswerVotersAsync(int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetPollAnswerVotersAsync(int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndPollAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
@@ -388,10 +388,10 @@ public interface IDiscordRestMessage
 public interface IDiscordMessageOptions  
 {
     NetCord.Rest.MessageOptions Original { get; }
-    string Content { get; }
+    string? Content { get; }
     IEnumerable<IDiscordEmbedProperties> Embeds { get; }
     NetCord.MessageFlags? Flags { get; }
-    IDiscordAllowedMentionsProperties AllowedMentions { get; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; }
     IEnumerable<IDiscordComponentProperties> Components { get; }
     IEnumerable<IDiscordAttachmentProperties> Attachments { get; }
     HttpContent Serialize();
@@ -414,13 +414,13 @@ public interface IDiscordInteractionMessageProperties
 {
     NetCord.Rest.InteractionMessageProperties Original { get; }
     bool Tts { get; }
-    string Content { get; }
+    string? Content { get; }
     IEnumerable<IDiscordEmbedProperties> Embeds { get; }
-    IDiscordAllowedMentionsProperties AllowedMentions { get; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; }
     NetCord.MessageFlags? Flags { get; }
     IEnumerable<IDiscordComponentProperties> Components { get; }
     IEnumerable<IDiscordAttachmentProperties> Attachments { get; }
-    IDiscordMessagePollProperties Poll { get; }
+    IDiscordMessagePollProperties? Poll { get; }
     HttpContent Serialize();
     IDiscordInteractionMessageProperties WithTts(bool tts = true);
     IDiscordInteractionMessageProperties WithContent(string content);
@@ -445,7 +445,7 @@ public interface IDiscordVoiceState
     ulong GuildId { get; }
     ulong? ChannelId { get; }
     ulong UserId { get; }
-    IDiscordGuildUser User { get; }
+    IDiscordGuildUser? User { get; }
     string SessionId { get; }
     bool IsDeafened { get; }
     bool IsMuted { get; }
@@ -500,8 +500,8 @@ public interface IDiscordGuildUser
     bool HasAvatarDecoration { get; }
     IDiscordImageUrl DefaultAvatarUrl { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl GetGuildAvatarUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl GetGuildBannerUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetGuildAvatarUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetGuildBannerUrl(NetCord.ImageFormat? format = default);
     Task<IDiscordGuildUser> TimeOutAsync(System.DateTimeOffset until, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUserInfo> GetInfoAsync(IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -530,7 +530,7 @@ public interface IDiscordGuildChannel
     Task<IDiscordGuildChannel> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
@@ -542,13 +542,13 @@ public interface IDiscordGuildThread
     int MessageCount { get; }
     int UserCount { get; }
     IDiscordGuildThreadMetadata Metadata { get; }
-    IDiscordThreadCurrentUser CurrentUser { get; }
+    IDiscordThreadCurrentUser? CurrentUser { get; }
     int TotalMessageSent { get; }
     ulong GuildId { get; }
     int? Position { get; }
     IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites { get; }
     string Name { get; }
-    string Topic { get; }
+    string? Topic { get; }
     bool Nsfw { get; }
     int Slowmode { get; }
     ulong? ParentId { get; }
@@ -567,19 +567,19 @@ public interface IDiscordGuildThread
     Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordThreadUser>? GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -598,7 +598,7 @@ public interface IDiscordGuildThread
     Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -668,18 +668,18 @@ public interface IDiscordRole
     string Name { get; }
     NetCord.Color Color { get; }
     bool Hoist { get; }
-    string IconHash { get; }
-    string UnicodeEmoji { get; }
+    string? IconHash { get; }
+    string? UnicodeEmoji { get; }
     int Position { get; }
     NetCord.Permissions Permissions { get; }
     bool Managed { get; }
     bool Mentionable { get; }
-    IDiscordRoleTags Tags { get; }
+    IDiscordRoleTags? Tags { get; }
     NetCord.RoleFlags Flags { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format);
-    int CompareTo(IDiscordRole other);
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
+    int? CompareTo(IDiscordRole other);
     Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -688,10 +688,10 @@ public interface IDiscordRole
 public interface IDiscordGuildEmoji  
 {
     NetCord.GuildEmoji Original { get; }
-    IReadOnlyList<ulong> AllowedRoles { get; }
+    IReadOnlyList<ulong>? AllowedRoles { get; }
     ulong GuildId { get; }
     ulong Id { get; }
-    IDiscordUser Creator { get; }
+    IDiscordUser? Creator { get; }
     bool? RequireColons { get; }
     bool? Managed { get; }
     bool? Available { get; }
@@ -707,7 +707,7 @@ public interface IDiscordGuildEmoji
 public interface IDiscordGuildWelcomeScreen  
 {
     NetCord.GuildWelcomeScreen Original { get; }
-    string Description { get; }
+    string? Description { get; }
     ImmutableDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels { get; }
 }
 
@@ -717,7 +717,7 @@ public interface IDiscordGuildSticker
     NetCord.GuildSticker Original { get; }
     bool? Available { get; }
     ulong GuildId { get; }
-    IDiscordUser Creator { get; }
+    IDiscordUser? Creator { get; }
     ulong Id { get; }
     string Name { get; }
     string Description { get; }
@@ -791,14 +791,14 @@ public interface IDiscordRestAuditLogEntry
 {
     NetCord.Rest.RestAuditLogEntry Original { get; }
     IDiscordRestAuditLogEntryData Data { get; }
-    IDiscordUser User { get; }
+    IDiscordUser? User { get; }
     ulong Id { get; }
     ulong? TargetId { get; }
     IReadOnlyDictionary<string, IDiscordAuditLogChange> Changes { get; }
     ulong? UserId { get; }
     NetCord.AuditLogEvent ActionType { get; }
-    IDiscordAuditLogEntryInfo Options { get; }
-    string Reason { get; }
+    IDiscordAuditLogEntryInfo? Options { get; }
+    string? Reason { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
     bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
@@ -851,11 +851,11 @@ public interface IDiscordAutoModerationRuleProperties
     string Name { get; }
     NetCord.AutoModerationRuleEventType EventType { get; }
     NetCord.AutoModerationRuleTriggerType TriggerType { get; }
-    IDiscordAutoModerationRuleTriggerMetadataProperties TriggerMetadata { get; }
+    IDiscordAutoModerationRuleTriggerMetadataProperties? TriggerMetadata { get; }
     IEnumerable<IDiscordAutoModerationActionProperties> Actions { get; }
     bool Enabled { get; }
-    IEnumerable<ulong> ExemptRoles { get; }
-    IEnumerable<ulong> ExemptChannels { get; }
+    IEnumerable<ulong>? ExemptRoles { get; }
+    IEnumerable<ulong>? ExemptChannels { get; }
     IDiscordAutoModerationRuleProperties WithName(string name);
     IDiscordAutoModerationRuleProperties WithEventType(NetCord.AutoModerationRuleEventType eventType);
     IDiscordAutoModerationRuleProperties WithTriggerType(NetCord.AutoModerationRuleTriggerType triggerType);
@@ -904,7 +904,7 @@ public interface IDiscordGuildEmojiProperties
     NetCord.Rest.GuildEmojiProperties Original { get; }
     string Name { get; }
     NetCord.Rest.ImageProperties Image { get; }
-    IEnumerable<ulong> AllowedRoles { get; }
+    IEnumerable<ulong>? AllowedRoles { get; }
     IDiscordGuildEmojiProperties WithName(string name);
     IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image);
     IDiscordGuildEmojiProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles);
@@ -931,11 +931,11 @@ public interface IDiscordRestGuild
     ulong Id { get; }
     string Name { get; }
     bool HasIcon { get; }
-    string IconHash { get; }
+    string? IconHash { get; }
     bool HasSplash { get; }
-    string SplashHash { get; }
+    string? SplashHash { get; }
     bool HasDiscoverySplash { get; }
-    string DiscoverySplashHash { get; }
+    string? DiscoverySplashHash { get; }
     bool IsOwner { get; }
     ulong OwnerId { get; }
     NetCord.Permissions? Permissions { get; }
@@ -956,10 +956,10 @@ public interface IDiscordRestGuild
     ulong? RulesChannelId { get; }
     int? MaxPresences { get; }
     int? MaxUsers { get; }
-    string VanityUrlCode { get; }
-    string Description { get; }
+    string? VanityUrlCode { get; }
+    string? Description { get; }
     bool HasBanner { get; }
-    string BannerHash { get; }
+    string? BannerHash { get; }
     int PremiumTier { get; }
     int? PremiumSubscriptionCount { get; }
     string PreferredLocale { get; }
@@ -968,20 +968,20 @@ public interface IDiscordRestGuild
     int? MaxStageVideoChannelUsers { get; }
     int? ApproximateUserCount { get; }
     int? ApproximatePresenceCount { get; }
-    IDiscordGuildWelcomeScreen WelcomeScreen { get; }
+    IDiscordGuildWelcomeScreen? WelcomeScreen { get; }
     NetCord.NsfwLevel NsfwLevel { get; }
     ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get; }
     bool PremiumProgressBarEnabled { get; }
     ulong? SafetyAlertsChannelId { get; }
-    IDiscordRole EveryoneRole { get; }
+    IDiscordRole? EveryoneRole { get; }
     System.DateTimeOffset CreatedAt { get; }
-    int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y);
-    IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default);
+    int? Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y);
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
     IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default);
-    IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestAuditLogEntry>? GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1001,7 +1001,7 @@ public interface IDiscordRestGuild
     Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUser>? GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1009,7 +1009,7 @@ public interface IDiscordRestGuild
     Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildBan>? GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1021,7 +1021,7 @@ public interface IDiscordRestGuild
     Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<int>? GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1040,7 +1040,7 @@ public interface IDiscordRestGuild
     Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildScheduledEventUser>? GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1060,7 +1060,7 @@ public interface IDiscordRestGuild
     Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUserInfo>? SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1076,14 +1076,14 @@ public interface IDiscordGuildPreview
     NetCord.Rest.GuildPreview Original { get; }
     ulong Id { get; }
     string Name { get; }
-    string IconHash { get; }
-    string SplashHash { get; }
-    string DiscoverySplashHash { get; }
+    string? IconHash { get; }
+    string? SplashHash { get; }
+    string? DiscoverySplashHash { get; }
     ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get; }
     IReadOnlyList<string> Features { get; }
     int ApproximateUserCount { get; }
     int ApproximatePresenceCount { get; }
-    string Description { get; }
+    string? Description { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -1091,7 +1091,7 @@ public interface IDiscordGuildPreview
 public interface IDiscordGuildOptions  
 {
     NetCord.Rest.GuildOptions Original { get; }
-    string Name { get; }
+    string? Name { get; }
     NetCord.VerificationLevel? VerificationLevel { get; }
     NetCord.DefaultMessageNotificationLevel? DefaultMessageNotificationLevel { get; }
     NetCord.ContentFilter? ContentFilter { get; }
@@ -1106,9 +1106,9 @@ public interface IDiscordGuildOptions
     NetCord.Rest.SystemChannelFlags? SystemChannelFlags { get; }
     ulong? RulesChannelId { get; }
     ulong? PublicUpdatesChannelId { get; }
-    string PreferredLocale { get; }
+    string? PreferredLocale { get; }
     IEnumerable<string> Features { get; }
-    string Description { get; }
+    string? Description { get; }
     bool? PremiumProgressBarEnabled { get; }
     ulong? SafetyAlertsChannelId { get; }
     IDiscordGuildOptions WithName(string name);
@@ -1141,7 +1141,7 @@ public interface IDiscordGuildChannelProperties
     NetCord.Rest.GuildChannelProperties Original { get; }
     string Name { get; }
     NetCord.ChannelType Type { get; }
-    string Topic { get; }
+    string? Topic { get; }
     int? Bitrate { get; }
     int? UserLimit { get; }
     int? Slowmode { get; }
@@ -1149,7 +1149,7 @@ public interface IDiscordGuildChannelProperties
     IEnumerable<IDiscordPermissionOverwriteProperties> PermissionOverwrites { get; }
     ulong? ParentId { get; }
     bool? Nsfw { get; }
-    string RtcRegion { get; }
+    string? RtcRegion { get; }
     NetCord.VideoQualityMode? VideoQualityMode { get; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
     NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get; }
@@ -1212,8 +1212,8 @@ public interface IDiscordGuildUserProperties
 {
     NetCord.Rest.GuildUserProperties Original { get; }
     string AccessToken { get; }
-    string Nickname { get; }
-    IEnumerable<ulong> RolesIds { get; }
+    string? Nickname { get; }
+    IEnumerable<ulong>? RolesIds { get; }
     bool? Muted { get; }
     bool? Deafened { get; }
     IDiscordGuildUserProperties WithAccessToken(string accessToken);
@@ -1229,7 +1229,7 @@ public interface IDiscordGuildUserProperties
 public interface IDiscordGuildUserOptions  
 {
     NetCord.Rest.GuildUserOptions Original { get; }
-    IEnumerable<ulong> RoleIds { get; }
+    IEnumerable<ulong>? RoleIds { get; }
     bool? Muted { get; }
     bool? Deafened { get; }
     ulong? ChannelId { get; }
@@ -1259,7 +1259,7 @@ public interface IDiscordCurrentGuildUserOptions
 public interface IDiscordGuildBan  
 {
     NetCord.Rest.GuildBan Original { get; }
-    string Reason { get; }
+    string? Reason { get; }
     IDiscordUser User { get; }
     ulong GuildId { get; }
     Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1329,7 +1329,7 @@ public interface IDiscordGuildPruneProperties
     NetCord.Rest.GuildPruneProperties Original { get; }
     int Days { get; }
     bool ComputePruneCount { get; }
-    IEnumerable<ulong> Roles { get; }
+    IEnumerable<ulong>? Roles { get; }
     IDiscordGuildPruneProperties WithDays(int days);
     IDiscordGuildPruneProperties WithComputePruneCount(bool computePruneCount = true);
     IDiscordGuildPruneProperties WithRoles(IEnumerable<ulong> roles);
@@ -1387,12 +1387,12 @@ public interface IDiscordIntegration
     bool? EnableEmoticons { get; }
     NetCord.IntegrationExpireBehavior? ExpireBehavior { get; }
     int? ExpireGracePeriod { get; }
-    IDiscordUser User { get; }
+    IDiscordUser? User { get; }
     IDiscordAccount Account { get; }
     System.DateTimeOffset? SyncedAt { get; }
     int? SubscriberCount { get; }
     bool? Revoked { get; }
-    IDiscordIntegrationApplication Application { get; }
+    IDiscordIntegrationApplication? Application { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -1420,7 +1420,7 @@ public interface IDiscordGuildWidget
     NetCord.Rest.GuildWidget Original { get; }
     ulong Id { get; }
     string Name { get; }
-    string InstantInvite { get; }
+    string? InstantInvite { get; }
     ImmutableDictionary<ulong, IDiscordGuildWidgetChannel> Channels { get; }
     ImmutableDictionary<ulong, IDiscordUser> Users { get; }
     int PresenceCount { get; }
@@ -1441,7 +1441,7 @@ public interface IDiscordGuildWelcomeScreenOptions
     NetCord.Rest.GuildWelcomeScreenOptions Original { get; }
     bool? Enabled { get; }
     IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> WelcomeChannels { get; }
-    string Description { get; }
+    string? Description { get; }
     IDiscordGuildWelcomeScreenOptions WithEnabled(bool? enabled = true);
     IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels);
     IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels);
@@ -1465,7 +1465,7 @@ public interface IDiscordGuildOnboardingOptions
 {
     NetCord.Rest.GuildOnboardingOptions Original { get; }
     IEnumerable<IDiscordGuildOnboardingPromptProperties> Prompts { get; }
-    IEnumerable<ulong> DefaultChannelIds { get; }
+    IEnumerable<ulong>? DefaultChannelIds { get; }
     bool? Enabled { get; }
     NetCord.Rest.GuildOnboardingMode? Mode { get; }
     IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts);
@@ -1483,12 +1483,12 @@ public interface IDiscordGuildScheduledEventProperties
 {
     NetCord.Rest.GuildScheduledEventProperties Original { get; }
     ulong? ChannelId { get; }
-    IDiscordGuildScheduledEventMetadataProperties Metadata { get; }
+    IDiscordGuildScheduledEventMetadataProperties? Metadata { get; }
     string Name { get; }
     NetCord.GuildScheduledEventPrivacyLevel PrivacyLevel { get; }
     System.DateTimeOffset ScheduledStartTime { get; }
     System.DateTimeOffset? ScheduledEndTime { get; }
-    string Description { get; }
+    string? Description { get; }
     NetCord.GuildScheduledEventEntityType EntityType { get; }
     NetCord.Rest.ImageProperties? Image { get; }
     IDiscordGuildScheduledEventProperties WithChannelId(ulong? channelId);
@@ -1577,7 +1577,7 @@ public interface IDiscordGuildTemplateProperties
 {
     NetCord.Rest.GuildTemplateProperties Original { get; }
     string Name { get; }
-    string Description { get; }
+    string? Description { get; }
     IDiscordGuildTemplateProperties WithName(string name);
     IDiscordGuildTemplateProperties WithDescription(string description);
 }
@@ -1609,8 +1609,8 @@ public interface IDiscordGuildApplicationCommand
     IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
     bool DefaultPermission { get; }
     bool Nsfw { get; }
-    IReadOnlyList<NetCord.ApplicationIntegrationType> IntegrationTypes { get; }
-    IReadOnlyList<NetCord.InteractionContextType> Contexts { get; }
+    IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
+    IReadOnlyList<NetCord.InteractionContextType>? Contexts { get; }
     ulong Version { get; }
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1632,8 +1632,8 @@ public interface IDiscordApplicationCommandProperties
     NetCord.Permissions? DefaultGuildUserPermissions { get; }
     bool? DMPermission { get; }
     bool? DefaultPermission { get; }
-    IEnumerable<NetCord.ApplicationIntegrationType> IntegrationTypes { get; }
-    IEnumerable<NetCord.InteractionContextType> Contexts { get; }
+    IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
+    IEnumerable<NetCord.InteractionContextType>? Contexts { get; }
     bool Nsfw { get; }
     IDiscordApplicationCommandProperties WithName(string name);
     IDiscordApplicationCommandProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations);
@@ -1653,16 +1653,16 @@ public interface IDiscordApplicationCommandProperties
 public interface IDiscordApplicationCommandOptions  
 {
     NetCord.Rest.ApplicationCommandOptions Original { get; }
-    string Name { get; }
+    string? Name { get; }
     IReadOnlyDictionary<string, string> NameLocalizations { get; }
-    string Description { get; }
+    string? Description { get; }
     IReadOnlyDictionary<string, string> DescriptionLocalizations { get; }
     IEnumerable<IDiscordApplicationCommandOptionProperties> Options { get; }
     NetCord.Permissions? DefaultGuildUserPermissions { get; }
     bool? DMPermission { get; }
     bool? DefaultPermission { get; }
-    IEnumerable<NetCord.ApplicationIntegrationType> IntegrationTypes { get; }
-    IEnumerable<NetCord.InteractionContextType> Contexts { get; }
+    IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
+    IEnumerable<NetCord.InteractionContextType>? Contexts { get; }
     bool? Nsfw { get; }
     IDiscordApplicationCommandOptions WithName(string name);
     IDiscordApplicationCommandOptions WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations);
@@ -1737,7 +1737,7 @@ public interface IDiscordGuildUserInfo
 {
     NetCord.Rest.GuildUserInfo Original { get; }
     IDiscordGuildUser User { get; }
-    string SourceInviteCode { get; }
+    string? SourceInviteCode { get; }
     NetCord.Rest.GuildUserJoinSourceType JoinSourceType { get; }
     ulong? InviterId { get; }
 }
@@ -1906,7 +1906,7 @@ public interface IDiscordDMChannel
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1925,7 +1925,7 @@ public interface IDiscordDMChannel
     Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -1947,9 +1947,9 @@ public interface IDiscordAttachment
     NetCord.Attachment Original { get; }
     ulong Id { get; }
     string FileName { get; }
-    string Title { get; }
-    string Description { get; }
-    string ContentType { get; }
+    string? Title { get; }
+    string? Description { get; }
+    string? ContentType { get; }
     int Size { get; }
     string Url { get; }
     string ProxyUrl { get; }
@@ -1995,7 +1995,7 @@ public interface IDiscordMessageActivity
 {
     NetCord.MessageActivity Original { get; }
     NetCord.MessageActivityType Type { get; }
-    string PartyId { get; }
+    string? PartyId { get; }
 }
 
 
@@ -2071,7 +2071,7 @@ public interface IDiscordMessageInteractionMetadata
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get; }
     ulong? OriginalResponseMessageId { get; }
     ulong? InteractedMessageId { get; }
-    IDiscordMessageInteractionMetadata TriggeringInteractionMetadata { get; }
+    IDiscordMessageInteractionMetadata? TriggeringInteractionMetadata { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -2132,7 +2132,7 @@ public interface IDiscordMessagePoll
     System.DateTimeOffset? ExpiresAt { get; }
     bool AllowMultiselect { get; }
     NetCord.MessagePollLayoutType LayoutType { get; }
-    IDiscordMessagePollResults Results { get; }
+    IDiscordMessagePollResults? Results { get; }
 }
 
 
@@ -2147,17 +2147,17 @@ public interface IDiscordMessageCall
 public interface IDiscordReplyMessageProperties  
 {
     NetCord.Rest.ReplyMessageProperties Original { get; }
-    string Content { get; }
-    IDiscordNonceProperties Nonce { get; }
+    string? Content { get; }
+    IDiscordNonceProperties? Nonce { get; }
     bool Tts { get; }
     IEnumerable<IDiscordAttachmentProperties> Attachments { get; }
     IEnumerable<IDiscordEmbedProperties> Embeds { get; }
-    IDiscordAllowedMentionsProperties AllowedMentions { get; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; }
     bool? FailIfNotExists { get; }
     IEnumerable<IDiscordComponentProperties> Components { get; }
-    IEnumerable<ulong> StickerIds { get; }
+    IEnumerable<ulong>? StickerIds { get; }
     NetCord.MessageFlags? Flags { get; }
-    IDiscordMessagePollProperties Poll { get; }
+    IDiscordMessagePollProperties? Poll { get; }
     IDiscordMessageProperties ToMessageProperties(ulong messageReferenceId);
     IDiscordReplyMessageProperties WithContent(string content);
     IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties nonce);
@@ -2225,11 +2225,11 @@ public interface IDiscordAllowedMentionsProperties
 {
     NetCord.Rest.AllowedMentionsProperties Original { get; }
     bool Everyone { get; }
-    IEnumerable<ulong> AllowedRoles { get; }
-    IEnumerable<ulong> AllowedUsers { get; }
+    IEnumerable<ulong>? AllowedRoles { get; }
+    IEnumerable<ulong>? AllowedUsers { get; }
     bool ReplyMention { get; }
-    static IDiscordAllowedMentionsProperties All { get; }
-    static IDiscordAllowedMentionsProperties None { get; }
+    static IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.All);
+    static IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.None);
     IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true);
     IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles);
     IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles);
@@ -2254,8 +2254,8 @@ public interface IDiscordAttachmentProperties
 {
     NetCord.Rest.AttachmentProperties Original { get; }
     string FileName { get; }
-    string Title { get; }
-    string Description { get; }
+    string? Title { get; }
+    string? Description { get; }
     bool SupportsHttpSerialization { get; }
     HttpContent Serialize();
     IDiscordAttachmentProperties WithFileName(string fileName);
@@ -2296,17 +2296,17 @@ public interface IDiscordPermissionOverwrite
 public interface IDiscordGuildChannelOptions  
 {
     NetCord.Rest.GuildChannelOptions Original { get; }
-    string Name { get; }
+    string? Name { get; }
     NetCord.ChannelType? ChannelType { get; }
     int? Position { get; }
-    string Topic { get; }
+    string? Topic { get; }
     bool? Nsfw { get; }
     int? Slowmode { get; }
     int? Bitrate { get; }
     int? UserLimit { get; }
     IEnumerable<IDiscordPermissionOverwriteProperties> PermissionOverwrites { get; }
     ulong? ParentId { get; }
-    string RtcRegion { get; }
+    string? RtcRegion { get; }
     NetCord.VideoQualityMode? VideoQualityMode { get; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
     IEnumerable<IDiscordForumTagProperties> AvailableTags { get; }
@@ -2319,7 +2319,7 @@ public interface IDiscordGuildChannelOptions
     NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; }
     bool? Locked { get; }
     bool? Invitable { get; }
-    IEnumerable<ulong> AppliedTags { get; }
+    IEnumerable<ulong>? AppliedTags { get; }
     IDiscordGuildChannelOptions WithName(string name);
     IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType);
     IDiscordGuildChannelOptions WithPosition(int? position);
@@ -2539,7 +2539,7 @@ public interface IDiscordGuildWelcomeScreenChannel
     ulong Id { get; }
     string Description { get; }
     ulong? EmojiId { get; }
-    string EmojiName { get; }
+    string? EmojiName { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -2572,7 +2572,7 @@ public interface IDiscordAuditLogEntryInfo
 {
     NetCord.AuditLogEntryInfo Original { get; }
     ulong? ApplicationId { get; }
-    string AutoModerationRuleName { get; }
+    string? AutoModerationRuleName { get; }
     NetCord.AutoModerationRuleTriggerType? AutoModerationRuleTriggerType { get; }
     ulong? ChannelId { get; }
     int? Count { get; }
@@ -2580,7 +2580,7 @@ public interface IDiscordAuditLogEntryInfo
     ulong? Id { get; }
     int? GuildUsersRemoved { get; }
     ulong? MessageId { get; }
-    string RoleName { get; }
+    string? RoleName { get; }
     NetCord.PermissionOverwriteType? Type { get; }
     NetCord.IntegrationType? IntegrationType { get; }
 }
@@ -2604,7 +2604,7 @@ public interface IDiscordAutoModerationRuleTriggerMetadata
     NetCord.AutoModerationRuleTriggerMetadata Original { get; }
     IReadOnlyList<string> KeywordFilter { get; }
     IReadOnlyList<string> RegexPatterns { get; }
-    IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType> Presets { get; }
+    IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType>? Presets { get; }
     IReadOnlyList<string> AllowList { get; }
     int? MentionTotalLimit { get; }
     bool MentionRaidProtectionEnabled { get; }
@@ -2615,7 +2615,7 @@ public interface IDiscordAutoModerationAction
 {
     NetCord.AutoModerationAction Original { get; }
     NetCord.AutoModerationActionType Type { get; }
-    IDiscordAutoModerationActionMetadata Metadata { get; }
+    IDiscordAutoModerationActionMetadata? Metadata { get; }
 }
 
 
@@ -2624,7 +2624,7 @@ public interface IDiscordAutoModerationRuleTriggerMetadataProperties
     NetCord.AutoModerationRuleTriggerMetadataProperties Original { get; }
     IEnumerable<string> KeywordFilter { get; }
     IEnumerable<string> RegexPatterns { get; }
-    IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> Presets { get; }
+    IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? Presets { get; }
     IEnumerable<string> AllowList { get; }
     int? MentionTotalLimit { get; }
     bool MentionRaidProtectionEnabled { get; }
@@ -2662,7 +2662,7 @@ public interface IDiscordForumTagProperties
     string Name { get; }
     bool? Moderated { get; }
     ulong? EmojiId { get; }
-    string EmojiName { get; }
+    string? EmojiName { get; }
     IDiscordForumTagProperties WithId(ulong? id);
     IDiscordForumTagProperties WithName(string name);
     IDiscordForumTagProperties WithModerated(bool? moderated = true);
@@ -2697,10 +2697,10 @@ public interface IDiscordIntegrationApplication
     NetCord.IntegrationApplication Original { get; }
     ulong Id { get; }
     string Name { get; }
-    string IconHash { get; }
+    string? IconHash { get; }
     string Description { get; }
     string Summary { get; }
-    IDiscordUser Bot { get; }
+    IDiscordUser? Bot { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -2720,7 +2720,7 @@ public interface IDiscordGuildWelcomeScreenChannelProperties
     NetCord.Rest.GuildWelcomeScreenChannelProperties Original { get; }
     ulong ChannelId { get; }
     string Description { get; }
-    IDiscordEmojiProperties Emoji { get; }
+    IDiscordEmojiProperties? Emoji { get; }
     IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId);
     IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description);
     IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties emoji);
@@ -2775,8 +2775,8 @@ public interface IDiscordGuildTemplatePreview
 {
     NetCord.Rest.GuildTemplatePreview Original { get; }
     string Name { get; }
-    string IconHash { get; }
-    string Description { get; }
+    string? IconHash { get; }
+    string? Description { get; }
     NetCord.VerificationLevel VerificationLevel { get; }
     NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; }
     NetCord.ContentFilter ContentFilter { get; }
@@ -2811,7 +2811,7 @@ public interface IDiscordApplicationCommandOption
     bool Required { get; }
     IReadOnlyList<IDiscordApplicationCommandOptionChoice> Choices { get; }
     IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
-    IReadOnlyList<NetCord.ChannelType> ChannelTypes { get; }
+    IReadOnlyList<NetCord.ChannelType>? ChannelTypes { get; }
     double? MinValue { get; }
     double? MaxValue { get; }
     int? MinLength { get; }
@@ -2835,8 +2835,8 @@ public interface IDiscordApplicationCommand
     IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
     bool DefaultPermission { get; }
     bool Nsfw { get; }
-    IReadOnlyList<NetCord.ApplicationIntegrationType> IntegrationTypes { get; }
-    IReadOnlyList<NetCord.InteractionContextType> Contexts { get; }
+    IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
+    IReadOnlyList<NetCord.InteractionContextType>? Contexts { get; }
     ulong Version { get; }
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -2858,7 +2858,7 @@ public interface IDiscordApplicationCommandOptionProperties
     bool? Required { get; }
     IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> Choices { get; }
     IEnumerable<IDiscordApplicationCommandOptionProperties> Options { get; }
-    IEnumerable<NetCord.ChannelType> ChannelTypes { get; }
+    IEnumerable<NetCord.ChannelType>? ChannelTypes { get; }
     double? MinValue { get; }
     double? MaxValue { get; }
     int? MinLength { get; }
@@ -2951,16 +2951,16 @@ public interface IDiscordEmbedFooter
 {
     NetCord.EmbedFooter Original { get; }
     string Text { get; }
-    string IconUrl { get; }
-    string ProxyIconUrl { get; }
+    string? IconUrl { get; }
+    string? ProxyIconUrl { get; }
 }
 
 
 public interface IDiscordEmbedImage  
 {
     NetCord.EmbedImage Original { get; }
-    string Url { get; }
-    string ProxyUrl { get; }
+    string? Url { get; }
+    string? ProxyUrl { get; }
     int? Height { get; }
     int? Width { get; }
 }
@@ -2969,8 +2969,8 @@ public interface IDiscordEmbedImage
 public interface IDiscordEmbedThumbnail  
 {
     NetCord.EmbedThumbnail Original { get; }
-    string Url { get; }
-    string ProxyUrl { get; }
+    string? Url { get; }
+    string? ProxyUrl { get; }
     int? Height { get; }
     int? Width { get; }
 }
@@ -2979,8 +2979,8 @@ public interface IDiscordEmbedThumbnail
 public interface IDiscordEmbedVideo  
 {
     NetCord.EmbedVideo Original { get; }
-    string Url { get; }
-    string ProxyUrl { get; }
+    string? Url { get; }
+    string? ProxyUrl { get; }
     int? Height { get; }
     int? Width { get; }
 }
@@ -2989,8 +2989,8 @@ public interface IDiscordEmbedVideo
 public interface IDiscordEmbedProvider  
 {
     NetCord.EmbedProvider Original { get; }
-    string Name { get; }
-    string Url { get; }
+    string? Name { get; }
+    string? Url { get; }
 }
 
 
@@ -3025,7 +3025,7 @@ public interface IDiscordMessageReactionEmoji
 {
     NetCord.MessageReactionEmoji Original { get; }
     ulong? Id { get; }
-    string Name { get; }
+    string? Name { get; }
     bool Animated { get; }
 }
 
@@ -3034,12 +3034,12 @@ public interface IDiscordTeam
 {
     NetCord.Team Original { get; }
     ulong Id { get; }
-    string IconHash { get; }
+    string? IconHash { get; }
     IReadOnlyList<IDiscordTeamUser> Users { get; }
     string Name { get; }
     ulong OwnerId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
 }
 
 
@@ -3054,7 +3054,7 @@ public interface IDiscordApplicationInstallParams
 public interface IDiscordApplicationIntegrationTypeConfiguration  
 {
     NetCord.ApplicationIntegrationTypeConfiguration Original { get; }
-    IDiscordApplicationInstallParams OAuth2InstallParams { get; }
+    IDiscordApplicationInstallParams? OAuth2InstallParams { get; }
 }
 
 
@@ -3063,7 +3063,7 @@ public interface IDiscordApplicationEmoji
     NetCord.ApplicationEmoji Original { get; }
     ulong ApplicationId { get; }
     ulong Id { get; }
-    IDiscordUser Creator { get; }
+    IDiscordUser? Creator { get; }
     bool? RequireColons { get; }
     bool? Managed { get; }
     bool? Available { get; }
@@ -3281,7 +3281,7 @@ public interface IDiscordEmoji
 public interface IDiscordParty  
 {
     NetCord.Gateway.Party Original { get; }
-    string Id { get; }
+    string? Id { get; }
     int? CurrentSize { get; }
     int? MaxSize { get; }
 }
@@ -3326,7 +3326,7 @@ public interface IDiscordAutoModerationActionMetadata
     NetCord.AutoModerationActionMetadata Original { get; }
     ulong? ChannelId { get; }
     int? DurationSeconds { get; }
-    string CustomMessage { get; }
+    string? CustomMessage { get; }
 }
 
 
@@ -3358,9 +3358,9 @@ public interface IDiscordGuildOnboardingPromptOption
     ulong Id { get; }
     IReadOnlyList<ulong> ChannelIds { get; }
     IReadOnlyList<ulong> RoleIds { get; }
-    IDiscordEmoji Emoji { get; }
+    IDiscordEmoji? Emoji { get; }
     string Title { get; }
-    string Description { get; }
+    string? Description { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -3396,7 +3396,7 @@ public interface IDiscordApplicationCommandOptionChoice
     NetCord.Rest.ApplicationCommandOptionChoice Original { get; }
     string Name { get; }
     IReadOnlyDictionary<string, string> NameLocalizations { get; }
-    string ValueString { get; }
+    string? ValueString { get; }
     double? ValueNumeric { get; }
     NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType { get; }
 }
@@ -3407,7 +3407,7 @@ public interface IDiscordApplicationCommandOptionChoiceProperties
     NetCord.Rest.ApplicationCommandOptionChoiceProperties Original { get; }
     string Name { get; }
     IReadOnlyDictionary<string, string> NameLocalizations { get; }
-    string StringValue { get; }
+    string? StringValue { get; }
     double? NumericValue { get; }
     NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType { get; }
     IDiscordApplicationCommandOptionChoiceProperties WithName(string name);
@@ -3475,12 +3475,12 @@ public interface IDiscordMessagePollAnswerCount
 public interface IDiscordRestClient  
 {
     NetCord.Rest.RestClient Original { get; }
-    IDiscordToken Token { get; }
+    IDiscordToken? Token { get; }
     Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestAuditLogEntry> GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestAuditLogEntry>? GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3490,7 +3490,7 @@ public interface IDiscordRestClient
     Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3507,7 +3507,7 @@ public interface IDiscordRestClient
     Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3525,10 +3525,10 @@ public interface IDiscordRestClient
     Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordThreadUser> GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordThreadUser>? GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
     Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
     void Dispose();
@@ -3554,7 +3554,7 @@ public interface IDiscordRestClient
     Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUser> GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUser>? GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3562,7 +3562,7 @@ public interface IDiscordRestClient
     Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildBan> GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildBan>? GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3574,7 +3574,7 @@ public interface IDiscordRestClient
     Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<int>? GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3593,7 +3593,7 @@ public interface IDiscordRestClient
     Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildScheduledEventUser>? GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3626,7 +3626,7 @@ public interface IDiscordRestClient
     Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3634,7 +3634,7 @@ public interface IDiscordRestClient
     Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3648,15 +3648,15 @@ public interface IDiscordRestClient
     Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordSubscription> GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordSubscription>? GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUserInfo> SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildUserInfo>? SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestGuild> GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestGuild>? GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3729,7 +3729,7 @@ public interface IDiscordCurrentApplication
     Task<IDiscordCurrentApplication> ModifyAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetRoleConnectionMetadataRecordsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordEntitlement> GetEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ConsumeEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3829,7 +3829,7 @@ public interface IDiscordGroupDMChannelUserAddProperties
 {
     NetCord.Rest.GroupDMChannelUserAddProperties Original { get; }
     string AccessToken { get; }
-    string Nickname { get; }
+    string? Nickname { get; }
     IDiscordGroupDMChannelUserAddProperties WithAccessToken(string accessToken);
     IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname);
 }
@@ -3839,18 +3839,18 @@ public interface IDiscordForumGuildThread
 {
     NetCord.ForumGuildThread Original { get; }
     IDiscordRestMessage Message { get; }
-    IReadOnlyList<ulong> AppliedTags { get; }
+    IReadOnlyList<ulong>? AppliedTags { get; }
     ulong OwnerId { get; }
     int MessageCount { get; }
     int UserCount { get; }
     IDiscordGuildThreadMetadata Metadata { get; }
-    IDiscordThreadCurrentUser CurrentUser { get; }
+    IDiscordThreadCurrentUser? CurrentUser { get; }
     int TotalMessageSent { get; }
     ulong GuildId { get; }
     int? Position { get; }
     IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites { get; }
     string Name { get; }
-    string Topic { get; }
+    string? Topic { get; }
     bool Nsfw { get; }
     int Slowmode { get; }
     ulong? ParentId { get; }
@@ -3869,19 +3869,19 @@ public interface IDiscordForumGuildThread
     Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordThreadUser>? GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3900,7 +3900,7 @@ public interface IDiscordForumGuildThread
     Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -3910,7 +3910,7 @@ public interface IDiscordForumGuildThreadProperties
 {
     NetCord.Rest.ForumGuildThreadProperties Original { get; }
     IDiscordForumGuildThreadMessageProperties Message { get; }
-    IEnumerable<ulong> AppliedTags { get; }
+    IEnumerable<ulong>? AppliedTags { get; }
     string Name { get; }
     NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; }
     int? Slowmode { get; }
@@ -3970,7 +3970,7 @@ public interface IDiscordEntitlementsPaginationProperties
 {
     NetCord.Rest.EntitlementsPaginationProperties Original { get; }
     ulong? UserId { get; }
-    IEnumerable<ulong> SkuIds { get; }
+    IEnumerable<ulong>? SkuIds { get; }
     ulong? GuildId { get; }
     bool? ExcludeEnded { get; }
     ulong? From { get; }
@@ -4010,7 +4010,7 @@ public interface IDiscordSku
     string Slug { get; }
     NetCord.Rest.SkuFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IAsyncEnumerable<IDiscordSubscription> GetSubscriptionsAsync(IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordSubscription>? GetSubscriptionsAsync(IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordSubscription> GetSubscriptionAsync(ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
@@ -4021,7 +4021,7 @@ public interface IDiscordAuthorizationInformation
     IDiscordApplication Application { get; }
     IReadOnlyList<string> Scopes { get; }
     System.DateTimeOffset ExpiresAt { get; }
-    IDiscordUser User { get; }
+    IDiscordUser? User { get; }
 }
 
 
@@ -4075,12 +4075,12 @@ public interface IDiscordSubscription
     ulong UserId { get; }
     IReadOnlyList<ulong> SkuIds { get; }
     IReadOnlyList<ulong> EntitlementIds { get; }
-    IReadOnlyList<ulong> RenewalSkuIds { get; }
+    IReadOnlyList<ulong>? RenewalSkuIds { get; }
     System.DateTimeOffset CurrentPeriodStart { get; }
     System.DateTimeOffset CurrentPeriodEnd { get; }
     NetCord.SubscriptionStatus Status { get; }
     System.DateTimeOffset? CanceledAt { get; }
-    string Country { get; }
+    string? Country { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -4126,7 +4126,7 @@ public interface IDiscordCurrentUser
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordCurrentUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordCurrentUser> ModifyAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestGuild> GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestGuild>? GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordConnection>> GetConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -4169,7 +4169,7 @@ public interface IDiscordGroupDMChannel
 {
     NetCord.GroupDMChannel Original { get; }
     string Name { get; }
-    string IconHash { get; }
+    string? IconHash { get; }
     ulong OwnerId { get; }
     ulong? ApplicationId { get; }
     bool Managed { get; }
@@ -4184,7 +4184,7 @@ public interface IDiscordGroupDMChannel
     Task<IDiscordGroupDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddUserAsync(ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -4203,7 +4203,7 @@ public interface IDiscordGroupDMChannel
     Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -4240,8 +4240,8 @@ public interface IDiscordConnection
 public interface IDiscordApplicationRoleConnection  
 {
     NetCord.Rest.ApplicationRoleConnection Original { get; }
-    string PlatformName { get; }
-    string PlatformUsername { get; }
+    string? PlatformName { get; }
+    string? PlatformUsername { get; }
     IReadOnlyDictionary<string, string> Metadata { get; }
 }
 
@@ -4281,11 +4281,11 @@ public interface IDiscordApplicationIntegrationTypeConfigurationProperties
 public interface IDiscordForumGuildThreadMessageProperties  
 {
     NetCord.Rest.ForumGuildThreadMessageProperties Original { get; }
-    string Content { get; }
+    string? Content { get; }
     IEnumerable<IDiscordEmbedProperties> Embeds { get; }
-    IDiscordAllowedMentionsProperties AllowedMentions { get; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; }
     IEnumerable<IDiscordComponentProperties> Components { get; }
-    IEnumerable<ulong> StickerIds { get; }
+    IEnumerable<ulong>? StickerIds { get; }
     IEnumerable<IDiscordAttachmentProperties> Attachments { get; }
     NetCord.MessageFlags? Flags { get; }
     IDiscordForumGuildThreadMessageProperties WithContent(string content);
@@ -4352,27 +4352,51 @@ public class DiscordInteraction : IDiscordInteraction
     public ulong Id => _original.Id;
     public ulong ApplicationId => _original.ApplicationId;
     public ulong? GuildId => _original.GuildId;
-    public IDiscordInteractionGuildReference GuildReference => new DiscordInteractionGuildReference(_original.GuildReference);
-    public IDiscordGuild Guild => new DiscordGuild(_original.Guild);
+    public IDiscordInteractionGuildReference? GuildReference => _original.GuildReference is null ? null : new DiscordInteractionGuildReference(_original.GuildReference);
+    public IDiscordGuild? Guild => _original.Guild is null ? null : new DiscordGuild(_original.Guild);
     public IDiscordTextChannel Channel => new DiscordTextChannel(_original.Channel);
     public IDiscordUser User => new DiscordUser(_original.User);
     public string Token => _original.Token;
     public NetCord.Permissions AppPermissions => _original.AppPermissions;
     public string UserLocale => _original.UserLocale;
-    public string GuildLocale => _original.GuildLocale;
+    public string? GuildLocale => _original.GuildLocale is null ? null : _original.GuildLocale;
     public IReadOnlyList<IDiscordEntitlement> Entitlements => _original.Entitlements.Select(x => new DiscordEntitlement(x)).ToList();
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
     public NetCord.InteractionContextType Context => _original.Context;
     public IDiscordInteractionData Data => new DiscordInteractionData(_original.Data);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public Task SendResponseAsync(IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.SendResponseAsync(callback.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> GetResponseAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetResponseAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyResponseAsync(Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyResponseAsync(x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteResponseAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteResponseAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> SendFollowupMessageAsync(IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendFollowupMessageAsync(message.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetFollowupMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetFollowupMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyFollowupMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyFollowupMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteFollowupMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteFollowupMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task SendResponseAsync(IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendResponseAsync(callback.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> GetResponseAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetResponseAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyResponseAsync(Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyResponseAsync(x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteResponseAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteResponseAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> SendFollowupMessageAsync(IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendFollowupMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetFollowupMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetFollowupMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyFollowupMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyFollowupMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteFollowupMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteFollowupMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -4414,11 +4438,11 @@ public class DiscordGuild : IDiscordGuild
     public ulong Id => _original.Id;
     public string Name => _original.Name;
     public bool HasIcon => _original.HasIcon;
-    public string IconHash => _original.IconHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
     public bool HasSplash => _original.HasSplash;
-    public string SplashHash => _original.SplashHash;
+    public string? SplashHash => _original.SplashHash is null ? null : _original.SplashHash;
     public bool HasDiscoverySplash => _original.HasDiscoverySplash;
-    public string DiscoverySplashHash => _original.DiscoverySplashHash;
+    public string? DiscoverySplashHash => _original.DiscoverySplashHash is null ? null : _original.DiscoverySplashHash;
     public ulong OwnerId => _original.OwnerId;
     public NetCord.Permissions? Permissions => _original.Permissions;
     public ulong? AfkChannelId => _original.AfkChannelId;
@@ -4438,10 +4462,10 @@ public class DiscordGuild : IDiscordGuild
     public ulong? RulesChannelId => _original.RulesChannelId;
     public int? MaxPresences => _original.MaxPresences;
     public int? MaxUsers => _original.MaxUsers;
-    public string VanityUrlCode => _original.VanityUrlCode;
-    public string Description => _original.Description;
+    public string? VanityUrlCode => _original.VanityUrlCode is null ? null : _original.VanityUrlCode;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public bool HasBanner => _original.HasBanner;
-    public string BannerHash => _original.BannerHash;
+    public string? BannerHash => _original.BannerHash is null ? null : _original.BannerHash;
     public int PremiumTier => _original.PremiumTier;
     public int? PremiumSubscriptionCount => _original.PremiumSubscriptionCount;
     public string PreferredLocale => _original.PreferredLocale;
@@ -4450,20 +4474,45 @@ public class DiscordGuild : IDiscordGuild
     public int? MaxStageVideoChannelUsers => _original.MaxStageVideoChannelUsers;
     public int? ApproximateUserCount => _original.ApproximateUserCount;
     public int? ApproximatePresenceCount => _original.ApproximatePresenceCount;
-    public IDiscordGuildWelcomeScreen WelcomeScreen => new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
+    public IDiscordGuildWelcomeScreen? WelcomeScreen => _original.WelcomeScreen is null ? null : new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
     public NetCord.NsfwLevel NsfwLevel => _original.NsfwLevel;
     public ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers => _original.Stickers.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value));
     public bool PremiumProgressBarEnabled => _original.PremiumProgressBarEnabled;
     public ulong? SafetyAlertsChannelId => _original.SafetyAlertsChannelId;
-    public IDiscordRole EveryoneRole => new DiscordRole(_original.EveryoneRole);
+    public IDiscordRole? EveryoneRole => _original.EveryoneRole is null ? null : new DiscordRole(_original.EveryoneRole);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordGuild With(Action<IDiscordGuild> action) => new DiscordGuild(_original.With(x => action(new DiscordGuild(x))));
-    public int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) => _original.Compare(x.Original, y.Original);
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format));
-    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) => new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
+    public IDiscordGuild With(Action<IDiscordGuild> action) 
+    {
+        return new DiscordGuild(_original.With(x => action(new DiscordGuild(x))));
+    }
+    public int? Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) 
+    {
+        return _original.Compare(x.Original, y.Original);
+    }
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetSplashUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetDiscoverySplashUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetBannerUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) 
+    {
+        return new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
+    }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetAuditLogAsync(paginationProperties.Original, properties.Original))
@@ -4471,25 +4520,82 @@ public class DiscordGuild : IDiscordGuild
             yield return new DiscordRestAuditLogEntry(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetAutoModerationRulesAsync(properties.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
-    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(autoModerationRuleId, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(autoModerationRuleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
-    public async Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.CreateEmojiAsync(guildEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteEmojiAsync(emojiId, properties.Original, cancellationToken);
-    public async Task<IDiscordRestGuild> GetAsync(bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.GetAsync(withCounts, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildPreview> GetPreviewAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildPreview(await _original.GetPreviewAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> ModifyAsync(Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.ModifyAsync(x => action(new DiscordGuildOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetChannelsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetChannelsAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
-    public async Task<IDiscordGuildChannel> CreateChannelAsync(IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildChannel(await _original.CreateChannelAsync(channelProperties.Original, properties.Original, cancellationToken));
-    public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetActiveThreadsAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
-    public async Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetUserAsync(userId, properties.Original, cancellationToken));
+    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetAutoModerationRulesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
+    }
+    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(autoModerationRuleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(autoModerationRuleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
+    }
+    public async Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.CreateEmojiAsync(guildEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestGuild> GetAsync(bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.GetAsync(withCounts, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildPreview> GetPreviewAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildPreview(await _original.GetPreviewAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> ModifyAsync(Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.ModifyAsync(x => action(new DiscordGuildOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetChannelsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
+    }
+    public async Task<IDiscordGuildChannel> CreateChannelAsync(IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildChannel(await _original.CreateChannelAsync(channelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetActiveThreadsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetUserAsync(userId, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
@@ -4497,13 +4603,34 @@ public class DiscordGuild : IDiscordGuild
             yield return new DiscordGuildUser(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.FindUserAsync(name, limit, properties.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
-    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyUserAsync(userId, x => action(new DiscordGuildUserOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentGuildUserOptions(x)), properties.Original, cancellationToken));
-    public Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddUserRoleAsync(userId, roleId, properties.Original, cancellationToken);
-    public Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.RemoveUserRoleAsync(userId, roleId, properties.Original, cancellationToken);
-    public Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.KickUserAsync(userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.FindUserAsync(name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyUserAsync(userId, x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddUserRoleAsync(userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.RemoveUserRoleAsync(userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.KickUserAsync(userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetBansAsync(paginationProperties.Original, properties.Original))
@@ -4511,36 +4638,126 @@ public class DiscordGuild : IDiscordGuild
             yield return new DiscordGuildBan(original);
         }
     }
-    public async Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBan(await _original.GetBanAsync(userId, properties.Original, cancellationToken));
-    public Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.BanUserAsync(userId, deleteMessageSeconds, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBulkBan(await _original.BanUsersAsync(userIds, deleteMessageSeconds, properties.Original, cancellationToken));
-    public Task UnbanUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnbanUserAsync(userId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRole>> GetRolesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetRolesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> GetRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.GetRoleAsync(roleId, properties.Original, cancellationToken));
-    public async Task<IDiscordRole> CreateRoleAsync(IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.CreateRoleAsync(guildRoleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyRoleAsync(roleId, x => action(new DiscordRoleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel, properties.Original, cancellationToken);
-    public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
-    public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PruneAsync(pruneProperties.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetVoiceRegionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetInvitesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IReadOnlyList<IDiscordIntegration>> GetIntegrationsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetIntegrationsAsync(properties.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
-    public Task DeleteIntegrationAsync(ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteIntegrationAsync(integrationId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildWidgetSettings> GetWidgetSettingsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.GetWidgetSettingsAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidgetSettings> ModifyWidgetSettingsAsync(Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.ModifyWidgetSettingsAsync(x => action(new DiscordGuildWidgetSettingsOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidget> GetWidgetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidget(await _original.GetWidgetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildVanityInvite> GetVanityInviteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildVanityInvite(await _original.GetVanityInviteAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> GetWelcomeScreenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.GetWelcomeScreenAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> ModifyWelcomeScreenAsync(Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.ModifyWelcomeScreenAsync(x => action(new DiscordGuildWelcomeScreenOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> GetOnboardingAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.GetOnboardingAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> ModifyOnboardingAsync(Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.ModifyOnboardingAsync(x => action(new DiscordGuildOnboardingOptions(x)), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetScheduledEventsAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetScheduledEventsAsync(withUserCount, properties.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
-    public async Task<IDiscordGuildScheduledEvent> CreateScheduledEventAsync(IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.CreateScheduledEventAsync(guildScheduledEventProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.GetScheduledEventAsync(scheduledEventId, withUserCount, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.ModifyScheduledEventAsync(scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteScheduledEventAsync(scheduledEventId, properties.Original, cancellationToken);
+    public async Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBan(await _original.GetBanAsync(userId, properties?.Original, cancellationToken));
+    }
+    public Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.BanUserAsync(userId, deleteMessageSeconds, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBulkBan(await _original.BanUsersAsync(userIds, deleteMessageSeconds, properties?.Original, cancellationToken));
+    }
+    public Task UnbanUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnbanUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> GetRolesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetRolesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> GetRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.GetRoleAsync(roleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRole> CreateRoleAsync(IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.CreateRoleAsync(guildRoleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.ModifyRoleAsync(roleId, x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteRoleAsync(roleId, properties?.Original, cancellationToken);
+    }
+    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyMfaLevelAsync(mfaLevel, properties?.Original, cancellationToken);
+    }
+    public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
+    }
+    public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PruneAsync(pruneProperties.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetVoiceRegionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetInvitesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IReadOnlyList<IDiscordIntegration>> GetIntegrationsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetIntegrationsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
+    }
+    public Task DeleteIntegrationAsync(ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteIntegrationAsync(integrationId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildWidgetSettings> GetWidgetSettingsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.GetWidgetSettingsAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidgetSettings> ModifyWidgetSettingsAsync(Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.ModifyWidgetSettingsAsync(x => action(new DiscordGuildWidgetSettingsOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidget> GetWidgetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidget(await _original.GetWidgetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildVanityInvite> GetVanityInviteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildVanityInvite(await _original.GetVanityInviteAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> GetWelcomeScreenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.GetWelcomeScreenAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> ModifyWelcomeScreenAsync(Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.ModifyWelcomeScreenAsync(x => action(new DiscordGuildWelcomeScreenOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> GetOnboardingAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.GetOnboardingAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> ModifyOnboardingAsync(Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.ModifyOnboardingAsync(x => action(new DiscordGuildOnboardingOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetScheduledEventsAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetScheduledEventsAsync(withUserCount, properties?.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
+    }
+    public async Task<IDiscordGuildScheduledEvent> CreateScheduledEventAsync(IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.CreateScheduledEventAsync(guildScheduledEventProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.GetScheduledEventAsync(scheduledEventId, withUserCount, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.ModifyScheduledEventAsync(scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteScheduledEventAsync(scheduledEventId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties.Original, properties.Original))
@@ -4548,25 +4765,82 @@ public class DiscordGuild : IDiscordGuild
             yield return new DiscordGuildScheduledEventUser(original);
         }
     }
-    public async Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetTemplatesAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
-    public async Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.CreateTemplateAsync(guildTemplateProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.SyncTemplateAsync(templateCode, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> ModifyTemplateAsync(string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.ModifyTemplateAsync(templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> DeleteTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.DeleteTemplateAsync(templateCode, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationCommandsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IDiscordGuildApplicationCommand> CreateApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.CreateApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> GetApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.GetApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> ModifyApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.ModifyApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationCommandsPermissionsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandPermissionsAsync(applicationId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetStickersAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
-    public async Task<IDiscordGuildSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.GetStickerAsync(stickerId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.CreateStickerAsync(sticker.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.ModifyStickerAsync(stickerId, x => action(new DiscordGuildStickerOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteStickerAsync(stickerId, properties.Original, cancellationToken);
+    public async Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetTemplatesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
+    }
+    public async Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.CreateTemplateAsync(guildTemplateProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.SyncTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> ModifyTemplateAsync(string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.ModifyTemplateAsync(templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> DeleteTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.DeleteTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordGuildApplicationCommand> CreateApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.CreateApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> GetApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.GetApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> ModifyApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.ModifyApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsPermissionsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandPermissionsAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetStickersAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
+    }
+    public async Task<IDiscordGuildSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.GetStickerAsync(stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.CreateStickerAsync(sticker.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.ModifyStickerAsync(stickerId, x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteStickerAsync(stickerId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.SearchUsersAsync(paginationProperties.Original, properties.Original))
@@ -4574,13 +4848,34 @@ public class DiscordGuild : IDiscordGuild
             yield return new DiscordGuildUserInfo(original);
         }
     }
-    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(properties.Original, cancellationToken));
-    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetCurrentUserVoiceStateAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordVoiceState> GetUserVoiceStateAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetUserVoiceStateAsync(userId, properties.Original, cancellationToken));
-    public Task ModifyCurrentUserVoiceStateAsync(Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyCurrentUserVoiceStateAsync(x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public Task ModifyUserVoiceStateAsync(ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyUserVoiceStateAsync(channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetWebhooksAsync(properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(properties?.Original, cancellationToken));
+    }
+    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetCurrentUserVoiceStateAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordVoiceState> GetUserVoiceStateAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetUserVoiceStateAsync(userId, properties?.Original, cancellationToken));
+    }
+    public Task ModifyCurrentUserVoiceStateAsync(Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyCurrentUserVoiceStateAsync(x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public Task ModifyUserVoiceStateAsync(ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyUserVoiceStateAsync(channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetWebhooksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
 }
 
 
@@ -4597,8 +4892,14 @@ public class DiscordTextChannel : IDiscordTextChannel
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordTextChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordTextChannel(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordTextChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordTextChannel(await _original.DeleteAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordTextChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordTextChannel(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordTextChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordTextChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
@@ -4606,30 +4907,81 @@ public class DiscordTextChannel : IDiscordTextChannel
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
@@ -4637,8 +4989,14 @@ public class DiscordTextChannel : IDiscordTextChannel
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -4672,11 +5030,26 @@ public class DiscordUser : IDiscordUser
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
     public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetAvatarUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetAvatarDecorationUrl() => new DiscordImageUrl(_original.GetAvatarDecorationUrl());
-    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordUser(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(properties.Original, cancellationToken));
+    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetAvatarUrl(format));
+    }
+    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetBannerUrl(format));
+    }
+    public IDiscordImageUrl GetAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetAvatarDecorationUrl());
+    }
+    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -4699,8 +5072,14 @@ public class DiscordEntitlement : IDiscordEntitlement
     public ulong? GuildId => _original.GuildId;
     public bool? Consumed => _original.Consumed;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordEntitlement> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.GetAsync(properties.Original, cancellationToken));
-    public Task ConsumeAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ConsumeAsync(properties.Original, cancellationToken);
+    public async Task<IDiscordEntitlement> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public Task ConsumeAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ConsumeAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -4726,7 +5105,10 @@ public class DiscordInteractionCallback : IDiscordInteractionCallback
     public NetCord.Rest.InteractionCallbackType Type => _original.Type;
     public static IDiscordInteractionCallback Pong => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.Pong);
     public static IDiscordInteractionCallback DeferredModifyMessage => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.DeferredModifyMessage);
-    public HttpContent Serialize() => _original.Serialize();
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
 }
 
 
@@ -4741,9 +5123,18 @@ public class DiscordRestRequestProperties : IDiscordRestRequestProperties
     public NetCord.Rest.RestRateLimitHandling? RateLimitHandling => _original.RateLimitHandling;
     public string AuditLogReason => _original.AuditLogReason;
     public string ErrorLocalization => _original.ErrorLocalization;
-    public IDiscordRestRequestProperties WithRateLimitHandling(NetCord.Rest.RestRateLimitHandling? rateLimitHandling) => new DiscordRestRequestProperties(_original.WithRateLimitHandling(rateLimitHandling));
-    public IDiscordRestRequestProperties WithAuditLogReason(string auditLogReason) => new DiscordRestRequestProperties(_original.WithAuditLogReason(auditLogReason));
-    public IDiscordRestRequestProperties WithErrorLocalization(string errorLocalization) => new DiscordRestRequestProperties(_original.WithErrorLocalization(errorLocalization));
+    public IDiscordRestRequestProperties WithRateLimitHandling(NetCord.Rest.RestRateLimitHandling? rateLimitHandling) 
+    {
+        return new DiscordRestRequestProperties(_original.WithRateLimitHandling(rateLimitHandling));
+    }
+    public IDiscordRestRequestProperties WithAuditLogReason(string auditLogReason) 
+    {
+        return new DiscordRestRequestProperties(_original.WithAuditLogReason(auditLogReason));
+    }
+    public IDiscordRestRequestProperties WithErrorLocalization(string errorLocalization) 
+    {
+        return new DiscordRestRequestProperties(_original.WithErrorLocalization(errorLocalization));
+    }
 }
 
 
@@ -4768,49 +5159,91 @@ public class DiscordRestMessage : IDiscordRestMessage
     public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Select(x => new DiscordAttachment(x)).ToList();
     public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Select(x => new DiscordEmbed(x)).ToList();
     public IReadOnlyList<IDiscordMessageReaction> Reactions => _original.Reactions.Select(x => new DiscordMessageReaction(x)).ToList();
-    public string Nonce => _original.Nonce;
+    public string? Nonce => _original.Nonce is null ? null : _original.Nonce;
     public bool IsPinned => _original.IsPinned;
     public ulong? WebhookId => _original.WebhookId;
     public NetCord.MessageType Type => _original.Type;
-    public IDiscordMessageActivity Activity => new DiscordMessageActivity(_original.Activity);
-    public IDiscordApplication Application => new DiscordApplication(_original.Application);
+    public IDiscordMessageActivity? Activity => _original.Activity is null ? null : new DiscordMessageActivity(_original.Activity);
+    public IDiscordApplication? Application => _original.Application is null ? null : new DiscordApplication(_original.Application);
     public ulong? ApplicationId => _original.ApplicationId;
     public NetCord.MessageFlags Flags => _original.Flags;
-    public IDiscordMessageReference MessageReference => new DiscordMessageReference(_original.MessageReference);
+    public IDiscordMessageReference? MessageReference => _original.MessageReference is null ? null : new DiscordMessageReference(_original.MessageReference);
     public IReadOnlyList<IDiscordMessageSnapshot> MessageSnapshots => _original.MessageSnapshots.Select(x => new DiscordMessageSnapshot(x)).ToList();
-    public IDiscordRestMessage ReferencedMessage => new DiscordRestMessage(_original.ReferencedMessage);
-    public IDiscordMessageInteractionMetadata InteractionMetadata => new DiscordMessageInteractionMetadata(_original.InteractionMetadata);
-    public IDiscordMessageInteraction Interaction => new DiscordMessageInteraction(_original.Interaction);
-    public IDiscordGuildThread StartedThread => new DiscordGuildThread(_original.StartedThread);
+    public IDiscordRestMessage? ReferencedMessage => _original.ReferencedMessage is null ? null : new DiscordRestMessage(_original.ReferencedMessage);
+    public IDiscordMessageInteractionMetadata? InteractionMetadata => _original.InteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.InteractionMetadata);
+    public IDiscordMessageInteraction? Interaction => _original.Interaction is null ? null : new DiscordMessageInteraction(_original.Interaction);
+    public IDiscordGuildThread? StartedThread => _original.StartedThread is null ? null : new DiscordGuildThread(_original.StartedThread);
     public IReadOnlyList<IDiscordComponent> Components => _original.Components.Select(x => new DiscordComponent(x)).ToList();
     public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Select(x => new DiscordMessageSticker(x)).ToList();
     public int? Position => _original.Position;
-    public IDiscordRoleSubscriptionData RoleSubscriptionData => new DiscordRoleSubscriptionData(_original.RoleSubscriptionData);
-    public IDiscordInteractionResolvedData ResolvedData => new DiscordInteractionResolvedData(_original.ResolvedData);
-    public IDiscordMessagePoll Poll => new DiscordMessagePoll(_original.Poll);
-    public IDiscordMessageCall Call => new DiscordMessageCall(_original.Call);
+    public IDiscordRoleSubscriptionData? RoleSubscriptionData => _original.RoleSubscriptionData is null ? null : new DiscordRoleSubscriptionData(_original.RoleSubscriptionData);
+    public IDiscordInteractionResolvedData? ResolvedData => _original.ResolvedData is null ? null : new DiscordInteractionResolvedData(_original.ResolvedData);
+    public IDiscordMessagePoll? Poll => _original.Poll is null ? null : new DiscordMessagePoll(_original.Poll);
+    public IDiscordMessageCall? Call => _original.Call is null ? null : new DiscordMessageCall(_original.Call);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordRestMessage> ReplyAsync(IDiscordReplyMessageProperties replyMessage, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ReplyAsync(replyMessage.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendAsync(message.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> CrosspostAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.CrosspostAsync(properties.Original, cancellationToken));
-    public Task AddReactionAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddReactionAsync(emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteReactionAsync(emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteReactionAsync(emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IDiscordRestMessage> ReplyAsync(IDiscordReplyMessageProperties replyMessage, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ReplyAsync(replyMessage.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> CrosspostAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.CrosspostAsync(properties?.Original, cancellationToken));
+    }
+    public Task AddReactionAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddReactionAsync(emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteReactionAsync(emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteReactionAsync(emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetReactionsAsync(IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetReactionsAsync(emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetReactionsAsync(emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllReactionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllReactionsAsync(properties.Original, cancellationToken);
-    public Task DeleteAllReactionsAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllReactionsAsync(emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyAsync(Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyAsync(x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public Task PinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinAsync(properties.Original, cancellationToken);
-    public Task UnpinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadFromMessageProperties.Original, properties.Original, cancellationToken));
+    public Task DeleteAllReactionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllReactionsAsync(properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllReactionsAsync(IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllReactionsAsync(emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyAsync(Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyAsync(x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public Task PinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinAsync(properties?.Original, cancellationToken);
+    }
+    public Task UnpinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadFromMessageProperties.Original, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordUser> GetPollAnswerVotersAsync(int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetPollAnswerVotersAsync(answerId, paginationProperties.Original, properties.Original))
@@ -4818,7 +5251,10 @@ public class DiscordRestMessage : IDiscordRestMessage
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndPollAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndPollAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordRestMessage> EndPollAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndPollAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -4830,25 +5266,64 @@ public class DiscordMessageOptions : IDiscordMessageOptions
         _original = original;
     }
     public NetCord.Rest.MessageOptions Original => _original;
-    public string Content => _original.Content;
+    public string? Content => _original.Content is null ? null : _original.Content;
     public IEnumerable<IDiscordEmbedProperties> Embeds => _original.Embeds.Select(x => new DiscordEmbedProperties(x));
     public NetCord.MessageFlags? Flags => _original.Flags;
-    public IDiscordAllowedMentionsProperties AllowedMentions => new DiscordAllowedMentionsProperties(_original.AllowedMentions);
+    public IDiscordAllowedMentionsProperties? AllowedMentions => _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions);
     public IEnumerable<IDiscordComponentProperties> Components => _original.Components.Select(x => new DiscordComponentProperties(x));
     public IEnumerable<IDiscordAttachmentProperties> Attachments => _original.Attachments.Select(x => new DiscordAttachmentProperties(x));
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordMessageOptions WithContent(string content) => new DiscordMessageOptions(_original.WithContent(content));
-    public IDiscordMessageOptions WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageOptions(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageOptions(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageOptions(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags) => new DiscordMessageOptions(_original.WithFlags(flags));
-    public IDiscordMessageOptions WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordMessageOptions(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageOptions(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordMessageOptions WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageOptions(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageOptions(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageOptions AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageOptions(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordMessageOptions WithContent(string content) 
+    {
+        return new DiscordMessageOptions(_original.WithContent(content));
+    }
+    public IDiscordMessageOptions WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordMessageOptions(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordMessageOptions(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordMessageOptions(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordMessageOptions(_original.WithFlags(flags));
+    }
+    public IDiscordMessageOptions WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordMessageOptions(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordMessageOptions(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessageOptions WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordMessageOptions(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordMessageOptions(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordMessageOptions AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordMessageOptions(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
 }
 
 
@@ -4861,28 +5336,73 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
     }
     public NetCord.Rest.InteractionMessageProperties Original => _original;
     public bool Tts => _original.Tts;
-    public string Content => _original.Content;
+    public string? Content => _original.Content is null ? null : _original.Content;
     public IEnumerable<IDiscordEmbedProperties> Embeds => _original.Embeds.Select(x => new DiscordEmbedProperties(x));
-    public IDiscordAllowedMentionsProperties AllowedMentions => new DiscordAllowedMentionsProperties(_original.AllowedMentions);
+    public IDiscordAllowedMentionsProperties? AllowedMentions => _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions);
     public NetCord.MessageFlags? Flags => _original.Flags;
     public IEnumerable<IDiscordComponentProperties> Components => _original.Components.Select(x => new DiscordComponentProperties(x));
     public IEnumerable<IDiscordAttachmentProperties> Attachments => _original.Attachments.Select(x => new DiscordAttachmentProperties(x));
-    public IDiscordMessagePollProperties Poll => new DiscordMessagePollProperties(_original.Poll);
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordInteractionMessageProperties WithTts(bool tts = true) => new DiscordInteractionMessageProperties(_original.WithTts(tts));
-    public IDiscordInteractionMessageProperties WithContent(string content) => new DiscordInteractionMessageProperties(_original.WithContent(content));
-    public IDiscordInteractionMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordInteractionMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordInteractionMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordInteractionMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordInteractionMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordInteractionMessageProperties(_original.WithFlags(flags));
-    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordInteractionMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordInteractionMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordInteractionMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordInteractionMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordInteractionMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    public IDiscordInteractionMessageProperties WithPoll(IDiscordMessagePollProperties poll) => new DiscordInteractionMessageProperties(_original.WithPoll(poll.Original));
+    public IDiscordMessagePollProperties? Poll => _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll);
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordInteractionMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordInteractionMessageProperties WithContent(string content) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordInteractionMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordInteractionMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordInteractionMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordInteractionMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordInteractionMessageProperties WithPoll(IDiscordMessagePollProperties poll) 
+    {
+        return new DiscordInteractionMessageProperties(_original.WithPoll(poll?.Original));
+    }
 }
 
 
@@ -4897,7 +5417,7 @@ public class DiscordVoiceState : IDiscordVoiceState
     public ulong GuildId => _original.GuildId;
     public ulong? ChannelId => _original.ChannelId;
     public ulong UserId => _original.UserId;
-    public IDiscordGuildUser User => new DiscordGuildUser(_original.User);
+    public IDiscordGuildUser? User => _original.User is null ? null : new DiscordGuildUser(_original.User);
     public string SessionId => _original.SessionId;
     public bool IsDeafened => _original.IsDeafened;
     public bool IsMuted => _original.IsMuted;
@@ -4957,24 +5477,80 @@ public class DiscordGuildUser : IDiscordGuildUser
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
     public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetGuildAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetGuildAvatarUrl(format));
-    public IDiscordImageUrl GetGuildBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetGuildBannerUrl(format));
-    public async Task<IDiscordGuildUser> TimeOutAsync(System.DateTimeOffset until, IDiscordRestRequestProperties? properties = null) => new DiscordGuildUser(await _original.TimeOutAsync(until, properties.Original));
-    public async Task<IDiscordGuildUserInfo> GetInfoAsync(IDiscordRestRequestProperties? properties = null) => new DiscordGuildUserInfo(await _original.GetInfoAsync(properties.Original));
-    public async Task<IDiscordGuildUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyAsync(Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyAsync(x => action(new DiscordGuildUserOptions(x)), properties.Original, cancellationToken));
-    public Task AddRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task RemoveRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.RemoveRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task KickAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.KickAsync(properties.Original, cancellationToken);
-    public Task BanAsync(int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.BanAsync(deleteMessageSeconds, properties.Original, cancellationToken);
-    public Task UnbanAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnbanAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordVoiceState> GetVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetVoiceStateAsync(properties.Original, cancellationToken));
-    public Task ModifyVoiceStateAsync(ulong channelId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyVoiceStateAsync(channelId, x => action(new DiscordVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public IDiscordImageUrl GetGuildAvatarDecorationUrl() => new DiscordImageUrl(_original.GetGuildAvatarDecorationUrl());
-    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetAvatarUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetAvatarDecorationUrl() => new DiscordImageUrl(_original.GetAvatarDecorationUrl());
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(properties.Original, cancellationToken));
+    public IDiscordImageUrl? GetGuildAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetGuildAvatarUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetGuildBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetGuildBannerUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public async Task<IDiscordGuildUser> TimeOutAsync(System.DateTimeOffset until, IDiscordRestRequestProperties? properties = null) 
+    {
+        return new DiscordGuildUser(await _original.TimeOutAsync(until, properties?.Original));
+    }
+    public async Task<IDiscordGuildUserInfo> GetInfoAsync(IDiscordRestRequestProperties? properties = null) 
+    {
+        return new DiscordGuildUserInfo(await _original.GetInfoAsync(properties?.Original));
+    }
+    public async Task<IDiscordGuildUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyAsync(Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyAsync(x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task AddRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddRoleAsync(roleId, properties?.Original, cancellationToken);
+    }
+    public Task RemoveRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.RemoveRoleAsync(roleId, properties?.Original, cancellationToken);
+    }
+    public Task KickAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.KickAsync(properties?.Original, cancellationToken);
+    }
+    public Task BanAsync(int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.BanAsync(deleteMessageSeconds, properties?.Original, cancellationToken);
+    }
+    public Task UnbanAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnbanAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordVoiceState> GetVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetVoiceStateAsync(properties?.Original, cancellationToken));
+    }
+    public Task ModifyVoiceStateAsync(ulong channelId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyVoiceStateAsync(channelId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public IDiscordImageUrl GetGuildAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetGuildAvatarDecorationUrl());
+    }
+    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetAvatarUrl(format));
+    }
+    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetBannerUrl(format));
+    }
+    public IDiscordImageUrl GetAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetAvatarDecorationUrl());
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -4989,11 +5565,26 @@ public class DiscordGuildChannel : IDiscordGuildChannel
     public ulong GuildId => _original.GuildId;
     public int? Position => _original.Position;
     public IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites => _original.PermissionOverwrites.ToDictionary(kv => kv.Key, kv => (IDiscordPermissionOverwrite)new DiscordPermissionOverwrite(kv.Value));
-    public async Task<IDiscordGuildChannel> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildChannel(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties.Original, cancellationToken));
-    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetInvitesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
-    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeletePermissionAsync(overwriteId, properties.Original, cancellationToken);
+    public async Task<IDiscordGuildChannel> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildChannel(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetInvitesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+    }
+    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeletePermissionAsync(overwriteId, properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -5009,13 +5600,13 @@ public class DiscordGuildThread : IDiscordGuildThread
     public int MessageCount => _original.MessageCount;
     public int UserCount => _original.UserCount;
     public IDiscordGuildThreadMetadata Metadata => new DiscordGuildThreadMetadata(_original.Metadata);
-    public IDiscordThreadCurrentUser CurrentUser => new DiscordThreadCurrentUser(_original.CurrentUser);
+    public IDiscordThreadCurrentUser? CurrentUser => _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser);
     public int TotalMessageSent => _original.TotalMessageSent;
     public ulong GuildId => _original.GuildId;
     public int? Position => _original.Position;
     public IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites => _original.PermissionOverwrites.ToDictionary(kv => kv.Key, kv => (IDiscordPermissionOverwrite)new DiscordPermissionOverwrite(kv.Value));
     public string Name => _original.Name;
-    public string Topic => _original.Topic;
+    public string? Topic => _original.Topic is null ? null : _original.Topic;
     public bool Nsfw => _original.Nsfw;
     public int Slowmode => _original.Slowmode;
     public ulong? ParentId => _original.ParentId;
@@ -5026,14 +5617,38 @@ public class DiscordGuildThread : IDiscordGuildThread
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.DeleteAsync(properties.Original, cancellationToken));
-    public Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.JoinAsync(properties.Original, cancellationToken);
-    public Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddUserAsync(userId, properties.Original, cancellationToken);
-    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveAsync(properties.Original, cancellationToken);
-    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteUserAsync(userId, properties.Original, cancellationToken);
-    public async Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordThreadUser(await _original.GetUserAsync(userId, withGuildUser, properties.Original, cancellationToken));
+    public async Task<IDiscordGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
+    public Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.JoinAsync(properties?.Original, cancellationToken);
+    }
+    public Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveAsync(properties?.Original, cancellationToken);
+    }
+    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordThreadUser(await _original.GetUserAsync(userId, withGuildUser, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
@@ -5041,12 +5656,30 @@ public class DiscordGuildThread : IDiscordGuildThread
             yield return new DiscordThreadUser(original);
         }
     }
-    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetInvitesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
-    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeletePermissionAsync(overwriteId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(messageId, threadFromMessageProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadProperties.Original, properties.Original, cancellationToken));
+    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetInvitesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+    }
+    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeletePermissionAsync(overwriteId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(messageId, threadFromMessageProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadProperties.Original, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
@@ -5068,8 +5701,14 @@ public class DiscordGuildThread : IDiscordGuildThread
             yield return new DiscordGuildThread(original);
         }
     }
-    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.CreateWebhookAsync(webhookProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetChannelWebhooksAsync(properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.CreateWebhookAsync(webhookProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelWebhooksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
@@ -5077,30 +5716,81 @@ public class DiscordGuildThread : IDiscordGuildThread
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
@@ -5108,8 +5798,14 @@ public class DiscordGuildThread : IDiscordGuildThread
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -5144,9 +5840,18 @@ public class DiscordStageInstance : IDiscordStageInstance
     public NetCord.StageInstancePrivacyLevel PrivacyLevel => _original.PrivacyLevel;
     public bool DiscoverableDisabled => _original.DiscoverableDisabled;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordStageInstance> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStageInstance(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordStageInstance> ModifyAsync(Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStageInstance(await _original.ModifyAsync(x => action(new DiscordStageInstanceOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public async Task<IDiscordStageInstance> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> ModifyAsync(Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.ModifyAsync(x => action(new DiscordStageInstanceOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -5177,10 +5882,22 @@ public class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent
     public IDiscordGuildScheduledEventRecurrenceRule RecurrenceRule => new DiscordGuildScheduledEventRecurrenceRule(_original.RecurrenceRule);
     public bool HasCoverImage => _original.HasCoverImage;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetCoverImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverImageUrl(format));
-    public async Task<IDiscordGuildScheduledEvent> GetAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.GetAsync(withUserCount, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> ModifyAsync(Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.ModifyAsync(x => action(new DiscordGuildScheduledEventOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public IDiscordImageUrl GetCoverImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetCoverImageUrl(format));
+    }
+    public async Task<IDiscordGuildScheduledEvent> GetAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.GetAsync(withUserCount, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> ModifyAsync(Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.ModifyAsync(x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
@@ -5203,20 +5920,33 @@ public class DiscordRole : IDiscordRole
     public string Name => _original.Name;
     public NetCord.Color Color => _original.Color;
     public bool Hoist => _original.Hoist;
-    public string IconHash => _original.IconHash;
-    public string UnicodeEmoji => _original.UnicodeEmoji;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
+    public string? UnicodeEmoji => _original.UnicodeEmoji is null ? null : _original.UnicodeEmoji;
     public int Position => _original.Position;
     public NetCord.Permissions Permissions => _original.Permissions;
     public bool Managed => _original.Managed;
     public bool Mentionable => _original.Mentionable;
-    public IDiscordRoleTags Tags => new DiscordRoleTags(_original.Tags);
+    public IDiscordRoleTags? Tags => _original.Tags is null ? null : new DiscordRoleTags(_original.Tags);
     public NetCord.RoleFlags Flags => _original.Flags;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public int CompareTo(IDiscordRole other) => _original.CompareTo(other.Original);
-    public async Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyAsync(x => action(new DiscordRoleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public int? CompareTo(IDiscordRole other) 
+    {
+        return _original.CompareTo(other.Original);
+    }
+    public async Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.ModifyAsync(x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -5228,19 +5958,31 @@ public class DiscordGuildEmoji : IDiscordGuildEmoji
         _original = original;
     }
     public NetCord.GuildEmoji Original => _original;
-    public IReadOnlyList<ulong> AllowedRoles => _original.AllowedRoles;
+    public IReadOnlyList<ulong>? AllowedRoles => _original.AllowedRoles is null ? null : _original.AllowedRoles;
     public ulong GuildId => _original.GuildId;
     public ulong Id => _original.Id;
-    public IDiscordUser Creator => new DiscordUser(_original.Creator);
+    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
     public bool? RequireColons => _original.RequireColons;
     public bool? Managed => _original.Managed;
     public bool? Available => _original.Available;
     public string Name => _original.Name;
     public bool Animated => _original.Animated;
-    public async Task<IDiscordGuildEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> ModifyAsync(Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.ModifyAsync(x => action(new DiscordGuildEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
+    public async Task<IDiscordGuildEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> ModifyAsync(Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.ModifyAsync(x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
 }
 
 
@@ -5252,7 +5994,7 @@ public class DiscordGuildWelcomeScreen : IDiscordGuildWelcomeScreen
         _original = original;
     }
     public NetCord.GuildWelcomeScreen Original => _original;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public ImmutableDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels => _original.WelcomeChannels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildWelcomeScreenChannel)new DiscordGuildWelcomeScreenChannel(kv.Value));
 }
 
@@ -5267,17 +6009,29 @@ public class DiscordGuildSticker : IDiscordGuildSticker
     public NetCord.GuildSticker Original => _original;
     public bool? Available => _original.Available;
     public ulong GuildId => _original.GuildId;
-    public IDiscordUser Creator => new DiscordUser(_original.Creator);
+    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
     public ulong Id => _original.Id;
     public string Name => _original.Name;
     public string Description => _original.Description;
     public IReadOnlyList<string> Tags => _original.Tags;
     public NetCord.StickerFormat Format => _original.Format;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordGuildSticker> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> ModifyAsync(Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.ModifyAsync(x => action(new DiscordGuildStickerOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
+    public async Task<IDiscordGuildSticker> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> ModifyAsync(Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.ModifyAsync(x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
 }
 
 
@@ -5327,12 +6081,30 @@ public class DiscordPartialGuildUser : IDiscordPartialGuildUser
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
     public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetGuildAvatarDecorationUrl() => new DiscordImageUrl(_original.GetGuildAvatarDecorationUrl());
-    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetAvatarUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetAvatarDecorationUrl() => new DiscordImageUrl(_original.GetAvatarDecorationUrl());
-    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordUser(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(properties.Original, cancellationToken));
+    public IDiscordImageUrl GetGuildAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetGuildAvatarDecorationUrl());
+    }
+    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetAvatarUrl(format));
+    }
+    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetBannerUrl(format));
+    }
+    public IDiscordImageUrl GetAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetAvatarDecorationUrl());
+    }
+    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -5356,14 +6128,14 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     }
     public NetCord.Rest.RestAuditLogEntry Original => _original;
     public IDiscordRestAuditLogEntryData Data => new DiscordRestAuditLogEntryData(_original.Data);
-    public IDiscordUser User => new DiscordUser(_original.User);
+    public IDiscordUser? User => _original.User is null ? null : new DiscordUser(_original.User);
     public ulong Id => _original.Id;
     public ulong? TargetId => _original.TargetId;
     public IReadOnlyDictionary<string, IDiscordAuditLogChange> Changes => _original.Changes.ToDictionary(kv => kv.Key, kv => (IDiscordAuditLogChange)new DiscordAuditLogChange(kv.Value));
     public ulong? UserId => _original.UserId;
     public NetCord.AuditLogEvent ActionType => _original.ActionType;
-    public IDiscordAuditLogEntryInfo Options => new DiscordAuditLogEntryInfo(_original.Options);
-    public string Reason => _original.Reason;
+    public IDiscordAuditLogEntryInfo? Options => _original.Options is null ? null : new DiscordAuditLogEntryInfo(_original.Options);
+    public string? Reason => _original.Reason is null ? null : _original.Reason;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
     public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
@@ -5372,14 +6144,20 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression) where TObjectParam : NetCord.JsonModels.JsonEntity=> new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression));
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression) where TObjectParam : NetCord.JsonModels.JsonEntity
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression));
+    }
     public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo, out var changeTemp);
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) where TObjectParam : NetCord.JsonModels.JsonEntity=> new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo));
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) where TObjectParam : NetCord.JsonModels.JsonEntity
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo));
+    }
 }
 
 
@@ -5396,11 +6174,26 @@ public class DiscordGuildAuditLogPaginationProperties : IDiscordGuildAuditLogPag
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordGuildAuditLogPaginationProperties WithUserId(ulong? userId) => new DiscordGuildAuditLogPaginationProperties(_original.WithUserId(userId));
-    public IDiscordGuildAuditLogPaginationProperties WithActionType(NetCord.AuditLogEvent? actionType) => new DiscordGuildAuditLogPaginationProperties(_original.WithActionType(actionType));
-    public IDiscordGuildAuditLogPaginationProperties WithFrom(ulong? from) => new DiscordGuildAuditLogPaginationProperties(_original.WithFrom(from));
-    public IDiscordGuildAuditLogPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordGuildAuditLogPaginationProperties(_original.WithDirection(direction));
-    public IDiscordGuildAuditLogPaginationProperties WithBatchSize(int? batchSize) => new DiscordGuildAuditLogPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordGuildAuditLogPaginationProperties WithUserId(ulong? userId) 
+    {
+        return new DiscordGuildAuditLogPaginationProperties(_original.WithUserId(userId));
+    }
+    public IDiscordGuildAuditLogPaginationProperties WithActionType(NetCord.AuditLogEvent? actionType) 
+    {
+        return new DiscordGuildAuditLogPaginationProperties(_original.WithActionType(actionType));
+    }
+    public IDiscordGuildAuditLogPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordGuildAuditLogPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordGuildAuditLogPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordGuildAuditLogPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordGuildAuditLogPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordGuildAuditLogPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -5424,9 +6217,18 @@ public class DiscordAutoModerationRule : IDiscordAutoModerationRule
     public IReadOnlyList<ulong> ExemptRoles => _original.ExemptRoles;
     public IReadOnlyList<ulong> ExemptChannels => _original.ExemptChannels;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordAutoModerationRule> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> ModifyAsync(Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.ModifyAsync(x => action(new DiscordAutoModerationRuleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public async Task<IDiscordAutoModerationRule> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> ModifyAsync(Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.ModifyAsync(x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -5441,25 +6243,67 @@ public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRulePro
     public string Name => _original.Name;
     public NetCord.AutoModerationRuleEventType EventType => _original.EventType;
     public NetCord.AutoModerationRuleTriggerType TriggerType => _original.TriggerType;
-    public IDiscordAutoModerationRuleTriggerMetadataProperties TriggerMetadata => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.TriggerMetadata);
+    public IDiscordAutoModerationRuleTriggerMetadataProperties? TriggerMetadata => _original.TriggerMetadata is null ? null : new DiscordAutoModerationRuleTriggerMetadataProperties(_original.TriggerMetadata);
     public IEnumerable<IDiscordAutoModerationActionProperties> Actions => _original.Actions.Select(x => new DiscordAutoModerationActionProperties(x));
     public bool Enabled => _original.Enabled;
-    public IEnumerable<ulong> ExemptRoles => _original.ExemptRoles;
-    public IEnumerable<ulong> ExemptChannels => _original.ExemptChannels;
-    public IDiscordAutoModerationRuleProperties WithName(string name) => new DiscordAutoModerationRuleProperties(_original.WithName(name));
-    public IDiscordAutoModerationRuleProperties WithEventType(NetCord.AutoModerationRuleEventType eventType) => new DiscordAutoModerationRuleProperties(_original.WithEventType(eventType));
-    public IDiscordAutoModerationRuleProperties WithTriggerType(NetCord.AutoModerationRuleTriggerType triggerType) => new DiscordAutoModerationRuleProperties(_original.WithTriggerType(triggerType));
-    public IDiscordAutoModerationRuleProperties WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) => new DiscordAutoModerationRuleProperties(_original.WithTriggerMetadata(triggerMetadata.Original));
-    public IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.WithActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original).ToArray()));
-    public IDiscordAutoModerationRuleProperties WithEnabled(bool enabled = true) => new DiscordAutoModerationRuleProperties(_original.WithEnabled(enabled));
-    public IDiscordAutoModerationRuleProperties WithExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleProperties(_original.WithExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleProperties AddExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleProperties AddExemptRoles(ulong[] exemptRoles) => new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleProperties WithExemptChannels(IEnumerable<ulong> exemptChannels) => new DiscordAutoModerationRuleProperties(_original.WithExemptChannels(exemptChannels));
-    public IDiscordAutoModerationRuleProperties AddExemptChannels(IEnumerable<ulong> exemptChannels) => new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
-    public IDiscordAutoModerationRuleProperties AddExemptChannels(ulong[] exemptChannels) => new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
+    public IEnumerable<ulong>? ExemptRoles => _original.ExemptRoles is null ? null : _original.ExemptRoles;
+    public IEnumerable<ulong>? ExemptChannels => _original.ExemptChannels is null ? null : _original.ExemptChannels;
+    public IDiscordAutoModerationRuleProperties WithName(string name) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithName(name));
+    }
+    public IDiscordAutoModerationRuleProperties WithEventType(NetCord.AutoModerationRuleEventType eventType) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithEventType(eventType));
+    }
+    public IDiscordAutoModerationRuleProperties WithTriggerType(NetCord.AutoModerationRuleTriggerType triggerType) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithTriggerType(triggerType));
+    }
+    public IDiscordAutoModerationRuleProperties WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithTriggerMetadata(triggerMetadata?.Original));
+    }
+    public IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithActions(actions?.Select(x => x.Original)));
+    }
+    public IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddActions(actions?.Select(x => x.Original)));
+    }
+    public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordAutoModerationRuleProperties WithEnabled(bool enabled = true) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithEnabled(enabled));
+    }
+    public IDiscordAutoModerationRuleProperties WithExemptRoles(IEnumerable<ulong> exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleProperties AddExemptRoles(IEnumerable<ulong> exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleProperties AddExemptRoles(ulong[] exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleProperties WithExemptChannels(IEnumerable<ulong> exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.WithExemptChannels(exemptChannels));
+    }
+    public IDiscordAutoModerationRuleProperties AddExemptChannels(IEnumerable<ulong> exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
+    }
+    public IDiscordAutoModerationRuleProperties AddExemptChannels(ulong[] exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
+    }
 }
 
 
@@ -5478,19 +6322,58 @@ public class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOption
     public bool? Enabled => _original.Enabled;
     public IEnumerable<ulong> ExemptRoles => _original.ExemptRoles;
     public IEnumerable<ulong> ExemptChannels => _original.ExemptChannels;
-    public IDiscordAutoModerationRuleOptions WithName(string name) => new DiscordAutoModerationRuleOptions(_original.WithName(name));
-    public IDiscordAutoModerationRuleOptions WithEventType(NetCord.AutoModerationRuleEventType? eventType) => new DiscordAutoModerationRuleOptions(_original.WithEventType(eventType));
-    public IDiscordAutoModerationRuleOptions WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) => new DiscordAutoModerationRuleOptions(_original.WithTriggerMetadata(triggerMetadata.Original));
-    public IDiscordAutoModerationRuleOptions WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleOptions(_original.WithActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleOptions AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) => new DiscordAutoModerationRuleOptions(_original.AddActions(actions?.Select(x => x.Original)));
-    public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) => new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original).ToArray()));
-    public IDiscordAutoModerationRuleOptions WithEnabled(bool? enabled = true) => new DiscordAutoModerationRuleOptions(_original.WithEnabled(enabled));
-    public IDiscordAutoModerationRuleOptions WithExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleOptions(_original.WithExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleOptions AddExemptRoles(IEnumerable<ulong> exemptRoles) => new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleOptions AddExemptRoles(ulong[] exemptRoles) => new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
-    public IDiscordAutoModerationRuleOptions WithExemptChannels(IEnumerable<ulong> exemptChannels) => new DiscordAutoModerationRuleOptions(_original.WithExemptChannels(exemptChannels));
-    public IDiscordAutoModerationRuleOptions AddExemptChannels(IEnumerable<ulong> exemptChannels) => new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
-    public IDiscordAutoModerationRuleOptions AddExemptChannels(ulong[] exemptChannels) => new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
+    public IDiscordAutoModerationRuleOptions WithName(string name) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithName(name));
+    }
+    public IDiscordAutoModerationRuleOptions WithEventType(NetCord.AutoModerationRuleEventType? eventType) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithEventType(eventType));
+    }
+    public IDiscordAutoModerationRuleOptions WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties triggerMetadata) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithTriggerMetadata(triggerMetadata?.Original));
+    }
+    public IDiscordAutoModerationRuleOptions WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithActions(actions?.Select(x => x.Original)));
+    }
+    public IDiscordAutoModerationRuleOptions AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddActions(actions?.Select(x => x.Original)));
+    }
+    public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordAutoModerationRuleOptions WithEnabled(bool? enabled = true) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithEnabled(enabled));
+    }
+    public IDiscordAutoModerationRuleOptions WithExemptRoles(IEnumerable<ulong> exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleOptions AddExemptRoles(IEnumerable<ulong> exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleOptions AddExemptRoles(ulong[] exemptRoles) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
+    }
+    public IDiscordAutoModerationRuleOptions WithExemptChannels(IEnumerable<ulong> exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.WithExemptChannels(exemptChannels));
+    }
+    public IDiscordAutoModerationRuleOptions AddExemptChannels(IEnumerable<ulong> exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
+    }
+    public IDiscordAutoModerationRuleOptions AddExemptChannels(ulong[] exemptChannels) 
+    {
+        return new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
+    }
 }
 
 
@@ -5504,12 +6387,27 @@ public class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties
     public NetCord.Rest.GuildEmojiProperties Original => _original;
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties Image => _original.Image;
-    public IEnumerable<ulong> AllowedRoles => _original.AllowedRoles;
-    public IDiscordGuildEmojiProperties WithName(string name) => new DiscordGuildEmojiProperties(_original.WithName(name));
-    public IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordGuildEmojiProperties(_original.WithImage(image));
-    public IDiscordGuildEmojiProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiProperties(_original.WithAllowedRoles(allowedRoles));
-    public IDiscordGuildEmojiProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
-    public IDiscordGuildEmojiProperties AddAllowedRoles(ulong[] allowedRoles) => new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
+    public IEnumerable<ulong>? AllowedRoles => _original.AllowedRoles is null ? null : _original.AllowedRoles;
+    public IDiscordGuildEmojiProperties WithName(string name) 
+    {
+        return new DiscordGuildEmojiProperties(_original.WithName(name));
+    }
+    public IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image) 
+    {
+        return new DiscordGuildEmojiProperties(_original.WithImage(image));
+    }
+    public IDiscordGuildEmojiProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordGuildEmojiProperties(_original.WithAllowedRoles(allowedRoles));
+    }
+    public IDiscordGuildEmojiProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordGuildEmojiProperties AddAllowedRoles(ulong[] allowedRoles) 
+    {
+        return new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
+    }
 }
 
 
@@ -5523,10 +6421,22 @@ public class DiscordGuildEmojiOptions : IDiscordGuildEmojiOptions
     public NetCord.Rest.GuildEmojiOptions Original => _original;
     public string Name => _original.Name;
     public IEnumerable<ulong> AllowedRoles => _original.AllowedRoles;
-    public IDiscordGuildEmojiOptions WithName(string name) => new DiscordGuildEmojiOptions(_original.WithName(name));
-    public IDiscordGuildEmojiOptions WithAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiOptions(_original.WithAllowedRoles(allowedRoles));
-    public IDiscordGuildEmojiOptions AddAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
-    public IDiscordGuildEmojiOptions AddAllowedRoles(ulong[] allowedRoles) => new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
+    public IDiscordGuildEmojiOptions WithName(string name) 
+    {
+        return new DiscordGuildEmojiOptions(_original.WithName(name));
+    }
+    public IDiscordGuildEmojiOptions WithAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordGuildEmojiOptions(_original.WithAllowedRoles(allowedRoles));
+    }
+    public IDiscordGuildEmojiOptions AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordGuildEmojiOptions AddAllowedRoles(ulong[] allowedRoles) 
+    {
+        return new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
+    }
 }
 
 
@@ -5541,11 +6451,11 @@ public class DiscordRestGuild : IDiscordRestGuild
     public ulong Id => _original.Id;
     public string Name => _original.Name;
     public bool HasIcon => _original.HasIcon;
-    public string IconHash => _original.IconHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
     public bool HasSplash => _original.HasSplash;
-    public string SplashHash => _original.SplashHash;
+    public string? SplashHash => _original.SplashHash is null ? null : _original.SplashHash;
     public bool HasDiscoverySplash => _original.HasDiscoverySplash;
-    public string DiscoverySplashHash => _original.DiscoverySplashHash;
+    public string? DiscoverySplashHash => _original.DiscoverySplashHash is null ? null : _original.DiscoverySplashHash;
     public bool IsOwner => _original.IsOwner;
     public ulong OwnerId => _original.OwnerId;
     public NetCord.Permissions? Permissions => _original.Permissions;
@@ -5566,10 +6476,10 @@ public class DiscordRestGuild : IDiscordRestGuild
     public ulong? RulesChannelId => _original.RulesChannelId;
     public int? MaxPresences => _original.MaxPresences;
     public int? MaxUsers => _original.MaxUsers;
-    public string VanityUrlCode => _original.VanityUrlCode;
-    public string Description => _original.Description;
+    public string? VanityUrlCode => _original.VanityUrlCode is null ? null : _original.VanityUrlCode;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public bool HasBanner => _original.HasBanner;
-    public string BannerHash => _original.BannerHash;
+    public string? BannerHash => _original.BannerHash is null ? null : _original.BannerHash;
     public int PremiumTier => _original.PremiumTier;
     public int? PremiumSubscriptionCount => _original.PremiumSubscriptionCount;
     public string PreferredLocale => _original.PreferredLocale;
@@ -5578,19 +6488,41 @@ public class DiscordRestGuild : IDiscordRestGuild
     public int? MaxStageVideoChannelUsers => _original.MaxStageVideoChannelUsers;
     public int? ApproximateUserCount => _original.ApproximateUserCount;
     public int? ApproximatePresenceCount => _original.ApproximatePresenceCount;
-    public IDiscordGuildWelcomeScreen WelcomeScreen => new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
+    public IDiscordGuildWelcomeScreen? WelcomeScreen => _original.WelcomeScreen is null ? null : new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
     public NetCord.NsfwLevel NsfwLevel => _original.NsfwLevel;
     public ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers => _original.Stickers.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value));
     public bool PremiumProgressBarEnabled => _original.PremiumProgressBarEnabled;
     public ulong? SafetyAlertsChannelId => _original.SafetyAlertsChannelId;
-    public IDiscordRole EveryoneRole => new DiscordRole(_original.EveryoneRole);
+    public IDiscordRole? EveryoneRole => _original.EveryoneRole is null ? null : new DiscordRole(_original.EveryoneRole);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) => _original.Compare(x.Original, y.Original);
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetSplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetSplashUrl(format));
-    public IDiscordImageUrl GetDiscoverySplashUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetDiscoverySplashUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) => new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
+    public int? Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) 
+    {
+        return _original.Compare(x.Original, y.Original);
+    }
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetSplashUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetDiscoverySplashUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetBannerUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) 
+    {
+        return new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
+    }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetAuditLogAsync(paginationProperties.Original, properties.Original))
@@ -5598,25 +6530,82 @@ public class DiscordRestGuild : IDiscordRestGuild
             yield return new DiscordRestAuditLogEntry(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetAutoModerationRulesAsync(properties.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
-    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(autoModerationRuleId, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(autoModerationRuleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
-    public async Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.CreateEmojiAsync(guildEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteEmojiAsync(emojiId, properties.Original, cancellationToken);
-    public async Task<IDiscordRestGuild> GetAsync(bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.GetAsync(withCounts, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildPreview> GetPreviewAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildPreview(await _original.GetPreviewAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> ModifyAsync(Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.ModifyAsync(x => action(new DiscordGuildOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetChannelsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetChannelsAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
-    public async Task<IDiscordGuildChannel> CreateChannelAsync(IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildChannel(await _original.CreateChannelAsync(channelProperties.Original, properties.Original, cancellationToken));
-    public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetActiveThreadsAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
-    public async Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetUserAsync(userId, properties.Original, cancellationToken));
+    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetAutoModerationRulesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
+    }
+    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(autoModerationRuleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(autoModerationRuleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
+    }
+    public async Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.CreateEmojiAsync(guildEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestGuild> GetAsync(bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.GetAsync(withCounts, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildPreview> GetPreviewAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildPreview(await _original.GetPreviewAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> ModifyAsync(Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.ModifyAsync(x => action(new DiscordGuildOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetChannelsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
+    }
+    public async Task<IDiscordGuildChannel> CreateChannelAsync(IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildChannel(await _original.CreateChannelAsync(channelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetActiveThreadsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetUserAsync(userId, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
@@ -5624,13 +6613,34 @@ public class DiscordRestGuild : IDiscordRestGuild
             yield return new DiscordGuildUser(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.FindUserAsync(name, limit, properties.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
-    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyUserAsync(userId, x => action(new DiscordGuildUserOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentGuildUserOptions(x)), properties.Original, cancellationToken));
-    public Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddUserRoleAsync(userId, roleId, properties.Original, cancellationToken);
-    public Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.RemoveUserRoleAsync(userId, roleId, properties.Original, cancellationToken);
-    public Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.KickUserAsync(userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.FindUserAsync(name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyUserAsync(userId, x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddUserRoleAsync(userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task RemoveUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.RemoveUserRoleAsync(userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task KickUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.KickUserAsync(userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetBansAsync(paginationProperties.Original, properties.Original))
@@ -5638,36 +6648,126 @@ public class DiscordRestGuild : IDiscordRestGuild
             yield return new DiscordGuildBan(original);
         }
     }
-    public async Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBan(await _original.GetBanAsync(userId, properties.Original, cancellationToken));
-    public Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.BanUserAsync(userId, deleteMessageSeconds, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBulkBan(await _original.BanUsersAsync(userIds, deleteMessageSeconds, properties.Original, cancellationToken));
-    public Task UnbanUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnbanUserAsync(userId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRole>> GetRolesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetRolesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> GetRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.GetRoleAsync(roleId, properties.Original, cancellationToken));
-    public async Task<IDiscordRole> CreateRoleAsync(IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.CreateRoleAsync(guildRoleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyRoleAsync(roleId, x => action(new DiscordRoleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteRoleAsync(roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyMfaLevelAsync(mfaLevel, properties.Original, cancellationToken);
-    public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
-    public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PruneAsync(pruneProperties.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetVoiceRegionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetInvitesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IReadOnlyList<IDiscordIntegration>> GetIntegrationsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetIntegrationsAsync(properties.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
-    public Task DeleteIntegrationAsync(ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteIntegrationAsync(integrationId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildWidgetSettings> GetWidgetSettingsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.GetWidgetSettingsAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidgetSettings> ModifyWidgetSettingsAsync(Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.ModifyWidgetSettingsAsync(x => action(new DiscordGuildWidgetSettingsOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidget> GetWidgetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidget(await _original.GetWidgetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildVanityInvite> GetVanityInviteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildVanityInvite(await _original.GetVanityInviteAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> GetWelcomeScreenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.GetWelcomeScreenAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> ModifyWelcomeScreenAsync(Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.ModifyWelcomeScreenAsync(x => action(new DiscordGuildWelcomeScreenOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> GetOnboardingAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.GetOnboardingAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> ModifyOnboardingAsync(Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.ModifyOnboardingAsync(x => action(new DiscordGuildOnboardingOptions(x)), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetScheduledEventsAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetScheduledEventsAsync(withUserCount, properties.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
-    public async Task<IDiscordGuildScheduledEvent> CreateScheduledEventAsync(IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.CreateScheduledEventAsync(guildScheduledEventProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.GetScheduledEventAsync(scheduledEventId, withUserCount, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.ModifyScheduledEventAsync(scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteScheduledEventAsync(scheduledEventId, properties.Original, cancellationToken);
+    public async Task<IDiscordGuildBan> GetBanAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBan(await _original.GetBanAsync(userId, properties?.Original, cancellationToken));
+    }
+    public Task BanUserAsync(ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.BanUserAsync(userId, deleteMessageSeconds, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildBulkBan> BanUsersAsync(IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBulkBan(await _original.BanUsersAsync(userIds, deleteMessageSeconds, properties?.Original, cancellationToken));
+    }
+    public Task UnbanUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnbanUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> GetRolesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetRolesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> GetRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.GetRoleAsync(roleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRole> CreateRoleAsync(IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.CreateRoleAsync(guildRoleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.ModifyRoleAsync(roleId, x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteRoleAsync(ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteRoleAsync(roleId, properties?.Original, cancellationToken);
+    }
+    public Task<NetCord.MfaLevel> ModifyMfaLevelAsync(NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyMfaLevelAsync(mfaLevel, properties?.Original, cancellationToken);
+    }
+    public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
+    }
+    public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PruneAsync(pruneProperties.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetVoiceRegionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetInvitesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IReadOnlyList<IDiscordIntegration>> GetIntegrationsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetIntegrationsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
+    }
+    public Task DeleteIntegrationAsync(ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteIntegrationAsync(integrationId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildWidgetSettings> GetWidgetSettingsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.GetWidgetSettingsAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidgetSettings> ModifyWidgetSettingsAsync(Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.ModifyWidgetSettingsAsync(x => action(new DiscordGuildWidgetSettingsOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidget> GetWidgetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidget(await _original.GetWidgetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildVanityInvite> GetVanityInviteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildVanityInvite(await _original.GetVanityInviteAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> GetWelcomeScreenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.GetWelcomeScreenAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> ModifyWelcomeScreenAsync(Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.ModifyWelcomeScreenAsync(x => action(new DiscordGuildWelcomeScreenOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> GetOnboardingAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.GetOnboardingAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> ModifyOnboardingAsync(Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.ModifyOnboardingAsync(x => action(new DiscordGuildOnboardingOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetScheduledEventsAsync(bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetScheduledEventsAsync(withUserCount, properties?.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
+    }
+    public async Task<IDiscordGuildScheduledEvent> CreateScheduledEventAsync(IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.CreateScheduledEventAsync(guildScheduledEventProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> GetScheduledEventAsync(ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.GetScheduledEventAsync(scheduledEventId, withUserCount, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> ModifyScheduledEventAsync(ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.ModifyScheduledEventAsync(scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteScheduledEventAsync(ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteScheduledEventAsync(scheduledEventId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties.Original, properties.Original))
@@ -5675,25 +6775,82 @@ public class DiscordRestGuild : IDiscordRestGuild
             yield return new DiscordGuildScheduledEventUser(original);
         }
     }
-    public async Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetTemplatesAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
-    public async Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.CreateTemplateAsync(guildTemplateProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.SyncTemplateAsync(templateCode, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> ModifyTemplateAsync(string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.ModifyTemplateAsync(templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> DeleteTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.DeleteTemplateAsync(templateCode, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationCommandsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IDiscordGuildApplicationCommand> CreateApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.CreateApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> GetApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.GetApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> ModifyApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.ModifyApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationCommandsPermissionsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandPermissionsAsync(applicationId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetStickersAsync(properties.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
-    public async Task<IDiscordGuildSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.GetStickerAsync(stickerId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.CreateStickerAsync(sticker.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.ModifyStickerAsync(stickerId, x => action(new DiscordGuildStickerOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteStickerAsync(stickerId, properties.Original, cancellationToken);
+    public async Task<IEnumerable<IDiscordGuildTemplate>> GetTemplatesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetTemplatesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
+    }
+    public async Task<IDiscordGuildTemplate> CreateTemplateAsync(IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.CreateTemplateAsync(guildTemplateProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> SyncTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.SyncTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> ModifyTemplateAsync(string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.ModifyTemplateAsync(templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> DeleteTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.DeleteTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordGuildApplicationCommand> CreateApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.CreateApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> GetApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.GetApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> ModifyApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.ModifyApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsPermissionsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandPermissionsAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetStickersAsync(properties?.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
+    }
+    public async Task<IDiscordGuildSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.GetStickerAsync(stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> CreateStickerAsync(IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.CreateStickerAsync(sticker.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> ModifyStickerAsync(ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.ModifyStickerAsync(stickerId, x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteStickerAsync(stickerId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.SearchUsersAsync(paginationProperties.Original, properties.Original))
@@ -5701,13 +6858,34 @@ public class DiscordRestGuild : IDiscordRestGuild
             yield return new DiscordGuildUserInfo(original);
         }
     }
-    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(properties.Original, cancellationToken));
-    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetCurrentUserVoiceStateAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordVoiceState> GetUserVoiceStateAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetUserVoiceStateAsync(userId, properties.Original, cancellationToken));
-    public Task ModifyCurrentUserVoiceStateAsync(Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyCurrentUserVoiceStateAsync(x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public Task ModifyUserVoiceStateAsync(ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyUserVoiceStateAsync(channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetWebhooksAsync(properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(properties?.Original, cancellationToken));
+    }
+    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordVoiceState> GetCurrentUserVoiceStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetCurrentUserVoiceStateAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordVoiceState> GetUserVoiceStateAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetUserVoiceStateAsync(userId, properties?.Original, cancellationToken));
+    }
+    public Task ModifyCurrentUserVoiceStateAsync(Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyCurrentUserVoiceStateAsync(x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public Task ModifyUserVoiceStateAsync(ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyUserVoiceStateAsync(channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetWebhooksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
 }
 
 
@@ -5721,14 +6899,14 @@ public class DiscordGuildPreview : IDiscordGuildPreview
     public NetCord.Rest.GuildPreview Original => _original;
     public ulong Id => _original.Id;
     public string Name => _original.Name;
-    public string IconHash => _original.IconHash;
-    public string SplashHash => _original.SplashHash;
-    public string DiscoverySplashHash => _original.DiscoverySplashHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
+    public string? SplashHash => _original.SplashHash is null ? null : _original.SplashHash;
+    public string? DiscoverySplashHash => _original.DiscoverySplashHash is null ? null : _original.DiscoverySplashHash;
     public ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis => _original.Emojis.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value));
     public IReadOnlyList<string> Features => _original.Features;
     public int ApproximateUserCount => _original.ApproximateUserCount;
     public int ApproximatePresenceCount => _original.ApproximatePresenceCount;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -5741,7 +6919,7 @@ public class DiscordGuildOptions : IDiscordGuildOptions
         _original = original;
     }
     public NetCord.Rest.GuildOptions Original => _original;
-    public string Name => _original.Name;
+    public string? Name => _original.Name is null ? null : _original.Name;
     public NetCord.VerificationLevel? VerificationLevel => _original.VerificationLevel;
     public NetCord.DefaultMessageNotificationLevel? DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
     public NetCord.ContentFilter? ContentFilter => _original.ContentFilter;
@@ -5756,33 +6934,99 @@ public class DiscordGuildOptions : IDiscordGuildOptions
     public NetCord.Rest.SystemChannelFlags? SystemChannelFlags => _original.SystemChannelFlags;
     public ulong? RulesChannelId => _original.RulesChannelId;
     public ulong? PublicUpdatesChannelId => _original.PublicUpdatesChannelId;
-    public string PreferredLocale => _original.PreferredLocale;
+    public string? PreferredLocale => _original.PreferredLocale is null ? null : _original.PreferredLocale;
     public IEnumerable<string> Features => _original.Features;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public bool? PremiumProgressBarEnabled => _original.PremiumProgressBarEnabled;
     public ulong? SafetyAlertsChannelId => _original.SafetyAlertsChannelId;
-    public IDiscordGuildOptions WithName(string name) => new DiscordGuildOptions(_original.WithName(name));
-    public IDiscordGuildOptions WithVerificationLevel(NetCord.VerificationLevel? verificationLevel) => new DiscordGuildOptions(_original.WithVerificationLevel(verificationLevel));
-    public IDiscordGuildOptions WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel) => new DiscordGuildOptions(_original.WithDefaultMessageNotificationLevel(defaultMessageNotificationLevel));
-    public IDiscordGuildOptions WithContentFilter(NetCord.ContentFilter? contentFilter) => new DiscordGuildOptions(_original.WithContentFilter(contentFilter));
-    public IDiscordGuildOptions WithAfkChannelId(ulong? afkChannelId) => new DiscordGuildOptions(_original.WithAfkChannelId(afkChannelId));
-    public IDiscordGuildOptions WithAfkTimeout(int? afkTimeout) => new DiscordGuildOptions(_original.WithAfkTimeout(afkTimeout));
-    public IDiscordGuildOptions WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordGuildOptions(_original.WithIcon(icon));
-    public IDiscordGuildOptions WithOwnerId(ulong? ownerId) => new DiscordGuildOptions(_original.WithOwnerId(ownerId));
-    public IDiscordGuildOptions WithSplash(NetCord.Rest.ImageProperties? splash) => new DiscordGuildOptions(_original.WithSplash(splash));
-    public IDiscordGuildOptions WithDiscoverySplash(NetCord.Rest.ImageProperties? discoverySplash) => new DiscordGuildOptions(_original.WithDiscoverySplash(discoverySplash));
-    public IDiscordGuildOptions WithBanner(NetCord.Rest.ImageProperties? banner) => new DiscordGuildOptions(_original.WithBanner(banner));
-    public IDiscordGuildOptions WithSystemChannelId(ulong? systemChannelId) => new DiscordGuildOptions(_original.WithSystemChannelId(systemChannelId));
-    public IDiscordGuildOptions WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags) => new DiscordGuildOptions(_original.WithSystemChannelFlags(systemChannelFlags));
-    public IDiscordGuildOptions WithRulesChannelId(ulong? rulesChannelId) => new DiscordGuildOptions(_original.WithRulesChannelId(rulesChannelId));
-    public IDiscordGuildOptions WithPublicUpdatesChannelId(ulong? publicUpdatesChannelId) => new DiscordGuildOptions(_original.WithPublicUpdatesChannelId(publicUpdatesChannelId));
-    public IDiscordGuildOptions WithPreferredLocale(string preferredLocale) => new DiscordGuildOptions(_original.WithPreferredLocale(preferredLocale));
-    public IDiscordGuildOptions WithFeatures(IEnumerable<string> features) => new DiscordGuildOptions(_original.WithFeatures(features));
-    public IDiscordGuildOptions AddFeatures(IEnumerable<string> features) => new DiscordGuildOptions(_original.AddFeatures(features));
-    public IDiscordGuildOptions AddFeatures(string[] features) => new DiscordGuildOptions(_original.AddFeatures(features));
-    public IDiscordGuildOptions WithDescription(string description) => new DiscordGuildOptions(_original.WithDescription(description));
-    public IDiscordGuildOptions WithPremiumProgressBarEnabled(bool? premiumProgressBarEnabled = true) => new DiscordGuildOptions(_original.WithPremiumProgressBarEnabled(premiumProgressBarEnabled));
-    public IDiscordGuildOptions WithSafetyAlertsChannelId(ulong? safetyAlertsChannelId) => new DiscordGuildOptions(_original.WithSafetyAlertsChannelId(safetyAlertsChannelId));
+    public IDiscordGuildOptions WithName(string name) 
+    {
+        return new DiscordGuildOptions(_original.WithName(name));
+    }
+    public IDiscordGuildOptions WithVerificationLevel(NetCord.VerificationLevel? verificationLevel) 
+    {
+        return new DiscordGuildOptions(_original.WithVerificationLevel(verificationLevel));
+    }
+    public IDiscordGuildOptions WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel) 
+    {
+        return new DiscordGuildOptions(_original.WithDefaultMessageNotificationLevel(defaultMessageNotificationLevel));
+    }
+    public IDiscordGuildOptions WithContentFilter(NetCord.ContentFilter? contentFilter) 
+    {
+        return new DiscordGuildOptions(_original.WithContentFilter(contentFilter));
+    }
+    public IDiscordGuildOptions WithAfkChannelId(ulong? afkChannelId) 
+    {
+        return new DiscordGuildOptions(_original.WithAfkChannelId(afkChannelId));
+    }
+    public IDiscordGuildOptions WithAfkTimeout(int? afkTimeout) 
+    {
+        return new DiscordGuildOptions(_original.WithAfkTimeout(afkTimeout));
+    }
+    public IDiscordGuildOptions WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordGuildOptions(_original.WithIcon(icon));
+    }
+    public IDiscordGuildOptions WithOwnerId(ulong? ownerId) 
+    {
+        return new DiscordGuildOptions(_original.WithOwnerId(ownerId));
+    }
+    public IDiscordGuildOptions WithSplash(NetCord.Rest.ImageProperties? splash) 
+    {
+        return new DiscordGuildOptions(_original.WithSplash(splash));
+    }
+    public IDiscordGuildOptions WithDiscoverySplash(NetCord.Rest.ImageProperties? discoverySplash) 
+    {
+        return new DiscordGuildOptions(_original.WithDiscoverySplash(discoverySplash));
+    }
+    public IDiscordGuildOptions WithBanner(NetCord.Rest.ImageProperties? banner) 
+    {
+        return new DiscordGuildOptions(_original.WithBanner(banner));
+    }
+    public IDiscordGuildOptions WithSystemChannelId(ulong? systemChannelId) 
+    {
+        return new DiscordGuildOptions(_original.WithSystemChannelId(systemChannelId));
+    }
+    public IDiscordGuildOptions WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags) 
+    {
+        return new DiscordGuildOptions(_original.WithSystemChannelFlags(systemChannelFlags));
+    }
+    public IDiscordGuildOptions WithRulesChannelId(ulong? rulesChannelId) 
+    {
+        return new DiscordGuildOptions(_original.WithRulesChannelId(rulesChannelId));
+    }
+    public IDiscordGuildOptions WithPublicUpdatesChannelId(ulong? publicUpdatesChannelId) 
+    {
+        return new DiscordGuildOptions(_original.WithPublicUpdatesChannelId(publicUpdatesChannelId));
+    }
+    public IDiscordGuildOptions WithPreferredLocale(string preferredLocale) 
+    {
+        return new DiscordGuildOptions(_original.WithPreferredLocale(preferredLocale));
+    }
+    public IDiscordGuildOptions WithFeatures(IEnumerable<string> features) 
+    {
+        return new DiscordGuildOptions(_original.WithFeatures(features));
+    }
+    public IDiscordGuildOptions AddFeatures(IEnumerable<string> features) 
+    {
+        return new DiscordGuildOptions(_original.AddFeatures(features));
+    }
+    public IDiscordGuildOptions AddFeatures(string[] features) 
+    {
+        return new DiscordGuildOptions(_original.AddFeatures(features));
+    }
+    public IDiscordGuildOptions WithDescription(string description) 
+    {
+        return new DiscordGuildOptions(_original.WithDescription(description));
+    }
+    public IDiscordGuildOptions WithPremiumProgressBarEnabled(bool? premiumProgressBarEnabled = true) 
+    {
+        return new DiscordGuildOptions(_original.WithPremiumProgressBarEnabled(premiumProgressBarEnabled));
+    }
+    public IDiscordGuildOptions WithSafetyAlertsChannelId(ulong? safetyAlertsChannelId) 
+    {
+        return new DiscordGuildOptions(_original.WithSafetyAlertsChannelId(safetyAlertsChannelId));
+    }
 }
 
 
@@ -5796,7 +7040,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public NetCord.Rest.GuildChannelProperties Original => _original;
     public string Name => _original.Name;
     public NetCord.ChannelType Type => _original.Type;
-    public string Topic => _original.Topic;
+    public string? Topic => _original.Topic is null ? null : _original.Topic;
     public int? Bitrate => _original.Bitrate;
     public int? UserLimit => _original.UserLimit;
     public int? Slowmode => _original.Slowmode;
@@ -5804,7 +7048,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public IEnumerable<IDiscordPermissionOverwriteProperties> PermissionOverwrites => _original.PermissionOverwrites.Select(x => new DiscordPermissionOverwriteProperties(x));
     public ulong? ParentId => _original.ParentId;
     public bool? Nsfw => _original.Nsfw;
-    public string RtcRegion => _original.RtcRegion;
+    public string? RtcRegion => _original.RtcRegion is null ? null : _original.RtcRegion;
     public NetCord.VideoQualityMode? VideoQualityMode => _original.VideoQualityMode;
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration => _original.DefaultAutoArchiveDuration;
     public NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji => _original.DefaultReactionEmoji;
@@ -5812,28 +7056,94 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     public NetCord.SortOrderType? DefaultSortOrder => _original.DefaultSortOrder;
     public NetCord.ForumLayoutType? DefaultForumLayout => _original.DefaultForumLayout;
     public int? DefaultThreadSlowmode => _original.DefaultThreadSlowmode;
-    public IDiscordGuildChannelProperties WithName(string name) => new DiscordGuildChannelProperties(_original.WithName(name));
-    public IDiscordGuildChannelProperties WithType(NetCord.ChannelType type) => new DiscordGuildChannelProperties(_original.WithType(type));
-    public IDiscordGuildChannelProperties WithTopic(string topic) => new DiscordGuildChannelProperties(_original.WithTopic(topic));
-    public IDiscordGuildChannelProperties WithBitrate(int? bitrate) => new DiscordGuildChannelProperties(_original.WithBitrate(bitrate));
-    public IDiscordGuildChannelProperties WithUserLimit(int? userLimit) => new DiscordGuildChannelProperties(_original.WithUserLimit(userLimit));
-    public IDiscordGuildChannelProperties WithSlowmode(int? slowmode) => new DiscordGuildChannelProperties(_original.WithSlowmode(slowmode));
-    public IDiscordGuildChannelProperties WithPosition(int? position) => new DiscordGuildChannelProperties(_original.WithPosition(position));
-    public IDiscordGuildChannelProperties WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelProperties(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
-    public IDiscordGuildChannelProperties WithParentId(ulong? parentId) => new DiscordGuildChannelProperties(_original.WithParentId(parentId));
-    public IDiscordGuildChannelProperties WithNsfw(bool? nsfw = true) => new DiscordGuildChannelProperties(_original.WithNsfw(nsfw));
-    public IDiscordGuildChannelProperties WithRtcRegion(string rtcRegion) => new DiscordGuildChannelProperties(_original.WithRtcRegion(rtcRegion));
-    public IDiscordGuildChannelProperties WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) => new DiscordGuildChannelProperties(_original.WithVideoQualityMode(videoQualityMode));
-    public IDiscordGuildChannelProperties WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) => new DiscordGuildChannelProperties(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
-    public IDiscordGuildChannelProperties WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) => new DiscordGuildChannelProperties(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
-    public IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelProperties(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
-    public IDiscordGuildChannelProperties WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) => new DiscordGuildChannelProperties(_original.WithDefaultSortOrder(defaultSortOrder));
-    public IDiscordGuildChannelProperties WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) => new DiscordGuildChannelProperties(_original.WithDefaultForumLayout(defaultForumLayout));
-    public IDiscordGuildChannelProperties WithDefaultThreadSlowmode(int? defaultThreadSlowmode) => new DiscordGuildChannelProperties(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
+    public IDiscordGuildChannelProperties WithName(string name) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithName(name));
+    }
+    public IDiscordGuildChannelProperties WithType(NetCord.ChannelType type) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithType(type));
+    }
+    public IDiscordGuildChannelProperties WithTopic(string topic) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithTopic(topic));
+    }
+    public IDiscordGuildChannelProperties WithBitrate(int? bitrate) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithBitrate(bitrate));
+    }
+    public IDiscordGuildChannelProperties WithUserLimit(int? userLimit) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithUserLimit(userLimit));
+    }
+    public IDiscordGuildChannelProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithSlowmode(slowmode));
+    }
+    public IDiscordGuildChannelProperties WithPosition(int? position) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithPosition(position));
+    }
+    public IDiscordGuildChannelProperties WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelProperties AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
+    {
+        return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
+    {
+        return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelProperties WithParentId(ulong? parentId) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithParentId(parentId));
+    }
+    public IDiscordGuildChannelProperties WithNsfw(bool? nsfw = true) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithNsfw(nsfw));
+    }
+    public IDiscordGuildChannelProperties WithRtcRegion(string rtcRegion) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithRtcRegion(rtcRegion));
+    }
+    public IDiscordGuildChannelProperties WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithVideoQualityMode(videoQualityMode));
+    }
+    public IDiscordGuildChannelProperties WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
+    }
+    public IDiscordGuildChannelProperties WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
+    }
+    public IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
+    {
+        return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
+    {
+        return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelProperties WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithDefaultSortOrder(defaultSortOrder));
+    }
+    public IDiscordGuildChannelProperties WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithDefaultForumLayout(defaultForumLayout));
+    }
+    public IDiscordGuildChannelProperties WithDefaultThreadSlowmode(int? defaultThreadSlowmode) 
+    {
+        return new DiscordGuildChannelProperties(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
+    }
 }
 
 
@@ -5849,10 +7159,22 @@ public class DiscordGuildChannelPositionProperties : IDiscordGuildChannelPositio
     public int? Position => _original.Position;
     public bool? LockPermissions => _original.LockPermissions;
     public ulong? ParentId => _original.ParentId;
-    public IDiscordGuildChannelPositionProperties WithId(ulong id) => new DiscordGuildChannelPositionProperties(_original.WithId(id));
-    public IDiscordGuildChannelPositionProperties WithPosition(int? position) => new DiscordGuildChannelPositionProperties(_original.WithPosition(position));
-    public IDiscordGuildChannelPositionProperties WithLockPermissions(bool? lockPermissions = true) => new DiscordGuildChannelPositionProperties(_original.WithLockPermissions(lockPermissions));
-    public IDiscordGuildChannelPositionProperties WithParentId(ulong? parentId) => new DiscordGuildChannelPositionProperties(_original.WithParentId(parentId));
+    public IDiscordGuildChannelPositionProperties WithId(ulong id) 
+    {
+        return new DiscordGuildChannelPositionProperties(_original.WithId(id));
+    }
+    public IDiscordGuildChannelPositionProperties WithPosition(int? position) 
+    {
+        return new DiscordGuildChannelPositionProperties(_original.WithPosition(position));
+    }
+    public IDiscordGuildChannelPositionProperties WithLockPermissions(bool? lockPermissions = true) 
+    {
+        return new DiscordGuildChannelPositionProperties(_original.WithLockPermissions(lockPermissions));
+    }
+    public IDiscordGuildChannelPositionProperties WithParentId(ulong? parentId) 
+    {
+        return new DiscordGuildChannelPositionProperties(_original.WithParentId(parentId));
+    }
 }
 
 
@@ -5867,9 +7189,18 @@ public class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> wh
     public T? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordPaginationProperties<T> WithFrom(T? from) => new DiscordPaginationProperties<T>(_original.WithFrom(from));
-    public IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordPaginationProperties<T>(_original.WithDirection(direction));
-    public IDiscordPaginationProperties<T> WithBatchSize(int? batchSize) => new DiscordPaginationProperties<T>(_original.WithBatchSize(batchSize));
+    public IDiscordPaginationProperties<T> WithFrom(T? from) 
+    {
+        return new DiscordPaginationProperties<T>(_original.WithFrom(from));
+    }
+    public IDiscordPaginationProperties<T> WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordPaginationProperties<T>(_original.WithDirection(direction));
+    }
+    public IDiscordPaginationProperties<T> WithBatchSize(int? batchSize) 
+    {
+        return new DiscordPaginationProperties<T>(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -5882,17 +7213,38 @@ public class DiscordGuildUserProperties : IDiscordGuildUserProperties
     }
     public NetCord.Rest.GuildUserProperties Original => _original;
     public string AccessToken => _original.AccessToken;
-    public string Nickname => _original.Nickname;
-    public IEnumerable<ulong> RolesIds => _original.RolesIds;
+    public string? Nickname => _original.Nickname is null ? null : _original.Nickname;
+    public IEnumerable<ulong>? RolesIds => _original.RolesIds is null ? null : _original.RolesIds;
     public bool? Muted => _original.Muted;
     public bool? Deafened => _original.Deafened;
-    public IDiscordGuildUserProperties WithAccessToken(string accessToken) => new DiscordGuildUserProperties(_original.WithAccessToken(accessToken));
-    public IDiscordGuildUserProperties WithNickname(string nickname) => new DiscordGuildUserProperties(_original.WithNickname(nickname));
-    public IDiscordGuildUserProperties WithRolesIds(IEnumerable<ulong> rolesIds) => new DiscordGuildUserProperties(_original.WithRolesIds(rolesIds));
-    public IDiscordGuildUserProperties AddRolesIds(IEnumerable<ulong> rolesIds) => new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
-    public IDiscordGuildUserProperties AddRolesIds(ulong[] rolesIds) => new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
-    public IDiscordGuildUserProperties WithMuted(bool? muted = true) => new DiscordGuildUserProperties(_original.WithMuted(muted));
-    public IDiscordGuildUserProperties WithDeafened(bool? deafened = true) => new DiscordGuildUserProperties(_original.WithDeafened(deafened));
+    public IDiscordGuildUserProperties WithAccessToken(string accessToken) 
+    {
+        return new DiscordGuildUserProperties(_original.WithAccessToken(accessToken));
+    }
+    public IDiscordGuildUserProperties WithNickname(string nickname) 
+    {
+        return new DiscordGuildUserProperties(_original.WithNickname(nickname));
+    }
+    public IDiscordGuildUserProperties WithRolesIds(IEnumerable<ulong> rolesIds) 
+    {
+        return new DiscordGuildUserProperties(_original.WithRolesIds(rolesIds));
+    }
+    public IDiscordGuildUserProperties AddRolesIds(IEnumerable<ulong> rolesIds) 
+    {
+        return new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
+    }
+    public IDiscordGuildUserProperties AddRolesIds(ulong[] rolesIds) 
+    {
+        return new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
+    }
+    public IDiscordGuildUserProperties WithMuted(bool? muted = true) 
+    {
+        return new DiscordGuildUserProperties(_original.WithMuted(muted));
+    }
+    public IDiscordGuildUserProperties WithDeafened(bool? deafened = true) 
+    {
+        return new DiscordGuildUserProperties(_original.WithDeafened(deafened));
+    }
 }
 
 
@@ -5904,22 +7256,49 @@ public class DiscordGuildUserOptions : IDiscordGuildUserOptions
         _original = original;
     }
     public NetCord.Rest.GuildUserOptions Original => _original;
-    public IEnumerable<ulong> RoleIds => _original.RoleIds;
+    public IEnumerable<ulong>? RoleIds => _original.RoleIds is null ? null : _original.RoleIds;
     public bool? Muted => _original.Muted;
     public bool? Deafened => _original.Deafened;
     public ulong? ChannelId => _original.ChannelId;
     public System.DateTimeOffset? TimeOutUntil => _original.TimeOutUntil;
     public NetCord.GuildUserFlags? GuildFlags => _original.GuildFlags;
     public string Nickname => _original.Nickname;
-    public IDiscordGuildUserOptions WithRoleIds(IEnumerable<ulong> roleIds) => new DiscordGuildUserOptions(_original.WithRoleIds(roleIds));
-    public IDiscordGuildUserOptions AddRoleIds(IEnumerable<ulong> roleIds) => new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
-    public IDiscordGuildUserOptions AddRoleIds(ulong[] roleIds) => new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
-    public IDiscordGuildUserOptions WithMuted(bool? muted = true) => new DiscordGuildUserOptions(_original.WithMuted(muted));
-    public IDiscordGuildUserOptions WithDeafened(bool? deafened = true) => new DiscordGuildUserOptions(_original.WithDeafened(deafened));
-    public IDiscordGuildUserOptions WithChannelId(ulong? channelId) => new DiscordGuildUserOptions(_original.WithChannelId(channelId));
-    public IDiscordGuildUserOptions WithTimeOutUntil(System.DateTimeOffset? timeOutUntil) => new DiscordGuildUserOptions(_original.WithTimeOutUntil(timeOutUntil));
-    public IDiscordGuildUserOptions WithGuildFlags(NetCord.GuildUserFlags? guildFlags) => new DiscordGuildUserOptions(_original.WithGuildFlags(guildFlags));
-    public IDiscordGuildUserOptions WithNickname(string nickname) => new DiscordGuildUserOptions(_original.WithNickname(nickname));
+    public IDiscordGuildUserOptions WithRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordGuildUserOptions(_original.WithRoleIds(roleIds));
+    }
+    public IDiscordGuildUserOptions AddRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildUserOptions AddRoleIds(ulong[] roleIds) 
+    {
+        return new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildUserOptions WithMuted(bool? muted = true) 
+    {
+        return new DiscordGuildUserOptions(_original.WithMuted(muted));
+    }
+    public IDiscordGuildUserOptions WithDeafened(bool? deafened = true) 
+    {
+        return new DiscordGuildUserOptions(_original.WithDeafened(deafened));
+    }
+    public IDiscordGuildUserOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordGuildUserOptions(_original.WithChannelId(channelId));
+    }
+    public IDiscordGuildUserOptions WithTimeOutUntil(System.DateTimeOffset? timeOutUntil) 
+    {
+        return new DiscordGuildUserOptions(_original.WithTimeOutUntil(timeOutUntil));
+    }
+    public IDiscordGuildUserOptions WithGuildFlags(NetCord.GuildUserFlags? guildFlags) 
+    {
+        return new DiscordGuildUserOptions(_original.WithGuildFlags(guildFlags));
+    }
+    public IDiscordGuildUserOptions WithNickname(string nickname) 
+    {
+        return new DiscordGuildUserOptions(_original.WithNickname(nickname));
+    }
 }
 
 
@@ -5932,7 +7311,10 @@ public class DiscordCurrentGuildUserOptions : IDiscordCurrentGuildUserOptions
     }
     public NetCord.Rest.CurrentGuildUserOptions Original => _original;
     public string Nickname => _original.Nickname;
-    public IDiscordCurrentGuildUserOptions WithNickname(string nickname) => new DiscordCurrentGuildUserOptions(_original.WithNickname(nickname));
+    public IDiscordCurrentGuildUserOptions WithNickname(string nickname) 
+    {
+        return new DiscordCurrentGuildUserOptions(_original.WithNickname(nickname));
+    }
 }
 
 
@@ -5944,10 +7326,13 @@ public class DiscordGuildBan : IDiscordGuildBan
         _original = original;
     }
     public NetCord.Rest.GuildBan Original => _original;
-    public string Reason => _original.Reason;
+    public string? Reason => _original.Reason is null ? null : _original.Reason;
     public IDiscordUser User => new DiscordUser(_original.User);
     public ulong GuildId => _original.GuildId;
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -5979,13 +7364,34 @@ public class DiscordRoleProperties : IDiscordRoleProperties
     public NetCord.Rest.ImageProperties? Icon => _original.Icon;
     public string UnicodeIcon => _original.UnicodeIcon;
     public bool? Mentionable => _original.Mentionable;
-    public IDiscordRoleProperties WithName(string name) => new DiscordRoleProperties(_original.WithName(name));
-    public IDiscordRoleProperties WithPermissions(NetCord.Permissions? permissions) => new DiscordRoleProperties(_original.WithPermissions(permissions));
-    public IDiscordRoleProperties WithColor(NetCord.Color? color) => new DiscordRoleProperties(_original.WithColor(color));
-    public IDiscordRoleProperties WithHoist(bool? hoist = true) => new DiscordRoleProperties(_original.WithHoist(hoist));
-    public IDiscordRoleProperties WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordRoleProperties(_original.WithIcon(icon));
-    public IDiscordRoleProperties WithUnicodeIcon(string unicodeIcon) => new DiscordRoleProperties(_original.WithUnicodeIcon(unicodeIcon));
-    public IDiscordRoleProperties WithMentionable(bool? mentionable = true) => new DiscordRoleProperties(_original.WithMentionable(mentionable));
+    public IDiscordRoleProperties WithName(string name) 
+    {
+        return new DiscordRoleProperties(_original.WithName(name));
+    }
+    public IDiscordRoleProperties WithPermissions(NetCord.Permissions? permissions) 
+    {
+        return new DiscordRoleProperties(_original.WithPermissions(permissions));
+    }
+    public IDiscordRoleProperties WithColor(NetCord.Color? color) 
+    {
+        return new DiscordRoleProperties(_original.WithColor(color));
+    }
+    public IDiscordRoleProperties WithHoist(bool? hoist = true) 
+    {
+        return new DiscordRoleProperties(_original.WithHoist(hoist));
+    }
+    public IDiscordRoleProperties WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordRoleProperties(_original.WithIcon(icon));
+    }
+    public IDiscordRoleProperties WithUnicodeIcon(string unicodeIcon) 
+    {
+        return new DiscordRoleProperties(_original.WithUnicodeIcon(unicodeIcon));
+    }
+    public IDiscordRoleProperties WithMentionable(bool? mentionable = true) 
+    {
+        return new DiscordRoleProperties(_original.WithMentionable(mentionable));
+    }
 }
 
 
@@ -5999,8 +7405,14 @@ public class DiscordRolePositionProperties : IDiscordRolePositionProperties
     public NetCord.Rest.RolePositionProperties Original => _original;
     public ulong Id => _original.Id;
     public int? Position => _original.Position;
-    public IDiscordRolePositionProperties WithId(ulong id) => new DiscordRolePositionProperties(_original.WithId(id));
-    public IDiscordRolePositionProperties WithPosition(int? position) => new DiscordRolePositionProperties(_original.WithPosition(position));
+    public IDiscordRolePositionProperties WithId(ulong id) 
+    {
+        return new DiscordRolePositionProperties(_original.WithId(id));
+    }
+    public IDiscordRolePositionProperties WithPosition(int? position) 
+    {
+        return new DiscordRolePositionProperties(_original.WithPosition(position));
+    }
 }
 
 
@@ -6019,13 +7431,34 @@ public class DiscordRoleOptions : IDiscordRoleOptions
     public NetCord.Rest.ImageProperties? Icon => _original.Icon;
     public string UnicodeIcon => _original.UnicodeIcon;
     public bool? Mentionable => _original.Mentionable;
-    public IDiscordRoleOptions WithName(string name) => new DiscordRoleOptions(_original.WithName(name));
-    public IDiscordRoleOptions WithPermissions(NetCord.Permissions? permissions) => new DiscordRoleOptions(_original.WithPermissions(permissions));
-    public IDiscordRoleOptions WithColor(NetCord.Color? color) => new DiscordRoleOptions(_original.WithColor(color));
-    public IDiscordRoleOptions WithHoist(bool? hoist = true) => new DiscordRoleOptions(_original.WithHoist(hoist));
-    public IDiscordRoleOptions WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordRoleOptions(_original.WithIcon(icon));
-    public IDiscordRoleOptions WithUnicodeIcon(string unicodeIcon) => new DiscordRoleOptions(_original.WithUnicodeIcon(unicodeIcon));
-    public IDiscordRoleOptions WithMentionable(bool? mentionable = true) => new DiscordRoleOptions(_original.WithMentionable(mentionable));
+    public IDiscordRoleOptions WithName(string name) 
+    {
+        return new DiscordRoleOptions(_original.WithName(name));
+    }
+    public IDiscordRoleOptions WithPermissions(NetCord.Permissions? permissions) 
+    {
+        return new DiscordRoleOptions(_original.WithPermissions(permissions));
+    }
+    public IDiscordRoleOptions WithColor(NetCord.Color? color) 
+    {
+        return new DiscordRoleOptions(_original.WithColor(color));
+    }
+    public IDiscordRoleOptions WithHoist(bool? hoist = true) 
+    {
+        return new DiscordRoleOptions(_original.WithHoist(hoist));
+    }
+    public IDiscordRoleOptions WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordRoleOptions(_original.WithIcon(icon));
+    }
+    public IDiscordRoleOptions WithUnicodeIcon(string unicodeIcon) 
+    {
+        return new DiscordRoleOptions(_original.WithUnicodeIcon(unicodeIcon));
+    }
+    public IDiscordRoleOptions WithMentionable(bool? mentionable = true) 
+    {
+        return new DiscordRoleOptions(_original.WithMentionable(mentionable));
+    }
 }
 
 
@@ -6039,12 +7472,27 @@ public class DiscordGuildPruneProperties : IDiscordGuildPruneProperties
     public NetCord.Rest.GuildPruneProperties Original => _original;
     public int Days => _original.Days;
     public bool ComputePruneCount => _original.ComputePruneCount;
-    public IEnumerable<ulong> Roles => _original.Roles;
-    public IDiscordGuildPruneProperties WithDays(int days) => new DiscordGuildPruneProperties(_original.WithDays(days));
-    public IDiscordGuildPruneProperties WithComputePruneCount(bool computePruneCount = true) => new DiscordGuildPruneProperties(_original.WithComputePruneCount(computePruneCount));
-    public IDiscordGuildPruneProperties WithRoles(IEnumerable<ulong> roles) => new DiscordGuildPruneProperties(_original.WithRoles(roles));
-    public IDiscordGuildPruneProperties AddRoles(IEnumerable<ulong> roles) => new DiscordGuildPruneProperties(_original.AddRoles(roles));
-    public IDiscordGuildPruneProperties AddRoles(ulong[] roles) => new DiscordGuildPruneProperties(_original.AddRoles(roles));
+    public IEnumerable<ulong>? Roles => _original.Roles is null ? null : _original.Roles;
+    public IDiscordGuildPruneProperties WithDays(int days) 
+    {
+        return new DiscordGuildPruneProperties(_original.WithDays(days));
+    }
+    public IDiscordGuildPruneProperties WithComputePruneCount(bool computePruneCount = true) 
+    {
+        return new DiscordGuildPruneProperties(_original.WithComputePruneCount(computePruneCount));
+    }
+    public IDiscordGuildPruneProperties WithRoles(IEnumerable<ulong> roles) 
+    {
+        return new DiscordGuildPruneProperties(_original.WithRoles(roles));
+    }
+    public IDiscordGuildPruneProperties AddRoles(IEnumerable<ulong> roles) 
+    {
+        return new DiscordGuildPruneProperties(_original.AddRoles(roles));
+    }
+    public IDiscordGuildPruneProperties AddRoles(ulong[] roles) 
+    {
+        return new DiscordGuildPruneProperties(_original.AddRoles(roles));
+    }
 }
 
 
@@ -6090,8 +7538,14 @@ public class DiscordRestInvite : IDiscordRestInvite
     public int? MaxAge => _original.MaxAge;
     public bool? Temporary => _original.Temporary;
     public System.DateTimeOffset? CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordRestInvite> GetGuildAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.GetGuildAsync(withCounts, withExpiration, guildScheduledEventId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestInvite> DeleteGuildAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.DeleteGuildAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordRestInvite> GetGuildAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.GetGuildAsync(withCounts, withExpiration, guildScheduledEventId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestInvite> DeleteGuildAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.DeleteGuildAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -6112,12 +7566,12 @@ public class DiscordIntegration : IDiscordIntegration
     public bool? EnableEmoticons => _original.EnableEmoticons;
     public NetCord.IntegrationExpireBehavior? ExpireBehavior => _original.ExpireBehavior;
     public int? ExpireGracePeriod => _original.ExpireGracePeriod;
-    public IDiscordUser User => new DiscordUser(_original.User);
+    public IDiscordUser? User => _original.User is null ? null : new DiscordUser(_original.User);
     public IDiscordAccount Account => new DiscordAccount(_original.Account);
     public System.DateTimeOffset? SyncedAt => _original.SyncedAt;
     public int? SubscriberCount => _original.SubscriberCount;
     public bool? Revoked => _original.Revoked;
-    public IDiscordIntegrationApplication Application => new DiscordIntegrationApplication(_original.Application);
+    public IDiscordIntegrationApplication? Application => _original.Application is null ? null : new DiscordIntegrationApplication(_original.Application);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -6145,8 +7599,14 @@ public class DiscordGuildWidgetSettingsOptions : IDiscordGuildWidgetSettingsOpti
     public NetCord.Rest.GuildWidgetSettingsOptions Original => _original;
     public bool Enabled => _original.Enabled;
     public ulong? ChannelId => _original.ChannelId;
-    public IDiscordGuildWidgetSettingsOptions WithEnabled(bool enabled = true) => new DiscordGuildWidgetSettingsOptions(_original.WithEnabled(enabled));
-    public IDiscordGuildWidgetSettingsOptions WithChannelId(ulong? channelId) => new DiscordGuildWidgetSettingsOptions(_original.WithChannelId(channelId));
+    public IDiscordGuildWidgetSettingsOptions WithEnabled(bool enabled = true) 
+    {
+        return new DiscordGuildWidgetSettingsOptions(_original.WithEnabled(enabled));
+    }
+    public IDiscordGuildWidgetSettingsOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordGuildWidgetSettingsOptions(_original.WithChannelId(channelId));
+    }
 }
 
 
@@ -6160,7 +7620,7 @@ public class DiscordGuildWidget : IDiscordGuildWidget
     public NetCord.Rest.GuildWidget Original => _original;
     public ulong Id => _original.Id;
     public string Name => _original.Name;
-    public string InstantInvite => _original.InstantInvite;
+    public string? InstantInvite => _original.InstantInvite is null ? null : _original.InstantInvite;
     public ImmutableDictionary<ulong, IDiscordGuildWidgetChannel> Channels => _original.Channels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildWidgetChannel)new DiscordGuildWidgetChannel(kv.Value));
     public ImmutableDictionary<ulong, IDiscordUser> Users => _original.Users.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
     public int PresenceCount => _original.PresenceCount;
@@ -6191,12 +7651,27 @@ public class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOption
     public NetCord.Rest.GuildWelcomeScreenOptions Original => _original;
     public bool? Enabled => _original.Enabled;
     public IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> WelcomeChannels => _original.WelcomeChannels.Select(x => new DiscordGuildWelcomeScreenChannelProperties(x));
-    public string Description => _original.Description;
-    public IDiscordGuildWelcomeScreenOptions WithEnabled(bool? enabled = true) => new DiscordGuildWelcomeScreenOptions(_original.WithEnabled(enabled));
-    public IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.WithWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
-    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
-    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) => new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original).ToArray()));
-    public IDiscordGuildWelcomeScreenOptions WithDescription(string description) => new DiscordGuildWelcomeScreenOptions(_original.WithDescription(description));
+    public string? Description => _original.Description is null ? null : _original.Description;
+    public IDiscordGuildWelcomeScreenOptions WithEnabled(bool? enabled = true) 
+    {
+        return new DiscordGuildWelcomeScreenOptions(_original.WithEnabled(enabled));
+    }
+    public IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) 
+    {
+        return new DiscordGuildWelcomeScreenOptions(_original.WithWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
+    }
+    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) 
+    {
+        return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
+    }
+    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) 
+    {
+        return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildWelcomeScreenOptions WithDescription(string description) 
+    {
+        return new DiscordGuildWelcomeScreenOptions(_original.WithDescription(description));
+    }
 }
 
 
@@ -6225,17 +7700,41 @@ public class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions
     }
     public NetCord.Rest.GuildOnboardingOptions Original => _original;
     public IEnumerable<IDiscordGuildOnboardingPromptProperties> Prompts => _original.Prompts.Select(x => new DiscordGuildOnboardingPromptProperties(x));
-    public IEnumerable<ulong> DefaultChannelIds => _original.DefaultChannelIds;
+    public IEnumerable<ulong>? DefaultChannelIds => _original.DefaultChannelIds is null ? null : _original.DefaultChannelIds;
     public bool? Enabled => _original.Enabled;
     public NetCord.Rest.GuildOnboardingMode? Mode => _original.Mode;
-    public IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) => new DiscordGuildOnboardingOptions(_original.WithPrompts(prompts?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingOptions AddPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) => new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) => new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original).ToArray()));
-    public IDiscordGuildOnboardingOptions WithDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.WithDefaultChannelIds(defaultChannelIds));
-    public IDiscordGuildOnboardingOptions AddDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
-    public IDiscordGuildOnboardingOptions AddDefaultChannelIds(ulong[] defaultChannelIds) => new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
-    public IDiscordGuildOnboardingOptions WithEnabled(bool? enabled = true) => new DiscordGuildOnboardingOptions(_original.WithEnabled(enabled));
-    public IDiscordGuildOnboardingOptions WithMode(NetCord.Rest.GuildOnboardingMode? mode) => new DiscordGuildOnboardingOptions(_original.WithMode(mode));
+    public IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.WithPrompts(prompts?.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingOptions AddPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts?.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildOnboardingOptions WithDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.WithDefaultChannelIds(defaultChannelIds));
+    }
+    public IDiscordGuildOnboardingOptions AddDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
+    }
+    public IDiscordGuildOnboardingOptions AddDefaultChannelIds(ulong[] defaultChannelIds) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
+    }
+    public IDiscordGuildOnboardingOptions WithEnabled(bool? enabled = true) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.WithEnabled(enabled));
+    }
+    public IDiscordGuildOnboardingOptions WithMode(NetCord.Rest.GuildOnboardingMode? mode) 
+    {
+        return new DiscordGuildOnboardingOptions(_original.WithMode(mode));
+    }
 }
 
 
@@ -6248,23 +7747,50 @@ public class DiscordGuildScheduledEventProperties : IDiscordGuildScheduledEventP
     }
     public NetCord.Rest.GuildScheduledEventProperties Original => _original;
     public ulong? ChannelId => _original.ChannelId;
-    public IDiscordGuildScheduledEventMetadataProperties Metadata => new DiscordGuildScheduledEventMetadataProperties(_original.Metadata);
+    public IDiscordGuildScheduledEventMetadataProperties? Metadata => _original.Metadata is null ? null : new DiscordGuildScheduledEventMetadataProperties(_original.Metadata);
     public string Name => _original.Name;
     public NetCord.GuildScheduledEventPrivacyLevel PrivacyLevel => _original.PrivacyLevel;
     public System.DateTimeOffset ScheduledStartTime => _original.ScheduledStartTime;
     public System.DateTimeOffset? ScheduledEndTime => _original.ScheduledEndTime;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public NetCord.GuildScheduledEventEntityType EntityType => _original.EntityType;
     public NetCord.Rest.ImageProperties? Image => _original.Image;
-    public IDiscordGuildScheduledEventProperties WithChannelId(ulong? channelId) => new DiscordGuildScheduledEventProperties(_original.WithChannelId(channelId));
-    public IDiscordGuildScheduledEventProperties WithMetadata(IDiscordGuildScheduledEventMetadataProperties metadata) => new DiscordGuildScheduledEventProperties(_original.WithMetadata(metadata.Original));
-    public IDiscordGuildScheduledEventProperties WithName(string name) => new DiscordGuildScheduledEventProperties(_original.WithName(name));
-    public IDiscordGuildScheduledEventProperties WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel privacyLevel) => new DiscordGuildScheduledEventProperties(_original.WithPrivacyLevel(privacyLevel));
-    public IDiscordGuildScheduledEventProperties WithScheduledStartTime(System.DateTimeOffset scheduledStartTime) => new DiscordGuildScheduledEventProperties(_original.WithScheduledStartTime(scheduledStartTime));
-    public IDiscordGuildScheduledEventProperties WithScheduledEndTime(System.DateTimeOffset? scheduledEndTime) => new DiscordGuildScheduledEventProperties(_original.WithScheduledEndTime(scheduledEndTime));
-    public IDiscordGuildScheduledEventProperties WithDescription(string description) => new DiscordGuildScheduledEventProperties(_original.WithDescription(description));
-    public IDiscordGuildScheduledEventProperties WithEntityType(NetCord.GuildScheduledEventEntityType entityType) => new DiscordGuildScheduledEventProperties(_original.WithEntityType(entityType));
-    public IDiscordGuildScheduledEventProperties WithImage(NetCord.Rest.ImageProperties? image) => new DiscordGuildScheduledEventProperties(_original.WithImage(image));
+    public IDiscordGuildScheduledEventProperties WithChannelId(ulong? channelId) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordGuildScheduledEventProperties WithMetadata(IDiscordGuildScheduledEventMetadataProperties metadata) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithMetadata(metadata?.Original));
+    }
+    public IDiscordGuildScheduledEventProperties WithName(string name) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithName(name));
+    }
+    public IDiscordGuildScheduledEventProperties WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel privacyLevel) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithPrivacyLevel(privacyLevel));
+    }
+    public IDiscordGuildScheduledEventProperties WithScheduledStartTime(System.DateTimeOffset scheduledStartTime) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithScheduledStartTime(scheduledStartTime));
+    }
+    public IDiscordGuildScheduledEventProperties WithScheduledEndTime(System.DateTimeOffset? scheduledEndTime) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithScheduledEndTime(scheduledEndTime));
+    }
+    public IDiscordGuildScheduledEventProperties WithDescription(string description) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithDescription(description));
+    }
+    public IDiscordGuildScheduledEventProperties WithEntityType(NetCord.GuildScheduledEventEntityType entityType) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithEntityType(entityType));
+    }
+    public IDiscordGuildScheduledEventProperties WithImage(NetCord.Rest.ImageProperties? image) 
+    {
+        return new DiscordGuildScheduledEventProperties(_original.WithImage(image));
+    }
 }
 
 
@@ -6286,16 +7812,46 @@ public class DiscordGuildScheduledEventOptions : IDiscordGuildScheduledEventOpti
     public NetCord.GuildScheduledEventEntityType? EntityType => _original.EntityType;
     public NetCord.GuildScheduledEventStatus? Status => _original.Status;
     public NetCord.Rest.ImageProperties? Image => _original.Image;
-    public IDiscordGuildScheduledEventOptions WithChannelId(ulong? channelId) => new DiscordGuildScheduledEventOptions(_original.WithChannelId(channelId));
-    public IDiscordGuildScheduledEventOptions WithMetadata(IDiscordGuildScheduledEventMetadataProperties metadata) => new DiscordGuildScheduledEventOptions(_original.WithMetadata(metadata.Original));
-    public IDiscordGuildScheduledEventOptions WithName(string name) => new DiscordGuildScheduledEventOptions(_original.WithName(name));
-    public IDiscordGuildScheduledEventOptions WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel? privacyLevel) => new DiscordGuildScheduledEventOptions(_original.WithPrivacyLevel(privacyLevel));
-    public IDiscordGuildScheduledEventOptions WithScheduledStartTime(System.DateTimeOffset? scheduledStartTime) => new DiscordGuildScheduledEventOptions(_original.WithScheduledStartTime(scheduledStartTime));
-    public IDiscordGuildScheduledEventOptions WithScheduledEndTime(System.DateTimeOffset? scheduledEndTime) => new DiscordGuildScheduledEventOptions(_original.WithScheduledEndTime(scheduledEndTime));
-    public IDiscordGuildScheduledEventOptions WithDescription(string description) => new DiscordGuildScheduledEventOptions(_original.WithDescription(description));
-    public IDiscordGuildScheduledEventOptions WithEntityType(NetCord.GuildScheduledEventEntityType? entityType) => new DiscordGuildScheduledEventOptions(_original.WithEntityType(entityType));
-    public IDiscordGuildScheduledEventOptions WithStatus(NetCord.GuildScheduledEventStatus? status) => new DiscordGuildScheduledEventOptions(_original.WithStatus(status));
-    public IDiscordGuildScheduledEventOptions WithImage(NetCord.Rest.ImageProperties? image) => new DiscordGuildScheduledEventOptions(_original.WithImage(image));
+    public IDiscordGuildScheduledEventOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithChannelId(channelId));
+    }
+    public IDiscordGuildScheduledEventOptions WithMetadata(IDiscordGuildScheduledEventMetadataProperties metadata) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithMetadata(metadata?.Original));
+    }
+    public IDiscordGuildScheduledEventOptions WithName(string name) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithName(name));
+    }
+    public IDiscordGuildScheduledEventOptions WithPrivacyLevel(NetCord.GuildScheduledEventPrivacyLevel? privacyLevel) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithPrivacyLevel(privacyLevel));
+    }
+    public IDiscordGuildScheduledEventOptions WithScheduledStartTime(System.DateTimeOffset? scheduledStartTime) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithScheduledStartTime(scheduledStartTime));
+    }
+    public IDiscordGuildScheduledEventOptions WithScheduledEndTime(System.DateTimeOffset? scheduledEndTime) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithScheduledEndTime(scheduledEndTime));
+    }
+    public IDiscordGuildScheduledEventOptions WithDescription(string description) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithDescription(description));
+    }
+    public IDiscordGuildScheduledEventOptions WithEntityType(NetCord.GuildScheduledEventEntityType? entityType) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithEntityType(entityType));
+    }
+    public IDiscordGuildScheduledEventOptions WithStatus(NetCord.GuildScheduledEventStatus? status) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithStatus(status));
+    }
+    public IDiscordGuildScheduledEventOptions WithImage(NetCord.Rest.ImageProperties? image) 
+    {
+        return new DiscordGuildScheduledEventOptions(_original.WithImage(image));
+    }
 }
 
 
@@ -6324,10 +7880,22 @@ public class DiscordOptionalGuildUsersPaginationProperties : IDiscordOptionalGui
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordOptionalGuildUsersPaginationProperties WithWithGuildUsers(bool withGuildUsers = true) => new DiscordOptionalGuildUsersPaginationProperties(_original.WithWithGuildUsers(withGuildUsers));
-    public IDiscordOptionalGuildUsersPaginationProperties WithFrom(ulong? from) => new DiscordOptionalGuildUsersPaginationProperties(_original.WithFrom(from));
-    public IDiscordOptionalGuildUsersPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordOptionalGuildUsersPaginationProperties(_original.WithDirection(direction));
-    public IDiscordOptionalGuildUsersPaginationProperties WithBatchSize(int? batchSize) => new DiscordOptionalGuildUsersPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordOptionalGuildUsersPaginationProperties WithWithGuildUsers(bool withGuildUsers = true) 
+    {
+        return new DiscordOptionalGuildUsersPaginationProperties(_original.WithWithGuildUsers(withGuildUsers));
+    }
+    public IDiscordOptionalGuildUsersPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordOptionalGuildUsersPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordOptionalGuildUsersPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordOptionalGuildUsersPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordOptionalGuildUsersPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordOptionalGuildUsersPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -6350,11 +7918,26 @@ public class DiscordGuildTemplate : IDiscordGuildTemplate
     public ulong SourceGuildId => _original.SourceGuildId;
     public IDiscordGuildTemplatePreview Preview => new DiscordGuildTemplatePreview(_original.Preview);
     public bool? IsDirty => _original.IsDirty;
-    public async Task<IDiscordGuildTemplate> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> SyncAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.SyncAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> ModifyAsync(Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.ModifyAsync(x => action(new DiscordGuildTemplateOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.DeleteAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordGuildTemplate> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> SyncAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.SyncAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> ModifyAsync(Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.ModifyAsync(x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -6367,9 +7950,15 @@ public class DiscordGuildTemplateProperties : IDiscordGuildTemplateProperties
     }
     public NetCord.Rest.GuildTemplateProperties Original => _original;
     public string Name => _original.Name;
-    public string Description => _original.Description;
-    public IDiscordGuildTemplateProperties WithName(string name) => new DiscordGuildTemplateProperties(_original.WithName(name));
-    public IDiscordGuildTemplateProperties WithDescription(string description) => new DiscordGuildTemplateProperties(_original.WithDescription(description));
+    public string? Description => _original.Description is null ? null : _original.Description;
+    public IDiscordGuildTemplateProperties WithName(string name) 
+    {
+        return new DiscordGuildTemplateProperties(_original.WithName(name));
+    }
+    public IDiscordGuildTemplateProperties WithDescription(string description) 
+    {
+        return new DiscordGuildTemplateProperties(_original.WithDescription(description));
+    }
 }
 
 
@@ -6383,8 +7972,14 @@ public class DiscordGuildTemplateOptions : IDiscordGuildTemplateOptions
     public NetCord.Rest.GuildTemplateOptions Original => _original;
     public string Name => _original.Name;
     public string Description => _original.Description;
-    public IDiscordGuildTemplateOptions WithName(string name) => new DiscordGuildTemplateOptions(_original.WithName(name));
-    public IDiscordGuildTemplateOptions WithDescription(string description) => new DiscordGuildTemplateOptions(_original.WithDescription(description));
+    public IDiscordGuildTemplateOptions WithName(string name) 
+    {
+        return new DiscordGuildTemplateOptions(_original.WithName(name));
+    }
+    public IDiscordGuildTemplateOptions WithDescription(string description) 
+    {
+        return new DiscordGuildTemplateOptions(_original.WithDescription(description));
+    }
 }
 
 
@@ -6409,17 +8004,38 @@ public class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand
     public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
     public bool DefaultPermission => _original.DefaultPermission;
     public bool Nsfw => _original.Nsfw;
-    public IReadOnlyList<NetCord.ApplicationIntegrationType> IntegrationTypes => _original.IntegrationTypes;
-    public IReadOnlyList<NetCord.InteractionContextType> Contexts => _original.Contexts;
+    public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes is null ? null : _original.IntegrationTypes;
+    public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts is null ? null : _original.Contexts;
     public ulong Version => _original.Version;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetPermissionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetPermissionsAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwritePermissionsAsync(IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwritePermissionsAsync(newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
+    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetPermissionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetPermissionsAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwritePermissionsAsync(IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwritePermissionsAsync(newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -6437,21 +8053,57 @@ public class DiscordApplicationCommandProperties : IDiscordApplicationCommandPro
     public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
     public bool? DMPermission => _original.DMPermission;
     public bool? DefaultPermission => _original.DefaultPermission;
-    public IEnumerable<NetCord.ApplicationIntegrationType> IntegrationTypes => _original.IntegrationTypes;
-    public IEnumerable<NetCord.InteractionContextType> Contexts => _original.Contexts;
+    public IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes is null ? null : _original.IntegrationTypes;
+    public IEnumerable<NetCord.InteractionContextType>? Contexts => _original.Contexts is null ? null : _original.Contexts;
     public bool Nsfw => _original.Nsfw;
-    public IDiscordApplicationCommandProperties WithName(string name) => new DiscordApplicationCommandProperties(_original.WithName(name));
-    public IDiscordApplicationCommandProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandProperties(_original.WithNameLocalizations(nameLocalizations));
-    public IDiscordApplicationCommandProperties WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) => new DiscordApplicationCommandProperties(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
-    public IDiscordApplicationCommandProperties WithDMPermission(bool? dMPermission = true) => new DiscordApplicationCommandProperties(_original.WithDMPermission(dMPermission));
-    public IDiscordApplicationCommandProperties WithDefaultPermission(bool? defaultPermission = true) => new DiscordApplicationCommandProperties(_original.WithDefaultPermission(defaultPermission));
-    public IDiscordApplicationCommandProperties WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandProperties(_original.WithIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandProperties AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandProperties WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandProperties(_original.WithContexts(contexts));
-    public IDiscordApplicationCommandProperties AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandProperties WithNsfw(bool nsfw = true) => new DiscordApplicationCommandProperties(_original.WithNsfw(nsfw));
+    public IDiscordApplicationCommandProperties WithName(string name) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationCommandProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationCommandProperties WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
+    }
+    public IDiscordApplicationCommandProperties WithDMPermission(bool? dMPermission = true) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithDMPermission(dMPermission));
+    }
+    public IDiscordApplicationCommandProperties WithDefaultPermission(bool? defaultPermission = true) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithDefaultPermission(defaultPermission));
+    }
+    public IDiscordApplicationCommandProperties WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandProperties AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) 
+    {
+        return new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) 
+    {
+        return new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandProperties WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithContexts(contexts));
+    }
+    public IDiscordApplicationCommandProperties AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
+    {
+        return new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
+    }
+    public IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts) 
+    {
+        return new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
+    }
+    public IDiscordApplicationCommandProperties WithNsfw(bool nsfw = true) 
+    {
+        return new DiscordApplicationCommandProperties(_original.WithNsfw(nsfw));
+    }
 }
 
 
@@ -6463,34 +8115,85 @@ public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOption
         _original = original;
     }
     public NetCord.Rest.ApplicationCommandOptions Original => _original;
-    public string Name => _original.Name;
+    public string? Name => _original.Name is null ? null : _original.Name;
     public IReadOnlyDictionary<string, string> NameLocalizations => _original.NameLocalizations;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public IReadOnlyDictionary<string, string> DescriptionLocalizations => _original.DescriptionLocalizations;
     public IEnumerable<IDiscordApplicationCommandOptionProperties> Options => _original.Options.Select(x => new DiscordApplicationCommandOptionProperties(x));
     public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
     public bool? DMPermission => _original.DMPermission;
     public bool? DefaultPermission => _original.DefaultPermission;
-    public IEnumerable<NetCord.ApplicationIntegrationType> IntegrationTypes => _original.IntegrationTypes;
-    public IEnumerable<NetCord.InteractionContextType> Contexts => _original.Contexts;
+    public IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes is null ? null : _original.IntegrationTypes;
+    public IEnumerable<NetCord.InteractionContextType>? Contexts => _original.Contexts is null ? null : _original.Contexts;
     public bool? Nsfw => _original.Nsfw;
-    public IDiscordApplicationCommandOptions WithName(string name) => new DiscordApplicationCommandOptions(_original.WithName(name));
-    public IDiscordApplicationCommandOptions WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandOptions(_original.WithNameLocalizations(nameLocalizations));
-    public IDiscordApplicationCommandOptions WithDescription(string description) => new DiscordApplicationCommandOptions(_original.WithDescription(description));
-    public IDiscordApplicationCommandOptions WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) => new DiscordApplicationCommandOptions(_original.WithDescriptionLocalizations(descriptionLocalizations));
-    public IDiscordApplicationCommandOptions WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptions(_original.WithOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptions AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptions(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    public IDiscordApplicationCommandOptions WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) => new DiscordApplicationCommandOptions(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
-    public IDiscordApplicationCommandOptions WithDMPermission(bool? dMPermission = true) => new DiscordApplicationCommandOptions(_original.WithDMPermission(dMPermission));
-    public IDiscordApplicationCommandOptions WithDefaultPermission(bool? defaultPermission = true) => new DiscordApplicationCommandOptions(_original.WithDefaultPermission(defaultPermission));
-    public IDiscordApplicationCommandOptions WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandOptions(_original.WithIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandOptions AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) => new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) => new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
-    public IDiscordApplicationCommandOptions WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandOptions(_original.WithContexts(contexts));
-    public IDiscordApplicationCommandOptions AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) => new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts) => new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
-    public IDiscordApplicationCommandOptions WithNsfw(bool? nsfw = true) => new DiscordApplicationCommandOptions(_original.WithNsfw(nsfw));
+    public IDiscordApplicationCommandOptions WithName(string name) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithName(name));
+    }
+    public IDiscordApplicationCommandOptions WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationCommandOptions WithDescription(string description) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithDescription(description));
+    }
+    public IDiscordApplicationCommandOptions WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithDescriptionLocalizations(descriptionLocalizations));
+    }
+    public IDiscordApplicationCommandOptions WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptions AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordApplicationCommandOptions WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
+    }
+    public IDiscordApplicationCommandOptions WithDMPermission(bool? dMPermission = true) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithDMPermission(dMPermission));
+    }
+    public IDiscordApplicationCommandOptions WithDefaultPermission(bool? defaultPermission = true) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithDefaultPermission(defaultPermission));
+    }
+    public IDiscordApplicationCommandOptions WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandOptions AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
+    }
+    public IDiscordApplicationCommandOptions WithContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithContexts(contexts));
+    }
+    public IDiscordApplicationCommandOptions AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
+    }
+    public IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts) 
+    {
+        return new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
+    }
+    public IDiscordApplicationCommandOptions WithNsfw(bool? nsfw = true) 
+    {
+        return new DiscordApplicationCommandOptions(_original.WithNsfw(nsfw));
+    }
 }
 
 
@@ -6520,9 +8223,18 @@ public class DiscordApplicationCommandGuildPermissionProperties : IDiscordApplic
     public ulong Id => _original.Id;
     public NetCord.ApplicationCommandGuildPermissionType Type => _original.Type;
     public bool Permission => _original.Permission;
-    public IDiscordApplicationCommandGuildPermissionProperties WithId(ulong id) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithId(id));
-    public IDiscordApplicationCommandGuildPermissionProperties WithType(NetCord.ApplicationCommandGuildPermissionType type) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithType(type));
-    public IDiscordApplicationCommandGuildPermissionProperties WithPermission(bool permission = true) => new DiscordApplicationCommandGuildPermissionProperties(_original.WithPermission(permission));
+    public IDiscordApplicationCommandGuildPermissionProperties WithId(ulong id) 
+    {
+        return new DiscordApplicationCommandGuildPermissionProperties(_original.WithId(id));
+    }
+    public IDiscordApplicationCommandGuildPermissionProperties WithType(NetCord.ApplicationCommandGuildPermissionType type) 
+    {
+        return new DiscordApplicationCommandGuildPermissionProperties(_original.WithType(type));
+    }
+    public IDiscordApplicationCommandGuildPermissionProperties WithPermission(bool permission = true) 
+    {
+        return new DiscordApplicationCommandGuildPermissionProperties(_original.WithPermission(permission));
+    }
 }
 
 
@@ -6537,12 +8249,30 @@ public class DiscordGuildStickerProperties : IDiscordGuildStickerProperties
     public IDiscordAttachmentProperties Attachment => new DiscordAttachmentProperties(_original.Attachment);
     public NetCord.StickerFormat Format => _original.Format;
     public IEnumerable<string> Tags => _original.Tags;
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordGuildStickerProperties WithAttachment(IDiscordAttachmentProperties attachment) => new DiscordGuildStickerProperties(_original.WithAttachment(attachment.Original));
-    public IDiscordGuildStickerProperties WithFormat(NetCord.StickerFormat format) => new DiscordGuildStickerProperties(_original.WithFormat(format));
-    public IDiscordGuildStickerProperties WithTags(IEnumerable<string> tags) => new DiscordGuildStickerProperties(_original.WithTags(tags));
-    public IDiscordGuildStickerProperties AddTags(IEnumerable<string> tags) => new DiscordGuildStickerProperties(_original.AddTags(tags));
-    public IDiscordGuildStickerProperties AddTags(string[] tags) => new DiscordGuildStickerProperties(_original.AddTags(tags));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordGuildStickerProperties WithAttachment(IDiscordAttachmentProperties attachment) 
+    {
+        return new DiscordGuildStickerProperties(_original.WithAttachment(attachment.Original));
+    }
+    public IDiscordGuildStickerProperties WithFormat(NetCord.StickerFormat format) 
+    {
+        return new DiscordGuildStickerProperties(_original.WithFormat(format));
+    }
+    public IDiscordGuildStickerProperties WithTags(IEnumerable<string> tags) 
+    {
+        return new DiscordGuildStickerProperties(_original.WithTags(tags));
+    }
+    public IDiscordGuildStickerProperties AddTags(IEnumerable<string> tags) 
+    {
+        return new DiscordGuildStickerProperties(_original.AddTags(tags));
+    }
+    public IDiscordGuildStickerProperties AddTags(string[] tags) 
+    {
+        return new DiscordGuildStickerProperties(_original.AddTags(tags));
+    }
 }
 
 
@@ -6557,9 +8287,18 @@ public class DiscordGuildStickerOptions : IDiscordGuildStickerOptions
     public string Name => _original.Name;
     public string Description => _original.Description;
     public string Tags => _original.Tags;
-    public IDiscordGuildStickerOptions WithName(string name) => new DiscordGuildStickerOptions(_original.WithName(name));
-    public IDiscordGuildStickerOptions WithDescription(string description) => new DiscordGuildStickerOptions(_original.WithDescription(description));
-    public IDiscordGuildStickerOptions WithTags(string tags) => new DiscordGuildStickerOptions(_original.WithTags(tags));
+    public IDiscordGuildStickerOptions WithName(string name) 
+    {
+        return new DiscordGuildStickerOptions(_original.WithName(name));
+    }
+    public IDiscordGuildStickerOptions WithDescription(string description) 
+    {
+        return new DiscordGuildStickerOptions(_original.WithDescription(description));
+    }
+    public IDiscordGuildStickerOptions WithTags(string tags) 
+    {
+        return new DiscordGuildStickerOptions(_original.WithTags(tags));
+    }
 }
 
 
@@ -6572,7 +8311,7 @@ public class DiscordGuildUserInfo : IDiscordGuildUserInfo
     }
     public NetCord.Rest.GuildUserInfo Original => _original;
     public IDiscordGuildUser User => new DiscordGuildUser(_original.User);
-    public string SourceInviteCode => _original.SourceInviteCode;
+    public string? SourceInviteCode => _original.SourceInviteCode is null ? null : _original.SourceInviteCode;
     public NetCord.Rest.GuildUserJoinSourceType JoinSourceType => _original.JoinSourceType;
     public ulong? InviterId => _original.InviterId;
 }
@@ -6591,15 +8330,42 @@ public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSea
     public NetCord.Rest.GuildUsersSearchTimestamp? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordGuildUsersSearchPaginationProperties WithOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.WithOrQuery(orQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original).ToArray()));
-    public IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery?.Select(x => x.Original)));
-    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) => new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original).ToArray()));
-    public IDiscordGuildUsersSearchPaginationProperties WithFrom(NetCord.Rest.GuildUsersSearchTimestamp? from) => new DiscordGuildUsersSearchPaginationProperties(_original.WithFrom(from));
-    public IDiscordGuildUsersSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordGuildUsersSearchPaginationProperties(_original.WithDirection(direction));
-    public IDiscordGuildUsersSearchPaginationProperties WithBatchSize(int? batchSize) => new DiscordGuildUsersSearchPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordGuildUsersSearchPaginationProperties WithOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithOrQuery(orQuery?.Select(x => x.Original)));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery?.Select(x => x.Original)));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery?.Select(x => x.Original)));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery?.Select(x => x.Original)));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties WithFrom(NetCord.Rest.GuildUsersSearchTimestamp? from) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordGuildUsersSearchPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -6614,9 +8380,18 @@ public class DiscordCurrentUserVoiceStateOptions : IDiscordCurrentUserVoiceState
     public ulong? ChannelId => _original.ChannelId;
     public bool? Suppress => _original.Suppress;
     public System.DateTimeOffset? RequestToSpeakTimestamp => _original.RequestToSpeakTimestamp;
-    public IDiscordCurrentUserVoiceStateOptions WithChannelId(ulong? channelId) => new DiscordCurrentUserVoiceStateOptions(_original.WithChannelId(channelId));
-    public IDiscordCurrentUserVoiceStateOptions WithSuppress(bool? suppress = true) => new DiscordCurrentUserVoiceStateOptions(_original.WithSuppress(suppress));
-    public IDiscordCurrentUserVoiceStateOptions WithRequestToSpeakTimestamp(System.DateTimeOffset? requestToSpeakTimestamp) => new DiscordCurrentUserVoiceStateOptions(_original.WithRequestToSpeakTimestamp(requestToSpeakTimestamp));
+    public IDiscordCurrentUserVoiceStateOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordCurrentUserVoiceStateOptions(_original.WithChannelId(channelId));
+    }
+    public IDiscordCurrentUserVoiceStateOptions WithSuppress(bool? suppress = true) 
+    {
+        return new DiscordCurrentUserVoiceStateOptions(_original.WithSuppress(suppress));
+    }
+    public IDiscordCurrentUserVoiceStateOptions WithRequestToSpeakTimestamp(System.DateTimeOffset? requestToSpeakTimestamp) 
+    {
+        return new DiscordCurrentUserVoiceStateOptions(_original.WithRequestToSpeakTimestamp(requestToSpeakTimestamp));
+    }
 }
 
 
@@ -6630,7 +8405,10 @@ public class DiscordVoiceStateOptions : IDiscordVoiceStateOptions
     public NetCord.Rest.VoiceStateOptions Original => _original;
     public ulong ChannelId => _original.ChannelId;
     public bool? Suppress => _original.Suppress;
-    public IDiscordVoiceStateOptions WithSuppress(bool? suppress = true) => new DiscordVoiceStateOptions(_original.WithSuppress(suppress));
+    public IDiscordVoiceStateOptions WithSuppress(bool? suppress = true) 
+    {
+        return new DiscordVoiceStateOptions(_original.WithSuppress(suppress));
+    }
 }
 
 
@@ -6654,9 +8432,18 @@ public class DiscordWebhook : IDiscordWebhook
     public IDiscordChannel Channel => new DiscordChannel(_original.Channel);
     public string Url => _original.Url;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -6679,26 +8466,86 @@ public class DiscordMessageProperties : IDiscordMessageProperties
     public IEnumerable<ulong> StickerIds => _original.StickerIds;
     public NetCord.MessageFlags? Flags => _original.Flags;
     public IDiscordMessagePollProperties Poll => new DiscordMessagePollProperties(_original.Poll);
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordMessageProperties WithContent(string content) => new DiscordMessageProperties(_original.WithContent(content));
-    public IDiscordMessageProperties WithNonce(IDiscordNonceProperties nonce) => new DiscordMessageProperties(_original.WithNonce(nonce.Original));
-    public IDiscordMessageProperties WithTts(bool tts = true) => new DiscordMessageProperties(_original.WithTts(tts));
-    public IDiscordMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    public IDiscordMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordMessageProperties WithMessageReference(IDiscordMessageReferenceProperties messageReference) => new DiscordMessageProperties(_original.WithMessageReference(messageReference.Original));
-    public IDiscordMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordMessageProperties(_original.WithStickerIds(stickerIds));
-    public IDiscordMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordMessageProperties(_original.WithFlags(flags));
-    public IDiscordMessageProperties WithPoll(IDiscordMessagePollProperties poll) => new DiscordMessageProperties(_original.WithPoll(poll.Original));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordMessageProperties WithContent(string content) 
+    {
+        return new DiscordMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordMessageProperties WithNonce(IDiscordNonceProperties nonce) 
+    {
+        return new DiscordMessageProperties(_original.WithNonce(nonce?.Original));
+    }
+    public IDiscordMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordMessageProperties WithMessageReference(IDiscordMessageReferenceProperties messageReference) 
+    {
+        return new DiscordMessageProperties(_original.WithMessageReference(messageReference?.Original));
+    }
+    public IDiscordMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordMessageProperties(_original.WithStickerIds(stickerIds));
+    }
+    public IDiscordMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordMessageProperties AddStickerIds(ulong[] stickerIds) 
+    {
+        return new DiscordMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordMessageProperties WithPoll(IDiscordMessagePollProperties poll) 
+    {
+        return new DiscordMessageProperties(_original.WithPoll(poll?.Original));
+    }
 }
 
 
@@ -6712,8 +8559,14 @@ public class DiscordReactionEmojiProperties : IDiscordReactionEmojiProperties
     public NetCord.Rest.ReactionEmojiProperties Original => _original;
     public string Name => _original.Name;
     public ulong? Id => _original.Id;
-    public IDiscordReactionEmojiProperties WithName(string name) => new DiscordReactionEmojiProperties(_original.WithName(name));
-    public IDiscordReactionEmojiProperties WithId(ulong? id) => new DiscordReactionEmojiProperties(_original.WithId(id));
+    public IDiscordReactionEmojiProperties WithName(string name) 
+    {
+        return new DiscordReactionEmojiProperties(_original.WithName(name));
+    }
+    public IDiscordReactionEmojiProperties WithId(ulong? id) 
+    {
+        return new DiscordReactionEmojiProperties(_original.WithId(id));
+    }
 }
 
 
@@ -6729,10 +8582,22 @@ public class DiscordMessageReactionsPaginationProperties : IDiscordMessageReacti
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordMessageReactionsPaginationProperties WithType(NetCord.ReactionType? type) => new DiscordMessageReactionsPaginationProperties(_original.WithType(type));
-    public IDiscordMessageReactionsPaginationProperties WithFrom(ulong? from) => new DiscordMessageReactionsPaginationProperties(_original.WithFrom(from));
-    public IDiscordMessageReactionsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordMessageReactionsPaginationProperties(_original.WithDirection(direction));
-    public IDiscordMessageReactionsPaginationProperties WithBatchSize(int? batchSize) => new DiscordMessageReactionsPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordMessageReactionsPaginationProperties WithType(NetCord.ReactionType? type) 
+    {
+        return new DiscordMessageReactionsPaginationProperties(_original.WithType(type));
+    }
+    public IDiscordMessageReactionsPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordMessageReactionsPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordMessageReactionsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordMessageReactionsPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordMessageReactionsPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordMessageReactionsPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -6761,9 +8626,18 @@ public class DiscordGoogleCloudPlatformStorageBucketProperties : IDiscordGoogleC
     public string FileName => _original.FileName;
     public long FileSize => _original.FileSize;
     public long? Id => _original.Id;
-    public IDiscordGoogleCloudPlatformStorageBucketProperties WithFileName(string fileName) => new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithFileName(fileName));
-    public IDiscordGoogleCloudPlatformStorageBucketProperties WithFileSize(long fileSize) => new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithFileSize(fileSize));
-    public IDiscordGoogleCloudPlatformStorageBucketProperties WithId(long? id) => new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithId(id));
+    public IDiscordGoogleCloudPlatformStorageBucketProperties WithFileName(string fileName) 
+    {
+        return new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithFileName(fileName));
+    }
+    public IDiscordGoogleCloudPlatformStorageBucketProperties WithFileSize(long fileSize) 
+    {
+        return new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithFileSize(fileSize));
+    }
+    public IDiscordGoogleCloudPlatformStorageBucketProperties WithId(long? id) 
+    {
+        return new DiscordGoogleCloudPlatformStorageBucketProperties(_original.WithId(id));
+    }
 }
 
 
@@ -6794,8 +8668,14 @@ public class DiscordDMChannel : IDiscordDMChannel
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.DeleteAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
@@ -6803,30 +8683,81 @@ public class DiscordDMChannel : IDiscordDMChannel
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
@@ -6834,8 +8765,14 @@ public class DiscordDMChannel : IDiscordDMChannel
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -6865,16 +8802,19 @@ public class DiscordAttachment : IDiscordAttachment
     public NetCord.Attachment Original => _original;
     public ulong Id => _original.Id;
     public string FileName => _original.FileName;
-    public string Title => _original.Title;
-    public string Description => _original.Description;
-    public string ContentType => _original.ContentType;
+    public string? Title => _original.Title is null ? null : _original.Title;
+    public string? Description => _original.Description is null ? null : _original.Description;
+    public string? ContentType => _original.ContentType is null ? null : _original.ContentType;
     public int Size => _original.Size;
     public string Url => _original.Url;
     public string ProxyUrl => _original.ProxyUrl;
     public bool Ephemeral => _original.Ephemeral;
     public NetCord.AttachmentFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordAttachmentExpirationInfo GetExpirationInfo() => new DiscordAttachmentExpirationInfo(_original.GetExpirationInfo());
+    public IDiscordAttachmentExpirationInfo GetExpirationInfo() 
+    {
+        return new DiscordAttachmentExpirationInfo(_original.GetExpirationInfo());
+    }
 }
 
 
@@ -6928,7 +8868,7 @@ public class DiscordMessageActivity : IDiscordMessageActivity
     }
     public NetCord.MessageActivity Original => _original;
     public NetCord.MessageActivityType Type => _original.Type;
-    public string PartyId => _original.PartyId;
+    public string? PartyId => _original.PartyId is null ? null : _original.PartyId;
 }
 
 
@@ -6969,17 +8909,50 @@ public class DiscordApplication : IDiscordApplication
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
     public string CustomInstallUrl => _original.CustomInstallUrl;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format));
-    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
-    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
-    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
-    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteEmojiAsync(emojiId, properties.Original, cancellationToken);
-    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplication(await _original.GetAsync(properties.Original, cancellationToken));
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetIconUrl(format));
+    }
+    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetCoverUrl(format));
+    }
+    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
+    }
+    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
+    }
+    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
+    }
+    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplication(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -7024,7 +8997,7 @@ public class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetad
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
     public ulong? OriginalResponseMessageId => _original.OriginalResponseMessageId;
     public ulong? InteractedMessageId => _original.InteractedMessageId;
-    public IDiscordMessageInteractionMetadata TriggeringInteractionMetadata => new DiscordMessageInteractionMetadata(_original.TriggeringInteractionMetadata);
+    public IDiscordMessageInteractionMetadata? TriggeringInteractionMetadata => _original.TriggeringInteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.TriggeringInteractionMetadata);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -7115,7 +9088,7 @@ public class DiscordMessagePoll : IDiscordMessagePoll
     public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
     public bool AllowMultiselect => _original.AllowMultiselect;
     public NetCord.MessagePollLayoutType LayoutType => _original.LayoutType;
-    public IDiscordMessagePollResults Results => new DiscordMessagePollResults(_original.Results);
+    public IDiscordMessagePollResults? Results => _original.Results is null ? null : new DiscordMessagePollResults(_original.Results);
 }
 
 
@@ -7140,37 +9113,97 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
         _original = original;
     }
     public NetCord.Rest.ReplyMessageProperties Original => _original;
-    public string Content => _original.Content;
-    public IDiscordNonceProperties Nonce => new DiscordNonceProperties(_original.Nonce);
+    public string? Content => _original.Content is null ? null : _original.Content;
+    public IDiscordNonceProperties? Nonce => _original.Nonce is null ? null : new DiscordNonceProperties(_original.Nonce);
     public bool Tts => _original.Tts;
     public IEnumerable<IDiscordAttachmentProperties> Attachments => _original.Attachments.Select(x => new DiscordAttachmentProperties(x));
     public IEnumerable<IDiscordEmbedProperties> Embeds => _original.Embeds.Select(x => new DiscordEmbedProperties(x));
-    public IDiscordAllowedMentionsProperties AllowedMentions => new DiscordAllowedMentionsProperties(_original.AllowedMentions);
+    public IDiscordAllowedMentionsProperties? AllowedMentions => _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions);
     public bool? FailIfNotExists => _original.FailIfNotExists;
     public IEnumerable<IDiscordComponentProperties> Components => _original.Components.Select(x => new DiscordComponentProperties(x));
-    public IEnumerable<ulong> StickerIds => _original.StickerIds;
+    public IEnumerable<ulong>? StickerIds => _original.StickerIds is null ? null : _original.StickerIds;
     public NetCord.MessageFlags? Flags => _original.Flags;
-    public IDiscordMessagePollProperties Poll => new DiscordMessagePollProperties(_original.Poll);
-    public IDiscordMessageProperties ToMessageProperties(ulong messageReferenceId) => new DiscordMessageProperties(_original.ToMessageProperties(messageReferenceId));
-    public IDiscordReplyMessageProperties WithContent(string content) => new DiscordReplyMessageProperties(_original.WithContent(content));
-    public IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties nonce) => new DiscordReplyMessageProperties(_original.WithNonce(nonce.Original));
-    public IDiscordReplyMessageProperties WithTts(bool tts = true) => new DiscordReplyMessageProperties(_original.WithTts(tts));
-    public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordReplyMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordReplyMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordReplyMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordReplyMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true) => new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
-    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordReplyMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
-    public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordReplyMessageProperties(_original.WithFlags(flags));
-    public IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties poll) => new DiscordReplyMessageProperties(_original.WithPoll(poll.Original));
+    public IDiscordMessagePollProperties? Poll => _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll);
+    public IDiscordMessageProperties ToMessageProperties(ulong messageReferenceId) 
+    {
+        return new DiscordMessageProperties(_original.ToMessageProperties(messageReferenceId));
+    }
+    public IDiscordReplyMessageProperties WithContent(string content) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties nonce) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithNonce(nonce?.Original));
+    }
+    public IDiscordReplyMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
+    }
+    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties poll) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithPoll(poll?.Original));
+    }
 }
 
 
@@ -7185,9 +9218,18 @@ public class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMe
     public string Name => _original.Name;
     public NetCord.ThreadArchiveDuration? AutoArchiveDuration => _original.AutoArchiveDuration;
     public int? Slowmode => _original.Slowmode;
-    public IDiscordGuildThreadFromMessageProperties WithName(string name) => new DiscordGuildThreadFromMessageProperties(_original.WithName(name));
-    public IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) => new DiscordGuildThreadFromMessageProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    public IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode) => new DiscordGuildThreadFromMessageProperties(_original.WithSlowmode(slowmode));
+    public IDiscordGuildThreadFromMessageProperties WithName(string name) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithName(name));
+    }
+    public IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithSlowmode(slowmode));
+    }
 }
 
 
@@ -7209,18 +9251,54 @@ public class DiscordEmbedProperties : IDiscordEmbedProperties
     public IDiscordEmbedThumbnailProperties Thumbnail => new DiscordEmbedThumbnailProperties(_original.Thumbnail);
     public IDiscordEmbedAuthorProperties Author => new DiscordEmbedAuthorProperties(_original.Author);
     public IEnumerable<IDiscordEmbedFieldProperties> Fields => _original.Fields.Select(x => new DiscordEmbedFieldProperties(x));
-    public IDiscordEmbedProperties WithTitle(string title) => new DiscordEmbedProperties(_original.WithTitle(title));
-    public IDiscordEmbedProperties WithDescription(string description) => new DiscordEmbedProperties(_original.WithDescription(description));
-    public IDiscordEmbedProperties WithUrl(string url) => new DiscordEmbedProperties(_original.WithUrl(url));
-    public IDiscordEmbedProperties WithTimestamp(System.DateTimeOffset? timestamp) => new DiscordEmbedProperties(_original.WithTimestamp(timestamp));
-    public IDiscordEmbedProperties WithColor(NetCord.Color color) => new DiscordEmbedProperties(_original.WithColor(color));
-    public IDiscordEmbedProperties WithFooter(IDiscordEmbedFooterProperties footer) => new DiscordEmbedProperties(_original.WithFooter(footer.Original));
-    public IDiscordEmbedProperties WithImage(IDiscordEmbedImageProperties image) => new DiscordEmbedProperties(_original.WithImage(image.Original));
-    public IDiscordEmbedProperties WithThumbnail(IDiscordEmbedThumbnailProperties thumbnail) => new DiscordEmbedProperties(_original.WithThumbnail(thumbnail.Original));
-    public IDiscordEmbedProperties WithAuthor(IDiscordEmbedAuthorProperties author) => new DiscordEmbedProperties(_original.WithAuthor(author.Original));
-    public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties> fields) => new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
-    public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) => new DiscordEmbedProperties(_original.AddFields(fields?.Select(x => x.Original)));
-    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) => new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original).ToArray()));
+    public IDiscordEmbedProperties WithTitle(string title) 
+    {
+        return new DiscordEmbedProperties(_original.WithTitle(title));
+    }
+    public IDiscordEmbedProperties WithDescription(string description) 
+    {
+        return new DiscordEmbedProperties(_original.WithDescription(description));
+    }
+    public IDiscordEmbedProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedProperties(_original.WithUrl(url));
+    }
+    public IDiscordEmbedProperties WithTimestamp(System.DateTimeOffset? timestamp) 
+    {
+        return new DiscordEmbedProperties(_original.WithTimestamp(timestamp));
+    }
+    public IDiscordEmbedProperties WithColor(NetCord.Color color) 
+    {
+        return new DiscordEmbedProperties(_original.WithColor(color));
+    }
+    public IDiscordEmbedProperties WithFooter(IDiscordEmbedFooterProperties footer) 
+    {
+        return new DiscordEmbedProperties(_original.WithFooter(footer?.Original));
+    }
+    public IDiscordEmbedProperties WithImage(IDiscordEmbedImageProperties image) 
+    {
+        return new DiscordEmbedProperties(_original.WithImage(image?.Original));
+    }
+    public IDiscordEmbedProperties WithThumbnail(IDiscordEmbedThumbnailProperties thumbnail) 
+    {
+        return new DiscordEmbedProperties(_original.WithThumbnail(thumbnail?.Original));
+    }
+    public IDiscordEmbedProperties WithAuthor(IDiscordEmbedAuthorProperties author) 
+    {
+        return new DiscordEmbedProperties(_original.WithAuthor(author?.Original));
+    }
+    public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
+    {
+        return new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
+    }
+    public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
+    {
+        return new DiscordEmbedProperties(_original.AddFields(fields?.Select(x => x.Original)));
+    }
+    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) 
+    {
+        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original).ToArray()));
+    }
 }
 
 
@@ -7233,19 +9311,43 @@ public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsPropertie
     }
     public NetCord.Rest.AllowedMentionsProperties Original => _original;
     public bool Everyone => _original.Everyone;
-    public IEnumerable<ulong> AllowedRoles => _original.AllowedRoles;
-    public IEnumerable<ulong> AllowedUsers => _original.AllowedUsers;
+    public IEnumerable<ulong>? AllowedRoles => _original.AllowedRoles is null ? null : _original.AllowedRoles;
+    public IEnumerable<ulong>? AllowedUsers => _original.AllowedUsers is null ? null : _original.AllowedUsers;
     public bool ReplyMention => _original.ReplyMention;
     public static IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.All);
     public static IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.None);
-    public IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true) => new DiscordAllowedMentionsProperties(_original.WithEveryone(everyone));
-    public IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordAllowedMentionsProperties(_original.WithAllowedRoles(allowedRoles));
-    public IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) => new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
-    public IDiscordAllowedMentionsProperties AddAllowedRoles(ulong[] allowedRoles) => new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
-    public IDiscordAllowedMentionsProperties WithAllowedUsers(IEnumerable<ulong> allowedUsers) => new DiscordAllowedMentionsProperties(_original.WithAllowedUsers(allowedUsers));
-    public IDiscordAllowedMentionsProperties AddAllowedUsers(IEnumerable<ulong> allowedUsers) => new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
-    public IDiscordAllowedMentionsProperties AddAllowedUsers(ulong[] allowedUsers) => new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
-    public IDiscordAllowedMentionsProperties WithReplyMention(bool replyMention = true) => new DiscordAllowedMentionsProperties(_original.WithReplyMention(replyMention));
+    public IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithEveryone(everyone));
+    }
+    public IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedRoles(ulong[] allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties WithAllowedUsers(IEnumerable<ulong> allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedUsers(IEnumerable<ulong> allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedUsers(ulong[] allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties WithReplyMention(bool replyMention = true) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithReplyMention(replyMention));
+    }
 }
 
 
@@ -7259,7 +9361,10 @@ public class DiscordComponentProperties : IDiscordComponentProperties
     public NetCord.Rest.IComponentProperties Original => _original;
     public int? Id => _original.Id;
     public NetCord.ComponentType ComponentType => _original.ComponentType;
-    public IDiscordComponentProperties WithId(int? id) => new DiscordComponentProperties(_original.WithId(id));
+    public IDiscordComponentProperties WithId(int? id) 
+    {
+        return new DiscordComponentProperties(_original.WithId(id));
+    }
 }
 
 
@@ -7272,13 +9377,25 @@ public class DiscordAttachmentProperties : IDiscordAttachmentProperties
     }
     public NetCord.Rest.AttachmentProperties Original => _original;
     public string FileName => _original.FileName;
-    public string Title => _original.Title;
-    public string Description => _original.Description;
+    public string? Title => _original.Title is null ? null : _original.Title;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public bool SupportsHttpSerialization => _original.SupportsHttpSerialization;
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordAttachmentProperties WithFileName(string fileName) => new DiscordAttachmentProperties(_original.WithFileName(fileName));
-    public IDiscordAttachmentProperties WithTitle(string title) => new DiscordAttachmentProperties(_original.WithTitle(title));
-    public IDiscordAttachmentProperties WithDescription(string description) => new DiscordAttachmentProperties(_original.WithDescription(description));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordAttachmentProperties WithFileName(string fileName) 
+    {
+        return new DiscordAttachmentProperties(_original.WithFileName(fileName));
+    }
+    public IDiscordAttachmentProperties WithTitle(string title) 
+    {
+        return new DiscordAttachmentProperties(_original.WithTitle(title));
+    }
+    public IDiscordAttachmentProperties WithDescription(string description) 
+    {
+        return new DiscordAttachmentProperties(_original.WithDescription(description));
+    }
 }
 
 
@@ -7295,13 +9412,34 @@ public class DiscordMessagePollProperties : IDiscordMessagePollProperties
     public int? DurationInHours => _original.DurationInHours;
     public bool AllowMultiselect => _original.AllowMultiselect;
     public NetCord.MessagePollLayoutType? LayoutType => _original.LayoutType;
-    public IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question) => new DiscordMessagePollProperties(_original.WithQuestion(question.Original));
-    public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) => new DiscordMessagePollProperties(_original.WithAnswers(answers?.Select(x => x.Original)));
-    public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) => new DiscordMessagePollProperties(_original.AddAnswers(answers?.Select(x => x.Original)));
-    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) => new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
-    public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) => new DiscordMessagePollProperties(_original.WithDurationInHours(durationInHours));
-    public IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true) => new DiscordMessagePollProperties(_original.WithAllowMultiselect(allowMultiselect));
-    public IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType) => new DiscordMessagePollProperties(_original.WithLayoutType(layoutType));
+    public IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question) 
+    {
+        return new DiscordMessagePollProperties(_original.WithQuestion(question.Original));
+    }
+    public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
+    {
+        return new DiscordMessagePollProperties(_original.WithAnswers(answers?.Select(x => x.Original)));
+    }
+    public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
+    {
+        return new DiscordMessagePollProperties(_original.AddAnswers(answers?.Select(x => x.Original)));
+    }
+    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) 
+    {
+        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) 
+    {
+        return new DiscordMessagePollProperties(_original.WithDurationInHours(durationInHours));
+    }
+    public IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true) 
+    {
+        return new DiscordMessagePollProperties(_original.WithAllowMultiselect(allowMultiselect));
+    }
+    public IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType) 
+    {
+        return new DiscordMessagePollProperties(_original.WithLayoutType(layoutType));
+    }
 }
 
 
@@ -7329,17 +9467,17 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
         _original = original;
     }
     public NetCord.Rest.GuildChannelOptions Original => _original;
-    public string Name => _original.Name;
+    public string? Name => _original.Name is null ? null : _original.Name;
     public NetCord.ChannelType? ChannelType => _original.ChannelType;
     public int? Position => _original.Position;
-    public string Topic => _original.Topic;
+    public string? Topic => _original.Topic is null ? null : _original.Topic;
     public bool? Nsfw => _original.Nsfw;
     public int? Slowmode => _original.Slowmode;
     public int? Bitrate => _original.Bitrate;
     public int? UserLimit => _original.UserLimit;
     public IEnumerable<IDiscordPermissionOverwriteProperties> PermissionOverwrites => _original.PermissionOverwrites.Select(x => new DiscordPermissionOverwriteProperties(x));
     public ulong? ParentId => _original.ParentId;
-    public string RtcRegion => _original.RtcRegion;
+    public string? RtcRegion => _original.RtcRegion is null ? null : _original.RtcRegion;
     public NetCord.VideoQualityMode? VideoQualityMode => _original.VideoQualityMode;
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration => _original.DefaultAutoArchiveDuration;
     public IEnumerable<IDiscordForumTagProperties> AvailableTags => _original.AvailableTags.Select(x => new DiscordForumTagProperties(x));
@@ -7352,37 +9490,127 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     public NetCord.ThreadArchiveDuration? AutoArchiveDuration => _original.AutoArchiveDuration;
     public bool? Locked => _original.Locked;
     public bool? Invitable => _original.Invitable;
-    public IEnumerable<ulong> AppliedTags => _original.AppliedTags;
-    public IDiscordGuildChannelOptions WithName(string name) => new DiscordGuildChannelOptions(_original.WithName(name));
-    public IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType) => new DiscordGuildChannelOptions(_original.WithChannelType(channelType));
-    public IDiscordGuildChannelOptions WithPosition(int? position) => new DiscordGuildChannelOptions(_original.WithPosition(position));
-    public IDiscordGuildChannelOptions WithTopic(string topic) => new DiscordGuildChannelOptions(_original.WithTopic(topic));
-    public IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true) => new DiscordGuildChannelOptions(_original.WithNsfw(nsfw));
-    public IDiscordGuildChannelOptions WithSlowmode(int? slowmode) => new DiscordGuildChannelOptions(_original.WithSlowmode(slowmode));
-    public IDiscordGuildChannelOptions WithBitrate(int? bitrate) => new DiscordGuildChannelOptions(_original.WithBitrate(bitrate));
-    public IDiscordGuildChannelOptions WithUserLimit(int? userLimit) => new DiscordGuildChannelOptions(_original.WithUserLimit(userLimit));
-    public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) => new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) => new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
-    public IDiscordGuildChannelOptions WithParentId(ulong? parentId) => new DiscordGuildChannelOptions(_original.WithParentId(parentId));
-    public IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion) => new DiscordGuildChannelOptions(_original.WithRtcRegion(rtcRegion));
-    public IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) => new DiscordGuildChannelOptions(_original.WithVideoQualityMode(videoQualityMode));
-    public IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) => new DiscordGuildChannelOptions(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
-    public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) => new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
-    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) => new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
-    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) => new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
-    public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) => new DiscordGuildChannelOptions(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
-    public IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags) => new DiscordGuildChannelOptions(_original.WithFlags(flags));
-    public IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) => new DiscordGuildChannelOptions(_original.WithDefaultSortOrder(defaultSortOrder));
-    public IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) => new DiscordGuildChannelOptions(_original.WithDefaultForumLayout(defaultForumLayout));
-    public IDiscordGuildChannelOptions WithArchived(bool? archived = true) => new DiscordGuildChannelOptions(_original.WithArchived(archived));
-    public IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) => new DiscordGuildChannelOptions(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    public IDiscordGuildChannelOptions WithLocked(bool? locked = true) => new DiscordGuildChannelOptions(_original.WithLocked(locked));
-    public IDiscordGuildChannelOptions WithInvitable(bool? invitable = true) => new DiscordGuildChannelOptions(_original.WithInvitable(invitable));
-    public IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordGuildChannelOptions(_original.WithAppliedTags(appliedTags));
-    public IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
-    public IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags) => new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+    public IEnumerable<ulong>? AppliedTags => _original.AppliedTags is null ? null : _original.AppliedTags;
+    public IDiscordGuildChannelOptions WithName(string name) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithName(name));
+    }
+    public IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithChannelType(channelType));
+    }
+    public IDiscordGuildChannelOptions WithPosition(int? position) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithPosition(position));
+    }
+    public IDiscordGuildChannelOptions WithTopic(string topic) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithTopic(topic));
+    }
+    public IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithNsfw(nsfw));
+    }
+    public IDiscordGuildChannelOptions WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithSlowmode(slowmode));
+    }
+    public IDiscordGuildChannelOptions WithBitrate(int? bitrate) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithBitrate(bitrate));
+    }
+    public IDiscordGuildChannelOptions WithUserLimit(int? userLimit) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithUserLimit(userLimit));
+    }
+    public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelOptions WithParentId(ulong? parentId) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithParentId(parentId));
+    }
+    public IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithRtcRegion(rtcRegion));
+    }
+    public IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithVideoQualityMode(videoQualityMode));
+    }
+    public IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
+    }
+    public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
+    }
+    public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
+    }
+    public IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithFlags(flags));
+    }
+    public IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultSortOrder(defaultSortOrder));
+    }
+    public IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultForumLayout(defaultForumLayout));
+    }
+    public IDiscordGuildChannelOptions WithArchived(bool? archived = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithArchived(archived));
+    }
+    public IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildChannelOptions WithLocked(bool? locked = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithLocked(locked));
+    }
+    public IDiscordGuildChannelOptions WithInvitable(bool? invitable = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithInvitable(invitable));
+    }
+    public IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAppliedTags(appliedTags));
+    }
+    public IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+    }
 }
 
 
@@ -7398,10 +9626,22 @@ public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteP
     public NetCord.PermissionOverwriteType Type => _original.Type;
     public NetCord.Permissions? Allowed => _original.Allowed;
     public NetCord.Permissions? Denied => _original.Denied;
-    public IDiscordPermissionOverwriteProperties WithId(ulong id) => new DiscordPermissionOverwriteProperties(_original.WithId(id));
-    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) => new DiscordPermissionOverwriteProperties(_original.WithType(type));
-    public IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed) => new DiscordPermissionOverwriteProperties(_original.WithAllowed(allowed));
-    public IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied) => new DiscordPermissionOverwriteProperties(_original.WithDenied(denied));
+    public IDiscordPermissionOverwriteProperties WithId(ulong id) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithId(id));
+    }
+    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithType(type));
+    }
+    public IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithAllowed(allowed));
+    }
+    public IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithDenied(denied));
+    }
 }
 
 
@@ -7420,13 +9660,34 @@ public class DiscordInviteProperties : IDiscordInviteProperties
     public NetCord.InviteTargetType? TargetType => _original.TargetType;
     public ulong? TargetUserId => _original.TargetUserId;
     public ulong? TargetApplicationId => _original.TargetApplicationId;
-    public IDiscordInviteProperties WithMaxAge(int? maxAge) => new DiscordInviteProperties(_original.WithMaxAge(maxAge));
-    public IDiscordInviteProperties WithMaxUses(int? maxUses) => new DiscordInviteProperties(_original.WithMaxUses(maxUses));
-    public IDiscordInviteProperties WithTemporary(bool? temporary = true) => new DiscordInviteProperties(_original.WithTemporary(temporary));
-    public IDiscordInviteProperties WithUnique(bool? unique = true) => new DiscordInviteProperties(_original.WithUnique(unique));
-    public IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType) => new DiscordInviteProperties(_original.WithTargetType(targetType));
-    public IDiscordInviteProperties WithTargetUserId(ulong? targetUserId) => new DiscordInviteProperties(_original.WithTargetUserId(targetUserId));
-    public IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId) => new DiscordInviteProperties(_original.WithTargetApplicationId(targetApplicationId));
+    public IDiscordInviteProperties WithMaxAge(int? maxAge) 
+    {
+        return new DiscordInviteProperties(_original.WithMaxAge(maxAge));
+    }
+    public IDiscordInviteProperties WithMaxUses(int? maxUses) 
+    {
+        return new DiscordInviteProperties(_original.WithMaxUses(maxUses));
+    }
+    public IDiscordInviteProperties WithTemporary(bool? temporary = true) 
+    {
+        return new DiscordInviteProperties(_original.WithTemporary(temporary));
+    }
+    public IDiscordInviteProperties WithUnique(bool? unique = true) 
+    {
+        return new DiscordInviteProperties(_original.WithUnique(unique));
+    }
+    public IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetType(targetType));
+    }
+    public IDiscordInviteProperties WithTargetUserId(ulong? targetUserId) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetUserId(targetUserId));
+    }
+    public IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetApplicationId(targetApplicationId));
+    }
 }
 
 
@@ -7488,11 +9749,26 @@ public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties
     public string Name => _original.Name;
     public NetCord.ThreadArchiveDuration? AutoArchiveDuration => _original.AutoArchiveDuration;
     public int? Slowmode => _original.Slowmode;
-    public IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType) => new DiscordGuildThreadProperties(_original.WithChannelType(channelType));
-    public IDiscordGuildThreadProperties WithInvitable(bool? invitable = true) => new DiscordGuildThreadProperties(_original.WithInvitable(invitable));
-    public IDiscordGuildThreadProperties WithName(string name) => new DiscordGuildThreadProperties(_original.WithName(name));
-    public IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) => new DiscordGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    public IDiscordGuildThreadProperties WithSlowmode(int? slowmode) => new DiscordGuildThreadProperties(_original.WithSlowmode(slowmode));
+    public IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithChannelType(channelType));
+    }
+    public IDiscordGuildThreadProperties WithInvitable(bool? invitable = true) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithInvitable(invitable));
+    }
+    public IDiscordGuildThreadProperties WithName(string name) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithName(name));
+    }
+    public IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildThreadProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithSlowmode(slowmode));
+    }
 }
 
 
@@ -7517,17 +9793,50 @@ public class DiscordIncomingWebhook : IDiscordIncomingWebhook
     public IDiscordChannel Channel => new DiscordChannel(_original.Channel);
     public string Url => _original.Url;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null) => new DiscordWebhookClient(_original.ToClient(configuration.Original));
-    public async Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.GetWithTokenAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.ModifyWithTokenAsync(x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteWithTokenAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, threadId, properties.Original, cancellationToken);
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
+    public IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null) 
+    {
+        return new DiscordWebhookClient(_original.ToClient(configuration?.Original));
+    }
+    public async Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.GetWithTokenAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.ModifyWithTokenAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWithTokenAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -7541,8 +9850,14 @@ public class DiscordWebhookProperties : IDiscordWebhookProperties
     public NetCord.Rest.WebhookProperties Original => _original;
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties? Avatar => _original.Avatar;
-    public IDiscordWebhookProperties WithName(string name) => new DiscordWebhookProperties(_original.WithName(name));
-    public IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar) => new DiscordWebhookProperties(_original.WithAvatar(avatar));
+    public IDiscordWebhookProperties WithName(string name) 
+    {
+        return new DiscordWebhookProperties(_original.WithName(name));
+    }
+    public IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordWebhookProperties(_original.WithAvatar(avatar));
+    }
 }
 
 
@@ -7583,8 +9898,14 @@ public class DiscordStageInstanceOptions : IDiscordStageInstanceOptions
     public NetCord.Rest.StageInstanceOptions Original => _original;
     public string Topic => _original.Topic;
     public NetCord.StageInstancePrivacyLevel? PrivacyLevel => _original.PrivacyLevel;
-    public IDiscordStageInstanceOptions WithTopic(string topic) => new DiscordStageInstanceOptions(_original.WithTopic(topic));
-    public IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) => new DiscordStageInstanceOptions(_original.WithPrivacyLevel(privacyLevel));
+    public IDiscordStageInstanceOptions WithTopic(string topic) 
+    {
+        return new DiscordStageInstanceOptions(_original.WithTopic(topic));
+    }
+    public IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) 
+    {
+        return new DiscordStageInstanceOptions(_original.WithPrivacyLevel(privacyLevel));
+    }
 }
 
 
@@ -7637,7 +9958,7 @@ public class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChanne
     public ulong Id => _original.Id;
     public string Description => _original.Description;
     public ulong? EmojiId => _original.EmojiId;
-    public string EmojiName => _original.EmojiName;
+    public string? EmojiName => _original.EmojiName is null ? null : _original.EmojiName;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -7671,8 +9992,14 @@ public class DiscordAuditLogChange : IDiscordAuditLogChange
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) => new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() => new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
+    }
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    }
 }
 
 
@@ -7685,7 +10012,7 @@ public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo
     }
     public NetCord.AuditLogEntryInfo Original => _original;
     public ulong? ApplicationId => _original.ApplicationId;
-    public string AutoModerationRuleName => _original.AutoModerationRuleName;
+    public string? AutoModerationRuleName => _original.AutoModerationRuleName is null ? null : _original.AutoModerationRuleName;
     public NetCord.AutoModerationRuleTriggerType? AutoModerationRuleTriggerType => _original.AutoModerationRuleTriggerType;
     public ulong? ChannelId => _original.ChannelId;
     public int? Count => _original.Count;
@@ -7693,7 +10020,7 @@ public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo
     public ulong? Id => _original.Id;
     public int? GuildUsersRemoved => _original.GuildUsersRemoved;
     public ulong? MessageId => _original.MessageId;
-    public string RoleName => _original.RoleName;
+    public string? RoleName => _original.RoleName is null ? null : _original.RoleName;
     public NetCord.PermissionOverwriteType? Type => _original.Type;
     public NetCord.IntegrationType? IntegrationType => _original.IntegrationType;
 }
@@ -7712,8 +10039,14 @@ public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue>
     public string Key => _original.Key;
     public bool HasNewValue => _original.HasNewValue;
     public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) => new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() => new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
+    }
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    }
 }
 
 
@@ -7727,7 +10060,7 @@ public class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRu
     public NetCord.AutoModerationRuleTriggerMetadata Original => _original;
     public IReadOnlyList<string> KeywordFilter => _original.KeywordFilter;
     public IReadOnlyList<string> RegexPatterns => _original.RegexPatterns;
-    public IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType> Presets => _original.Presets;
+    public IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType>? Presets => _original.Presets is null ? null : _original.Presets;
     public IReadOnlyList<string> AllowList => _original.AllowList;
     public int? MentionTotalLimit => _original.MentionTotalLimit;
     public bool MentionRaidProtectionEnabled => _original.MentionRaidProtectionEnabled;
@@ -7743,7 +10076,7 @@ public class DiscordAutoModerationAction : IDiscordAutoModerationAction
     }
     public NetCord.AutoModerationAction Original => _original;
     public NetCord.AutoModerationActionType Type => _original.Type;
-    public IDiscordAutoModerationActionMetadata Metadata => new DiscordAutoModerationActionMetadata(_original.Metadata);
+    public IDiscordAutoModerationActionMetadata? Metadata => _original.Metadata is null ? null : new DiscordAutoModerationActionMetadata(_original.Metadata);
 }
 
 
@@ -7757,24 +10090,66 @@ public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoMo
     public NetCord.AutoModerationRuleTriggerMetadataProperties Original => _original;
     public IEnumerable<string> KeywordFilter => _original.KeywordFilter;
     public IEnumerable<string> RegexPatterns => _original.RegexPatterns;
-    public IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> Presets => _original.Presets;
+    public IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? Presets => _original.Presets is null ? null : _original.Presets;
     public IEnumerable<string> AllowList => _original.AllowList;
     public int? MentionTotalLimit => _original.MentionTotalLimit;
     public bool MentionRaidProtectionEnabled => _original.MentionRaidProtectionEnabled;
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithKeywordFilter(IEnumerable<string> keywordFilter) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithKeywordFilter(keywordFilter));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(IEnumerable<string> keywordFilter) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string> regexPatterns) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithRegexPatterns(regexPatterns));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithPresets(presets));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string> allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionTotalLimit(int? mentionTotalLimit) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionTotalLimit(mentionTotalLimit));
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionRaidProtectionEnabled(bool mentionRaidProtectionEnabled = true) => new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionRaidProtectionEnabled(mentionRaidProtectionEnabled));
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithKeywordFilter(IEnumerable<string> keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(IEnumerable<string> keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string> regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string> allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionTotalLimit(int? mentionTotalLimit) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionTotalLimit(mentionTotalLimit));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionRaidProtectionEnabled(bool mentionRaidProtectionEnabled = true) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionRaidProtectionEnabled(mentionRaidProtectionEnabled));
+    }
 }
 
 
@@ -7788,8 +10163,14 @@ public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActio
     public NetCord.AutoModerationActionProperties Original => _original;
     public NetCord.AutoModerationActionType Type => _original.Type;
     public IDiscordAutoModerationActionMetadataProperties Metadata => new DiscordAutoModerationActionMetadataProperties(_original.Metadata);
-    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) => new DiscordAutoModerationActionProperties(_original.WithType(type));
-    public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties metadata) => new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata.Original));
+    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) 
+    {
+        return new DiscordAutoModerationActionProperties(_original.WithType(type));
+    }
+    public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties metadata) 
+    {
+        return new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata?.Original));
+    }
 }
 
 
@@ -7805,12 +10186,27 @@ public class DiscordForumTagProperties : IDiscordForumTagProperties
     public string Name => _original.Name;
     public bool? Moderated => _original.Moderated;
     public ulong? EmojiId => _original.EmojiId;
-    public string EmojiName => _original.EmojiName;
-    public IDiscordForumTagProperties WithId(ulong? id) => new DiscordForumTagProperties(_original.WithId(id));
-    public IDiscordForumTagProperties WithName(string name) => new DiscordForumTagProperties(_original.WithName(name));
-    public IDiscordForumTagProperties WithModerated(bool? moderated = true) => new DiscordForumTagProperties(_original.WithModerated(moderated));
-    public IDiscordForumTagProperties WithEmojiId(ulong? emojiId) => new DiscordForumTagProperties(_original.WithEmojiId(emojiId));
-    public IDiscordForumTagProperties WithEmojiName(string emojiName) => new DiscordForumTagProperties(_original.WithEmojiName(emojiName));
+    public string? EmojiName => _original.EmojiName is null ? null : _original.EmojiName;
+    public IDiscordForumTagProperties WithId(ulong? id) 
+    {
+        return new DiscordForumTagProperties(_original.WithId(id));
+    }
+    public IDiscordForumTagProperties WithName(string name) 
+    {
+        return new DiscordForumTagProperties(_original.WithName(name));
+    }
+    public IDiscordForumTagProperties WithModerated(bool? moderated = true) 
+    {
+        return new DiscordForumTagProperties(_original.WithModerated(moderated));
+    }
+    public IDiscordForumTagProperties WithEmojiId(ulong? emojiId) 
+    {
+        return new DiscordForumTagProperties(_original.WithEmojiId(emojiId));
+    }
+    public IDiscordForumTagProperties WithEmojiName(string emojiName) 
+    {
+        return new DiscordForumTagProperties(_original.WithEmojiName(emojiName));
+    }
 }
 
 
@@ -7825,9 +10221,18 @@ public class DiscordChannel : IDiscordChannel
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.DeleteAsync(properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -7855,10 +10260,10 @@ public class DiscordIntegrationApplication : IDiscordIntegrationApplication
     public NetCord.IntegrationApplication Original => _original;
     public ulong Id => _original.Id;
     public string Name => _original.Name;
-    public string IconHash => _original.IconHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
     public string Description => _original.Description;
     public string Summary => _original.Summary;
-    public IDiscordUser Bot => new DiscordUser(_original.Bot);
+    public IDiscordUser? Bot => _original.Bot is null ? null : new DiscordUser(_original.Bot);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -7888,10 +10293,19 @@ public class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeSc
     public NetCord.Rest.GuildWelcomeScreenChannelProperties Original => _original;
     public ulong ChannelId => _original.ChannelId;
     public string Description => _original.Description;
-    public IDiscordEmojiProperties Emoji => new DiscordEmojiProperties(_original.Emoji);
-    public IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId) => new DiscordGuildWelcomeScreenChannelProperties(_original.WithChannelId(channelId));
-    public IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description) => new DiscordGuildWelcomeScreenChannelProperties(_original.WithDescription(description));
-    public IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties emoji) => new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmoji(emoji.Original));
+    public IDiscordEmojiProperties? Emoji => _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji);
+    public IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithDescription(description));
+    }
+    public IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties emoji) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmoji(emoji?.Original));
+    }
 }
 
 
@@ -7929,15 +10343,42 @@ public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPro
     public bool SingleSelect => _original.SingleSelect;
     public bool Required => _original.Required;
     public bool InOnboarding => _original.InOnboarding;
-    public IDiscordGuildOnboardingPromptProperties WithId(ulong? id) => new DiscordGuildOnboardingPromptProperties(_original.WithId(id));
-    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) => new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
-    public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) => new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    public IDiscordGuildOnboardingPromptProperties WithTitle(string title) => new DiscordGuildOnboardingPromptProperties(_original.WithTitle(title));
-    public IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true) => new DiscordGuildOnboardingPromptProperties(_original.WithSingleSelect(singleSelect));
-    public IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true) => new DiscordGuildOnboardingPromptProperties(_original.WithRequired(required));
-    public IDiscordGuildOnboardingPromptProperties WithInOnboarding(bool inOnboarding = true) => new DiscordGuildOnboardingPromptProperties(_original.WithInOnboarding(inOnboarding));
+    public IDiscordGuildOnboardingPromptProperties WithId(ulong? id) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithId(id));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithTitle(string title) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithTitle(title));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithSingleSelect(singleSelect));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithRequired(required));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithInOnboarding(bool inOnboarding = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithInOnboarding(inOnboarding));
+    }
 }
 
 
@@ -7950,7 +10391,10 @@ public class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildSchedul
     }
     public NetCord.Rest.GuildScheduledEventMetadataProperties Original => _original;
     public string Location => _original.Location;
-    public IDiscordGuildScheduledEventMetadataProperties WithLocation(string location) => new DiscordGuildScheduledEventMetadataProperties(_original.WithLocation(location));
+    public IDiscordGuildScheduledEventMetadataProperties WithLocation(string location) 
+    {
+        return new DiscordGuildScheduledEventMetadataProperties(_original.WithLocation(location));
+    }
 }
 
 
@@ -7963,8 +10407,8 @@ public class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview
     }
     public NetCord.Rest.GuildTemplatePreview Original => _original;
     public string Name => _original.Name;
-    public string IconHash => _original.IconHash;
-    public string Description => _original.Description;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public NetCord.VerificationLevel VerificationLevel => _original.VerificationLevel;
     public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
     public NetCord.ContentFilter ContentFilter => _original.ContentFilter;
@@ -7988,8 +10432,14 @@ public class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTem
     public NetCord.Rest.GuildFromGuildTemplateProperties Original => _original;
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties? Icon => _original.Icon;
-    public IDiscordGuildFromGuildTemplateProperties WithName(string name) => new DiscordGuildFromGuildTemplateProperties(_original.WithName(name));
-    public IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordGuildFromGuildTemplateProperties(_original.WithIcon(icon));
+    public IDiscordGuildFromGuildTemplateProperties WithName(string name) 
+    {
+        return new DiscordGuildFromGuildTemplateProperties(_original.WithName(name));
+    }
+    public IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordGuildFromGuildTemplateProperties(_original.WithIcon(icon));
+    }
 }
 
 
@@ -8009,7 +10459,7 @@ public class DiscordApplicationCommandOption : IDiscordApplicationCommandOption
     public bool Required => _original.Required;
     public IReadOnlyList<IDiscordApplicationCommandOptionChoice> Choices => _original.Choices.Select(x => new DiscordApplicationCommandOptionChoice(x)).ToList();
     public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
-    public IReadOnlyList<NetCord.ChannelType> ChannelTypes => _original.ChannelTypes;
+    public IReadOnlyList<NetCord.ChannelType>? ChannelTypes => _original.ChannelTypes is null ? null : _original.ChannelTypes;
     public double? MinValue => _original.MinValue;
     public double? MaxValue => _original.MaxValue;
     public int? MinLength => _original.MinLength;
@@ -8038,15 +10488,30 @@ public class DiscordApplicationCommand : IDiscordApplicationCommand
     public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
     public bool DefaultPermission => _original.DefaultPermission;
     public bool Nsfw => _original.Nsfw;
-    public IReadOnlyList<NetCord.ApplicationIntegrationType> IntegrationTypes => _original.IntegrationTypes;
-    public IReadOnlyList<NetCord.InteractionContextType> Contexts => _original.Contexts;
+    public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes is null ? null : _original.IntegrationTypes;
+    public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts is null ? null : _original.Contexts;
     public ulong Version => _original.Version;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
+    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -8066,32 +10531,92 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     public bool? Required => _original.Required;
     public IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> Choices => _original.Choices.Select(x => new DiscordApplicationCommandOptionChoiceProperties(x));
     public IEnumerable<IDiscordApplicationCommandOptionProperties> Options => _original.Options.Select(x => new DiscordApplicationCommandOptionProperties(x));
-    public IEnumerable<NetCord.ChannelType> ChannelTypes => _original.ChannelTypes;
+    public IEnumerable<NetCord.ChannelType>? ChannelTypes => _original.ChannelTypes is null ? null : _original.ChannelTypes;
     public double? MinValue => _original.MinValue;
     public double? MaxValue => _original.MaxValue;
     public int? MinLength => _original.MinLength;
     public int? MaxLength => _original.MaxLength;
     public bool? Autocomplete => _original.Autocomplete;
-    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) => new DiscordApplicationCommandOptionProperties(_original.WithType(type));
-    public IDiscordApplicationCommandOptionProperties WithName(string name) => new DiscordApplicationCommandOptionProperties(_original.WithName(name));
-    public IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandOptionProperties(_original.WithNameLocalizations(nameLocalizations));
-    public IDiscordApplicationCommandOptionProperties WithDescription(string description) => new DiscordApplicationCommandOptionProperties(_original.WithDescription(description));
-    public IDiscordApplicationCommandOptionProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) => new DiscordApplicationCommandOptionProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
-    public IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true) => new DiscordApplicationCommandOptionProperties(_original.WithRequired(required));
-    public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) => new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) => new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) => new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
-    public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options?.Select(x => x.Original)));
-    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) => new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) => new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    public IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue) => new DiscordApplicationCommandOptionProperties(_original.WithMinValue(minValue));
-    public IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue) => new DiscordApplicationCommandOptionProperties(_original.WithMaxValue(maxValue));
-    public IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength) => new DiscordApplicationCommandOptionProperties(_original.WithMinLength(minLength));
-    public IDiscordApplicationCommandOptionProperties WithMaxLength(int? maxLength) => new DiscordApplicationCommandOptionProperties(_original.WithMaxLength(maxLength));
-    public IDiscordApplicationCommandOptionProperties WithAutocomplete(bool? autocomplete = true) => new DiscordApplicationCommandOptionProperties(_original.WithAutocomplete(autocomplete));
+    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithType(type));
+    }
+    public IDiscordApplicationCommandOptionProperties WithName(string name) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationCommandOptionProperties WithDescription(string description) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithDescription(description));
+    }
+    public IDiscordApplicationCommandOptionProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
+    }
+    public IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithRequired(required));
+    }
+    public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMinValue(minValue));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMaxValue(maxValue));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMinLength(minLength));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMaxLength(int? maxLength) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMaxLength(maxLength));
+    }
+    public IDiscordApplicationCommandOptionProperties WithAutocomplete(bool? autocomplete = true) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithAutocomplete(autocomplete));
+    }
 }
 
 
@@ -8118,7 +10643,10 @@ public class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery
         _original = original;
     }
     public NetCord.Rest.IGuildUsersSearchQuery Original => _original;
-    public void Serialize(Utf8JsonWriter writer) => _original.Serialize(writer);
+    public void Serialize(Utf8JsonWriter writer) 
+    {
+        _original.Serialize(writer);
+    }
 }
 
 
@@ -8133,9 +10661,18 @@ public class DiscordWebhookOptions : IDiscordWebhookOptions
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties? Avatar => _original.Avatar;
     public ulong? ChannelId => _original.ChannelId;
-    public IDiscordWebhookOptions WithName(string name) => new DiscordWebhookOptions(_original.WithName(name));
-    public IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) => new DiscordWebhookOptions(_original.WithAvatar(avatar));
-    public IDiscordWebhookOptions WithChannelId(ulong? channelId) => new DiscordWebhookOptions(_original.WithChannelId(channelId));
+    public IDiscordWebhookOptions WithName(string name) 
+    {
+        return new DiscordWebhookOptions(_original.WithName(name));
+    }
+    public IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordWebhookOptions(_original.WithAvatar(avatar));
+    }
+    public IDiscordWebhookOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordWebhookOptions(_original.WithChannelId(channelId));
+    }
 }
 
 
@@ -8148,7 +10685,10 @@ public class DiscordNonceProperties : IDiscordNonceProperties
     }
     public NetCord.Rest.NonceProperties Original => _original;
     public bool Unique => _original.Unique;
-    public IDiscordNonceProperties WithUnique(bool unique = true) => new DiscordNonceProperties(_original.WithUnique(unique));
+    public IDiscordNonceProperties WithUnique(bool unique = true) 
+    {
+        return new DiscordNonceProperties(_original.WithUnique(unique));
+    }
 }
 
 
@@ -8164,10 +10704,22 @@ public class DiscordMessageReferenceProperties : IDiscordMessageReferencePropert
     public ulong? ChannelId => _original.ChannelId;
     public ulong MessageId => _original.MessageId;
     public bool FailIfNotExists => _original.FailIfNotExists;
-    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) => new DiscordMessageReferenceProperties(_original.WithType(type));
-    public IDiscordMessageReferenceProperties WithChannelId(ulong? channelId) => new DiscordMessageReferenceProperties(_original.WithChannelId(channelId));
-    public IDiscordMessageReferenceProperties WithMessageId(ulong messageId) => new DiscordMessageReferenceProperties(_original.WithMessageId(messageId));
-    public IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true) => new DiscordMessageReferenceProperties(_original.WithFailIfNotExists(failIfNotExists));
+    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithType(type));
+    }
+    public IDiscordMessageReferenceProperties WithChannelId(ulong? channelId) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordMessageReferenceProperties WithMessageId(ulong messageId) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithMessageId(messageId));
+    }
+    public IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithFailIfNotExists(failIfNotExists));
+    }
 }
 
 
@@ -8194,8 +10746,8 @@ public class DiscordEmbedFooter : IDiscordEmbedFooter
     }
     public NetCord.EmbedFooter Original => _original;
     public string Text => _original.Text;
-    public string IconUrl => _original.IconUrl;
-    public string ProxyIconUrl => _original.ProxyIconUrl;
+    public string? IconUrl => _original.IconUrl is null ? null : _original.IconUrl;
+    public string? ProxyIconUrl => _original.ProxyIconUrl is null ? null : _original.ProxyIconUrl;
 }
 
 
@@ -8207,8 +10759,8 @@ public class DiscordEmbedImage : IDiscordEmbedImage
         _original = original;
     }
     public NetCord.EmbedImage Original => _original;
-    public string Url => _original.Url;
-    public string ProxyUrl => _original.ProxyUrl;
+    public string? Url => _original.Url is null ? null : _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl is null ? null : _original.ProxyUrl;
     public int? Height => _original.Height;
     public int? Width => _original.Width;
 }
@@ -8222,8 +10774,8 @@ public class DiscordEmbedThumbnail : IDiscordEmbedThumbnail
         _original = original;
     }
     public NetCord.EmbedThumbnail Original => _original;
-    public string Url => _original.Url;
-    public string ProxyUrl => _original.ProxyUrl;
+    public string? Url => _original.Url is null ? null : _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl is null ? null : _original.ProxyUrl;
     public int? Height => _original.Height;
     public int? Width => _original.Width;
 }
@@ -8237,8 +10789,8 @@ public class DiscordEmbedVideo : IDiscordEmbedVideo
         _original = original;
     }
     public NetCord.EmbedVideo Original => _original;
-    public string Url => _original.Url;
-    public string ProxyUrl => _original.ProxyUrl;
+    public string? Url => _original.Url is null ? null : _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl is null ? null : _original.ProxyUrl;
     public int? Height => _original.Height;
     public int? Width => _original.Width;
 }
@@ -8252,8 +10804,8 @@ public class DiscordEmbedProvider : IDiscordEmbedProvider
         _original = original;
     }
     public NetCord.EmbedProvider Original => _original;
-    public string Name => _original.Name;
-    public string Url => _original.Url;
+    public string? Name => _original.Name is null ? null : _original.Name;
+    public string? Url => _original.Url is null ? null : _original.Url;
 }
 
 
@@ -8308,7 +10860,7 @@ public class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji
     }
     public NetCord.MessageReactionEmoji Original => _original;
     public ulong? Id => _original.Id;
-    public string Name => _original.Name;
+    public string? Name => _original.Name is null ? null : _original.Name;
     public bool Animated => _original.Animated;
 }
 
@@ -8322,12 +10874,16 @@ public class DiscordTeam : IDiscordTeam
     }
     public NetCord.Team Original => _original;
     public ulong Id => _original.Id;
-    public string IconHash => _original.IconHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
     public IReadOnlyList<IDiscordTeamUser> Users => _original.Users.Select(x => new DiscordTeamUser(x)).ToList();
     public string Name => _original.Name;
     public ulong OwnerId => _original.OwnerId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
 }
 
 
@@ -8352,7 +10908,7 @@ public class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicatio
         _original = original;
     }
     public NetCord.ApplicationIntegrationTypeConfiguration Original => _original;
-    public IDiscordApplicationInstallParams OAuth2InstallParams => new DiscordApplicationInstallParams(_original.OAuth2InstallParams);
+    public IDiscordApplicationInstallParams? OAuth2InstallParams => _original.OAuth2InstallParams is null ? null : new DiscordApplicationInstallParams(_original.OAuth2InstallParams);
 }
 
 
@@ -8366,16 +10922,28 @@ public class DiscordApplicationEmoji : IDiscordApplicationEmoji
     public NetCord.ApplicationEmoji Original => _original;
     public ulong ApplicationId => _original.ApplicationId;
     public ulong Id => _original.Id;
-    public IDiscordUser Creator => new DiscordUser(_original.Creator);
+    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
     public bool? RequireColons => _original.RequireColons;
     public bool? Managed => _original.Managed;
     public bool? Available => _original.Available;
     public string Name => _original.Name;
     public bool Animated => _original.Animated;
-    public async Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.ModifyAsync(x => action(new DiscordApplicationEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
+    public async Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyAsync(x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
 }
 
 
@@ -8389,8 +10957,14 @@ public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiPropert
     public NetCord.Rest.ApplicationEmojiProperties Original => _original;
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties Image => _original.Image;
-    public IDiscordApplicationEmojiProperties WithName(string name) => new DiscordApplicationEmojiProperties(_original.WithName(name));
-    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) => new DiscordApplicationEmojiProperties(_original.WithImage(image));
+    public IDiscordApplicationEmojiProperties WithName(string name) 
+    {
+        return new DiscordApplicationEmojiProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) 
+    {
+        return new DiscordApplicationEmojiProperties(_original.WithImage(image));
+    }
 }
 
 
@@ -8403,7 +10977,10 @@ public class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions
     }
     public NetCord.Rest.ApplicationEmojiOptions Original => _original;
     public string Name => _original.Name;
-    public IDiscordApplicationEmojiOptions WithName(string name) => new DiscordApplicationEmojiOptions(_original.WithName(name));
+    public IDiscordApplicationEmojiOptions WithName(string name) 
+    {
+        return new DiscordApplicationEmojiOptions(_original.WithName(name));
+    }
 }
 
 
@@ -8475,8 +11052,14 @@ public class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties
     public NetCord.Rest.EmbedFooterProperties Original => _original;
     public string Text => _original.Text;
     public string IconUrl => _original.IconUrl;
-    public IDiscordEmbedFooterProperties WithText(string text) => new DiscordEmbedFooterProperties(_original.WithText(text));
-    public IDiscordEmbedFooterProperties WithIconUrl(string iconUrl) => new DiscordEmbedFooterProperties(_original.WithIconUrl(iconUrl));
+    public IDiscordEmbedFooterProperties WithText(string text) 
+    {
+        return new DiscordEmbedFooterProperties(_original.WithText(text));
+    }
+    public IDiscordEmbedFooterProperties WithIconUrl(string iconUrl) 
+    {
+        return new DiscordEmbedFooterProperties(_original.WithIconUrl(iconUrl));
+    }
 }
 
 
@@ -8489,7 +11072,10 @@ public class DiscordEmbedImageProperties : IDiscordEmbedImageProperties
     }
     public NetCord.Rest.EmbedImageProperties Original => _original;
     public string Url => _original.Url;
-    public IDiscordEmbedImageProperties WithUrl(string url) => new DiscordEmbedImageProperties(_original.WithUrl(url));
+    public IDiscordEmbedImageProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedImageProperties(_original.WithUrl(url));
+    }
 }
 
 
@@ -8502,7 +11088,10 @@ public class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties
     }
     public NetCord.Rest.EmbedThumbnailProperties Original => _original;
     public string Url => _original.Url;
-    public IDiscordEmbedThumbnailProperties WithUrl(string url) => new DiscordEmbedThumbnailProperties(_original.WithUrl(url));
+    public IDiscordEmbedThumbnailProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedThumbnailProperties(_original.WithUrl(url));
+    }
 }
 
 
@@ -8517,9 +11106,18 @@ public class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties
     public string Name => _original.Name;
     public string Url => _original.Url;
     public string IconUrl => _original.IconUrl;
-    public IDiscordEmbedAuthorProperties WithName(string name) => new DiscordEmbedAuthorProperties(_original.WithName(name));
-    public IDiscordEmbedAuthorProperties WithUrl(string url) => new DiscordEmbedAuthorProperties(_original.WithUrl(url));
-    public IDiscordEmbedAuthorProperties WithIconUrl(string iconUrl) => new DiscordEmbedAuthorProperties(_original.WithIconUrl(iconUrl));
+    public IDiscordEmbedAuthorProperties WithName(string name) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithName(name));
+    }
+    public IDiscordEmbedAuthorProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithUrl(url));
+    }
+    public IDiscordEmbedAuthorProperties WithIconUrl(string iconUrl) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithIconUrl(iconUrl));
+    }
 }
 
 
@@ -8534,9 +11132,18 @@ public class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties
     public string Name => _original.Name;
     public string Value => _original.Value;
     public bool Inline => _original.Inline;
-    public IDiscordEmbedFieldProperties WithName(string name) => new DiscordEmbedFieldProperties(_original.WithName(name));
-    public IDiscordEmbedFieldProperties WithValue(string value) => new DiscordEmbedFieldProperties(_original.WithValue(value));
-    public IDiscordEmbedFieldProperties WithInline(bool inline = true) => new DiscordEmbedFieldProperties(_original.WithInline(inline));
+    public IDiscordEmbedFieldProperties WithName(string name) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithName(name));
+    }
+    public IDiscordEmbedFieldProperties WithValue(string value) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithValue(value));
+    }
+    public IDiscordEmbedFieldProperties WithInline(bool inline = true) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithInline(inline));
+    }
 }
 
 
@@ -8550,8 +11157,14 @@ public class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaPropert
     public NetCord.MessagePollMediaProperties Original => _original;
     public string Text => _original.Text;
     public IDiscordEmojiProperties Emoji => new DiscordEmojiProperties(_original.Emoji);
-    public IDiscordMessagePollMediaProperties WithText(string text) => new DiscordMessagePollMediaProperties(_original.WithText(text));
-    public IDiscordMessagePollMediaProperties WithEmoji(IDiscordEmojiProperties emoji) => new DiscordMessagePollMediaProperties(_original.WithEmoji(emoji.Original));
+    public IDiscordMessagePollMediaProperties WithText(string text) 
+    {
+        return new DiscordMessagePollMediaProperties(_original.WithText(text));
+    }
+    public IDiscordMessagePollMediaProperties WithEmoji(IDiscordEmojiProperties emoji) 
+    {
+        return new DiscordMessagePollMediaProperties(_original.WithEmoji(emoji?.Original));
+    }
 }
 
 
@@ -8564,7 +11177,10 @@ public class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerPrope
     }
     public NetCord.MessagePollAnswerProperties Original => _original;
     public IDiscordMessagePollMediaProperties PollMedia => new DiscordMessagePollMediaProperties(_original.PollMedia);
-    public IDiscordMessagePollAnswerProperties WithPollMedia(IDiscordMessagePollMediaProperties pollMedia) => new DiscordMessagePollAnswerProperties(_original.WithPollMedia(pollMedia.Original));
+    public IDiscordMessagePollAnswerProperties WithPollMedia(IDiscordMessagePollMediaProperties pollMedia) 
+    {
+        return new DiscordMessagePollAnswerProperties(_original.WithPollMedia(pollMedia.Original));
+    }
 }
 
 
@@ -8578,14 +11194,38 @@ public class DiscordWebhookClient : IDiscordWebhookClient
     public NetCord.Rest.WebhookClient Original => _original;
     public ulong Id => _original.Id;
     public string Token => _original.Token;
-    public void Dispose() => _original.Dispose();
-    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, threadId, properties.Original, cancellationToken);
+    public void Dispose() 
+    {
+        _original.Dispose();
+    }
+    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -8621,27 +11261,90 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
     public string ThreadName => _original.ThreadName;
     public IEnumerable<ulong> AppliedTags => _original.AppliedTags;
     public IDiscordMessagePollProperties Poll => new DiscordMessagePollProperties(_original.Poll);
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordWebhookMessageProperties WithContent(string content) => new DiscordWebhookMessageProperties(_original.WithContent(content));
-    public IDiscordWebhookMessageProperties WithUsername(string username) => new DiscordWebhookMessageProperties(_original.WithUsername(username));
-    public IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl) => new DiscordWebhookMessageProperties(_original.WithAvatarUrl(avatarUrl));
-    public IDiscordWebhookMessageProperties WithTts(bool tts = true) => new DiscordWebhookMessageProperties(_original.WithTts(tts));
-    public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordWebhookMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordWebhookMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    public IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordWebhookMessageProperties(_original.WithFlags(flags));
-    public IDiscordWebhookMessageProperties WithThreadName(string threadName) => new DiscordWebhookMessageProperties(_original.WithThreadName(threadName));
-    public IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordWebhookMessageProperties(_original.WithAppliedTags(appliedTags));
-    public IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
-    public IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags) => new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
-    public IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties poll) => new DiscordWebhookMessageProperties(_original.WithPoll(poll.Original));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordWebhookMessageProperties WithContent(string content) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordWebhookMessageProperties WithUsername(string username) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithUsername(username));
+    }
+    public IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAvatarUrl(avatarUrl));
+    }
+    public IDiscordWebhookMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordWebhookMessageProperties WithThreadName(string threadName) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithThreadName(threadName));
+    }
+    public IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties poll) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithPoll(poll?.Original));
+    }
 }
 
 
@@ -8679,7 +11382,7 @@ public class DiscordParty : IDiscordParty
         _original = original;
     }
     public NetCord.Gateway.Party Original => _original;
-    public string Id => _original.Id;
+    public string? Id => _original.Id is null ? null : _original.Id;
     public int? CurrentSize => _original.CurrentSize;
     public int? MaxSize => _original.MaxSize;
 }
@@ -8749,7 +11452,7 @@ public class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionM
     public NetCord.AutoModerationActionMetadata Original => _original;
     public ulong? ChannelId => _original.ChannelId;
     public int? DurationSeconds => _original.DurationSeconds;
-    public string CustomMessage => _original.CustomMessage;
+    public string? CustomMessage => _original.CustomMessage is null ? null : _original.CustomMessage;
 }
 
 
@@ -8764,9 +11467,18 @@ public class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerat
     public ulong? ChannelId => _original.ChannelId;
     public int? DurationSeconds => _original.DurationSeconds;
     public string CustomMessage => _original.CustomMessage;
-    public IDiscordAutoModerationActionMetadataProperties WithChannelId(ulong? channelId) => new DiscordAutoModerationActionMetadataProperties(_original.WithChannelId(channelId));
-    public IDiscordAutoModerationActionMetadataProperties WithDurationSeconds(int? durationSeconds) => new DiscordAutoModerationActionMetadataProperties(_original.WithDurationSeconds(durationSeconds));
-    public IDiscordAutoModerationActionMetadataProperties WithCustomMessage(string customMessage) => new DiscordAutoModerationActionMetadataProperties(_original.WithCustomMessage(customMessage));
+    public IDiscordAutoModerationActionMetadataProperties WithChannelId(ulong? channelId) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordAutoModerationActionMetadataProperties WithDurationSeconds(int? durationSeconds) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithDurationSeconds(durationSeconds));
+    }
+    public IDiscordAutoModerationActionMetadataProperties WithCustomMessage(string customMessage) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithCustomMessage(customMessage));
+    }
 }
 
 
@@ -8780,8 +11492,14 @@ public class DiscordEmojiProperties : IDiscordEmojiProperties
     public NetCord.EmojiProperties Original => _original;
     public ulong? Id => _original.Id;
     public string Unicode => _original.Unicode;
-    public IDiscordEmojiProperties WithId(ulong? id) => new DiscordEmojiProperties(_original.WithId(id));
-    public IDiscordEmojiProperties WithUnicode(string unicode) => new DiscordEmojiProperties(_original.WithUnicode(unicode));
+    public IDiscordEmojiProperties WithId(ulong? id) 
+    {
+        return new DiscordEmojiProperties(_original.WithId(id));
+    }
+    public IDiscordEmojiProperties WithUnicode(string unicode) 
+    {
+        return new DiscordEmojiProperties(_original.WithUnicode(unicode));
+    }
 }
 
 
@@ -8796,9 +11514,9 @@ public class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptO
     public ulong Id => _original.Id;
     public IReadOnlyList<ulong> ChannelIds => _original.ChannelIds;
     public IReadOnlyList<ulong> RoleIds => _original.RoleIds;
-    public IDiscordEmoji Emoji => new DiscordEmoji(_original.Emoji);
+    public IDiscordEmoji? Emoji => _original.Emoji is null ? null : new DiscordEmoji(_original.Emoji);
     public string Title => _original.Title;
-    public string Description => _original.Description;
+    public string? Description => _original.Description is null ? null : _original.Description;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -8819,18 +11537,54 @@ public class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboard
     public bool? EmojiAnimated => _original.EmojiAnimated;
     public string Title => _original.Title;
     public string Description => _original.Description;
-    public IDiscordGuildOnboardingPromptOptionProperties WithId(ulong? id) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithId(id));
-    public IDiscordGuildOnboardingPromptOptionProperties WithChannelIds(IEnumerable<ulong> channelIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithChannelIds(channelIds));
-    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(IEnumerable<ulong> channelIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
-    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
-    public IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong> roleIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithRoleIds(roleIds));
-    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
-    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds) => new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiId(ulong? emojiId) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiId(emojiId));
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiName(string emojiName) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiName(emojiName));
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiAnimated(bool? emojiAnimated = true) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiAnimated(emojiAnimated));
-    public IDiscordGuildOnboardingPromptOptionProperties WithTitle(string title) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithTitle(title));
-    public IDiscordGuildOnboardingPromptOptionProperties WithDescription(string description) => new DiscordGuildOnboardingPromptOptionProperties(_original.WithDescription(description));
+    public IDiscordGuildOnboardingPromptOptionProperties WithId(ulong? id) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithId(id));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithChannelIds(IEnumerable<ulong> channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(IEnumerable<ulong> channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiId(ulong? emojiId) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiId(emojiId));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiName(string emojiName) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiName(emojiName));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiAnimated(bool? emojiAnimated = true) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiAnimated(emojiAnimated));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithTitle(string title) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithTitle(title));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithDescription(string description) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithDescription(description));
+    }
 }
 
 
@@ -8844,7 +11598,7 @@ public class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandO
     public NetCord.Rest.ApplicationCommandOptionChoice Original => _original;
     public string Name => _original.Name;
     public IReadOnlyDictionary<string, string> NameLocalizations => _original.NameLocalizations;
-    public string ValueString => _original.ValueString;
+    public string? ValueString => _original.ValueString is null ? null : _original.ValueString;
     public double? ValueNumeric => _original.ValueNumeric;
     public NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType => _original.ValueType;
 }
@@ -8860,14 +11614,29 @@ public class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicati
     public NetCord.Rest.ApplicationCommandOptionChoiceProperties Original => _original;
     public string Name => _original.Name;
     public IReadOnlyDictionary<string, string> NameLocalizations => _original.NameLocalizations;
-    public string StringValue => _original.StringValue;
+    public string? StringValue => _original.StringValue is null ? null : _original.StringValue;
     public double? NumericValue => _original.NumericValue;
     public NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType => _original.ValueType;
-    public IDiscordApplicationCommandOptionChoiceProperties WithName(string name) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithName(name));
-    public IDiscordApplicationCommandOptionChoiceProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithNameLocalizations(nameLocalizations));
-    public IDiscordApplicationCommandOptionChoiceProperties WithStringValue(string stringValue) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithStringValue(stringValue));
-    public IDiscordApplicationCommandOptionChoiceProperties WithNumericValue(double? numericValue) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithNumericValue(numericValue));
-    public IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType) => new DiscordApplicationCommandOptionChoiceProperties(_original.WithValueType(valueType));
+    public IDiscordApplicationCommandOptionChoiceProperties WithName(string name) 
+    {
+        return new DiscordApplicationCommandOptionChoiceProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationCommandOptionChoiceProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) 
+    {
+        return new DiscordApplicationCommandOptionChoiceProperties(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationCommandOptionChoiceProperties WithStringValue(string stringValue) 
+    {
+        return new DiscordApplicationCommandOptionChoiceProperties(_original.WithStringValue(stringValue));
+    }
+    public IDiscordApplicationCommandOptionChoiceProperties WithNumericValue(double? numericValue) 
+    {
+        return new DiscordApplicationCommandOptionChoiceProperties(_original.WithNumericValue(numericValue));
+    }
+    public IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType) 
+    {
+        return new DiscordApplicationCommandOptionChoiceProperties(_original.WithValueType(valueType));
+    }
 }
 
 
@@ -8904,11 +11673,26 @@ public class DiscordTeamUser : IDiscordTeamUser
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
     public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetAvatarUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetAvatarDecorationUrl() => new DiscordImageUrl(_original.GetAvatarDecorationUrl());
-    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordUser(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(properties.Original, cancellationToken));
+    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetAvatarUrl(format));
+    }
+    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetBannerUrl(format));
+    }
+    public IDiscordImageUrl GetAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetAvatarDecorationUrl());
+    }
+    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -8948,11 +11732,23 @@ public class DiscordRestClient : IDiscordRestClient
         _original = original;
     }
     public NetCord.Rest.RestClient Original => _original;
-    public IDiscordToken Token => new DiscordToken(_original.Token);
-    public async Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentApplication(await _original.GetCurrentApplicationAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentApplication(await _original.ModifyCurrentApplicationAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationRoleConnectionMetadataRecordsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    public IDiscordToken? Token => _original.Token is null ? null : new DiscordToken(_original.Token);
+    public async Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.GetCurrentApplicationAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.ModifyCurrentApplicationAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationRoleConnectionMetadataRecordsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildAuditLogAsync(guildId, paginationProperties.Original, properties.Original))
@@ -8960,15 +11756,42 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordRestAuditLogEntry(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetAutoModerationRulesAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
-    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(guildId, autoModerationRuleId, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(guildId, autoModerationRuleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(guildId, autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAutoModerationRuleAsync(guildId, autoModerationRuleId, properties.Original, cancellationToken);
-    public async Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.GetChannelAsync(channelId, properties.Original, cancellationToken));
-    public async Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.ModifyGroupDMChannelAsync(channelId, x => action(new DiscordGroupDMChannelOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.ModifyGuildChannelAsync(channelId, x => action(new DiscordGuildChannelOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordChannel(await _original.DeleteChannelAsync(channelId, properties.Original, cancellationToken));
+    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetAutoModerationRulesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
+    }
+    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(guildId, autoModerationRuleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(guildId, autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.GetChannelAsync(channelId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.ModifyGroupDMChannelAsync(channelId, x => action(new DiscordGroupDMChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.ModifyGuildChannelAsync(channelId, x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.DeleteChannelAsync(channelId, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(channelId, paginationProperties.Original, properties.Original))
@@ -8976,46 +11799,145 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(channelId, messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(channelId, messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(channelId, message.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.CrosspostMessageAsync(channelId, messageId, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(channelId, messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(channelId, messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(channelId, message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.CrosspostMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(channelId, messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(channelId, messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(channelId, messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(channelId, messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(channelId, messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(channelId, messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(channelId, messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(channelId, messageIds, properties.Original, cancellationToken);
-    public Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildChannelPermissionsAsync(channelId, permissionOverwrite.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildChannelInvitesAsync(channelId, properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties.Original, properties.Original, cancellationToken));
-    public Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildChannelPermissionAsync(channelId, overwriteId, properties.Original, cancellationToken);
-    public async Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordFollowedChannel(await _original.FollowAnnouncementGuildChannelAsync(channelId, webhookChannelId, properties.Original, cancellationToken));
-    public Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(channelId, properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(channelId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(channelId, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(channelId, messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(channelId, messageId, properties.Original, cancellationToken);
-    public Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GroupDMChannelAddUserAsync(channelId, userId, groupDMChannelUserAddProperties.Original, properties.Original, cancellationToken);
-    public Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GroupDMChannelDeleteUserAsync(channelId, userId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, messageId, threadFromMessageProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, threadProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordForumGuildThread(await _original.CreateForumGuildThreadAsync(channelId, threadProperties.Original, properties.Original, cancellationToken));
-    public Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.JoinGuildThreadAsync(threadId, properties.Original, cancellationToken);
-    public Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddGuildThreadUserAsync(threadId, userId, properties.Original, cancellationToken);
-    public Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveGuildThreadAsync(threadId, properties.Original, cancellationToken);
-    public Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildThreadUserAsync(threadId, userId, properties.Original, cancellationToken);
-    public async Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordThreadUser(await _original.GetGuildThreadUserAsync(threadId, userId, withGuildUser, properties.Original, cancellationToken));
+    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(channelId, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
+    }
+    public Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildChannelPermissionsAsync(channelId, permissionOverwrite.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildChannelInvitesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties.Original, properties.Original, cancellationToken));
+    }
+    public Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildChannelPermissionAsync(channelId, overwriteId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordFollowedChannel(await _original.FollowAnnouncementGuildChannelAsync(channelId, webhookChannelId, properties?.Original, cancellationToken));
+    }
+    public Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GroupDMChannelAddUserAsync(channelId, userId, groupDMChannelUserAddProperties.Original, properties?.Original, cancellationToken);
+    }
+    public Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GroupDMChannelDeleteUserAsync(channelId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, messageId, threadFromMessageProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordForumGuildThread(await _original.CreateForumGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.JoinGuildThreadAsync(threadId, properties?.Original, cancellationToken);
+    }
+    public Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
+    }
+    public Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveGuildThreadAsync(threadId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordThreadUser(await _original.GetGuildThreadUserAsync(threadId, userId, withGuildUser, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordThreadUser> GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildThreadUsersAsync(threadId, paginationProperties.Original, properties.Original))
@@ -9044,31 +11966,106 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordGuildThread(original);
         }
     }
-    public Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) => _original.SendRequestAsync(method, route, query, resourceInfo, properties.Original, global, cancellationToken);
-    public Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) => _original.SendRequestAsync(method, content, route, query, resourceInfo, properties.Original, global, cancellationToken);
-    public void Dispose() => _original.Dispose();
-    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildEmojisAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
-    public async Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.GetGuildEmojiAsync(guildId, emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.CreateGuildEmojiAsync(guildId, guildEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildEmoji(await _original.ModifyGuildEmojiAsync(guildId, emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildEmojiAsync(guildId, emojiId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationEmojisAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
-    public async Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetApplicationEmojiAsync(applicationId, emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.CreateApplicationEmojiAsync(applicationId, applicationEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.ModifyApplicationEmojiAsync(applicationId, emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteApplicationEmojiAsync(applicationId, emojiId, properties.Original, cancellationToken);
-    public Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetGatewayAsync(properties.Original, cancellationToken);
-    public async Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGatewayBot(await _original.GetGatewayBotAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.GetGuildAsync(guildId, withCounts, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildPreview(await _original.GetGuildPreviewAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.ModifyGuildAsync(guildId, x => action(new DiscordGuildOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildAsync(guildId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildChannelsAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
-    public async Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildChannel(await _original.CreateGuildChannelAsync(guildId, channelProperties.Original, properties.Original, cancellationToken));
-    public Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildChannelPositionsAsync(guildId, positions?.Select(x => x.Original), properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetActiveGuildThreadsAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
-    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, userId, properties.Original, cancellationToken));
+    public Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendRequestAsync(method, route, query, resourceInfo, properties?.Original, global, cancellationToken);
+    }
+    public Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendRequestAsync(method, content, route, query, resourceInfo, properties?.Original, global, cancellationToken);
+    }
+    public void Dispose() 
+    {
+        _original.Dispose();
+    }
+    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildEmojisAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
+    }
+    public async Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.GetGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.CreateGuildEmojiAsync(guildId, guildEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.ModifyGuildEmojiAsync(guildId, emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationEmojisAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
+    }
+    public async Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.CreateApplicationEmojiAsync(applicationId, applicationEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyApplicationEmojiAsync(applicationId, emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken);
+    }
+    public Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetGatewayAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGatewayBot(await _original.GetGatewayBotAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.GetGuildAsync(guildId, withCounts, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildPreview(await _original.GetGuildPreviewAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.ModifyGuildAsync(guildId, x => action(new DiscordGuildOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildAsync(guildId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildChannelsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
+    }
+    public async Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildChannel(await _original.CreateGuildChannelAsync(guildId, channelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildChannelPositionsAsync(guildId, positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetActiveGuildThreadsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordGuildUser> GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildUsersAsync(guildId, paginationProperties.Original, properties.Original))
@@ -9076,13 +12073,34 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordGuildUser(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.FindGuildUserAsync(guildId, name, limit, properties.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
-    public async Task<IDiscordGuildUser> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyGuildUserAsync(guildId, userId, x => action(new DiscordGuildUserOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.ModifyCurrentGuildUserAsync(guildId, x => action(new DiscordCurrentGuildUserOptions(x)), properties.Original, cancellationToken));
-    public Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddGuildUserRoleAsync(guildId, userId, roleId, properties.Original, cancellationToken);
-    public Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.RemoveGuildUserRoleAsync(guildId, userId, roleId, properties.Original, cancellationToken);
-    public Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.KickGuildUserAsync(guildId, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.FindGuildUserAsync(guildId, name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyGuildUserAsync(guildId, userId, x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyCurrentGuildUserAsync(guildId, x => action(new DiscordCurrentGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.RemoveGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.KickGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildBan> GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildBansAsync(guildId, paginationProperties.Original, properties.Original))
@@ -9090,36 +12108,126 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordGuildBan(original);
         }
     }
-    public async Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBan(await _original.GetGuildBanAsync(guildId, userId, properties.Original, cancellationToken));
-    public Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.BanGuildUserAsync(guildId, userId, deleteMessageSeconds, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildBulkBan(await _original.BanGuildUsersAsync(guildId, userIds, deleteMessageSeconds, properties.Original, cancellationToken));
-    public Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnbanGuildUserAsync(guildId, userId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildRolesAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.GetGuildRoleAsync(guildId, roleId, properties.Original, cancellationToken));
-    public async Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.CreateGuildRoleAsync(guildId, guildRoleProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.ModifyGuildRolePositionsAsync(guildId, positions?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRole(await _original.ModifyGuildRoleAsync(guildId, roleId, x => action(new DiscordRoleOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildRoleAsync(guildId, roleId, properties.Original, cancellationToken);
-    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel, properties.Original, cancellationToken);
-    public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GetGuildPruneCountAsync(guildId, days, roles, properties.Original, cancellationToken);
-    public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.GuildPruneAsync(guildId, pruneProperties.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildVoiceRegionsAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildInvitesAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildIntegrationsAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
-    public Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildIntegrationAsync(guildId, integrationId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.GetGuildWidgetSettingsAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidgetSettings(await _original.ModifyGuildWidgetSettingsAsync(guildId, x => action(new DiscordGuildWidgetSettingsOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWidget(await _original.GetGuildWidgetAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildVanityInvite(await _original.GetGuildVanityInviteAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.GetGuildWelcomeScreenAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildWelcomeScreen(await _original.ModifyGuildWelcomeScreenAsync(guildId, x => action(new DiscordGuildWelcomeScreenOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.GetGuildOnboardingAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildOnboarding(await _original.ModifyGuildOnboardingAsync(guildId, x => action(new DiscordGuildOnboardingOptions(x)), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildScheduledEventsAsync(guildId, withUserCount, properties.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
-    public async Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.CreateGuildScheduledEventAsync(guildId, guildScheduledEventProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.GetGuildScheduledEventAsync(guildId, scheduledEventId, withUserCount, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildScheduledEvent(await _original.ModifyGuildScheduledEventAsync(guildId, scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildScheduledEventAsync(guildId, scheduledEventId, properties.Original, cancellationToken);
+    public async Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBan(await _original.GetGuildBanAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
+    public Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.BanGuildUserAsync(guildId, userId, deleteMessageSeconds, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBulkBan(await _original.BanGuildUsersAsync(guildId, userIds, deleteMessageSeconds, properties?.Original, cancellationToken));
+    }
+    public Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnbanGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildRolesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.GetGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.CreateGuildRoleAsync(guildId, guildRoleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.ModifyGuildRolePositionsAsync(guildId, positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.ModifyGuildRoleAsync(guildId, roleId, x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel, properties?.Original, cancellationToken);
+    }
+    public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetGuildPruneCountAsync(guildId, days, roles, properties.Original, cancellationToken);
+    }
+    public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GuildPruneAsync(guildId, pruneProperties.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildVoiceRegionsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildInvitesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildIntegrationsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
+    }
+    public Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildIntegrationAsync(guildId, integrationId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.GetGuildWidgetSettingsAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.ModifyGuildWidgetSettingsAsync(guildId, x => action(new DiscordGuildWidgetSettingsOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidget(await _original.GetGuildWidgetAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildVanityInvite(await _original.GetGuildVanityInviteAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.GetGuildWelcomeScreenAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.ModifyGuildWelcomeScreenAsync(guildId, x => action(new DiscordGuildWelcomeScreenOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.GetGuildOnboardingAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.ModifyGuildOnboardingAsync(guildId, x => action(new DiscordGuildOnboardingOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildScheduledEventsAsync(guildId, withUserCount, properties?.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
+    }
+    public async Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.CreateGuildScheduledEventAsync(guildId, guildScheduledEventProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.GetGuildScheduledEventAsync(guildId, scheduledEventId, withUserCount, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.ModifyGuildScheduledEventAsync(guildId, scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildScheduledEventAsync(guildId, scheduledEventId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildScheduledEventUsersAsync(guildId, scheduledEventId, paginationProperties.Original, properties.Original))
@@ -9127,38 +12235,134 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordGuildScheduledEventUser(original);
         }
     }
-    public async Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.GetGuildTemplateAsync(templateCode, properties.Original, cancellationToken));
-    public async Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestGuild(await _original.CreateGuildFromGuildTemplateAsync(templateCode, guildProperties.Original, properties.Original, cancellationToken));
-    public async Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildTemplatesAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
-    public async Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.CreateGuildTemplateAsync(guildId, guildTemplateProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.SyncGuildTemplateAsync(guildId, templateCode, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.ModifyGuildTemplateAsync(guildId, templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildTemplate(await _original.DeleteGuildTemplateAsync(guildId, templateCode, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGlobalApplicationCommandsAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
-    public async Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.CreateGlobalApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.GetGlobalApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommand(await _original.ModifyGlobalApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGlobalApplicationCommandAsync(applicationId, commandId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildApplicationCommandsAsync(applicationId, guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.CreateGuildApplicationCommandAsync(applicationId, guildId, applicationCommandProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.GetGuildApplicationCommandAsync(applicationId, guildId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildApplicationCommand(await _original.ModifyGuildApplicationCommandAsync(applicationId, guildId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildApplicationCommandAsync(applicationId, guildId, commandId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetApplicationCommandsGuildPermissionsAsync(applicationId, guildId, properties.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions?.Select(x => x.Original), properties.Original, cancellationToken));
-    public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.SendInteractionResponseAsync(interactionId, interactionToken, callback.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetInteractionResponseAsync(applicationId, interactionToken, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyInteractionResponseAsync(applicationId, interactionToken, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteInteractionResponseAsync(applicationId, interactionToken, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendInteractionFollowupMessageAsync(applicationId, interactionToken, message.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties.Original, cancellationToken);
-    public async Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.GetGuildInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.DeleteGuildInviteAsync(inviteCode, properties.Original, cancellationToken));
+    public async Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.GetGuildTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.CreateGuildFromGuildTemplateAsync(templateCode, guildProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildTemplatesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
+    }
+    public async Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.CreateGuildTemplateAsync(guildId, guildTemplateProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.SyncGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.ModifyGuildTemplateAsync(guildId, templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.DeleteGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGlobalApplicationCommandsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.CreateGlobalApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.GetGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.ModifyGlobalApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildApplicationCommandsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.CreateGuildApplicationCommandAsync(applicationId, guildId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.GetGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.ModifyGuildApplicationCommandAsync(applicationId, guildId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsGuildPermissionsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
+    public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendInteractionResponseAsync(interactionId, interactionToken, callback.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyInteractionResponseAsync(applicationId, interactionToken, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendInteractionFollowupMessageAsync(applicationId, interactionToken, message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.GetGuildInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.DeleteGuildInviteAsync(inviteCode, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetEntitlementsAsync(applicationId, paginationProperties.Original, properties.Original))
@@ -9166,13 +12370,34 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordEntitlement(original);
         }
     }
-    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.GetEntitlementAsync(applicationId, entitlementId, properties.Original, cancellationToken));
-    public Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ConsumeEntitlementAsync(applicationId, entitlementId, properties.Original, cancellationToken);
-    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.CreateTestEntitlementAsync(applicationId, testEntitlementProperties.Original, properties.Original, cancellationToken));
-    public Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteTestEntitlementAsync(applicationId, entitlementId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetSkusAsync(applicationId, properties.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
-    public async Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentApplication(await _original.GetCurrentBotApplicationInformationAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordAuthorizationInformation(await _original.GetCurrentAuthorizationInformationAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.GetEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken));
+    }
+    public Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ConsumeEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.CreateTestEntitlementAsync(applicationId, testEntitlementProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteTestEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetSkusAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
+    }
+    public async Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.GetCurrentBotApplicationInformationAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAuthorizationInformation(await _original.GetCurrentAuthorizationInformationAsync(properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(channelId, messageId, answerId, paginationProperties.Original, properties.Original))
@@ -9180,19 +12405,58 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(channelId, messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStageInstance(await _original.CreateStageInstanceAsync(stageInstanceProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStageInstance(await _original.GetStageInstanceAsync(channelId, properties.Original, cancellationToken));
-    public async Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStageInstance(await _original.ModifyStageInstanceAsync(channelId, x => action(new DiscordStageInstanceOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteStageInstanceAsync(channelId, properties.Original, cancellationToken);
-    public async Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStandardSticker(await _original.GetStickerAsync(stickerId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetStickerPacksAsync(properties.Original, cancellationToken)).Select(x => new DiscordStickerPack(x)).ToList();
-    public async Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordStickerPack(await _original.GetStickerPackAsync(stickerPackId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildStickersAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
-    public async Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.GetGuildStickerAsync(guildId, stickerId, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.CreateGuildStickerAsync(guildId, sticker.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildSticker(await _original.ModifyGuildStickerAsync(guildId, stickerId, x => action(new DiscordGuildStickerOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteGuildStickerAsync(guildId, stickerId, properties.Original, cancellationToken);
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.CreateStageInstanceAsync(stageInstanceProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.GetStageInstanceAsync(channelId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.ModifyStageInstanceAsync(channelId, x => action(new DiscordStageInstanceOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteStageInstanceAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStandardSticker(await _original.GetStickerAsync(stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetStickerPacksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordStickerPack(x)).ToList();
+    }
+    public async Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStickerPack(await _original.GetStickerPackAsync(stickerPackId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildStickersAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
+    }
+    public async Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.GetGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.CreateGuildStickerAsync(guildId, sticker.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.ModifyGuildStickerAsync(guildId, stickerId, x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordSubscription> GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetSkuSubscriptionsAsync(skuId, paginationProperties.Original, properties.Original))
@@ -9200,9 +12464,18 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordSubscription(original);
         }
     }
-    public async Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordSubscription(await _original.GetSkuSubscriptionAsync(skuId, subscriptionId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplication(await _original.GetApplicationAsync(applicationId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordSubscription(await _original.GetSkuSubscriptionAsync(skuId, subscriptionId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplication(await _original.GetApplicationAsync(applicationId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.SearchGuildUsersAsync(guildId, paginationProperties.Original, properties.Original))
@@ -9210,9 +12483,18 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordGuildUserInfo(original);
         }
     }
-    public async Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentUser(await _original.GetCurrentUserAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordUser(await _original.GetUserAsync(userId, properties.Original, cancellationToken));
-    public async Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentUserOptions(x)), properties.Original, cancellationToken));
+    public async Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.GetCurrentUserAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetUserAsync(userId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentUserOptions(x)), properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordRestGuild> GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetCurrentUserGuildsAsync(paginationProperties.Original, properties.Original))
@@ -9220,31 +12502,106 @@ public class DiscordRestClient : IDiscordRestClient
             yield return new DiscordRestGuild(original);
         }
     }
-    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(guildId, properties.Original, cancellationToken));
-    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveGuildAsync(guildId, properties.Original, cancellationToken);
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(userId, properties.Original, cancellationToken));
-    public async Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGroupDMChannel(await _original.CreateGroupDMChannelAsync(groupDMChannelProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetCurrentUserConnectionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
-    public async Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationRoleConnection(await _original.GetCurrentUserApplicationRoleConnectionAsync(applicationId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationRoleConnection(await _original.UpdateCurrentUserApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties.Original, cancellationToken));
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetVoiceRegionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    public async Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetCurrentGuildUserVoiceStateAsync(guildId, properties.Original, cancellationToken));
-    public async Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordVoiceState(await _original.GetGuildUserVoiceStateAsync(guildId, userId, properties.Original, cancellationToken));
-    public Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyCurrentGuildUserVoiceStateAsync(guildId, x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyGuildUserVoiceStateAsync(guildId, channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties.Original, cancellationToken);
-    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.CreateWebhookAsync(channelId, webhookProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetChannelWebhooksAsync(channelId, properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetGuildWebhooksAsync(guildId, properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
-    public async Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.GetWebhookAsync(webhookId, properties.Original, cancellationToken));
-    public async Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.GetWebhookWithTokenAsync(webhookId, webhookToken, properties.Original, cancellationToken));
-    public async Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.ModifyWebhookAsync(webhookId, x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordWebhook(await _original.ModifyWebhookWithTokenAsync(webhookId, webhookToken, x => action(new DiscordWebhookOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteWebhookAsync(webhookId, properties.Original, cancellationToken);
-    public Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteWebhookWithTokenAsync(webhookId, webhookToken, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyWebhookMessageAsync(webhookId, webhookToken, messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties.Original, cancellationToken));
-    public Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties.Original, cancellationToken);
+    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveGuildAsync(guildId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(userId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGroupDMChannel(await _original.CreateGroupDMChannelAsync(groupDMChannelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetCurrentUserConnectionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
+    }
+    public async Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.GetCurrentUserApplicationRoleConnectionAsync(applicationId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.UpdateCurrentUserApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetVoiceRegionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetCurrentGuildUserVoiceStateAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetGuildUserVoiceStateAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
+    public Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyCurrentGuildUserVoiceStateAsync(guildId, x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildUserVoiceStateAsync(guildId, channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.CreateWebhookAsync(channelId, webhookProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelWebhooksAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildWebhooksAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
+    public async Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetWebhookAsync(webhookId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyWebhookAsync(webhookId, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyWebhookWithTokenAsync(webhookId, webhookToken, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookAsync(webhookId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyWebhookMessageAsync(webhookId, webhookToken, messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -9298,10 +12655,22 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
     public string CustomInstallUrl => _original.CustomInstallUrl;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplication(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordCurrentApplication> ModifyAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentApplication(await _original.ModifyAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetRoleConnectionMetadataRecordsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetRoleConnectionMetadataRecordsAsync(properties.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.UpdateRoleConnectionMetadataRecordsAsync(applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplication(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentApplication> ModifyAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.ModifyAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetRoleConnectionMetadataRecordsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetRoleConnectionMetadataRecordsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.UpdateRoleConnectionMetadataRecordsAsync(applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
     public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetEntitlementsAsync(paginationProperties.Original, properties.Original))
@@ -9309,21 +12678,66 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
             yield return new DiscordEntitlement(original);
         }
     }
-    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.GetEntitlementAsync(entitlementId, properties.Original, cancellationToken));
-    public Task ConsumeEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ConsumeEntitlementAsync(entitlementId, properties.Original, cancellationToken);
-    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordEntitlement(await _original.CreateTestEntitlementAsync(testEntitlementProperties.Original, properties.Original, cancellationToken));
-    public Task DeleteTestEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteTestEntitlementAsync(entitlementId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetSkusAsync(properties.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
-    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetIconUrl(format));
-    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetCoverUrl(format));
-    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
-    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
-    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetEmojisAsync(properties.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
-    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteEmojiAsync(emojiId, properties.Original, cancellationToken);
+    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.GetEntitlementAsync(entitlementId, properties?.Original, cancellationToken));
+    }
+    public Task ConsumeEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ConsumeEntitlementAsync(entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.CreateTestEntitlementAsync(testEntitlementProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task DeleteTestEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteTestEntitlementAsync(entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetSkusAsync(properties?.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
+    }
+    public IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetIconUrl(format));
+    }
+    public IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetCoverUrl(format));
+    }
+    public IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
+    }
+    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
+    }
+    public IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetStorePageAssetUrl(assetId, format));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
+    }
+    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
+    }
 }
 
 
@@ -9345,18 +12759,54 @@ public class DiscordCurrentApplicationOptions : IDiscordCurrentApplicationOption
     public NetCord.Rest.ImageProperties? CoverImage => _original.CoverImage;
     public string InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
     public IEnumerable<string> Tags => _original.Tags;
-    public IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl) => new DiscordCurrentApplicationOptions(_original.WithCustomInstallUrl(customInstallUrl));
-    public IDiscordCurrentApplicationOptions WithDescription(string description) => new DiscordCurrentApplicationOptions(_original.WithDescription(description));
-    public IDiscordCurrentApplicationOptions WithRoleConnectionsVerificationUrl(string roleConnectionsVerificationUrl) => new DiscordCurrentApplicationOptions(_original.WithRoleConnectionsVerificationUrl(roleConnectionsVerificationUrl));
-    public IDiscordCurrentApplicationOptions WithInstallParams(IDiscordApplicationInstallParamsProperties installParams) => new DiscordCurrentApplicationOptions(_original.WithInstallParams(installParams.Original));
-    public IDiscordCurrentApplicationOptions WithIntegrationTypesConfiguration(IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties> integrationTypesConfiguration) => new DiscordCurrentApplicationOptions(_original.WithIntegrationTypesConfiguration(integrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => kv.Value.Original)));
-    public IDiscordCurrentApplicationOptions WithFlags(NetCord.ApplicationFlags? flags) => new DiscordCurrentApplicationOptions(_original.WithFlags(flags));
-    public IDiscordCurrentApplicationOptions WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordCurrentApplicationOptions(_original.WithIcon(icon));
-    public IDiscordCurrentApplicationOptions WithCoverImage(NetCord.Rest.ImageProperties? coverImage) => new DiscordCurrentApplicationOptions(_original.WithCoverImage(coverImage));
-    public IDiscordCurrentApplicationOptions WithInteractionsEndpointUrl(string interactionsEndpointUrl) => new DiscordCurrentApplicationOptions(_original.WithInteractionsEndpointUrl(interactionsEndpointUrl));
-    public IDiscordCurrentApplicationOptions WithTags(IEnumerable<string> tags) => new DiscordCurrentApplicationOptions(_original.WithTags(tags));
-    public IDiscordCurrentApplicationOptions AddTags(IEnumerable<string> tags) => new DiscordCurrentApplicationOptions(_original.AddTags(tags));
-    public IDiscordCurrentApplicationOptions AddTags(string[] tags) => new DiscordCurrentApplicationOptions(_original.AddTags(tags));
+    public IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithCustomInstallUrl(customInstallUrl));
+    }
+    public IDiscordCurrentApplicationOptions WithDescription(string description) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithDescription(description));
+    }
+    public IDiscordCurrentApplicationOptions WithRoleConnectionsVerificationUrl(string roleConnectionsVerificationUrl) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithRoleConnectionsVerificationUrl(roleConnectionsVerificationUrl));
+    }
+    public IDiscordCurrentApplicationOptions WithInstallParams(IDiscordApplicationInstallParamsProperties installParams) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithInstallParams(installParams?.Original));
+    }
+    public IDiscordCurrentApplicationOptions WithIntegrationTypesConfiguration(IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties> integrationTypesConfiguration) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithIntegrationTypesConfiguration(integrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordCurrentApplicationOptions WithFlags(NetCord.ApplicationFlags? flags) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithFlags(flags));
+    }
+    public IDiscordCurrentApplicationOptions WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithIcon(icon));
+    }
+    public IDiscordCurrentApplicationOptions WithCoverImage(NetCord.Rest.ImageProperties? coverImage) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithCoverImage(coverImage));
+    }
+    public IDiscordCurrentApplicationOptions WithInteractionsEndpointUrl(string interactionsEndpointUrl) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithInteractionsEndpointUrl(interactionsEndpointUrl));
+    }
+    public IDiscordCurrentApplicationOptions WithTags(IEnumerable<string> tags) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithTags(tags));
+    }
+    public IDiscordCurrentApplicationOptions AddTags(IEnumerable<string> tags) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.AddTags(tags));
+    }
+    public IDiscordCurrentApplicationOptions AddTags(string[] tags) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.AddTags(tags));
+    }
 }
 
 
@@ -9391,12 +12841,30 @@ public class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplic
     public IReadOnlyDictionary<string, string> NameLocalizations => _original.NameLocalizations;
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string> DescriptionLocalizations => _original.DescriptionLocalizations;
-    public IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithType(type));
-    public IDiscordApplicationRoleConnectionMetadataProperties WithKey(string key) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithKey(key));
-    public IDiscordApplicationRoleConnectionMetadataProperties WithName(string name) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithName(name));
-    public IDiscordApplicationRoleConnectionMetadataProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithNameLocalizations(nameLocalizations));
-    public IDiscordApplicationRoleConnectionMetadataProperties WithDescription(string description) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithDescription(description));
-    public IDiscordApplicationRoleConnectionMetadataProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) => new DiscordApplicationRoleConnectionMetadataProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
+    public IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithType(type));
+    }
+    public IDiscordApplicationRoleConnectionMetadataProperties WithKey(string key) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithKey(key));
+    }
+    public IDiscordApplicationRoleConnectionMetadataProperties WithName(string name) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationRoleConnectionMetadataProperties WithNameLocalizations(IReadOnlyDictionary<string, string> nameLocalizations) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationRoleConnectionMetadataProperties WithDescription(string description) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithDescription(description));
+    }
+    public IDiscordApplicationRoleConnectionMetadataProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string> descriptionLocalizations) 
+    {
+        return new DiscordApplicationRoleConnectionMetadataProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
+    }
 }
 
 
@@ -9410,8 +12878,14 @@ public class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions
     public NetCord.Rest.GroupDMChannelOptions Original => _original;
     public string Name => _original.Name;
     public NetCord.Rest.ImageProperties? Icon => _original.Icon;
-    public IDiscordGroupDMChannelOptions WithName(string name) => new DiscordGroupDMChannelOptions(_original.WithName(name));
-    public IDiscordGroupDMChannelOptions WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordGroupDMChannelOptions(_original.WithIcon(icon));
+    public IDiscordGroupDMChannelOptions WithName(string name) 
+    {
+        return new DiscordGroupDMChannelOptions(_original.WithName(name));
+    }
+    public IDiscordGroupDMChannelOptions WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordGroupDMChannelOptions(_original.WithIcon(icon));
+    }
 }
 
 
@@ -9438,9 +12912,15 @@ public class DiscordGroupDMChannelUserAddProperties : IDiscordGroupDMChannelUser
     }
     public NetCord.Rest.GroupDMChannelUserAddProperties Original => _original;
     public string AccessToken => _original.AccessToken;
-    public string Nickname => _original.Nickname;
-    public IDiscordGroupDMChannelUserAddProperties WithAccessToken(string accessToken) => new DiscordGroupDMChannelUserAddProperties(_original.WithAccessToken(accessToken));
-    public IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname) => new DiscordGroupDMChannelUserAddProperties(_original.WithNickname(nickname));
+    public string? Nickname => _original.Nickname is null ? null : _original.Nickname;
+    public IDiscordGroupDMChannelUserAddProperties WithAccessToken(string accessToken) 
+    {
+        return new DiscordGroupDMChannelUserAddProperties(_original.WithAccessToken(accessToken));
+    }
+    public IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname) 
+    {
+        return new DiscordGroupDMChannelUserAddProperties(_original.WithNickname(nickname));
+    }
 }
 
 
@@ -9453,18 +12933,18 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public NetCord.ForumGuildThread Original => _original;
     public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
-    public IReadOnlyList<ulong> AppliedTags => _original.AppliedTags;
+    public IReadOnlyList<ulong>? AppliedTags => _original.AppliedTags is null ? null : _original.AppliedTags;
     public ulong OwnerId => _original.OwnerId;
     public int MessageCount => _original.MessageCount;
     public int UserCount => _original.UserCount;
     public IDiscordGuildThreadMetadata Metadata => new DiscordGuildThreadMetadata(_original.Metadata);
-    public IDiscordThreadCurrentUser CurrentUser => new DiscordThreadCurrentUser(_original.CurrentUser);
+    public IDiscordThreadCurrentUser? CurrentUser => _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser);
     public int TotalMessageSent => _original.TotalMessageSent;
     public ulong GuildId => _original.GuildId;
     public int? Position => _original.Position;
     public IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites => _original.PermissionOverwrites.ToDictionary(kv => kv.Key, kv => (IDiscordPermissionOverwrite)new DiscordPermissionOverwrite(kv.Value));
     public string Name => _original.Name;
-    public string Topic => _original.Topic;
+    public string? Topic => _original.Topic is null ? null : _original.Topic;
     public bool Nsfw => _original.Nsfw;
     public int Slowmode => _original.Slowmode;
     public ulong? ParentId => _original.ParentId;
@@ -9475,14 +12955,38 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordForumGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordForumGuildThread(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordForumGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordForumGuildThread(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordForumGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordForumGuildThread(await _original.DeleteAsync(properties.Original, cancellationToken));
-    public Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.JoinAsync(properties.Original, cancellationToken);
-    public Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddUserAsync(userId, properties.Original, cancellationToken);
-    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveAsync(properties.Original, cancellationToken);
-    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteUserAsync(userId, properties.Original, cancellationToken);
-    public async Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordThreadUser(await _original.GetUserAsync(userId, withGuildUser, properties.Original, cancellationToken));
+    public async Task<IDiscordForumGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordForumGuildThread(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordForumGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordForumGuildThread(await _original.ModifyAsync(x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordForumGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordForumGuildThread(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
+    public Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.JoinAsync(properties?.Original, cancellationToken);
+    }
+    public Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveAsync(properties?.Original, cancellationToken);
+    }
+    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteUserAsync(userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordThreadUser(await _original.GetUserAsync(userId, withGuildUser, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
@@ -9490,12 +12994,30 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
             yield return new DiscordThreadUser(original);
         }
     }
-    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties.Original, cancellationToken);
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetInvitesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
-    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeletePermissionAsync(overwriteId, properties.Original, cancellationToken);
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(messageId, threadFromMessageProperties.Original, properties.Original, cancellationToken));
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadProperties.Original, properties.Original, cancellationToken));
+    public Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetInvitesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+    }
+    public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeletePermissionAsync(overwriteId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(messageId, threadFromMessageProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(threadProperties.Original, properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
@@ -9517,8 +13039,14 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
             yield return new DiscordGuildThread(original);
         }
     }
-    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordIncomingWebhook(await _original.CreateWebhookAsync(webhookProperties.Original, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetChannelWebhooksAsync(properties.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.CreateWebhookAsync(webhookProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelWebhooksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
@@ -9526,30 +13054,81 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
@@ -9557,8 +13136,14 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -9571,18 +13156,42 @@ public class DiscordForumGuildThreadProperties : IDiscordForumGuildThreadPropert
     }
     public NetCord.Rest.ForumGuildThreadProperties Original => _original;
     public IDiscordForumGuildThreadMessageProperties Message => new DiscordForumGuildThreadMessageProperties(_original.Message);
-    public IEnumerable<ulong> AppliedTags => _original.AppliedTags;
+    public IEnumerable<ulong>? AppliedTags => _original.AppliedTags is null ? null : _original.AppliedTags;
     public string Name => _original.Name;
     public NetCord.ThreadArchiveDuration? AutoArchiveDuration => _original.AutoArchiveDuration;
     public int? Slowmode => _original.Slowmode;
-    public HttpContent Serialize() => _original.Serialize();
-    public IDiscordForumGuildThreadProperties WithMessage(IDiscordForumGuildThreadMessageProperties message) => new DiscordForumGuildThreadProperties(_original.WithMessage(message.Original));
-    public IDiscordForumGuildThreadProperties WithAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordForumGuildThreadProperties(_original.WithAppliedTags(appliedTags));
-    public IDiscordForumGuildThreadProperties AddAppliedTags(IEnumerable<ulong> appliedTags) => new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
-    public IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags) => new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
-    public IDiscordForumGuildThreadProperties WithName(string name) => new DiscordForumGuildThreadProperties(_original.WithName(name));
-    public IDiscordForumGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) => new DiscordForumGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    public IDiscordForumGuildThreadProperties WithSlowmode(int? slowmode) => new DiscordForumGuildThreadProperties(_original.WithSlowmode(slowmode));
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordForumGuildThreadProperties WithMessage(IDiscordForumGuildThreadMessageProperties message) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.WithMessage(message.Original));
+    }
+    public IDiscordForumGuildThreadProperties WithAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.WithAppliedTags(appliedTags));
+    }
+    public IDiscordForumGuildThreadProperties AddAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordForumGuildThreadProperties WithName(string name) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.WithName(name));
+    }
+    public IDiscordForumGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordForumGuildThreadProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordForumGuildThreadProperties(_original.WithSlowmode(slowmode));
+    }
 }
 
 
@@ -9619,21 +13228,66 @@ public class DiscordGuildProperties : IDiscordGuildProperties
     public int? AfkTimeout => _original.AfkTimeout;
     public ulong? SystemChannelId => _original.SystemChannelId;
     public NetCord.Rest.SystemChannelFlags? SystemChannelFlags => _original.SystemChannelFlags;
-    public IDiscordGuildProperties WithName(string name) => new DiscordGuildProperties(_original.WithName(name));
-    public IDiscordGuildProperties WithIcon(NetCord.Rest.ImageProperties? icon) => new DiscordGuildProperties(_original.WithIcon(icon));
-    public IDiscordGuildProperties WithVerificationLevel(NetCord.VerificationLevel? verificationLevel) => new DiscordGuildProperties(_original.WithVerificationLevel(verificationLevel));
-    public IDiscordGuildProperties WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel) => new DiscordGuildProperties(_original.WithDefaultMessageNotificationLevel(defaultMessageNotificationLevel));
-    public IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter) => new DiscordGuildProperties(_original.WithContentFilter(contentFilter));
-    public IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties> roles) => new DiscordGuildProperties(_original.WithRoles(roles?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles) => new DiscordGuildProperties(_original.AddRoles(roles?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) => new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original).ToArray()));
-    public IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties> channels) => new DiscordGuildProperties(_original.WithChannels(channels?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels) => new DiscordGuildProperties(_original.AddChannels(channels?.Select(x => x.Original)));
-    public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) => new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original).ToArray()));
-    public IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId) => new DiscordGuildProperties(_original.WithAfkChannelId(afkChannelId));
-    public IDiscordGuildProperties WithAfkTimeout(int? afkTimeout) => new DiscordGuildProperties(_original.WithAfkTimeout(afkTimeout));
-    public IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId) => new DiscordGuildProperties(_original.WithSystemChannelId(systemChannelId));
-    public IDiscordGuildProperties WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags) => new DiscordGuildProperties(_original.WithSystemChannelFlags(systemChannelFlags));
+    public IDiscordGuildProperties WithName(string name) 
+    {
+        return new DiscordGuildProperties(_original.WithName(name));
+    }
+    public IDiscordGuildProperties WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordGuildProperties(_original.WithIcon(icon));
+    }
+    public IDiscordGuildProperties WithVerificationLevel(NetCord.VerificationLevel? verificationLevel) 
+    {
+        return new DiscordGuildProperties(_original.WithVerificationLevel(verificationLevel));
+    }
+    public IDiscordGuildProperties WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel) 
+    {
+        return new DiscordGuildProperties(_original.WithDefaultMessageNotificationLevel(defaultMessageNotificationLevel));
+    }
+    public IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter) 
+    {
+        return new DiscordGuildProperties(_original.WithContentFilter(contentFilter));
+    }
+    public IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties> roles) 
+    {
+        return new DiscordGuildProperties(_original.WithRoles(roles?.Select(x => x.Original)));
+    }
+    public IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles) 
+    {
+        return new DiscordGuildProperties(_original.AddRoles(roles?.Select(x => x.Original)));
+    }
+    public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) 
+    {
+        return new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties> channels) 
+    {
+        return new DiscordGuildProperties(_original.WithChannels(channels?.Select(x => x.Original)));
+    }
+    public IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels) 
+    {
+        return new DiscordGuildProperties(_original.AddChannels(channels?.Select(x => x.Original)));
+    }
+    public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) 
+    {
+        return new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId) 
+    {
+        return new DiscordGuildProperties(_original.WithAfkChannelId(afkChannelId));
+    }
+    public IDiscordGuildProperties WithAfkTimeout(int? afkTimeout) 
+    {
+        return new DiscordGuildProperties(_original.WithAfkTimeout(afkTimeout));
+    }
+    public IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId) 
+    {
+        return new DiscordGuildProperties(_original.WithSystemChannelId(systemChannelId));
+    }
+    public IDiscordGuildProperties WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags) 
+    {
+        return new DiscordGuildProperties(_original.WithSystemChannelFlags(systemChannelFlags));
+    }
 }
 
 
@@ -9646,21 +13300,48 @@ public class DiscordEntitlementsPaginationProperties : IDiscordEntitlementsPagin
     }
     public NetCord.Rest.EntitlementsPaginationProperties Original => _original;
     public ulong? UserId => _original.UserId;
-    public IEnumerable<ulong> SkuIds => _original.SkuIds;
+    public IEnumerable<ulong>? SkuIds => _original.SkuIds is null ? null : _original.SkuIds;
     public ulong? GuildId => _original.GuildId;
     public bool? ExcludeEnded => _original.ExcludeEnded;
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordEntitlementsPaginationProperties WithUserId(ulong? userId) => new DiscordEntitlementsPaginationProperties(_original.WithUserId(userId));
-    public IDiscordEntitlementsPaginationProperties WithSkuIds(IEnumerable<ulong> skuIds) => new DiscordEntitlementsPaginationProperties(_original.WithSkuIds(skuIds));
-    public IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds) => new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
-    public IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds) => new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
-    public IDiscordEntitlementsPaginationProperties WithGuildId(ulong? guildId) => new DiscordEntitlementsPaginationProperties(_original.WithGuildId(guildId));
-    public IDiscordEntitlementsPaginationProperties WithExcludeEnded(bool? excludeEnded = true) => new DiscordEntitlementsPaginationProperties(_original.WithExcludeEnded(excludeEnded));
-    public IDiscordEntitlementsPaginationProperties WithFrom(ulong? from) => new DiscordEntitlementsPaginationProperties(_original.WithFrom(from));
-    public IDiscordEntitlementsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordEntitlementsPaginationProperties(_original.WithDirection(direction));
-    public IDiscordEntitlementsPaginationProperties WithBatchSize(int? batchSize) => new DiscordEntitlementsPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordEntitlementsPaginationProperties WithUserId(ulong? userId) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithUserId(userId));
+    }
+    public IDiscordEntitlementsPaginationProperties WithSkuIds(IEnumerable<ulong> skuIds) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithSkuIds(skuIds));
+    }
+    public IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
+    }
+    public IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
+    }
+    public IDiscordEntitlementsPaginationProperties WithGuildId(ulong? guildId) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithGuildId(guildId));
+    }
+    public IDiscordEntitlementsPaginationProperties WithExcludeEnded(bool? excludeEnded = true) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithExcludeEnded(excludeEnded));
+    }
+    public IDiscordEntitlementsPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordEntitlementsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordEntitlementsPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordEntitlementsPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -9675,9 +13356,18 @@ public class DiscordTestEntitlementProperties : IDiscordTestEntitlementPropertie
     public ulong SkuId => _original.SkuId;
     public ulong OwnerId => _original.OwnerId;
     public NetCord.Rest.TestEntitlementOwnerType OwnerType => _original.OwnerType;
-    public IDiscordTestEntitlementProperties WithSkuId(ulong skuId) => new DiscordTestEntitlementProperties(_original.WithSkuId(skuId));
-    public IDiscordTestEntitlementProperties WithOwnerId(ulong ownerId) => new DiscordTestEntitlementProperties(_original.WithOwnerId(ownerId));
-    public IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType) => new DiscordTestEntitlementProperties(_original.WithOwnerType(ownerType));
+    public IDiscordTestEntitlementProperties WithSkuId(ulong skuId) 
+    {
+        return new DiscordTestEntitlementProperties(_original.WithSkuId(skuId));
+    }
+    public IDiscordTestEntitlementProperties WithOwnerId(ulong ownerId) 
+    {
+        return new DiscordTestEntitlementProperties(_original.WithOwnerId(ownerId));
+    }
+    public IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType) 
+    {
+        return new DiscordTestEntitlementProperties(_original.WithOwnerType(ownerType));
+    }
 }
 
 
@@ -9703,7 +13393,10 @@ public class DiscordSku : IDiscordSku
             yield return new DiscordSubscription(original);
         }
     }
-    public async Task<IDiscordSubscription> GetSubscriptionAsync(ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordSubscription(await _original.GetSubscriptionAsync(subscriptionId, properties.Original, cancellationToken));
+    public async Task<IDiscordSubscription> GetSubscriptionAsync(ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordSubscription(await _original.GetSubscriptionAsync(subscriptionId, properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -9718,7 +13411,7 @@ public class DiscordAuthorizationInformation : IDiscordAuthorizationInformation
     public IDiscordApplication Application => new DiscordApplication(_original.Application);
     public IReadOnlyList<string> Scopes => _original.Scopes;
     public System.DateTimeOffset ExpiresAt => _original.ExpiresAt;
-    public IDiscordUser User => new DiscordUser(_original.User);
+    public IDiscordUser? User => _original.User is null ? null : new DiscordUser(_original.User);
 }
 
 
@@ -9735,11 +13428,26 @@ public class DiscordStageInstanceProperties : IDiscordStageInstanceProperties
     public NetCord.StageInstancePrivacyLevel? PrivacyLevel => _original.PrivacyLevel;
     public bool? SendStartNotification => _original.SendStartNotification;
     public ulong? GuildScheduledEventId => _original.GuildScheduledEventId;
-    public IDiscordStageInstanceProperties WithChannelId(ulong channelId) => new DiscordStageInstanceProperties(_original.WithChannelId(channelId));
-    public IDiscordStageInstanceProperties WithTopic(string topic) => new DiscordStageInstanceProperties(_original.WithTopic(topic));
-    public IDiscordStageInstanceProperties WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) => new DiscordStageInstanceProperties(_original.WithPrivacyLevel(privacyLevel));
-    public IDiscordStageInstanceProperties WithSendStartNotification(bool? sendStartNotification = true) => new DiscordStageInstanceProperties(_original.WithSendStartNotification(sendStartNotification));
-    public IDiscordStageInstanceProperties WithGuildScheduledEventId(ulong? guildScheduledEventId) => new DiscordStageInstanceProperties(_original.WithGuildScheduledEventId(guildScheduledEventId));
+    public IDiscordStageInstanceProperties WithChannelId(ulong channelId) 
+    {
+        return new DiscordStageInstanceProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordStageInstanceProperties WithTopic(string topic) 
+    {
+        return new DiscordStageInstanceProperties(_original.WithTopic(topic));
+    }
+    public IDiscordStageInstanceProperties WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) 
+    {
+        return new DiscordStageInstanceProperties(_original.WithPrivacyLevel(privacyLevel));
+    }
+    public IDiscordStageInstanceProperties WithSendStartNotification(bool? sendStartNotification = true) 
+    {
+        return new DiscordStageInstanceProperties(_original.WithSendStartNotification(sendStartNotification));
+    }
+    public IDiscordStageInstanceProperties WithGuildScheduledEventId(ulong? guildScheduledEventId) 
+    {
+        return new DiscordStageInstanceProperties(_original.WithGuildScheduledEventId(guildScheduledEventId));
+    }
 }
 
 
@@ -9759,7 +13467,10 @@ public class DiscordStandardSticker : IDiscordStandardSticker
     public IReadOnlyList<string> Tags => _original.Tags;
     public NetCord.StickerFormat Format => _original.Format;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
 }
 
 
@@ -9792,12 +13503,12 @@ public class DiscordSubscription : IDiscordSubscription
     public ulong UserId => _original.UserId;
     public IReadOnlyList<ulong> SkuIds => _original.SkuIds;
     public IReadOnlyList<ulong> EntitlementIds => _original.EntitlementIds;
-    public IReadOnlyList<ulong> RenewalSkuIds => _original.RenewalSkuIds;
+    public IReadOnlyList<ulong>? RenewalSkuIds => _original.RenewalSkuIds is null ? null : _original.RenewalSkuIds;
     public System.DateTimeOffset CurrentPeriodStart => _original.CurrentPeriodStart;
     public System.DateTimeOffset CurrentPeriodEnd => _original.CurrentPeriodEnd;
     public NetCord.SubscriptionStatus Status => _original.Status;
     public System.DateTimeOffset? CanceledAt => _original.CanceledAt;
-    public string Country => _original.Country;
+    public string? Country => _original.Country is null ? null : _original.Country;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -9814,10 +13525,22 @@ public class DiscordSubscriptionPaginationProperties : IDiscordSubscriptionPagin
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordSubscriptionPaginationProperties WithUserId(ulong? userId) => new DiscordSubscriptionPaginationProperties(_original.WithUserId(userId));
-    public IDiscordSubscriptionPaginationProperties WithFrom(ulong? from) => new DiscordSubscriptionPaginationProperties(_original.WithFrom(from));
-    public IDiscordSubscriptionPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordSubscriptionPaginationProperties(_original.WithDirection(direction));
-    public IDiscordSubscriptionPaginationProperties WithBatchSize(int? batchSize) => new DiscordSubscriptionPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordSubscriptionPaginationProperties WithUserId(ulong? userId) 
+    {
+        return new DiscordSubscriptionPaginationProperties(_original.WithUserId(userId));
+    }
+    public IDiscordSubscriptionPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordSubscriptionPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordSubscriptionPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordSubscriptionPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordSubscriptionPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordSubscriptionPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -9851,8 +13574,14 @@ public class DiscordCurrentUser : IDiscordCurrentUser
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
     public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordCurrentUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentUser(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordCurrentUser> ModifyAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordCurrentUser(await _original.ModifyAsync(x => action(new DiscordCurrentUserOptions(x)), properties.Original, cancellationToken));
+    public async Task<IDiscordCurrentUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentUser> ModifyAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.ModifyAsync(x => action(new DiscordCurrentUserOptions(x)), properties?.Original, cancellationToken));
+    }
     public async IAsyncEnumerable<IDiscordRestGuild> GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetGuildsAsync(paginationProperties.Original, properties.Original))
@@ -9860,15 +13589,42 @@ public class DiscordCurrentUser : IDiscordCurrentUser
             yield return new DiscordRestGuild(original);
         }
     }
-    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, properties.Original, cancellationToken));
-    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.LeaveGuildAsync(guildId, properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordConnection>> GetConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetConnectionsAsync(properties.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
-    public async Task<IDiscordApplicationRoleConnection> GetApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationRoleConnection(await _original.GetApplicationRoleConnectionAsync(applicationId, properties.Original, cancellationToken));
-    public async Task<IDiscordApplicationRoleConnection> UpdateApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordApplicationRoleConnection(await _original.UpdateApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties.Original, cancellationToken));
-    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetAvatarUrl(format));
-    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) => new DiscordImageUrl(_original.GetBannerUrl(format));
-    public IDiscordImageUrl GetAvatarDecorationUrl() => new DiscordImageUrl(_original.GetAvatarDecorationUrl());
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordDMChannel(await _original.GetDMChannelAsync(properties.Original, cancellationToken));
+    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveGuildAsync(guildId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordConnection>> GetConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetConnectionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
+    }
+    public async Task<IDiscordApplicationRoleConnection> GetApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.GetApplicationRoleConnectionAsync(applicationId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationRoleConnection> UpdateApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.UpdateApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties?.Original, cancellationToken));
+    }
+    public IDiscordImageUrl GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetAvatarUrl(format));
+    }
+    public IDiscordImageUrl GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        return new DiscordImageUrl(_original.GetBannerUrl(format));
+    }
+    public IDiscordImageUrl GetAvatarDecorationUrl() 
+    {
+        return new DiscordImageUrl(_original.GetAvatarDecorationUrl());
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
 }
 
 
@@ -9883,9 +13639,18 @@ public class DiscordCurrentUserOptions : IDiscordCurrentUserOptions
     public string Username => _original.Username;
     public NetCord.Rest.ImageProperties? Avatar => _original.Avatar;
     public NetCord.Rest.ImageProperties? Banner => _original.Banner;
-    public IDiscordCurrentUserOptions WithUsername(string username) => new DiscordCurrentUserOptions(_original.WithUsername(username));
-    public IDiscordCurrentUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) => new DiscordCurrentUserOptions(_original.WithAvatar(avatar));
-    public IDiscordCurrentUserOptions WithBanner(NetCord.Rest.ImageProperties? banner) => new DiscordCurrentUserOptions(_original.WithBanner(banner));
+    public IDiscordCurrentUserOptions WithUsername(string username) 
+    {
+        return new DiscordCurrentUserOptions(_original.WithUsername(username));
+    }
+    public IDiscordCurrentUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordCurrentUserOptions(_original.WithAvatar(avatar));
+    }
+    public IDiscordCurrentUserOptions WithBanner(NetCord.Rest.ImageProperties? banner) 
+    {
+        return new DiscordCurrentUserOptions(_original.WithBanner(banner));
+    }
 }
 
 
@@ -9901,10 +13666,22 @@ public class DiscordGuildsPaginationProperties : IDiscordGuildsPaginationPropert
     public ulong? From => _original.From;
     public NetCord.Rest.PaginationDirection? Direction => _original.Direction;
     public int? BatchSize => _original.BatchSize;
-    public IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true) => new DiscordGuildsPaginationProperties(_original.WithWithCounts(withCounts));
-    public IDiscordGuildsPaginationProperties WithFrom(ulong? from) => new DiscordGuildsPaginationProperties(_original.WithFrom(from));
-    public IDiscordGuildsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) => new DiscordGuildsPaginationProperties(_original.WithDirection(direction));
-    public IDiscordGuildsPaginationProperties WithBatchSize(int? batchSize) => new DiscordGuildsPaginationProperties(_original.WithBatchSize(batchSize));
+    public IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true) 
+    {
+        return new DiscordGuildsPaginationProperties(_original.WithWithCounts(withCounts));
+    }
+    public IDiscordGuildsPaginationProperties WithFrom(ulong? from) 
+    {
+        return new DiscordGuildsPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordGuildsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordGuildsPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordGuildsPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordGuildsPaginationProperties(_original.WithBatchSize(batchSize));
+    }
 }
 
 
@@ -9917,7 +13694,7 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
     }
     public NetCord.GroupDMChannel Original => _original;
     public string Name => _original.Name;
-    public string IconHash => _original.IconHash;
+    public string? IconHash => _original.IconHash is null ? null : _original.IconHash;
     public ulong OwnerId => _original.OwnerId;
     public ulong? ApplicationId => _original.ApplicationId;
     public bool Managed => _original.Managed;
@@ -9927,11 +13704,26 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
     public ulong Id => _original.Id;
     public NetCord.ChannelFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordGroupDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGroupDMChannel(await _original.GetAsync(properties.Original, cancellationToken));
-    public async Task<IDiscordGroupDMChannel> ModifyAsync(Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGroupDMChannel(await _original.ModifyAsync(x => action(new DiscordGroupDMChannelOptions(x)), properties.Original, cancellationToken));
-    public async Task<IDiscordGroupDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordGroupDMChannel(await _original.DeleteAsync(properties.Original, cancellationToken));
-    public Task AddUserAsync(ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddUserAsync(userId, groupDMChannelUserAddProperties.Original, properties.Original, cancellationToken);
-    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteUserAsync(userId, properties.Original, cancellationToken);
+    public async Task<IDiscordGroupDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGroupDMChannel(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGroupDMChannel> ModifyAsync(Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGroupDMChannel(await _original.ModifyAsync(x => action(new DiscordGroupDMChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGroupDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGroupDMChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
+    public Task AddUserAsync(ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddUserAsync(userId, groupDMChannelUserAddProperties.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteUserAsync(userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
@@ -9939,30 +13731,81 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
             yield return new DiscordRestMessage(original);
         }
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetMessagesAroundAsync(messageId, limit, properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties.Original, cancellationToken));
-    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.AddMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties.Original, cancellationToken);
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(message.Original, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessageReactionsAsync(messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties.Original, cancellationToken);
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties.Original, cancellationToken));
-    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.DeleteMessagesAsync(messageIds, properties.Original, cancellationToken);
-    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.TriggerTypingStateAsync(properties.Original, cancellationToken);
-    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.EnterTypingStateAsync(properties.Original, cancellationToken);
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.GetPinnedMessagesAsync(properties.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.PinMessageAsync(messageId, properties.Original, cancellationToken);
-    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => _original.UnpinMessageAsync(messageId, properties.Original, cancellationToken);
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(messageIds, properties?.Original, cancellationToken);
+    }
+    public Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(messageId, properties?.Original, cancellationToken);
+    }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
         await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
@@ -9970,8 +13813,14 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
             yield return new DiscordUser(original);
         }
     }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties.Original, cancellationToken));
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) => (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
 }
 
 
@@ -9985,10 +13834,22 @@ public class DiscordGroupDMChannelProperties : IDiscordGroupDMChannelProperties
     public NetCord.Rest.GroupDMChannelProperties Original => _original;
     public IEnumerable<string> AccessTokens => _original.AccessTokens;
     public IReadOnlyDictionary<ulong, string> Nicknames => _original.Nicknames;
-    public IDiscordGroupDMChannelProperties WithAccessTokens(IEnumerable<string> accessTokens) => new DiscordGroupDMChannelProperties(_original.WithAccessTokens(accessTokens));
-    public IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens) => new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
-    public IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens) => new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
-    public IDiscordGroupDMChannelProperties WithNicknames(IReadOnlyDictionary<ulong, string> nicknames) => new DiscordGroupDMChannelProperties(_original.WithNicknames(nicknames));
+    public IDiscordGroupDMChannelProperties WithAccessTokens(IEnumerable<string> accessTokens) 
+    {
+        return new DiscordGroupDMChannelProperties(_original.WithAccessTokens(accessTokens));
+    }
+    public IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens) 
+    {
+        return new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
+    }
+    public IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens) 
+    {
+        return new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
+    }
+    public IDiscordGroupDMChannelProperties WithNicknames(IReadOnlyDictionary<ulong, string> nicknames) 
+    {
+        return new DiscordGroupDMChannelProperties(_original.WithNicknames(nicknames));
+    }
 }
 
 
@@ -10021,8 +13882,8 @@ public class DiscordApplicationRoleConnection : IDiscordApplicationRoleConnectio
         _original = original;
     }
     public NetCord.Rest.ApplicationRoleConnection Original => _original;
-    public string PlatformName => _original.PlatformName;
-    public string PlatformUsername => _original.PlatformUsername;
+    public string? PlatformName => _original.PlatformName is null ? null : _original.PlatformName;
+    public string? PlatformUsername => _original.PlatformUsername is null ? null : _original.PlatformUsername;
     public IReadOnlyDictionary<string, string> Metadata => _original.Metadata;
 }
 
@@ -10038,9 +13899,18 @@ public class DiscordApplicationRoleConnectionProperties : IDiscordApplicationRol
     public string PlatformName => _original.PlatformName;
     public string PlatformUsername => _original.PlatformUsername;
     public IReadOnlyDictionary<string, string> Metadata => _original.Metadata;
-    public IDiscordApplicationRoleConnectionProperties WithPlatformName(string platformName) => new DiscordApplicationRoleConnectionProperties(_original.WithPlatformName(platformName));
-    public IDiscordApplicationRoleConnectionProperties WithPlatformUsername(string platformUsername) => new DiscordApplicationRoleConnectionProperties(_original.WithPlatformUsername(platformUsername));
-    public IDiscordApplicationRoleConnectionProperties WithMetadata(IReadOnlyDictionary<string, string> metadata) => new DiscordApplicationRoleConnectionProperties(_original.WithMetadata(metadata));
+    public IDiscordApplicationRoleConnectionProperties WithPlatformName(string platformName) 
+    {
+        return new DiscordApplicationRoleConnectionProperties(_original.WithPlatformName(platformName));
+    }
+    public IDiscordApplicationRoleConnectionProperties WithPlatformUsername(string platformUsername) 
+    {
+        return new DiscordApplicationRoleConnectionProperties(_original.WithPlatformUsername(platformUsername));
+    }
+    public IDiscordApplicationRoleConnectionProperties WithMetadata(IReadOnlyDictionary<string, string> metadata) 
+    {
+        return new DiscordApplicationRoleConnectionProperties(_original.WithMetadata(metadata));
+    }
 }
 
 
@@ -10054,10 +13924,22 @@ public class DiscordApplicationInstallParamsProperties : IDiscordApplicationInst
     public NetCord.Rest.ApplicationInstallParamsProperties Original => _original;
     public IEnumerable<string> Scopes => _original.Scopes;
     public NetCord.Permissions? Permissions => _original.Permissions;
-    public IDiscordApplicationInstallParamsProperties WithScopes(IEnumerable<string> scopes) => new DiscordApplicationInstallParamsProperties(_original.WithScopes(scopes));
-    public IDiscordApplicationInstallParamsProperties AddScopes(IEnumerable<string> scopes) => new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
-    public IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes) => new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
-    public IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions) => new DiscordApplicationInstallParamsProperties(_original.WithPermissions(permissions));
+    public IDiscordApplicationInstallParamsProperties WithScopes(IEnumerable<string> scopes) 
+    {
+        return new DiscordApplicationInstallParamsProperties(_original.WithScopes(scopes));
+    }
+    public IDiscordApplicationInstallParamsProperties AddScopes(IEnumerable<string> scopes) 
+    {
+        return new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
+    }
+    public IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes) 
+    {
+        return new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
+    }
+    public IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions) 
+    {
+        return new DiscordApplicationInstallParamsProperties(_original.WithPermissions(permissions));
+    }
 }
 
 
@@ -10070,7 +13952,10 @@ public class DiscordApplicationIntegrationTypeConfigurationProperties : IDiscord
     }
     public NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties Original => _original;
     public IDiscordApplicationInstallParamsProperties OAuth2InstallParams => new DiscordApplicationInstallParamsProperties(_original.OAuth2InstallParams);
-    public IDiscordApplicationIntegrationTypeConfigurationProperties WithOAuth2InstallParams(IDiscordApplicationInstallParamsProperties oAuth2InstallParams) => new DiscordApplicationIntegrationTypeConfigurationProperties(_original.WithOAuth2InstallParams(oAuth2InstallParams.Original));
+    public IDiscordApplicationIntegrationTypeConfigurationProperties WithOAuth2InstallParams(IDiscordApplicationInstallParamsProperties oAuth2InstallParams) 
+    {
+        return new DiscordApplicationIntegrationTypeConfigurationProperties(_original.WithOAuth2InstallParams(oAuth2InstallParams?.Original));
+    }
 }
 
 
@@ -10082,28 +13967,73 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
         _original = original;
     }
     public NetCord.Rest.ForumGuildThreadMessageProperties Original => _original;
-    public string Content => _original.Content;
+    public string? Content => _original.Content is null ? null : _original.Content;
     public IEnumerable<IDiscordEmbedProperties> Embeds => _original.Embeds.Select(x => new DiscordEmbedProperties(x));
-    public IDiscordAllowedMentionsProperties AllowedMentions => new DiscordAllowedMentionsProperties(_original.AllowedMentions);
+    public IDiscordAllowedMentionsProperties? AllowedMentions => _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions);
     public IEnumerable<IDiscordComponentProperties> Components => _original.Components.Select(x => new DiscordComponentProperties(x));
-    public IEnumerable<ulong> StickerIds => _original.StickerIds;
+    public IEnumerable<ulong>? StickerIds => _original.StickerIds is null ? null : _original.StickerIds;
     public IEnumerable<IDiscordAttachmentProperties> Attachments => _original.Attachments.Select(x => new DiscordAttachmentProperties(x));
     public NetCord.MessageFlags? Flags => _original.Flags;
-    public IDiscordForumGuildThreadMessageProperties WithContent(string content) => new DiscordForumGuildThreadMessageProperties(_original.WithContent(content));
-    public IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordForumGuildThreadMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) => new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) => new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    public IDiscordForumGuildThreadMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) => new DiscordForumGuildThreadMessageProperties(_original.WithAllowedMentions(allowedMentions.Original));
-    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) => new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components) => new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    public IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.WithStickerIds(stickerIds));
-    public IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds) => new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
-    public IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) => new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
-    public IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) => new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    public IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags) => new DiscordForumGuildThreadMessageProperties(_original.WithFlags(flags));
+    public IDiscordForumGuildThreadMessageProperties WithContent(string content) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties allowedMentions) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithStickerIds(stickerIds));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordForumGuildThreadMessageProperties(_original.WithFlags(flags));
+    }
 }
 
 
@@ -10136,7 +14066,10 @@ public class DiscordSticker : IDiscordSticker
     public IReadOnlyList<string> Tags => _original.Tags;
     public NetCord.StickerFormat Format => _original.Format;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) => new DiscordImageUrl(_original.GetImageUrl(format));
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
 }
 
 
