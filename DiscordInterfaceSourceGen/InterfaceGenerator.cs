@@ -22,7 +22,6 @@ public class Program
         var interfaceQueue = new Queue<Type>();
         var interfaceBodies = new List<string>();
         var classBodies = new List<string>();
-        sb.AppendLine("using DiscordInterfaceSourceGen;");
         sb.AppendLine("using System.Linq;");
         sb.AppendLine("using System.Linq.Expressions;");
         sb.AppendLine("using System.Collections.Immutable;");
@@ -30,7 +29,7 @@ public class Program
         sb.AppendLine("using System.Text.Json;");
         sb.AppendLine("using System.Text.Json.Serialization.Metadata;");
         sb.AppendLine();
-        sb.AppendLine("namespace DiscordInterfaceSourceGen;");
+        sb.AppendLine("namespace DiscordInterface.Generated;");
         sb.AppendLine();
         // Start with the root interface
         interfaceQueue.Enqueue(interactionContextType);
@@ -52,7 +51,7 @@ public class Program
             sb.AppendLine();
         }
         // Write to file
-        var outputPath = Path.Combine(outputDir, "DiscordInteractionContext.g.cs");
+        var outputPath = Path.Combine(outputDir, "DiscordInteractionContextGen.cs");
         File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
     }
 
@@ -62,10 +61,6 @@ public class Program
         if (typeName.EndsWith("&") || typeName.EndsWith("[]"))
         {
             return;
-        }
-        if (typeName.Contains("MessageOptions"))
-        {
-            var b = 1;
         }
         if (type.IsGenericType)
         {
@@ -90,7 +85,7 @@ public class Program
             genericConstraint += string.Join(" ", type.GetGenericArguments().Where(x => x.BaseType != null && x.BaseType != typeof(object))
                 .Select(t =>
                 {
-                    var typ = t.BaseType.FullName;
+                    var typ = t.BaseType?.FullName ?? throw new Exception("Full name null");
                     if (typ == "System.ValueType")
                         return $"where {t.Name} : struct";
                     return $"where {t.Name} : {t.BaseType.FullName}";
@@ -232,10 +227,6 @@ public class Program
         var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !m.IsStatic && !ignored.Contains(m.Name)).ToArray();
         foreach (var method in methods)
         {
-            if (method.Name.Contains("Clone"))
-            {
-                var b = 1;
-            }
             if (method.DeclaringType != type && methods.Any(m => MethodsAreEquivalent(m, method) && m.DeclaringType == type))
                 continue; // Skip inherited methods that are overridden
             var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod);
@@ -287,6 +278,8 @@ public class Program
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(Action<>))
                     {
                         var trueType = param.ParameterType.GenericTypeArguments[0];
+                        if (trueType?.Assembly?.FullName is null)
+                            throw new Exception("Full name null");
                         if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
                         {
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
@@ -302,6 +295,8 @@ public class Program
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                     {
                         var trueType = param.ParameterType.GetGenericArguments()[0];
+                        if (trueType?.Assembly?.FullName is null)
+                            throw new Exception("Full name null");
                         if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
                         {
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
@@ -316,6 +311,8 @@ public class Program
                     if (param.ParameterType.IsArray)
                     {
                         var trueType = param.ParameterType.GetElementType();
+                        if (trueType?.Assembly?.FullName is null)
+                            throw new Exception("Full name null");
                         if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
                         {
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
@@ -327,10 +324,8 @@ public class Program
                         }
                     }
 
-                    if (param.Name.Contains("integrationTypesConfiguration"))
-                    {
-                        var f = 1;
-                    }
+                    if (param.ParameterType.Assembly.FullName is null)
+                        throw new Exception("Full name null");
 
                     if (param.IsOut) // Can't call original on out parameters
                     {
@@ -341,31 +336,35 @@ public class Program
                         var types = param.ParameterType.GetGenericArguments();
                         if (types.Any(x =>
                         {
+                            if (x?.Assembly?.FullName is null)
+                                throw new Exception("Full name null");
                             var netCord = x.Assembly.FullName.StartsWith("NetCord");
                             var f = GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod);
                             return netCord && f.StartsWith("IDiscord");
                         }))
                         {
-                            if (types.All(x => param.ParameterType.Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord")))
+                            if (types.Any(x => param.ParameterType.Assembly.FullName is null))
+                                throw new Exception("Full name null");
+                            if (types.All(x => param.ParameterType.Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord")))
                             {
                                 argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key.Original, kv => kv.Value.Original)");
                             }
-                            else if (types[0].Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(types[0], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            else if (types[0].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[0], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
                             {
                                 argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key.Original, kv => kv.Value)");
                             }
-                            else if (types[1].Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(types[1], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            else if (types[1].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[1], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
                             {
                                 argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key, kv => kv.Value.Original)");
                             }
                             else
                             {
-                                throw new ArgumentOutOfRangeException();
+                                throw new ArgumentOutOfRangeException("Detected NetCord type with IDiscord generated interface but then somehow did not find it on dictionary");
                             }
                         }
                         else
                         {
-                            argNames.Add(param.Name);
+                            argNames.Add(param.Name ?? throw new Exception("Name null"));
                         }
                     }
                     else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
@@ -374,7 +373,7 @@ public class Program
                     }
                     else
                     {
-                        argNames.Add(param.Name);
+                        argNames.Add(param.Name ?? throw new Exception("Name null"));
                     }
                 }
             }
@@ -385,7 +384,7 @@ public class Program
             var genericConstraint = "";
             if (method.IsGenericMethod)
             {
-                genericConstraint = string.Join(" ", method.GetGenericArguments().Where(x => x.BaseType != null && x.BaseType != typeof(object)).Select(t => $"where {t.Name}Param : {t.BaseType.FullName}"));
+                genericConstraint = string.Join(" ", method.GetGenericArguments().Where(x => x.BaseType != null && x.BaseType != typeof(object)).Select(t => $"where {t.Name}Param : {t.BaseType?.FullName ?? throw new Exception("Full name null")}"));
             }
             if (forInterface)
             {
@@ -577,7 +576,7 @@ public class Program
         }
         if (type.IsArray)
         {
-            var innerType = type.GetElementType();
+            var innerType = type.GetElementType() ?? throw new Exception("Inner type null");
             var innerTypeName = GetDiscordTypeName(innerType, interfaceQueue, isGenericMethod);
             return $"{innerTypeName}[]"; // TODO: Should I remove this ? here
         }
@@ -614,10 +613,6 @@ public class Program
         // Handle generic types (e.g., IReadOnlyList<T>, etc.)
         if (type.IsGenericType)
         {
-            if (type.Name.Contains("PaginationProperties"))
-            {
-                var b = 1;
-            }
             var genericTypeName = type.Name.Split('`')[0];
             var genericArgs = type.GetGenericArguments();
             var args = string.Join(", ", genericArgs.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod)));

@@ -1,12 +1,11 @@
-﻿using DiscordInterfaceSourceGen;
-using System.Linq;
+﻿using System.Linq;
 using System.Linq.Expressions;
 using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
-namespace DiscordInterfaceSourceGen;
+namespace DiscordInterface.Generated;
 
 public interface IDiscordInteractionContext  
 {
