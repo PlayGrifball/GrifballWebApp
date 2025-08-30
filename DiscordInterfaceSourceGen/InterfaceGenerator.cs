@@ -1,7 +1,5 @@
 ﻿using NetCord.Services;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -329,11 +327,48 @@ public class Program
                         }
                     }
 
+                    if (param.Name.Contains("integrationTypesConfiguration"))
+                    {
+                        var f = 1;
+                    }
+
                     if (param.IsOut) // Can't call original on out parameters
                     {
                         argNames.Add($"out var {param.Name}Temp");
                     }
-                    else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord")) 
+                    else if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
+                    {
+                        var types = param.ParameterType.GetGenericArguments();
+                        if (types.Any(x =>
+                        {
+                            var netCord = x.Assembly.FullName.StartsWith("NetCord");
+                            var f = GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod);
+                            return netCord && f.StartsWith("IDiscord");
+                        }))
+                        {
+                            if (types.All(x => param.ParameterType.Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord")))
+                            {
+                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key.Original, kv => kv.Value.Original)");
+                            }
+                            else if (types[0].Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(types[0], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            {
+                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key.Original, kv => kv.Value)");
+                            }
+                            else if (types[1].Assembly.FullName.StartsWith("NetCord") && GetDiscordTypeName(types[1], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            {
+                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key, kv => kv.Value.Original)");
+                            }
+                            else
+                            {
+                                throw new ArgumentOutOfRangeException();
+                            }
+                        }
+                        else
+                        {
+                            argNames.Add(param.Name);
+                        }
+                    }
+                    else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         argNames.Add($"{param.Name}.Original");
                     }
