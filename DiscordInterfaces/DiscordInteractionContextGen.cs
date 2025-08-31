@@ -144,7 +144,7 @@ public interface IDiscordGuild
     Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordGuildUser>? GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser?> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1003,7 +1003,7 @@ public interface IDiscordRestGuild
     Task<IDiscordGuildUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordGuildUser>? GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindUserAsync(string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser?> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyCurrentUserAsync(Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddUserRoleAsync(ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -2034,7 +2034,7 @@ public interface IDiscordApplication
     IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format);
     IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format);
     IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format);
-    IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
+    IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
     IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format);
     Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -2455,7 +2455,7 @@ public interface IDiscordIncomingWebhook
     Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3209,7 +3209,7 @@ public interface IDiscordWebhookClient
     Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3556,7 +3556,7 @@ public interface IDiscordRestClient
     Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordGuildUser>? GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3678,7 +3678,7 @@ public interface IDiscordRestClient
     Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3738,7 +3738,7 @@ public interface IDiscordCurrentApplication
     IDiscordImageUrl GetIconUrl(NetCord.ImageFormat format);
     IDiscordImageUrl GetCoverUrl(NetCord.ImageFormat format);
     IDiscordImageUrl GetAssetUrl(ulong assetId, NetCord.ImageFormat format);
-    IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
+    IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
     IDiscordImageUrl GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format);
     Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -4515,7 +4515,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetAuditLogAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetAuditLogAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestAuditLogEntry(original);
         }
@@ -4586,7 +4586,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+        return _original.ModifyChannelPositionsAsync(positions.Select(x => x.Original), properties?.Original, cancellationToken);
     }
     public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4598,7 +4598,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUser(original);
         }
@@ -4607,9 +4607,10 @@ public class DiscordGuild : IDiscordGuild
     {
         return (await _original.FindUserAsync(name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
     }
-    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordGuildUser?> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken));
+        var temp = await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordGuildUser(temp);
     }
     public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4633,7 +4634,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetBansAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetBansAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildBan(original);
         }
@@ -4668,7 +4669,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+        return (await _original.ModifyRolePositionsAsync(positions.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     }
     public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4684,7 +4685,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
+        return _original.GetPruneCountAsync(days, roles, properties?.Original, cancellationToken);
     }
     public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4760,7 +4761,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildScheduledEventUser(original);
         }
@@ -4807,7 +4808,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
     }
     public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4819,7 +4820,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
     public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -4843,7 +4844,7 @@ public class DiscordGuild : IDiscordGuild
     }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.SearchUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.SearchUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUserInfo(original);
         }
@@ -4902,7 +4903,7 @@ public class DiscordTextChannel : IDiscordTextChannel
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -4984,7 +4985,7 @@ public class DiscordTextChannel : IDiscordTextChannel
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -4995,7 +4996,7 @@ public class DiscordTextChannel : IDiscordTextChannel
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -5246,7 +5247,7 @@ public class DiscordRestMessage : IDiscordRestMessage
     }
     public async IAsyncEnumerable<IDiscordUser> GetPollAnswerVotersAsync(int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPollAnswerVotersAsync(answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPollAnswerVotersAsync(answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -5282,11 +5283,11 @@ public class DiscordMessageOptions : IDiscordMessageOptions
     }
     public IDiscordMessageOptions WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordMessageOptions(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordMessageOptions(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -5302,11 +5303,11 @@ public class DiscordMessageOptions : IDiscordMessageOptions
     }
     public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordMessageOptions(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -5314,11 +5315,11 @@ public class DiscordMessageOptions : IDiscordMessageOptions
     }
     public IDiscordMessageOptions WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordMessageOptions(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordMessageOptions(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordMessageOptions AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {
@@ -5357,11 +5358,11 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
     }
     public IDiscordInteractionMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordInteractionMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -5377,11 +5378,11 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
     }
     public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordInteractionMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -5389,11 +5390,11 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
     }
     public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordInteractionMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {
@@ -5579,7 +5580,7 @@ public class DiscordGuildChannel : IDiscordGuildChannel
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties?.Original, properties?.Original, cancellationToken));
     }
     public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5651,7 +5652,7 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordThreadUser(original);
         }
@@ -5666,7 +5667,7 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties?.Original, properties?.Original, cancellationToken));
     }
     public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5682,21 +5683,21 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
@@ -5711,7 +5712,7 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -5793,7 +5794,7 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -5804,7 +5805,7 @@ public class DiscordGuildThread : IDiscordGuildThread
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -5900,7 +5901,7 @@ public class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent
     }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildScheduledEventUser(original);
         }
@@ -6266,11 +6267,11 @@ public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRulePro
     }
     public IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
     {
-        return new DiscordAutoModerationRuleProperties(_original.WithActions(actions?.Select(x => x.Original)));
+        return new DiscordAutoModerationRuleProperties(_original.WithActions(actions.Select(x => x.Original)));
     }
     public IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
     {
-        return new DiscordAutoModerationRuleProperties(_original.AddActions(actions?.Select(x => x.Original)));
+        return new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original)));
     }
     public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) 
     {
@@ -6336,11 +6337,11 @@ public class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOption
     }
     public IDiscordAutoModerationRuleOptions WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
     {
-        return new DiscordAutoModerationRuleOptions(_original.WithActions(actions?.Select(x => x.Original)));
+        return new DiscordAutoModerationRuleOptions(_original.WithActions(actions.Select(x => x.Original)));
     }
     public IDiscordAutoModerationRuleOptions AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions) 
     {
-        return new DiscordAutoModerationRuleOptions(_original.AddActions(actions?.Select(x => x.Original)));
+        return new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original)));
     }
     public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) 
     {
@@ -6525,7 +6526,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetAuditLogAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetAuditLogAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestAuditLogEntry(original);
         }
@@ -6596,7 +6597,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public Task ModifyChannelPositionsAsync(IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.ModifyChannelPositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+        return _original.ModifyChannelPositionsAsync(positions.Select(x => x.Original), properties?.Original, cancellationToken);
     }
     public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveThreadsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6608,7 +6609,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async IAsyncEnumerable<IDiscordGuildUser> GetUsersAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUser(original);
         }
@@ -6617,9 +6618,10 @@ public class DiscordRestGuild : IDiscordRestGuild
     {
         return (await _original.FindUserAsync(name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
     }
-    public async Task<IDiscordGuildUser> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordGuildUser?> AddUserAsync(ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordGuildUser(await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken));
+        var temp = await _original.AddUserAsync(userId, userProperties.Original, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordGuildUser(temp);
     }
     public async Task<IDiscordGuildUser> ModifyUserAsync(ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6643,7 +6645,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async IAsyncEnumerable<IDiscordGuildBan> GetBansAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetBansAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetBansAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildBan(original);
         }
@@ -6678,7 +6680,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async Task<IReadOnlyList<IDiscordRole>> ModifyRolePositionsAsync(IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.ModifyRolePositionsAsync(positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+        return (await _original.ModifyRolePositionsAsync(positions.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     }
     public async Task<IDiscordRole> ModifyRoleAsync(ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6694,7 +6696,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public Task<int> GetPruneCountAsync(int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.GetPruneCountAsync(days, roles, properties.Original, cancellationToken);
+        return _original.GetPruneCountAsync(days, roles, properties?.Original, cancellationToken);
     }
     public Task<int?> PruneAsync(IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6770,7 +6772,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetScheduledEventUsersAsync(ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetScheduledEventUsersAsync(scheduledEventId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildScheduledEventUser(original);
         }
@@ -6817,7 +6819,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+        return (await _original.BulkOverwriteApplicationCommandsAsync(applicationId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
     }
     public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsPermissionsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6829,7 +6831,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandPermissionsAsync(ulong applicationId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandPermissionsAsync(applicationId, commandId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
     public async Task<IReadOnlyList<IDiscordGuildSticker>> GetStickersAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6853,7 +6855,7 @@ public class DiscordRestGuild : IDiscordRestGuild
     }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchUsersAsync(IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.SearchUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.SearchUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUserInfo(original);
         }
@@ -7086,11 +7088,11 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     }
     public IDiscordGuildChannelProperties WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
     {
-        return new DiscordGuildChannelProperties(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+        return new DiscordGuildChannelProperties(_original.WithPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
     public IDiscordGuildChannelProperties AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
     {
-        return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+        return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
     public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
     {
@@ -7122,11 +7124,11 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
     }
     public IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
     {
-        return new DiscordGuildChannelProperties(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
+        return new DiscordGuildChannelProperties(_original.WithAvailableTags(availableTags.Select(x => x.Original)));
     }
     public IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
     {
-        return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
+        return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
     }
     public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
     {
@@ -7658,11 +7660,11 @@ public class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOption
     }
     public IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) 
     {
-        return new DiscordGuildWelcomeScreenOptions(_original.WithWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
+        return new DiscordGuildWelcomeScreenOptions(_original.WithWelcomeChannels(welcomeChannels.Select(x => x.Original)));
     }
     public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) 
     {
-        return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels?.Select(x => x.Original)));
+        return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original)));
     }
     public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) 
     {
@@ -7705,11 +7707,11 @@ public class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions
     public NetCord.Rest.GuildOnboardingMode? Mode => _original.Mode;
     public IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) 
     {
-        return new DiscordGuildOnboardingOptions(_original.WithPrompts(prompts?.Select(x => x.Original)));
+        return new DiscordGuildOnboardingOptions(_original.WithPrompts(prompts.Select(x => x.Original)));
     }
     public IDiscordGuildOnboardingOptions AddPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts) 
     {
-        return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts?.Select(x => x.Original)));
+        return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original)));
     }
     public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) 
     {
@@ -8026,7 +8028,7 @@ public class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwritePermissionsAsync(IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwritePermissionsAsync(newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwritePermissionsAsync(newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -8034,7 +8036,7 @@ public class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
 }
 
@@ -8144,11 +8146,11 @@ public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOption
     }
     public IDiscordApplicationCommandOptions WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
     {
-        return new DiscordApplicationCommandOptions(_original.WithOptions(options?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptions(_original.WithOptions(options.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptions AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
     {
-        return new DiscordApplicationCommandOptions(_original.AddOptions(options?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
     {
@@ -8332,11 +8334,11 @@ public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSea
     public int? BatchSize => _original.BatchSize;
     public IDiscordGuildUsersSearchPaginationProperties WithOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) 
     {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.WithOrQuery(orQuery?.Select(x => x.Original)));
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithOrQuery(orQuery.Select(x => x.Original)));
     }
     public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery) 
     {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery?.Select(x => x.Original)));
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original)));
     }
     public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) 
     {
@@ -8344,11 +8346,11 @@ public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSea
     }
     public IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) 
     {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery?.Select(x => x.Original)));
+        return new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery.Select(x => x.Original)));
     }
     public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) 
     {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery?.Select(x => x.Original)));
+        return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original)));
     }
     public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) 
     {
@@ -8484,11 +8486,11 @@ public class DiscordMessageProperties : IDiscordMessageProperties
     }
     public IDiscordMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {
@@ -8496,11 +8498,11 @@ public class DiscordMessageProperties : IDiscordMessageProperties
     }
     public IDiscordMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -8516,11 +8518,11 @@ public class DiscordMessageProperties : IDiscordMessageProperties
     }
     public IDiscordMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordMessageProperties AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -8678,7 +8680,7 @@ public class DiscordDMChannel : IDiscordDMChannel
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -8760,7 +8762,7 @@ public class DiscordDMChannel : IDiscordDMChannel
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -8771,7 +8773,7 @@ public class DiscordDMChannel : IDiscordDMChannel
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -8921,7 +8923,7 @@ public class DiscordApplication : IDiscordApplication
     {
         return new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
     }
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
+    public IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
     {
         return new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
     }
@@ -9142,11 +9144,11 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
     }
     public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {
@@ -9154,11 +9156,11 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
     }
     public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -9174,11 +9176,11 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
     }
     public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -9289,11 +9291,11 @@ public class DiscordEmbedProperties : IDiscordEmbedProperties
     }
     public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
     {
-        return new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
+        return new DiscordEmbedProperties(_original.WithFields(fields.Select(x => x.Original)));
     }
     public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
     {
-        return new DiscordEmbedProperties(_original.AddFields(fields?.Select(x => x.Original)));
+        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original)));
     }
     public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) 
     {
@@ -9418,11 +9420,11 @@ public class DiscordMessagePollProperties : IDiscordMessagePollProperties
     }
     public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
     {
-        return new DiscordMessagePollProperties(_original.WithAnswers(answers?.Select(x => x.Original)));
+        return new DiscordMessagePollProperties(_original.WithAnswers(answers.Select(x => x.Original)));
     }
     public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
     {
-        return new DiscordMessagePollProperties(_original.AddAnswers(answers?.Select(x => x.Original)));
+        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original)));
     }
     public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) 
     {
@@ -9525,11 +9527,11 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     }
     public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
     {
-        return new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+        return new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
     public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
     {
-        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
     public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
     {
@@ -9553,11 +9555,11 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     }
     public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
     {
-        return new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
+        return new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags.Select(x => x.Original)));
     }
     public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
     {
-        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags?.Select(x => x.Original)));
+        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
     }
     public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
     {
@@ -9817,9 +9819,10 @@ public class DiscordIncomingWebhook : IDiscordIncomingWebhook
     {
         return _original.DeleteWithTokenAsync(properties?.Original, cancellationToken);
     }
-    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
     }
     public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -10231,7 +10234,7 @@ public class DiscordChannel : IDiscordChannel
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -10353,11 +10356,11 @@ public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPro
     }
     public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
     {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options?.Select(x => x.Original)));
+        return new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options.Select(x => x.Original)));
     }
     public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
     {
-        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options?.Select(x => x.Original)));
+        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original)));
     }
     public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) 
     {
@@ -10510,7 +10513,7 @@ public class DiscordApplicationCommand : IDiscordApplicationCommand
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
 }
 
@@ -10563,11 +10566,11 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     }
     public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
     {
-        return new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
     {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
     {
@@ -10575,11 +10578,11 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
     }
     public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
     {
-        return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
     {
-        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options?.Select(x => x.Original)));
+        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original)));
     }
     public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
     {
@@ -11210,9 +11213,10 @@ public class DiscordWebhookClient : IDiscordWebhookClient
     {
         return _original.DeleteAsync(properties?.Original, cancellationToken);
     }
-    public async Task<IDiscordRestMessage> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
     }
     public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -11283,11 +11287,11 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
     }
     public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -11299,11 +11303,11 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
     }
     public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -11311,11 +11315,11 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
     }
     public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {
@@ -11747,11 +11751,11 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+        return (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
     }
     public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildAuditLogAsync(guildId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildAuditLogAsync(guildId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestAuditLogEntry(original);
         }
@@ -11794,7 +11798,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(channelId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(channelId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -11868,7 +11872,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties.Original, properties.Original, cancellationToken));
+        return new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties?.Original, properties?.Original, cancellationToken));
     }
     public Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -11940,28 +11944,28 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordThreadUser> GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildThreadUsersAsync(threadId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildThreadUsersAsync(threadId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordThreadUser(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(channelId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(channelId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(channelId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
@@ -12056,7 +12060,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.ModifyGuildChannelPositionsAsync(guildId, positions?.Select(x => x.Original), properties?.Original, cancellationToken);
+        return _original.ModifyGuildChannelPositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken);
     }
     public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12068,7 +12072,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordGuildUser> GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildUsersAsync(guildId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUser(original);
         }
@@ -12077,9 +12081,10 @@ public class DiscordRestClient : IDiscordRestClient
     {
         return (await _original.FindGuildUserAsync(guildId, name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
     }
-    public async Task<IDiscordGuildUser> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordGuildUser(await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties?.Original, cancellationToken));
+        var temp = await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordGuildUser(temp);
     }
     public async Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12103,7 +12108,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordGuildBan> GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildBansAsync(guildId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildBansAsync(guildId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildBan(original);
         }
@@ -12138,7 +12143,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.ModifyGuildRolePositionsAsync(guildId, positions?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+        return (await _original.ModifyGuildRolePositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
     }
     public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12154,7 +12159,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.GetGuildPruneCountAsync(guildId, days, roles, properties.Original, cancellationToken);
+        return _original.GetGuildPruneCountAsync(guildId, days, roles, properties?.Original, cancellationToken);
     }
     public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12230,7 +12235,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildScheduledEventUsersAsync(guildId, scheduledEventId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildScheduledEventUsersAsync(guildId, scheduledEventId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildScheduledEventUser(original);
         }
@@ -12285,7 +12290,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
+        return (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
     }
     public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12309,7 +12314,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+        return (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
     }
     public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12321,7 +12326,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions?.Select(x => x.Original), properties?.Original, cancellationToken));
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
     public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12365,7 +12370,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetEntitlementsAsync(applicationId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetEntitlementsAsync(applicationId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordEntitlement(original);
         }
@@ -12400,7 +12405,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(channelId, messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(channelId, messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -12459,7 +12464,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordSubscription> GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetSkuSubscriptionsAsync(skuId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetSkuSubscriptionsAsync(skuId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordSubscription(original);
         }
@@ -12474,11 +12479,11 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
     public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.SearchGuildUsersAsync(guildId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.SearchGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildUserInfo(original);
         }
@@ -12497,7 +12502,7 @@ public class DiscordRestClient : IDiscordRestClient
     }
     public async IAsyncEnumerable<IDiscordRestGuild> GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetCurrentUserGuildsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetCurrentUserGuildsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestGuild(original);
         }
@@ -12586,9 +12591,10 @@ public class DiscordRestClient : IDiscordRestClient
     {
         return _original.DeleteWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken);
     }
-    public async Task<IDiscordRestMessage> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken));
+        var temp = await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
     }
     public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12669,11 +12675,11 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
     }
     public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.UpdateRoleConnectionMetadataRecordsAsync(applicationRoleConnectionMetadataProperties?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+        return (await _original.UpdateRoleConnectionMetadataRecordsAsync(applicationRoleConnectionMetadataProperties.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
     }
     public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetEntitlementsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetEntitlementsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordEntitlement(original);
         }
@@ -12710,7 +12716,7 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
     {
         return new DiscordImageUrl(_original.GetAssetUrl(assetId, format));
     }
-    public IDiscordImageUrl GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
+    public IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
     {
         return new DiscordImageUrl(_original.GetAchievementIconUrl(achievementId, iconHash, format));
     }
@@ -12989,7 +12995,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetUsersAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetUsersAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordThreadUser(original);
         }
@@ -13004,7 +13010,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties.Original, properties.Original, cancellationToken));
+        return new DiscordRestInvite(await _original.CreateInviteAsync(inviteProperties?.Original, properties?.Original, cancellationToken));
     }
     public Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -13020,21 +13026,21 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
     }
     public async IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordGuildThread(original);
         }
@@ -13049,7 +13055,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -13131,7 +13137,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -13142,7 +13148,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -13250,11 +13256,11 @@ public class DiscordGuildProperties : IDiscordGuildProperties
     }
     public IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties> roles) 
     {
-        return new DiscordGuildProperties(_original.WithRoles(roles?.Select(x => x.Original)));
+        return new DiscordGuildProperties(_original.WithRoles(roles.Select(x => x.Original)));
     }
     public IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles) 
     {
-        return new DiscordGuildProperties(_original.AddRoles(roles?.Select(x => x.Original)));
+        return new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original)));
     }
     public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) 
     {
@@ -13262,11 +13268,11 @@ public class DiscordGuildProperties : IDiscordGuildProperties
     }
     public IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties> channels) 
     {
-        return new DiscordGuildProperties(_original.WithChannels(channels?.Select(x => x.Original)));
+        return new DiscordGuildProperties(_original.WithChannels(channels.Select(x => x.Original)));
     }
     public IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels) 
     {
-        return new DiscordGuildProperties(_original.AddChannels(channels?.Select(x => x.Original)));
+        return new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original)));
     }
     public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) 
     {
@@ -13388,7 +13394,7 @@ public class DiscordSku : IDiscordSku
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
     public async IAsyncEnumerable<IDiscordSubscription> GetSubscriptionsAsync(IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetSubscriptionsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetSubscriptionsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordSubscription(original);
         }
@@ -13584,7 +13590,7 @@ public class DiscordCurrentUser : IDiscordCurrentUser
     }
     public async IAsyncEnumerable<IDiscordRestGuild> GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetGuildsAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetGuildsAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestGuild(original);
         }
@@ -13726,7 +13732,7 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
     }
     public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagesAsync(paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagesAsync(paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordRestMessage(original);
         }
@@ -13808,7 +13814,7 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
     {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties.Original, properties.Original))
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(messageId, answerId, paginationProperties?.Original, properties?.Original))
         {
             yield return new DiscordUser(original);
         }
@@ -13819,7 +13825,7 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
     }
     public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets?.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
     }
 }
 
@@ -13980,11 +13986,11 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
     }
     public IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.WithEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
     {
@@ -13996,11 +14002,11 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
     }
     public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components) 
     {
@@ -14020,11 +14026,11 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
     }
     public IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
     {

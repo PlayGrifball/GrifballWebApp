@@ -1,5 +1,6 @@
 ﻿using NetCord.Services;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Text;
 
@@ -263,17 +264,42 @@ public class Program
         return nullableModifier;
     }
 
-    private static string NullabilityModifier(ParameterInfo prop)
+    //prop.ParameterType.CustomAttributes.FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute")
+
+    private static string NullabilityModifier(ParameterInfo? prop, int index = 0)
     {
+        if (prop is null)
+            return "";
         bool isNullableValueType = Nullable.GetUnderlyingType(prop.ParameterType) != null;
         var nullable = prop.CustomAttributes
             .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute");
-        bool isNullableReferenceType = nullable != null &&
-            nullable.ConstructorArguments.Count > 0 &&
-            (nullable.ConstructorArguments[0].Value?.ToString() == "2");
+
+        // Default: not nullable
+        bool isNullableReferenceType = false;
+
+        if (nullable != null && nullable.ConstructorArguments.Count > 0)
+        {
+            var arg = nullable.ConstructorArguments[0];
+            if (arg.ArgumentType == typeof(byte[]))
+            {
+                // For generic types, this is an array
+                var arr = (ReadOnlyCollection<CustomAttributeTypedArgument>)arg.Value!;
+                // For single generic argument, use arr[0]
+                // For multiple, you may want to handle each separately
+                // Here, just use the last one (usually the value type)
+                isNullableReferenceType = arr.Count > 0 && arr[index].Value?.ToString() == "2";
+            }
+            else
+            {
+                // For non-generic, just check the value
+                isNullableReferenceType = arg.Value?.ToString() == "2";
+            }
+        }
+        var mustBeNullable = prop.HasDefaultValue is true && prop.DefaultValue is null;
         //bool isNullable = isNullableValueType || isNullableReferenceType;
-        bool isNullable = isNullableReferenceType;
+        bool isNullable = isNullableReferenceType || mustBeNullable;
         var nullableModifier = isNullable ? "?" : "";
+
         return nullableModifier;
     }
 
@@ -299,7 +325,12 @@ public class Program
         {
             if (method.DeclaringType != type && methods.Any(m => MethodsAreEquivalent(m, method) && m.DeclaringType == type))
                 continue; // Skip inherited methods that are overridden
-            var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod);
+            var rrr = method.ReturnParameter;
+            if (method.Name is "AddUserAsync" && type.Name is "Guild")
+            {
+                var f = 1;
+            }
+            var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter); // Handle nullables here, its get infeasible to do it later
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
@@ -350,6 +381,10 @@ public class Program
                 paramStrings.Add(paramStr);
                 if (!forInterface)
                 {
+                    if (type.Name is "Guild" && method.Name is "ModifyChannelPositionsAsync" && param.Name is "positions")
+                    {
+                        var f = 1;
+                    }
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(Action<>))
                     {
                         var trueType = param.ParameterType.GenericTypeArguments[0];
@@ -377,8 +412,7 @@ public class Program
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
                             if (trueTypeName.StartsWith("IDiscord"))
                             {
-                                var nullableModifier = NullabilityModifier(trueType);
-                                argNames.Add($"{param.Name}?.Select(x => x{nullableModifier}.Original)");
+                                argNames.Add($"{param.Name}.Select(x => x.Original)");
                                 continue;
                             }
                         }
@@ -579,12 +613,23 @@ public class Program
                         }
                     }
 
+
+                    var nullableModifier = NullabilityModifier(method.ReturnParameter, 1); // 0 Gets the outer type (Task), 1 gets the inner type
+                    var isNullable = nullableModifier is "?";
                     if (discordTaskReturnType.StartsWith("IDiscord"))
                     {
                         var returnClassName = discordTaskReturnType.TrimStart('I');
                         sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                         sb.AppendLine($"    {{");
-                        sb.AppendLine($"        return new {returnClassName}(await _original.{CallMethod(method)}({string.Join(", ", argNames)}));");
+                        if (isNullable)
+                        {
+                            sb.AppendLine($"        var temp = await _original.{CallMethod(method)}({string.Join(", ", argNames)});");
+                            sb.AppendLine($"        return temp is null ? null : new {returnClassName}(temp);");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"        return new {returnClassName}(await _original.{CallMethod(method)}({string.Join(", ", argNames)}));");
+                        }
                         sb.AppendLine($"    }}");
                     }
                     else
@@ -660,7 +705,7 @@ public class Program
         return method.Name;
     }
 
-    private static string GetDiscordTypeName(Type type, Queue<Type> interfaceQueue, bool isGenericMethod = false)
+    private static string GetDiscordTypeName(Type type, Queue<Type> interfaceQueue, bool isGenericMethod = false, ParameterInfo? withNullable = null, int genericIndex = 0)
     {
         // If this is a generic type parameter, just use its name and do not enqueue for generation
         if (type.IsGenericParameter && isGenericMethod)
@@ -691,20 +736,20 @@ public class Program
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
         {
             var innerType = type.GetGenericArguments()[0];
-            var innerTypeName = GetDiscordTypeName(innerType, interfaceQueue, isGenericMethod);
+            var innerTypeName = GetDiscordTypeName(innerType, interfaceQueue, isGenericMethod, withNullable);
             return $"{innerTypeName}?"; // TODO: Should I remove this ? here
         }
         if (type.IsArray)
         {
             var innerType = type.GetElementType() ?? throw new Exception("Inner type null");
-            var innerTypeName = GetDiscordTypeName(innerType, interfaceQueue, isGenericMethod);
-            return $"{innerTypeName}[]"; // TODO: Should I remove this ? here
+            var innerTypeName = GetDiscordTypeName(innerType, interfaceQueue, isGenericMethod, withNullable);
+            return $"{innerTypeName}[]";
         }
         if (typeMap.TryGetValue(type.Name, out var alias))
-            return alias;
+            return alias + NullabilityModifier(type);
         // If type is not interface or class, use its name directly
         if (!type.IsInterface && !type.IsClass)
-            return type.FullName ?? type.Name;
+            return type.FullName + NullabilityModifier(withNullable, genericIndex) ?? type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
         // If type is from NetCord, wrap it (but not for enums)
         if (type.Namespace != null && type.Namespace.StartsWith("NetCord"))
         {
@@ -723,23 +768,23 @@ public class Program
                 // Handle generic
                 var genericTypeName = type.Name.Split('`')[0];
                 var types = type.GetGenericArguments();
-                var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod)));
+                var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod, withNullable)));
                 var superName = $"IDiscord{genericTypeName}<{final}>";
-                return superName;
+                return superName + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
             }
             else
-                return interfaceName;
+                return interfaceName + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
         }
         // Handle generic types (e.g., IReadOnlyList<T>, etc.)
         if (type.IsGenericType)
         {
             var genericTypeName = type.Name.Split('`')[0];
             var genericArgs = type.GetGenericArguments();
-            var args = string.Join(", ", genericArgs.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod)));
-            return $"{genericTypeName}<{args}>";
+            var args = string.Join(", ", genericArgs.Select((t, i) => GetDiscordTypeName(t, interfaceQueue, isGenericMethod, withNullable, i + 1))); // Index 0 is outer type
+            return $"{genericTypeName}<{args}>" + NullabilityModifier(withNullable, genericIndex);
         }
         // Otherwise, use the type name as-is
-        return type.Name;
+        return type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
     }
 
     private static string GetTypeNameWithoutLeadingI(Type type, bool isGenericMethod)
