@@ -110,6 +110,10 @@ public class Program
         }
         foreach (var prop in type.GetProperties())
         {
+            if (prop.Name is "Nickname" && type.Name is "GuildUser")
+            {
+                var f = 1;
+            }
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
             var isStatic = prop.GetMethod?.IsStatic is true;
             var staticModifier = isStatic ? "static " : "";
@@ -121,6 +125,8 @@ public class Program
             else
             {
                 string nullableModifier = NullabilityModifier(prop);
+                if (memberTypeName.EndsWith("?"))
+                    nullableModifier = ""; // Already handled in type name
                 sb.AppendLine($"    {staticModifier}{memberTypeName}{nullableModifier} {prop.Name} {{ get; }}");
             }
         }
@@ -158,11 +164,24 @@ public class Program
         
         foreach (var prop in type.GetProperties())
         {
+            if (prop.Name is "GlobalName" && type.Name is "User")
+            {
+                var f = 1;
+            }
+            var ff  = prop.PropertyType;
+            var fff = prop.ReflectedType;
             string nullableModifier = NullabilityModifier(prop);
             var isNullable = nullableModifier is "?";
+            if (isNullable)
+            {
+                var f = 1;
+            }
+           
             var nullCheck = isNullable ? $"_original.{prop.Name} is null ? null : " : "";
 
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
+            if (memberTypeName.EndsWith("?"))
+                nullableModifier = ""; // Already handled in type name
 
             if (prop.GetMethod?.IsStatic is true)
             {
@@ -303,15 +322,192 @@ public class Program
         return nullableModifier;
     }
 
+    // Dictionary of properties known to be nullable since some cannot be detected via reflection
+    private static readonly Dictionary<string, bool> _nullablePropertyWarnings = new()
+    {
+        { "User.GlobalName", true },
+        { "User.AvatarHash", true },
+        { "User.BannerHash", true },
+        { "User.Locale", true },
+        { "User.Email", true },
+        { "User.AvatarDecorationData", true },
+        { "RestRequestProperties.AuditLogReason", true },
+        { "RestRequestProperties.ErrorLocalization", true },
+        { "GuildUser.Nickname", true },
+        { "GuildUser.GuildAvatarHash", true },
+        { "GuildUser.GuildBannerHash", true },
+        { "GuildUser.GuildAvatarDecorationData", true },
+        { "GuildScheduledEvent.Description", true },
+        { "GuildScheduledEvent.Location", true },
+        { "GuildScheduledEvent.Creator", true },
+        { "GuildScheduledEvent.CoverImageHash", true },
+        { "GuildScheduledEvent.RecurrenceRule", true },
+        { "RestInvite.Guild", true },
+        { "RestInvite.Channel", true },
+        { "RestInvite.Inviter", true },
+        { "RestInvite.TargetUser", true },
+        { "RestInvite.TargetApplication", true },
+        { "RestInvite.StageInstance", true },
+        { "RestInvite.GuildScheduledEvent", true },
+        { "Webhook.Creator", true },
+        { "Webhook.Name", true },
+        { "Webhook.AvatarHash", true },
+        { "Webhook.Guild", true },
+        { "Webhook.Channel", true },
+        { "Webhook.Url", true },
+        { "MessageProperties.Content", true },
+        { "MessageProperties.Nonce", true },
+        { "MessageProperties.AllowedMentions", true },
+        { "MessageProperties.MessageReference", true },
+        { "MessageProperties.StickerIds", true },
+        { "MessageProperties.Poll", true },
+        { "Embed.Title", true },
+        { "Embed.Description", true },
+        { "Embed.Url", true },
+        { "Embed.Footer", true },
+        { "Embed.Image", true },
+        { "Embed.Thumbnail", true },
+        { "Embed.Video", true },
+        { "Embed.Provider", true },
+        { "Embed.Author", true },
+        { "Application.IconHash", true },
+        { "Application.Bot", true },
+        { "Application.TermsOfServiceUrl", true },
+        { "Application.PrivacyPolicyUrl", true },
+        { "Application.Owner", true },
+        { "Application.Team", true },
+        { "Application.Guild", true },
+        { "Application.Slug", true },
+        { "Application.CoverImageHash", true },
+        { "Application.InteractionsEndpointUrl", true },
+        { "Application.RoleConnectionsVerificationUrl", true },
+        { "Application.InstallParams", true },
+        { "Application.CustomInstallUrl", true },
+        { "EmbedProperties.Title", true },
+        { "EmbedProperties.Description", true },
+        { "EmbedProperties.Url", true },
+        { "EmbedProperties.Footer", true },
+        { "EmbedProperties.Image", true },
+        { "EmbedProperties.Thumbnail", true },
+        { "EmbedProperties.Author", true },
+        { "UserActivity.Url", true },
+        { "UserActivity.Timestamps", true },
+        { "UserActivity.Details", true },
+        { "UserActivity.State", true },
+        { "UserActivity.Emoji", true },
+        { "UserActivity.Party", true },
+        { "UserActivity.Assets", true },
+        { "UserActivity.Secrets", true },
+        { "GuildScheduledEventRecurrenceRule.ByWeekday", true },
+        { "GuildScheduledEventRecurrenceRule.ByMonth", true },
+        { "GuildScheduledEventRecurrenceRule.ByMonthDay", true },
+        { "GuildScheduledEventRecurrenceRule.ByYearDay", true },
+        { "EmbedAuthor.Name", true },
+        { "EmbedAuthor.Url", true },
+        { "EmbedAuthor.IconUrl", true },
+        { "EmbedAuthor.ProxyIconUrl", true },
+        { "MessagePollMedia.Text", true },
+        { "MessagePollMedia.Emoji", true },
+        { "EmbedFooterProperties.Text", true },
+        { "EmbedFooterProperties.IconUrl", true },
+        { "EmbedImageProperties.Url", true },
+        { "EmbedThumbnailProperties.Url", true },
+        { "EmbedAuthorProperties.Name", true },
+        { "EmbedAuthorProperties.Url", true },
+        { "EmbedAuthorProperties.IconUrl", true },
+        { "EmbedFieldProperties.Name", true },
+        { "EmbedFieldProperties.Value", true },
+        { "MessagePollMediaProperties.Text", true },
+        { "MessagePollMediaProperties.Emoji", true },
+        { "WebhookMessageProperties.Content", true },
+        { "WebhookMessageProperties.Username", true },
+        { "WebhookMessageProperties.AvatarUrl", true },
+        { "WebhookMessageProperties.AllowedMentions", true },
+        { "WebhookMessageProperties.ThreadName", true },
+        { "WebhookMessageProperties.AppliedTags", true },
+        { "WebhookMessageProperties.Poll", true },
+        { "UserActivityAssets.LargeImageId", true },
+        { "UserActivityAssets.LargeText", true },
+        { "UserActivityAssets.SmallImageId", true },
+        { "UserActivityAssets.SmallText", true },
+        { "UserActivitySecrets.Join", true },
+        { "UserActivitySecrets.Spectate", true },
+        { "UserActivitySecrets.Match", true },
+        { "AutoModerationActionMetadataProperties.CustomMessage", true },
+        { "GuildOnboardingPromptOptionProperties.ChannelIds", true },
+        { "GuildOnboardingPromptOptionProperties.RoleIds", true },
+        { "GuildOnboardingPromptOptionProperties.EmojiName", true },
+        { "GuildOnboardingPromptOptionProperties.Description", true },
+        { "ApplicationRoleConnectionProperties.PlatformName", true },
+        { "ApplicationRoleConnectionProperties.PlatformUsername", true },
+        { "ApplicationIntegrationTypeConfigurationProperties.OAuth2InstallParams", true },
+        // Add more entries as needed, format: { "Name.PropertyName", true }
+    };
+
+    // Dictionary of methods known to return nullable since some cannot be detected via reflection
+    private static readonly Dictionary<string, bool> _nullableMethodWarnings = new()
+    {
+        { "User.GetAvatarUrl", true },
+        { "User.GetBannerUrl", true },
+        { "User.GetAvatarDecorationUrl", true },
+        { "GuildUser.GetGuildAvatarDecorationUrl", true },
+        { "GuildScheduledEvent.GetCoverImageUrl", true },
+        { "Application.GetIconUrl", true },
+        { "Application.GetCoverUrl", true },
+        { "Application.GetAssetUrl", true },
+        { "Application.GetStorePageAssetUrl", true },
+        // Add more entries as needed, format: { "Name.PropertyName", true }
+    };
+
     private static string NullabilityModifier(PropertyInfo prop)
     {
         bool isNullableValueType = Nullable.GetUnderlyingType(prop.PropertyType) != null;
         var nullable = prop.CustomAttributes
             .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute");
-        bool isNullableReferenceType = nullable != null &&
-            nullable.ConstructorArguments.Count > 0 &&
-            (nullable.ConstructorArguments[0].Value?.ToString() == "2");
-        //bool isNullable = isNullableValueType || isNullableReferenceType;
+
+        bool isNullableReferenceType = false;
+        if (nullable != null && nullable.ConstructorArguments.Count > 0)
+        {
+            var arg = nullable.ConstructorArguments[0];
+            if (arg.ArgumentType == typeof(byte[]))
+            {
+                // For reference types, this is an array
+                var arr = (ReadOnlyCollection<CustomAttributeTypedArgument>)arg.Value!;
+                if (arr.Count > 0)
+                    isNullableReferenceType = arr[0].Value?.ToString() == "2";
+            }
+            else
+            {
+                // For value types, just check the value
+                isNullableReferenceType = arg.Value?.ToString() == "2";
+            }
+        }
+
+        // Assume its nullable if it has [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        if (isNullableReferenceType is false)
+        {
+            var jsonIgnore = prop.CustomAttributes
+            .FirstOrDefault(a => a.AttributeType.FullName == "System.Text.Json.Serialization.JsonIgnoreAttribute");
+
+            if (jsonIgnore is not null && jsonIgnore.NamedArguments.Any(a => a.MemberName == "Condition" && (int?)a.TypedValue.Value == 3))
+            {
+                isNullableReferenceType = true;
+            }
+        }
+
+        // Final check: use dictionary from build warnings
+        if (!isNullableReferenceType)
+        {
+            var name = prop.DeclaringType?.Name ?? throw new Exception("Missing declaring type");
+            if (name.StartsWith("Partial"))
+                name = name.Substring(7);
+            var key = $"{name}.{prop.Name}";
+            if (_nullablePropertyWarnings.TryGetValue(key, out var _))
+            {
+                isNullableReferenceType = true;
+            }
+        }
+
         bool isNullable = isNullableReferenceType;
         var nullableModifier = isNullable ? "?" : "";
         return nullableModifier;
@@ -330,7 +526,17 @@ public class Program
             {
                 var f = 1;
             }
-            var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter); // Handle nullables here, its get infeasible to do it later
+
+            if (method.Name is "GetAvatarUrl" && type.Name is "User")
+            {
+                var f = 1;
+            }
+            if (method.Name is "GetAvatarUrl" && type.Name is "GuildUser")
+            {
+                var f = 1;
+            }
+            //GuildUser
+            var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter, 0, method); // Handle nullables here, its get infeasible to do it later
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
@@ -666,7 +872,7 @@ public class Program
                     {
                         var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, method.IsGenericMethod)}";
                         var nullableModifier = NullabilityModifier(method);
-                        var isNullable = nullableModifier is "?";
+                        var isNullable = nullableModifier is "?" || returnType.EndsWith("?"); // Nullable reflection check busted on some types so gotta check the ending of the returnType
                         sb.AppendLine($"    public {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                         sb.AppendLine($"    {{");
                         if (isNullable)
@@ -705,7 +911,7 @@ public class Program
         return method.Name;
     }
 
-    private static string GetDiscordTypeName(Type type, Queue<Type> interfaceQueue, bool isGenericMethod = false, ParameterInfo? withNullable = null, int genericIndex = 0)
+    private static string GetDiscordTypeName(Type type, Queue<Type> interfaceQueue, bool isGenericMethod = false, ParameterInfo? withNullable = null, int genericIndex = 0, MethodInfo? method = null)
     {
         // If this is a generic type parameter, just use its name and do not enqueue for generation
         if (type.IsGenericParameter && isGenericMethod)
@@ -773,7 +979,21 @@ public class Program
                 return superName + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
             }
             else
-                return interfaceName + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
+            {
+                var m = NullabilityModifier(withNullable, genericIndex);
+                if (m == "" && method is not null) // Fallback to dictionary for known nullables
+                {
+                    var typ = method.DeclaringType?.Name ?? throw new Exception("Declaring type null");
+                    if (typ.StartsWith("Partial"))
+                        typ = typ.Substring(7);
+                    var name = method.Name;
+                    if (_nullableMethodWarnings.TryGetValue($"{typ}.{name}", out var _))
+                    {
+                        m = "?";
+                    }
+                }
+                return interfaceName + m; // Add nullable ? here
+            }
         }
         // Handle generic types (e.g., IReadOnlyList<T>, etc.)
         if (type.IsGenericType)
