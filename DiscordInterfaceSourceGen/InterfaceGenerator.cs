@@ -110,10 +110,8 @@ public class Program
         }
         foreach (var prop in type.GetProperties())
         {
-            if (prop.Name is "Nickname" && type.Name is "GuildUser")
-            {
-                var f = 1;
-            }
+            if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
+                continue; // Skip obsolete properties
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
             var isStatic = prop.GetMethod?.IsStatic is true;
             var staticModifier = isStatic ? "static " : "";
@@ -127,7 +125,9 @@ public class Program
                 string nullableModifier = NullabilityModifier(prop);
                 if (memberTypeName.EndsWith("?"))
                     nullableModifier = ""; // Already handled in type name
-                sb.AppendLine($"    {staticModifier}{memberTypeName}{nullableModifier} {prop.Name} {{ get; }}");
+                var hasSetter = prop.SetMethod != null && prop.SetMethod.IsPublic;
+                var accessor = hasSetter ? "{ get; set; }" : "{ get; }";
+                sb.AppendLine($"    {staticModifier}{memberTypeName}{nullableModifier} {prop.Name} {accessor}");
             }
         }
         AddMethods(type, interfaceQueue, sb, forInterface: true);
@@ -164,19 +164,11 @@ public class Program
         
         foreach (var prop in type.GetProperties())
         {
-            if (prop.Name is "GlobalName" && type.Name is "User")
-            {
-                var f = 1;
-            }
-            var ff  = prop.PropertyType;
-            var fff = prop.ReflectedType;
+            if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
+                continue; // Skip obsolete properties
             string nullableModifier = NullabilityModifier(prop);
             var isNullable = nullableModifier is "?";
-            if (isNullable)
-            {
-                var f = 1;
-            }
-           
+            var hasSetter = prop.SetMethod != null && prop.SetMethod.IsPublic;
             var nullCheck = isNullable ? $"_original.{prop.Name} is null ? null : " : "";
 
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
@@ -199,7 +191,14 @@ public class Program
                 if (argTypeName.StartsWith("IDiscord"))
                 {
                     var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
-                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x));");
+                    if (!hasSetter)
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x));");
+                    }
+                    else
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original); }} }}");
+                    }
                     continue;
                 }
             }
@@ -223,7 +222,15 @@ public class Program
                 if (valueTypeName.StartsWith("IDiscord"))
                 {
                     var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, false)}";
-                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    if (!hasSetter)
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    }
+                    else
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value)); }} set {{ _original.{prop.Name} = value{nullableModifier}.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); }} }}");
+                    }
+                    
                     continue;
                 }
             }
@@ -235,7 +242,15 @@ public class Program
                 if (valueTypeName.StartsWith("IDiscord"))
                 {
                     var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, false)}";
-                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    if (!hasSetter)
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
+                    }
+                    else
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value)); }} set {{ _original.{prop.Name} = value{nullableModifier}.ToDictionary(kv => kv.Key, kv => kv.Value.Original); }} }}");
+                    }
+                    
                     continue;
                 }
             }
@@ -243,11 +258,25 @@ public class Program
             if (memberTypeName.StartsWith("IDiscord"))
             {
                 var propClassName = $"Discord{GetTypeNameWithoutLeadingI(prop.PropertyType, false)}";
-                classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}new {propClassName}(_original.{prop.Name});");
+                if (!hasSetter)
+                {
+                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}new {propClassName}(_original.{prop.Name});");
+                }
+                else
+                {
+                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}new {propClassName}(_original.{prop.Name}); }} set {{ _original.{prop.Name} = value{nullableModifier}.Original; }} }}");
+                }
             }
             else
             {
-                classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name};");
+                if (!hasSetter)
+                {
+                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => _original.{prop.Name};");
+                }
+                else
+                {
+                    classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return _original.{prop.Name}; }} set {{ _original.{prop.Name} = value; }} }}");
+                }
             }
         }
         AddMethods(type, interfaceQueue, classSb, forInterface: false);
@@ -306,6 +335,10 @@ public class Program
                 // For single generic argument, use arr[0]
                 // For multiple, you may want to handle each separately
                 // Here, just use the last one (usually the value type)
+                if (index > arr.Count - 1)
+                {
+                    throw new Exception("Index out of range for NullableAttribute array");
+                }
                 isNullableReferenceType = arr.Count > 0 && arr[index].Value?.ToString() == "2";
             }
             else
@@ -314,9 +347,9 @@ public class Program
                 isNullableReferenceType = arg.Value?.ToString() == "2";
             }
         }
-        var mustBeNullable = prop.HasDefaultValue is true && prop.DefaultValue is null;
+        var mustBeNullable = prop.HasDefaultValue is true && prop.DefaultValue is null && prop.ParameterType.Name is not "CancellationToken";
         //bool isNullable = isNullableValueType || isNullableReferenceType;
-        bool isNullable = isNullableReferenceType || mustBeNullable;
+        bool isNullable = isNullableReferenceType;// || mustBeNullable;
         var nullableModifier = isNullable ? "?" : "";
 
         return nullableModifier;
@@ -441,6 +474,9 @@ public class Program
         { "ApplicationRoleConnectionProperties.PlatformName", true },
         { "ApplicationRoleConnectionProperties.PlatformUsername", true },
         { "ApplicationIntegrationTypeConfigurationProperties.OAuth2InstallParams", true },
+        { "WebhookClientConfiguration.Client", true },
+        { "AuditLogChange`1.NewValue", true },
+        { "AuditLogChange`1.OldValue", true },
         // Add more entries as needed, format: { "Name.PropertyName", true }
     };
 
@@ -519,36 +555,20 @@ public class Program
         var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !m.IsStatic && !ignored.Contains(m.Name)).ToArray();
         foreach (var method in methods)
         {
+            if (method.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
+                continue; // Skip obsolete methods
+
             if (method.DeclaringType != type && methods.Any(m => MethodsAreEquivalent(m, method) && m.DeclaringType == type))
                 continue; // Skip inherited methods that are overridden
-            var rrr = method.ReturnParameter;
-            if (method.Name is "AddUserAsync" && type.Name is "Guild")
-            {
-                var f = 1;
-            }
-
-            if (method.Name is "GetAvatarUrl" && type.Name is "User")
-            {
-                var f = 1;
-            }
-            if (method.Name is "GetAvatarUrl" && type.Name is "GuildUser")
-            {
-                var f = 1;
-            }
-            //GuildUser
             var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter, 0, method); // Handle nullables here, its get infeasible to do it later
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
             var anyOutParams = parameters.Any(p => p.IsOut);
 
-            //string nullableModifier = NullabilityModifier(method.ReturnType);
-            //var isNullable = nullableModifier is "?";
-            //var nullCheck = isNullable ? $"_original.{prop.Name} is null ? null : " : "";
-
             foreach (var param in parameters)
             {
-                var paramType = GetDiscordTypeName(param.ParameterType, interfaceQueue, method.IsGenericMethod);
+                var paramType = GetDiscordTypeName(param.ParameterType, interfaceQueue, method.IsGenericMethod, param, 0, method);
                 var paramStr = $"{paramType} {param.Name}";
                 if (param.IsOut)
                 {
@@ -587,10 +607,6 @@ public class Program
                 paramStrings.Add(paramStr);
                 if (!forInterface)
                 {
-                    if (type.Name is "Guild" && method.Name is "ModifyChannelPositionsAsync" && param.Name is "positions")
-                    {
-                        var f = 1;
-                    }
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(Action<>))
                     {
                         var trueType = param.ParameterType.GenericTypeArguments[0];
@@ -618,7 +634,8 @@ public class Program
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
                             if (trueTypeName.StartsWith("IDiscord"))
                             {
-                                argNames.Add($"{param.Name}.Select(x => x.Original)");
+                                var nullableModifier = NullabilityModifier(param);
+                                argNames.Add($"{param.Name}{nullableModifier}.Select(x => x.Original)");
                                 continue;
                             }
                         }
@@ -660,23 +677,24 @@ public class Program
                             return netCord && f.StartsWith("IDiscord");
                         }))
                         {
+                            var nullableModifier = NullabilityModifier(param);
                             if (types.Any(x => param.ParameterType.Assembly.FullName is null))
                                 throw new Exception("Full name null");
                             if (types.All(x => param.ParameterType.Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord")))
                             {
                                 var nullableModifier0 = NullabilityModifier(types[0]);
                                 var nullableModifier1 = NullabilityModifier(types[1]);
-                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value{nullableModifier1}.Original)");
+                                argNames.Add($"{param.Name}{nullableModifier}.ToDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value{nullableModifier1}.Original)");
                             }
                             else if (types[0].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[0], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
                             {
                                 var nullableModifier0 = NullabilityModifier(types[0]);
-                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value)");
+                                argNames.Add($"{param.Name}{nullableModifier}.ToDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value)");
                             }
                             else if (types[1].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[1], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
                             {
                                 var nullableModifier1 = NullabilityModifier(types[1]);
-                                argNames.Add($"{param.Name}.ToDictionary(kv => kv.Key, kv => kv.Value{nullableModifier1}.Original)");
+                                argNames.Add($"{param.Name}{nullableModifier}.ToDictionary(kv => kv.Key, kv => kv.Value{nullableModifier1}.Original)");
                             }
                             else
                             {
@@ -691,6 +709,12 @@ public class Program
                     else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         var nullableModifier = NullabilityModifier(param);
+
+                        // Fallback check that paramter is really not null..
+                        if (nullableModifier == "" && param.HasDefaultValue && param.DefaultValue == null && param.ParameterType.IsValueType is false)
+                        {
+                            nullableModifier = "?";
+                        }
                         argNames.Add($"{param.Name}{nullableModifier}.Original");
                     }
                     else
@@ -915,7 +939,7 @@ public class Program
     {
         // If this is a generic type parameter, just use its name and do not enqueue for generation
         if (type.IsGenericParameter && isGenericMethod)
-            return type.Name + "Param";
+            return type.Name + "Param" + NullabilityModifier(withNullable, genericIndex);
         if(type.IsGenericParameter)
             return type.Name;
         // Map .NET types to C# aliases
@@ -999,8 +1023,20 @@ public class Program
         if (type.IsGenericType)
         {
             var genericTypeName = type.Name.Split('`')[0];
+            var isDict = genericTypeName is "IReadOnlyDictionary" or "IDictionary" or "Dictionary" or "ImmutableDictionary" or "IEnumerable";
+            var incrementBy = isDict ? 0 : 1; // Dictionary has 2 generic args, so don't increment index for nullability
             var genericArgs = type.GetGenericArguments();
-            var args = string.Join(", ", genericArgs.Select((t, i) => GetDiscordTypeName(t, interfaceQueue, isGenericMethod, withNullable, i + 1))); // Index 0 is outer type
+            var args = string.Join(", ", genericArgs.Select((t, i) =>
+            {
+                if (i is 0 && isDict) // dict key is never null
+                {
+                    return GetDiscordTypeName(t, interfaceQueue, isGenericMethod);
+                }
+                else
+                {
+                    return GetDiscordTypeName(t, interfaceQueue, isGenericMethod, withNullable, genericIndex + i + incrementBy);
+                }
+            })); // Index 0 is outer type
             return $"{genericTypeName}<{args}>" + NullabilityModifier(withNullable, genericIndex);
         }
         // Otherwise, use the type name as-is
