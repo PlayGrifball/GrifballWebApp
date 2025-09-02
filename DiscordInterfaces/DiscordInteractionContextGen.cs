@@ -33,6 +33,14 @@ public interface IDiscordInteraction
     NetCord.InteractionContextType Context { get; }
     IDiscordInteractionData Data { get; }
     System.DateTimeOffset CreatedAt { get; }
+    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, IDiscordInteractionCallback, IDiscordRestRequestProperties, System.Threading.CancellationToken?, Task> sendResponseAsync, IDiscordRestClient client)
+    {
+        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, sendResponseAsync, client.Original));
+    }
+    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGatewayClientCache cache, IDiscordRestClient client)
+    {
+        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, cache.Original, client.Original));
+    }
     Task SendResponseAsync(IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetResponseAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyResponseAsync(Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -220,6 +228,10 @@ public interface IDiscordTextChannel
     ulong Id { get; }
     NetCord.ChannelFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
+    static IDiscordTextChannel CreateFromJson(IDiscordJsonChannel jsonChannel, IDiscordRestClient client)
+    {
+        return new DiscordTextChannel(NetCord.TextChannel.CreateFromJson(jsonChannel.Original, client.Original));
+    }
     Task<IDiscordTextChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordTextChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
@@ -305,12 +317,55 @@ public interface IDiscordInteractionData
 }
 
 
+public interface IDiscordJsonInteraction  
+{
+    NetCord.JsonModels.JsonInteraction Original { get; }
+    ulong ApplicationId { get; set; }
+    NetCord.InteractionType Type { get; set; }
+    IDiscordJsonInteractionData Data { get; set; }
+    ulong? GuildId { get; set; }
+    IDiscordJsonInteractionGuildReference GuildReference { get; set; }
+    IDiscordJsonChannel Channel { get; set; }
+    IDiscordJsonGuildUser GuildUser { get; set; }
+    IDiscordJsonUser User { get; set; }
+    string Token { get; set; }
+    IDiscordJsonMessage Message { get; set; }
+    NetCord.Permissions AppPermissions { get; set; }
+    string UserLocale { get; set; }
+    string GuildLocale { get; set; }
+    IDiscordJsonEntitlement[] Entitlements { get; set; }
+    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get; set; }
+    NetCord.InteractionContextType? Context { get; set; }
+    ulong Id { get; set; }
+}
+
+
 public interface IDiscordInteractionCallback  
 {
     NetCord.Rest.InteractionCallback Original { get; }
     NetCord.Rest.InteractionCallbackType Type { get; }
     static IDiscordInteractionCallback Pong => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.Pong);
     static IDiscordInteractionCallback DeferredModifyMessage => new DiscordInteractionCallback(NetCord.Rest.InteractionCallback.DeferredModifyMessage);
+    static IDiscordInteractionCallback<IDiscordInteractionMessageProperties> Message(IDiscordInteractionMessageProperties message)
+    {
+        return new DiscordInteractionCallback<IDiscordInteractionMessageProperties>(NetCord.Rest.InteractionCallback.Message(message.Original));
+    }
+    static IDiscordInteractionCallback<IDiscordInteractionMessageProperties> DeferredMessage(NetCord.MessageFlags? flags = default)
+    {
+        return new DiscordInteractionCallback<IDiscordInteractionMessageProperties>(NetCord.Rest.InteractionCallback.DeferredMessage(flags));
+    }
+    static IDiscordInteractionCallback<IDiscordMessageOptions> ModifyMessage(Action<IDiscordMessageOptions> action)
+    {
+        return new DiscordInteractionCallback<IDiscordMessageOptions>(NetCord.Rest.InteractionCallback.ModifyMessage(x => action(new DiscordMessageOptions(x))));
+    }
+    static IDiscordInteractionCallback<IDiscordInteractionCallbackChoicesDataProperties> Autocomplete(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices)
+    {
+        return new DiscordInteractionCallback<IDiscordInteractionCallbackChoicesDataProperties>(NetCord.Rest.InteractionCallback.Autocomplete(choices?.Select(x => x.Original)));
+    }
+    static IDiscordInteractionCallback<IDiscordModalProperties> Modal(IDiscordModalProperties modal)
+    {
+        return new DiscordInteractionCallback<IDiscordModalProperties>(NetCord.Rest.InteractionCallback.Modal(modal.Original));
+    }
     HttpContent Serialize();
 }
 
@@ -324,6 +379,251 @@ public interface IDiscordRestRequestProperties
     IDiscordRestRequestProperties WithRateLimitHandling(NetCord.Rest.RestRateLimitHandling? rateLimitHandling);
     IDiscordRestRequestProperties WithAuditLogReason(string auditLogReason);
     IDiscordRestRequestProperties WithErrorLocalization(string errorLocalization);
+}
+
+
+public interface IDiscordRestClient  
+{
+    NetCord.Rest.RestClient Original { get; }
+    IDiscordToken? Token { get; }
+    Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestAuditLogEntry>? GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordThreadUser>? GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
+    Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
+    void Dispose();
+    Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildUser>? GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildBan>? GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<int>? GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildScheduledEventUser>? GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordSubscription>? GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildUserInfo>? SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestGuild>? GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordGatewayClientCache  
+{
+    NetCord.Gateway.IGatewayClientCache Original { get; }
+    IDiscordCurrentUser? User { get; }
+    IReadOnlyDictionary<ulong, IDiscordGuild> Guilds { get; }
+    IDiscordGatewayClientCache CacheGuild(IDiscordGuild guild);
+    IDiscordGatewayClientCache CacheGuildUser(IDiscordGuildUser user);
+    IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IEnumerable<IDiscordGuildUser> users);
+    IDiscordGatewayClientCache CachePresences(ulong guildId, IEnumerable<IDiscordPresence> presences);
+    IDiscordGatewayClientCache CacheRole(IDiscordRole role);
+    IDiscordGatewayClientCache CacheGuildScheduledEvent(IDiscordGuildScheduledEvent scheduledEvent);
+    IDiscordGatewayClientCache CacheGuildEmojis(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildEmoji> emojis);
+    IDiscordGatewayClientCache CacheGuildStickers(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildSticker> stickers);
+    IDiscordGatewayClientCache CacheGuildThread(IDiscordGuildThread thread);
+    IDiscordGatewayClientCache CacheGuildChannel(IDiscordGuildChannel channel);
+    IDiscordGatewayClientCache CacheStageInstance(IDiscordStageInstance stageInstance);
+    IDiscordGatewayClientCache CacheCurrentUser(IDiscordCurrentUser user);
+    IDiscordGatewayClientCache CacheVoiceState(IDiscordVoiceState voiceState);
+    IDiscordGatewayClientCache CachePresence(IDiscordPresence presence);
+    IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildThread> threads);
+    IDiscordGatewayClientCache SyncGuilds(IReadOnlyList<ulong> guildIds);
+    IDiscordGatewayClientCache RemoveGuild(ulong guildId);
+    IDiscordGatewayClientCache RemoveGuildUser(ulong guildId, ulong userId);
+    IDiscordGatewayClientCache RemoveRole(ulong guildId, ulong roleId);
+    IDiscordGatewayClientCache RemoveGuildScheduledEvent(ulong guildId, ulong scheduledEventId);
+    IDiscordGatewayClientCache RemoveGuildThread(ulong guildId, ulong threadId);
+    IDiscordGatewayClientCache RemoveGuildChannel(ulong guildId, ulong channelId);
+    IDiscordGatewayClientCache RemoveStageInstance(ulong guildId, ulong stageInstanceId);
+    IDiscordGatewayClientCache RemoveVoiceState(ulong guildId, ulong userId);
 }
 
 
@@ -526,6 +826,10 @@ public interface IDiscordGuildChannel
     ulong GuildId { get; }
     int? Position { get; }
     IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites { get; }
+    static IDiscordGuildChannel CreateFromJson(IDiscordJsonChannel jsonChannel, ulong guildId, IDiscordRestClient client)
+    {
+        return new DiscordGuildChannel(NetCord.IGuildChannel.CreateFromJson(jsonChannel.Original, guildId, client.Original));
+    }
     Task<IDiscordGuildChannel> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -558,6 +862,10 @@ public interface IDiscordGuildThread
     ulong Id { get; }
     NetCord.ChannelFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
+    static IDiscordGuildThread CreateFromJson(IDiscordJsonChannel jsonChannel, IDiscordRestClient client)
+    {
+        return new DiscordGuildThread(NetCord.GuildThread.CreateFromJson(jsonChannel.Original, client.Original));
+    }
     Task<IDiscordGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -783,6 +1091,98 @@ public interface IDiscordPartialGuildUser
 public interface IDiscordImageUrl  
 {
     NetCord.ImageUrl Original { get; }
+    static IDiscordImageUrl CustomEmoji(ulong emojiId, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.CustomEmoji(emojiId, format));
+    }
+    static IDiscordImageUrl GuildIcon(ulong guildId, string iconHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildIcon(guildId, iconHash, format));
+    }
+    static IDiscordImageUrl GuildSplash(ulong guildId, string splashHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildSplash(guildId, splashHash, format));
+    }
+    static IDiscordImageUrl GuildDiscoverySplash(ulong guildId, string discoverySplashHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildDiscoverySplash(guildId, discoverySplashHash, format));
+    }
+    static IDiscordImageUrl GuildBanner(ulong guildId, string bannerHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildBanner(guildId, bannerHash, format));
+    }
+    static IDiscordImageUrl UserBanner(ulong userId, string bannerHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.UserBanner(userId, bannerHash, format));
+    }
+    static IDiscordImageUrl DefaultUserAvatar(ushort discriminator)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.DefaultUserAvatar(discriminator));
+    }
+    static IDiscordImageUrl DefaultUserAvatar(ulong id)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.DefaultUserAvatar(id));
+    }
+    static IDiscordImageUrl UserAvatar(ulong userId, string avatarHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.UserAvatar(userId, avatarHash, format));
+    }
+    static IDiscordImageUrl GuildUserAvatar(ulong guildId, ulong userId, string avatarHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildUserAvatar(guildId, userId, avatarHash, format));
+    }
+    static IDiscordImageUrl AvatarDecoration(string avatarDecorationHash)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.AvatarDecoration(avatarDecorationHash));
+    }
+    static IDiscordImageUrl ApplicationIcon(ulong applicationId, string iconHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.ApplicationIcon(applicationId, iconHash, format));
+    }
+    static IDiscordImageUrl ApplicationCover(ulong applicationId, string coverHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.ApplicationCover(applicationId, coverHash, format));
+    }
+    static IDiscordImageUrl ApplicationAsset(ulong applicationId, ulong assetId, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.ApplicationAsset(applicationId, assetId, format));
+    }
+    static IDiscordImageUrl AchievementIcon(ulong applicationId, ulong achievementId, string iconHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.AchievementIcon(applicationId, achievementId, iconHash, format));
+    }
+    static IDiscordImageUrl StorePageAsset(ulong applicationId, ulong assetId, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.StorePageAsset(applicationId, assetId, format));
+    }
+    static IDiscordImageUrl StickerPackBanner(ulong stickerPackBannerAssetId, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.StickerPackBanner(stickerPackBannerAssetId, format));
+    }
+    static IDiscordImageUrl TeamIcon(ulong teamId, string iconHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.TeamIcon(teamId, iconHash, format));
+    }
+    static IDiscordImageUrl Sticker(ulong stickerId, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.Sticker(stickerId, format));
+    }
+    static IDiscordImageUrl RoleIcon(ulong roleId, string iconHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.RoleIcon(roleId, iconHash, format));
+    }
+    static IDiscordImageUrl GuildScheduledEventCover(ulong scheduledEventId, string coverImageHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildScheduledEventCover(scheduledEventId, coverImageHash, format));
+    }
+    static IDiscordImageUrl GuildUserBanner(ulong guildId, ulong userId, string bannerHash, NetCord.ImageFormat? format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildUserBanner(guildId, userId, bannerHash, format));
+    }
+    static IDiscordImageUrl GuildWidget(ulong guildId, NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildWidget(guildId, style, hostname, version));
+    }
 }
 
 
@@ -800,10 +1200,10 @@ public interface IDiscordRestAuditLogEntry
     string? Reason { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo)where TObjectParam : NetCord.JsonModels.JsonEntity;
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
+    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression)where TObjectParam : NetCord.JsonModels.JsonEntity;
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
+    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo)where TObjectParam : NetCord.JsonModels.JsonEntity;
 }
 
 
@@ -1788,9 +2188,56 @@ public interface IDiscordWebhook
     IDiscordChannel? Channel { get; }
     string? Url { get; }
     System.DateTimeOffset CreatedAt { get; }
+    static IDiscordWebhook CreateFromJson(IDiscordJsonWebhook jsonModel, IDiscordRestClient client)
+    {
+        return new DiscordWebhook(NetCord.Rest.Webhook.CreateFromJson(jsonModel.Original, client.Original));
+    }
     Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordJsonChannel  
+{
+    NetCord.JsonModels.JsonChannel Original { get; }
+    NetCord.ChannelType Type { get; set; }
+    ulong? GuildId { get; set; }
+    int? Position { get; set; }
+    IDiscordJsonPermissionOverwrite[]? PermissionOverwrites { get; set; }
+    string Name { get; set; }
+    string Topic { get; set; }
+    bool? Nsfw { get; set; }
+    ulong? LastMessageId { get; set; }
+    int? Bitrate { get; set; }
+    int? UserLimit { get; set; }
+    int? Slowmode { get; set; }
+    IDiscordJsonUser[]? Users { get; set; }
+    string IconHash { get; set; }
+    ulong? OwnerId { get; set; }
+    ulong? ApplicationId { get; set; }
+    bool? Managed { get; set; }
+    ulong? ParentId { get; set; }
+    System.DateTimeOffset? LastPin { get; set; }
+    string RtcRegion { get; set; }
+    NetCord.VideoQualityMode? VideoQualityMode { get; set; }
+    int? MessageCount { get; set; }
+    int? UserCount { get; set; }
+    IDiscordJsonGuildThreadMetadata Metadata { get; set; }
+    IDiscordJsonThreadCurrentUser CurrentUser { get; set; }
+    NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; set; }
+    NetCord.Permissions? Permissions { get; set; }
+    NetCord.ChannelFlags? Flags { get; set; }
+    int? TotalMessageSent { get; set; }
+    IDiscordJsonForumTag[]? AvailableTags { get; set; }
+    ulong[] AppliedTags { get; set; }
+    IDiscordJsonForumGuildChannelDefaultReaction DefaultReactionEmoji { get; set; }
+    int? DefaultThreadSlowmode { get; set; }
+    NetCord.SortOrderType? DefaultSortOrder { get; set; }
+    NetCord.ForumLayoutType? DefaultForumLayout { get; set; }
+    IDiscordJsonMessage Message { get; set; }
+    bool? NewlyCreated { get; set; }
+    ulong Id { get; set; }
 }
 
 
@@ -1893,6 +2340,10 @@ public interface IDiscordDMChannel
     ulong Id { get; }
     NetCord.ChannelFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
+    static IDiscordDMChannel CreateFromJson(IDiscordJsonChannel jsonModel, IDiscordRestClient client)
+    {
+        return new DiscordDMChannel(NetCord.DMChannel.CreateFromJson(jsonModel.Original, client.Original));
+    }
     Task<IDiscordDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
@@ -1920,71 +2371,832 @@ public interface IDiscordDMChannel
 }
 
 
-public interface IDiscordGuildChannelMention  
+public interface IDiscordJsonInteractionData  
 {
-    NetCord.GuildChannelMention Original { get; }
+    NetCord.JsonModels.JsonInteractionData Original { get; }
+    ulong? Id { get; set; }
+    string Name { get; set; }
+    NetCord.ApplicationCommandType? Type { get; set; }
+    IDiscordJsonInteractionResolvedData ResolvedData { get; set; }
+    IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get; set; }
+    string CustomId { get; set; }
+    NetCord.ComponentType? ComponentType { get; set; }
+    string[]? SelectedValues { get; set; }
+    ulong? TargetId { get; set; }
+    IDiscordJsonComponent[]? Components { get; set; }
+}
+
+
+public interface IDiscordJsonInteractionGuildReference  
+{
+    NetCord.JsonModels.JsonInteractionGuildReference Original { get; }
+    string[] Features { get; set; }
+    string Locale { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonGuildUser  
+{
+    NetCord.JsonModels.JsonGuildUser Original { get; }
+    IDiscordJsonUser User { get; set; }
+    string Nickname { get; set; }
+    string GuildAvatarHash { get; set; }
+    string GuildBannerHash { get; set; }
+    ulong[] RoleIds { get; set; }
+    ulong? HoistedRoleId { get; set; }
+    System.DateTimeOffset JoinedAt { get; set; }
+    System.DateTimeOffset? GuildBoostStart { get; set; }
+    bool Deafened { get; set; }
+    bool Muted { get; set; }
+    NetCord.GuildUserFlags GuildFlags { get; set; }
+    bool? IsPending { get; set; }
+    NetCord.Permissions? Permissions { get; set; }
+    System.DateTimeOffset? TimeOutUntil { get; set; }
+    IDiscordJsonAvatarDecorationData GuildAvatarDecorationData { get; set; }
+}
+
+
+public interface IDiscordJsonUser  
+{
+    NetCord.JsonModels.JsonUser Original { get; }
+    string Username { get; set; }
+    ushort Discriminator { get; set; }
+    string GlobalName { get; set; }
+    string AvatarHash { get; set; }
+    bool IsBot { get; set; }
+    bool? IsSystemUser { get; set; }
+    bool? MfaEnabled { get; set; }
+    string BannerHash { get; set; }
+    NetCord.Color? AccentColor { get; set; }
+    string Locale { get; set; }
+    bool? Verified { get; set; }
+    string Email { get; set; }
+    NetCord.UserFlags? Flags { get; set; }
+    NetCord.PremiumType? PremiumType { get; set; }
+    NetCord.UserFlags? PublicFlags { get; set; }
+    IDiscordJsonAvatarDecorationData AvatarDecorationData { get; set; }
+    IDiscordJsonGuildUser GuildUser { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonMessage  
+{
+    NetCord.JsonModels.JsonMessage Original { get; }
+    ulong ChannelId { get; set; }
+    IDiscordJsonUser Author { get; set; }
+    string Content { get; set; }
+    System.DateTimeOffset? EditedAt { get; set; }
+    bool? IsTts { get; set; }
+    bool? MentionEveryone { get; set; }
+    IDiscordJsonUser[]? MentionedUsers { get; set; }
+    ulong[] MentionedRoleIds { get; set; }
+    IDiscordJsonGuildChannelMention[]? MentionedChannels { get; set; }
+    IDiscordJsonAttachment[]? Attachments { get; set; }
+    IDiscordJsonEmbed[]? Embeds { get; set; }
+    IDiscordJsonMessageReaction[]? Reactions { get; set; }
+    string Nonce { get; set; }
+    bool? IsPinned { get; set; }
+    ulong? WebhookId { get; set; }
+    NetCord.MessageType? Type { get; set; }
+    IDiscordJsonMessageActivity Activity { get; set; }
+    IDiscordJsonApplication Application { get; set; }
+    ulong? ApplicationId { get; set; }
+    NetCord.MessageFlags? Flags { get; set; }
+    IDiscordJsonMessageReference MessageReference { get; set; }
+    IDiscordJsonMessageSnapshot[]? MessageSnapshots { get; set; }
+    IDiscordJsonMessage ReferencedMessage { get; set; }
+    IDiscordJsonMessageInteractionMetadata InteractionMetadata { get; set; }
+    IDiscordJsonChannel StartedThread { get; set; }
+    IDiscordJsonComponent[]? Components { get; set; }
+    IDiscordJsonMessageSticker[]? Stickers { get; set; }
+    int? Position { get; set; }
+    IDiscordJsonRoleSubscriptionData RoleSubscriptionData { get; set; }
+    ulong? GuildId { get; set; }
+    IDiscordJsonGuildUser GuildUser { get; set; }
+    IDiscordJsonInteractionResolvedData ResolvedData { get; set; }
+    IDiscordJsonMessagePoll Poll { get; set; }
+    IDiscordJsonMessageCall Call { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonEntitlement  
+{
+    NetCord.JsonModels.JsonEntitlement Original { get; }
+    ulong SkuId { get; set; }
+    ulong ApplicationId { get; set; }
+    ulong? UserId { get; set; }
+    NetCord.EntitlementType Type { get; set; }
+    bool Deleted { get; set; }
+    System.DateTimeOffset? StartsAt { get; set; }
+    System.DateTimeOffset? EndsAt { get; set; }
+    ulong? GuildId { get; set; }
+    bool? Consumed { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordInteractionCallback<T>  
+{
+    NetCord.Rest.InteractionCallback<T> Original { get; }
+    T Data { get; }
+    NetCord.Rest.InteractionCallbackType Type { get; }
+    HttpContent Serialize();
+}
+
+
+public interface IDiscordInteractionCallbackChoicesDataProperties  
+{
+    NetCord.Rest.InteractionCallbackChoicesDataProperties Original { get; }
+    IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? Choices { get; set; }
+    IDiscordInteractionCallbackChoicesDataProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices);
+    IDiscordInteractionCallbackChoicesDataProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices);
+    IDiscordInteractionCallbackChoicesDataProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices);
+}
+
+
+public interface IDiscordApplicationCommandOptionChoiceProperties  
+{
+    NetCord.Rest.ApplicationCommandOptionChoiceProperties Original { get; }
+    string Name { get; set; }
+    IReadOnlyDictionary<string, string>? NameLocalizations { get; set; }
+    string? StringValue { get; set; }
+    double? NumericValue { get; set; }
+    NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType { get; set; }
+    IDiscordApplicationCommandOptionChoiceProperties WithName(string name);
+    IDiscordApplicationCommandOptionChoiceProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
+    IDiscordApplicationCommandOptionChoiceProperties WithStringValue(string stringValue);
+    IDiscordApplicationCommandOptionChoiceProperties WithNumericValue(double? numericValue);
+    IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType);
+}
+
+
+public interface IDiscordModalProperties  
+{
+    NetCord.Rest.ModalProperties Original { get; }
+    string CustomId { get; set; }
+    string Title { get; set; }
+    IEnumerable<IDiscordComponentProperties> Components { get; set; }
+    void Add(IDiscordComponentProperties component);
+    IDiscordModalProperties WithCustomId(string customId);
+    IDiscordModalProperties WithTitle(string title);
+    IDiscordModalProperties WithComponents(IEnumerable<IDiscordComponentProperties> components);
+    IDiscordModalProperties AddComponents(IEnumerable<IDiscordComponentProperties> components);
+    IDiscordModalProperties AddComponents(IDiscordComponentProperties[] components);
+}
+
+
+public interface IDiscordToken  
+{
+    NetCord.IToken Original { get; }
+    string RawToken { get; }
+    string HttpHeaderValue { get; }
+}
+
+
+public interface IDiscordCurrentApplication  
+{
+    NetCord.CurrentApplication Original { get; }
     ulong Id { get; }
-    ulong GuildId { get; }
-    NetCord.ChannelType Type { get; }
     string Name { get; }
+    string? IconHash { get; }
+    string Description { get; }
+    IReadOnlyList<string> RpcOrigins { get; }
+    bool? BotPublic { get; }
+    bool? BotRequireCodeGrant { get; }
+    IDiscordUser? Bot { get; }
+    string? TermsOfServiceUrl { get; }
+    string? PrivacyPolicyUrl { get; }
+    IDiscordUser? Owner { get; }
+    string VerifyKey { get; }
+    IDiscordTeam? Team { get; }
+    ulong? GuildId { get; }
+    IDiscordRestGuild? Guild { get; }
+    ulong? PrimarySkuId { get; }
+    string? Slug { get; }
+    string? CoverImageHash { get; }
+    NetCord.ApplicationFlags? Flags { get; }
+    int? ApproximateGuildCount { get; }
+    int? ApproximateUserInstallCount { get; }
+    IReadOnlyList<string>? RedirectUris { get; }
+    string? InteractionsEndpointUrl { get; }
+    string? RoleConnectionsVerificationUrl { get; }
+    IReadOnlyList<string>? Tags { get; }
+    IDiscordApplicationInstallParams? InstallParams { get; }
+    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration { get; }
+    string? CustomInstallUrl { get; }
     System.DateTimeOffset CreatedAt { get; }
+    Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordCurrentApplication> ModifyAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetRoleConnectionMetadataRecordsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordEntitlement> GetEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task ConsumeEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteTestEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetCoverUrl(NetCord.ImageFormat format);
+    IDiscordImageUrl? GetAssetUrl(ulong assetId, NetCord.ImageFormat format);
+    IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
+    IDiscordImageUrl? GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format);
+    Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
 
-public interface IDiscordAttachment  
+public interface IDiscordCurrentApplicationOptions  
 {
-    NetCord.Attachment Original { get; }
+    NetCord.Rest.CurrentApplicationOptions Original { get; }
+    string? CustomInstallUrl { get; set; }
+    string? Description { get; set; }
+    string? RoleConnectionsVerificationUrl { get; set; }
+    IDiscordApplicationInstallParamsProperties? InstallParams { get; set; }
+    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties>? IntegrationTypesConfiguration { get; set; }
+    NetCord.ApplicationFlags? Flags { get; set; }
+    NetCord.Rest.ImageProperties? Icon { get; set; }
+    NetCord.Rest.ImageProperties? CoverImage { get; set; }
+    string? InteractionsEndpointUrl { get; set; }
+    IEnumerable<string>? Tags { get; set; }
+    IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl);
+    IDiscordCurrentApplicationOptions WithDescription(string description);
+    IDiscordCurrentApplicationOptions WithRoleConnectionsVerificationUrl(string roleConnectionsVerificationUrl);
+    IDiscordCurrentApplicationOptions WithInstallParams(IDiscordApplicationInstallParamsProperties? installParams);
+    IDiscordCurrentApplicationOptions WithIntegrationTypesConfiguration(IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties>? integrationTypesConfiguration);
+    IDiscordCurrentApplicationOptions WithFlags(NetCord.ApplicationFlags? flags);
+    IDiscordCurrentApplicationOptions WithIcon(NetCord.Rest.ImageProperties? icon);
+    IDiscordCurrentApplicationOptions WithCoverImage(NetCord.Rest.ImageProperties? coverImage);
+    IDiscordCurrentApplicationOptions WithInteractionsEndpointUrl(string interactionsEndpointUrl);
+    IDiscordCurrentApplicationOptions WithTags(IEnumerable<string>? tags);
+    IDiscordCurrentApplicationOptions AddTags(IEnumerable<string> tags);
+    IDiscordCurrentApplicationOptions AddTags(string[] tags);
+}
+
+
+public interface IDiscordApplicationRoleConnectionMetadata  
+{
+    NetCord.Rest.ApplicationRoleConnectionMetadata Original { get; }
+    NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; }
+    string Key { get; }
+    string Name { get; }
+    IReadOnlyDictionary<string, string>? NameLocalizations { get; }
+    string Description { get; }
+    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
+}
+
+
+public interface IDiscordApplicationRoleConnectionMetadataProperties  
+{
+    NetCord.Rest.ApplicationRoleConnectionMetadataProperties Original { get; }
+    NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; set; }
+    string Key { get; set; }
+    string Name { get; set; }
+    IReadOnlyDictionary<string, string>? NameLocalizations { get; set; }
+    string Description { get; set; }
+    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; set; }
+    IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type);
+    IDiscordApplicationRoleConnectionMetadataProperties WithKey(string key);
+    IDiscordApplicationRoleConnectionMetadataProperties WithName(string name);
+    IDiscordApplicationRoleConnectionMetadataProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
+    IDiscordApplicationRoleConnectionMetadataProperties WithDescription(string description);
+    IDiscordApplicationRoleConnectionMetadataProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string>? descriptionLocalizations);
+}
+
+
+public interface IDiscordChannel  
+{
+    NetCord.Channel Original { get; }
     ulong Id { get; }
-    string FileName { get; }
-    string? Title { get; }
-    string? Description { get; }
-    string? ContentType { get; }
-    int Size { get; }
-    string Url { get; }
-    string ProxyUrl { get; }
-    bool Ephemeral { get; }
-    NetCord.AttachmentFlags Flags { get; }
+    NetCord.ChannelFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IDiscordAttachmentExpirationInfo GetExpirationInfo();
+    static IDiscordChannel CreateFromJson(IDiscordJsonChannel jsonChannel, IDiscordRestClient client)
+    {
+        return new DiscordChannel(NetCord.Channel.CreateFromJson(jsonChannel.Original, client.Original));
+    }
+    Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
 
-public interface IDiscordEmbed  
+public interface IDiscordGroupDMChannelOptions  
 {
-    NetCord.Embed Original { get; }
-    string? Title { get; }
-    NetCord.EmbedType? Type { get; }
-    string? Description { get; }
-    string? Url { get; }
-    System.DateTimeOffset? Timestamp { get; }
-    NetCord.Color? Color { get; }
-    IDiscordEmbedFooter? Footer { get; }
-    IDiscordEmbedImage? Image { get; }
-    IDiscordEmbedThumbnail? Thumbnail { get; }
-    IDiscordEmbedVideo? Video { get; }
-    IDiscordEmbedProvider? Provider { get; }
-    IDiscordEmbedAuthor? Author { get; }
-    IReadOnlyList<IDiscordEmbedField> Fields { get; }
+    NetCord.Rest.GroupDMChannelOptions Original { get; }
+    string? Name { get; set; }
+    NetCord.Rest.ImageProperties? Icon { get; set; }
+    IDiscordGroupDMChannelOptions WithName(string name);
+    IDiscordGroupDMChannelOptions WithIcon(NetCord.Rest.ImageProperties? icon);
 }
 
 
-public interface IDiscordMessageReaction  
+public interface IDiscordGuildChannelOptions  
 {
-    NetCord.MessageReaction Original { get; }
-    int Count { get; }
-    IDiscordMessageReactionCountDetails CountDetails { get; }
-    bool Me { get; }
-    bool MeBurst { get; }
-    IDiscordMessageReactionEmoji Emoji { get; }
-    IReadOnlyList<NetCord.Color> BurstColors { get; }
+    NetCord.Rest.GuildChannelOptions Original { get; }
+    string? Name { get; set; }
+    NetCord.ChannelType? ChannelType { get; set; }
+    int? Position { get; set; }
+    string? Topic { get; set; }
+    bool? Nsfw { get; set; }
+    int? Slowmode { get; set; }
+    int? Bitrate { get; set; }
+    int? UserLimit { get; set; }
+    IEnumerable<IDiscordPermissionOverwriteProperties>? PermissionOverwrites { get; set; }
+    ulong? ParentId { get; set; }
+    string? RtcRegion { get; set; }
+    NetCord.VideoQualityMode? VideoQualityMode { get; set; }
+    NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; set; }
+    IEnumerable<IDiscordForumTagProperties>? AvailableTags { get; set; }
+    NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get; set; }
+    int? DefaultThreadSlowmode { get; set; }
+    NetCord.ChannelFlags? Flags { get; set; }
+    NetCord.SortOrderType? DefaultSortOrder { get; set; }
+    NetCord.ForumLayoutType? DefaultForumLayout { get; set; }
+    bool? Archived { get; set; }
+    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
+    bool? Locked { get; set; }
+    bool? Invitable { get; set; }
+    IEnumerable<ulong>? AppliedTags { get; set; }
+    IDiscordGuildChannelOptions WithName(string name);
+    IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType);
+    IDiscordGuildChannelOptions WithPosition(int? position);
+    IDiscordGuildChannelOptions WithTopic(string topic);
+    IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true);
+    IDiscordGuildChannelOptions WithSlowmode(int? slowmode);
+    IDiscordGuildChannelOptions WithBitrate(int? bitrate);
+    IDiscordGuildChannelOptions WithUserLimit(int? userLimit);
+    IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites);
+    IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites);
+    IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites);
+    IDiscordGuildChannelOptions WithParentId(ulong? parentId);
+    IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion);
+    IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode);
+    IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration);
+    IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags);
+    IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags);
+    IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags);
+    IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji);
+    IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode);
+    IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags);
+    IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder);
+    IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout);
+    IDiscordGuildChannelOptions WithArchived(bool? archived = true);
+    IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
+    IDiscordGuildChannelOptions WithLocked(bool? locked = true);
+    IDiscordGuildChannelOptions WithInvitable(bool? invitable = true);
+    IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong>? appliedTags);
+    IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags);
+    IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags);
 }
 
 
-public interface IDiscordMessageActivity  
+public interface IDiscordPermissionOverwriteProperties  
 {
-    NetCord.MessageActivity Original { get; }
-    NetCord.MessageActivityType Type { get; }
-    string? PartyId { get; }
+    NetCord.Rest.PermissionOverwriteProperties Original { get; }
+    ulong Id { get; set; }
+    NetCord.PermissionOverwriteType Type { get; set; }
+    NetCord.Permissions? Allowed { get; set; }
+    NetCord.Permissions? Denied { get; set; }
+    IDiscordPermissionOverwriteProperties WithId(ulong id);
+    IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type);
+    IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed);
+    IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied);
+}
+
+
+public interface IDiscordInviteProperties  
+{
+    NetCord.Rest.InviteProperties Original { get; }
+    int? MaxAge { get; set; }
+    int? MaxUses { get; set; }
+    bool? Temporary { get; set; }
+    bool? Unique { get; set; }
+    NetCord.InviteTargetType? TargetType { get; set; }
+    ulong? TargetUserId { get; set; }
+    ulong? TargetApplicationId { get; set; }
+    IDiscordInviteProperties WithMaxAge(int? maxAge);
+    IDiscordInviteProperties WithMaxUses(int? maxUses);
+    IDiscordInviteProperties WithTemporary(bool? temporary = true);
+    IDiscordInviteProperties WithUnique(bool? unique = true);
+    IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType);
+    IDiscordInviteProperties WithTargetUserId(ulong? targetUserId);
+    IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId);
+}
+
+
+public interface IDiscordFollowedChannel  
+{
+    NetCord.Rest.FollowedChannel Original { get; }
+    ulong Id { get; }
+    ulong WebhookId { get; }
+    System.DateTimeOffset CreatedAt { get; }
+}
+
+
+public interface IDiscordGroupDMChannelUserAddProperties  
+{
+    NetCord.Rest.GroupDMChannelUserAddProperties Original { get; }
+    string AccessToken { get; set; }
+    string? Nickname { get; set; }
+    IDiscordGroupDMChannelUserAddProperties WithAccessToken(string accessToken);
+    IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname);
+}
+
+
+public interface IDiscordGuildThreadFromMessageProperties  
+{
+    NetCord.Rest.GuildThreadFromMessageProperties Original { get; }
+    string Name { get; set; }
+    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
+    int? Slowmode { get; set; }
+    IDiscordGuildThreadFromMessageProperties WithName(string name);
+    IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
+    IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode);
+}
+
+
+public interface IDiscordGuildThreadProperties  
+{
+    NetCord.Rest.GuildThreadProperties Original { get; }
+    NetCord.ChannelType? ChannelType { get; set; }
+    bool? Invitable { get; set; }
+    string Name { get; set; }
+    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
+    int? Slowmode { get; set; }
+    IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType);
+    IDiscordGuildThreadProperties WithInvitable(bool? invitable = true);
+    IDiscordGuildThreadProperties WithName(string name);
+    IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
+    IDiscordGuildThreadProperties WithSlowmode(int? slowmode);
+}
+
+
+public interface IDiscordForumGuildThread  
+{
+    NetCord.ForumGuildThread Original { get; }
+    IDiscordRestMessage Message { get; }
+    IReadOnlyList<ulong>? AppliedTags { get; }
+    ulong OwnerId { get; }
+    int MessageCount { get; }
+    int UserCount { get; }
+    IDiscordGuildThreadMetadata Metadata { get; }
+    IDiscordThreadCurrentUser? CurrentUser { get; }
+    int TotalMessageSent { get; }
+    ulong GuildId { get; }
+    int? Position { get; }
+    IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites { get; }
+    string Name { get; }
+    string? Topic { get; }
+    bool Nsfw { get; }
+    int Slowmode { get; }
+    ulong? ParentId { get; }
+    NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
+    int DefaultThreadSlowmode { get; }
+    ulong? LastMessageId { get; }
+    System.DateTimeOffset? LastPin { get; }
+    ulong Id { get; }
+    NetCord.ChannelFlags Flags { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    Task<IDiscordForumGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordForumGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordForumGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordThreadUser>? GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite>? CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordForumGuildThreadProperties  
+{
+    NetCord.Rest.ForumGuildThreadProperties Original { get; }
+    IDiscordForumGuildThreadMessageProperties Message { get; set; }
+    IEnumerable<ulong>? AppliedTags { get; set; }
+    string Name { get; set; }
+    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
+    int? Slowmode { get; set; }
+    HttpContent Serialize();
+    IDiscordForumGuildThreadProperties WithMessage(IDiscordForumGuildThreadMessageProperties message);
+    IDiscordForumGuildThreadProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
+    IDiscordForumGuildThreadProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
+    IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags);
+    IDiscordForumGuildThreadProperties WithName(string name);
+    IDiscordForumGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
+    IDiscordForumGuildThreadProperties WithSlowmode(int? slowmode);
+}
+
+
+public interface IDiscordThreadUser  
+{
+    NetCord.ThreadUser Original { get; }
+    ulong Id { get; }
+    ulong ThreadId { get; }
+    System.DateTimeOffset JoinTimestamp { get; }
+    int Flags { get; }
+    System.DateTimeOffset CreatedAt { get; }
+}
+
+
+public interface IDiscordApplicationEmoji  
+{
+    NetCord.ApplicationEmoji Original { get; }
+    ulong ApplicationId { get; }
+    ulong Id { get; }
+    IDiscordUser? Creator { get; }
+    bool? RequireColons { get; }
+    bool? Managed { get; }
+    bool? Available { get; }
+    string Name { get; }
+    bool Animated { get; }
+    Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
+}
+
+
+public interface IDiscordApplicationEmojiProperties  
+{
+    NetCord.Rest.ApplicationEmojiProperties Original { get; }
+    string Name { get; set; }
+    NetCord.Rest.ImageProperties Image { get; set; }
+    IDiscordApplicationEmojiProperties WithName(string name);
+    IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image);
+}
+
+
+public interface IDiscordApplicationEmojiOptions  
+{
+    NetCord.Rest.ApplicationEmojiOptions Original { get; }
+    string? Name { get; set; }
+    IDiscordApplicationEmojiOptions WithName(string name);
+}
+
+
+public interface IDiscordGatewayBot  
+{
+    NetCord.Rest.GatewayBot Original { get; }
+    string Url { get; }
+    int ShardCount { get; }
+    IDiscordGatewaySessionStartLimit SessionStartLimit { get; }
+}
+
+
+public interface IDiscordGuildProperties  
+{
+    NetCord.Rest.GuildProperties Original { get; }
+    string Name { get; set; }
+    NetCord.Rest.ImageProperties? Icon { get; set; }
+    NetCord.VerificationLevel? VerificationLevel { get; set; }
+    NetCord.DefaultMessageNotificationLevel? DefaultMessageNotificationLevel { get; set; }
+    NetCord.ContentFilter? ContentFilter { get; set; }
+    IEnumerable<IDiscordRoleProperties>? Roles { get; set; }
+    IEnumerable<IDiscordGuildChannelProperties>? Channels { get; set; }
+    ulong? AfkChannelId { get; set; }
+    int? AfkTimeout { get; set; }
+    ulong? SystemChannelId { get; set; }
+    NetCord.Rest.SystemChannelFlags? SystemChannelFlags { get; set; }
+    IDiscordGuildProperties WithName(string name);
+    IDiscordGuildProperties WithIcon(NetCord.Rest.ImageProperties? icon);
+    IDiscordGuildProperties WithVerificationLevel(NetCord.VerificationLevel? verificationLevel);
+    IDiscordGuildProperties WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel);
+    IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter);
+    IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties>? roles);
+    IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles);
+    IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles);
+    IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties>? channels);
+    IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels);
+    IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels);
+    IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId);
+    IDiscordGuildProperties WithAfkTimeout(int? afkTimeout);
+    IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId);
+    IDiscordGuildProperties WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags);
+}
+
+
+public interface IDiscordGuildFromGuildTemplateProperties  
+{
+    NetCord.Rest.GuildFromGuildTemplateProperties Original { get; }
+    string Name { get; set; }
+    NetCord.Rest.ImageProperties? Icon { get; set; }
+    IDiscordGuildFromGuildTemplateProperties WithName(string name);
+    IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon);
+}
+
+
+public interface IDiscordApplicationCommand  
+{
+    NetCord.Rest.ApplicationCommand Original { get; }
+    ulong Id { get; }
+    NetCord.ApplicationCommandType Type { get; }
+    ulong ApplicationId { get; }
+    string Name { get; }
+    IReadOnlyDictionary<string, string>? NameLocalizations { get; }
+    string Description { get; }
+    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
+    NetCord.Permissions? DefaultGuildUserPermissions { get; }
+    IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
+    bool Nsfw { get; }
+    IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
+    IReadOnlyList<NetCord.InteractionContextType>? Contexts { get; }
+    ulong Version { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordEntitlementsPaginationProperties  
+{
+    NetCord.Rest.EntitlementsPaginationProperties Original { get; }
+    ulong? UserId { get; set; }
+    IEnumerable<ulong>? SkuIds { get; set; }
+    ulong? GuildId { get; set; }
+    bool? ExcludeEnded { get; set; }
+    ulong? From { get; set; }
+    NetCord.Rest.PaginationDirection? Direction { get; set; }
+    int? BatchSize { get; set; }
+    IDiscordEntitlementsPaginationProperties WithUserId(ulong? userId);
+    IDiscordEntitlementsPaginationProperties WithSkuIds(IEnumerable<ulong>? skuIds);
+    IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds);
+    IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds);
+    IDiscordEntitlementsPaginationProperties WithGuildId(ulong? guildId);
+    IDiscordEntitlementsPaginationProperties WithExcludeEnded(bool? excludeEnded = true);
+    IDiscordEntitlementsPaginationProperties WithFrom(ulong? from);
+    IDiscordEntitlementsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
+    IDiscordEntitlementsPaginationProperties WithBatchSize(int? batchSize);
+}
+
+
+public interface IDiscordTestEntitlementProperties  
+{
+    NetCord.Rest.TestEntitlementProperties Original { get; }
+    ulong SkuId { get; set; }
+    ulong OwnerId { get; set; }
+    NetCord.Rest.TestEntitlementOwnerType OwnerType { get; set; }
+    IDiscordTestEntitlementProperties WithSkuId(ulong skuId);
+    IDiscordTestEntitlementProperties WithOwnerId(ulong ownerId);
+    IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType);
+}
+
+
+public interface IDiscordSku  
+{
+    NetCord.Rest.Sku Original { get; }
+    ulong Id { get; }
+    NetCord.Rest.SkuType Type { get; }
+    ulong ApplicationId { get; }
+    string Name { get; }
+    string Slug { get; }
+    NetCord.Rest.SkuFlags Flags { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IAsyncEnumerable<IDiscordSubscription>? GetSubscriptionsAsync(IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordSubscription> GetSubscriptionAsync(ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordAuthorizationInformation  
+{
+    NetCord.Rest.AuthorizationInformation Original { get; }
+    IDiscordApplication Application { get; }
+    IReadOnlyList<string> Scopes { get; }
+    System.DateTimeOffset ExpiresAt { get; }
+    IDiscordUser? User { get; }
+}
+
+
+public interface IDiscordStageInstanceProperties  
+{
+    NetCord.Rest.StageInstanceProperties Original { get; }
+    ulong ChannelId { get; set; }
+    string Topic { get; set; }
+    NetCord.StageInstancePrivacyLevel? PrivacyLevel { get; set; }
+    bool? SendStartNotification { get; set; }
+    ulong? GuildScheduledEventId { get; set; }
+    IDiscordStageInstanceProperties WithChannelId(ulong channelId);
+    IDiscordStageInstanceProperties WithTopic(string topic);
+    IDiscordStageInstanceProperties WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel);
+    IDiscordStageInstanceProperties WithSendStartNotification(bool? sendStartNotification = true);
+    IDiscordStageInstanceProperties WithGuildScheduledEventId(ulong? guildScheduledEventId);
+}
+
+
+public interface IDiscordStageInstanceOptions  
+{
+    NetCord.Rest.StageInstanceOptions Original { get; }
+    string? Topic { get; set; }
+    NetCord.StageInstancePrivacyLevel? PrivacyLevel { get; set; }
+    IDiscordStageInstanceOptions WithTopic(string topic);
+    IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel);
+}
+
+
+public interface IDiscordStandardSticker  
+{
+    NetCord.StandardSticker Original { get; }
+    ulong PackId { get; }
+    int? SortValue { get; }
+    ulong Id { get; }
+    string Name { get; }
+    string Description { get; }
+    IReadOnlyList<string> Tags { get; }
+    NetCord.StickerFormat Format { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
+}
+
+
+public interface IDiscordStickerPack  
+{
+    NetCord.Rest.StickerPack Original { get; }
+    IReadOnlyList<IDiscordSticker> Stickers { get; }
+    string Name { get; }
+    ulong SkuId { get; }
+    ulong? CoverStickerId { get; }
+    string Description { get; }
+    ulong? BannerAssetId { get; }
+}
+
+
+public interface IDiscordSubscription  
+{
+    NetCord.Subscription Original { get; }
+    ulong Id { get; }
+    ulong UserId { get; }
+    IReadOnlyList<ulong> SkuIds { get; }
+    IReadOnlyList<ulong> EntitlementIds { get; }
+    IReadOnlyList<ulong>? RenewalSkuIds { get; }
+    System.DateTimeOffset CurrentPeriodStart { get; }
+    System.DateTimeOffset CurrentPeriodEnd { get; }
+    NetCord.SubscriptionStatus Status { get; }
+    System.DateTimeOffset? CanceledAt { get; }
+    string? Country { get; }
+    System.DateTimeOffset CreatedAt { get; }
+}
+
+
+public interface IDiscordSubscriptionPaginationProperties  
+{
+    NetCord.Rest.SubscriptionPaginationProperties Original { get; }
+    ulong? UserId { get; set; }
+    ulong? From { get; set; }
+    NetCord.Rest.PaginationDirection? Direction { get; set; }
+    int? BatchSize { get; set; }
+    static IDiscordSubscriptionPaginationProperties Create()
+    {
+        return new DiscordSubscriptionPaginationProperties(NetCord.Rest.SubscriptionPaginationProperties.Create());
+    }
+    static IDiscordSubscriptionPaginationProperties Create(IDiscordSubscriptionPaginationProperties properties)
+    {
+        return new DiscordSubscriptionPaginationProperties(NetCord.Rest.SubscriptionPaginationProperties.Create(properties.Original));
+    }
+    IDiscordSubscriptionPaginationProperties WithUserId(ulong? userId);
+    IDiscordSubscriptionPaginationProperties WithFrom(ulong? from);
+    IDiscordSubscriptionPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
+    IDiscordSubscriptionPaginationProperties WithBatchSize(int? batchSize);
 }
 
 
@@ -2034,6 +3246,328 @@ public interface IDiscordApplication
 }
 
 
+public interface IDiscordCurrentUser  
+{
+    NetCord.CurrentUser Original { get; }
+    ulong Id { get; }
+    string Username { get; }
+    ushort Discriminator { get; }
+    string? GlobalName { get; }
+    string? AvatarHash { get; }
+    bool IsBot { get; }
+    bool? IsSystemUser { get; }
+    bool? MfaEnabled { get; }
+    string? BannerHash { get; }
+    NetCord.Color? AccentColor { get; }
+    string? Locale { get; }
+    bool? Verified { get; }
+    string? Email { get; }
+    NetCord.UserFlags? Flags { get; }
+    NetCord.PremiumType? PremiumType { get; }
+    NetCord.UserFlags? PublicFlags { get; }
+    IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    bool HasAvatar { get; }
+    bool HasBanner { get; }
+    bool HasAvatarDecoration { get; }
+    IDiscordImageUrl DefaultAvatarUrl { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    Task<IDiscordCurrentUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordCurrentUser> ModifyAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestGuild>? GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordConnection>> GetConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationRoleConnection> GetApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordApplicationRoleConnection> UpdateApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDiscordImageUrl? GetAvatarUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
+    IDiscordImageUrl? GetAvatarDecorationUrl();
+    Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordCurrentUserOptions  
+{
+    NetCord.Rest.CurrentUserOptions Original { get; }
+    string? Username { get; set; }
+    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    NetCord.Rest.ImageProperties? Banner { get; set; }
+    IDiscordCurrentUserOptions WithUsername(string username);
+    IDiscordCurrentUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
+    IDiscordCurrentUserOptions WithBanner(NetCord.Rest.ImageProperties? banner);
+}
+
+
+public interface IDiscordGuildsPaginationProperties  
+{
+    NetCord.Rest.GuildsPaginationProperties Original { get; }
+    bool WithCounts { get; set; }
+    ulong? From { get; set; }
+    NetCord.Rest.PaginationDirection? Direction { get; set; }
+    int? BatchSize { get; set; }
+    IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true);
+    IDiscordGuildsPaginationProperties WithFrom(ulong? from);
+    IDiscordGuildsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
+    IDiscordGuildsPaginationProperties WithBatchSize(int? batchSize);
+}
+
+
+public interface IDiscordGroupDMChannel  
+{
+    NetCord.GroupDMChannel Original { get; }
+    string Name { get; }
+    string? IconHash { get; }
+    ulong OwnerId { get; }
+    ulong? ApplicationId { get; }
+    bool Managed { get; }
+    IReadOnlyDictionary<ulong, IDiscordUser> Users { get; }
+    ulong? LastMessageId { get; }
+    System.DateTimeOffset? LastPin { get; }
+    ulong Id { get; }
+    NetCord.ChannelFlags Flags { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    Task<IDiscordGroupDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGroupDMChannel> ModifyAsync(Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordGroupDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddUserAsync(ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
+    Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordGroupDMChannelProperties  
+{
+    NetCord.Rest.GroupDMChannelProperties Original { get; }
+    IEnumerable<string> AccessTokens { get; set; }
+    IReadOnlyDictionary<ulong, string>? Nicknames { get; set; }
+    IDiscordGroupDMChannelProperties WithAccessTokens(IEnumerable<string> accessTokens);
+    IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens);
+    IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens);
+    IDiscordGroupDMChannelProperties WithNicknames(IReadOnlyDictionary<ulong, string>? nicknames);
+}
+
+
+public interface IDiscordConnection  
+{
+    NetCord.Rest.Connection Original { get; }
+    string Id { get; }
+    string Name { get; }
+    NetCord.Rest.ConnectionType Type { get; }
+    bool? Revoked { get; }
+    IReadOnlyList<IDiscordIntegration>? Integrations { get; }
+    bool Verified { get; }
+    bool FriendSync { get; }
+    bool ShowActivity { get; }
+    bool TwoWayLink { get; }
+    NetCord.Rest.ConnectionVisibility Visibility { get; }
+}
+
+
+public interface IDiscordApplicationRoleConnection  
+{
+    NetCord.Rest.ApplicationRoleConnection Original { get; }
+    string? PlatformName { get; }
+    string? PlatformUsername { get; }
+    IReadOnlyDictionary<string, string> Metadata { get; }
+}
+
+
+public interface IDiscordApplicationRoleConnectionProperties  
+{
+    NetCord.Rest.ApplicationRoleConnectionProperties Original { get; }
+    string? PlatformName { get; set; }
+    string? PlatformUsername { get; set; }
+    IReadOnlyDictionary<string, string>? Metadata { get; set; }
+    IDiscordApplicationRoleConnectionProperties WithPlatformName(string platformName);
+    IDiscordApplicationRoleConnectionProperties WithPlatformUsername(string platformUsername);
+    IDiscordApplicationRoleConnectionProperties WithMetadata(IReadOnlyDictionary<string, string>? metadata);
+}
+
+
+public interface IDiscordIncomingWebhook  
+{
+    NetCord.Rest.IncomingWebhook Original { get; }
+    string Token { get; }
+    ulong Id { get; }
+    NetCord.Rest.WebhookType Type { get; }
+    ulong? GuildId { get; }
+    ulong? ChannelId { get; }
+    IDiscordUser? Creator { get; }
+    string? Name { get; }
+    string? AvatarHash { get; }
+    ulong? ApplicationId { get; }
+    IDiscordRestGuild? Guild { get; }
+    IDiscordChannel? Channel { get; }
+    string? Url { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null);
+    Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordWebhookProperties  
+{
+    NetCord.Rest.WebhookProperties Original { get; }
+    string Name { get; set; }
+    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    IDiscordWebhookProperties WithName(string name);
+    IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar);
+}
+
+
+public interface IDiscordWebhookOptions  
+{
+    NetCord.Rest.WebhookOptions Original { get; }
+    string? Name { get; set; }
+    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    ulong? ChannelId { get; set; }
+    IDiscordWebhookOptions WithName(string name);
+    IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
+    IDiscordWebhookOptions WithChannelId(ulong? channelId);
+}
+
+
+public interface IDiscordWebhookMessageProperties  
+{
+    NetCord.Rest.WebhookMessageProperties Original { get; }
+    string? Content { get; set; }
+    string? Username { get; set; }
+    string? AvatarUrl { get; set; }
+    bool Tts { get; set; }
+    IEnumerable<IDiscordEmbedProperties>? Embeds { get; set; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; set; }
+    IEnumerable<IDiscordComponentProperties>? Components { get; set; }
+    IEnumerable<IDiscordAttachmentProperties>? Attachments { get; set; }
+    NetCord.MessageFlags? Flags { get; set; }
+    string? ThreadName { get; set; }
+    IEnumerable<ulong>? AppliedTags { get; set; }
+    IDiscordMessagePollProperties? Poll { get; set; }
+    HttpContent Serialize();
+    IDiscordWebhookMessageProperties WithContent(string content);
+    IDiscordWebhookMessageProperties WithUsername(string username);
+    IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl);
+    IDiscordWebhookMessageProperties WithTts(bool tts = true);
+    IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds);
+    IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds);
+    IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds);
+    IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions);
+    IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components);
+    IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components);
+    IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components);
+    IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments);
+    IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments);
+    IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments);
+    IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags);
+    IDiscordWebhookMessageProperties WithThreadName(string threadName);
+    IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
+    IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
+    IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags);
+    IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
+}
+
+
+public interface IDiscordGuildChannelMention  
+{
+    NetCord.GuildChannelMention Original { get; }
+    ulong Id { get; }
+    ulong GuildId { get; }
+    NetCord.ChannelType Type { get; }
+    string Name { get; }
+    System.DateTimeOffset CreatedAt { get; }
+}
+
+
+public interface IDiscordAttachment  
+{
+    NetCord.Attachment Original { get; }
+    ulong Id { get; }
+    string FileName { get; }
+    string? Title { get; }
+    string? Description { get; }
+    string? ContentType { get; }
+    int Size { get; }
+    string Url { get; }
+    string ProxyUrl { get; }
+    bool Ephemeral { get; }
+    NetCord.AttachmentFlags Flags { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IDiscordAttachmentExpirationInfo GetExpirationInfo();
+    static IDiscordAttachment CreateFromJson(IDiscordJsonAttachment jsonModel)
+    {
+        return new DiscordAttachment(NetCord.Attachment.CreateFromJson(jsonModel.Original));
+    }
+}
+
+
+public interface IDiscordEmbed  
+{
+    NetCord.Embed Original { get; }
+    string? Title { get; }
+    NetCord.EmbedType? Type { get; }
+    string? Description { get; }
+    string? Url { get; }
+    System.DateTimeOffset? Timestamp { get; }
+    NetCord.Color? Color { get; }
+    IDiscordEmbedFooter? Footer { get; }
+    IDiscordEmbedImage? Image { get; }
+    IDiscordEmbedThumbnail? Thumbnail { get; }
+    IDiscordEmbedVideo? Video { get; }
+    IDiscordEmbedProvider? Provider { get; }
+    IDiscordEmbedAuthor? Author { get; }
+    IReadOnlyList<IDiscordEmbedField> Fields { get; }
+}
+
+
+public interface IDiscordMessageReaction  
+{
+    NetCord.MessageReaction Original { get; }
+    int Count { get; }
+    IDiscordMessageReactionCountDetails CountDetails { get; }
+    bool Me { get; }
+    bool MeBurst { get; }
+    IDiscordMessageReactionEmoji Emoji { get; }
+    IReadOnlyList<NetCord.Color> BurstColors { get; }
+}
+
+
+public interface IDiscordMessageActivity  
+{
+    NetCord.MessageActivity Original { get; }
+    NetCord.MessageActivityType Type { get; }
+    string? PartyId { get; }
+}
+
+
 public interface IDiscordMessageReference  
 {
     NetCord.MessageReference Original { get; }
@@ -2069,6 +3603,10 @@ public interface IDiscordComponent
 {
     NetCord.IComponent Original { get; }
     int Id { get; }
+    static IDiscordComponent CreateFromJson(IDiscordJsonComponent jsonModel)
+    {
+        return new DiscordComponent(NetCord.IComponent.CreateFromJson(jsonModel.Original));
+    }
 }
 
 
@@ -2156,18 +3694,6 @@ public interface IDiscordReplyMessageProperties
     IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds);
     IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags);
     IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
-}
-
-
-public interface IDiscordGuildThreadFromMessageProperties  
-{
-    NetCord.Rest.GuildThreadFromMessageProperties Original { get; }
-    string Name { get; set; }
-    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
-    int? Slowmode { get; set; }
-    IDiscordGuildThreadFromMessageProperties WithName(string name);
-    IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
-    IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode);
 }
 
 
@@ -2271,100 +3797,6 @@ public interface IDiscordPermissionOverwrite
 }
 
 
-public interface IDiscordGuildChannelOptions  
-{
-    NetCord.Rest.GuildChannelOptions Original { get; }
-    string? Name { get; set; }
-    NetCord.ChannelType? ChannelType { get; set; }
-    int? Position { get; set; }
-    string? Topic { get; set; }
-    bool? Nsfw { get; set; }
-    int? Slowmode { get; set; }
-    int? Bitrate { get; set; }
-    int? UserLimit { get; set; }
-    IEnumerable<IDiscordPermissionOverwriteProperties>? PermissionOverwrites { get; set; }
-    ulong? ParentId { get; set; }
-    string? RtcRegion { get; set; }
-    NetCord.VideoQualityMode? VideoQualityMode { get; set; }
-    NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; set; }
-    IEnumerable<IDiscordForumTagProperties>? AvailableTags { get; set; }
-    NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get; set; }
-    int? DefaultThreadSlowmode { get; set; }
-    NetCord.ChannelFlags? Flags { get; set; }
-    NetCord.SortOrderType? DefaultSortOrder { get; set; }
-    NetCord.ForumLayoutType? DefaultForumLayout { get; set; }
-    bool? Archived { get; set; }
-    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
-    bool? Locked { get; set; }
-    bool? Invitable { get; set; }
-    IEnumerable<ulong>? AppliedTags { get; set; }
-    IDiscordGuildChannelOptions WithName(string name);
-    IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType);
-    IDiscordGuildChannelOptions WithPosition(int? position);
-    IDiscordGuildChannelOptions WithTopic(string topic);
-    IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true);
-    IDiscordGuildChannelOptions WithSlowmode(int? slowmode);
-    IDiscordGuildChannelOptions WithBitrate(int? bitrate);
-    IDiscordGuildChannelOptions WithUserLimit(int? userLimit);
-    IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites);
-    IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites);
-    IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites);
-    IDiscordGuildChannelOptions WithParentId(ulong? parentId);
-    IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion);
-    IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode);
-    IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration);
-    IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags);
-    IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags);
-    IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags);
-    IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji);
-    IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode);
-    IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags);
-    IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder);
-    IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout);
-    IDiscordGuildChannelOptions WithArchived(bool? archived = true);
-    IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
-    IDiscordGuildChannelOptions WithLocked(bool? locked = true);
-    IDiscordGuildChannelOptions WithInvitable(bool? invitable = true);
-    IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong>? appliedTags);
-    IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags);
-}
-
-
-public interface IDiscordPermissionOverwriteProperties  
-{
-    NetCord.Rest.PermissionOverwriteProperties Original { get; }
-    ulong Id { get; set; }
-    NetCord.PermissionOverwriteType Type { get; set; }
-    NetCord.Permissions? Allowed { get; set; }
-    NetCord.Permissions? Denied { get; set; }
-    IDiscordPermissionOverwriteProperties WithId(ulong id);
-    IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type);
-    IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed);
-    IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied);
-}
-
-
-public interface IDiscordInviteProperties  
-{
-    NetCord.Rest.InviteProperties Original { get; }
-    int? MaxAge { get; set; }
-    int? MaxUses { get; set; }
-    bool? Temporary { get; set; }
-    bool? Unique { get; set; }
-    NetCord.InviteTargetType? TargetType { get; set; }
-    ulong? TargetUserId { get; set; }
-    ulong? TargetApplicationId { get; set; }
-    IDiscordInviteProperties WithMaxAge(int? maxAge);
-    IDiscordInviteProperties WithMaxUses(int? maxUses);
-    IDiscordInviteProperties WithTemporary(bool? temporary = true);
-    IDiscordInviteProperties WithUnique(bool? unique = true);
-    IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType);
-    IDiscordInviteProperties WithTargetUserId(ulong? targetUserId);
-    IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId);
-}
-
-
 public interface IDiscordGuildThreadMetadata  
 {
     NetCord.GuildThreadMetadata Original { get; }
@@ -2381,73 +3813,6 @@ public interface IDiscordThreadCurrentUser
     NetCord.ThreadCurrentUser Original { get; }
     System.DateTimeOffset JoinTimestamp { get; }
     int Flags { get; }
-}
-
-
-public interface IDiscordThreadUser  
-{
-    NetCord.ThreadUser Original { get; }
-    ulong Id { get; }
-    ulong ThreadId { get; }
-    System.DateTimeOffset JoinTimestamp { get; }
-    int Flags { get; }
-    System.DateTimeOffset CreatedAt { get; }
-}
-
-
-public interface IDiscordGuildThreadProperties  
-{
-    NetCord.Rest.GuildThreadProperties Original { get; }
-    NetCord.ChannelType? ChannelType { get; set; }
-    bool? Invitable { get; set; }
-    string Name { get; set; }
-    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
-    int? Slowmode { get; set; }
-    IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType);
-    IDiscordGuildThreadProperties WithInvitable(bool? invitable = true);
-    IDiscordGuildThreadProperties WithName(string name);
-    IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
-    IDiscordGuildThreadProperties WithSlowmode(int? slowmode);
-}
-
-
-public interface IDiscordIncomingWebhook  
-{
-    NetCord.Rest.IncomingWebhook Original { get; }
-    string Token { get; }
-    ulong Id { get; }
-    NetCord.Rest.WebhookType Type { get; }
-    ulong? GuildId { get; }
-    ulong? ChannelId { get; }
-    IDiscordUser? Creator { get; }
-    string? Name { get; }
-    string? AvatarHash { get; }
-    ulong? ApplicationId { get; }
-    IDiscordRestGuild? Guild { get; }
-    IDiscordChannel? Channel { get; }
-    string? Url { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null);
-    Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
-public interface IDiscordWebhookProperties  
-{
-    NetCord.Rest.WebhookProperties Original { get; }
-    string Name { get; set; }
-    NetCord.Rest.ImageProperties? Avatar { get; set; }
-    IDiscordWebhookProperties WithName(string name);
-    IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar);
 }
 
 
@@ -2470,16 +3835,6 @@ public interface IDiscordUserActivity
     NetCord.Gateway.UserActivityFlags? Flags { get; }
     IReadOnlyList<IDiscordUserActivityButton> Buttons { get; }
     ulong GuildId { get; }
-}
-
-
-public interface IDiscordStageInstanceOptions  
-{
-    NetCord.Rest.StageInstanceOptions Original { get; }
-    string? Topic { get; set; }
-    NetCord.StageInstancePrivacyLevel? PrivacyLevel { get; set; }
-    IDiscordStageInstanceOptions WithTopic(string topic);
-    IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel);
 }
 
 
@@ -2649,18 +4004,6 @@ public interface IDiscordForumTagProperties
 }
 
 
-public interface IDiscordChannel  
-{
-    NetCord.Channel Original { get; }
-    ulong Id { get; }
-    NetCord.ChannelFlags Flags { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
 public interface IDiscordAccount  
 {
     NetCord.Account Original { get; }
@@ -2768,16 +4111,6 @@ public interface IDiscordGuildTemplatePreview
 }
 
 
-public interface IDiscordGuildFromGuildTemplateProperties  
-{
-    NetCord.Rest.GuildFromGuildTemplateProperties Original { get; }
-    string Name { get; set; }
-    NetCord.Rest.ImageProperties? Icon { get; set; }
-    IDiscordGuildFromGuildTemplateProperties WithName(string name);
-    IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon);
-}
-
-
 public interface IDiscordApplicationCommandOption  
 {
     NetCord.Rest.ApplicationCommandOption Original { get; }
@@ -2795,31 +4128,6 @@ public interface IDiscordApplicationCommandOption
     int? MinLength { get; }
     int? MaxLength { get; }
     bool Autocomplete { get; }
-}
-
-
-public interface IDiscordApplicationCommand  
-{
-    NetCord.Rest.ApplicationCommand Original { get; }
-    ulong Id { get; }
-    NetCord.ApplicationCommandType Type { get; }
-    ulong ApplicationId { get; }
-    string Name { get; }
-    IReadOnlyDictionary<string, string>? NameLocalizations { get; }
-    string Description { get; }
-    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
-    NetCord.Permissions? DefaultGuildUserPermissions { get; }
-    IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
-    bool Nsfw { get; }
-    IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
-    IReadOnlyList<NetCord.InteractionContextType>? Contexts { get; }
-    ulong Version { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
 
@@ -2880,15 +4188,69 @@ public interface IDiscordGuildUsersSearchQuery
 }
 
 
-public interface IDiscordWebhookOptions  
+public interface IDiscordJsonWebhook  
 {
-    NetCord.Rest.WebhookOptions Original { get; }
-    string? Name { get; set; }
-    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    NetCord.JsonModels.JsonWebhook Original { get; }
+    NetCord.Rest.WebhookType Type { get; set; }
+    ulong? GuildId { get; set; }
     ulong? ChannelId { get; set; }
-    IDiscordWebhookOptions WithName(string name);
-    IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
-    IDiscordWebhookOptions WithChannelId(ulong? channelId);
+    IDiscordJsonUser Creator { get; set; }
+    string Name { get; set; }
+    string AvatarHash { get; set; }
+    string Token { get; set; }
+    ulong? ApplicationId { get; set; }
+    IDiscordJsonGuild Guild { get; set; }
+    IDiscordJsonChannel Channel { get; set; }
+    string Url { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonPermissionOverwrite  
+{
+    NetCord.JsonModels.JsonPermissionOverwrite Original { get; }
+    NetCord.PermissionOverwriteType Type { get; set; }
+    NetCord.Permissions Allowed { get; set; }
+    NetCord.Permissions Denied { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonGuildThreadMetadata  
+{
+    NetCord.JsonModels.JsonGuildThreadMetadata Original { get; }
+    bool Archived { get; set; }
+    NetCord.ThreadArchiveDuration AutoArchiveDuration { get; set; }
+    System.DateTimeOffset ArchiveTimestamp { get; set; }
+    bool Locked { get; set; }
+    bool? Invitable { get; set; }
+}
+
+
+public interface IDiscordJsonThreadCurrentUser  
+{
+    NetCord.JsonModels.JsonThreadCurrentUser Original { get; }
+    System.DateTimeOffset JoinTimestamp { get; set; }
+    int Flags { get; set; }
+}
+
+
+public interface IDiscordJsonForumTag  
+{
+    NetCord.JsonModels.JsonForumTag Original { get; }
+    string Name { get; set; }
+    bool Moderated { get; set; }
+    ulong? EmojiId { get; set; }
+    string? EmojiName { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonForumGuildChannelDefaultReaction  
+{
+    NetCord.JsonModels.JsonForumGuildChannelDefaultReaction Original { get; }
+    ulong? EmojiId { get; set; }
+    string EmojiName { get; set; }
 }
 
 
@@ -2907,10 +4269,380 @@ public interface IDiscordMessageReferenceProperties
     ulong? ChannelId { get; set; }
     ulong MessageId { get; set; }
     bool FailIfNotExists { get; set; }
+    static IDiscordMessageReferenceProperties Reply(ulong messageId, bool failIfNotExists = true)
+    {
+        return new DiscordMessageReferenceProperties(NetCord.Rest.MessageReferenceProperties.Reply(messageId, failIfNotExists));
+    }
+    static IDiscordMessageReferenceProperties Forward(ulong channelId, ulong messageId, bool failIfNotExists = true)
+    {
+        return new DiscordMessageReferenceProperties(NetCord.Rest.MessageReferenceProperties.Forward(channelId, messageId, failIfNotExists));
+    }
     IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type);
     IDiscordMessageReferenceProperties WithChannelId(ulong? channelId);
     IDiscordMessageReferenceProperties WithMessageId(ulong messageId);
     IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true);
+}
+
+
+public interface IDiscordJsonInteractionResolvedData  
+{
+    NetCord.JsonModels.JsonInteractionResolvedData Original { get; }
+    IReadOnlyDictionary<ulong, IDiscordJsonUser>? Users { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordJsonRole>? Roles { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordJsonChannel>? Channels { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordJsonMessage>? Messages { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordJsonAttachment>? Attachments { get; set; }
+}
+
+
+public interface IDiscordJsonApplicationCommandInteractionDataOption  
+{
+    NetCord.JsonModels.JsonApplicationCommandInteractionDataOption Original { get; }
+    string Name { get; set; }
+    NetCord.ApplicationCommandOptionType Type { get; set; }
+    string? Value { get; set; }
+    IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get; set; }
+    bool Focused { get; set; }
+}
+
+
+public interface IDiscordJsonComponent  
+{
+    NetCord.JsonModels.JsonComponent Original { get; }
+    int Id { get; set; }
+    NetCord.ComponentType Type { get; set; }
+    string CustomId { get; set; }
+    bool? Disabled { get; set; }
+    NetCord.ButtonStyle? Style { get; set; }
+    string Label { get; set; }
+    IDiscordJsonEmoji Emoji { get; set; }
+    string Url { get; set; }
+    ulong? SkuId { get; set; }
+    IDiscordJsonMenuSelectOption[] Options { get; set; }
+    NetCord.ChannelType[] ChannelTypes { get; set; }
+    string Placeholder { get; set; }
+    IDiscordJsonSelectMenuDefaultValue[]? DefaultValues { get; set; }
+    int? MinValues { get; set; }
+    int? MaxValues { get; set; }
+    IDiscordJsonComponent[]? Components { get; set; }
+    int? MinLength { get; set; }
+    int? MaxLength { get; set; }
+    bool? Required { get; set; }
+    string Value { get; set; }
+    IDiscordJsonComponent Accessory { get; set; }
+    string Content { get; set; }
+    IDiscordJsonComponentMedia Media { get; set; }
+    IDiscordJsonComponentMedia File { get; set; }
+    bool? Spoiler { get; set; }
+    string Description { get; set; }
+    bool? Divider { get; set; }
+    NetCord.ComponentSeparatorSpacingSize? Spacing { get; set; }
+    NetCord.Color? AccentColor { get; set; }
+    IDiscordJsonComponent[]? Items { get; set; }
+}
+
+
+public interface IDiscordJsonAvatarDecorationData  
+{
+    NetCord.JsonModels.JsonAvatarDecorationData Original { get; }
+    string Hash { get; set; }
+    ulong SkuId { get; set; }
+}
+
+
+public interface IDiscordJsonGuildChannelMention  
+{
+    NetCord.JsonModels.JsonGuildChannelMention Original { get; }
+    ulong GuildId { get; set; }
+    NetCord.ChannelType Type { get; set; }
+    string Name { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonAttachment  
+{
+    NetCord.JsonModels.JsonAttachment Original { get; }
+    string FileName { get; set; }
+    string Title { get; set; }
+    string Description { get; set; }
+    string ContentType { get; set; }
+    int Size { get; set; }
+    string Url { get; set; }
+    string ProxyUrl { get; set; }
+    int? Height { get; set; }
+    int? Width { get; set; }
+    bool Ephemeral { get; set; }
+    double? DurationSeconds { get; set; }
+    byte[] Waveform { get; set; }
+    NetCord.AttachmentFlags Flags { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonEmbed  
+{
+    NetCord.JsonModels.JsonEmbed Original { get; }
+    string Title { get; set; }
+    NetCord.EmbedType? Type { get; set; }
+    string Description { get; set; }
+    string Url { get; set; }
+    System.DateTimeOffset? Timestamp { get; set; }
+    NetCord.Color? Color { get; set; }
+    IDiscordJsonEmbedFooter Footer { get; set; }
+    IDiscordJsonEmbedImage Image { get; set; }
+    IDiscordJsonEmbedThumbnail Thumbnail { get; set; }
+    IDiscordJsonEmbedVideo Video { get; set; }
+    IDiscordJsonEmbedProvider Provider { get; set; }
+    IDiscordJsonEmbedAuthor Author { get; set; }
+    IDiscordJsonEmbedField[] Fields { get; set; }
+}
+
+
+public interface IDiscordJsonMessageReaction  
+{
+    NetCord.JsonModels.JsonMessageReaction Original { get; }
+    int Count { get; set; }
+    IDiscordJsonMessageReactionCountDetails CountDetails { get; set; }
+    bool Me { get; set; }
+    bool MeBurst { get; set; }
+    IDiscordJsonEmoji Emoji { get; set; }
+    NetCord.Color[] BurstColors { get; set; }
+}
+
+
+public interface IDiscordJsonMessageActivity  
+{
+    NetCord.JsonModels.JsonMessageActivity Original { get; }
+    NetCord.MessageActivityType Type { get; set; }
+    string PartyId { get; set; }
+}
+
+
+public interface IDiscordJsonApplication  
+{
+    NetCord.JsonModels.JsonApplication Original { get; }
+    string Name { get; set; }
+    string IconHash { get; set; }
+    string Description { get; set; }
+    string[] RpcOrigins { get; set; }
+    bool? BotPublic { get; set; }
+    bool? BotRequireCodeGrant { get; set; }
+    IDiscordJsonUser Bot { get; set; }
+    string TermsOfServiceUrl { get; set; }
+    string PrivacyPolicyUrl { get; set; }
+    IDiscordJsonUser Owner { get; set; }
+    string VerifyKey { get; set; }
+    IDiscordJsonTeam Team { get; set; }
+    ulong? GuildId { get; set; }
+    IDiscordJsonGuild Guild { get; set; }
+    ulong? PrimarySkuId { get; set; }
+    string Slug { get; set; }
+    string CoverImageHash { get; set; }
+    NetCord.ApplicationFlags? Flags { get; set; }
+    int? ApproximateGuildCount { get; set; }
+    int? ApproximateUserInstallCount { get; set; }
+    string[]? RedirectUris { get; set; }
+    string InteractionsEndpointUrl { get; set; }
+    string RoleConnectionsVerificationUrl { get; set; }
+    string[]? Tags { get; set; }
+    IDiscordJsonApplicationInstallParams InstallParams { get; set; }
+    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordJsonApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration { get; set; }
+    string CustomInstallUrl { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonMessageReference  
+{
+    NetCord.JsonModels.JsonMessageReference Original { get; }
+    ulong? MessageId { get; set; }
+    ulong? ChannelId { get; set; }
+    ulong? GuildId { get; set; }
+    bool? FailIfNotExists { get; set; }
+}
+
+
+public interface IDiscordJsonMessageSnapshot  
+{
+    NetCord.JsonModels.JsonMessageSnapshot Original { get; }
+    IDiscordJsonMessageSnapshotMessage Message { get; set; }
+}
+
+
+public interface IDiscordJsonMessageInteractionMetadata  
+{
+    NetCord.JsonModels.JsonMessageInteractionMetadata Original { get; }
+    NetCord.InteractionType Type { get; set; }
+    IDiscordJsonUser User { get; set; }
+    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get; set; }
+    ulong? OriginalResponseMessageId { get; set; }
+    ulong? InteractedMessageId { get; set; }
+    IDiscordJsonMessageInteractionMetadata? TriggeringInteractionMetadata { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonMessageSticker  
+{
+    NetCord.JsonModels.JsonMessageSticker Original { get; }
+    string Name { get; set; }
+    NetCord.StickerFormat Format { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonRoleSubscriptionData  
+{
+    NetCord.JsonModels.JsonRoleSubscriptionData Original { get; }
+    ulong RoleSubscriptionListingId { get; set; }
+    string TierName { get; set; }
+    int TotalMonthsSubscribed { get; set; }
+    bool IsRenewal { get; set; }
+}
+
+
+public interface IDiscordJsonMessagePoll  
+{
+    NetCord.JsonModels.JsonMessagePoll Original { get; }
+    IDiscordJsonMessagePollMedia Question { get; set; }
+    IDiscordJsonMessagePollAnswer[] Answers { get; set; }
+    System.DateTimeOffset? ExpiresAt { get; set; }
+    bool AllowMultiselect { get; set; }
+    NetCord.MessagePollLayoutType LayoutType { get; set; }
+    IDiscordJsonMessagePollResults? Results { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonMessageCall  
+{
+    NetCord.JsonModels.JsonMessageCall Original { get; }
+    ulong[] Participants { get; set; }
+    System.DateTimeOffset? EndedAt { get; set; }
+}
+
+
+public interface IDiscordTeam  
+{
+    NetCord.Team Original { get; }
+    ulong Id { get; }
+    string? IconHash { get; }
+    IReadOnlyList<IDiscordTeamUser> Users { get; }
+    string Name { get; }
+    ulong OwnerId { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
+}
+
+
+public interface IDiscordApplicationInstallParams  
+{
+    NetCord.ApplicationInstallParams Original { get; }
+    IReadOnlyList<string> Scopes { get; }
+    NetCord.Permissions Permissions { get; }
+}
+
+
+public interface IDiscordApplicationIntegrationTypeConfiguration  
+{
+    NetCord.ApplicationIntegrationTypeConfiguration Original { get; }
+    IDiscordApplicationInstallParams? OAuth2InstallParams { get; }
+}
+
+
+public interface IDiscordApplicationInstallParamsProperties  
+{
+    NetCord.Rest.ApplicationInstallParamsProperties Original { get; }
+    IEnumerable<string>? Scopes { get; set; }
+    NetCord.Permissions? Permissions { get; set; }
+    IDiscordApplicationInstallParamsProperties WithScopes(IEnumerable<string>? scopes);
+    IDiscordApplicationInstallParamsProperties AddScopes(IEnumerable<string> scopes);
+    IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes);
+    IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions);
+}
+
+
+public interface IDiscordApplicationIntegrationTypeConfigurationProperties  
+{
+    NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties Original { get; }
+    IDiscordApplicationInstallParamsProperties? OAuth2InstallParams { get; set; }
+    IDiscordApplicationIntegrationTypeConfigurationProperties WithOAuth2InstallParams(IDiscordApplicationInstallParamsProperties? oAuth2InstallParams);
+}
+
+
+public interface IDiscordForumGuildThreadMessageProperties  
+{
+    NetCord.Rest.ForumGuildThreadMessageProperties Original { get; }
+    string? Content { get; set; }
+    IEnumerable<IDiscordEmbedProperties>? Embeds { get; set; }
+    IDiscordAllowedMentionsProperties? AllowedMentions { get; set; }
+    IEnumerable<IDiscordComponentProperties>? Components { get; set; }
+    IEnumerable<ulong>? StickerIds { get; set; }
+    IEnumerable<IDiscordAttachmentProperties>? Attachments { get; set; }
+    NetCord.MessageFlags? Flags { get; set; }
+    IDiscordForumGuildThreadMessageProperties WithContent(string content);
+    IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds);
+    IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds);
+    IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds);
+    IDiscordForumGuildThreadMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions);
+    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components);
+    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components);
+    IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components);
+    IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
+    IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
+    IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds);
+    IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments);
+    IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments);
+    IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments);
+    IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags);
+}
+
+
+public interface IDiscordGatewaySessionStartLimit  
+{
+    NetCord.Rest.GatewaySessionStartLimit Original { get; }
+    int Total { get; }
+    int Remaining { get; }
+    System.TimeSpan ResetAfter { get; }
+    int MaxConcurrency { get; }
+}
+
+
+public interface IDiscordSticker  
+{
+    NetCord.Sticker Original { get; }
+    ulong Id { get; }
+    string Name { get; }
+    string Description { get; }
+    IReadOnlyList<string> Tags { get; }
+    NetCord.StickerFormat Format { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
+}
+
+
+public interface IDiscordWebhookClient  
+{
+    NetCord.Rest.WebhookClient Original { get; }
+    ulong Id { get; }
+    string Token { get; }
+    void Dispose();
+    Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public interface IDiscordWebhookClientConfiguration  
+{
+    NetCord.Rest.WebhookClientConfiguration Original { get; }
+    IDiscordRestClient? Client { get; set; }
 }
 
 
@@ -3003,70 +4735,6 @@ public interface IDiscordMessageReactionEmoji
     ulong? Id { get; }
     string? Name { get; }
     bool Animated { get; }
-}
-
-
-public interface IDiscordTeam  
-{
-    NetCord.Team Original { get; }
-    ulong Id { get; }
-    string? IconHash { get; }
-    IReadOnlyList<IDiscordTeamUser> Users { get; }
-    string Name { get; }
-    ulong OwnerId { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
-}
-
-
-public interface IDiscordApplicationInstallParams  
-{
-    NetCord.ApplicationInstallParams Original { get; }
-    IReadOnlyList<string> Scopes { get; }
-    NetCord.Permissions Permissions { get; }
-}
-
-
-public interface IDiscordApplicationIntegrationTypeConfiguration  
-{
-    NetCord.ApplicationIntegrationTypeConfiguration Original { get; }
-    IDiscordApplicationInstallParams? OAuth2InstallParams { get; }
-}
-
-
-public interface IDiscordApplicationEmoji  
-{
-    NetCord.ApplicationEmoji Original { get; }
-    ulong ApplicationId { get; }
-    ulong Id { get; }
-    IDiscordUser? Creator { get; }
-    bool? RequireColons { get; }
-    bool? Managed { get; }
-    bool? Available { get; }
-    string Name { get; }
-    bool Animated { get; }
-    Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
-}
-
-
-public interface IDiscordApplicationEmojiProperties  
-{
-    NetCord.Rest.ApplicationEmojiProperties Original { get; }
-    string Name { get; set; }
-    NetCord.Rest.ImageProperties Image { get; set; }
-    IDiscordApplicationEmojiProperties WithName(string name);
-    IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image);
-}
-
-
-public interface IDiscordApplicationEmojiOptions  
-{
-    NetCord.Rest.ApplicationEmojiOptions Original { get; }
-    string? Name { get; set; }
-    IDiscordApplicationEmojiOptions WithName(string name);
 }
 
 
@@ -3176,68 +4844,6 @@ public interface IDiscordMessagePollAnswerProperties
 }
 
 
-public interface IDiscordWebhookClient  
-{
-    NetCord.Rest.WebhookClient Original { get; }
-    ulong Id { get; }
-    string Token { get; }
-    void Dispose();
-    Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
-public interface IDiscordWebhookClientConfiguration  
-{
-    NetCord.Rest.WebhookClientConfiguration Original { get; }
-    IDiscordRestClient? Client { get; set; }
-}
-
-
-public interface IDiscordWebhookMessageProperties  
-{
-    NetCord.Rest.WebhookMessageProperties Original { get; }
-    string? Content { get; set; }
-    string? Username { get; set; }
-    string? AvatarUrl { get; set; }
-    bool Tts { get; set; }
-    IEnumerable<IDiscordEmbedProperties>? Embeds { get; set; }
-    IDiscordAllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<IDiscordComponentProperties>? Components { get; set; }
-    IEnumerable<IDiscordAttachmentProperties>? Attachments { get; set; }
-    NetCord.MessageFlags? Flags { get; set; }
-    string? ThreadName { get; set; }
-    IEnumerable<ulong>? AppliedTags { get; set; }
-    IDiscordMessagePollProperties? Poll { get; set; }
-    HttpContent Serialize();
-    IDiscordWebhookMessageProperties WithContent(string content);
-    IDiscordWebhookMessageProperties WithUsername(string username);
-    IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl);
-    IDiscordWebhookMessageProperties WithTts(bool tts = true);
-    IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds);
-    IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds);
-    IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds);
-    IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions);
-    IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components);
-    IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components);
-    IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components);
-    IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments);
-    IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments);
-    IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments);
-    IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags);
-    IDiscordWebhookMessageProperties WithThreadName(string threadName);
-    IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
-    IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags);
-    IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
-}
-
-
 public interface IDiscordUserActivityTimestamps  
 {
     NetCord.Gateway.UserActivityTimestamps Original { get; }
@@ -3251,6 +4857,10 @@ public interface IDiscordEmoji
     NetCord.Emoji Original { get; }
     string Name { get; }
     bool Animated { get; }
+    static IDiscordEmoji CreateFromJson(IDiscordJsonEmoji jsonModel, ulong guildId, IDiscordRestClient client)
+    {
+        return new DiscordEmoji(NetCord.Emoji.CreateFromJson(jsonModel.Original, guildId, client.Original));
+    }
 }
 
 
@@ -3378,19 +4988,266 @@ public interface IDiscordApplicationCommandOptionChoice
 }
 
 
-public interface IDiscordApplicationCommandOptionChoiceProperties  
+public interface IDiscordJsonGuild  
 {
-    NetCord.Rest.ApplicationCommandOptionChoiceProperties Original { get; }
+    NetCord.JsonModels.JsonGuild Original { get; }
     string Name { get; set; }
-    IReadOnlyDictionary<string, string>? NameLocalizations { get; set; }
-    string? StringValue { get; set; }
-    double? NumericValue { get; set; }
-    NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType { get; set; }
-    IDiscordApplicationCommandOptionChoiceProperties WithName(string name);
-    IDiscordApplicationCommandOptionChoiceProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
-    IDiscordApplicationCommandOptionChoiceProperties WithStringValue(string stringValue);
-    IDiscordApplicationCommandOptionChoiceProperties WithNumericValue(double? numericValue);
-    IDiscordApplicationCommandOptionChoiceProperties WithValueType(NetCord.Rest.ApplicationCommandOptionChoiceValueType valueType);
+    string? IconHash { get; set; }
+    string? IconHashTemplate { get; set; }
+    string? SplashHash { get; set; }
+    string? DiscoverySplashHash { get; set; }
+    bool IsOwner { get; set; }
+    ulong OwnerId { get; set; }
+    NetCord.Permissions? Permissions { get; set; }
+    ulong? AfkChannelId { get; set; }
+    int AfkTimeout { get; set; }
+    bool? WidgetEnabled { get; set; }
+    ulong? WidgetChannelId { get; set; }
+    NetCord.VerificationLevel VerificationLevel { get; set; }
+    NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; set; }
+    NetCord.ContentFilter ContentFilter { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonRole> Roles { get; set; }
+    ImmutableArray<IDiscordJsonEmoji> Emojis { get; set; }
+    string[] Features { get; set; }
+    NetCord.MfaLevel MfaLevel { get; set; }
+    ulong? ApplicationId { get; set; }
+    ulong? SystemChannelId { get; set; }
+    NetCord.Rest.SystemChannelFlags SystemChannelFlags { get; set; }
+    ulong? RulesChannelId { get; set; }
+    System.DateTimeOffset JoinedAt { get; set; }
+    bool IsLarge { get; set; }
+    bool IsUnavailable { get; set; }
+    int UserCount { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonVoiceState> VoiceStates { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonGuildUser> Users { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonChannel> Channels { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonChannel> ActiveThreads { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonPresence> Presences { get; set; }
+    int? MaxPresences { get; set; }
+    int? MaxUsers { get; set; }
+    string? VanityUrlCode { get; set; }
+    string? Description { get; set; }
+    string? BannerHash { get; set; }
+    int PremiumTier { get; set; }
+    int? PremiumSubscriptionCount { get; set; }
+    string PreferredLocale { get; set; }
+    ulong? PublicUpdatesChannelId { get; set; }
+    int? MaxVideoChannelUsers { get; set; }
+    int? MaxStageVideoChannelUsers { get; set; }
+    int? ApproximateUserCount { get; set; }
+    int? ApproximatePresenceCount { get; set; }
+    IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get; set; }
+    NetCord.NsfwLevel NsfwLevel { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonStageInstance> StageInstances { get; set; }
+    ImmutableArray<IDiscordJsonSticker> Stickers { get; set; }
+    ImmutableDictionary<ulong, IDiscordJsonGuildScheduledEvent> ScheduledEvents { get; set; }
+    bool PremiumProgressBarEnabled { get; set; }
+    ulong? SafetyAlertsChannelId { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonRole  
+{
+    NetCord.JsonModels.JsonRole Original { get; }
+    string Name { get; set; }
+    NetCord.Color Color { get; set; }
+    bool Hoist { get; set; }
+    string IconHash { get; set; }
+    string UnicodeEmoji { get; set; }
+    int Position { get; set; }
+    NetCord.Permissions Permissions { get; set; }
+    bool Managed { get; set; }
+    bool Mentionable { get; set; }
+    IDiscordJsonRoleTags Tags { get; set; }
+    NetCord.RoleFlags Flags { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonEmoji  
+{
+    NetCord.JsonModels.JsonEmoji Original { get; }
+    ulong? Id { get; set; }
+    string Name { get; set; }
+    ulong[] AllowedRoles { get; set; }
+    IDiscordJsonUser Creator { get; set; }
+    bool? RequireColons { get; set; }
+    bool? Managed { get; set; }
+    bool Animated { get; set; }
+    bool? Available { get; set; }
+}
+
+
+public interface IDiscordJsonMenuSelectOption  
+{
+    NetCord.JsonModels.JsonMenuSelectOption Original { get; }
+    string Label { get; set; }
+    string Value { get; set; }
+    string? Description { get; set; }
+    IDiscordJsonEmoji? Emoji { get; set; }
+    bool Default { get; set; }
+}
+
+
+public interface IDiscordJsonSelectMenuDefaultValue  
+{
+    NetCord.JsonModels.JsonSelectMenuDefaultValue Original { get; }
+    NetCord.JsonModels.JsonSelectMenuDefaultValueType Type { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonComponentMedia  
+{
+    NetCord.JsonModels.JsonComponentMedia Original { get; }
+    string Url { get; set; }
+    string ProxyUrl { get; set; }
+    int? Height { get; set; }
+    int? Width { get; set; }
+    string ContentType { get; set; }
+    NetCord.ComponentMediaLoadingState? LoadingState { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedFooter  
+{
+    NetCord.JsonModels.JsonEmbedFooter Original { get; }
+    string Text { get; set; }
+    string IconUrl { get; set; }
+    string ProxyIconUrl { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedImage  
+{
+    NetCord.JsonModels.JsonEmbedImage Original { get; }
+    string Url { get; set; }
+    string ProxyUrl { get; set; }
+    int? Height { get; set; }
+    int? Width { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedThumbnail  
+{
+    NetCord.JsonModels.JsonEmbedThumbnail Original { get; }
+    string Url { get; set; }
+    string ProxyUrl { get; set; }
+    int? Height { get; set; }
+    int? Width { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedVideo  
+{
+    NetCord.JsonModels.JsonEmbedVideo Original { get; }
+    string Url { get; set; }
+    string ProxyUrl { get; set; }
+    int? Height { get; set; }
+    int? Width { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedProvider  
+{
+    NetCord.JsonModels.JsonEmbedProvider Original { get; }
+    string Name { get; set; }
+    string Url { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedAuthor  
+{
+    NetCord.JsonModels.JsonEmbedAuthor Original { get; }
+    string Name { get; set; }
+    string Url { get; set; }
+    string IconUrl { get; set; }
+    string ProxyIconUrl { get; set; }
+}
+
+
+public interface IDiscordJsonEmbedField  
+{
+    NetCord.JsonModels.JsonEmbedField Original { get; }
+    string Name { get; set; }
+    string Value { get; set; }
+    bool Inline { get; set; }
+}
+
+
+public interface IDiscordJsonMessageReactionCountDetails  
+{
+    NetCord.JsonModels.JsonMessageReactionCountDetails Original { get; }
+    int Burst { get; set; }
+    int Normal { get; set; }
+}
+
+
+public interface IDiscordJsonTeam  
+{
+    NetCord.JsonModels.JsonTeam Original { get; }
+    string? IconHash { get; set; }
+    IDiscordJsonTeamUser[] Users { get; set; }
+    string Name { get; set; }
+    ulong OwnerId { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonApplicationInstallParams  
+{
+    NetCord.JsonModels.JsonApplicationInstallParams Original { get; }
+    string[] Scopes { get; set; }
+    NetCord.Permissions Permissions { get; set; }
+}
+
+
+public interface IDiscordJsonApplicationIntegrationTypeConfiguration  
+{
+    NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration Original { get; }
+    IDiscordJsonApplicationInstallParams OAuth2InstallParams { get; set; }
+}
+
+
+public interface IDiscordJsonMessageSnapshotMessage  
+{
+    NetCord.JsonModels.JsonMessageSnapshotMessage Original { get; }
+    NetCord.MessageType Type { get; set; }
+    string Content { get; set; }
+    IDiscordJsonEmbed[] Embeds { get; set; }
+    IDiscordJsonAttachment[] Attachments { get; set; }
+    System.DateTimeOffset CreatedAt { get; set; }
+    System.DateTimeOffset? EditedAt { get; set; }
+    NetCord.MessageFlags? Flags { get; set; }
+    IDiscordJsonUser[] MentionedUsers { get; set; }
+    ulong[] MentionedRoleIds { get; set; }
+}
+
+
+public interface IDiscordJsonMessagePollMedia  
+{
+    NetCord.JsonModels.JsonMessagePollMedia Original { get; }
+    string Text { get; set; }
+    IDiscordJsonEmoji Emoji { get; set; }
+    ulong Id { get; set; }
+}
+
+
+public interface IDiscordJsonMessagePollAnswer  
+{
+    NetCord.JsonModels.JsonMessagePollAnswer Original { get; }
+    int AnswerId { get; set; }
+    IDiscordJsonMessagePollMedia PollMedia { get; set; }
+}
+
+
+public interface IDiscordJsonMessagePollResults  
+{
+    NetCord.JsonModels.JsonMessagePollResults Original { get; }
+    bool IsFinalized { get; set; }
+    IDiscordJsonMessagePollAnswerCount[] Answers { get; set; }
+    ulong Id { get; set; }
 }
 
 
@@ -3448,860 +5305,220 @@ public interface IDiscordMessagePollAnswerCount
 }
 
 
-public interface IDiscordRestClient  
+public interface IDiscordJsonVoiceState  
 {
-    NetCord.Rest.RestClient Original { get; }
-    IDiscordToken? Token { get; }
-    Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestAuditLogEntry>? GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite>? CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordThreadUser>? GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
-    Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default);
-    void Dispose();
-    Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUser>? GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildBan>? GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<int>? GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildScheduledEventUser>? GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordSubscription>? GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildUserInfo>? SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestGuild>? GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
-public interface IDiscordToken  
-{
-    NetCord.IToken Original { get; }
-    string RawToken { get; }
-    string HttpHeaderValue { get; }
-}
-
-
-public interface IDiscordCurrentApplication  
-{
-    NetCord.CurrentApplication Original { get; }
-    ulong Id { get; }
-    string Name { get; }
-    string? IconHash { get; }
-    string Description { get; }
-    IReadOnlyList<string> RpcOrigins { get; }
-    bool? BotPublic { get; }
-    bool? BotRequireCodeGrant { get; }
-    IDiscordUser? Bot { get; }
-    string? TermsOfServiceUrl { get; }
-    string? PrivacyPolicyUrl { get; }
-    IDiscordUser? Owner { get; }
-    string VerifyKey { get; }
-    IDiscordTeam? Team { get; }
-    ulong? GuildId { get; }
-    IDiscordRestGuild? Guild { get; }
-    ulong? PrimarySkuId { get; }
-    string? Slug { get; }
-    string? CoverImageHash { get; }
-    NetCord.ApplicationFlags? Flags { get; }
-    int? ApproximateGuildCount { get; }
-    int? ApproximateUserInstallCount { get; }
-    IReadOnlyList<string>? RedirectUris { get; }
-    string? InteractionsEndpointUrl { get; }
-    string? RoleConnectionsVerificationUrl { get; }
-    IReadOnlyList<string>? Tags { get; }
-    IDiscordApplicationInstallParams? InstallParams { get; }
-    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration { get; }
-    string? CustomInstallUrl { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordCurrentApplication> ModifyAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetRoleConnectionMetadataRecordsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateRoleConnectionMetadataRecordsAsync(IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordEntitlement>? GetEntitlementsAsync(IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordEntitlement> GetEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task ConsumeEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordEntitlement> CreateTestEntitlementAsync(IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteTestEntitlementAsync(ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl? GetCoverUrl(NetCord.ImageFormat format);
-    IDiscordImageUrl? GetAssetUrl(ulong assetId, NetCord.ImageFormat format);
-    IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format);
-    IDiscordImageUrl? GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format);
-    Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
-public interface IDiscordCurrentApplicationOptions  
-{
-    NetCord.Rest.CurrentApplicationOptions Original { get; }
-    string? CustomInstallUrl { get; set; }
-    string? Description { get; set; }
-    string? RoleConnectionsVerificationUrl { get; set; }
-    IDiscordApplicationInstallParamsProperties? InstallParams { get; set; }
-    IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties>? IntegrationTypesConfiguration { get; set; }
-    NetCord.ApplicationFlags? Flags { get; set; }
-    NetCord.Rest.ImageProperties? Icon { get; set; }
-    NetCord.Rest.ImageProperties? CoverImage { get; set; }
-    string? InteractionsEndpointUrl { get; set; }
-    IEnumerable<string>? Tags { get; set; }
-    IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl);
-    IDiscordCurrentApplicationOptions WithDescription(string description);
-    IDiscordCurrentApplicationOptions WithRoleConnectionsVerificationUrl(string roleConnectionsVerificationUrl);
-    IDiscordCurrentApplicationOptions WithInstallParams(IDiscordApplicationInstallParamsProperties? installParams);
-    IDiscordCurrentApplicationOptions WithIntegrationTypesConfiguration(IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfigurationProperties>? integrationTypesConfiguration);
-    IDiscordCurrentApplicationOptions WithFlags(NetCord.ApplicationFlags? flags);
-    IDiscordCurrentApplicationOptions WithIcon(NetCord.Rest.ImageProperties? icon);
-    IDiscordCurrentApplicationOptions WithCoverImage(NetCord.Rest.ImageProperties? coverImage);
-    IDiscordCurrentApplicationOptions WithInteractionsEndpointUrl(string interactionsEndpointUrl);
-    IDiscordCurrentApplicationOptions WithTags(IEnumerable<string>? tags);
-    IDiscordCurrentApplicationOptions AddTags(IEnumerable<string> tags);
-    IDiscordCurrentApplicationOptions AddTags(string[] tags);
-}
-
-
-public interface IDiscordApplicationRoleConnectionMetadata  
-{
-    NetCord.Rest.ApplicationRoleConnectionMetadata Original { get; }
-    NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; }
-    string Key { get; }
-    string Name { get; }
-    IReadOnlyDictionary<string, string>? NameLocalizations { get; }
-    string Description { get; }
-    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
-}
-
-
-public interface IDiscordApplicationRoleConnectionMetadataProperties  
-{
-    NetCord.Rest.ApplicationRoleConnectionMetadataProperties Original { get; }
-    NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; set; }
-    string Key { get; set; }
-    string Name { get; set; }
-    IReadOnlyDictionary<string, string>? NameLocalizations { get; set; }
-    string Description { get; set; }
-    IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; set; }
-    IDiscordApplicationRoleConnectionMetadataProperties WithType(NetCord.Rest.ApplicationRoleConnectionMetadataType type);
-    IDiscordApplicationRoleConnectionMetadataProperties WithKey(string key);
-    IDiscordApplicationRoleConnectionMetadataProperties WithName(string name);
-    IDiscordApplicationRoleConnectionMetadataProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
-    IDiscordApplicationRoleConnectionMetadataProperties WithDescription(string description);
-    IDiscordApplicationRoleConnectionMetadataProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string>? descriptionLocalizations);
-}
-
-
-public interface IDiscordGroupDMChannelOptions  
-{
-    NetCord.Rest.GroupDMChannelOptions Original { get; }
-    string? Name { get; set; }
-    NetCord.Rest.ImageProperties? Icon { get; set; }
-    IDiscordGroupDMChannelOptions WithName(string name);
-    IDiscordGroupDMChannelOptions WithIcon(NetCord.Rest.ImageProperties? icon);
-}
-
-
-public interface IDiscordFollowedChannel  
-{
-    NetCord.Rest.FollowedChannel Original { get; }
-    ulong Id { get; }
-    ulong WebhookId { get; }
-    System.DateTimeOffset CreatedAt { get; }
-}
-
-
-public interface IDiscordGroupDMChannelUserAddProperties  
-{
-    NetCord.Rest.GroupDMChannelUserAddProperties Original { get; }
-    string AccessToken { get; set; }
-    string? Nickname { get; set; }
-    IDiscordGroupDMChannelUserAddProperties WithAccessToken(string accessToken);
-    IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname);
-}
-
-
-public interface IDiscordForumGuildThread  
-{
-    NetCord.ForumGuildThread Original { get; }
-    IDiscordRestMessage Message { get; }
-    IReadOnlyList<ulong>? AppliedTags { get; }
-    ulong OwnerId { get; }
-    int MessageCount { get; }
-    int UserCount { get; }
-    IDiscordGuildThreadMetadata Metadata { get; }
-    IDiscordThreadCurrentUser? CurrentUser { get; }
-    int TotalMessageSent { get; }
-    ulong GuildId { get; }
-    int? Position { get; }
-    IReadOnlyDictionary<ulong, IDiscordPermissionOverwrite> PermissionOverwrites { get; }
-    string Name { get; }
-    string? Topic { get; }
-    bool Nsfw { get; }
-    int Slowmode { get; }
-    ulong? ParentId { get; }
-    NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
-    int DefaultThreadSlowmode { get; }
-    ulong? LastMessageId { get; }
-    System.DateTimeOffset? LastPin { get; }
-    ulong Id { get; }
-    NetCord.ChannelFlags Flags { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordForumGuildThread> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordForumGuildThread> ModifyAsync(Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordForumGuildThread> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task JoinAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task LeaveAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordThreadUser>? GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite>? CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeletePermissionAsync(ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGuildThread> CreateGuildThreadAsync(IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordGuildThread>? GetPublicArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread>? GetPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    IAsyncEnumerable<IDiscordGuildThread>? GetJoinedPrivateArchivedGuildThreadsAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordIncomingWebhook> CreateWebhookAsync(IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-}
-
-
-public interface IDiscordForumGuildThreadProperties  
-{
-    NetCord.Rest.ForumGuildThreadProperties Original { get; }
-    IDiscordForumGuildThreadMessageProperties Message { get; set; }
-    IEnumerable<ulong>? AppliedTags { get; set; }
-    string Name { get; set; }
-    NetCord.ThreadArchiveDuration? AutoArchiveDuration { get; set; }
-    int? Slowmode { get; set; }
-    HttpContent Serialize();
-    IDiscordForumGuildThreadProperties WithMessage(IDiscordForumGuildThreadMessageProperties message);
-    IDiscordForumGuildThreadProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
-    IDiscordForumGuildThreadProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags);
-    IDiscordForumGuildThreadProperties WithName(string name);
-    IDiscordForumGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
-    IDiscordForumGuildThreadProperties WithSlowmode(int? slowmode);
-}
-
-
-public interface IDiscordGatewayBot  
-{
-    NetCord.Rest.GatewayBot Original { get; }
-    string Url { get; }
-    int ShardCount { get; }
-    IDiscordGatewaySessionStartLimit SessionStartLimit { get; }
-}
-
-
-public interface IDiscordGuildProperties  
-{
-    NetCord.Rest.GuildProperties Original { get; }
-    string Name { get; set; }
-    NetCord.Rest.ImageProperties? Icon { get; set; }
-    NetCord.VerificationLevel? VerificationLevel { get; set; }
-    NetCord.DefaultMessageNotificationLevel? DefaultMessageNotificationLevel { get; set; }
-    NetCord.ContentFilter? ContentFilter { get; set; }
-    IEnumerable<IDiscordRoleProperties>? Roles { get; set; }
-    IEnumerable<IDiscordGuildChannelProperties>? Channels { get; set; }
-    ulong? AfkChannelId { get; set; }
-    int? AfkTimeout { get; set; }
-    ulong? SystemChannelId { get; set; }
-    NetCord.Rest.SystemChannelFlags? SystemChannelFlags { get; set; }
-    IDiscordGuildProperties WithName(string name);
-    IDiscordGuildProperties WithIcon(NetCord.Rest.ImageProperties? icon);
-    IDiscordGuildProperties WithVerificationLevel(NetCord.VerificationLevel? verificationLevel);
-    IDiscordGuildProperties WithDefaultMessageNotificationLevel(NetCord.DefaultMessageNotificationLevel? defaultMessageNotificationLevel);
-    IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter);
-    IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties>? roles);
-    IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles);
-    IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles);
-    IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties>? channels);
-    IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels);
-    IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels);
-    IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId);
-    IDiscordGuildProperties WithAfkTimeout(int? afkTimeout);
-    IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId);
-    IDiscordGuildProperties WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags);
-}
-
-
-public interface IDiscordEntitlementsPaginationProperties  
-{
-    NetCord.Rest.EntitlementsPaginationProperties Original { get; }
-    ulong? UserId { get; set; }
-    IEnumerable<ulong>? SkuIds { get; set; }
+    NetCord.Gateway.JsonModels.JsonVoiceState Original { get; }
     ulong? GuildId { get; set; }
-    bool? ExcludeEnded { get; set; }
-    ulong? From { get; set; }
-    NetCord.Rest.PaginationDirection? Direction { get; set; }
-    int? BatchSize { get; set; }
-    IDiscordEntitlementsPaginationProperties WithUserId(ulong? userId);
-    IDiscordEntitlementsPaginationProperties WithSkuIds(IEnumerable<ulong>? skuIds);
-    IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds);
-    IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds);
-    IDiscordEntitlementsPaginationProperties WithGuildId(ulong? guildId);
-    IDiscordEntitlementsPaginationProperties WithExcludeEnded(bool? excludeEnded = true);
-    IDiscordEntitlementsPaginationProperties WithFrom(ulong? from);
-    IDiscordEntitlementsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
-    IDiscordEntitlementsPaginationProperties WithBatchSize(int? batchSize);
+    ulong? ChannelId { get; set; }
+    ulong UserId { get; set; }
+    IDiscordJsonGuildUser? User { get; set; }
+    string SessionId { get; set; }
+    bool IsDeafened { get; set; }
+    bool IsMuted { get; set; }
+    bool IsSelfDeafened { get; set; }
+    bool IsSelfMuted { get; set; }
+    bool? SelfStreamExists { get; set; }
+    bool SelfVideoExists { get; set; }
+    bool Suppressed { get; set; }
+    System.DateTimeOffset? RequestToSpeakTimestamp { get; set; }
 }
 
 
-public interface IDiscordTestEntitlementProperties  
+public interface IDiscordJsonPresence  
 {
-    NetCord.Rest.TestEntitlementProperties Original { get; }
-    ulong SkuId { get; set; }
-    ulong OwnerId { get; set; }
-    NetCord.Rest.TestEntitlementOwnerType OwnerType { get; set; }
-    IDiscordTestEntitlementProperties WithSkuId(ulong skuId);
-    IDiscordTestEntitlementProperties WithOwnerId(ulong ownerId);
-    IDiscordTestEntitlementProperties WithOwnerType(NetCord.Rest.TestEntitlementOwnerType ownerType);
+    NetCord.Gateway.JsonModels.JsonPresence Original { get; }
+    IDiscordJsonUser User { get; set; }
+    ulong? GuildId { get; set; }
+    NetCord.UserStatusType Status { get; set; }
+    IDiscordJsonUserActivity[]? Activities { get; set; }
+    IReadOnlyDictionary<NetCord.Gateway.Platform, NetCord.UserStatusType> Platform { get; set; }
 }
 
 
-public interface IDiscordSku  
+public interface IDiscordJsonGuildWelcomeScreen  
 {
-    NetCord.Rest.Sku Original { get; }
-    ulong Id { get; }
-    NetCord.Rest.SkuType Type { get; }
-    ulong ApplicationId { get; }
-    string Name { get; }
-    string Slug { get; }
-    NetCord.Rest.SkuFlags Flags { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    IAsyncEnumerable<IDiscordSubscription>? GetSubscriptionsAsync(IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordSubscription> GetSubscriptionAsync(ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    NetCord.JsonModels.JsonGuildWelcomeScreen Original { get; }
+    string? Description { get; set; }
+    IDiscordJsonWelcomeScreenChannel[] WelcomeChannels { get; set; }
 }
 
 
-public interface IDiscordAuthorizationInformation  
+public interface IDiscordJsonStageInstance  
 {
-    NetCord.Rest.AuthorizationInformation Original { get; }
-    IDiscordApplication Application { get; }
-    IReadOnlyList<string> Scopes { get; }
-    System.DateTimeOffset ExpiresAt { get; }
-    IDiscordUser? User { get; }
-}
-
-
-public interface IDiscordStageInstanceProperties  
-{
-    NetCord.Rest.StageInstanceProperties Original { get; }
+    NetCord.JsonModels.JsonStageInstance Original { get; }
+    ulong GuildId { get; set; }
     ulong ChannelId { get; set; }
     string Topic { get; set; }
-    NetCord.StageInstancePrivacyLevel? PrivacyLevel { get; set; }
-    bool? SendStartNotification { get; set; }
-    ulong? GuildScheduledEventId { get; set; }
-    IDiscordStageInstanceProperties WithChannelId(ulong channelId);
-    IDiscordStageInstanceProperties WithTopic(string topic);
-    IDiscordStageInstanceProperties WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel);
-    IDiscordStageInstanceProperties WithSendStartNotification(bool? sendStartNotification = true);
-    IDiscordStageInstanceProperties WithGuildScheduledEventId(ulong? guildScheduledEventId);
+    NetCord.StageInstancePrivacyLevel PrivacyLevel { get; set; }
+    bool DiscoverableDisabled { get; set; }
+    ulong Id { get; set; }
 }
 
 
-public interface IDiscordStandardSticker  
+public interface IDiscordJsonSticker  
 {
-    NetCord.StandardSticker Original { get; }
-    ulong PackId { get; }
-    int? SortValue { get; }
-    ulong Id { get; }
-    string Name { get; }
-    string Description { get; }
-    IReadOnlyList<string> Tags { get; }
-    NetCord.StickerFormat Format { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
+    NetCord.JsonModels.JsonSticker Original { get; }
+    ulong? PackId { get; set; }
+    string Name { get; set; }
+    string Description { get; set; }
+    string Tags { get; set; }
+    NetCord.StickerFormat Format { get; set; }
+    bool? Available { get; set; }
+    ulong GuildId { get; set; }
+    IDiscordJsonUser? Creator { get; set; }
+    int SortValue { get; set; }
+    ulong Id { get; set; }
 }
 
 
-public interface IDiscordStickerPack  
+public interface IDiscordJsonGuildScheduledEvent  
 {
-    NetCord.Rest.StickerPack Original { get; }
-    IReadOnlyList<IDiscordSticker> Stickers { get; }
-    string Name { get; }
-    ulong SkuId { get; }
-    ulong? CoverStickerId { get; }
-    string Description { get; }
-    ulong? BannerAssetId { get; }
+    NetCord.JsonModels.JsonGuildScheduledEvent Original { get; }
+    ulong GuildId { get; set; }
+    ulong? ChannelId { get; set; }
+    ulong? CreatorId { get; set; }
+    string Name { get; set; }
+    string Description { get; set; }
+    System.DateTimeOffset ScheduledStartTime { get; set; }
+    System.DateTimeOffset? ScheduledEndTime { get; set; }
+    NetCord.GuildScheduledEventPrivacyLevel PrivacyLevel { get; set; }
+    NetCord.GuildScheduledEventStatus Status { get; set; }
+    NetCord.GuildScheduledEventEntityType EntityType { get; set; }
+    ulong? EntityId { get; set; }
+    IDiscordJsonGuildScheduledEventMetadata EntityMetadata { get; set; }
+    IDiscordJsonUser Creator { get; set; }
+    int? UserCount { get; set; }
+    string CoverImageHash { get; set; }
+    IDiscordJsonGuildScheduledEventRecurrenceRule RecurrenceRule { get; set; }
+    ulong Id { get; set; }
 }
 
 
-public interface IDiscordSubscription  
+public interface IDiscordJsonRoleTags  
 {
-    NetCord.Subscription Original { get; }
-    ulong Id { get; }
-    ulong UserId { get; }
-    IReadOnlyList<ulong> SkuIds { get; }
-    IReadOnlyList<ulong> EntitlementIds { get; }
-    IReadOnlyList<ulong>? RenewalSkuIds { get; }
-    System.DateTimeOffset CurrentPeriodStart { get; }
-    System.DateTimeOffset CurrentPeriodEnd { get; }
-    NetCord.SubscriptionStatus Status { get; }
-    System.DateTimeOffset? CanceledAt { get; }
-    string? Country { get; }
-    System.DateTimeOffset CreatedAt { get; }
+    NetCord.JsonModels.JsonRoleTags Original { get; }
+    ulong? BotId { get; set; }
+    ulong? IntegrationId { get; set; }
+    bool IsPremiumSubscriber { get; set; }
+    ulong? SubscriptionListingId { get; set; }
+    bool IsAvailableForPurchase { get; set; }
+    bool GuildConnections { get; set; }
 }
 
 
-public interface IDiscordSubscriptionPaginationProperties  
+public interface IDiscordJsonTeamUser  
 {
-    NetCord.Rest.SubscriptionPaginationProperties Original { get; }
-    ulong? UserId { get; set; }
-    ulong? From { get; set; }
-    NetCord.Rest.PaginationDirection? Direction { get; set; }
-    int? BatchSize { get; set; }
-    IDiscordSubscriptionPaginationProperties WithUserId(ulong? userId);
-    IDiscordSubscriptionPaginationProperties WithFrom(ulong? from);
-    IDiscordSubscriptionPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
-    IDiscordSubscriptionPaginationProperties WithBatchSize(int? batchSize);
+    NetCord.JsonModels.JsonTeamUser Original { get; }
+    NetCord.MembershipState MembershipState { get; set; }
+    ulong TeamId { get; set; }
+    IDiscordJsonUser User { get; set; }
+    NetCord.TeamRole Role { get; set; }
 }
 
 
-public interface IDiscordCurrentUser  
+public interface IDiscordJsonMessagePollAnswerCount  
 {
-    NetCord.CurrentUser Original { get; }
-    ulong Id { get; }
-    string Username { get; }
-    ushort Discriminator { get; }
-    string? GlobalName { get; }
-    string? AvatarHash { get; }
-    bool IsBot { get; }
-    bool? IsSystemUser { get; }
-    bool? MfaEnabled { get; }
-    string? BannerHash { get; }
-    NetCord.Color? AccentColor { get; }
-    string? Locale { get; }
-    bool? Verified { get; }
-    string? Email { get; }
-    NetCord.UserFlags? Flags { get; }
-    NetCord.PremiumType? PremiumType { get; }
-    NetCord.UserFlags? PublicFlags { get; }
-    IDiscordAvatarDecorationData? AvatarDecorationData { get; }
-    bool HasAvatar { get; }
-    bool HasBanner { get; }
-    bool HasAvatarDecoration { get; }
-    IDiscordImageUrl DefaultAvatarUrl { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordCurrentUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordCurrentUser> ModifyAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestGuild>? GetGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordConnection>> GetConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationRoleConnection> GetApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordApplicationRoleConnection> UpdateApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IDiscordImageUrl? GetAvatarUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl? GetAvatarDecorationUrl();
-    Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    NetCord.JsonModels.JsonMessagePollAnswerCount Original { get; }
+    int AnswerId { get; set; }
+    int Count { get; set; }
+    bool MeVoted { get; set; }
 }
 
 
-public interface IDiscordCurrentUserOptions  
+public interface IDiscordJsonUserActivity  
 {
-    NetCord.Rest.CurrentUserOptions Original { get; }
-    string? Username { get; set; }
-    NetCord.Rest.ImageProperties? Avatar { get; set; }
-    NetCord.Rest.ImageProperties? Banner { get; set; }
-    IDiscordCurrentUserOptions WithUsername(string username);
-    IDiscordCurrentUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
-    IDiscordCurrentUserOptions WithBanner(NetCord.Rest.ImageProperties? banner);
+    NetCord.Gateway.JsonModels.JsonUserActivity Original { get; }
+    string Name { get; set; }
+    NetCord.Gateway.UserActivityType Type { get; set; }
+    string Url { get; set; }
+    System.DateTimeOffset CreatedAt { get; set; }
+    IDiscordJsonUserActivityTimestamps Timestamps { get; set; }
+    ulong? ApplicationId { get; set; }
+    string Details { get; set; }
+    string State { get; set; }
+    IDiscordJsonEmoji Emoji { get; set; }
+    IDiscordJsonParty Party { get; set; }
+    IDiscordJsonUserActivityAssets Assets { get; set; }
+    IDiscordJsonUserActivitySecrets Secrets { get; set; }
+    bool? Instance { get; set; }
+    NetCord.Gateway.UserActivityFlags? Flags { get; set; }
+    string[] ButtonsLabels { get; set; }
 }
 
 
-public interface IDiscordGuildsPaginationProperties  
+public interface IDiscordJsonWelcomeScreenChannel  
 {
-    NetCord.Rest.GuildsPaginationProperties Original { get; }
-    bool WithCounts { get; set; }
-    ulong? From { get; set; }
-    NetCord.Rest.PaginationDirection? Direction { get; set; }
-    int? BatchSize { get; set; }
-    IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true);
-    IDiscordGuildsPaginationProperties WithFrom(ulong? from);
-    IDiscordGuildsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
-    IDiscordGuildsPaginationProperties WithBatchSize(int? batchSize);
+    NetCord.JsonModels.JsonWelcomeScreenChannel Original { get; }
+    ulong ChannelId { get; set; }
+    string Description { get; set; }
+    ulong? EmojiId { get; set; }
+    string? EmojiName { get; set; }
 }
 
 
-public interface IDiscordGroupDMChannel  
+public interface IDiscordJsonGuildScheduledEventMetadata  
 {
-    NetCord.GroupDMChannel Original { get; }
-    string Name { get; }
-    string? IconHash { get; }
-    ulong OwnerId { get; }
-    ulong? ApplicationId { get; }
-    bool Managed { get; }
-    IReadOnlyDictionary<ulong, IDiscordUser> Users { get; }
-    ulong? LastMessageId { get; }
-    System.DateTimeOffset? LastPin { get; }
-    ulong Id { get; }
-    NetCord.ChannelFlags Flags { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    Task<IDiscordGroupDMChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGroupDMChannel> ModifyAsync(Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordGroupDMChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddUserAsync(ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordRestMessage>? GetMessagesAsync(IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> SendMessageAsync(IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task PinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task UnpinMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    IAsyncEnumerable<IDiscordUser>? GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null);
-    Task<IDiscordRestMessage> EndMessagePollAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    NetCord.JsonModels.JsonGuildScheduledEventMetadata Original { get; }
+    string Location { get; set; }
 }
 
 
-public interface IDiscordGroupDMChannelProperties  
+public interface IDiscordJsonGuildScheduledEventRecurrenceRule  
 {
-    NetCord.Rest.GroupDMChannelProperties Original { get; }
-    IEnumerable<string> AccessTokens { get; set; }
-    IReadOnlyDictionary<ulong, string>? Nicknames { get; set; }
-    IDiscordGroupDMChannelProperties WithAccessTokens(IEnumerable<string> accessTokens);
-    IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens);
-    IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens);
-    IDiscordGroupDMChannelProperties WithNicknames(IReadOnlyDictionary<ulong, string>? nicknames);
+    NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule Original { get; }
+    System.DateTimeOffset? StartAt { get; set; }
+    System.DateTimeOffset? EndAt { get; set; }
+    NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency { get; set; }
+    int Interval { get; set; }
+    NetCord.GuildScheduledEventRecurrenceRuleWeekday[] ByWeekday { get; set; }
+    IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday[]? ByNWeekday { get; set; }
+    NetCord.GuildScheduledEventRecurrenceRuleMonth[] ByMonth { get; set; }
+    int[] ByMonthDay { get; set; }
+    int[] ByYearDay { get; set; }
+    int? Count { get; }
 }
 
 
-public interface IDiscordConnection  
+public interface IDiscordJsonUserActivityTimestamps  
 {
-    NetCord.Rest.Connection Original { get; }
-    string Id { get; }
-    string Name { get; }
-    NetCord.Rest.ConnectionType Type { get; }
-    bool? Revoked { get; }
-    IReadOnlyList<IDiscordIntegration>? Integrations { get; }
-    bool Verified { get; }
-    bool FriendSync { get; }
-    bool ShowActivity { get; }
-    bool TwoWayLink { get; }
-    NetCord.Rest.ConnectionVisibility Visibility { get; }
+    NetCord.Gateway.JsonModels.JsonUserActivityTimestamps Original { get; }
+    System.DateTimeOffset? StartTime { get; set; }
+    System.DateTimeOffset? EndTime { get; set; }
 }
 
 
-public interface IDiscordApplicationRoleConnection  
+public interface IDiscordJsonParty  
 {
-    NetCord.Rest.ApplicationRoleConnection Original { get; }
-    string? PlatformName { get; }
-    string? PlatformUsername { get; }
-    IReadOnlyDictionary<string, string> Metadata { get; }
+    NetCord.Gateway.JsonModels.JsonParty Original { get; }
+    string Id { get; set; }
+    int[] Size { get; set; }
 }
 
 
-public interface IDiscordApplicationRoleConnectionProperties  
+public interface IDiscordJsonUserActivityAssets  
 {
-    NetCord.Rest.ApplicationRoleConnectionProperties Original { get; }
-    string? PlatformName { get; set; }
-    string? PlatformUsername { get; set; }
-    IReadOnlyDictionary<string, string>? Metadata { get; set; }
-    IDiscordApplicationRoleConnectionProperties WithPlatformName(string platformName);
-    IDiscordApplicationRoleConnectionProperties WithPlatformUsername(string platformUsername);
-    IDiscordApplicationRoleConnectionProperties WithMetadata(IReadOnlyDictionary<string, string>? metadata);
+    NetCord.Gateway.JsonModels.JsonUserActivityAssets Original { get; }
+    string LargeImageId { get; set; }
+    string LargeText { get; set; }
+    string SmallImageId { get; set; }
+    string SmallText { get; set; }
 }
 
 
-public interface IDiscordApplicationInstallParamsProperties  
+public interface IDiscordJsonUserActivitySecrets  
 {
-    NetCord.Rest.ApplicationInstallParamsProperties Original { get; }
-    IEnumerable<string>? Scopes { get; set; }
-    NetCord.Permissions? Permissions { get; set; }
-    IDiscordApplicationInstallParamsProperties WithScopes(IEnumerable<string>? scopes);
-    IDiscordApplicationInstallParamsProperties AddScopes(IEnumerable<string> scopes);
-    IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes);
-    IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions);
+    NetCord.Gateway.JsonModels.JsonUserActivitySecrets Original { get; }
+    string Join { get; set; }
+    string Spectate { get; set; }
+    string Match { get; set; }
 }
 
 
-public interface IDiscordApplicationIntegrationTypeConfigurationProperties  
+public interface IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday  
 {
-    NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties Original { get; }
-    IDiscordApplicationInstallParamsProperties? OAuth2InstallParams { get; set; }
-    IDiscordApplicationIntegrationTypeConfigurationProperties WithOAuth2InstallParams(IDiscordApplicationInstallParamsProperties? oAuth2InstallParams);
-}
-
-
-public interface IDiscordForumGuildThreadMessageProperties  
-{
-    NetCord.Rest.ForumGuildThreadMessageProperties Original { get; }
-    string? Content { get; set; }
-    IEnumerable<IDiscordEmbedProperties>? Embeds { get; set; }
-    IDiscordAllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<IDiscordComponentProperties>? Components { get; set; }
-    IEnumerable<ulong>? StickerIds { get; set; }
-    IEnumerable<IDiscordAttachmentProperties>? Attachments { get; set; }
-    NetCord.MessageFlags? Flags { get; set; }
-    IDiscordForumGuildThreadMessageProperties WithContent(string content);
-    IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds);
-    IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds);
-    IDiscordForumGuildThreadMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds);
-    IDiscordForumGuildThreadMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions);
-    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components);
-    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components);
-    IDiscordForumGuildThreadMessageProperties AddComponents(IDiscordComponentProperties[] components);
-    IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
-    IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
-    IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds);
-    IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments);
-    IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments);
-    IDiscordForumGuildThreadMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments);
-    IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags);
-}
-
-
-public interface IDiscordGatewaySessionStartLimit  
-{
-    NetCord.Rest.GatewaySessionStartLimit Original { get; }
-    int Total { get; }
-    int Remaining { get; }
-    System.TimeSpan ResetAfter { get; }
-    int MaxConcurrency { get; }
-}
-
-
-public interface IDiscordSticker  
-{
-    NetCord.Sticker Original { get; }
-    ulong Id { get; }
-    string Name { get; }
-    string Description { get; }
-    IReadOnlyList<string> Tags { get; }
-    NetCord.StickerFormat Format { get; }
-    System.DateTimeOffset CreatedAt { get; }
-    IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format);
+    NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday Original { get; }
+    int N { get; set; }
+    NetCord.GuildScheduledEventRecurrenceRuleWeekday Day { get; set; }
 }
 
 
@@ -5074,6 +6291,34 @@ public class DiscordInteractionData : IDiscordInteractionData
 }
 
 
+public class DiscordJsonInteraction : IDiscordJsonInteraction 
+{
+    private readonly NetCord.JsonModels.JsonInteraction _original;
+    public DiscordJsonInteraction(NetCord.JsonModels.JsonInteraction original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonInteraction Original => _original;
+    public ulong ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public NetCord.InteractionType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IDiscordJsonInteractionData Data { get { return new DiscordJsonInteractionData(_original.Data); } set { _original.Data = value.Original; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public IDiscordJsonInteractionGuildReference GuildReference { get { return new DiscordJsonInteractionGuildReference(_original.GuildReference); } set { _original.GuildReference = value.Original; } }
+    public IDiscordJsonChannel Channel { get { return new DiscordJsonChannel(_original.Channel); } set { _original.Channel = value.Original; } }
+    public IDiscordJsonGuildUser GuildUser { get { return new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value.Original; } }
+    public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
+    public string Token { get { return _original.Token; } set { _original.Token = value; } }
+    public IDiscordJsonMessage Message { get { return new DiscordJsonMessage(_original.Message); } set { _original.Message = value.Original; } }
+    public NetCord.Permissions AppPermissions { get { return _original.AppPermissions; } set { _original.AppPermissions = value; } }
+    public string UserLocale { get { return _original.UserLocale; } set { _original.UserLocale = value; } }
+    public string GuildLocale { get { return _original.GuildLocale; } set { _original.GuildLocale = value; } }
+    public IDiscordJsonEntitlement[] Entitlements { get { return _original.Entitlements.Select(x => new DiscordJsonEntitlement(x)).ToArray(); } set { _original.Entitlements = value.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get { return _original.AuthorizingIntegrationOwners; } set { _original.AuthorizingIntegrationOwners = value; } }
+    public NetCord.InteractionContextType? Context { get { return _original.Context; } set { _original.Context = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
 public class DiscordInteractionCallback : IDiscordInteractionCallback 
 {
     private readonly NetCord.Rest.InteractionCallback _original;
@@ -5114,6 +6359,998 @@ public class DiscordRestRequestProperties : IDiscordRestRequestProperties
     public IDiscordRestRequestProperties WithErrorLocalization(string errorLocalization) 
     {
         return new DiscordRestRequestProperties(_original.WithErrorLocalization(errorLocalization));
+    }
+}
+
+
+public class DiscordRestClient : IDiscordRestClient 
+{
+    private readonly NetCord.Rest.RestClient _original;
+    public DiscordRestClient(NetCord.Rest.RestClient original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.RestClient Original => _original;
+    public IDiscordToken? Token => _original.Token is null ? null : new DiscordToken(_original.Token);
+    public async Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.GetCurrentApplicationAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.ModifyCurrentApplicationAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationRoleConnectionMetadataRecordsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
+    }
+    public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetGuildAuditLogAsync(guildId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordRestAuditLogEntry(original);
+        }
+    }
+    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetAutoModerationRulesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
+    }
+    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(guildId, autoModerationRuleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(guildId, autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.GetChannelAsync(channelId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.ModifyGroupDMChannelAsync(channelId, x => action(new DiscordGroupDMChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.ModifyGuildChannelAsync(channelId, x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.DeleteChannelAsync(channelId, properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetMessagesAsync(channelId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordRestMessage(original);
+        }
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetMessagesAroundAsync(channelId, messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendMessageAsync(channelId, message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.CrosspostMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties?.Original, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetMessageReactionsAsync(channelId, messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordUser(original);
+        }
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(channelId, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
+    }
+    public Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
+    }
+    public Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildChannelPermissionsAsync(channelId, permissionOverwrite.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildChannelInvitesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties?.Original, properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildChannelPermissionAsync(channelId, overwriteId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordFollowedChannel(await _original.FollowAnnouncementGuildChannelAsync(channelId, webhookChannelId, properties?.Original, cancellationToken));
+    }
+    public Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.TriggerTypingStateAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.EnterTypingStateAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetPinnedMessagesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.PinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnpinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
+    }
+    public Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GroupDMChannelAddUserAsync(channelId, userId, groupDMChannelUserAddProperties.Original, properties?.Original, cancellationToken);
+    }
+    public Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GroupDMChannelDeleteUserAsync(channelId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, messageId, threadFromMessageProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordForumGuildThread(await _original.CreateForumGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.JoinGuildThreadAsync(threadId, properties?.Original, cancellationToken);
+    }
+    public Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
+    }
+    public Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveGuildThreadAsync(threadId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordThreadUser(await _original.GetGuildThreadUserAsync(threadId, userId, withGuildUser, properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordThreadUser> GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetGuildThreadUsersAsync(threadId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordThreadUser(original);
+        }
+    }
+    public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildThread(original);
+        }
+    }
+    public async IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildThread(original);
+        }
+    }
+    public async IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildThread(original);
+        }
+    }
+    public Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendRequestAsync(method, route, query, resourceInfo, properties?.Original, global, cancellationToken);
+    }
+    public Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendRequestAsync(method, content, route, query, resourceInfo, properties?.Original, global, cancellationToken);
+    }
+    public void Dispose() 
+    {
+        _original.Dispose();
+    }
+    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildEmojisAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
+    }
+    public async Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.GetGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.CreateGuildEmojiAsync(guildId, guildEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildEmoji(await _original.ModifyGuildEmojiAsync(guildId, emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationEmojisAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
+    }
+    public async Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.CreateApplicationEmojiAsync(applicationId, applicationEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyApplicationEmojiAsync(applicationId, emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken);
+    }
+    public Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetGatewayAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGatewayBot(await _original.GetGatewayBotAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.GetGuildAsync(guildId, withCounts, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildPreview(await _original.GetGuildPreviewAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.ModifyGuildAsync(guildId, x => action(new DiscordGuildOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildAsync(guildId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildChannelsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
+    }
+    public async Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildChannel(await _original.CreateGuildChannelAsync(guildId, channelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildChannelPositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetActiveGuildThreadsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordGuildUser> GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildUser(original);
+        }
+    }
+    public async Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.FindGuildUserAsync(guildId, name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
+    }
+    public async Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        var temp = await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordGuildUser(temp);
+    }
+    public async Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyGuildUserAsync(guildId, userId, x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.ModifyCurrentGuildUserAsync(guildId, x => action(new DiscordCurrentGuildUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.AddGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.RemoveGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.KickGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordGuildBan> GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetGuildBansAsync(guildId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildBan(original);
+        }
+    }
+    public async Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBan(await _original.GetGuildBanAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
+    public Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.BanGuildUserAsync(guildId, userId, deleteMessageSeconds, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildBulkBan(await _original.BanGuildUsersAsync(guildId, userIds, deleteMessageSeconds, properties?.Original, cancellationToken));
+    }
+    public Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UnbanGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildRolesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.GetGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.CreateGuildRoleAsync(guildId, guildRoleProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.ModifyGuildRolePositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
+    }
+    public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRole(await _original.ModifyGuildRoleAsync(guildId, roleId, x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken);
+    }
+    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel, properties?.Original, cancellationToken);
+    }
+    public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetGuildPruneCountAsync(guildId, days, roles, properties?.Original, cancellationToken);
+    }
+    public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GuildPruneAsync(guildId, pruneProperties.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildVoiceRegionsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildInvitesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
+    }
+    public async Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildIntegrationsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
+    }
+    public Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildIntegrationAsync(guildId, integrationId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.GetGuildWidgetSettingsAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidgetSettings(await _original.ModifyGuildWidgetSettingsAsync(guildId, x => action(new DiscordGuildWidgetSettingsOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWidget(await _original.GetGuildWidgetAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildVanityInvite(await _original.GetGuildVanityInviteAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.GetGuildWelcomeScreenAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildWelcomeScreen(await _original.ModifyGuildWelcomeScreenAsync(guildId, x => action(new DiscordGuildWelcomeScreenOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.GetGuildOnboardingAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildOnboarding(await _original.ModifyGuildOnboardingAsync(guildId, x => action(new DiscordGuildOnboardingOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildScheduledEventsAsync(guildId, withUserCount, properties?.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
+    }
+    public async Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.CreateGuildScheduledEventAsync(guildId, guildScheduledEventProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.GetGuildScheduledEventAsync(guildId, scheduledEventId, withUserCount, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildScheduledEvent(await _original.ModifyGuildScheduledEventAsync(guildId, scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildScheduledEventAsync(guildId, scheduledEventId, properties?.Original, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetGuildScheduledEventUsersAsync(guildId, scheduledEventId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildScheduledEventUser(original);
+        }
+    }
+    public async Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.GetGuildTemplateAsync(templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestGuild(await _original.CreateGuildFromGuildTemplateAsync(templateCode, guildProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildTemplatesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
+    }
+    public async Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.CreateGuildTemplateAsync(guildId, guildTemplateProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.SyncGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.ModifyGuildTemplateAsync(guildId, templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildTemplate(await _original.DeleteGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGlobalApplicationCommandsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.CreateGlobalApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.GetGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.ModifyGlobalApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildApplicationCommandsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.CreateGuildApplicationCommandAsync(applicationId, guildId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.GetGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildApplicationCommand(await _original.ModifyGuildApplicationCommandAsync(applicationId, guildId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetApplicationCommandsGuildPermissionsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
+    }
+    public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SendInteractionResponseAsync(interactionId, interactionToken, callback.Original, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyInteractionResponseAsync(applicationId, interactionToken, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.SendInteractionFollowupMessageAsync(applicationId, interactionToken, message.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.GetGuildInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestInvite(await _original.DeleteGuildInviteAsync(inviteCode, properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetEntitlementsAsync(applicationId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordEntitlement(original);
+        }
+    }
+    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.GetEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken));
+    }
+    public Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ConsumeEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordEntitlement(await _original.CreateTestEntitlementAsync(applicationId, testEntitlementProperties.Original, properties?.Original, cancellationToken));
+    }
+    public Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteTestEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
+    }
+    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetSkusAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
+    }
+    public async Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentApplication(await _original.GetCurrentBotApplicationInformationAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordAuthorizationInformation(await _original.GetCurrentAuthorizationInformationAsync(properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(channelId, messageId, answerId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordUser(original);
+        }
+    }
+    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.EndMessagePollAsync(channelId, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.CreateStageInstanceAsync(stageInstanceProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.GetStageInstanceAsync(channelId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStageInstance(await _original.ModifyStageInstanceAsync(channelId, x => action(new DiscordStageInstanceOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteStageInstanceAsync(channelId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStandardSticker(await _original.GetStickerAsync(stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetStickerPacksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordStickerPack(x)).ToList();
+    }
+    public async Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordStickerPack(await _original.GetStickerPackAsync(stickerPackId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildStickersAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
+    }
+    public async Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.GetGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.CreateGuildStickerAsync(guildId, sticker.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildSticker(await _original.ModifyGuildStickerAsync(guildId, stickerId, x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordSubscription> GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetSkuSubscriptionsAsync(skuId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordSubscription(original);
+        }
+    }
+    public async Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordSubscription(await _original.GetSkuSubscriptionAsync(skuId, subscriptionId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplication(await _original.GetApplicationAsync(applicationId, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
+    public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.SearchGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordGuildUserInfo(original);
+        }
+    }
+    public async Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.GetCurrentUserAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetUserAsync(userId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordCurrentUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentUserOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async IAsyncEnumerable<IDiscordRestGuild> GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.GetCurrentUserGuildsAsync(paginationProperties?.Original, properties?.Original))
+        {
+            yield return new DiscordRestGuild(original);
+        }
+    }
+    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.LeaveGuildAsync(guildId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(userId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordGroupDMChannel(await _original.CreateGroupDMChannelAsync(groupDMChannelProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetCurrentUserConnectionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
+    }
+    public async Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.GetCurrentUserApplicationRoleConnectionAsync(applicationId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationRoleConnection(await _original.UpdateCurrentUserApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetVoiceRegionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
+    }
+    public async Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetCurrentGuildUserVoiceStateAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordVoiceState(await _original.GetGuildUserVoiceStateAsync(guildId, userId, properties?.Original, cancellationToken));
+    }
+    public Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyCurrentGuildUserVoiceStateAsync(guildId, x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.ModifyGuildUserVoiceStateAsync(guildId, channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.CreateWebhookAsync(channelId, webhookProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetChannelWebhooksAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
+    public async Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetGuildWebhooksAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
+    }
+    public async Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetWebhookAsync(webhookId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyWebhookAsync(webhookId, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyWebhookWithTokenAsync(webhookId, webhookToken, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookAsync(webhookId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        var temp = await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
+    }
+    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyWebhookMessageAsync(webhookId, webhookToken, messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties?.Original, cancellationToken);
+    }
+}
+
+
+public class DiscordGatewayClientCache : IDiscordGatewayClientCache 
+{
+    private readonly NetCord.Gateway.IGatewayClientCache _original;
+    public DiscordGatewayClientCache(NetCord.Gateway.IGatewayClientCache original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.IGatewayClientCache Original => _original;
+    public IDiscordCurrentUser? User => _original.User is null ? null : new DiscordCurrentUser(_original.User);
+    public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds => _original.Guilds.ToDictionary(kv => kv.Key, kv => (IDiscordGuild)new DiscordGuild(kv.Value));
+    public IDiscordGatewayClientCache CacheGuild(IDiscordGuild guild) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuild(guild.Original));
+    }
+    public IDiscordGatewayClientCache CacheGuildUser(IDiscordGuildUser user) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildUser(user.Original));
+    }
+    public IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IEnumerable<IDiscordGuildUser> users) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildUsers(guildId, users.Select(x => x.Original)));
+    }
+    public IDiscordGatewayClientCache CachePresences(ulong guildId, IEnumerable<IDiscordPresence> presences) 
+    {
+        return new DiscordGatewayClientCache(_original.CachePresences(guildId, presences.Select(x => x.Original)));
+    }
+    public IDiscordGatewayClientCache CacheRole(IDiscordRole role) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheRole(role.Original));
+    }
+    public IDiscordGatewayClientCache CacheGuildScheduledEvent(IDiscordGuildScheduledEvent scheduledEvent) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildScheduledEvent(scheduledEvent.Original));
+    }
+    public IDiscordGatewayClientCache CacheGuildEmojis(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildEmoji> emojis) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildEmojis(guildId, emojis.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordGatewayClientCache CacheGuildStickers(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildSticker> stickers) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildStickers(guildId, stickers.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordGatewayClientCache CacheGuildThread(IDiscordGuildThread thread) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildThread(thread.Original));
+    }
+    public IDiscordGatewayClientCache CacheGuildChannel(IDiscordGuildChannel channel) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheGuildChannel(channel.Original));
+    }
+    public IDiscordGatewayClientCache CacheStageInstance(IDiscordStageInstance stageInstance) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheStageInstance(stageInstance.Original));
+    }
+    public IDiscordGatewayClientCache CacheCurrentUser(IDiscordCurrentUser user) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheCurrentUser(user.Original));
+    }
+    public IDiscordGatewayClientCache CacheVoiceState(IDiscordVoiceState voiceState) 
+    {
+        return new DiscordGatewayClientCache(_original.CacheVoiceState(voiceState.Original));
+    }
+    public IDiscordGatewayClientCache CachePresence(IDiscordPresence presence) 
+    {
+        return new DiscordGatewayClientCache(_original.CachePresence(presence.Original));
+    }
+    public IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildThread> threads) 
+    {
+        return new DiscordGatewayClientCache(_original.SyncGuildActiveThreads(guildId, threads.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordGatewayClientCache SyncGuilds(IReadOnlyList<ulong> guildIds) 
+    {
+        return new DiscordGatewayClientCache(_original.SyncGuilds(guildIds));
+    }
+    public IDiscordGatewayClientCache RemoveGuild(ulong guildId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveGuild(guildId));
+    }
+    public IDiscordGatewayClientCache RemoveGuildUser(ulong guildId, ulong userId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveGuildUser(guildId, userId));
+    }
+    public IDiscordGatewayClientCache RemoveRole(ulong guildId, ulong roleId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveRole(guildId, roleId));
+    }
+    public IDiscordGatewayClientCache RemoveGuildScheduledEvent(ulong guildId, ulong scheduledEventId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveGuildScheduledEvent(guildId, scheduledEventId));
+    }
+    public IDiscordGatewayClientCache RemoveGuildThread(ulong guildId, ulong threadId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveGuildThread(guildId, threadId));
+    }
+    public IDiscordGatewayClientCache RemoveGuildChannel(ulong guildId, ulong channelId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveGuildChannel(guildId, channelId));
+    }
+    public IDiscordGatewayClientCache RemoveStageInstance(ulong guildId, ulong stageInstanceId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveStageInstance(guildId, stageInstanceId));
+    }
+    public IDiscordGatewayClientCache RemoveVoiceState(ulong guildId, ulong userId) 
+    {
+        return new DiscordGatewayClientCache(_original.RemoveVoiceState(guildId, userId));
     }
 }
 
@@ -6126,23 +8363,23 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     public string? Reason => _original.Reason;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, out var changeTemp);
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression) where TObjectParam : NetCord.JsonModels.JsonEntity
     {
         return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression));
     }
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo, out var changeTemp);
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) where TObjectParam : NetCord.JsonModels.JsonEntity
     {
         return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo));
     }
@@ -8414,6 +10651,54 @@ public class DiscordWebhook : IDiscordWebhook
 }
 
 
+public class DiscordJsonChannel : IDiscordJsonChannel 
+{
+    private readonly NetCord.JsonModels.JsonChannel _original;
+    public DiscordJsonChannel(NetCord.JsonModels.JsonChannel original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonChannel Original => _original;
+    public NetCord.ChannelType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public int? Position { get { return _original.Position; } set { _original.Position = value; } }
+    public IDiscordJsonPermissionOverwrite[]? PermissionOverwrites { get { return _original.PermissionOverwrites is null ? null : _original.PermissionOverwrites.Select(x => new DiscordJsonPermissionOverwrite(x)).ToArray(); } set { _original.PermissionOverwrites = value?.Select(x => x.Original).ToArray(); } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Topic { get { return _original.Topic; } set { _original.Topic = value; } }
+    public bool? Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
+    public ulong? LastMessageId { get { return _original.LastMessageId; } set { _original.LastMessageId = value; } }
+    public int? Bitrate { get { return _original.Bitrate; } set { _original.Bitrate = value; } }
+    public int? UserLimit { get { return _original.UserLimit; } set { _original.UserLimit = value; } }
+    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
+    public IDiscordJsonUser[]? Users { get { return _original.Users is null ? null : _original.Users.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.Users = value?.Select(x => x.Original).ToArray(); } }
+    public string IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
+    public ulong? OwnerId { get { return _original.OwnerId; } set { _original.OwnerId = value; } }
+    public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public bool? Managed { get { return _original.Managed; } set { _original.Managed = value; } }
+    public ulong? ParentId { get { return _original.ParentId; } set { _original.ParentId = value; } }
+    public System.DateTimeOffset? LastPin { get { return _original.LastPin; } set { _original.LastPin = value; } }
+    public string RtcRegion { get { return _original.RtcRegion; } set { _original.RtcRegion = value; } }
+    public NetCord.VideoQualityMode? VideoQualityMode { get { return _original.VideoQualityMode; } set { _original.VideoQualityMode = value; } }
+    public int? MessageCount { get { return _original.MessageCount; } set { _original.MessageCount = value; } }
+    public int? UserCount { get { return _original.UserCount; } set { _original.UserCount = value; } }
+    public IDiscordJsonGuildThreadMetadata Metadata { get { return new DiscordJsonGuildThreadMetadata(_original.Metadata); } set { _original.Metadata = value.Original; } }
+    public IDiscordJsonThreadCurrentUser CurrentUser { get { return new DiscordJsonThreadCurrentUser(_original.CurrentUser); } set { _original.CurrentUser = value.Original; } }
+    public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get { return _original.DefaultAutoArchiveDuration; } set { _original.DefaultAutoArchiveDuration = value; } }
+    public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
+    public NetCord.ChannelFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public int? TotalMessageSent { get { return _original.TotalMessageSent; } set { _original.TotalMessageSent = value; } }
+    public IDiscordJsonForumTag[]? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordJsonForumTag(x)).ToArray(); } set { _original.AvailableTags = value?.Select(x => x.Original).ToArray(); } }
+    public ulong[] AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
+    public IDiscordJsonForumGuildChannelDefaultReaction DefaultReactionEmoji { get { return new DiscordJsonForumGuildChannelDefaultReaction(_original.DefaultReactionEmoji); } set { _original.DefaultReactionEmoji = value.Original; } }
+    public int? DefaultThreadSlowmode { get { return _original.DefaultThreadSlowmode; } set { _original.DefaultThreadSlowmode = value; } }
+    public NetCord.SortOrderType? DefaultSortOrder { get { return _original.DefaultSortOrder; } set { _original.DefaultSortOrder = value; } }
+    public NetCord.ForumLayoutType? DefaultForumLayout { get { return _original.DefaultForumLayout; } set { _original.DefaultForumLayout = value; } }
+    public IDiscordJsonMessage Message { get { return new DiscordJsonMessage(_original.Message); } set { _original.Message = value.Original; } }
+    public bool? NewlyCreated { get { return _original.NewlyCreated; } set { _original.NewlyCreated = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
 public class DiscordMessageProperties : IDiscordMessageProperties 
 {
     private readonly NetCord.Rest.MessageProperties _original;
@@ -8743,2820 +11028,201 @@ public class DiscordDMChannel : IDiscordDMChannel
 }
 
 
-public class DiscordGuildChannelMention : IDiscordGuildChannelMention 
+public class DiscordJsonInteractionData : IDiscordJsonInteractionData 
 {
-    private readonly NetCord.GuildChannelMention _original;
-    public DiscordGuildChannelMention(NetCord.GuildChannelMention original)
+    private readonly NetCord.JsonModels.JsonInteractionData _original;
+    public DiscordJsonInteractionData(NetCord.JsonModels.JsonInteractionData original)
     {
         _original = original;
     }
-    public NetCord.GuildChannelMention Original => _original;
-    public ulong Id => _original.Id;
-    public ulong GuildId => _original.GuildId;
-    public NetCord.ChannelType Type => _original.Type;
-    public string Name => _original.Name;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordAttachment : IDiscordAttachment 
-{
-    private readonly NetCord.Attachment _original;
-    public DiscordAttachment(NetCord.Attachment original)
-    {
-        _original = original;
-    }
-    public NetCord.Attachment Original => _original;
-    public ulong Id => _original.Id;
-    public string FileName => _original.FileName;
-    public string? Title => _original.Title;
-    public string? Description => _original.Description;
-    public string? ContentType => _original.ContentType;
-    public int Size => _original.Size;
-    public string Url => _original.Url;
-    public string ProxyUrl => _original.ProxyUrl;
-    public bool Ephemeral => _original.Ephemeral;
-    public NetCord.AttachmentFlags Flags => _original.Flags;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordAttachmentExpirationInfo GetExpirationInfo() 
-    {
-        return new DiscordAttachmentExpirationInfo(_original.GetExpirationInfo());
-    }
-}
-
-
-public class DiscordEmbed : IDiscordEmbed 
-{
-    private readonly NetCord.Embed _original;
-    public DiscordEmbed(NetCord.Embed original)
-    {
-        _original = original;
-    }
-    public NetCord.Embed Original => _original;
-    public string? Title => _original.Title;
-    public NetCord.EmbedType? Type => _original.Type;
-    public string? Description => _original.Description;
-    public string? Url => _original.Url;
-    public System.DateTimeOffset? Timestamp => _original.Timestamp;
-    public NetCord.Color? Color => _original.Color;
-    public IDiscordEmbedFooter? Footer => _original.Footer is null ? null : new DiscordEmbedFooter(_original.Footer);
-    public IDiscordEmbedImage? Image => _original.Image is null ? null : new DiscordEmbedImage(_original.Image);
-    public IDiscordEmbedThumbnail? Thumbnail => _original.Thumbnail is null ? null : new DiscordEmbedThumbnail(_original.Thumbnail);
-    public IDiscordEmbedVideo? Video => _original.Video is null ? null : new DiscordEmbedVideo(_original.Video);
-    public IDiscordEmbedProvider? Provider => _original.Provider is null ? null : new DiscordEmbedProvider(_original.Provider);
-    public IDiscordEmbedAuthor? Author => _original.Author is null ? null : new DiscordEmbedAuthor(_original.Author);
-    public IReadOnlyList<IDiscordEmbedField> Fields => _original.Fields.Select(x => new DiscordEmbedField(x)).ToList();
-}
-
-
-public class DiscordMessageReaction : IDiscordMessageReaction 
-{
-    private readonly NetCord.MessageReaction _original;
-    public DiscordMessageReaction(NetCord.MessageReaction original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageReaction Original => _original;
-    public int Count => _original.Count;
-    public IDiscordMessageReactionCountDetails CountDetails => new DiscordMessageReactionCountDetails(_original.CountDetails);
-    public bool Me => _original.Me;
-    public bool MeBurst => _original.MeBurst;
-    public IDiscordMessageReactionEmoji Emoji => new DiscordMessageReactionEmoji(_original.Emoji);
-    public IReadOnlyList<NetCord.Color> BurstColors => _original.BurstColors;
-}
-
-
-public class DiscordMessageActivity : IDiscordMessageActivity 
-{
-    private readonly NetCord.MessageActivity _original;
-    public DiscordMessageActivity(NetCord.MessageActivity original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageActivity Original => _original;
-    public NetCord.MessageActivityType Type => _original.Type;
-    public string? PartyId => _original.PartyId;
-}
-
-
-public class DiscordApplication : IDiscordApplication 
-{
-    private readonly NetCord.Application _original;
-    public DiscordApplication(NetCord.Application original)
-    {
-        _original = original;
-    }
-    public NetCord.Application Original => _original;
-    public ulong Id => _original.Id;
-    public string Name => _original.Name;
-    public string? IconHash => _original.IconHash;
-    public string Description => _original.Description;
-    public IReadOnlyList<string> RpcOrigins => _original.RpcOrigins;
-    public bool? BotPublic => _original.BotPublic;
-    public bool? BotRequireCodeGrant => _original.BotRequireCodeGrant;
-    public IDiscordUser? Bot => _original.Bot is null ? null : new DiscordUser(_original.Bot);
-    public string? TermsOfServiceUrl => _original.TermsOfServiceUrl;
-    public string? PrivacyPolicyUrl => _original.PrivacyPolicyUrl;
-    public IDiscordUser? Owner => _original.Owner is null ? null : new DiscordUser(_original.Owner);
-    public string VerifyKey => _original.VerifyKey;
-    public IDiscordTeam? Team => _original.Team is null ? null : new DiscordTeam(_original.Team);
-    public ulong? GuildId => _original.GuildId;
-    public IDiscordRestGuild? Guild => _original.Guild is null ? null : new DiscordRestGuild(_original.Guild);
-    public ulong? PrimarySkuId => _original.PrimarySkuId;
-    public string? Slug => _original.Slug;
-    public string? CoverImageHash => _original.CoverImageHash;
-    public NetCord.ApplicationFlags? Flags => _original.Flags;
-    public int? ApproximateGuildCount => _original.ApproximateGuildCount;
-    public int? ApproximateUserInstallCount => _original.ApproximateUserInstallCount;
-    public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
-    public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
-    public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
-    public IReadOnlyList<string>? Tags => _original.Tags;
-    public IDiscordApplicationInstallParams? InstallParams => _original.InstallParams is null ? null : new DiscordApplicationInstallParams(_original.InstallParams);
-    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration is null ? null : _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
-    public string? CustomInstallUrl => _original.CustomInstallUrl;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetIconUrl(format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public IDiscordImageUrl? GetCoverUrl(NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetCoverUrl(format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public IDiscordImageUrl? GetAssetUrl(ulong assetId, NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetAssetUrl(assetId, format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetAchievementIconUrl(achievementId, iconHash, format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public IDiscordImageUrl? GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetStorePageAssetUrl(assetId, format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
-    }
-    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplication(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-}
-
-
-public class DiscordMessageReference : IDiscordMessageReference 
-{
-    private readonly NetCord.MessageReference _original;
-    public DiscordMessageReference(NetCord.MessageReference original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageReference Original => _original;
-    public ulong MessageId => _original.MessageId;
-    public ulong ChannelId => _original.ChannelId;
-    public ulong? GuildId => _original.GuildId;
-    public bool? FailIfNotExists => _original.FailIfNotExists;
-}
-
-
-public class DiscordMessageSnapshot : IDiscordMessageSnapshot 
-{
-    private readonly NetCord.MessageSnapshot _original;
-    public DiscordMessageSnapshot(NetCord.MessageSnapshot original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageSnapshot Original => _original;
-    public IDiscordMessageSnapshotMessage Message => new DiscordMessageSnapshotMessage(_original.Message);
-}
-
-
-public class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetadata 
-{
-    private readonly NetCord.MessageInteractionMetadata _original;
-    public DiscordMessageInteractionMetadata(NetCord.MessageInteractionMetadata original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageInteractionMetadata Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.InteractionType Type => _original.Type;
-    public IDiscordUser User => new DiscordUser(_original.User);
-    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
-    public ulong? OriginalResponseMessageId => _original.OriginalResponseMessageId;
-    public ulong? InteractedMessageId => _original.InteractedMessageId;
-    public IDiscordMessageInteractionMetadata? TriggeringInteractionMetadata => _original.TriggeringInteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.TriggeringInteractionMetadata);
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordComponent : IDiscordComponent 
-{
-    private readonly NetCord.IComponent _original;
-    public DiscordComponent(NetCord.IComponent original)
-    {
-        _original = original;
-    }
-    public NetCord.IComponent Original => _original;
-    public int Id => _original.Id;
-}
-
-
-public class DiscordMessageSticker : IDiscordMessageSticker 
-{
-    private readonly NetCord.MessageSticker _original;
-    public DiscordMessageSticker(NetCord.MessageSticker original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageSticker Original => _original;
-    public ulong Id => _original.Id;
-    public string Name => _original.Name;
-    public NetCord.StickerFormat Format => _original.Format;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordRoleSubscriptionData : IDiscordRoleSubscriptionData 
-{
-    private readonly NetCord.RoleSubscriptionData _original;
-    public DiscordRoleSubscriptionData(NetCord.RoleSubscriptionData original)
-    {
-        _original = original;
-    }
-    public NetCord.RoleSubscriptionData Original => _original;
-    public ulong RoleSubscriptionListingId => _original.RoleSubscriptionListingId;
-    public string TierName => _original.TierName;
-    public int TotalMonthsSubscribed => _original.TotalMonthsSubscribed;
-    public bool IsRenewal => _original.IsRenewal;
-}
-
-
-public class DiscordInteractionResolvedData : IDiscordInteractionResolvedData 
-{
-    private readonly NetCord.InteractionResolvedData _original;
-    public DiscordInteractionResolvedData(NetCord.InteractionResolvedData original)
-    {
-        _original = original;
-    }
-    public NetCord.InteractionResolvedData Original => _original;
-    public IReadOnlyDictionary<ulong, IDiscordUser>? Users => _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordChannel>? Channels => _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordChannel)new DiscordChannel(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordAttachment>? Attachments => _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordAttachment)new DiscordAttachment(kv.Value));
-}
-
-
-public class DiscordMessagePoll : IDiscordMessagePoll 
-{
-    private readonly NetCord.MessagePoll _original;
-    public DiscordMessagePoll(NetCord.MessagePoll original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePoll Original => _original;
-    public IDiscordMessagePollMedia Question => new DiscordMessagePollMedia(_original.Question);
-    public IReadOnlyList<IDiscordMessagePollAnswer> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswer(x)).ToList();
-    public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
-    public bool AllowMultiselect => _original.AllowMultiselect;
-    public NetCord.MessagePollLayoutType LayoutType => _original.LayoutType;
-    public IDiscordMessagePollResults? Results => _original.Results is null ? null : new DiscordMessagePollResults(_original.Results);
-}
-
-
-public class DiscordMessageCall : IDiscordMessageCall 
-{
-    private readonly NetCord.Rest.MessageCall _original;
-    public DiscordMessageCall(NetCord.Rest.MessageCall original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.MessageCall Original => _original;
-    public IReadOnlyList<ulong> Participants => _original.Participants;
-    public System.DateTimeOffset? EndedAt => _original.EndedAt;
-}
-
-
-public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties 
-{
-    private readonly NetCord.Rest.ReplyMessageProperties _original;
-    public DiscordReplyMessageProperties(NetCord.Rest.ReplyMessageProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ReplyMessageProperties Original => _original;
-    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
-    public IDiscordNonceProperties? Nonce { get { return _original.Nonce is null ? null : new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value?.Original; } }
-    public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
-    public IEnumerable<IDiscordAttachmentProperties>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordAttachmentProperties(x)); } set { _original.Attachments = value?.Select(x => x.Original); } }
-    public IEnumerable<IDiscordEmbedProperties>? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordEmbedProperties(x)); } set { _original.Embeds = value?.Select(x => x.Original); } }
-    public IDiscordAllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions); } set { _original.AllowedMentions = value?.Original; } }
-    public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
-    public IEnumerable<IDiscordComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
-    public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
-    public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
-    public IDiscordMessageProperties ToMessageProperties(ulong messageReferenceId) 
-    {
-        return new DiscordMessageProperties(_original.ToMessageProperties(messageReferenceId));
-    }
-    public IDiscordReplyMessageProperties WithContent(string content) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithContent(content));
-    }
-    public IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties? nonce) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithNonce(nonce?.Original));
-    }
-    public IDiscordReplyMessageProperties WithTts(bool tts = true) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithTts(tts));
-    }
-    public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordReplyMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
-    }
-    public IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
-    }
-    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
-    }
-    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
-    }
-    public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
-    }
-    public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
-    }
-    public IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithFlags(flags));
-    }
-    public IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties? poll) 
-    {
-        return new DiscordReplyMessageProperties(_original.WithPoll(poll?.Original));
-    }
-}
-
-
-public class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMessageProperties 
-{
-    private readonly NetCord.Rest.GuildThreadFromMessageProperties _original;
-    public DiscordGuildThreadFromMessageProperties(NetCord.Rest.GuildThreadFromMessageProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildThreadFromMessageProperties Original => _original;
+    public NetCord.JsonModels.JsonInteractionData Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
     public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
-    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
-    public IDiscordGuildThreadFromMessageProperties WithName(string name) 
-    {
-        return new DiscordGuildThreadFromMessageProperties(_original.WithName(name));
-    }
-    public IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
-    {
-        return new DiscordGuildThreadFromMessageProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    }
-    public IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode) 
-    {
-        return new DiscordGuildThreadFromMessageProperties(_original.WithSlowmode(slowmode));
-    }
+    public NetCord.ApplicationCommandType? Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IDiscordJsonInteractionResolvedData ResolvedData { get { return new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value.Original; } }
+    public IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordJsonApplicationCommandInteractionDataOption(x)).ToArray(); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
+    public string CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
+    public NetCord.ComponentType? ComponentType { get { return _original.ComponentType; } set { _original.ComponentType = value; } }
+    public string[]? SelectedValues { get { return _original.SelectedValues; } set { _original.SelectedValues = value; } }
+    public ulong? TargetId { get { return _original.TargetId; } set { _original.TargetId = value; } }
+    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
 }
 
 
-public class DiscordEmbedProperties : IDiscordEmbedProperties 
+public class DiscordJsonInteractionGuildReference : IDiscordJsonInteractionGuildReference 
 {
-    private readonly NetCord.Rest.EmbedProperties _original;
-    public DiscordEmbedProperties(NetCord.Rest.EmbedProperties original)
+    private readonly NetCord.JsonModels.JsonInteractionGuildReference _original;
+    public DiscordJsonInteractionGuildReference(NetCord.JsonModels.JsonInteractionGuildReference original)
     {
         _original = original;
     }
-    public NetCord.Rest.EmbedProperties Original => _original;
-    public string? Title { get { return _original.Title; } set { _original.Title = value; } }
-    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
-    public System.DateTimeOffset? Timestamp { get { return _original.Timestamp; } set { _original.Timestamp = value; } }
-    public NetCord.Color Color { get { return _original.Color; } set { _original.Color = value; } }
-    public IDiscordEmbedFooterProperties? Footer { get { return _original.Footer is null ? null : new DiscordEmbedFooterProperties(_original.Footer); } set { _original.Footer = value?.Original; } }
-    public IDiscordEmbedImageProperties? Image { get { return _original.Image is null ? null : new DiscordEmbedImageProperties(_original.Image); } set { _original.Image = value?.Original; } }
-    public IDiscordEmbedThumbnailProperties? Thumbnail { get { return _original.Thumbnail is null ? null : new DiscordEmbedThumbnailProperties(_original.Thumbnail); } set { _original.Thumbnail = value?.Original; } }
-    public IDiscordEmbedAuthorProperties? Author { get { return _original.Author is null ? null : new DiscordEmbedAuthorProperties(_original.Author); } set { _original.Author = value?.Original; } }
-    public IEnumerable<IDiscordEmbedFieldProperties>? Fields { get { return _original.Fields is null ? null : _original.Fields.Select(x => new DiscordEmbedFieldProperties(x)); } set { _original.Fields = value?.Select(x => x.Original); } }
-    public IDiscordEmbedProperties WithTitle(string title) 
-    {
-        return new DiscordEmbedProperties(_original.WithTitle(title));
-    }
-    public IDiscordEmbedProperties WithDescription(string description) 
-    {
-        return new DiscordEmbedProperties(_original.WithDescription(description));
-    }
-    public IDiscordEmbedProperties WithUrl(string url) 
-    {
-        return new DiscordEmbedProperties(_original.WithUrl(url));
-    }
-    public IDiscordEmbedProperties WithTimestamp(System.DateTimeOffset? timestamp) 
-    {
-        return new DiscordEmbedProperties(_original.WithTimestamp(timestamp));
-    }
-    public IDiscordEmbedProperties WithColor(NetCord.Color color) 
-    {
-        return new DiscordEmbedProperties(_original.WithColor(color));
-    }
-    public IDiscordEmbedProperties WithFooter(IDiscordEmbedFooterProperties? footer) 
-    {
-        return new DiscordEmbedProperties(_original.WithFooter(footer?.Original));
-    }
-    public IDiscordEmbedProperties WithImage(IDiscordEmbedImageProperties? image) 
-    {
-        return new DiscordEmbedProperties(_original.WithImage(image?.Original));
-    }
-    public IDiscordEmbedProperties WithThumbnail(IDiscordEmbedThumbnailProperties? thumbnail) 
-    {
-        return new DiscordEmbedProperties(_original.WithThumbnail(thumbnail?.Original));
-    }
-    public IDiscordEmbedProperties WithAuthor(IDiscordEmbedAuthorProperties? author) 
-    {
-        return new DiscordEmbedProperties(_original.WithAuthor(author?.Original));
-    }
-    public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties>? fields) 
-    {
-        return new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
-    }
-    public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
-    {
-        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original)));
-    }
-    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) 
-    {
-        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original).ToArray()));
-    }
-}
-
-
-public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsProperties 
-{
-    private readonly NetCord.Rest.AllowedMentionsProperties _original;
-    public DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.AllowedMentionsProperties Original => _original;
-    public bool Everyone { get { return _original.Everyone; } set { _original.Everyone = value; } }
-    public IEnumerable<ulong>? AllowedRoles { get { return _original.AllowedRoles; } set { _original.AllowedRoles = value; } }
-    public IEnumerable<ulong>? AllowedUsers { get { return _original.AllowedUsers; } set { _original.AllowedUsers = value; } }
-    public bool ReplyMention { get { return _original.ReplyMention; } set { _original.ReplyMention = value; } }
-    public static IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.All);
-    public static IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.None);
-    public IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.WithEveryone(everyone));
-    }
-    public IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong>? allowedRoles) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.WithAllowedRoles(allowedRoles));
-    }
-    public IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
-    }
-    public IDiscordAllowedMentionsProperties AddAllowedRoles(ulong[] allowedRoles) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
-    }
-    public IDiscordAllowedMentionsProperties WithAllowedUsers(IEnumerable<ulong>? allowedUsers) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.WithAllowedUsers(allowedUsers));
-    }
-    public IDiscordAllowedMentionsProperties AddAllowedUsers(IEnumerable<ulong> allowedUsers) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
-    }
-    public IDiscordAllowedMentionsProperties AddAllowedUsers(ulong[] allowedUsers) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
-    }
-    public IDiscordAllowedMentionsProperties WithReplyMention(bool replyMention = true) 
-    {
-        return new DiscordAllowedMentionsProperties(_original.WithReplyMention(replyMention));
-    }
-}
-
-
-public class DiscordComponentProperties : IDiscordComponentProperties 
-{
-    private readonly NetCord.Rest.IComponentProperties _original;
-    public DiscordComponentProperties(NetCord.Rest.IComponentProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.IComponentProperties Original => _original;
-    public int? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public NetCord.ComponentType ComponentType => _original.ComponentType;
-    public IDiscordComponentProperties WithId(int? id) 
-    {
-        return new DiscordComponentProperties(_original.WithId(id));
-    }
-}
-
-
-public class DiscordAttachmentProperties : IDiscordAttachmentProperties 
-{
-    private readonly NetCord.Rest.AttachmentProperties _original;
-    public DiscordAttachmentProperties(NetCord.Rest.AttachmentProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.AttachmentProperties Original => _original;
-    public string FileName { get { return _original.FileName; } set { _original.FileName = value; } }
-    public string? Title { get { return _original.Title; } set { _original.Title = value; } }
-    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public bool SupportsHttpSerialization => _original.SupportsHttpSerialization;
-    public HttpContent Serialize() 
-    {
-        return _original.Serialize();
-    }
-    public IDiscordAttachmentProperties WithFileName(string fileName) 
-    {
-        return new DiscordAttachmentProperties(_original.WithFileName(fileName));
-    }
-    public IDiscordAttachmentProperties WithTitle(string title) 
-    {
-        return new DiscordAttachmentProperties(_original.WithTitle(title));
-    }
-    public IDiscordAttachmentProperties WithDescription(string description) 
-    {
-        return new DiscordAttachmentProperties(_original.WithDescription(description));
-    }
-}
-
-
-public class DiscordMessagePollProperties : IDiscordMessagePollProperties 
-{
-    private readonly NetCord.MessagePollProperties _original;
-    public DiscordMessagePollProperties(NetCord.MessagePollProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollProperties Original => _original;
-    public IDiscordMessagePollMediaProperties Question { get { return new DiscordMessagePollMediaProperties(_original.Question); } set { _original.Question = value.Original; } }
-    public IEnumerable<IDiscordMessagePollAnswerProperties> Answers { get { return _original.Answers.Select(x => new DiscordMessagePollAnswerProperties(x)); } set { _original.Answers = value.Select(x => x.Original); } }
-    public int? DurationInHours { get { return _original.DurationInHours; } set { _original.DurationInHours = value; } }
-    public bool AllowMultiselect { get { return _original.AllowMultiselect; } set { _original.AllowMultiselect = value; } }
-    public NetCord.MessagePollLayoutType? LayoutType { get { return _original.LayoutType; } set { _original.LayoutType = value; } }
-    public IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question) 
-    {
-        return new DiscordMessagePollProperties(_original.WithQuestion(question.Original));
-    }
-    public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
-    {
-        return new DiscordMessagePollProperties(_original.WithAnswers(answers.Select(x => x.Original)));
-    }
-    public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
-    {
-        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original)));
-    }
-    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) 
-    {
-        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) 
-    {
-        return new DiscordMessagePollProperties(_original.WithDurationInHours(durationInHours));
-    }
-    public IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true) 
-    {
-        return new DiscordMessagePollProperties(_original.WithAllowMultiselect(allowMultiselect));
-    }
-    public IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType) 
-    {
-        return new DiscordMessagePollProperties(_original.WithLayoutType(layoutType));
-    }
-}
-
-
-public class DiscordPermissionOverwrite : IDiscordPermissionOverwrite 
-{
-    private readonly NetCord.PermissionOverwrite _original;
-    public DiscordPermissionOverwrite(NetCord.PermissionOverwrite original)
-    {
-        _original = original;
-    }
-    public NetCord.PermissionOverwrite Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.PermissionOverwriteType Type => _original.Type;
-    public NetCord.Permissions Allowed => _original.Allowed;
-    public NetCord.Permissions Denied => _original.Denied;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions 
-{
-    private readonly NetCord.Rest.GuildChannelOptions _original;
-    public DiscordGuildChannelOptions(NetCord.Rest.GuildChannelOptions original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildChannelOptions Original => _original;
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.ChannelType? ChannelType { get { return _original.ChannelType; } set { _original.ChannelType = value; } }
-    public int? Position { get { return _original.Position; } set { _original.Position = value; } }
-    public string? Topic { get { return _original.Topic; } set { _original.Topic = value; } }
-    public bool? Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
-    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
-    public int? Bitrate { get { return _original.Bitrate; } set { _original.Bitrate = value; } }
-    public int? UserLimit { get { return _original.UserLimit; } set { _original.UserLimit = value; } }
-    public IEnumerable<IDiscordPermissionOverwriteProperties>? PermissionOverwrites { get { return _original.PermissionOverwrites is null ? null : _original.PermissionOverwrites.Select(x => new DiscordPermissionOverwriteProperties(x)); } set { _original.PermissionOverwrites = value?.Select(x => x.Original); } }
-    public ulong? ParentId { get { return _original.ParentId; } set { _original.ParentId = value; } }
-    public string? RtcRegion { get { return _original.RtcRegion; } set { _original.RtcRegion = value; } }
-    public NetCord.VideoQualityMode? VideoQualityMode { get { return _original.VideoQualityMode; } set { _original.VideoQualityMode = value; } }
-    public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get { return _original.DefaultAutoArchiveDuration; } set { _original.DefaultAutoArchiveDuration = value; } }
-    public IEnumerable<IDiscordForumTagProperties>? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordForumTagProperties(x)); } set { _original.AvailableTags = value?.Select(x => x.Original); } }
-    public NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji; } set { _original.DefaultReactionEmoji = value; } }
-    public int? DefaultThreadSlowmode { get { return _original.DefaultThreadSlowmode; } set { _original.DefaultThreadSlowmode = value; } }
-    public NetCord.ChannelFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public NetCord.SortOrderType? DefaultSortOrder { get { return _original.DefaultSortOrder; } set { _original.DefaultSortOrder = value; } }
-    public NetCord.ForumLayoutType? DefaultForumLayout { get { return _original.DefaultForumLayout; } set { _original.DefaultForumLayout = value; } }
-    public bool? Archived { get { return _original.Archived; } set { _original.Archived = value; } }
-    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
-    public bool? Locked { get { return _original.Locked; } set { _original.Locked = value; } }
-    public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
-    public IEnumerable<ulong>? AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
-    public IDiscordGuildChannelOptions WithName(string name) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithName(name));
-    }
-    public IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithChannelType(channelType));
-    }
-    public IDiscordGuildChannelOptions WithPosition(int? position) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithPosition(position));
-    }
-    public IDiscordGuildChannelOptions WithTopic(string topic) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithTopic(topic));
-    }
-    public IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithNsfw(nsfw));
-    }
-    public IDiscordGuildChannelOptions WithSlowmode(int? slowmode) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithSlowmode(slowmode));
-    }
-    public IDiscordGuildChannelOptions WithBitrate(int? bitrate) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithBitrate(bitrate));
-    }
-    public IDiscordGuildChannelOptions WithUserLimit(int? userLimit) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithUserLimit(userLimit));
-    }
-    public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
-    }
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
-    }
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordGuildChannelOptions WithParentId(ulong? parentId) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithParentId(parentId));
-    }
-    public IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithRtcRegion(rtcRegion));
-    }
-    public IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithVideoQualityMode(videoQualityMode));
-    }
-    public IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
-    }
-    public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
-    }
-    public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
-    }
-    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
-    }
-    public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
-    }
-    public IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithFlags(flags));
-    }
-    public IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultSortOrder(defaultSortOrder));
-    }
-    public IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultForumLayout(defaultForumLayout));
-    }
-    public IDiscordGuildChannelOptions WithArchived(bool? archived = true) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithArchived(archived));
-    }
-    public IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    }
-    public IDiscordGuildChannelOptions WithLocked(bool? locked = true) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithLocked(locked));
-    }
-    public IDiscordGuildChannelOptions WithInvitable(bool? invitable = true) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithInvitable(invitable));
-    }
-    public IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong>? appliedTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithAppliedTags(appliedTags));
-    }
-    public IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
-    }
-    public IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
-    }
-}
-
-
-public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteProperties 
-{
-    private readonly NetCord.Rest.PermissionOverwriteProperties _original;
-    public DiscordPermissionOverwriteProperties(NetCord.Rest.PermissionOverwriteProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.PermissionOverwriteProperties Original => _original;
+    public NetCord.JsonModels.JsonInteractionGuildReference Original => _original;
+    public string[] Features { get { return _original.Features; } set { _original.Features = value; } }
+    public string Locale { get { return _original.Locale; } set { _original.Locale = value; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
-    public NetCord.PermissionOverwriteType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public NetCord.Permissions? Allowed { get { return _original.Allowed; } set { _original.Allowed = value; } }
-    public NetCord.Permissions? Denied { get { return _original.Denied; } set { _original.Denied = value; } }
-    public IDiscordPermissionOverwriteProperties WithId(ulong id) 
-    {
-        return new DiscordPermissionOverwriteProperties(_original.WithId(id));
-    }
-    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) 
-    {
-        return new DiscordPermissionOverwriteProperties(_original.WithType(type));
-    }
-    public IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed) 
-    {
-        return new DiscordPermissionOverwriteProperties(_original.WithAllowed(allowed));
-    }
-    public IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied) 
-    {
-        return new DiscordPermissionOverwriteProperties(_original.WithDenied(denied));
-    }
 }
 
 
-public class DiscordInviteProperties : IDiscordInviteProperties 
+public class DiscordJsonGuildUser : IDiscordJsonGuildUser 
 {
-    private readonly NetCord.Rest.InviteProperties _original;
-    public DiscordInviteProperties(NetCord.Rest.InviteProperties original)
+    private readonly NetCord.JsonModels.JsonGuildUser _original;
+    public DiscordJsonGuildUser(NetCord.JsonModels.JsonGuildUser original)
     {
         _original = original;
     }
-    public NetCord.Rest.InviteProperties Original => _original;
-    public int? MaxAge { get { return _original.MaxAge; } set { _original.MaxAge = value; } }
-    public int? MaxUses { get { return _original.MaxUses; } set { _original.MaxUses = value; } }
-    public bool? Temporary { get { return _original.Temporary; } set { _original.Temporary = value; } }
-    public bool? Unique { get { return _original.Unique; } set { _original.Unique = value; } }
-    public NetCord.InviteTargetType? TargetType { get { return _original.TargetType; } set { _original.TargetType = value; } }
-    public ulong? TargetUserId { get { return _original.TargetUserId; } set { _original.TargetUserId = value; } }
-    public ulong? TargetApplicationId { get { return _original.TargetApplicationId; } set { _original.TargetApplicationId = value; } }
-    public IDiscordInviteProperties WithMaxAge(int? maxAge) 
-    {
-        return new DiscordInviteProperties(_original.WithMaxAge(maxAge));
-    }
-    public IDiscordInviteProperties WithMaxUses(int? maxUses) 
-    {
-        return new DiscordInviteProperties(_original.WithMaxUses(maxUses));
-    }
-    public IDiscordInviteProperties WithTemporary(bool? temporary = true) 
-    {
-        return new DiscordInviteProperties(_original.WithTemporary(temporary));
-    }
-    public IDiscordInviteProperties WithUnique(bool? unique = true) 
-    {
-        return new DiscordInviteProperties(_original.WithUnique(unique));
-    }
-    public IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType) 
-    {
-        return new DiscordInviteProperties(_original.WithTargetType(targetType));
-    }
-    public IDiscordInviteProperties WithTargetUserId(ulong? targetUserId) 
-    {
-        return new DiscordInviteProperties(_original.WithTargetUserId(targetUserId));
-    }
-    public IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId) 
-    {
-        return new DiscordInviteProperties(_original.WithTargetApplicationId(targetApplicationId));
-    }
+    public NetCord.JsonModels.JsonGuildUser Original => _original;
+    public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
+    public string Nickname { get { return _original.Nickname; } set { _original.Nickname = value; } }
+    public string GuildAvatarHash { get { return _original.GuildAvatarHash; } set { _original.GuildAvatarHash = value; } }
+    public string GuildBannerHash { get { return _original.GuildBannerHash; } set { _original.GuildBannerHash = value; } }
+    public ulong[] RoleIds { get { return _original.RoleIds; } set { _original.RoleIds = value; } }
+    public ulong? HoistedRoleId { get { return _original.HoistedRoleId; } set { _original.HoistedRoleId = value; } }
+    public System.DateTimeOffset JoinedAt { get { return _original.JoinedAt; } set { _original.JoinedAt = value; } }
+    public System.DateTimeOffset? GuildBoostStart { get { return _original.GuildBoostStart; } set { _original.GuildBoostStart = value; } }
+    public bool Deafened { get { return _original.Deafened; } set { _original.Deafened = value; } }
+    public bool Muted { get { return _original.Muted; } set { _original.Muted = value; } }
+    public NetCord.GuildUserFlags GuildFlags { get { return _original.GuildFlags; } set { _original.GuildFlags = value; } }
+    public bool? IsPending { get { return _original.IsPending; } set { _original.IsPending = value; } }
+    public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
+    public System.DateTimeOffset? TimeOutUntil { get { return _original.TimeOutUntil; } set { _original.TimeOutUntil = value; } }
+    public IDiscordJsonAvatarDecorationData GuildAvatarDecorationData { get { return new DiscordJsonAvatarDecorationData(_original.GuildAvatarDecorationData); } set { _original.GuildAvatarDecorationData = value.Original; } }
 }
 
 
-public class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata 
+public class DiscordJsonUser : IDiscordJsonUser 
 {
-    private readonly NetCord.GuildThreadMetadata _original;
-    public DiscordGuildThreadMetadata(NetCord.GuildThreadMetadata original)
+    private readonly NetCord.JsonModels.JsonUser _original;
+    public DiscordJsonUser(NetCord.JsonModels.JsonUser original)
     {
         _original = original;
     }
-    public NetCord.GuildThreadMetadata Original => _original;
-    public bool Archived => _original.Archived;
-    public NetCord.ThreadArchiveDuration AutoArchiveDuration => _original.AutoArchiveDuration;
-    public System.DateTimeOffset ArchiveTimestamp => _original.ArchiveTimestamp;
-    public bool Locked => _original.Locked;
-    public bool? Invitable => _original.Invitable;
+    public NetCord.JsonModels.JsonUser Original => _original;
+    public string Username { get { return _original.Username; } set { _original.Username = value; } }
+    public ushort Discriminator { get { return _original.Discriminator; } set { _original.Discriminator = value; } }
+    public string GlobalName { get { return _original.GlobalName; } set { _original.GlobalName = value; } }
+    public string AvatarHash { get { return _original.AvatarHash; } set { _original.AvatarHash = value; } }
+    public bool IsBot { get { return _original.IsBot; } set { _original.IsBot = value; } }
+    public bool? IsSystemUser { get { return _original.IsSystemUser; } set { _original.IsSystemUser = value; } }
+    public bool? MfaEnabled { get { return _original.MfaEnabled; } set { _original.MfaEnabled = value; } }
+    public string BannerHash { get { return _original.BannerHash; } set { _original.BannerHash = value; } }
+    public NetCord.Color? AccentColor { get { return _original.AccentColor; } set { _original.AccentColor = value; } }
+    public string Locale { get { return _original.Locale; } set { _original.Locale = value; } }
+    public bool? Verified { get { return _original.Verified; } set { _original.Verified = value; } }
+    public string Email { get { return _original.Email; } set { _original.Email = value; } }
+    public NetCord.UserFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public NetCord.PremiumType? PremiumType { get { return _original.PremiumType; } set { _original.PremiumType = value; } }
+    public NetCord.UserFlags? PublicFlags { get { return _original.PublicFlags; } set { _original.PublicFlags = value; } }
+    public IDiscordJsonAvatarDecorationData AvatarDecorationData { get { return new DiscordJsonAvatarDecorationData(_original.AvatarDecorationData); } set { _original.AvatarDecorationData = value.Original; } }
+    public IDiscordJsonGuildUser GuildUser { get { return new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
 
-public class DiscordThreadCurrentUser : IDiscordThreadCurrentUser 
+public class DiscordJsonMessage : IDiscordJsonMessage 
 {
-    private readonly NetCord.ThreadCurrentUser _original;
-    public DiscordThreadCurrentUser(NetCord.ThreadCurrentUser original)
+    private readonly NetCord.JsonModels.JsonMessage _original;
+    public DiscordJsonMessage(NetCord.JsonModels.JsonMessage original)
     {
         _original = original;
     }
-    public NetCord.ThreadCurrentUser Original => _original;
-    public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
-    public int Flags => _original.Flags;
-}
-
-
-public class DiscordThreadUser : IDiscordThreadUser 
-{
-    private readonly NetCord.ThreadUser _original;
-    public DiscordThreadUser(NetCord.ThreadUser original)
-    {
-        _original = original;
-    }
-    public NetCord.ThreadUser Original => _original;
-    public ulong Id => _original.Id;
-    public ulong ThreadId => _original.ThreadId;
-    public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
-    public int Flags => _original.Flags;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties 
-{
-    private readonly NetCord.Rest.GuildThreadProperties _original;
-    public DiscordGuildThreadProperties(NetCord.Rest.GuildThreadProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildThreadProperties Original => _original;
-    public NetCord.ChannelType? ChannelType { get { return _original.ChannelType; } set { _original.ChannelType = value; } }
-    public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
-    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
-    public IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType) 
-    {
-        return new DiscordGuildThreadProperties(_original.WithChannelType(channelType));
-    }
-    public IDiscordGuildThreadProperties WithInvitable(bool? invitable = true) 
-    {
-        return new DiscordGuildThreadProperties(_original.WithInvitable(invitable));
-    }
-    public IDiscordGuildThreadProperties WithName(string name) 
-    {
-        return new DiscordGuildThreadProperties(_original.WithName(name));
-    }
-    public IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
-    {
-        return new DiscordGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
-    }
-    public IDiscordGuildThreadProperties WithSlowmode(int? slowmode) 
-    {
-        return new DiscordGuildThreadProperties(_original.WithSlowmode(slowmode));
-    }
-}
-
-
-public class DiscordIncomingWebhook : IDiscordIncomingWebhook 
-{
-    private readonly NetCord.Rest.IncomingWebhook _original;
-    public DiscordIncomingWebhook(NetCord.Rest.IncomingWebhook original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.IncomingWebhook Original => _original;
-    public string Token => _original.Token;
-    public ulong Id => _original.Id;
-    public NetCord.Rest.WebhookType Type => _original.Type;
-    public ulong? GuildId => _original.GuildId;
-    public ulong? ChannelId => _original.ChannelId;
-    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
-    public string? Name => _original.Name;
-    public string? AvatarHash => _original.AvatarHash;
-    public ulong? ApplicationId => _original.ApplicationId;
-    public IDiscordRestGuild? Guild => _original.Guild is null ? null : new DiscordRestGuild(_original.Guild);
-    public IDiscordChannel? Channel => _original.Channel is null ? null : new DiscordChannel(_original.Channel);
-    public string? Url => _original.Url;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null) 
-    {
-        return new DiscordWebhookClient(_original.ToClient(configuration?.Original));
-    }
-    public async Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordIncomingWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordIncomingWebhook(await _original.GetWithTokenAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordIncomingWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordIncomingWebhook(await _original.ModifyWithTokenAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteWithTokenAsync(properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
-        return temp is null ? null : new DiscordRestMessage(temp);
-    }
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
-    }
-    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
-    }
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAsync(properties?.Original, cancellationToken);
-    }
-}
-
-
-public class DiscordWebhookProperties : IDiscordWebhookProperties 
-{
-    private readonly NetCord.Rest.WebhookProperties _original;
-    public DiscordWebhookProperties(NetCord.Rest.WebhookProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.WebhookProperties Original => _original;
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
-    public IDiscordWebhookProperties WithName(string name) 
-    {
-        return new DiscordWebhookProperties(_original.WithName(name));
-    }
-    public IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar) 
-    {
-        return new DiscordWebhookProperties(_original.WithAvatar(avatar));
-    }
-}
-
-
-public class DiscordUserActivity : IDiscordUserActivity 
-{
-    private readonly NetCord.Gateway.UserActivity _original;
-    public DiscordUserActivity(NetCord.Gateway.UserActivity original)
-    {
-        _original = original;
-    }
-    public NetCord.Gateway.UserActivity Original => _original;
-    public string Name => _original.Name;
-    public NetCord.Gateway.UserActivityType Type => _original.Type;
-    public string? Url => _original.Url;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordUserActivityTimestamps? Timestamps => _original.Timestamps is null ? null : new DiscordUserActivityTimestamps(_original.Timestamps);
-    public ulong? ApplicationId => _original.ApplicationId;
-    public string? Details => _original.Details;
-    public string? State => _original.State;
-    public IDiscordEmoji? Emoji => _original.Emoji is null ? null : new DiscordEmoji(_original.Emoji);
-    public IDiscordParty? Party => _original.Party is null ? null : new DiscordParty(_original.Party);
-    public IDiscordUserActivityAssets? Assets => _original.Assets is null ? null : new DiscordUserActivityAssets(_original.Assets);
-    public IDiscordUserActivitySecrets? Secrets => _original.Secrets is null ? null : new DiscordUserActivitySecrets(_original.Secrets);
-    public bool? Instance => _original.Instance;
-    public NetCord.Gateway.UserActivityFlags? Flags => _original.Flags;
-    public IReadOnlyList<IDiscordUserActivityButton> Buttons => _original.Buttons.Select(x => new DiscordUserActivityButton(x)).ToList();
-    public ulong GuildId => _original.GuildId;
-}
-
-
-public class DiscordStageInstanceOptions : IDiscordStageInstanceOptions 
-{
-    private readonly NetCord.Rest.StageInstanceOptions _original;
-    public DiscordStageInstanceOptions(NetCord.Rest.StageInstanceOptions original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.StageInstanceOptions Original => _original;
-    public string? Topic { get { return _original.Topic; } set { _original.Topic = value; } }
-    public NetCord.StageInstancePrivacyLevel? PrivacyLevel { get { return _original.PrivacyLevel; } set { _original.PrivacyLevel = value; } }
-    public IDiscordStageInstanceOptions WithTopic(string topic) 
-    {
-        return new DiscordStageInstanceOptions(_original.WithTopic(topic));
-    }
-    public IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) 
-    {
-        return new DiscordStageInstanceOptions(_original.WithPrivacyLevel(privacyLevel));
-    }
-}
-
-
-public class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildScheduledEventRecurrenceRule 
-{
-    private readonly NetCord.GuildScheduledEventRecurrenceRule _original;
-    public DiscordGuildScheduledEventRecurrenceRule(NetCord.GuildScheduledEventRecurrenceRule original)
-    {
-        _original = original;
-    }
-    public NetCord.GuildScheduledEventRecurrenceRule Original => _original;
-    public System.DateTimeOffset? StartAt => _original.StartAt;
-    public System.DateTimeOffset? EndAt => _original.EndAt;
-    public NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency => _original.Frequency;
-    public int Interval => _original.Interval;
-    public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleWeekday>? ByWeekday => _original.ByWeekday;
-    public IReadOnlyList<IDiscordGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday => _original.ByNWeekday is null ? null : _original.ByNWeekday.Select(x => new DiscordGuildScheduledEventRecurrenceRuleNWeekday(x)).ToList();
-    public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleMonth>? ByMonth => _original.ByMonth;
-    public IReadOnlyList<int>? ByMonthDay => _original.ByMonthDay;
-    public IReadOnlyList<int>? ByYearDay => _original.ByYearDay;
-    public int? Count => _original.Count;
-}
-
-
-public class DiscordRoleTags : IDiscordRoleTags 
-{
-    private readonly NetCord.RoleTags _original;
-    public DiscordRoleTags(NetCord.RoleTags original)
-    {
-        _original = original;
-    }
-    public NetCord.RoleTags Original => _original;
-    public ulong? BotId => _original.BotId;
-    public ulong? IntegrationId => _original.IntegrationId;
-    public bool IsPremiumSubscriber => _original.IsPremiumSubscriber;
-    public ulong? SubscriptionListingId => _original.SubscriptionListingId;
-    public bool IsAvailableForPurchase => _original.IsAvailableForPurchase;
-    public bool GuildConnections => _original.GuildConnections;
-}
-
-
-public class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChannel 
-{
-    private readonly NetCord.GuildWelcomeScreenChannel _original;
-    public DiscordGuildWelcomeScreenChannel(NetCord.GuildWelcomeScreenChannel original)
-    {
-        _original = original;
-    }
-    public NetCord.GuildWelcomeScreenChannel Original => _original;
-    public ulong Id => _original.Id;
-    public string Description => _original.Description;
-    public ulong? EmojiId => _original.EmojiId;
-    public string? EmojiName => _original.EmojiName;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordRestAuditLogEntryData : IDiscordRestAuditLogEntryData 
-{
-    private readonly NetCord.Rest.RestAuditLogEntryData _original;
-    public DiscordRestAuditLogEntryData(NetCord.Rest.RestAuditLogEntryData original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.RestAuditLogEntryData Original => _original;
-    public IReadOnlyDictionary<ulong, IDiscordApplicationCommand> ApplicationCommands => _original.ApplicationCommands.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationCommand)new DiscordApplicationCommand(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordAutoModerationRule> AutoModerationRules => _original.AutoModerationRules.ToDictionary(kv => kv.Key, kv => (IDiscordAutoModerationRule)new DiscordAutoModerationRule(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordGuildScheduledEvent> GuildScheduledEvents => _original.GuildScheduledEvents.ToDictionary(kv => kv.Key, kv => (IDiscordGuildScheduledEvent)new DiscordGuildScheduledEvent(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordIntegration> Integrations => _original.Integrations.ToDictionary(kv => kv.Key, kv => (IDiscordIntegration)new DiscordIntegration(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordGuildThread> Threads => _original.Threads.ToDictionary(kv => kv.Key, kv => (IDiscordGuildThread)new DiscordGuildThread(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordUser> Users => _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordWebhook> Webhooks => _original.Webhooks.ToDictionary(kv => kv.Key, kv => (IDiscordWebhook)new DiscordWebhook(kv.Value));
-}
-
-
-public class DiscordAuditLogChange : IDiscordAuditLogChange 
-{
-    private readonly NetCord.AuditLogChange _original;
-    public DiscordAuditLogChange(NetCord.AuditLogChange original)
-    {
-        _original = original;
-    }
-    public NetCord.AuditLogChange Original => _original;
-    public string Key => _original.Key;
-    public bool HasNewValue => _original.HasNewValue;
-    public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
-    {
-        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
-    }
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
-    {
-        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
-    }
-}
-
-
-public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo 
-{
-    private readonly NetCord.AuditLogEntryInfo _original;
-    public DiscordAuditLogEntryInfo(NetCord.AuditLogEntryInfo original)
-    {
-        _original = original;
-    }
-    public NetCord.AuditLogEntryInfo Original => _original;
-    public ulong? ApplicationId => _original.ApplicationId;
-    public string? AutoModerationRuleName => _original.AutoModerationRuleName;
-    public NetCord.AutoModerationRuleTriggerType? AutoModerationRuleTriggerType => _original.AutoModerationRuleTriggerType;
-    public ulong? ChannelId => _original.ChannelId;
-    public int? Count => _original.Count;
-    public int? DeleteGuildUserDays => _original.DeleteGuildUserDays;
-    public ulong? Id => _original.Id;
-    public int? GuildUsersRemoved => _original.GuildUsersRemoved;
-    public ulong? MessageId => _original.MessageId;
-    public string? RoleName => _original.RoleName;
-    public NetCord.PermissionOverwriteType? Type => _original.Type;
-    public NetCord.IntegrationType? IntegrationType => _original.IntegrationType;
-}
-
-
-public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> 
-{
-    private readonly NetCord.AuditLogChange<TValue> _original;
-    public DiscordAuditLogChange(NetCord.AuditLogChange<TValue> original)
-    {
-        _original = original;
-    }
-    public NetCord.AuditLogChange<TValue> Original => _original;
-    public TValue? NewValue => _original.NewValue;
-    public TValue? OldValue => _original.OldValue;
-    public string Key => _original.Key;
-    public bool HasNewValue => _original.HasNewValue;
-    public bool HasOldValue => _original.HasOldValue;
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
-    {
-        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
-    }
-    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
-    {
-        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
-    }
-}
-
-
-public class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRuleTriggerMetadata 
-{
-    private readonly NetCord.AutoModerationRuleTriggerMetadata _original;
-    public DiscordAutoModerationRuleTriggerMetadata(NetCord.AutoModerationRuleTriggerMetadata original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationRuleTriggerMetadata Original => _original;
-    public IReadOnlyList<string>? KeywordFilter => _original.KeywordFilter;
-    public IReadOnlyList<string>? RegexPatterns => _original.RegexPatterns;
-    public IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType>? Presets => _original.Presets;
-    public IReadOnlyList<string>? AllowList => _original.AllowList;
-    public int? MentionTotalLimit => _original.MentionTotalLimit;
-    public bool MentionRaidProtectionEnabled => _original.MentionRaidProtectionEnabled;
-}
-
-
-public class DiscordAutoModerationAction : IDiscordAutoModerationAction 
-{
-    private readonly NetCord.AutoModerationAction _original;
-    public DiscordAutoModerationAction(NetCord.AutoModerationAction original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationAction Original => _original;
-    public NetCord.AutoModerationActionType Type => _original.Type;
-    public IDiscordAutoModerationActionMetadata? Metadata => _original.Metadata is null ? null : new DiscordAutoModerationActionMetadata(_original.Metadata);
-}
-
-
-public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoModerationRuleTriggerMetadataProperties 
-{
-    private readonly NetCord.AutoModerationRuleTriggerMetadataProperties _original;
-    public DiscordAutoModerationRuleTriggerMetadataProperties(NetCord.AutoModerationRuleTriggerMetadataProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationRuleTriggerMetadataProperties Original => _original;
-    public IEnumerable<string>? KeywordFilter { get { return _original.KeywordFilter; } set { _original.KeywordFilter = value; } }
-    public IEnumerable<string>? RegexPatterns { get { return _original.RegexPatterns; } set { _original.RegexPatterns = value; } }
-    public IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? Presets { get { return _original.Presets; } set { _original.Presets = value; } }
-    public IEnumerable<string>? AllowList { get { return _original.AllowList; } set { _original.AllowList = value; } }
-    public int? MentionTotalLimit { get { return _original.MentionTotalLimit; } set { _original.MentionTotalLimit = value; } }
-    public bool MentionRaidProtectionEnabled { get { return _original.MentionRaidProtectionEnabled; } set { _original.MentionRaidProtectionEnabled = value; } }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithKeywordFilter(IEnumerable<string>? keywordFilter) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithKeywordFilter(keywordFilter));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(IEnumerable<string> keywordFilter) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string>? regexPatterns) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithRegexPatterns(regexPatterns));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? presets) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithPresets(presets));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string>? allowList) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionTotalLimit(int? mentionTotalLimit) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionTotalLimit(mentionTotalLimit));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionRaidProtectionEnabled(bool mentionRaidProtectionEnabled = true) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionRaidProtectionEnabled(mentionRaidProtectionEnabled));
-    }
-}
-
-
-public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActionProperties 
-{
-    private readonly NetCord.AutoModerationActionProperties _original;
-    public DiscordAutoModerationActionProperties(NetCord.AutoModerationActionProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationActionProperties Original => _original;
-    public NetCord.AutoModerationActionType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public IDiscordAutoModerationActionMetadataProperties? Metadata { get { return _original.Metadata is null ? null : new DiscordAutoModerationActionMetadataProperties(_original.Metadata); } set { _original.Metadata = value?.Original; } }
-    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) 
-    {
-        return new DiscordAutoModerationActionProperties(_original.WithType(type));
-    }
-    public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties? metadata) 
-    {
-        return new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata?.Original));
-    }
-}
-
-
-public class DiscordForumTagProperties : IDiscordForumTagProperties 
-{
-    private readonly NetCord.Rest.ForumTagProperties _original;
-    public DiscordForumTagProperties(NetCord.Rest.ForumTagProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ForumTagProperties Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public bool? Moderated { get { return _original.Moderated; } set { _original.Moderated = value; } }
-    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
-    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
-    public IDiscordForumTagProperties WithId(ulong? id) 
-    {
-        return new DiscordForumTagProperties(_original.WithId(id));
-    }
-    public IDiscordForumTagProperties WithName(string name) 
-    {
-        return new DiscordForumTagProperties(_original.WithName(name));
-    }
-    public IDiscordForumTagProperties WithModerated(bool? moderated = true) 
-    {
-        return new DiscordForumTagProperties(_original.WithModerated(moderated));
-    }
-    public IDiscordForumTagProperties WithEmojiId(ulong? emojiId) 
-    {
-        return new DiscordForumTagProperties(_original.WithEmojiId(emojiId));
-    }
-    public IDiscordForumTagProperties WithEmojiName(string emojiName) 
-    {
-        return new DiscordForumTagProperties(_original.WithEmojiName(emojiName));
-    }
-}
-
-
-public class DiscordChannel : IDiscordChannel 
-{
-    private readonly NetCord.Channel _original;
-    public DiscordChannel(NetCord.Channel original)
-    {
-        _original = original;
-    }
-    public NetCord.Channel Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.ChannelFlags Flags => _original.Flags;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
-    }
-}
-
-
-public class DiscordAccount : IDiscordAccount 
-{
-    private readonly NetCord.Account _original;
-    public DiscordAccount(NetCord.Account original)
-    {
-        _original = original;
-    }
-    public NetCord.Account Original => _original;
-    public ulong Id => _original.Id;
-    public string Name => _original.Name;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordIntegrationApplication : IDiscordIntegrationApplication 
-{
-    private readonly NetCord.IntegrationApplication _original;
-    public DiscordIntegrationApplication(NetCord.IntegrationApplication original)
-    {
-        _original = original;
-    }
-    public NetCord.IntegrationApplication Original => _original;
-    public ulong Id => _original.Id;
-    public string Name => _original.Name;
-    public string? IconHash => _original.IconHash;
-    public string Description => _original.Description;
-    public string Summary => _original.Summary;
-    public IDiscordUser? Bot => _original.Bot is null ? null : new DiscordUser(_original.Bot);
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildWidgetChannel : IDiscordGuildWidgetChannel 
-{
-    private readonly NetCord.Rest.GuildWidgetChannel _original;
-    public DiscordGuildWidgetChannel(NetCord.Rest.GuildWidgetChannel original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildWidgetChannel Original => _original;
-    public ulong Id => _original.Id;
-    public string Name => _original.Name;
-    public int Position => _original.Position;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeScreenChannelProperties 
-{
-    private readonly NetCord.Rest.GuildWelcomeScreenChannelProperties _original;
-    public DiscordGuildWelcomeScreenChannelProperties(NetCord.Rest.GuildWelcomeScreenChannelProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildWelcomeScreenChannelProperties Original => _original;
+    public NetCord.JsonModels.JsonMessage Original => _original;
     public ulong ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
-    public string Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IDiscordEmojiProperties? Emoji { get { return _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji); } set { _original.Emoji = value?.Original; } }
-    public IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId) 
-    {
-        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithChannelId(channelId));
-    }
-    public IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description) 
-    {
-        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithDescription(description));
-    }
-    public IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties? emoji) 
-    {
-        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmoji(emoji?.Original));
-    }
-}
-
-
-public class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPrompt 
-{
-    private readonly NetCord.Rest.GuildOnboardingPrompt _original;
-    public DiscordGuildOnboardingPrompt(NetCord.Rest.GuildOnboardingPrompt original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildOnboardingPrompt Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.Rest.GuildOnboardingPromptType Type => _original.Type;
-    public IReadOnlyList<IDiscordGuildOnboardingPromptOption> Options => _original.Options.Select(x => new DiscordGuildOnboardingPromptOption(x)).ToList();
-    public string Title => _original.Title;
-    public bool SingleSelect => _original.SingleSelect;
-    public bool Required => _original.Required;
-    public bool InOnboarding => _original.InOnboarding;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPromptProperties 
-{
-    private readonly NetCord.Rest.GuildOnboardingPromptProperties _original;
-    public DiscordGuildOnboardingPromptProperties(NetCord.Rest.GuildOnboardingPromptProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildOnboardingPromptProperties Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public NetCord.Rest.GuildOnboardingPromptType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> Options { get { return _original.Options.Select(x => new DiscordGuildOnboardingPromptOptionProperties(x)); } set { _original.Options = value.Select(x => x.Original); } }
-    public string Title { get { return _original.Title; } set { _original.Title = value; } }
-    public bool SingleSelect { get { return _original.SingleSelect; } set { _original.SingleSelect = value; } }
-    public bool Required { get { return _original.Required; } set { _original.Required = value; } }
-    public bool InOnboarding { get { return _original.InOnboarding; } set { _original.InOnboarding = value; } }
-    public IDiscordGuildOnboardingPromptProperties WithId(ulong? id) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithId(id));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options.Select(x => x.Original)));
-    }
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original)));
-    }
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithTitle(string title) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithTitle(title));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithSingleSelect(singleSelect));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithRequired(required));
-    }
-    public IDiscordGuildOnboardingPromptProperties WithInOnboarding(bool inOnboarding = true) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.WithInOnboarding(inOnboarding));
-    }
-}
-
-
-public class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildScheduledEventMetadataProperties 
-{
-    private readonly NetCord.Rest.GuildScheduledEventMetadataProperties _original;
-    public DiscordGuildScheduledEventMetadataProperties(NetCord.Rest.GuildScheduledEventMetadataProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildScheduledEventMetadataProperties Original => _original;
-    public string Location { get { return _original.Location; } set { _original.Location = value; } }
-    public IDiscordGuildScheduledEventMetadataProperties WithLocation(string location) 
-    {
-        return new DiscordGuildScheduledEventMetadataProperties(_original.WithLocation(location));
-    }
-}
-
-
-public class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview 
-{
-    private readonly NetCord.Rest.GuildTemplatePreview _original;
-    public DiscordGuildTemplatePreview(NetCord.Rest.GuildTemplatePreview original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildTemplatePreview Original => _original;
-    public string Name => _original.Name;
-    public string? IconHash => _original.IconHash;
-    public string? Description => _original.Description;
-    public NetCord.VerificationLevel VerificationLevel => _original.VerificationLevel;
-    public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
-    public NetCord.ContentFilter ContentFilter => _original.ContentFilter;
-    public string PreferredLocale => _original.PreferredLocale;
-    public ulong? AfkChannelId => _original.AfkChannelId;
-    public int AfkTimeout => _original.AfkTimeout;
-    public ulong? SystemChannelId => _original.SystemChannelId;
-    public NetCord.Rest.SystemChannelFlags SystemChannelFlags => _original.SystemChannelFlags;
-    public IReadOnlyDictionary<ulong, IDiscordRole> Roles => _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value));
-    public IReadOnlyDictionary<ulong, IDiscordGuildChannel> Channels => _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordGuildChannel)new DiscordGuildChannel(kv.Value));
-}
-
-
-public class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTemplateProperties 
-{
-    private readonly NetCord.Rest.GuildFromGuildTemplateProperties _original;
-    public DiscordGuildFromGuildTemplateProperties(NetCord.Rest.GuildFromGuildTemplateProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildFromGuildTemplateProperties Original => _original;
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.Rest.ImageProperties? Icon { get { return _original.Icon; } set { _original.Icon = value; } }
-    public IDiscordGuildFromGuildTemplateProperties WithName(string name) 
-    {
-        return new DiscordGuildFromGuildTemplateProperties(_original.WithName(name));
-    }
-    public IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon) 
-    {
-        return new DiscordGuildFromGuildTemplateProperties(_original.WithIcon(icon));
-    }
-}
-
-
-public class DiscordApplicationCommandOption : IDiscordApplicationCommandOption 
-{
-    private readonly NetCord.Rest.ApplicationCommandOption _original;
-    public DiscordApplicationCommandOption(NetCord.Rest.ApplicationCommandOption original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationCommandOption Original => _original;
-    public NetCord.ApplicationCommandOptionType Type => _original.Type;
-    public string Name => _original.Name;
-    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
-    public string Description => _original.Description;
-    public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
-    public bool Required => _original.Required;
-    public IReadOnlyList<IDiscordApplicationCommandOptionChoice>? Choices => _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoice(x)).ToList();
-    public IReadOnlyList<IDiscordApplicationCommandOption>? Options => _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
-    public IReadOnlyList<NetCord.ChannelType>? ChannelTypes => _original.ChannelTypes;
-    public double? MinValue => _original.MinValue;
-    public double? MaxValue => _original.MaxValue;
-    public int? MinLength => _original.MinLength;
-    public int? MaxLength => _original.MaxLength;
-    public bool Autocomplete => _original.Autocomplete;
-}
-
-
-public class DiscordApplicationCommand : IDiscordApplicationCommand 
-{
-    private readonly NetCord.Rest.ApplicationCommand _original;
-    public DiscordApplicationCommand(NetCord.Rest.ApplicationCommand original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationCommand Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.ApplicationCommandType Type => _original.Type;
-    public ulong ApplicationId => _original.ApplicationId;
-    public string Name => _original.Name;
-    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
-    public string Description => _original.Description;
-    public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
-    public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
-    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
-    public bool Nsfw => _original.Nsfw;
-    public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
-    public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts;
-    public ulong Version => _original.Version;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommand(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAsync(properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
-    }
-}
-
-
-public class DiscordApplicationCommandOptionProperties : IDiscordApplicationCommandOptionProperties 
-{
-    private readonly NetCord.Rest.ApplicationCommandOptionProperties _original;
-    public DiscordApplicationCommandOptionProperties(NetCord.Rest.ApplicationCommandOptionProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationCommandOptionProperties Original => _original;
-    public NetCord.ApplicationCommandOptionType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public IReadOnlyDictionary<string, string>? NameLocalizations { get { return _original.NameLocalizations; } set { _original.NameLocalizations = value; } }
-    public string Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IReadOnlyDictionary<string, string>? DescriptionLocalizations { get { return _original.DescriptionLocalizations; } set { _original.DescriptionLocalizations = value; } }
-    public bool? Required { get { return _original.Required; } set { _original.Required = value; } }
-    public IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? Choices { get { return _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoiceProperties(x)); } set { _original.Choices = value?.Select(x => x.Original); } }
-    public IEnumerable<IDiscordApplicationCommandOptionProperties>? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOptionProperties(x)); } set { _original.Options = value?.Select(x => x.Original); } }
-    public IEnumerable<NetCord.ChannelType>? ChannelTypes { get { return _original.ChannelTypes; } set { _original.ChannelTypes = value; } }
-    public double? MinValue { get { return _original.MinValue; } set { _original.MinValue = value; } }
-    public double? MaxValue { get { return _original.MaxValue; } set { _original.MaxValue = value; } }
-    public int? MinLength { get { return _original.MinLength; } set { _original.MinLength = value; } }
-    public int? MaxLength { get { return _original.MaxLength; } set { _original.MaxLength = value; } }
-    public bool? Autocomplete { get { return _original.Autocomplete; } set { _original.Autocomplete = value; } }
-    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithType(type));
-    }
-    public IDiscordApplicationCommandOptionProperties WithName(string name) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithName(name));
-    }
-    public IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithNameLocalizations(nameLocalizations));
-    }
-    public IDiscordApplicationCommandOptionProperties WithDescription(string description) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithDescription(description));
-    }
-    public IDiscordApplicationCommandOptionProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string>? descriptionLocalizations) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
-    }
-    public IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithRequired(required));
-    }
-    public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
-    }
-    public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original)));
-    }
-    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties>? options) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
-    }
-    public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original)));
-    }
-    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType>? channelTypes) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
-    }
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    }
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    }
-    public IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithMinValue(minValue));
-    }
-    public IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithMaxValue(maxValue));
-    }
-    public IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithMinLength(minLength));
-    }
-    public IDiscordApplicationCommandOptionProperties WithMaxLength(int? maxLength) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithMaxLength(maxLength));
-    }
-    public IDiscordApplicationCommandOptionProperties WithAutocomplete(bool? autocomplete = true) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.WithAutocomplete(autocomplete));
-    }
-}
-
-
-public class DiscordApplicationCommandPermission : IDiscordApplicationCommandPermission 
-{
-    private readonly NetCord.ApplicationCommandPermission _original;
-    public DiscordApplicationCommandPermission(NetCord.ApplicationCommandPermission original)
-    {
-        _original = original;
-    }
-    public NetCord.ApplicationCommandPermission Original => _original;
-    public ulong Id => _original.Id;
-    public NetCord.ApplicationCommandGuildPermissionType Type => _original.Type;
-    public bool Permission => _original.Permission;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery 
-{
-    private readonly NetCord.Rest.IGuildUsersSearchQuery _original;
-    public DiscordGuildUsersSearchQuery(NetCord.Rest.IGuildUsersSearchQuery original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.IGuildUsersSearchQuery Original => _original;
-    public void Serialize(Utf8JsonWriter writer) 
-    {
-        _original.Serialize(writer);
-    }
-}
-
-
-public class DiscordWebhookOptions : IDiscordWebhookOptions 
-{
-    private readonly NetCord.Rest.WebhookOptions _original;
-    public DiscordWebhookOptions(NetCord.Rest.WebhookOptions original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.WebhookOptions Original => _original;
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
-    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
-    public IDiscordWebhookOptions WithName(string name) 
-    {
-        return new DiscordWebhookOptions(_original.WithName(name));
-    }
-    public IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
-    {
-        return new DiscordWebhookOptions(_original.WithAvatar(avatar));
-    }
-    public IDiscordWebhookOptions WithChannelId(ulong? channelId) 
-    {
-        return new DiscordWebhookOptions(_original.WithChannelId(channelId));
-    }
-}
-
-
-public class DiscordNonceProperties : IDiscordNonceProperties 
-{
-    private readonly NetCord.Rest.NonceProperties _original;
-    public DiscordNonceProperties(NetCord.Rest.NonceProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.NonceProperties Original => _original;
-    public bool Unique { get { return _original.Unique; } set { _original.Unique = value; } }
-    public IDiscordNonceProperties WithUnique(bool unique = true) 
-    {
-        return new DiscordNonceProperties(_original.WithUnique(unique));
-    }
-}
-
-
-public class DiscordMessageReferenceProperties : IDiscordMessageReferenceProperties 
-{
-    private readonly NetCord.Rest.MessageReferenceProperties _original;
-    public DiscordMessageReferenceProperties(NetCord.Rest.MessageReferenceProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.MessageReferenceProperties Original => _original;
-    public NetCord.MessageReferenceType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
-    public ulong MessageId { get { return _original.MessageId; } set { _original.MessageId = value; } }
-    public bool FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
-    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) 
-    {
-        return new DiscordMessageReferenceProperties(_original.WithType(type));
-    }
-    public IDiscordMessageReferenceProperties WithChannelId(ulong? channelId) 
-    {
-        return new DiscordMessageReferenceProperties(_original.WithChannelId(channelId));
-    }
-    public IDiscordMessageReferenceProperties WithMessageId(ulong messageId) 
-    {
-        return new DiscordMessageReferenceProperties(_original.WithMessageId(messageId));
-    }
-    public IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true) 
-    {
-        return new DiscordMessageReferenceProperties(_original.WithFailIfNotExists(failIfNotExists));
-    }
-}
-
-
-public class DiscordAttachmentExpirationInfo : IDiscordAttachmentExpirationInfo 
-{
-    private readonly NetCord.AttachmentExpirationInfo _original;
-    public DiscordAttachmentExpirationInfo(NetCord.AttachmentExpirationInfo original)
-    {
-        _original = original;
-    }
-    public NetCord.AttachmentExpirationInfo Original => _original;
-    public System.DateTimeOffset ExpiresAt => _original.ExpiresAt;
-    public System.DateTimeOffset IssuedAt => _original.IssuedAt;
-    public string Signature => _original.Signature;
-}
-
-
-public class DiscordEmbedFooter : IDiscordEmbedFooter 
-{
-    private readonly NetCord.EmbedFooter _original;
-    public DiscordEmbedFooter(NetCord.EmbedFooter original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedFooter Original => _original;
-    public string Text => _original.Text;
-    public string? IconUrl => _original.IconUrl;
-    public string? ProxyIconUrl => _original.ProxyIconUrl;
-}
-
-
-public class DiscordEmbedImage : IDiscordEmbedImage 
-{
-    private readonly NetCord.EmbedImage _original;
-    public DiscordEmbedImage(NetCord.EmbedImage original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedImage Original => _original;
-    public string? Url => _original.Url;
-    public string? ProxyUrl => _original.ProxyUrl;
-    public int? Height => _original.Height;
-    public int? Width => _original.Width;
-}
-
-
-public class DiscordEmbedThumbnail : IDiscordEmbedThumbnail 
-{
-    private readonly NetCord.EmbedThumbnail _original;
-    public DiscordEmbedThumbnail(NetCord.EmbedThumbnail original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedThumbnail Original => _original;
-    public string? Url => _original.Url;
-    public string? ProxyUrl => _original.ProxyUrl;
-    public int? Height => _original.Height;
-    public int? Width => _original.Width;
-}
-
-
-public class DiscordEmbedVideo : IDiscordEmbedVideo 
-{
-    private readonly NetCord.EmbedVideo _original;
-    public DiscordEmbedVideo(NetCord.EmbedVideo original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedVideo Original => _original;
-    public string? Url => _original.Url;
-    public string? ProxyUrl => _original.ProxyUrl;
-    public int? Height => _original.Height;
-    public int? Width => _original.Width;
-}
-
-
-public class DiscordEmbedProvider : IDiscordEmbedProvider 
-{
-    private readonly NetCord.EmbedProvider _original;
-    public DiscordEmbedProvider(NetCord.EmbedProvider original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedProvider Original => _original;
-    public string? Name => _original.Name;
-    public string? Url => _original.Url;
-}
-
-
-public class DiscordEmbedAuthor : IDiscordEmbedAuthor 
-{
-    private readonly NetCord.EmbedAuthor _original;
-    public DiscordEmbedAuthor(NetCord.EmbedAuthor original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedAuthor Original => _original;
-    public string? Name => _original.Name;
-    public string? Url => _original.Url;
-    public string? IconUrl => _original.IconUrl;
-    public string? ProxyIconUrl => _original.ProxyIconUrl;
-}
-
-
-public class DiscordEmbedField : IDiscordEmbedField 
-{
-    private readonly NetCord.EmbedField _original;
-    public DiscordEmbedField(NetCord.EmbedField original)
-    {
-        _original = original;
-    }
-    public NetCord.EmbedField Original => _original;
-    public string Name => _original.Name;
-    public string Value => _original.Value;
-    public bool Inline => _original.Inline;
-}
-
-
-public class DiscordMessageReactionCountDetails : IDiscordMessageReactionCountDetails 
-{
-    private readonly NetCord.MessageReactionCountDetails _original;
-    public DiscordMessageReactionCountDetails(NetCord.MessageReactionCountDetails original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageReactionCountDetails Original => _original;
-    public int Burst => _original.Burst;
-    public int Normal => _original.Normal;
-}
-
-
-public class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji 
-{
-    private readonly NetCord.MessageReactionEmoji _original;
-    public DiscordMessageReactionEmoji(NetCord.MessageReactionEmoji original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageReactionEmoji Original => _original;
-    public ulong? Id => _original.Id;
-    public string? Name => _original.Name;
-    public bool Animated => _original.Animated;
-}
-
-
-public class DiscordTeam : IDiscordTeam 
-{
-    private readonly NetCord.Team _original;
-    public DiscordTeam(NetCord.Team original)
-    {
-        _original = original;
-    }
-    public NetCord.Team Original => _original;
-    public ulong Id => _original.Id;
-    public string? IconHash => _original.IconHash;
-    public IReadOnlyList<IDiscordTeamUser> Users => _original.Users.Select(x => new DiscordTeamUser(x)).ToList();
-    public string Name => _original.Name;
-    public ulong OwnerId => _original.OwnerId;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
-    {
-        var temp = _original.GetIconUrl(format);
-        return temp is null ? null : new DiscordImageUrl(temp);
-    }
-}
-
-
-public class DiscordApplicationInstallParams : IDiscordApplicationInstallParams 
-{
-    private readonly NetCord.ApplicationInstallParams _original;
-    public DiscordApplicationInstallParams(NetCord.ApplicationInstallParams original)
-    {
-        _original = original;
-    }
-    public NetCord.ApplicationInstallParams Original => _original;
-    public IReadOnlyList<string> Scopes => _original.Scopes;
-    public NetCord.Permissions Permissions => _original.Permissions;
-}
-
-
-public class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicationIntegrationTypeConfiguration 
-{
-    private readonly NetCord.ApplicationIntegrationTypeConfiguration _original;
-    public DiscordApplicationIntegrationTypeConfiguration(NetCord.ApplicationIntegrationTypeConfiguration original)
-    {
-        _original = original;
-    }
-    public NetCord.ApplicationIntegrationTypeConfiguration Original => _original;
-    public IDiscordApplicationInstallParams? OAuth2InstallParams => _original.OAuth2InstallParams is null ? null : new DiscordApplicationInstallParams(_original.OAuth2InstallParams);
-}
-
-
-public class DiscordApplicationEmoji : IDiscordApplicationEmoji 
-{
-    private readonly NetCord.ApplicationEmoji _original;
-    public DiscordApplicationEmoji(NetCord.ApplicationEmoji original)
-    {
-        _original = original;
-    }
-    public NetCord.ApplicationEmoji Original => _original;
-    public ulong ApplicationId => _original.ApplicationId;
-    public ulong Id => _original.Id;
-    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
-    public bool? RequireColons => _original.RequireColons;
-    public bool? Managed => _original.Managed;
-    public bool? Available => _original.Available;
-    public string Name => _original.Name;
-    public bool Animated => _original.Animated;
-    public async Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.ModifyAsync(x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAsync(properties?.Original, cancellationToken);
-    }
-    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
-    {
-        return new DiscordImageUrl(_original.GetImageUrl(format));
-    }
-}
-
-
-public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiProperties 
-{
-    private readonly NetCord.Rest.ApplicationEmojiProperties _original;
-    public DiscordApplicationEmojiProperties(NetCord.Rest.ApplicationEmojiProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationEmojiProperties Original => _original;
-    public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.Rest.ImageProperties Image { get { return _original.Image; } set { _original.Image = value; } }
-    public IDiscordApplicationEmojiProperties WithName(string name) 
-    {
-        return new DiscordApplicationEmojiProperties(_original.WithName(name));
-    }
-    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) 
-    {
-        return new DiscordApplicationEmojiProperties(_original.WithImage(image));
-    }
-}
-
-
-public class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions 
-{
-    private readonly NetCord.Rest.ApplicationEmojiOptions _original;
-    public DiscordApplicationEmojiOptions(NetCord.Rest.ApplicationEmojiOptions original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationEmojiOptions Original => _original;
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public IDiscordApplicationEmojiOptions WithName(string name) 
-    {
-        return new DiscordApplicationEmojiOptions(_original.WithName(name));
-    }
-}
-
-
-public class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMessage 
-{
-    private readonly NetCord.MessageSnapshotMessage _original;
-    public DiscordMessageSnapshotMessage(NetCord.MessageSnapshotMessage original)
-    {
-        _original = original;
-    }
-    public NetCord.MessageSnapshotMessage Original => _original;
-    public NetCord.MessageType Type => _original.Type;
-    public string Content => _original.Content;
-    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Select(x => new DiscordEmbed(x)).ToList();
-    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Select(x => new DiscordAttachment(x)).ToList();
-    public System.DateTimeOffset? EditedAt => _original.EditedAt;
-    public NetCord.MessageFlags Flags => _original.Flags;
-    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Select(x => new DiscordUser(x)).ToList();
-    public IReadOnlyList<ulong> MentionedRoleIds => _original.MentionedRoleIds;
-}
-
-
-public class DiscordMessagePollMedia : IDiscordMessagePollMedia 
-{
-    private readonly NetCord.MessagePollMedia _original;
-    public DiscordMessagePollMedia(NetCord.MessagePollMedia original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollMedia Original => _original;
-    public string? Text => _original.Text;
-    public IDiscordEmojiReference? Emoji => _original.Emoji is null ? null : new DiscordEmojiReference(_original.Emoji);
-}
-
-
-public class DiscordMessagePollAnswer : IDiscordMessagePollAnswer 
-{
-    private readonly NetCord.MessagePollAnswer _original;
-    public DiscordMessagePollAnswer(NetCord.MessagePollAnswer original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollAnswer Original => _original;
-    public int AnswerId => _original.AnswerId;
-    public IDiscordMessagePollMedia PollMedia => new DiscordMessagePollMedia(_original.PollMedia);
-}
-
-
-public class DiscordMessagePollResults : IDiscordMessagePollResults 
-{
-    private readonly NetCord.MessagePollResults _original;
-    public DiscordMessagePollResults(NetCord.MessagePollResults original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollResults Original => _original;
-    public bool IsFinalized => _original.IsFinalized;
-    public IReadOnlyList<IDiscordMessagePollAnswerCount> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswerCount(x)).ToList();
-}
-
-
-public class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties 
-{
-    private readonly NetCord.Rest.EmbedFooterProperties _original;
-    public DiscordEmbedFooterProperties(NetCord.Rest.EmbedFooterProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.EmbedFooterProperties Original => _original;
-    public string? Text { get { return _original.Text; } set { _original.Text = value; } }
-    public string? IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
-    public IDiscordEmbedFooterProperties WithText(string text) 
-    {
-        return new DiscordEmbedFooterProperties(_original.WithText(text));
-    }
-    public IDiscordEmbedFooterProperties WithIconUrl(string iconUrl) 
-    {
-        return new DiscordEmbedFooterProperties(_original.WithIconUrl(iconUrl));
-    }
-}
-
-
-public class DiscordEmbedImageProperties : IDiscordEmbedImageProperties 
-{
-    private readonly NetCord.Rest.EmbedImageProperties _original;
-    public DiscordEmbedImageProperties(NetCord.Rest.EmbedImageProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.EmbedImageProperties Original => _original;
-    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
-    public IDiscordEmbedImageProperties WithUrl(string url) 
-    {
-        return new DiscordEmbedImageProperties(_original.WithUrl(url));
-    }
-}
-
-
-public class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties 
-{
-    private readonly NetCord.Rest.EmbedThumbnailProperties _original;
-    public DiscordEmbedThumbnailProperties(NetCord.Rest.EmbedThumbnailProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.EmbedThumbnailProperties Original => _original;
-    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
-    public IDiscordEmbedThumbnailProperties WithUrl(string url) 
-    {
-        return new DiscordEmbedThumbnailProperties(_original.WithUrl(url));
-    }
-}
-
-
-public class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties 
-{
-    private readonly NetCord.Rest.EmbedAuthorProperties _original;
-    public DiscordEmbedAuthorProperties(NetCord.Rest.EmbedAuthorProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.EmbedAuthorProperties Original => _original;
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
-    public string? IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
-    public IDiscordEmbedAuthorProperties WithName(string name) 
-    {
-        return new DiscordEmbedAuthorProperties(_original.WithName(name));
-    }
-    public IDiscordEmbedAuthorProperties WithUrl(string url) 
-    {
-        return new DiscordEmbedAuthorProperties(_original.WithUrl(url));
-    }
-    public IDiscordEmbedAuthorProperties WithIconUrl(string iconUrl) 
-    {
-        return new DiscordEmbedAuthorProperties(_original.WithIconUrl(iconUrl));
-    }
-}
-
-
-public class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties 
-{
-    private readonly NetCord.Rest.EmbedFieldProperties _original;
-    public DiscordEmbedFieldProperties(NetCord.Rest.EmbedFieldProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.EmbedFieldProperties Original => _original;
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public string? Value { get { return _original.Value; } set { _original.Value = value; } }
-    public bool Inline { get { return _original.Inline; } set { _original.Inline = value; } }
-    public IDiscordEmbedFieldProperties WithName(string name) 
-    {
-        return new DiscordEmbedFieldProperties(_original.WithName(name));
-    }
-    public IDiscordEmbedFieldProperties WithValue(string value) 
-    {
-        return new DiscordEmbedFieldProperties(_original.WithValue(value));
-    }
-    public IDiscordEmbedFieldProperties WithInline(bool inline = true) 
-    {
-        return new DiscordEmbedFieldProperties(_original.WithInline(inline));
-    }
-}
-
-
-public class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaProperties 
-{
-    private readonly NetCord.MessagePollMediaProperties _original;
-    public DiscordMessagePollMediaProperties(NetCord.MessagePollMediaProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollMediaProperties Original => _original;
-    public string? Text { get { return _original.Text; } set { _original.Text = value; } }
-    public IDiscordEmojiProperties? Emoji { get { return _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji); } set { _original.Emoji = value?.Original; } }
-    public IDiscordMessagePollMediaProperties WithText(string text) 
-    {
-        return new DiscordMessagePollMediaProperties(_original.WithText(text));
-    }
-    public IDiscordMessagePollMediaProperties WithEmoji(IDiscordEmojiProperties? emoji) 
-    {
-        return new DiscordMessagePollMediaProperties(_original.WithEmoji(emoji?.Original));
-    }
-}
-
-
-public class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerProperties 
-{
-    private readonly NetCord.MessagePollAnswerProperties _original;
-    public DiscordMessagePollAnswerProperties(NetCord.MessagePollAnswerProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollAnswerProperties Original => _original;
-    public IDiscordMessagePollMediaProperties PollMedia { get { return new DiscordMessagePollMediaProperties(_original.PollMedia); } set { _original.PollMedia = value.Original; } }
-    public IDiscordMessagePollAnswerProperties WithPollMedia(IDiscordMessagePollMediaProperties pollMedia) 
-    {
-        return new DiscordMessagePollAnswerProperties(_original.WithPollMedia(pollMedia.Original));
-    }
-}
-
-
-public class DiscordWebhookClient : IDiscordWebhookClient 
-{
-    private readonly NetCord.Rest.WebhookClient _original;
-    public DiscordWebhookClient(NetCord.Rest.WebhookClient original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.WebhookClient Original => _original;
-    public ulong Id => _original.Id;
-    public string Token => _original.Token;
-    public void Dispose() 
-    {
-        _original.Dispose();
-    }
-    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAsync(properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
-        return temp is null ? null : new DiscordRestMessage(temp);
-    }
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
-    }
-    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
-    }
-}
-
-
-public class DiscordWebhookClientConfiguration : IDiscordWebhookClientConfiguration 
-{
-    private readonly NetCord.Rest.WebhookClientConfiguration _original;
-    public DiscordWebhookClientConfiguration(NetCord.Rest.WebhookClientConfiguration original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.WebhookClientConfiguration Original => _original;
-    public IDiscordRestClient? Client { get { return _original.Client is null ? null : new DiscordRestClient(_original.Client); } set { _original.Client = value?.Original; } }
-}
-
-
-public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties 
-{
-    private readonly NetCord.Rest.WebhookMessageProperties _original;
-    public DiscordWebhookMessageProperties(NetCord.Rest.WebhookMessageProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.WebhookMessageProperties Original => _original;
-    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
-    public string? Username { get { return _original.Username; } set { _original.Username = value; } }
-    public string? AvatarUrl { get { return _original.AvatarUrl; } set { _original.AvatarUrl = value; } }
-    public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
-    public IEnumerable<IDiscordEmbedProperties>? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordEmbedProperties(x)); } set { _original.Embeds = value?.Select(x => x.Original); } }
-    public IDiscordAllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions); } set { _original.AllowedMentions = value?.Original; } }
-    public IEnumerable<IDiscordComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
-    public IEnumerable<IDiscordAttachmentProperties>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordAttachmentProperties(x)); } set { _original.Attachments = value?.Select(x => x.Original); } }
+    public IDiscordJsonUser Author { get { return new DiscordJsonUser(_original.Author); } set { _original.Author = value.Original; } }
+    public string Content { get { return _original.Content; } set { _original.Content = value; } }
+    public System.DateTimeOffset? EditedAt { get { return _original.EditedAt; } set { _original.EditedAt = value; } }
+    public bool? IsTts { get { return _original.IsTts; } set { _original.IsTts = value; } }
+    public bool? MentionEveryone { get { return _original.MentionEveryone; } set { _original.MentionEveryone = value; } }
+    public IDiscordJsonUser[]? MentionedUsers { get { return _original.MentionedUsers is null ? null : _original.MentionedUsers.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.MentionedUsers = value?.Select(x => x.Original).ToArray(); } }
+    public ulong[] MentionedRoleIds { get { return _original.MentionedRoleIds; } set { _original.MentionedRoleIds = value; } }
+    public IDiscordJsonGuildChannelMention[]? MentionedChannels { get { return _original.MentionedChannels is null ? null : _original.MentionedChannels.Select(x => new DiscordJsonGuildChannelMention(x)).ToArray(); } set { _original.MentionedChannels = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonAttachment[]? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordJsonAttachment(x)).ToArray(); } set { _original.Attachments = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonEmbed[]? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordJsonEmbed(x)).ToArray(); } set { _original.Embeds = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonMessageReaction[]? Reactions { get { return _original.Reactions is null ? null : _original.Reactions.Select(x => new DiscordJsonMessageReaction(x)).ToArray(); } set { _original.Reactions = value?.Select(x => x.Original).ToArray(); } }
+    public string Nonce { get { return _original.Nonce; } set { _original.Nonce = value; } }
+    public bool? IsPinned { get { return _original.IsPinned; } set { _original.IsPinned = value; } }
+    public ulong? WebhookId { get { return _original.WebhookId; } set { _original.WebhookId = value; } }
+    public NetCord.MessageType? Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IDiscordJsonMessageActivity Activity { get { return new DiscordJsonMessageActivity(_original.Activity); } set { _original.Activity = value.Original; } }
+    public IDiscordJsonApplication Application { get { return new DiscordJsonApplication(_original.Application); } set { _original.Application = value.Original; } }
+    public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public string? ThreadName { get { return _original.ThreadName; } set { _original.ThreadName = value; } }
-    public IEnumerable<ulong>? AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
-    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
+    public IDiscordJsonMessageReference MessageReference { get { return new DiscordJsonMessageReference(_original.MessageReference); } set { _original.MessageReference = value.Original; } }
+    public IDiscordJsonMessageSnapshot[]? MessageSnapshots { get { return _original.MessageSnapshots is null ? null : _original.MessageSnapshots.Select(x => new DiscordJsonMessageSnapshot(x)).ToArray(); } set { _original.MessageSnapshots = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonMessage ReferencedMessage { get { return new DiscordJsonMessage(_original.ReferencedMessage); } set { _original.ReferencedMessage = value.Original; } }
+    public IDiscordJsonMessageInteractionMetadata InteractionMetadata { get { return new DiscordJsonMessageInteractionMetadata(_original.InteractionMetadata); } set { _original.InteractionMetadata = value.Original; } }
+    public IDiscordJsonChannel StartedThread { get { return new DiscordJsonChannel(_original.StartedThread); } set { _original.StartedThread = value.Original; } }
+    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonMessageSticker[]? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Select(x => new DiscordJsonMessageSticker(x)).ToArray(); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
+    public int? Position { get { return _original.Position; } set { _original.Position = value; } }
+    public IDiscordJsonRoleSubscriptionData RoleSubscriptionData { get { return new DiscordJsonRoleSubscriptionData(_original.RoleSubscriptionData); } set { _original.RoleSubscriptionData = value.Original; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public IDiscordJsonGuildUser GuildUser { get { return new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value.Original; } }
+    public IDiscordJsonInteractionResolvedData ResolvedData { get { return new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value.Original; } }
+    public IDiscordJsonMessagePoll Poll { get { return new DiscordJsonMessagePoll(_original.Poll); } set { _original.Poll = value.Original; } }
+    public IDiscordJsonMessageCall Call { get { return new DiscordJsonMessageCall(_original.Call); } set { _original.Call = value.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonEntitlement : IDiscordJsonEntitlement 
+{
+    private readonly NetCord.JsonModels.JsonEntitlement _original;
+    public DiscordJsonEntitlement(NetCord.JsonModels.JsonEntitlement original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEntitlement Original => _original;
+    public ulong SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
+    public ulong ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public ulong? UserId { get { return _original.UserId; } set { _original.UserId = value; } }
+    public NetCord.EntitlementType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public bool Deleted { get { return _original.Deleted; } set { _original.Deleted = value; } }
+    public System.DateTimeOffset? StartsAt { get { return _original.StartsAt; } set { _original.StartsAt = value; } }
+    public System.DateTimeOffset? EndsAt { get { return _original.EndsAt; } set { _original.EndsAt = value; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public bool? Consumed { get { return _original.Consumed; } set { _original.Consumed = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordInteractionCallback<T> : IDiscordInteractionCallback<T> 
+{
+    private readonly NetCord.Rest.InteractionCallback<T> _original;
+    public DiscordInteractionCallback(NetCord.Rest.InteractionCallback<T> original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InteractionCallback<T> Original => _original;
+    public T Data => _original.Data;
+    public NetCord.Rest.InteractionCallbackType Type => _original.Type;
     public HttpContent Serialize() 
     {
         return _original.Serialize();
     }
-    public IDiscordWebhookMessageProperties WithContent(string content) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithContent(content));
-    }
-    public IDiscordWebhookMessageProperties WithUsername(string username) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithUsername(username));
-    }
-    public IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithAvatarUrl(avatarUrl));
-    }
-    public IDiscordWebhookMessageProperties WithTts(bool tts = true) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithTts(tts));
-    }
-    public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
-    }
-    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
-    }
-    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithFlags(flags));
-    }
-    public IDiscordWebhookMessageProperties WithThreadName(string threadName) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithThreadName(threadName));
-    }
-    public IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong>? appliedTags) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithAppliedTags(appliedTags));
-    }
-    public IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
-    }
-    public IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
-    }
-    public IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll) 
-    {
-        return new DiscordWebhookMessageProperties(_original.WithPoll(poll?.Original));
-    }
 }
 
 
-public class DiscordUserActivityTimestamps : IDiscordUserActivityTimestamps 
+public class DiscordInteractionCallbackChoicesDataProperties : IDiscordInteractionCallbackChoicesDataProperties 
 {
-    private readonly NetCord.Gateway.UserActivityTimestamps _original;
-    public DiscordUserActivityTimestamps(NetCord.Gateway.UserActivityTimestamps original)
+    private readonly NetCord.Rest.InteractionCallbackChoicesDataProperties _original;
+    public DiscordInteractionCallbackChoicesDataProperties(NetCord.Rest.InteractionCallbackChoicesDataProperties original)
     {
         _original = original;
     }
-    public NetCord.Gateway.UserActivityTimestamps Original => _original;
-    public System.DateTimeOffset? StartTime => _original.StartTime;
-    public System.DateTimeOffset? EndTime => _original.EndTime;
-}
-
-
-public class DiscordEmoji : IDiscordEmoji 
-{
-    private readonly NetCord.Emoji _original;
-    public DiscordEmoji(NetCord.Emoji original)
+    public NetCord.Rest.InteractionCallbackChoicesDataProperties Original => _original;
+    public IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? Choices { get { return _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoiceProperties(x)); } set { _original.Choices = value?.Select(x => x.Original); } }
+    public IDiscordInteractionCallbackChoicesDataProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices) 
     {
-        _original = original;
+        return new DiscordInteractionCallbackChoicesDataProperties(_original.WithChoices(choices?.Select(x => x.Original)));
     }
-    public NetCord.Emoji Original => _original;
-    public string Name => _original.Name;
-    public bool Animated => _original.Animated;
-}
-
-
-public class DiscordParty : IDiscordParty 
-{
-    private readonly NetCord.Gateway.Party _original;
-    public DiscordParty(NetCord.Gateway.Party original)
+    public IDiscordInteractionCallbackChoicesDataProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
     {
-        _original = original;
+        return new DiscordInteractionCallbackChoicesDataProperties(_original.AddChoices(choices.Select(x => x.Original)));
     }
-    public NetCord.Gateway.Party Original => _original;
-    public string? Id => _original.Id;
-    public int? CurrentSize => _original.CurrentSize;
-    public int? MaxSize => _original.MaxSize;
-}
-
-
-public class DiscordUserActivityAssets : IDiscordUserActivityAssets 
-{
-    private readonly NetCord.Gateway.UserActivityAssets _original;
-    public DiscordUserActivityAssets(NetCord.Gateway.UserActivityAssets original)
+    public IDiscordInteractionCallbackChoicesDataProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
     {
-        _original = original;
+        return new DiscordInteractionCallbackChoicesDataProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
     }
-    public NetCord.Gateway.UserActivityAssets Original => _original;
-    public string? LargeImageId => _original.LargeImageId;
-    public string? LargeText => _original.LargeText;
-    public string? SmallImageId => _original.SmallImageId;
-    public string? SmallText => _original.SmallText;
-}
-
-
-public class DiscordUserActivitySecrets : IDiscordUserActivitySecrets 
-{
-    private readonly NetCord.Gateway.UserActivitySecrets _original;
-    public DiscordUserActivitySecrets(NetCord.Gateway.UserActivitySecrets original)
-    {
-        _original = original;
-    }
-    public NetCord.Gateway.UserActivitySecrets Original => _original;
-    public string? Join => _original.Join;
-    public string? Spectate => _original.Spectate;
-    public string? Match => _original.Match;
-}
-
-
-public class DiscordUserActivityButton : IDiscordUserActivityButton 
-{
-    private readonly NetCord.Gateway.UserActivityButton _original;
-    public DiscordUserActivityButton(NetCord.Gateway.UserActivityButton original)
-    {
-        _original = original;
-    }
-    public NetCord.Gateway.UserActivityButton Original => _original;
-    public string Label => _original.Label;
-}
-
-
-public class DiscordGuildScheduledEventRecurrenceRuleNWeekday : IDiscordGuildScheduledEventRecurrenceRuleNWeekday 
-{
-    private readonly NetCord.GuildScheduledEventRecurrenceRuleNWeekday _original;
-    public DiscordGuildScheduledEventRecurrenceRuleNWeekday(NetCord.GuildScheduledEventRecurrenceRuleNWeekday original)
-    {
-        _original = original;
-    }
-    public NetCord.GuildScheduledEventRecurrenceRuleNWeekday Original => _original;
-    public int N => _original.N;
-    public NetCord.GuildScheduledEventRecurrenceRuleWeekday Day => _original.Day;
-}
-
-
-public class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionMetadata 
-{
-    private readonly NetCord.AutoModerationActionMetadata _original;
-    public DiscordAutoModerationActionMetadata(NetCord.AutoModerationActionMetadata original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationActionMetadata Original => _original;
-    public ulong? ChannelId => _original.ChannelId;
-    public int? DurationSeconds => _original.DurationSeconds;
-    public string? CustomMessage => _original.CustomMessage;
-}
-
-
-public class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerationActionMetadataProperties 
-{
-    private readonly NetCord.AutoModerationActionMetadataProperties _original;
-    public DiscordAutoModerationActionMetadataProperties(NetCord.AutoModerationActionMetadataProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.AutoModerationActionMetadataProperties Original => _original;
-    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
-    public int? DurationSeconds { get { return _original.DurationSeconds; } set { _original.DurationSeconds = value; } }
-    public string? CustomMessage { get { return _original.CustomMessage; } set { _original.CustomMessage = value; } }
-    public IDiscordAutoModerationActionMetadataProperties WithChannelId(ulong? channelId) 
-    {
-        return new DiscordAutoModerationActionMetadataProperties(_original.WithChannelId(channelId));
-    }
-    public IDiscordAutoModerationActionMetadataProperties WithDurationSeconds(int? durationSeconds) 
-    {
-        return new DiscordAutoModerationActionMetadataProperties(_original.WithDurationSeconds(durationSeconds));
-    }
-    public IDiscordAutoModerationActionMetadataProperties WithCustomMessage(string customMessage) 
-    {
-        return new DiscordAutoModerationActionMetadataProperties(_original.WithCustomMessage(customMessage));
-    }
-}
-
-
-public class DiscordEmojiProperties : IDiscordEmojiProperties 
-{
-    private readonly NetCord.EmojiProperties _original;
-    public DiscordEmojiProperties(NetCord.EmojiProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.EmojiProperties Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public string? Unicode { get { return _original.Unicode; } set { _original.Unicode = value; } }
-    public IDiscordEmojiProperties WithId(ulong? id) 
-    {
-        return new DiscordEmojiProperties(_original.WithId(id));
-    }
-    public IDiscordEmojiProperties WithUnicode(string unicode) 
-    {
-        return new DiscordEmojiProperties(_original.WithUnicode(unicode));
-    }
-}
-
-
-public class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptOption 
-{
-    private readonly NetCord.Rest.GuildOnboardingPromptOption _original;
-    public DiscordGuildOnboardingPromptOption(NetCord.Rest.GuildOnboardingPromptOption original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildOnboardingPromptOption Original => _original;
-    public ulong Id => _original.Id;
-    public IReadOnlyList<ulong> ChannelIds => _original.ChannelIds;
-    public IReadOnlyList<ulong> RoleIds => _original.RoleIds;
-    public IDiscordEmoji? Emoji => _original.Emoji is null ? null : new DiscordEmoji(_original.Emoji);
-    public string Title => _original.Title;
-    public string? Description => _original.Description;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-}
-
-
-public class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboardingPromptOptionProperties 
-{
-    private readonly NetCord.Rest.GuildOnboardingPromptOptionProperties _original;
-    public DiscordGuildOnboardingPromptOptionProperties(NetCord.Rest.GuildOnboardingPromptOptionProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.GuildOnboardingPromptOptionProperties Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public IEnumerable<ulong>? ChannelIds { get { return _original.ChannelIds; } set { _original.ChannelIds = value; } }
-    public IEnumerable<ulong>? RoleIds { get { return _original.RoleIds; } set { _original.RoleIds = value; } }
-    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
-    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
-    public bool? EmojiAnimated { get { return _original.EmojiAnimated; } set { _original.EmojiAnimated = value; } }
-    public string Title { get { return _original.Title; } set { _original.Title = value; } }
-    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IDiscordGuildOnboardingPromptOptionProperties WithId(ulong? id) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithId(id));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithChannelIds(IEnumerable<ulong>? channelIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithChannelIds(channelIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(IEnumerable<ulong> channelIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong>? roleIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithRoleIds(roleIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiId(ulong? emojiId) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiId(emojiId));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiName(string emojiName) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiName(emojiName));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiAnimated(bool? emojiAnimated = true) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiAnimated(emojiAnimated));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithTitle(string title) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithTitle(title));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties WithDescription(string description) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithDescription(description));
-    }
-}
-
-
-public class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandOptionChoice 
-{
-    private readonly NetCord.Rest.ApplicationCommandOptionChoice _original;
-    public DiscordApplicationCommandOptionChoice(NetCord.Rest.ApplicationCommandOptionChoice original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.ApplicationCommandOptionChoice Original => _original;
-    public string Name => _original.Name;
-    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
-    public string? ValueString => _original.ValueString;
-    public double? ValueNumeric => _original.ValueNumeric;
-    public NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType => _original.ValueType;
 }
 
 
@@ -11596,972 +11262,40 @@ public class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicati
 }
 
 
-public class DiscordTeamUser : IDiscordTeamUser 
+public class DiscordModalProperties : IDiscordModalProperties 
 {
-    private readonly NetCord.TeamUser _original;
-    public DiscordTeamUser(NetCord.TeamUser original)
+    private readonly NetCord.Rest.ModalProperties _original;
+    public DiscordModalProperties(NetCord.Rest.ModalProperties original)
     {
         _original = original;
     }
-    public NetCord.TeamUser Original => _original;
-    public NetCord.MembershipState MembershipState => _original.MembershipState;
-    public ulong TeamId => _original.TeamId;
-    public NetCord.TeamRole Role => _original.Role;
-    public ulong Id => _original.Id;
-    public string Username => _original.Username;
-    public ushort Discriminator => _original.Discriminator;
-    public string? GlobalName => _original.GlobalName;
-    public string? AvatarHash => _original.AvatarHash;
-    public bool IsBot => _original.IsBot;
-    public bool? IsSystemUser => _original.IsSystemUser;
-    public bool? MfaEnabled => _original.MfaEnabled;
-    public string? BannerHash => _original.BannerHash;
-    public NetCord.Color? AccentColor => _original.AccentColor;
-    public string? Locale => _original.Locale;
-    public bool? Verified => _original.Verified;
-    public string? Email => _original.Email;
-    public NetCord.UserFlags? Flags => _original.Flags;
-    public NetCord.PremiumType? PremiumType => _original.PremiumType;
-    public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
-    public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
-    public bool HasAvatar => _original.HasAvatar;
-    public bool HasBanner => _original.HasBanner;
-    public bool HasAvatarDecoration => _original.HasAvatarDecoration;
-    public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordImageUrl? GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    public NetCord.Rest.ModalProperties Original => _original;
+    public string CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
+    public string Title { get { return _original.Title; } set { _original.Title = value; } }
+    public IEnumerable<IDiscordComponentProperties> Components { get { return _original.Components.Select(x => new DiscordComponentProperties(x)); } set { _original.Components = value.Select(x => x.Original); } }
+    public void Add(IDiscordComponentProperties component) 
     {
-        var temp = _original.GetAvatarUrl(format);
-        return temp is null ? null : new DiscordImageUrl(temp);
+        _original.Add(component.Original);
     }
-    public IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default) 
+    public IDiscordModalProperties WithCustomId(string customId) 
     {
-        var temp = _original.GetBannerUrl(format);
-        return temp is null ? null : new DiscordImageUrl(temp);
+        return new DiscordModalProperties(_original.WithCustomId(customId));
     }
-    public IDiscordImageUrl? GetAvatarDecorationUrl() 
+    public IDiscordModalProperties WithTitle(string title) 
     {
-        var temp = _original.GetAvatarDecorationUrl();
-        return temp is null ? null : new DiscordImageUrl(temp);
+        return new DiscordModalProperties(_original.WithTitle(title));
     }
-    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDiscordModalProperties WithComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordUser(await _original.GetAsync(properties?.Original, cancellationToken));
+        return new DiscordModalProperties(_original.WithComponents(components.Select(x => x.Original)));
     }
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDiscordModalProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
     {
-        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+        return new DiscordModalProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
-}
-
-
-public class DiscordEmojiReference : IDiscordEmojiReference 
-{
-    private readonly NetCord.EmojiReference _original;
-    public DiscordEmojiReference(NetCord.EmojiReference original)
+    public IDiscordModalProperties AddComponents(IDiscordComponentProperties[] components) 
     {
-        _original = original;
-    }
-    public NetCord.EmojiReference Original => _original;
-    public ulong? Id => _original.Id;
-    public string Name => _original.Name;
-    public bool Animated => _original.Animated;
-}
-
-
-public class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCount 
-{
-    private readonly NetCord.MessagePollAnswerCount _original;
-    public DiscordMessagePollAnswerCount(NetCord.MessagePollAnswerCount original)
-    {
-        _original = original;
-    }
-    public NetCord.MessagePollAnswerCount Original => _original;
-    public int AnswerId => _original.AnswerId;
-    public int Count => _original.Count;
-    public bool MeVoted => _original.MeVoted;
-}
-
-
-public class DiscordRestClient : IDiscordRestClient 
-{
-    private readonly NetCord.Rest.RestClient _original;
-    public DiscordRestClient(NetCord.Rest.RestClient original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.RestClient Original => _original;
-    public IDiscordToken? Token => _original.Token is null ? null : new DiscordToken(_original.Token);
-    public async Task<IDiscordCurrentApplication> GetCurrentApplicationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordCurrentApplication(await _original.GetCurrentApplicationAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordCurrentApplication> ModifyCurrentApplicationAsync(Action<IDiscordCurrentApplicationOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordCurrentApplication(await _original.ModifyCurrentApplicationAsync(x => action(new DiscordCurrentApplicationOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> GetApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetApplicationRoleConnectionMetadataRecordsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationRoleConnectionMetadata>> UpdateApplicationRoleConnectionMetadataRecordsAsync(ulong applicationId, IEnumerable<IDiscordApplicationRoleConnectionMetadataProperties> applicationRoleConnectionMetadataProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.UpdateApplicationRoleConnectionMetadataRecordsAsync(applicationId, applicationRoleConnectionMetadataProperties.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationRoleConnectionMetadata(x)).ToList();
-    }
-    public async IAsyncEnumerable<IDiscordRestAuditLogEntry> GetGuildAuditLogAsync(ulong guildId, IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetGuildAuditLogAsync(guildId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordRestAuditLogEntry(original);
-        }
-    }
-    public async Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetAutoModerationRulesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordAutoModerationRule(x)).ToList();
-    }
-    public async Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordAutoModerationRule(await _original.GetAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(ulong guildId, IDiscordAutoModerationRuleProperties autoModerationRuleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordAutoModerationRule(await _original.CreateAutoModerationRuleAsync(guildId, autoModerationRuleProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordAutoModerationRule(await _original.ModifyAutoModerationRuleAsync(guildId, autoModerationRuleId, x => action(new DiscordAutoModerationRuleOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteAutoModerationRuleAsync(ulong guildId, ulong autoModerationRuleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAutoModerationRuleAsync(guildId, autoModerationRuleId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordChannel> GetChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.GetChannelAsync(channelId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.ModifyGroupDMChannelAsync(channelId, x => action(new DiscordGroupDMChannelOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.ModifyGuildChannelAsync(channelId, x => action(new DiscordGuildChannelOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordChannel(await _original.DeleteChannelAsync(channelId, properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetMessagesAsync(channelId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordRestMessage(original);
-        }
-    }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetMessagesAroundAsync(channelId, messageId, limit, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    }
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, IDiscordMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.SendMessageAsync(channelId, message.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.CrosspostMessageAsync(channelId, messageId, properties?.Original, cancellationToken));
-    }
-    public Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.AddMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
-    }
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
-    }
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties?.Original, cancellationToken);
-    }
-    public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetMessageReactionsAsync(channelId, messageId, emoji.Original, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordUser(original);
-        }
-    }
-    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, properties?.Original, cancellationToken);
-    }
-    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, emoji.Original, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyMessageAsync(channelId, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
-    }
-    public Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
-    }
-    public Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessagesAsync(channelId, messageIds, properties?.Original, cancellationToken);
-    }
-    public Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ModifyGuildChannelPermissionsAsync(channelId, permissionOverwrite.Original, properties?.Original, cancellationToken);
-    }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildChannelInvitesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    }
-    public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestInvite(await _original.CreateGuildChannelInviteAsync(channelId, inviteProperties?.Original, properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildChannelPermissionAsync(channelId, overwriteId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordFollowedChannel(await _original.FollowAnnouncementGuildChannelAsync(channelId, webhookChannelId, properties?.Original, cancellationToken));
-    }
-    public Task TriggerTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.TriggerTypingStateAsync(channelId, properties?.Original, cancellationToken);
-    }
-    public Task<IDisposable> EnterTypingStateAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.EnterTypingStateAsync(channelId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetPinnedMessagesAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
-    }
-    public Task PinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.PinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
-    }
-    public Task UnpinMessageAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.UnpinMessageAsync(channelId, messageId, properties?.Original, cancellationToken);
-    }
-    public Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.GroupDMChannelAddUserAsync(channelId, userId, groupDMChannelUserAddProperties.Original, properties?.Original, cancellationToken);
-    }
-    public Task GroupDMChannelDeleteUserAsync(ulong channelId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.GroupDMChannelDeleteUserAsync(channelId, userId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, ulong messageId, IDiscordGuildThreadFromMessageProperties threadFromMessageProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, messageId, threadFromMessageProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong channelId, IDiscordGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildThread(await _original.CreateGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordForumGuildThread> CreateForumGuildThreadAsync(ulong channelId, IDiscordForumGuildThreadProperties threadProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordForumGuildThread(await _original.CreateForumGuildThreadAsync(channelId, threadProperties.Original, properties?.Original, cancellationToken));
-    }
-    public Task JoinGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.JoinGuildThreadAsync(threadId, properties?.Original, cancellationToken);
-    }
-    public Task AddGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.AddGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
-    }
-    public Task LeaveGuildThreadAsync(ulong threadId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.LeaveGuildThreadAsync(threadId, properties?.Original, cancellationToken);
-    }
-    public Task DeleteGuildThreadUserAsync(ulong threadId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildThreadUserAsync(threadId, userId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordThreadUser> GetGuildThreadUserAsync(ulong threadId, ulong userId, bool withGuildUser = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordThreadUser(await _original.GetGuildThreadUserAsync(threadId, userId, withGuildUser, properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordThreadUser> GetGuildThreadUsersAsync(ulong threadId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetGuildThreadUsersAsync(threadId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordThreadUser(original);
-        }
-    }
-    public async IAsyncEnumerable<IDiscordGuildThread> GetPublicArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetPublicArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildThread(original);
-        }
-    }
-    public async IAsyncEnumerable<IDiscordGuildThread> GetPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<System.DateTimeOffset>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildThread(original);
-        }
-    }
-    public async IAsyncEnumerable<IDiscordGuildThread> GetJoinedPrivateArchivedGuildThreadsAsync(ulong channelId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetJoinedPrivateArchivedGuildThreadsAsync(channelId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildThread(original);
-        }
-    }
-    public Task<Stream> SendRequestAsync(HttpMethod method, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.SendRequestAsync(method, route, query, resourceInfo, properties?.Original, global, cancellationToken);
-    }
-    public Task<Stream> SendRequestAsync(HttpMethod method, HttpContent content, FormattableString route, string? query = null, NetCord.Rest.TopLevelResourceInfo? resourceInfo = default, IDiscordRestRequestProperties? properties = null, bool global = true, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.SendRequestAsync(method, content, route, query, resourceInfo, properties?.Original, global, cancellationToken);
-    }
-    public void Dispose() 
-    {
-        _original.Dispose();
-    }
-    public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetGuildEmojisAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildEmojisAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildEmoji(x)).ToList();
-    }
-    public async Task<IDiscordGuildEmoji> GetGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildEmoji(await _original.GetGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildEmoji> CreateGuildEmojiAsync(ulong guildId, IDiscordGuildEmojiProperties guildEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildEmoji(await _original.CreateGuildEmojiAsync(guildId, guildEmojiProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildEmoji> ModifyGuildEmojiAsync(ulong guildId, ulong emojiId, Action<IDiscordGuildEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildEmoji(await _original.ModifyGuildEmojiAsync(guildId, emojiId, x => action(new DiscordGuildEmojiOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildEmojiAsync(ulong guildId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildEmojiAsync(guildId, emojiId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetApplicationEmojisAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetApplicationEmojisAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
-    }
-    public async Task<IDiscordApplicationEmoji> GetApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.GetApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationEmoji> CreateApplicationEmojiAsync(ulong applicationId, IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.CreateApplicationEmojiAsync(applicationId, applicationEmojiProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationEmoji> ModifyApplicationEmojiAsync(ulong applicationId, ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationEmoji(await _original.ModifyApplicationEmojiAsync(applicationId, emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteApplicationEmojiAsync(ulong applicationId, ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteApplicationEmojiAsync(applicationId, emojiId, properties?.Original, cancellationToken);
-    }
-    public Task<string> GetGatewayAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.GetGatewayAsync(properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordGatewayBot> GetGatewayBotAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGatewayBot(await _original.GetGatewayBotAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestGuild> CreateGuildAsync(IDiscordGuildProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestGuild(await _original.CreateGuildAsync(guildProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestGuild> GetGuildAsync(ulong guildId, bool withCounts = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestGuild(await _original.GetGuildAsync(guildId, withCounts, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildPreview> GetGuildPreviewAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildPreview(await _original.GetGuildPreviewAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestGuild> ModifyGuildAsync(ulong guildId, Action<IDiscordGuildOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestGuild(await _original.ModifyGuildAsync(guildId, x => action(new DiscordGuildOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildAsync(guildId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordGuildChannel>> GetGuildChannelsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildChannelsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildChannel(x)).ToList();
-    }
-    public async Task<IDiscordGuildChannel> CreateGuildChannelAsync(ulong guildId, IDiscordGuildChannelProperties channelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildChannel(await _original.CreateGuildChannelAsync(guildId, channelProperties.Original, properties?.Original, cancellationToken));
-    }
-    public Task ModifyGuildChannelPositionsAsync(ulong guildId, IEnumerable<IDiscordGuildChannelPositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ModifyGuildChannelPositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordGuildThread>> GetActiveGuildThreadsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetActiveGuildThreadsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildThread(x)).ToList();
-    }
-    public async Task<IDiscordGuildUser> GetGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildUser(await _original.GetGuildUserAsync(guildId, userId, properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordGuildUser> GetGuildUsersAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildUser(original);
-        }
-    }
-    public async Task<IReadOnlyList<IDiscordGuildUser>> FindGuildUserAsync(ulong guildId, string name, int limit, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.FindGuildUserAsync(guildId, name, limit, properties?.Original, cancellationToken)).Select(x => new DiscordGuildUser(x)).ToList();
-    }
-    public async Task<IDiscordGuildUser?> AddGuildUserAsync(ulong guildId, ulong userId, IDiscordGuildUserProperties userProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        var temp = await _original.AddGuildUserAsync(guildId, userId, userProperties.Original, properties?.Original, cancellationToken);
-        return temp is null ? null : new DiscordGuildUser(temp);
-    }
-    public async Task<IDiscordGuildUser> ModifyGuildUserAsync(ulong guildId, ulong userId, Action<IDiscordGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildUser(await _original.ModifyGuildUserAsync(guildId, userId, x => action(new DiscordGuildUserOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildUser> ModifyCurrentGuildUserAsync(ulong guildId, Action<IDiscordCurrentGuildUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildUser(await _original.ModifyCurrentGuildUserAsync(guildId, x => action(new DiscordCurrentGuildUserOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task AddGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.AddGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
-    }
-    public Task RemoveGuildUserRoleAsync(ulong guildId, ulong userId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.RemoveGuildUserRoleAsync(guildId, userId, roleId, properties?.Original, cancellationToken);
-    }
-    public Task KickGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.KickGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
-    }
-    public async IAsyncEnumerable<IDiscordGuildBan> GetGuildBansAsync(ulong guildId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetGuildBansAsync(guildId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildBan(original);
-        }
-    }
-    public async Task<IDiscordGuildBan> GetGuildBanAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildBan(await _original.GetGuildBanAsync(guildId, userId, properties?.Original, cancellationToken));
-    }
-    public Task BanGuildUserAsync(ulong guildId, ulong userId, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.BanGuildUserAsync(guildId, userId, deleteMessageSeconds, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordGuildBulkBan> BanGuildUsersAsync(ulong guildId, IEnumerable<ulong> userIds, int deleteMessageSeconds = 0, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildBulkBan(await _original.BanGuildUsersAsync(guildId, userIds, deleteMessageSeconds, properties?.Original, cancellationToken));
-    }
-    public Task UnbanGuildUserAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.UnbanGuildUserAsync(guildId, userId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordRole>> GetGuildRolesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildRolesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    }
-    public async Task<IDiscordRole> GetGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRole(await _original.GetGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRole> CreateGuildRoleAsync(ulong guildId, IDiscordRoleProperties guildRoleProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRole(await _original.CreateGuildRoleAsync(guildId, guildRoleProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordRole>> ModifyGuildRolePositionsAsync(ulong guildId, IEnumerable<IDiscordRolePositionProperties> positions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.ModifyGuildRolePositionsAsync(guildId, positions.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordRole(x)).ToList();
-    }
-    public async Task<IDiscordRole> ModifyGuildRoleAsync(ulong guildId, ulong roleId, Action<IDiscordRoleOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRole(await _original.ModifyGuildRoleAsync(guildId, roleId, x => action(new DiscordRoleOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildRoleAsync(ulong guildId, ulong roleId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildRoleAsync(guildId, roleId, properties?.Original, cancellationToken);
-    }
-    public Task<NetCord.MfaLevel> ModifyGuildMfaLevelAsync(ulong guildId, NetCord.MfaLevel mfaLevel, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ModifyGuildMfaLevelAsync(guildId, mfaLevel, properties?.Original, cancellationToken);
-    }
-    public Task<int> GetGuildPruneCountAsync(ulong guildId, int days, IEnumerable<ulong>? roles = null, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.GetGuildPruneCountAsync(guildId, days, roles, properties?.Original, cancellationToken);
-    }
-    public Task<int?> GuildPruneAsync(ulong guildId, IDiscordGuildPruneProperties pruneProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.GuildPruneAsync(guildId, pruneProperties.Original, properties?.Original, cancellationToken);
-    }
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetGuildVoiceRegionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildVoiceRegionsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildInvitesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildInvitesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordRestInvite(x));
-    }
-    public async Task<IReadOnlyList<IDiscordIntegration>> GetGuildIntegrationsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildIntegrationsAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordIntegration(x)).ToList();
-    }
-    public Task DeleteGuildIntegrationAsync(ulong guildId, ulong integrationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildIntegrationAsync(guildId, integrationId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordGuildWidgetSettings> GetGuildWidgetSettingsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildWidgetSettings(await _original.GetGuildWidgetSettingsAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildWidgetSettings> ModifyGuildWidgetSettingsAsync(ulong guildId, Action<IDiscordGuildWidgetSettingsOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildWidgetSettings(await _original.ModifyGuildWidgetSettingsAsync(guildId, x => action(new DiscordGuildWidgetSettingsOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildWidget> GetGuildWidgetAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildWidget(await _original.GetGuildWidgetAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildVanityInvite> GetGuildVanityInviteAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildVanityInvite(await _original.GetGuildVanityInviteAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildWelcomeScreen> GetGuildWelcomeScreenAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildWelcomeScreen(await _original.GetGuildWelcomeScreenAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildWelcomeScreen> ModifyGuildWelcomeScreenAsync(ulong guildId, Action<IDiscordGuildWelcomeScreenOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildWelcomeScreen(await _original.ModifyGuildWelcomeScreenAsync(guildId, x => action(new DiscordGuildWelcomeScreenOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildOnboarding> GetGuildOnboardingAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildOnboarding(await _original.GetGuildOnboardingAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildOnboarding> ModifyGuildOnboardingAsync(ulong guildId, Action<IDiscordGuildOnboardingOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildOnboarding(await _original.ModifyGuildOnboardingAsync(guildId, x => action(new DiscordGuildOnboardingOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordGuildScheduledEvent>> GetGuildScheduledEventsAsync(ulong guildId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildScheduledEventsAsync(guildId, withUserCount, properties?.Original, cancellationToken)).Select(x => new DiscordGuildScheduledEvent(x)).ToList();
-    }
-    public async Task<IDiscordGuildScheduledEvent> CreateGuildScheduledEventAsync(ulong guildId, IDiscordGuildScheduledEventProperties guildScheduledEventProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildScheduledEvent(await _original.CreateGuildScheduledEventAsync(guildId, guildScheduledEventProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildScheduledEvent> GetGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, bool withUserCount = false, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildScheduledEvent(await _original.GetGuildScheduledEventAsync(guildId, scheduledEventId, withUserCount, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildScheduledEvent> ModifyGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, Action<IDiscordGuildScheduledEventOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildScheduledEvent(await _original.ModifyGuildScheduledEventAsync(guildId, scheduledEventId, x => action(new DiscordGuildScheduledEventOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildScheduledEventAsync(ulong guildId, ulong scheduledEventId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildScheduledEventAsync(guildId, scheduledEventId, properties?.Original, cancellationToken);
-    }
-    public async IAsyncEnumerable<IDiscordGuildScheduledEventUser> GetGuildScheduledEventUsersAsync(ulong guildId, ulong scheduledEventId, IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetGuildScheduledEventUsersAsync(guildId, scheduledEventId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildScheduledEventUser(original);
-        }
-    }
-    public async Task<IDiscordGuildTemplate> GetGuildTemplateAsync(string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildTemplate(await _original.GetGuildTemplateAsync(templateCode, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestGuild> CreateGuildFromGuildTemplateAsync(string templateCode, IDiscordGuildFromGuildTemplateProperties guildProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestGuild(await _original.CreateGuildFromGuildTemplateAsync(templateCode, guildProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IEnumerable<IDiscordGuildTemplate>> GetGuildTemplatesAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildTemplatesAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildTemplate(x));
-    }
-    public async Task<IDiscordGuildTemplate> CreateGuildTemplateAsync(ulong guildId, IDiscordGuildTemplateProperties guildTemplateProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildTemplate(await _original.CreateGuildTemplateAsync(guildId, guildTemplateProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildTemplate> SyncGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildTemplate(await _original.SyncGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildTemplate> ModifyGuildTemplateAsync(ulong guildId, string templateCode, Action<IDiscordGuildTemplateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildTemplate(await _original.ModifyGuildTemplateAsync(guildId, templateCode, x => action(new DiscordGuildTemplateOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildTemplate> DeleteGuildTemplateAsync(ulong guildId, string templateCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildTemplate(await _original.DeleteGuildTemplateAsync(guildId, templateCode, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationCommand>> GetGlobalApplicationCommandsAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGlobalApplicationCommandsAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
-    }
-    public async Task<IDiscordApplicationCommand> CreateGlobalApplicationCommandAsync(ulong applicationId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommand(await _original.CreateGlobalApplicationCommandAsync(applicationId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationCommand> GetGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommand(await _original.GetGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationCommand> ModifyGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommand(await _original.ModifyGlobalApplicationCommandAsync(applicationId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGlobalApplicationCommandAsync(ulong applicationId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGlobalApplicationCommandAsync(applicationId, commandId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationCommand>> BulkOverwriteGlobalApplicationCommandsAsync(ulong applicationId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.BulkOverwriteGlobalApplicationCommandsAsync(applicationId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommand(x)).ToList();
-    }
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> GetGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildApplicationCommandsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    }
-    public async Task<IDiscordGuildApplicationCommand> CreateGuildApplicationCommandAsync(ulong applicationId, ulong guildId, IDiscordApplicationCommandProperties applicationCommandProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildApplicationCommand(await _original.CreateGuildApplicationCommandAsync(applicationId, guildId, applicationCommandProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildApplicationCommand> GetGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildApplicationCommand(await _original.GetGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildApplicationCommand> ModifyGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildApplicationCommand(await _original.ModifyGuildApplicationCommandAsync(applicationId, guildId, commandId, x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildApplicationCommandAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildApplicationCommandAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordGuildApplicationCommand>> BulkOverwriteGuildApplicationCommandsAsync(ulong applicationId, ulong guildId, IEnumerable<IDiscordApplicationCommandProperties> commands, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.BulkOverwriteGuildApplicationCommandsAsync(applicationId, guildId, commands.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGuildApplicationCommand(x)).ToList();
-    }
-    public async Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetApplicationCommandsGuildPermissionsAsync(applicationId, guildId, properties?.Original, cancellationToken)).Select(x => new DiscordApplicationCommandGuildPermissions(x)).ToList();
-    }
-    public async Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommandGuildPermissions(await _original.GetApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
-    }
-    public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, IDiscordInteractionCallback callback, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.SendInteractionResponseAsync(interactionId, interactionToken, callback.Original, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyInteractionResponseAsync(applicationId, interactionToken, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteInteractionResponseAsync(applicationId, interactionToken, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage> SendInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, IDiscordInteractionMessageProperties message, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.SendInteractionFollowupMessageAsync(applicationId, interactionToken, message.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, x => action(new DiscordMessageOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestInvite(await _original.GetGuildInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestInvite(await _original.DeleteGuildInviteAsync(inviteCode, properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetEntitlementsAsync(applicationId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordEntitlement(original);
-        }
-    }
-    public async Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordEntitlement(await _original.GetEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken));
-    }
-    public Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ConsumeEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordEntitlement> CreateTestEntitlementAsync(ulong applicationId, IDiscordTestEntitlementProperties testEntitlementProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordEntitlement(await _original.CreateTestEntitlementAsync(applicationId, testEntitlementProperties.Original, properties?.Original, cancellationToken));
-    }
-    public Task DeleteTestEntitlementAsync(ulong applicationId, ulong entitlementId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteTestEntitlementAsync(applicationId, entitlementId, properties?.Original, cancellationToken);
-    }
-    public async Task<IReadOnlyList<IDiscordSku>> GetSkusAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetSkusAsync(applicationId, properties?.Original, cancellationToken)).Select(x => new DiscordSku(x)).ToList();
-    }
-    public async Task<IDiscordCurrentApplication> GetCurrentBotApplicationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordCurrentApplication(await _original.GetCurrentBotApplicationInformationAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordAuthorizationInformation> GetCurrentAuthorizationInformationAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordAuthorizationInformation(await _original.GetCurrentAuthorizationInformationAsync(properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong channelId, ulong messageId, int answerId, IDiscordPaginationProperties<ulong>? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetMessagePollAnswerVotersAsync(channelId, messageId, answerId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordUser(original);
-        }
-    }
-    public async Task<IDiscordRestMessage> EndMessagePollAsync(ulong channelId, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.EndMessagePollAsync(channelId, messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordStageInstance> CreateStageInstanceAsync(IDiscordStageInstanceProperties stageInstanceProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordStageInstance(await _original.CreateStageInstanceAsync(stageInstanceProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordStageInstance> GetStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordStageInstance(await _original.GetStageInstanceAsync(channelId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordStageInstance> ModifyStageInstanceAsync(ulong channelId, Action<IDiscordStageInstanceOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordStageInstance(await _original.ModifyStageInstanceAsync(channelId, x => action(new DiscordStageInstanceOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteStageInstanceAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteStageInstanceAsync(channelId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordStandardSticker> GetStickerAsync(ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordStandardSticker(await _original.GetStickerAsync(stickerId, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordStickerPack>> GetStickerPacksAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetStickerPacksAsync(properties?.Original, cancellationToken)).Select(x => new DiscordStickerPack(x)).ToList();
-    }
-    public async Task<IDiscordStickerPack> GetStickerPackAsync(ulong stickerPackId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordStickerPack(await _original.GetStickerPackAsync(stickerPackId, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordGuildSticker>> GetGuildStickersAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildStickersAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordGuildSticker(x)).ToList();
-    }
-    public async Task<IDiscordGuildSticker> GetGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildSticker(await _original.GetGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildSticker> CreateGuildStickerAsync(ulong guildId, IDiscordGuildStickerProperties sticker, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildSticker(await _original.CreateGuildStickerAsync(guildId, sticker.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGuildSticker> ModifyGuildStickerAsync(ulong guildId, ulong stickerId, Action<IDiscordGuildStickerOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildSticker(await _original.ModifyGuildStickerAsync(guildId, stickerId, x => action(new DiscordGuildStickerOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteGuildStickerAsync(ulong guildId, ulong stickerId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteGuildStickerAsync(guildId, stickerId, properties?.Original, cancellationToken);
-    }
-    public async IAsyncEnumerable<IDiscordSubscription> GetSkuSubscriptionsAsync(ulong skuId, IDiscordSubscriptionPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetSkuSubscriptionsAsync(skuId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordSubscription(original);
-        }
-    }
-    public async Task<IDiscordSubscription> GetSkuSubscriptionAsync(ulong skuId, ulong subscriptionId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordSubscription(await _original.GetSkuSubscriptionAsync(skuId, subscriptionId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplication> GetApplicationAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplication(await _original.GetApplicationAsync(applicationId, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(ulong channelId, IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(channelId, buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
-    }
-    public async IAsyncEnumerable<IDiscordGuildUserInfo> SearchGuildUsersAsync(ulong guildId, IDiscordGuildUsersSearchPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.SearchGuildUsersAsync(guildId, paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordGuildUserInfo(original);
-        }
-    }
-    public async Task<IDiscordCurrentUser> GetCurrentUserAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordCurrentUser(await _original.GetCurrentUserAsync(properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordUser> GetUserAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordUser(await _original.GetUserAsync(userId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordCurrentUser> ModifyCurrentUserAsync(Action<IDiscordCurrentUserOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordCurrentUser(await _original.ModifyCurrentUserAsync(x => action(new DiscordCurrentUserOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async IAsyncEnumerable<IDiscordRestGuild> GetCurrentUserGuildsAsync(IDiscordGuildsPaginationProperties? paginationProperties = null, IDiscordRestRequestProperties? properties = null) 
-    {
-        await foreach(var original in _original.GetCurrentUserGuildsAsync(paginationProperties?.Original, properties?.Original))
-        {
-            yield return new DiscordRestGuild(original);
-        }
-    }
-    public async Task<IDiscordGuildUser> GetCurrentUserGuildUserAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGuildUser(await _original.GetCurrentUserGuildUserAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public Task LeaveGuildAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.LeaveGuildAsync(guildId, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordDMChannel> GetDMChannelAsync(ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordDMChannel(await _original.GetDMChannelAsync(userId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordGroupDMChannel> CreateGroupDMChannelAsync(IDiscordGroupDMChannelProperties groupDMChannelProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordGroupDMChannel(await _original.CreateGroupDMChannelAsync(groupDMChannelProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordConnection>> GetCurrentUserConnectionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetCurrentUserConnectionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordConnection(x)).ToList();
-    }
-    public async Task<IDiscordApplicationRoleConnection> GetCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationRoleConnection(await _original.GetCurrentUserApplicationRoleConnectionAsync(applicationId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordApplicationRoleConnection> UpdateCurrentUserApplicationRoleConnectionAsync(ulong applicationId, IDiscordApplicationRoleConnectionProperties applicationRoleConnectionProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordApplicationRoleConnection(await _original.UpdateCurrentUserApplicationRoleConnectionAsync(applicationId, applicationRoleConnectionProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IEnumerable<IDiscordVoiceRegion>> GetVoiceRegionsAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetVoiceRegionsAsync(properties?.Original, cancellationToken)).Select(x => new DiscordVoiceRegion(x));
-    }
-    public async Task<IDiscordVoiceState> GetCurrentGuildUserVoiceStateAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordVoiceState(await _original.GetCurrentGuildUserVoiceStateAsync(guildId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordVoiceState> GetGuildUserVoiceStateAsync(ulong guildId, ulong userId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordVoiceState(await _original.GetGuildUserVoiceStateAsync(guildId, userId, properties?.Original, cancellationToken));
-    }
-    public Task ModifyCurrentGuildUserVoiceStateAsync(ulong guildId, Action<IDiscordCurrentUserVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ModifyCurrentGuildUserVoiceStateAsync(guildId, x => action(new DiscordCurrentUserVoiceStateOptions(x)), properties?.Original, cancellationToken);
-    }
-    public Task ModifyGuildUserVoiceStateAsync(ulong guildId, ulong channelId, ulong userId, Action<IDiscordVoiceStateOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.ModifyGuildUserVoiceStateAsync(guildId, channelId, userId, x => action(new DiscordVoiceStateOptions(x)), properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordIncomingWebhook> CreateWebhookAsync(ulong channelId, IDiscordWebhookProperties webhookProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordIncomingWebhook(await _original.CreateWebhookAsync(channelId, webhookProperties.Original, properties?.Original, cancellationToken));
-    }
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetChannelWebhooksAsync(ulong channelId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetChannelWebhooksAsync(channelId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
-    }
-    public async Task<IReadOnlyList<IDiscordWebhook>> GetGuildWebhooksAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return (await _original.GetGuildWebhooksAsync(guildId, properties?.Original, cancellationToken)).Select(x => new DiscordWebhook(x)).ToList();
-    }
-    public async Task<IDiscordWebhook> GetWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.GetWebhookAsync(webhookId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordWebhook> GetWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.GetWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordWebhook> ModifyWebhookAsync(ulong webhookId, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.ModifyWebhookAsync(webhookId, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordWebhook> ModifyWebhookWithTokenAsync(ulong webhookId, string webhookToken, Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordWebhook(await _original.ModifyWebhookWithTokenAsync(webhookId, webhookToken, x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
-    }
-    public Task DeleteWebhookAsync(ulong webhookId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteWebhookAsync(webhookId, properties?.Original, cancellationToken);
-    }
-    public Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteWebhookWithTokenAsync(webhookId, webhookToken, properties?.Original, cancellationToken);
-    }
-    public async Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        var temp = await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
-        return temp is null ? null : new DiscordRestMessage(temp);
-    }
-    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, properties?.Original, cancellationToken));
-    }
-    public async Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return new DiscordRestMessage(await _original.ModifyWebhookMessageAsync(webhookId, webhookToken, messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
-    }
-    public Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties?.Original, cancellationToken);
+        return new DiscordModalProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
     }
 }
 
@@ -12834,6 +11568,32 @@ public class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplic
 }
 
 
+public class DiscordChannel : IDiscordChannel 
+{
+    private readonly NetCord.Channel _original;
+    public DiscordChannel(NetCord.Channel original)
+    {
+        _original = original;
+    }
+    public NetCord.Channel Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.ChannelFlags Flags => _original.Flags;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public async Task<IDiscordChannel> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordChannel> DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordChannel(await _original.DeleteAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IReadOnlyList<IDiscordGoogleCloudPlatformStorageBucket>> CreateGoogleCloudPlatformStorageBucketsAsync(IEnumerable<IDiscordGoogleCloudPlatformStorageBucketProperties> buckets, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.CreateGoogleCloudPlatformStorageBucketsAsync(buckets.Select(x => x.Original), properties?.Original, cancellationToken)).Select(x => new DiscordGoogleCloudPlatformStorageBucket(x)).ToList();
+    }
+}
+
+
 public class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions 
 {
     private readonly NetCord.Rest.GroupDMChannelOptions _original;
@@ -12851,6 +11611,238 @@ public class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions
     public IDiscordGroupDMChannelOptions WithIcon(NetCord.Rest.ImageProperties? icon) 
     {
         return new DiscordGroupDMChannelOptions(_original.WithIcon(icon));
+    }
+}
+
+
+public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions 
+{
+    private readonly NetCord.Rest.GuildChannelOptions _original;
+    public DiscordGuildChannelOptions(NetCord.Rest.GuildChannelOptions original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildChannelOptions Original => _original;
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.ChannelType? ChannelType { get { return _original.ChannelType; } set { _original.ChannelType = value; } }
+    public int? Position { get { return _original.Position; } set { _original.Position = value; } }
+    public string? Topic { get { return _original.Topic; } set { _original.Topic = value; } }
+    public bool? Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
+    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
+    public int? Bitrate { get { return _original.Bitrate; } set { _original.Bitrate = value; } }
+    public int? UserLimit { get { return _original.UserLimit; } set { _original.UserLimit = value; } }
+    public IEnumerable<IDiscordPermissionOverwriteProperties>? PermissionOverwrites { get { return _original.PermissionOverwrites is null ? null : _original.PermissionOverwrites.Select(x => new DiscordPermissionOverwriteProperties(x)); } set { _original.PermissionOverwrites = value?.Select(x => x.Original); } }
+    public ulong? ParentId { get { return _original.ParentId; } set { _original.ParentId = value; } }
+    public string? RtcRegion { get { return _original.RtcRegion; } set { _original.RtcRegion = value; } }
+    public NetCord.VideoQualityMode? VideoQualityMode { get { return _original.VideoQualityMode; } set { _original.VideoQualityMode = value; } }
+    public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get { return _original.DefaultAutoArchiveDuration; } set { _original.DefaultAutoArchiveDuration = value; } }
+    public IEnumerable<IDiscordForumTagProperties>? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordForumTagProperties(x)); } set { _original.AvailableTags = value?.Select(x => x.Original); } }
+    public NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji; } set { _original.DefaultReactionEmoji = value; } }
+    public int? DefaultThreadSlowmode { get { return _original.DefaultThreadSlowmode; } set { _original.DefaultThreadSlowmode = value; } }
+    public NetCord.ChannelFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public NetCord.SortOrderType? DefaultSortOrder { get { return _original.DefaultSortOrder; } set { _original.DefaultSortOrder = value; } }
+    public NetCord.ForumLayoutType? DefaultForumLayout { get { return _original.DefaultForumLayout; } set { _original.DefaultForumLayout = value; } }
+    public bool? Archived { get { return _original.Archived; } set { _original.Archived = value; } }
+    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
+    public bool? Locked { get { return _original.Locked; } set { _original.Locked = value; } }
+    public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
+    public IEnumerable<ulong>? AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
+    public IDiscordGuildChannelOptions WithName(string name) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithName(name));
+    }
+    public IDiscordGuildChannelOptions WithChannelType(NetCord.ChannelType? channelType) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithChannelType(channelType));
+    }
+    public IDiscordGuildChannelOptions WithPosition(int? position) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithPosition(position));
+    }
+    public IDiscordGuildChannelOptions WithTopic(string topic) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithTopic(topic));
+    }
+    public IDiscordGuildChannelOptions WithNsfw(bool? nsfw = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithNsfw(nsfw));
+    }
+    public IDiscordGuildChannelOptions WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithSlowmode(slowmode));
+    }
+    public IDiscordGuildChannelOptions WithBitrate(int? bitrate) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithBitrate(bitrate));
+    }
+    public IDiscordGuildChannelOptions WithUserLimit(int? userLimit) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithUserLimit(userLimit));
+    }
+    public IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithPermissionOverwrites(permissionOverwrites?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelOptions WithParentId(ulong? parentId) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithParentId(parentId));
+    }
+    public IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithRtcRegion(rtcRegion));
+    }
+    public IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithVideoQualityMode(videoQualityMode));
+    }
+    public IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
+    }
+    public IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAvailableTags(availableTags?.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
+    }
+    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
+    }
+    public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultThreadSlowmode(defaultThreadSlowmode));
+    }
+    public IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithFlags(flags));
+    }
+    public IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultSortOrder(defaultSortOrder));
+    }
+    public IDiscordGuildChannelOptions WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithDefaultForumLayout(defaultForumLayout));
+    }
+    public IDiscordGuildChannelOptions WithArchived(bool? archived = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithArchived(archived));
+    }
+    public IDiscordGuildChannelOptions WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildChannelOptions WithLocked(bool? locked = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithLocked(locked));
+    }
+    public IDiscordGuildChannelOptions WithInvitable(bool? invitable = true) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithInvitable(invitable));
+    }
+    public IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong>? appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.WithAppliedTags(appliedTags));
+    }
+    public IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags) 
+    {
+        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+    }
+}
+
+
+public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteProperties 
+{
+    private readonly NetCord.Rest.PermissionOverwriteProperties _original;
+    public DiscordPermissionOverwriteProperties(NetCord.Rest.PermissionOverwriteProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.PermissionOverwriteProperties Original => _original;
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+    public NetCord.PermissionOverwriteType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public NetCord.Permissions? Allowed { get { return _original.Allowed; } set { _original.Allowed = value; } }
+    public NetCord.Permissions? Denied { get { return _original.Denied; } set { _original.Denied = value; } }
+    public IDiscordPermissionOverwriteProperties WithId(ulong id) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithId(id));
+    }
+    public IDiscordPermissionOverwriteProperties WithType(NetCord.PermissionOverwriteType type) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithType(type));
+    }
+    public IDiscordPermissionOverwriteProperties WithAllowed(NetCord.Permissions? allowed) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithAllowed(allowed));
+    }
+    public IDiscordPermissionOverwriteProperties WithDenied(NetCord.Permissions? denied) 
+    {
+        return new DiscordPermissionOverwriteProperties(_original.WithDenied(denied));
+    }
+}
+
+
+public class DiscordInviteProperties : IDiscordInviteProperties 
+{
+    private readonly NetCord.Rest.InviteProperties _original;
+    public DiscordInviteProperties(NetCord.Rest.InviteProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InviteProperties Original => _original;
+    public int? MaxAge { get { return _original.MaxAge; } set { _original.MaxAge = value; } }
+    public int? MaxUses { get { return _original.MaxUses; } set { _original.MaxUses = value; } }
+    public bool? Temporary { get { return _original.Temporary; } set { _original.Temporary = value; } }
+    public bool? Unique { get { return _original.Unique; } set { _original.Unique = value; } }
+    public NetCord.InviteTargetType? TargetType { get { return _original.TargetType; } set { _original.TargetType = value; } }
+    public ulong? TargetUserId { get { return _original.TargetUserId; } set { _original.TargetUserId = value; } }
+    public ulong? TargetApplicationId { get { return _original.TargetApplicationId; } set { _original.TargetApplicationId = value; } }
+    public IDiscordInviteProperties WithMaxAge(int? maxAge) 
+    {
+        return new DiscordInviteProperties(_original.WithMaxAge(maxAge));
+    }
+    public IDiscordInviteProperties WithMaxUses(int? maxUses) 
+    {
+        return new DiscordInviteProperties(_original.WithMaxUses(maxUses));
+    }
+    public IDiscordInviteProperties WithTemporary(bool? temporary = true) 
+    {
+        return new DiscordInviteProperties(_original.WithTemporary(temporary));
+    }
+    public IDiscordInviteProperties WithUnique(bool? unique = true) 
+    {
+        return new DiscordInviteProperties(_original.WithUnique(unique));
+    }
+    public IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetType(targetType));
+    }
+    public IDiscordInviteProperties WithTargetUserId(ulong? targetUserId) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetUserId(targetUserId));
+    }
+    public IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetApplicationId(targetApplicationId));
     }
 }
 
@@ -12886,6 +11878,68 @@ public class DiscordGroupDMChannelUserAddProperties : IDiscordGroupDMChannelUser
     public IDiscordGroupDMChannelUserAddProperties WithNickname(string nickname) 
     {
         return new DiscordGroupDMChannelUserAddProperties(_original.WithNickname(nickname));
+    }
+}
+
+
+public class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMessageProperties 
+{
+    private readonly NetCord.Rest.GuildThreadFromMessageProperties _original;
+    public DiscordGuildThreadFromMessageProperties(NetCord.Rest.GuildThreadFromMessageProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildThreadFromMessageProperties Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
+    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
+    public IDiscordGuildThreadFromMessageProperties WithName(string name) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithName(name));
+    }
+    public IDiscordGuildThreadFromMessageProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildThreadFromMessageProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildThreadFromMessageProperties(_original.WithSlowmode(slowmode));
+    }
+}
+
+
+public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties 
+{
+    private readonly NetCord.Rest.GuildThreadProperties _original;
+    public DiscordGuildThreadProperties(NetCord.Rest.GuildThreadProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildThreadProperties Original => _original;
+    public NetCord.ChannelType? ChannelType { get { return _original.ChannelType; } set { _original.ChannelType = value; } }
+    public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.ThreadArchiveDuration? AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
+    public int? Slowmode { get { return _original.Slowmode; } set { _original.Slowmode = value; } }
+    public IDiscordGuildThreadProperties WithChannelType(NetCord.ChannelType? channelType) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithChannelType(channelType));
+    }
+    public IDiscordGuildThreadProperties WithInvitable(bool? invitable = true) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithInvitable(invitable));
+    }
+    public IDiscordGuildThreadProperties WithName(string name) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithName(name));
+    }
+    public IDiscordGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithAutoArchiveDuration(autoArchiveDuration));
+    }
+    public IDiscordGuildThreadProperties WithSlowmode(int? slowmode) 
+    {
+        return new DiscordGuildThreadProperties(_original.WithSlowmode(slowmode));
     }
 }
 
@@ -13161,6 +12215,94 @@ public class DiscordForumGuildThreadProperties : IDiscordForumGuildThreadPropert
 }
 
 
+public class DiscordThreadUser : IDiscordThreadUser 
+{
+    private readonly NetCord.ThreadUser _original;
+    public DiscordThreadUser(NetCord.ThreadUser original)
+    {
+        _original = original;
+    }
+    public NetCord.ThreadUser Original => _original;
+    public ulong Id => _original.Id;
+    public ulong ThreadId => _original.ThreadId;
+    public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
+    public int Flags => _original.Flags;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordApplicationEmoji : IDiscordApplicationEmoji 
+{
+    private readonly NetCord.ApplicationEmoji _original;
+    public DiscordApplicationEmoji(NetCord.ApplicationEmoji original)
+    {
+        _original = original;
+    }
+    public NetCord.ApplicationEmoji Original => _original;
+    public ulong ApplicationId => _original.ApplicationId;
+    public ulong Id => _original.Id;
+    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
+    public bool? RequireColons => _original.RequireColons;
+    public bool? Managed => _original.Managed;
+    public bool? Available => _original.Available;
+    public string Name => _original.Name;
+    public bool Animated => _original.Animated;
+    public async Task<IDiscordApplicationEmoji> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyAsync(Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyAsync(x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public IDiscordImageUrl GetImageUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetImageUrl(format));
+    }
+}
+
+
+public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiProperties 
+{
+    private readonly NetCord.Rest.ApplicationEmojiProperties _original;
+    public DiscordApplicationEmojiProperties(NetCord.Rest.ApplicationEmojiProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationEmojiProperties Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Rest.ImageProperties Image { get { return _original.Image; } set { _original.Image = value; } }
+    public IDiscordApplicationEmojiProperties WithName(string name) 
+    {
+        return new DiscordApplicationEmojiProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationEmojiProperties WithImage(NetCord.Rest.ImageProperties image) 
+    {
+        return new DiscordApplicationEmojiProperties(_original.WithImage(image));
+    }
+}
+
+
+public class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions 
+{
+    private readonly NetCord.Rest.ApplicationEmojiOptions _original;
+    public DiscordApplicationEmojiOptions(NetCord.Rest.ApplicationEmojiOptions original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationEmojiOptions Original => _original;
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public IDiscordApplicationEmojiOptions WithName(string name) 
+    {
+        return new DiscordApplicationEmojiOptions(_original.WithName(name));
+    }
+}
+
+
 public class DiscordGatewayBot : IDiscordGatewayBot 
 {
     private readonly NetCord.Rest.GatewayBot _original;
@@ -13253,6 +12395,72 @@ public class DiscordGuildProperties : IDiscordGuildProperties
     public IDiscordGuildProperties WithSystemChannelFlags(NetCord.Rest.SystemChannelFlags? systemChannelFlags) 
     {
         return new DiscordGuildProperties(_original.WithSystemChannelFlags(systemChannelFlags));
+    }
+}
+
+
+public class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTemplateProperties 
+{
+    private readonly NetCord.Rest.GuildFromGuildTemplateProperties _original;
+    public DiscordGuildFromGuildTemplateProperties(NetCord.Rest.GuildFromGuildTemplateProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildFromGuildTemplateProperties Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Rest.ImageProperties? Icon { get { return _original.Icon; } set { _original.Icon = value; } }
+    public IDiscordGuildFromGuildTemplateProperties WithName(string name) 
+    {
+        return new DiscordGuildFromGuildTemplateProperties(_original.WithName(name));
+    }
+    public IDiscordGuildFromGuildTemplateProperties WithIcon(NetCord.Rest.ImageProperties? icon) 
+    {
+        return new DiscordGuildFromGuildTemplateProperties(_original.WithIcon(icon));
+    }
+}
+
+
+public class DiscordApplicationCommand : IDiscordApplicationCommand 
+{
+    private readonly NetCord.Rest.ApplicationCommand _original;
+    public DiscordApplicationCommand(NetCord.Rest.ApplicationCommand original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationCommand Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.ApplicationCommandType Type => _original.Type;
+    public ulong ApplicationId => _original.ApplicationId;
+    public string Name => _original.Name;
+    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
+    public string Description => _original.Description;
+    public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
+    public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
+    public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
+    public bool Nsfw => _original.Nsfw;
+    public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
+    public IReadOnlyList<NetCord.InteractionContextType>? Contexts => _original.Contexts;
+    public ulong Version => _original.Version;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public async Task<IDiscordApplicationCommand> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommand> ModifyAsync(Action<IDiscordApplicationCommandOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommand(await _original.ModifyAsync(x => action(new DiscordApplicationCommandOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.GetGuildPermissionsAsync(guildId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteGuildPermissionsAsync(guildId, newPermissions.Select(x => x.Original), properties?.Original, cancellationToken));
     }
 }
 
@@ -13417,6 +12625,27 @@ public class DiscordStageInstanceProperties : IDiscordStageInstanceProperties
 }
 
 
+public class DiscordStageInstanceOptions : IDiscordStageInstanceOptions 
+{
+    private readonly NetCord.Rest.StageInstanceOptions _original;
+    public DiscordStageInstanceOptions(NetCord.Rest.StageInstanceOptions original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.StageInstanceOptions Original => _original;
+    public string? Topic { get { return _original.Topic; } set { _original.Topic = value; } }
+    public NetCord.StageInstancePrivacyLevel? PrivacyLevel { get { return _original.PrivacyLevel; } set { _original.PrivacyLevel = value; } }
+    public IDiscordStageInstanceOptions WithTopic(string topic) 
+    {
+        return new DiscordStageInstanceOptions(_original.WithTopic(topic));
+    }
+    public IDiscordStageInstanceOptions WithPrivacyLevel(NetCord.StageInstancePrivacyLevel? privacyLevel) 
+    {
+        return new DiscordStageInstanceOptions(_original.WithPrivacyLevel(privacyLevel));
+    }
+}
+
+
 public class DiscordStandardSticker : IDiscordStandardSticker 
 {
     private readonly NetCord.StandardSticker _original;
@@ -13506,6 +12735,95 @@ public class DiscordSubscriptionPaginationProperties : IDiscordSubscriptionPagin
     public IDiscordSubscriptionPaginationProperties WithBatchSize(int? batchSize) 
     {
         return new DiscordSubscriptionPaginationProperties(_original.WithBatchSize(batchSize));
+    }
+}
+
+
+public class DiscordApplication : IDiscordApplication 
+{
+    private readonly NetCord.Application _original;
+    public DiscordApplication(NetCord.Application original)
+    {
+        _original = original;
+    }
+    public NetCord.Application Original => _original;
+    public ulong Id => _original.Id;
+    public string Name => _original.Name;
+    public string? IconHash => _original.IconHash;
+    public string Description => _original.Description;
+    public IReadOnlyList<string> RpcOrigins => _original.RpcOrigins;
+    public bool? BotPublic => _original.BotPublic;
+    public bool? BotRequireCodeGrant => _original.BotRequireCodeGrant;
+    public IDiscordUser? Bot => _original.Bot is null ? null : new DiscordUser(_original.Bot);
+    public string? TermsOfServiceUrl => _original.TermsOfServiceUrl;
+    public string? PrivacyPolicyUrl => _original.PrivacyPolicyUrl;
+    public IDiscordUser? Owner => _original.Owner is null ? null : new DiscordUser(_original.Owner);
+    public string VerifyKey => _original.VerifyKey;
+    public IDiscordTeam? Team => _original.Team is null ? null : new DiscordTeam(_original.Team);
+    public ulong? GuildId => _original.GuildId;
+    public IDiscordRestGuild? Guild => _original.Guild is null ? null : new DiscordRestGuild(_original.Guild);
+    public ulong? PrimarySkuId => _original.PrimarySkuId;
+    public string? Slug => _original.Slug;
+    public string? CoverImageHash => _original.CoverImageHash;
+    public NetCord.ApplicationFlags? Flags => _original.Flags;
+    public int? ApproximateGuildCount => _original.ApproximateGuildCount;
+    public int? ApproximateUserInstallCount => _original.ApproximateUserInstallCount;
+    public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
+    public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
+    public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
+    public IReadOnlyList<string>? Tags => _original.Tags;
+    public IDiscordApplicationInstallParams? InstallParams => _original.InstallParams is null ? null : new DiscordApplicationInstallParams(_original.InstallParams);
+    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration is null ? null : _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
+    public string? CustomInstallUrl => _original.CustomInstallUrl;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetCoverUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetCoverUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetAssetUrl(assetId, format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetAchievementIconUrl(ulong achievementId, string iconHash, NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetAchievementIconUrl(achievementId, iconHash, format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetStorePageAssetUrl(ulong assetId, NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetStorePageAssetUrl(assetId, format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public async Task<IReadOnlyList<IDiscordApplicationEmoji>> GetEmojisAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return (await _original.GetEmojisAsync(properties?.Original, cancellationToken)).Select(x => new DiscordApplicationEmoji(x)).ToList();
+    }
+    public async Task<IDiscordApplicationEmoji> GetEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.GetEmojiAsync(emojiId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> CreateEmojiAsync(IDiscordApplicationEmojiProperties applicationEmojiProperties, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.CreateEmojiAsync(applicationEmojiProperties.Original, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordApplicationEmoji> ModifyEmojiAsync(ulong emojiId, Action<IDiscordApplicationEmojiOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplicationEmoji(await _original.ModifyEmojiAsync(emojiId, x => action(new DiscordApplicationEmojiOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteEmojiAsync(ulong emojiId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteEmojiAsync(emojiId, properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordApplication> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordApplication(await _original.GetAsync(properties?.Original, cancellationToken));
     }
 }
 
@@ -13883,6 +13201,2004 @@ public class DiscordApplicationRoleConnectionProperties : IDiscordApplicationRol
 }
 
 
+public class DiscordIncomingWebhook : IDiscordIncomingWebhook 
+{
+    private readonly NetCord.Rest.IncomingWebhook _original;
+    public DiscordIncomingWebhook(NetCord.Rest.IncomingWebhook original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.IncomingWebhook Original => _original;
+    public string Token => _original.Token;
+    public ulong Id => _original.Id;
+    public NetCord.Rest.WebhookType Type => _original.Type;
+    public ulong? GuildId => _original.GuildId;
+    public ulong? ChannelId => _original.ChannelId;
+    public IDiscordUser? Creator => _original.Creator is null ? null : new DiscordUser(_original.Creator);
+    public string? Name => _original.Name;
+    public string? AvatarHash => _original.AvatarHash;
+    public ulong? ApplicationId => _original.ApplicationId;
+    public IDiscordRestGuild? Guild => _original.Guild is null ? null : new DiscordRestGuild(_original.Guild);
+    public IDiscordChannel? Channel => _original.Channel is null ? null : new DiscordChannel(_original.Channel);
+    public string? Url => _original.Url;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordWebhookClient ToClient(IDiscordWebhookClientConfiguration? configuration = null) 
+    {
+        return new DiscordWebhookClient(_original.ToClient(configuration?.Original));
+    }
+    public async Task<IDiscordIncomingWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> GetWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.GetWithTokenAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordIncomingWebhook(await _original.ModifyWithTokenAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteWithTokenAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteWithTokenAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+}
+
+
+public class DiscordWebhookProperties : IDiscordWebhookProperties 
+{
+    private readonly NetCord.Rest.WebhookProperties _original;
+    public DiscordWebhookProperties(NetCord.Rest.WebhookProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.WebhookProperties Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
+    public IDiscordWebhookProperties WithName(string name) 
+    {
+        return new DiscordWebhookProperties(_original.WithName(name));
+    }
+    public IDiscordWebhookProperties WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordWebhookProperties(_original.WithAvatar(avatar));
+    }
+}
+
+
+public class DiscordWebhookOptions : IDiscordWebhookOptions 
+{
+    private readonly NetCord.Rest.WebhookOptions _original;
+    public DiscordWebhookOptions(NetCord.Rest.WebhookOptions original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.WebhookOptions Original => _original;
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public IDiscordWebhookOptions WithName(string name) 
+    {
+        return new DiscordWebhookOptions(_original.WithName(name));
+    }
+    public IDiscordWebhookOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordWebhookOptions(_original.WithAvatar(avatar));
+    }
+    public IDiscordWebhookOptions WithChannelId(ulong? channelId) 
+    {
+        return new DiscordWebhookOptions(_original.WithChannelId(channelId));
+    }
+}
+
+
+public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties 
+{
+    private readonly NetCord.Rest.WebhookMessageProperties _original;
+    public DiscordWebhookMessageProperties(NetCord.Rest.WebhookMessageProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.WebhookMessageProperties Original => _original;
+    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
+    public string? Username { get { return _original.Username; } set { _original.Username = value; } }
+    public string? AvatarUrl { get { return _original.AvatarUrl; } set { _original.AvatarUrl = value; } }
+    public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
+    public IEnumerable<IDiscordEmbedProperties>? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordEmbedProperties(x)); } set { _original.Embeds = value?.Select(x => x.Original); } }
+    public IDiscordAllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions); } set { _original.AllowedMentions = value?.Original; } }
+    public IEnumerable<IDiscordComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<IDiscordAttachmentProperties>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordAttachmentProperties(x)); } set { _original.Attachments = value?.Select(x => x.Original); } }
+    public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public string? ThreadName { get { return _original.ThreadName; } set { _original.ThreadName = value; } }
+    public IEnumerable<ulong>? AppliedTags { get { return _original.AppliedTags; } set { _original.AppliedTags = value; } }
+    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordWebhookMessageProperties WithContent(string content) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordWebhookMessageProperties WithUsername(string username) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithUsername(username));
+    }
+    public IDiscordWebhookMessageProperties WithAvatarUrl(string avatarUrl) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAvatarUrl(avatarUrl));
+    }
+    public IDiscordWebhookMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
+    }
+    public IDiscordWebhookMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordWebhookMessageProperties WithThreadName(string threadName) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithThreadName(threadName));
+    }
+    public IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong>? appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags) 
+    {
+        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
+    }
+    public IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll) 
+    {
+        return new DiscordWebhookMessageProperties(_original.WithPoll(poll?.Original));
+    }
+}
+
+
+public class DiscordGuildChannelMention : IDiscordGuildChannelMention 
+{
+    private readonly NetCord.GuildChannelMention _original;
+    public DiscordGuildChannelMention(NetCord.GuildChannelMention original)
+    {
+        _original = original;
+    }
+    public NetCord.GuildChannelMention Original => _original;
+    public ulong Id => _original.Id;
+    public ulong GuildId => _original.GuildId;
+    public NetCord.ChannelType Type => _original.Type;
+    public string Name => _original.Name;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordAttachment : IDiscordAttachment 
+{
+    private readonly NetCord.Attachment _original;
+    public DiscordAttachment(NetCord.Attachment original)
+    {
+        _original = original;
+    }
+    public NetCord.Attachment Original => _original;
+    public ulong Id => _original.Id;
+    public string FileName => _original.FileName;
+    public string? Title => _original.Title;
+    public string? Description => _original.Description;
+    public string? ContentType => _original.ContentType;
+    public int Size => _original.Size;
+    public string Url => _original.Url;
+    public string ProxyUrl => _original.ProxyUrl;
+    public bool Ephemeral => _original.Ephemeral;
+    public NetCord.AttachmentFlags Flags => _original.Flags;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordAttachmentExpirationInfo GetExpirationInfo() 
+    {
+        return new DiscordAttachmentExpirationInfo(_original.GetExpirationInfo());
+    }
+}
+
+
+public class DiscordEmbed : IDiscordEmbed 
+{
+    private readonly NetCord.Embed _original;
+    public DiscordEmbed(NetCord.Embed original)
+    {
+        _original = original;
+    }
+    public NetCord.Embed Original => _original;
+    public string? Title => _original.Title;
+    public NetCord.EmbedType? Type => _original.Type;
+    public string? Description => _original.Description;
+    public string? Url => _original.Url;
+    public System.DateTimeOffset? Timestamp => _original.Timestamp;
+    public NetCord.Color? Color => _original.Color;
+    public IDiscordEmbedFooter? Footer => _original.Footer is null ? null : new DiscordEmbedFooter(_original.Footer);
+    public IDiscordEmbedImage? Image => _original.Image is null ? null : new DiscordEmbedImage(_original.Image);
+    public IDiscordEmbedThumbnail? Thumbnail => _original.Thumbnail is null ? null : new DiscordEmbedThumbnail(_original.Thumbnail);
+    public IDiscordEmbedVideo? Video => _original.Video is null ? null : new DiscordEmbedVideo(_original.Video);
+    public IDiscordEmbedProvider? Provider => _original.Provider is null ? null : new DiscordEmbedProvider(_original.Provider);
+    public IDiscordEmbedAuthor? Author => _original.Author is null ? null : new DiscordEmbedAuthor(_original.Author);
+    public IReadOnlyList<IDiscordEmbedField> Fields => _original.Fields.Select(x => new DiscordEmbedField(x)).ToList();
+}
+
+
+public class DiscordMessageReaction : IDiscordMessageReaction 
+{
+    private readonly NetCord.MessageReaction _original;
+    public DiscordMessageReaction(NetCord.MessageReaction original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageReaction Original => _original;
+    public int Count => _original.Count;
+    public IDiscordMessageReactionCountDetails CountDetails => new DiscordMessageReactionCountDetails(_original.CountDetails);
+    public bool Me => _original.Me;
+    public bool MeBurst => _original.MeBurst;
+    public IDiscordMessageReactionEmoji Emoji => new DiscordMessageReactionEmoji(_original.Emoji);
+    public IReadOnlyList<NetCord.Color> BurstColors => _original.BurstColors;
+}
+
+
+public class DiscordMessageActivity : IDiscordMessageActivity 
+{
+    private readonly NetCord.MessageActivity _original;
+    public DiscordMessageActivity(NetCord.MessageActivity original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageActivity Original => _original;
+    public NetCord.MessageActivityType Type => _original.Type;
+    public string? PartyId => _original.PartyId;
+}
+
+
+public class DiscordMessageReference : IDiscordMessageReference 
+{
+    private readonly NetCord.MessageReference _original;
+    public DiscordMessageReference(NetCord.MessageReference original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageReference Original => _original;
+    public ulong MessageId => _original.MessageId;
+    public ulong ChannelId => _original.ChannelId;
+    public ulong? GuildId => _original.GuildId;
+    public bool? FailIfNotExists => _original.FailIfNotExists;
+}
+
+
+public class DiscordMessageSnapshot : IDiscordMessageSnapshot 
+{
+    private readonly NetCord.MessageSnapshot _original;
+    public DiscordMessageSnapshot(NetCord.MessageSnapshot original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageSnapshot Original => _original;
+    public IDiscordMessageSnapshotMessage Message => new DiscordMessageSnapshotMessage(_original.Message);
+}
+
+
+public class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetadata 
+{
+    private readonly NetCord.MessageInteractionMetadata _original;
+    public DiscordMessageInteractionMetadata(NetCord.MessageInteractionMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageInteractionMetadata Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.InteractionType Type => _original.Type;
+    public IDiscordUser User => new DiscordUser(_original.User);
+    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
+    public ulong? OriginalResponseMessageId => _original.OriginalResponseMessageId;
+    public ulong? InteractedMessageId => _original.InteractedMessageId;
+    public IDiscordMessageInteractionMetadata? TriggeringInteractionMetadata => _original.TriggeringInteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.TriggeringInteractionMetadata);
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordComponent : IDiscordComponent 
+{
+    private readonly NetCord.IComponent _original;
+    public DiscordComponent(NetCord.IComponent original)
+    {
+        _original = original;
+    }
+    public NetCord.IComponent Original => _original;
+    public int Id => _original.Id;
+}
+
+
+public class DiscordMessageSticker : IDiscordMessageSticker 
+{
+    private readonly NetCord.MessageSticker _original;
+    public DiscordMessageSticker(NetCord.MessageSticker original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageSticker Original => _original;
+    public ulong Id => _original.Id;
+    public string Name => _original.Name;
+    public NetCord.StickerFormat Format => _original.Format;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordRoleSubscriptionData : IDiscordRoleSubscriptionData 
+{
+    private readonly NetCord.RoleSubscriptionData _original;
+    public DiscordRoleSubscriptionData(NetCord.RoleSubscriptionData original)
+    {
+        _original = original;
+    }
+    public NetCord.RoleSubscriptionData Original => _original;
+    public ulong RoleSubscriptionListingId => _original.RoleSubscriptionListingId;
+    public string TierName => _original.TierName;
+    public int TotalMonthsSubscribed => _original.TotalMonthsSubscribed;
+    public bool IsRenewal => _original.IsRenewal;
+}
+
+
+public class DiscordInteractionResolvedData : IDiscordInteractionResolvedData 
+{
+    private readonly NetCord.InteractionResolvedData _original;
+    public DiscordInteractionResolvedData(NetCord.InteractionResolvedData original)
+    {
+        _original = original;
+    }
+    public NetCord.InteractionResolvedData Original => _original;
+    public IReadOnlyDictionary<ulong, IDiscordUser>? Users => _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordChannel>? Channels => _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordChannel)new DiscordChannel(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordAttachment>? Attachments => _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordAttachment)new DiscordAttachment(kv.Value));
+}
+
+
+public class DiscordMessagePoll : IDiscordMessagePoll 
+{
+    private readonly NetCord.MessagePoll _original;
+    public DiscordMessagePoll(NetCord.MessagePoll original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePoll Original => _original;
+    public IDiscordMessagePollMedia Question => new DiscordMessagePollMedia(_original.Question);
+    public IReadOnlyList<IDiscordMessagePollAnswer> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswer(x)).ToList();
+    public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
+    public bool AllowMultiselect => _original.AllowMultiselect;
+    public NetCord.MessagePollLayoutType LayoutType => _original.LayoutType;
+    public IDiscordMessagePollResults? Results => _original.Results is null ? null : new DiscordMessagePollResults(_original.Results);
+}
+
+
+public class DiscordMessageCall : IDiscordMessageCall 
+{
+    private readonly NetCord.Rest.MessageCall _original;
+    public DiscordMessageCall(NetCord.Rest.MessageCall original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.MessageCall Original => _original;
+    public IReadOnlyList<ulong> Participants => _original.Participants;
+    public System.DateTimeOffset? EndedAt => _original.EndedAt;
+}
+
+
+public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties 
+{
+    private readonly NetCord.Rest.ReplyMessageProperties _original;
+    public DiscordReplyMessageProperties(NetCord.Rest.ReplyMessageProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ReplyMessageProperties Original => _original;
+    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
+    public IDiscordNonceProperties? Nonce { get { return _original.Nonce is null ? null : new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value?.Original; } }
+    public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
+    public IEnumerable<IDiscordAttachmentProperties>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.Select(x => new DiscordAttachmentProperties(x)); } set { _original.Attachments = value?.Select(x => x.Original); } }
+    public IEnumerable<IDiscordEmbedProperties>? Embeds { get { return _original.Embeds is null ? null : _original.Embeds.Select(x => new DiscordEmbedProperties(x)); } set { _original.Embeds = value?.Select(x => x.Original); } }
+    public IDiscordAllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions is null ? null : new DiscordAllowedMentionsProperties(_original.AllowedMentions); } set { _original.AllowedMentions = value?.Original; } }
+    public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
+    public IEnumerable<IDiscordComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
+    public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
+    public IDiscordMessageProperties ToMessageProperties(ulong messageReferenceId) 
+    {
+        return new DiscordMessageProperties(_original.ToMessageProperties(messageReferenceId));
+    }
+    public IDiscordReplyMessageProperties WithContent(string content) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithContent(content));
+    }
+    public IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties? nonce) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithNonce(nonce?.Original));
+    }
+    public IDiscordReplyMessageProperties WithTts(bool tts = true) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithTts(tts));
+    }
+    public IDiscordReplyMessageProperties WithAttachments(IEnumerable<IDiscordAttachmentProperties>? attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithAttachments(attachments?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddAttachments(IEnumerable<IDiscordAttachmentProperties> attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddAttachments(IDiscordAttachmentProperties[] attachments) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<IDiscordEmbedProperties>? embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<IDiscordEmbedProperties> embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddEmbeds(IDiscordEmbedProperties[] embeds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithAllowedMentions(IDiscordAllowedMentionsProperties? allowedMentions) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithAllowedMentions(allowedMentions?.Original));
+    }
+    public IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
+    }
+    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordComponentProperties>? components) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordComponentProperties> components) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+    }
+    public IDiscordReplyMessageProperties AddComponents(IDiscordComponentProperties[] components) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) 
+    {
+        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
+    }
+    public IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithFlags(flags));
+    }
+    public IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties? poll) 
+    {
+        return new DiscordReplyMessageProperties(_original.WithPoll(poll?.Original));
+    }
+}
+
+
+public class DiscordEmbedProperties : IDiscordEmbedProperties 
+{
+    private readonly NetCord.Rest.EmbedProperties _original;
+    public DiscordEmbedProperties(NetCord.Rest.EmbedProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedProperties Original => _original;
+    public string? Title { get { return _original.Title; } set { _original.Title = value; } }
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
+    public System.DateTimeOffset? Timestamp { get { return _original.Timestamp; } set { _original.Timestamp = value; } }
+    public NetCord.Color Color { get { return _original.Color; } set { _original.Color = value; } }
+    public IDiscordEmbedFooterProperties? Footer { get { return _original.Footer is null ? null : new DiscordEmbedFooterProperties(_original.Footer); } set { _original.Footer = value?.Original; } }
+    public IDiscordEmbedImageProperties? Image { get { return _original.Image is null ? null : new DiscordEmbedImageProperties(_original.Image); } set { _original.Image = value?.Original; } }
+    public IDiscordEmbedThumbnailProperties? Thumbnail { get { return _original.Thumbnail is null ? null : new DiscordEmbedThumbnailProperties(_original.Thumbnail); } set { _original.Thumbnail = value?.Original; } }
+    public IDiscordEmbedAuthorProperties? Author { get { return _original.Author is null ? null : new DiscordEmbedAuthorProperties(_original.Author); } set { _original.Author = value?.Original; } }
+    public IEnumerable<IDiscordEmbedFieldProperties>? Fields { get { return _original.Fields is null ? null : _original.Fields.Select(x => new DiscordEmbedFieldProperties(x)); } set { _original.Fields = value?.Select(x => x.Original); } }
+    public IDiscordEmbedProperties WithTitle(string title) 
+    {
+        return new DiscordEmbedProperties(_original.WithTitle(title));
+    }
+    public IDiscordEmbedProperties WithDescription(string description) 
+    {
+        return new DiscordEmbedProperties(_original.WithDescription(description));
+    }
+    public IDiscordEmbedProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedProperties(_original.WithUrl(url));
+    }
+    public IDiscordEmbedProperties WithTimestamp(System.DateTimeOffset? timestamp) 
+    {
+        return new DiscordEmbedProperties(_original.WithTimestamp(timestamp));
+    }
+    public IDiscordEmbedProperties WithColor(NetCord.Color color) 
+    {
+        return new DiscordEmbedProperties(_original.WithColor(color));
+    }
+    public IDiscordEmbedProperties WithFooter(IDiscordEmbedFooterProperties? footer) 
+    {
+        return new DiscordEmbedProperties(_original.WithFooter(footer?.Original));
+    }
+    public IDiscordEmbedProperties WithImage(IDiscordEmbedImageProperties? image) 
+    {
+        return new DiscordEmbedProperties(_original.WithImage(image?.Original));
+    }
+    public IDiscordEmbedProperties WithThumbnail(IDiscordEmbedThumbnailProperties? thumbnail) 
+    {
+        return new DiscordEmbedProperties(_original.WithThumbnail(thumbnail?.Original));
+    }
+    public IDiscordEmbedProperties WithAuthor(IDiscordEmbedAuthorProperties? author) 
+    {
+        return new DiscordEmbedProperties(_original.WithAuthor(author?.Original));
+    }
+    public IDiscordEmbedProperties WithFields(IEnumerable<IDiscordEmbedFieldProperties>? fields) 
+    {
+        return new DiscordEmbedProperties(_original.WithFields(fields?.Select(x => x.Original)));
+    }
+    public IDiscordEmbedProperties AddFields(IEnumerable<IDiscordEmbedFieldProperties> fields) 
+    {
+        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original)));
+    }
+    public IDiscordEmbedProperties AddFields(IDiscordEmbedFieldProperties[] fields) 
+    {
+        return new DiscordEmbedProperties(_original.AddFields(fields.Select(x => x.Original).ToArray()));
+    }
+}
+
+
+public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsProperties 
+{
+    private readonly NetCord.Rest.AllowedMentionsProperties _original;
+    public DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.AllowedMentionsProperties Original => _original;
+    public bool Everyone { get { return _original.Everyone; } set { _original.Everyone = value; } }
+    public IEnumerable<ulong>? AllowedRoles { get { return _original.AllowedRoles; } set { _original.AllowedRoles = value; } }
+    public IEnumerable<ulong>? AllowedUsers { get { return _original.AllowedUsers; } set { _original.AllowedUsers = value; } }
+    public bool ReplyMention { get { return _original.ReplyMention; } set { _original.ReplyMention = value; } }
+    public static IDiscordAllowedMentionsProperties All => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.All);
+    public static IDiscordAllowedMentionsProperties None => new DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties.None);
+    public IDiscordAllowedMentionsProperties WithEveryone(bool everyone = true) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithEveryone(everyone));
+    }
+    public IDiscordAllowedMentionsProperties WithAllowedRoles(IEnumerable<ulong>? allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedRoles(ulong[] allowedRoles) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedRoles(allowedRoles));
+    }
+    public IDiscordAllowedMentionsProperties WithAllowedUsers(IEnumerable<ulong>? allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedUsers(IEnumerable<ulong> allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties AddAllowedUsers(ulong[] allowedUsers) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.AddAllowedUsers(allowedUsers));
+    }
+    public IDiscordAllowedMentionsProperties WithReplyMention(bool replyMention = true) 
+    {
+        return new DiscordAllowedMentionsProperties(_original.WithReplyMention(replyMention));
+    }
+}
+
+
+public class DiscordComponentProperties : IDiscordComponentProperties 
+{
+    private readonly NetCord.Rest.IComponentProperties _original;
+    public DiscordComponentProperties(NetCord.Rest.IComponentProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.IComponentProperties Original => _original;
+    public int? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public NetCord.ComponentType ComponentType => _original.ComponentType;
+    public IDiscordComponentProperties WithId(int? id) 
+    {
+        return new DiscordComponentProperties(_original.WithId(id));
+    }
+}
+
+
+public class DiscordAttachmentProperties : IDiscordAttachmentProperties 
+{
+    private readonly NetCord.Rest.AttachmentProperties _original;
+    public DiscordAttachmentProperties(NetCord.Rest.AttachmentProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.AttachmentProperties Original => _original;
+    public string FileName { get { return _original.FileName; } set { _original.FileName = value; } }
+    public string? Title { get { return _original.Title; } set { _original.Title = value; } }
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public bool SupportsHttpSerialization => _original.SupportsHttpSerialization;
+    public HttpContent Serialize() 
+    {
+        return _original.Serialize();
+    }
+    public IDiscordAttachmentProperties WithFileName(string fileName) 
+    {
+        return new DiscordAttachmentProperties(_original.WithFileName(fileName));
+    }
+    public IDiscordAttachmentProperties WithTitle(string title) 
+    {
+        return new DiscordAttachmentProperties(_original.WithTitle(title));
+    }
+    public IDiscordAttachmentProperties WithDescription(string description) 
+    {
+        return new DiscordAttachmentProperties(_original.WithDescription(description));
+    }
+}
+
+
+public class DiscordMessagePollProperties : IDiscordMessagePollProperties 
+{
+    private readonly NetCord.MessagePollProperties _original;
+    public DiscordMessagePollProperties(NetCord.MessagePollProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollProperties Original => _original;
+    public IDiscordMessagePollMediaProperties Question { get { return new DiscordMessagePollMediaProperties(_original.Question); } set { _original.Question = value.Original; } }
+    public IEnumerable<IDiscordMessagePollAnswerProperties> Answers { get { return _original.Answers.Select(x => new DiscordMessagePollAnswerProperties(x)); } set { _original.Answers = value.Select(x => x.Original); } }
+    public int? DurationInHours { get { return _original.DurationInHours; } set { _original.DurationInHours = value; } }
+    public bool AllowMultiselect { get { return _original.AllowMultiselect; } set { _original.AllowMultiselect = value; } }
+    public NetCord.MessagePollLayoutType? LayoutType { get { return _original.LayoutType; } set { _original.LayoutType = value; } }
+    public IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question) 
+    {
+        return new DiscordMessagePollProperties(_original.WithQuestion(question.Original));
+    }
+    public IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
+    {
+        return new DiscordMessagePollProperties(_original.WithAnswers(answers.Select(x => x.Original)));
+    }
+    public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
+    {
+        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original)));
+    }
+    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) 
+    {
+        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) 
+    {
+        return new DiscordMessagePollProperties(_original.WithDurationInHours(durationInHours));
+    }
+    public IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true) 
+    {
+        return new DiscordMessagePollProperties(_original.WithAllowMultiselect(allowMultiselect));
+    }
+    public IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType) 
+    {
+        return new DiscordMessagePollProperties(_original.WithLayoutType(layoutType));
+    }
+}
+
+
+public class DiscordPermissionOverwrite : IDiscordPermissionOverwrite 
+{
+    private readonly NetCord.PermissionOverwrite _original;
+    public DiscordPermissionOverwrite(NetCord.PermissionOverwrite original)
+    {
+        _original = original;
+    }
+    public NetCord.PermissionOverwrite Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.PermissionOverwriteType Type => _original.Type;
+    public NetCord.Permissions Allowed => _original.Allowed;
+    public NetCord.Permissions Denied => _original.Denied;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata 
+{
+    private readonly NetCord.GuildThreadMetadata _original;
+    public DiscordGuildThreadMetadata(NetCord.GuildThreadMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.GuildThreadMetadata Original => _original;
+    public bool Archived => _original.Archived;
+    public NetCord.ThreadArchiveDuration AutoArchiveDuration => _original.AutoArchiveDuration;
+    public System.DateTimeOffset ArchiveTimestamp => _original.ArchiveTimestamp;
+    public bool Locked => _original.Locked;
+    public bool? Invitable => _original.Invitable;
+}
+
+
+public class DiscordThreadCurrentUser : IDiscordThreadCurrentUser 
+{
+    private readonly NetCord.ThreadCurrentUser _original;
+    public DiscordThreadCurrentUser(NetCord.ThreadCurrentUser original)
+    {
+        _original = original;
+    }
+    public NetCord.ThreadCurrentUser Original => _original;
+    public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
+    public int Flags => _original.Flags;
+}
+
+
+public class DiscordUserActivity : IDiscordUserActivity 
+{
+    private readonly NetCord.Gateway.UserActivity _original;
+    public DiscordUserActivity(NetCord.Gateway.UserActivity original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.UserActivity Original => _original;
+    public string Name => _original.Name;
+    public NetCord.Gateway.UserActivityType Type => _original.Type;
+    public string? Url => _original.Url;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordUserActivityTimestamps? Timestamps => _original.Timestamps is null ? null : new DiscordUserActivityTimestamps(_original.Timestamps);
+    public ulong? ApplicationId => _original.ApplicationId;
+    public string? Details => _original.Details;
+    public string? State => _original.State;
+    public IDiscordEmoji? Emoji => _original.Emoji is null ? null : new DiscordEmoji(_original.Emoji);
+    public IDiscordParty? Party => _original.Party is null ? null : new DiscordParty(_original.Party);
+    public IDiscordUserActivityAssets? Assets => _original.Assets is null ? null : new DiscordUserActivityAssets(_original.Assets);
+    public IDiscordUserActivitySecrets? Secrets => _original.Secrets is null ? null : new DiscordUserActivitySecrets(_original.Secrets);
+    public bool? Instance => _original.Instance;
+    public NetCord.Gateway.UserActivityFlags? Flags => _original.Flags;
+    public IReadOnlyList<IDiscordUserActivityButton> Buttons => _original.Buttons.Select(x => new DiscordUserActivityButton(x)).ToList();
+    public ulong GuildId => _original.GuildId;
+}
+
+
+public class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildScheduledEventRecurrenceRule 
+{
+    private readonly NetCord.GuildScheduledEventRecurrenceRule _original;
+    public DiscordGuildScheduledEventRecurrenceRule(NetCord.GuildScheduledEventRecurrenceRule original)
+    {
+        _original = original;
+    }
+    public NetCord.GuildScheduledEventRecurrenceRule Original => _original;
+    public System.DateTimeOffset? StartAt => _original.StartAt;
+    public System.DateTimeOffset? EndAt => _original.EndAt;
+    public NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency => _original.Frequency;
+    public int Interval => _original.Interval;
+    public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleWeekday>? ByWeekday => _original.ByWeekday;
+    public IReadOnlyList<IDiscordGuildScheduledEventRecurrenceRuleNWeekday>? ByNWeekday => _original.ByNWeekday is null ? null : _original.ByNWeekday.Select(x => new DiscordGuildScheduledEventRecurrenceRuleNWeekday(x)).ToList();
+    public IReadOnlyList<NetCord.GuildScheduledEventRecurrenceRuleMonth>? ByMonth => _original.ByMonth;
+    public IReadOnlyList<int>? ByMonthDay => _original.ByMonthDay;
+    public IReadOnlyList<int>? ByYearDay => _original.ByYearDay;
+    public int? Count => _original.Count;
+}
+
+
+public class DiscordRoleTags : IDiscordRoleTags 
+{
+    private readonly NetCord.RoleTags _original;
+    public DiscordRoleTags(NetCord.RoleTags original)
+    {
+        _original = original;
+    }
+    public NetCord.RoleTags Original => _original;
+    public ulong? BotId => _original.BotId;
+    public ulong? IntegrationId => _original.IntegrationId;
+    public bool IsPremiumSubscriber => _original.IsPremiumSubscriber;
+    public ulong? SubscriptionListingId => _original.SubscriptionListingId;
+    public bool IsAvailableForPurchase => _original.IsAvailableForPurchase;
+    public bool GuildConnections => _original.GuildConnections;
+}
+
+
+public class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChannel 
+{
+    private readonly NetCord.GuildWelcomeScreenChannel _original;
+    public DiscordGuildWelcomeScreenChannel(NetCord.GuildWelcomeScreenChannel original)
+    {
+        _original = original;
+    }
+    public NetCord.GuildWelcomeScreenChannel Original => _original;
+    public ulong Id => _original.Id;
+    public string Description => _original.Description;
+    public ulong? EmojiId => _original.EmojiId;
+    public string? EmojiName => _original.EmojiName;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordRestAuditLogEntryData : IDiscordRestAuditLogEntryData 
+{
+    private readonly NetCord.Rest.RestAuditLogEntryData _original;
+    public DiscordRestAuditLogEntryData(NetCord.Rest.RestAuditLogEntryData original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.RestAuditLogEntryData Original => _original;
+    public IReadOnlyDictionary<ulong, IDiscordApplicationCommand> ApplicationCommands => _original.ApplicationCommands.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationCommand)new DiscordApplicationCommand(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordAutoModerationRule> AutoModerationRules => _original.AutoModerationRules.ToDictionary(kv => kv.Key, kv => (IDiscordAutoModerationRule)new DiscordAutoModerationRule(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildScheduledEvent> GuildScheduledEvents => _original.GuildScheduledEvents.ToDictionary(kv => kv.Key, kv => (IDiscordGuildScheduledEvent)new DiscordGuildScheduledEvent(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordIntegration> Integrations => _original.Integrations.ToDictionary(kv => kv.Key, kv => (IDiscordIntegration)new DiscordIntegration(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildThread> Threads => _original.Threads.ToDictionary(kv => kv.Key, kv => (IDiscordGuildThread)new DiscordGuildThread(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordUser> Users => _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordWebhook> Webhooks => _original.Webhooks.ToDictionary(kv => kv.Key, kv => (IDiscordWebhook)new DiscordWebhook(kv.Value));
+}
+
+
+public class DiscordAuditLogChange : IDiscordAuditLogChange 
+{
+    private readonly NetCord.AuditLogChange _original;
+    public DiscordAuditLogChange(NetCord.AuditLogChange original)
+    {
+        _original = original;
+    }
+    public NetCord.AuditLogChange Original => _original;
+    public string Key => _original.Key;
+    public bool HasNewValue => _original.HasNewValue;
+    public bool HasOldValue => _original.HasOldValue;
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
+    }
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    }
+}
+
+
+public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo 
+{
+    private readonly NetCord.AuditLogEntryInfo _original;
+    public DiscordAuditLogEntryInfo(NetCord.AuditLogEntryInfo original)
+    {
+        _original = original;
+    }
+    public NetCord.AuditLogEntryInfo Original => _original;
+    public ulong? ApplicationId => _original.ApplicationId;
+    public string? AutoModerationRuleName => _original.AutoModerationRuleName;
+    public NetCord.AutoModerationRuleTriggerType? AutoModerationRuleTriggerType => _original.AutoModerationRuleTriggerType;
+    public ulong? ChannelId => _original.ChannelId;
+    public int? Count => _original.Count;
+    public int? DeleteGuildUserDays => _original.DeleteGuildUserDays;
+    public ulong? Id => _original.Id;
+    public int? GuildUsersRemoved => _original.GuildUsersRemoved;
+    public ulong? MessageId => _original.MessageId;
+    public string? RoleName => _original.RoleName;
+    public NetCord.PermissionOverwriteType? Type => _original.Type;
+    public NetCord.IntegrationType? IntegrationType => _original.IntegrationType;
+}
+
+
+public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> 
+{
+    private readonly NetCord.AuditLogChange<TValue> _original;
+    public DiscordAuditLogChange(NetCord.AuditLogChange<TValue> original)
+    {
+        _original = original;
+    }
+    public NetCord.AuditLogChange<TValue> Original => _original;
+    public TValue? NewValue => _original.NewValue;
+    public TValue? OldValue => _original.OldValue;
+    public string Key => _original.Key;
+    public bool HasNewValue => _original.HasNewValue;
+    public bool HasOldValue => _original.HasOldValue;
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>(JsonTypeInfo<TValueParam> jsonTypeInfo) 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>(jsonTypeInfo));
+    }
+    public IDiscordAuditLogChange<TValueParam> WithValues<TValueParam>() 
+    {
+        return new DiscordAuditLogChange<TValueParam>(_original.WithValues<TValueParam>());
+    }
+}
+
+
+public class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRuleTriggerMetadata 
+{
+    private readonly NetCord.AutoModerationRuleTriggerMetadata _original;
+    public DiscordAutoModerationRuleTriggerMetadata(NetCord.AutoModerationRuleTriggerMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationRuleTriggerMetadata Original => _original;
+    public IReadOnlyList<string>? KeywordFilter => _original.KeywordFilter;
+    public IReadOnlyList<string>? RegexPatterns => _original.RegexPatterns;
+    public IReadOnlyList<NetCord.AutoModerationRuleKeywordPresetType>? Presets => _original.Presets;
+    public IReadOnlyList<string>? AllowList => _original.AllowList;
+    public int? MentionTotalLimit => _original.MentionTotalLimit;
+    public bool MentionRaidProtectionEnabled => _original.MentionRaidProtectionEnabled;
+}
+
+
+public class DiscordAutoModerationAction : IDiscordAutoModerationAction 
+{
+    private readonly NetCord.AutoModerationAction _original;
+    public DiscordAutoModerationAction(NetCord.AutoModerationAction original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationAction Original => _original;
+    public NetCord.AutoModerationActionType Type => _original.Type;
+    public IDiscordAutoModerationActionMetadata? Metadata => _original.Metadata is null ? null : new DiscordAutoModerationActionMetadata(_original.Metadata);
+}
+
+
+public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoModerationRuleTriggerMetadataProperties 
+{
+    private readonly NetCord.AutoModerationRuleTriggerMetadataProperties _original;
+    public DiscordAutoModerationRuleTriggerMetadataProperties(NetCord.AutoModerationRuleTriggerMetadataProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationRuleTriggerMetadataProperties Original => _original;
+    public IEnumerable<string>? KeywordFilter { get { return _original.KeywordFilter; } set { _original.KeywordFilter = value; } }
+    public IEnumerable<string>? RegexPatterns { get { return _original.RegexPatterns; } set { _original.RegexPatterns = value; } }
+    public IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? Presets { get { return _original.Presets; } set { _original.Presets = value; } }
+    public IEnumerable<string>? AllowList { get { return _original.AllowList; } set { _original.AllowList = value; } }
+    public int? MentionTotalLimit { get { return _original.MentionTotalLimit; } set { _original.MentionTotalLimit = value; } }
+    public bool MentionRaidProtectionEnabled { get { return _original.MentionRaidProtectionEnabled; } set { _original.MentionRaidProtectionEnabled = value; } }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithKeywordFilter(IEnumerable<string>? keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(IEnumerable<string> keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string>? regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string>? allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionTotalLimit(int? mentionTotalLimit) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionTotalLimit(mentionTotalLimit));
+    }
+    public IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionRaidProtectionEnabled(bool mentionRaidProtectionEnabled = true) 
+    {
+        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithMentionRaidProtectionEnabled(mentionRaidProtectionEnabled));
+    }
+}
+
+
+public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActionProperties 
+{
+    private readonly NetCord.AutoModerationActionProperties _original;
+    public DiscordAutoModerationActionProperties(NetCord.AutoModerationActionProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationActionProperties Original => _original;
+    public NetCord.AutoModerationActionType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IDiscordAutoModerationActionMetadataProperties? Metadata { get { return _original.Metadata is null ? null : new DiscordAutoModerationActionMetadataProperties(_original.Metadata); } set { _original.Metadata = value?.Original; } }
+    public IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type) 
+    {
+        return new DiscordAutoModerationActionProperties(_original.WithType(type));
+    }
+    public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties? metadata) 
+    {
+        return new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata?.Original));
+    }
+}
+
+
+public class DiscordForumTagProperties : IDiscordForumTagProperties 
+{
+    private readonly NetCord.Rest.ForumTagProperties _original;
+    public DiscordForumTagProperties(NetCord.Rest.ForumTagProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ForumTagProperties Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public bool? Moderated { get { return _original.Moderated; } set { _original.Moderated = value; } }
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
+    public IDiscordForumTagProperties WithId(ulong? id) 
+    {
+        return new DiscordForumTagProperties(_original.WithId(id));
+    }
+    public IDiscordForumTagProperties WithName(string name) 
+    {
+        return new DiscordForumTagProperties(_original.WithName(name));
+    }
+    public IDiscordForumTagProperties WithModerated(bool? moderated = true) 
+    {
+        return new DiscordForumTagProperties(_original.WithModerated(moderated));
+    }
+    public IDiscordForumTagProperties WithEmojiId(ulong? emojiId) 
+    {
+        return new DiscordForumTagProperties(_original.WithEmojiId(emojiId));
+    }
+    public IDiscordForumTagProperties WithEmojiName(string emojiName) 
+    {
+        return new DiscordForumTagProperties(_original.WithEmojiName(emojiName));
+    }
+}
+
+
+public class DiscordAccount : IDiscordAccount 
+{
+    private readonly NetCord.Account _original;
+    public DiscordAccount(NetCord.Account original)
+    {
+        _original = original;
+    }
+    public NetCord.Account Original => _original;
+    public ulong Id => _original.Id;
+    public string Name => _original.Name;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordIntegrationApplication : IDiscordIntegrationApplication 
+{
+    private readonly NetCord.IntegrationApplication _original;
+    public DiscordIntegrationApplication(NetCord.IntegrationApplication original)
+    {
+        _original = original;
+    }
+    public NetCord.IntegrationApplication Original => _original;
+    public ulong Id => _original.Id;
+    public string Name => _original.Name;
+    public string? IconHash => _original.IconHash;
+    public string Description => _original.Description;
+    public string Summary => _original.Summary;
+    public IDiscordUser? Bot => _original.Bot is null ? null : new DiscordUser(_original.Bot);
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildWidgetChannel : IDiscordGuildWidgetChannel 
+{
+    private readonly NetCord.Rest.GuildWidgetChannel _original;
+    public DiscordGuildWidgetChannel(NetCord.Rest.GuildWidgetChannel original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildWidgetChannel Original => _original;
+    public ulong Id => _original.Id;
+    public string Name => _original.Name;
+    public int Position => _original.Position;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeScreenChannelProperties 
+{
+    private readonly NetCord.Rest.GuildWelcomeScreenChannelProperties _original;
+    public DiscordGuildWelcomeScreenChannelProperties(NetCord.Rest.GuildWelcomeScreenChannelProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildWelcomeScreenChannelProperties Original => _original;
+    public ulong ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public IDiscordEmojiProperties? Emoji { get { return _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji); } set { _original.Emoji = value?.Original; } }
+    public IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithDescription(description));
+    }
+    public IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties? emoji) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmoji(emoji?.Original));
+    }
+}
+
+
+public class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPrompt 
+{
+    private readonly NetCord.Rest.GuildOnboardingPrompt _original;
+    public DiscordGuildOnboardingPrompt(NetCord.Rest.GuildOnboardingPrompt original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildOnboardingPrompt Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.Rest.GuildOnboardingPromptType Type => _original.Type;
+    public IReadOnlyList<IDiscordGuildOnboardingPromptOption> Options => _original.Options.Select(x => new DiscordGuildOnboardingPromptOption(x)).ToList();
+    public string Title => _original.Title;
+    public bool SingleSelect => _original.SingleSelect;
+    public bool Required => _original.Required;
+    public bool InOnboarding => _original.InOnboarding;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPromptProperties 
+{
+    private readonly NetCord.Rest.GuildOnboardingPromptProperties _original;
+    public DiscordGuildOnboardingPromptProperties(NetCord.Rest.GuildOnboardingPromptProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildOnboardingPromptProperties Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public NetCord.Rest.GuildOnboardingPromptType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> Options { get { return _original.Options.Select(x => new DiscordGuildOnboardingPromptOptionProperties(x)); } set { _original.Options = value.Select(x => x.Original); } }
+    public string Title { get { return _original.Title; } set { _original.Title = value; } }
+    public bool SingleSelect { get { return _original.SingleSelect; } set { _original.SingleSelect = value; } }
+    public bool Required { get { return _original.Required; } set { _original.Required = value; } }
+    public bool InOnboarding { get { return _original.InOnboarding; } set { _original.InOnboarding = value; } }
+    public IDiscordGuildOnboardingPromptProperties WithId(ulong? id) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithId(id));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithType(type));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithOptions(options.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original)));
+    }
+    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithTitle(string title) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithTitle(title));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithSingleSelect(singleSelect));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithRequired(required));
+    }
+    public IDiscordGuildOnboardingPromptProperties WithInOnboarding(bool inOnboarding = true) 
+    {
+        return new DiscordGuildOnboardingPromptProperties(_original.WithInOnboarding(inOnboarding));
+    }
+}
+
+
+public class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildScheduledEventMetadataProperties 
+{
+    private readonly NetCord.Rest.GuildScheduledEventMetadataProperties _original;
+    public DiscordGuildScheduledEventMetadataProperties(NetCord.Rest.GuildScheduledEventMetadataProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildScheduledEventMetadataProperties Original => _original;
+    public string Location { get { return _original.Location; } set { _original.Location = value; } }
+    public IDiscordGuildScheduledEventMetadataProperties WithLocation(string location) 
+    {
+        return new DiscordGuildScheduledEventMetadataProperties(_original.WithLocation(location));
+    }
+}
+
+
+public class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview 
+{
+    private readonly NetCord.Rest.GuildTemplatePreview _original;
+    public DiscordGuildTemplatePreview(NetCord.Rest.GuildTemplatePreview original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildTemplatePreview Original => _original;
+    public string Name => _original.Name;
+    public string? IconHash => _original.IconHash;
+    public string? Description => _original.Description;
+    public NetCord.VerificationLevel VerificationLevel => _original.VerificationLevel;
+    public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
+    public NetCord.ContentFilter ContentFilter => _original.ContentFilter;
+    public string PreferredLocale => _original.PreferredLocale;
+    public ulong? AfkChannelId => _original.AfkChannelId;
+    public int AfkTimeout => _original.AfkTimeout;
+    public ulong? SystemChannelId => _original.SystemChannelId;
+    public NetCord.Rest.SystemChannelFlags SystemChannelFlags => _original.SystemChannelFlags;
+    public IReadOnlyDictionary<ulong, IDiscordRole> Roles => _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildChannel> Channels => _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordGuildChannel)new DiscordGuildChannel(kv.Value));
+}
+
+
+public class DiscordApplicationCommandOption : IDiscordApplicationCommandOption 
+{
+    private readonly NetCord.Rest.ApplicationCommandOption _original;
+    public DiscordApplicationCommandOption(NetCord.Rest.ApplicationCommandOption original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationCommandOption Original => _original;
+    public NetCord.ApplicationCommandOptionType Type => _original.Type;
+    public string Name => _original.Name;
+    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
+    public string Description => _original.Description;
+    public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
+    public bool Required => _original.Required;
+    public IReadOnlyList<IDiscordApplicationCommandOptionChoice>? Choices => _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoice(x)).ToList();
+    public IReadOnlyList<IDiscordApplicationCommandOption>? Options => _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
+    public IReadOnlyList<NetCord.ChannelType>? ChannelTypes => _original.ChannelTypes;
+    public double? MinValue => _original.MinValue;
+    public double? MaxValue => _original.MaxValue;
+    public int? MinLength => _original.MinLength;
+    public int? MaxLength => _original.MaxLength;
+    public bool Autocomplete => _original.Autocomplete;
+}
+
+
+public class DiscordApplicationCommandOptionProperties : IDiscordApplicationCommandOptionProperties 
+{
+    private readonly NetCord.Rest.ApplicationCommandOptionProperties _original;
+    public DiscordApplicationCommandOptionProperties(NetCord.Rest.ApplicationCommandOptionProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationCommandOptionProperties Original => _original;
+    public NetCord.ApplicationCommandOptionType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public IReadOnlyDictionary<string, string>? NameLocalizations { get { return _original.NameLocalizations; } set { _original.NameLocalizations = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public IReadOnlyDictionary<string, string>? DescriptionLocalizations { get { return _original.DescriptionLocalizations; } set { _original.DescriptionLocalizations = value; } }
+    public bool? Required { get { return _original.Required; } set { _original.Required = value; } }
+    public IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? Choices { get { return _original.Choices is null ? null : _original.Choices.Select(x => new DiscordApplicationCommandOptionChoiceProperties(x)); } set { _original.Choices = value?.Select(x => x.Original); } }
+    public IEnumerable<IDiscordApplicationCommandOptionProperties>? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOptionProperties(x)); } set { _original.Options = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.ChannelType>? ChannelTypes { get { return _original.ChannelTypes; } set { _original.ChannelTypes = value; } }
+    public double? MinValue { get { return _original.MinValue; } set { _original.MinValue = value; } }
+    public double? MaxValue { get { return _original.MaxValue; } set { _original.MaxValue = value; } }
+    public int? MinLength { get { return _original.MinLength; } set { _original.MinLength = value; } }
+    public int? MaxLength { get { return _original.MaxLength; } set { _original.MaxLength = value; } }
+    public bool? Autocomplete { get { return _original.Autocomplete; } set { _original.Autocomplete = value; } }
+    public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithType(type));
+    }
+    public IDiscordApplicationCommandOptionProperties WithName(string name) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithName(name));
+    }
+    public IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithNameLocalizations(nameLocalizations));
+    }
+    public IDiscordApplicationCommandOptionProperties WithDescription(string description) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithDescription(description));
+    }
+    public IDiscordApplicationCommandOptionProperties WithDescriptionLocalizations(IReadOnlyDictionary<string, string>? descriptionLocalizations) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithDescriptionLocalizations(descriptionLocalizations));
+    }
+    public IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithRequired(required));
+    }
+    public IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithChoices(choices?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties>? options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original)));
+    }
+    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
+    }
+    public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType>? channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMinValue(minValue));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMaxValue(maxValue));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMinLength(minLength));
+    }
+    public IDiscordApplicationCommandOptionProperties WithMaxLength(int? maxLength) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithMaxLength(maxLength));
+    }
+    public IDiscordApplicationCommandOptionProperties WithAutocomplete(bool? autocomplete = true) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithAutocomplete(autocomplete));
+    }
+}
+
+
+public class DiscordApplicationCommandPermission : IDiscordApplicationCommandPermission 
+{
+    private readonly NetCord.ApplicationCommandPermission _original;
+    public DiscordApplicationCommandPermission(NetCord.ApplicationCommandPermission original)
+    {
+        _original = original;
+    }
+    public NetCord.ApplicationCommandPermission Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.ApplicationCommandGuildPermissionType Type => _original.Type;
+    public bool Permission => _original.Permission;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery 
+{
+    private readonly NetCord.Rest.IGuildUsersSearchQuery _original;
+    public DiscordGuildUsersSearchQuery(NetCord.Rest.IGuildUsersSearchQuery original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.IGuildUsersSearchQuery Original => _original;
+    public void Serialize(Utf8JsonWriter writer) 
+    {
+        _original.Serialize(writer);
+    }
+}
+
+
+public class DiscordJsonWebhook : IDiscordJsonWebhook 
+{
+    private readonly NetCord.JsonModels.JsonWebhook _original;
+    public DiscordJsonWebhook(NetCord.JsonModels.JsonWebhook original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonWebhook Original => _original;
+    public NetCord.Rest.WebhookType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public IDiscordJsonUser Creator { get { return new DiscordJsonUser(_original.Creator); } set { _original.Creator = value.Original; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string AvatarHash { get { return _original.AvatarHash; } set { _original.AvatarHash = value; } }
+    public string Token { get { return _original.Token; } set { _original.Token = value; } }
+    public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public IDiscordJsonGuild Guild { get { return new DiscordJsonGuild(_original.Guild); } set { _original.Guild = value.Original; } }
+    public IDiscordJsonChannel Channel { get { return new DiscordJsonChannel(_original.Channel); } set { _original.Channel = value.Original; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonPermissionOverwrite : IDiscordJsonPermissionOverwrite 
+{
+    private readonly NetCord.JsonModels.JsonPermissionOverwrite _original;
+    public DiscordJsonPermissionOverwrite(NetCord.JsonModels.JsonPermissionOverwrite original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonPermissionOverwrite Original => _original;
+    public NetCord.PermissionOverwriteType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public NetCord.Permissions Allowed { get { return _original.Allowed; } set { _original.Allowed = value; } }
+    public NetCord.Permissions Denied { get { return _original.Denied; } set { _original.Denied = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonGuildThreadMetadata : IDiscordJsonGuildThreadMetadata 
+{
+    private readonly NetCord.JsonModels.JsonGuildThreadMetadata _original;
+    public DiscordJsonGuildThreadMetadata(NetCord.JsonModels.JsonGuildThreadMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildThreadMetadata Original => _original;
+    public bool Archived { get { return _original.Archived; } set { _original.Archived = value; } }
+    public NetCord.ThreadArchiveDuration AutoArchiveDuration { get { return _original.AutoArchiveDuration; } set { _original.AutoArchiveDuration = value; } }
+    public System.DateTimeOffset ArchiveTimestamp { get { return _original.ArchiveTimestamp; } set { _original.ArchiveTimestamp = value; } }
+    public bool Locked { get { return _original.Locked; } set { _original.Locked = value; } }
+    public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
+}
+
+
+public class DiscordJsonThreadCurrentUser : IDiscordJsonThreadCurrentUser 
+{
+    private readonly NetCord.JsonModels.JsonThreadCurrentUser _original;
+    public DiscordJsonThreadCurrentUser(NetCord.JsonModels.JsonThreadCurrentUser original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonThreadCurrentUser Original => _original;
+    public System.DateTimeOffset JoinTimestamp { get { return _original.JoinTimestamp; } set { _original.JoinTimestamp = value; } }
+    public int Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+}
+
+
+public class DiscordJsonForumTag : IDiscordJsonForumTag 
+{
+    private readonly NetCord.JsonModels.JsonForumTag _original;
+    public DiscordJsonForumTag(NetCord.JsonModels.JsonForumTag original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonForumTag Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public bool Moderated { get { return _original.Moderated; } set { _original.Moderated = value; } }
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonForumGuildChannelDefaultReaction : IDiscordJsonForumGuildChannelDefaultReaction 
+{
+    private readonly NetCord.JsonModels.JsonForumGuildChannelDefaultReaction _original;
+    public DiscordJsonForumGuildChannelDefaultReaction(NetCord.JsonModels.JsonForumGuildChannelDefaultReaction original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonForumGuildChannelDefaultReaction Original => _original;
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
+}
+
+
+public class DiscordNonceProperties : IDiscordNonceProperties 
+{
+    private readonly NetCord.Rest.NonceProperties _original;
+    public DiscordNonceProperties(NetCord.Rest.NonceProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.NonceProperties Original => _original;
+    public bool Unique { get { return _original.Unique; } set { _original.Unique = value; } }
+    public IDiscordNonceProperties WithUnique(bool unique = true) 
+    {
+        return new DiscordNonceProperties(_original.WithUnique(unique));
+    }
+}
+
+
+public class DiscordMessageReferenceProperties : IDiscordMessageReferenceProperties 
+{
+    private readonly NetCord.Rest.MessageReferenceProperties _original;
+    public DiscordMessageReferenceProperties(NetCord.Rest.MessageReferenceProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.MessageReferenceProperties Original => _original;
+    public NetCord.MessageReferenceType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public ulong MessageId { get { return _original.MessageId; } set { _original.MessageId = value; } }
+    public bool FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
+    public IDiscordMessageReferenceProperties WithType(NetCord.MessageReferenceType type) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithType(type));
+    }
+    public IDiscordMessageReferenceProperties WithChannelId(ulong? channelId) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordMessageReferenceProperties WithMessageId(ulong messageId) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithMessageId(messageId));
+    }
+    public IDiscordMessageReferenceProperties WithFailIfNotExists(bool failIfNotExists = true) 
+    {
+        return new DiscordMessageReferenceProperties(_original.WithFailIfNotExists(failIfNotExists));
+    }
+}
+
+
+public class DiscordJsonInteractionResolvedData : IDiscordJsonInteractionResolvedData 
+{
+    private readonly NetCord.JsonModels.JsonInteractionResolvedData _original;
+    public DiscordJsonInteractionResolvedData(NetCord.JsonModels.JsonInteractionResolvedData original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonInteractionResolvedData Original => _original;
+    public IReadOnlyDictionary<ulong, IDiscordJsonUser>? Users { get { return _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordJsonUser)new DiscordJsonUser(kv.Value)); } set { _original.Users = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get { return _original.GuildUsers is null ? null : _original.GuildUsers.ToDictionary(kv => kv.Key, kv => (IDiscordJsonGuildUser)new DiscordJsonGuildUser(kv.Value)); } set { _original.GuildUsers = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordJsonRole>? Roles { get { return _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordJsonRole)new DiscordJsonRole(kv.Value)); } set { _original.Roles = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordJsonChannel>? Channels { get { return _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.Channels = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordJsonMessage>? Messages { get { return _original.Messages is null ? null : _original.Messages.ToDictionary(kv => kv.Key, kv => (IDiscordJsonMessage)new DiscordJsonMessage(kv.Value)); } set { _original.Messages = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordJsonAttachment>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordJsonAttachment)new DiscordJsonAttachment(kv.Value)); } set { _original.Attachments = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+}
+
+
+public class DiscordJsonApplicationCommandInteractionDataOption : IDiscordJsonApplicationCommandInteractionDataOption 
+{
+    private readonly NetCord.JsonModels.JsonApplicationCommandInteractionDataOption _original;
+    public DiscordJsonApplicationCommandInteractionDataOption(NetCord.JsonModels.JsonApplicationCommandInteractionDataOption original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonApplicationCommandInteractionDataOption Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.ApplicationCommandOptionType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string? Value { get { return _original.Value; } set { _original.Value = value; } }
+    public IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordJsonApplicationCommandInteractionDataOption(x)).ToArray(); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
+    public bool Focused { get { return _original.Focused; } set { _original.Focused = value; } }
+}
+
+
+public class DiscordJsonComponent : IDiscordJsonComponent 
+{
+    private readonly NetCord.JsonModels.JsonComponent _original;
+    public DiscordJsonComponent(NetCord.JsonModels.JsonComponent original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonComponent Original => _original;
+    public int Id { get { return _original.Id; } set { _original.Id = value; } }
+    public NetCord.ComponentType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
+    public bool? Disabled { get { return _original.Disabled; } set { _original.Disabled = value; } }
+    public NetCord.ButtonStyle? Style { get { return _original.Style; } set { _original.Style = value; } }
+    public string Label { get { return _original.Label; } set { _original.Label = value; } }
+    public IDiscordJsonEmoji Emoji { get { return new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value.Original; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public ulong? SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
+    public IDiscordJsonMenuSelectOption[] Options { get { return _original.Options.Select(x => new DiscordJsonMenuSelectOption(x)).ToArray(); } set { _original.Options = value.Select(x => x.Original).ToArray(); } }
+    public NetCord.ChannelType[] ChannelTypes { get { return _original.ChannelTypes; } set { _original.ChannelTypes = value; } }
+    public string Placeholder { get { return _original.Placeholder; } set { _original.Placeholder = value; } }
+    public IDiscordJsonSelectMenuDefaultValue[]? DefaultValues { get { return _original.DefaultValues is null ? null : _original.DefaultValues.Select(x => new DiscordJsonSelectMenuDefaultValue(x)).ToArray(); } set { _original.DefaultValues = value?.Select(x => x.Original).ToArray(); } }
+    public int? MinValues { get { return _original.MinValues; } set { _original.MinValues = value; } }
+    public int? MaxValues { get { return _original.MaxValues; } set { _original.MaxValues = value; } }
+    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public int? MinLength { get { return _original.MinLength; } set { _original.MinLength = value; } }
+    public int? MaxLength { get { return _original.MaxLength; } set { _original.MaxLength = value; } }
+    public bool? Required { get { return _original.Required; } set { _original.Required = value; } }
+    public string Value { get { return _original.Value; } set { _original.Value = value; } }
+    public IDiscordJsonComponent Accessory { get { return new DiscordJsonComponent(_original.Accessory); } set { _original.Accessory = value.Original; } }
+    public string Content { get { return _original.Content; } set { _original.Content = value; } }
+    public IDiscordJsonComponentMedia Media { get { return new DiscordJsonComponentMedia(_original.Media); } set { _original.Media = value.Original; } }
+    public IDiscordJsonComponentMedia File { get { return new DiscordJsonComponentMedia(_original.File); } set { _original.File = value.Original; } }
+    public bool? Spoiler { get { return _original.Spoiler; } set { _original.Spoiler = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public bool? Divider { get { return _original.Divider; } set { _original.Divider = value; } }
+    public NetCord.ComponentSeparatorSpacingSize? Spacing { get { return _original.Spacing; } set { _original.Spacing = value; } }
+    public NetCord.Color? AccentColor { get { return _original.AccentColor; } set { _original.AccentColor = value; } }
+    public IDiscordJsonComponent[]? Items { get { return _original.Items is null ? null : _original.Items.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Items = value?.Select(x => x.Original).ToArray(); } }
+}
+
+
+public class DiscordJsonAvatarDecorationData : IDiscordJsonAvatarDecorationData 
+{
+    private readonly NetCord.JsonModels.JsonAvatarDecorationData _original;
+    public DiscordJsonAvatarDecorationData(NetCord.JsonModels.JsonAvatarDecorationData original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonAvatarDecorationData Original => _original;
+    public string Hash { get { return _original.Hash; } set { _original.Hash = value; } }
+    public ulong SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
+}
+
+
+public class DiscordJsonGuildChannelMention : IDiscordJsonGuildChannelMention 
+{
+    private readonly NetCord.JsonModels.JsonGuildChannelMention _original;
+    public DiscordJsonGuildChannelMention(NetCord.JsonModels.JsonGuildChannelMention original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildChannelMention Original => _original;
+    public ulong GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public NetCord.ChannelType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonAttachment : IDiscordJsonAttachment 
+{
+    private readonly NetCord.JsonModels.JsonAttachment _original;
+    public DiscordJsonAttachment(NetCord.JsonModels.JsonAttachment original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonAttachment Original => _original;
+    public string FileName { get { return _original.FileName; } set { _original.FileName = value; } }
+    public string Title { get { return _original.Title; } set { _original.Title = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string ContentType { get { return _original.ContentType; } set { _original.ContentType = value; } }
+    public int Size { get { return _original.Size; } set { _original.Size = value; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
+    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
+    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+    public bool Ephemeral { get { return _original.Ephemeral; } set { _original.Ephemeral = value; } }
+    public double? DurationSeconds { get { return _original.DurationSeconds; } set { _original.DurationSeconds = value; } }
+    public byte[] Waveform { get { return _original.Waveform; } set { _original.Waveform = value; } }
+    public NetCord.AttachmentFlags Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonEmbed : IDiscordJsonEmbed 
+{
+    private readonly NetCord.JsonModels.JsonEmbed _original;
+    public DiscordJsonEmbed(NetCord.JsonModels.JsonEmbed original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbed Original => _original;
+    public string Title { get { return _original.Title; } set { _original.Title = value; } }
+    public NetCord.EmbedType? Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public System.DateTimeOffset? Timestamp { get { return _original.Timestamp; } set { _original.Timestamp = value; } }
+    public NetCord.Color? Color { get { return _original.Color; } set { _original.Color = value; } }
+    public IDiscordJsonEmbedFooter Footer { get { return new DiscordJsonEmbedFooter(_original.Footer); } set { _original.Footer = value.Original; } }
+    public IDiscordJsonEmbedImage Image { get { return new DiscordJsonEmbedImage(_original.Image); } set { _original.Image = value.Original; } }
+    public IDiscordJsonEmbedThumbnail Thumbnail { get { return new DiscordJsonEmbedThumbnail(_original.Thumbnail); } set { _original.Thumbnail = value.Original; } }
+    public IDiscordJsonEmbedVideo Video { get { return new DiscordJsonEmbedVideo(_original.Video); } set { _original.Video = value.Original; } }
+    public IDiscordJsonEmbedProvider Provider { get { return new DiscordJsonEmbedProvider(_original.Provider); } set { _original.Provider = value.Original; } }
+    public IDiscordJsonEmbedAuthor Author { get { return new DiscordJsonEmbedAuthor(_original.Author); } set { _original.Author = value.Original; } }
+    public IDiscordJsonEmbedField[] Fields { get { return _original.Fields.Select(x => new DiscordJsonEmbedField(x)).ToArray(); } set { _original.Fields = value.Select(x => x.Original).ToArray(); } }
+}
+
+
+public class DiscordJsonMessageReaction : IDiscordJsonMessageReaction 
+{
+    private readonly NetCord.JsonModels.JsonMessageReaction _original;
+    public DiscordJsonMessageReaction(NetCord.JsonModels.JsonMessageReaction original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageReaction Original => _original;
+    public int Count { get { return _original.Count; } set { _original.Count = value; } }
+    public IDiscordJsonMessageReactionCountDetails CountDetails { get { return new DiscordJsonMessageReactionCountDetails(_original.CountDetails); } set { _original.CountDetails = value.Original; } }
+    public bool Me { get { return _original.Me; } set { _original.Me = value; } }
+    public bool MeBurst { get { return _original.MeBurst; } set { _original.MeBurst = value; } }
+    public IDiscordJsonEmoji Emoji { get { return new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value.Original; } }
+    public NetCord.Color[] BurstColors { get { return _original.BurstColors; } set { _original.BurstColors = value; } }
+}
+
+
+public class DiscordJsonMessageActivity : IDiscordJsonMessageActivity 
+{
+    private readonly NetCord.JsonModels.JsonMessageActivity _original;
+    public DiscordJsonMessageActivity(NetCord.JsonModels.JsonMessageActivity original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageActivity Original => _original;
+    public NetCord.MessageActivityType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string PartyId { get { return _original.PartyId; } set { _original.PartyId = value; } }
+}
+
+
+public class DiscordJsonApplication : IDiscordJsonApplication 
+{
+    private readonly NetCord.JsonModels.JsonApplication _original;
+    public DiscordJsonApplication(NetCord.JsonModels.JsonApplication original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonApplication Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string[] RpcOrigins { get { return _original.RpcOrigins; } set { _original.RpcOrigins = value; } }
+    public bool? BotPublic { get { return _original.BotPublic; } set { _original.BotPublic = value; } }
+    public bool? BotRequireCodeGrant { get { return _original.BotRequireCodeGrant; } set { _original.BotRequireCodeGrant = value; } }
+    public IDiscordJsonUser Bot { get { return new DiscordJsonUser(_original.Bot); } set { _original.Bot = value.Original; } }
+    public string TermsOfServiceUrl { get { return _original.TermsOfServiceUrl; } set { _original.TermsOfServiceUrl = value; } }
+    public string PrivacyPolicyUrl { get { return _original.PrivacyPolicyUrl; } set { _original.PrivacyPolicyUrl = value; } }
+    public IDiscordJsonUser Owner { get { return new DiscordJsonUser(_original.Owner); } set { _original.Owner = value.Original; } }
+    public string VerifyKey { get { return _original.VerifyKey; } set { _original.VerifyKey = value; } }
+    public IDiscordJsonTeam Team { get { return new DiscordJsonTeam(_original.Team); } set { _original.Team = value.Original; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public IDiscordJsonGuild Guild { get { return new DiscordJsonGuild(_original.Guild); } set { _original.Guild = value.Original; } }
+    public ulong? PrimarySkuId { get { return _original.PrimarySkuId; } set { _original.PrimarySkuId = value; } }
+    public string Slug { get { return _original.Slug; } set { _original.Slug = value; } }
+    public string CoverImageHash { get { return _original.CoverImageHash; } set { _original.CoverImageHash = value; } }
+    public NetCord.ApplicationFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public int? ApproximateGuildCount { get { return _original.ApproximateGuildCount; } set { _original.ApproximateGuildCount = value; } }
+    public int? ApproximateUserInstallCount { get { return _original.ApproximateUserInstallCount; } set { _original.ApproximateUserInstallCount = value; } }
+    public string[]? RedirectUris { get { return _original.RedirectUris; } set { _original.RedirectUris = value; } }
+    public string InteractionsEndpointUrl { get { return _original.InteractionsEndpointUrl; } set { _original.InteractionsEndpointUrl = value; } }
+    public string RoleConnectionsVerificationUrl { get { return _original.RoleConnectionsVerificationUrl; } set { _original.RoleConnectionsVerificationUrl = value; } }
+    public string[]? Tags { get { return _original.Tags; } set { _original.Tags = value; } }
+    public IDiscordJsonApplicationInstallParams InstallParams { get { return new DiscordJsonApplicationInstallParams(_original.InstallParams); } set { _original.InstallParams = value.Original; } }
+    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordJsonApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration { get { return _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordJsonApplicationIntegrationTypeConfiguration)new DiscordJsonApplicationIntegrationTypeConfiguration(kv.Value)); } set { _original.IntegrationTypesConfiguration = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public string CustomInstallUrl { get { return _original.CustomInstallUrl; } set { _original.CustomInstallUrl = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonMessageReference : IDiscordJsonMessageReference 
+{
+    private readonly NetCord.JsonModels.JsonMessageReference _original;
+    public DiscordJsonMessageReference(NetCord.JsonModels.JsonMessageReference original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageReference Original => _original;
+    public ulong? MessageId { get { return _original.MessageId; } set { _original.MessageId = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
+}
+
+
+public class DiscordJsonMessageSnapshot : IDiscordJsonMessageSnapshot 
+{
+    private readonly NetCord.JsonModels.JsonMessageSnapshot _original;
+    public DiscordJsonMessageSnapshot(NetCord.JsonModels.JsonMessageSnapshot original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageSnapshot Original => _original;
+    public IDiscordJsonMessageSnapshotMessage Message { get { return new DiscordJsonMessageSnapshotMessage(_original.Message); } set { _original.Message = value.Original; } }
+}
+
+
+public class DiscordJsonMessageInteractionMetadata : IDiscordJsonMessageInteractionMetadata 
+{
+    private readonly NetCord.JsonModels.JsonMessageInteractionMetadata _original;
+    public DiscordJsonMessageInteractionMetadata(NetCord.JsonModels.JsonMessageInteractionMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageInteractionMetadata Original => _original;
+    public NetCord.InteractionType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
+    public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get { return _original.AuthorizingIntegrationOwners; } set { _original.AuthorizingIntegrationOwners = value; } }
+    public ulong? OriginalResponseMessageId { get { return _original.OriginalResponseMessageId; } set { _original.OriginalResponseMessageId = value; } }
+    public ulong? InteractedMessageId { get { return _original.InteractedMessageId; } set { _original.InteractedMessageId = value; } }
+    public IDiscordJsonMessageInteractionMetadata? TriggeringInteractionMetadata { get { return _original.TriggeringInteractionMetadata is null ? null : new DiscordJsonMessageInteractionMetadata(_original.TriggeringInteractionMetadata); } set { _original.TriggeringInteractionMetadata = value?.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonMessageSticker : IDiscordJsonMessageSticker 
+{
+    private readonly NetCord.JsonModels.JsonMessageSticker _original;
+    public DiscordJsonMessageSticker(NetCord.JsonModels.JsonMessageSticker original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageSticker Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.StickerFormat Format { get { return _original.Format; } set { _original.Format = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonRoleSubscriptionData : IDiscordJsonRoleSubscriptionData 
+{
+    private readonly NetCord.JsonModels.JsonRoleSubscriptionData _original;
+    public DiscordJsonRoleSubscriptionData(NetCord.JsonModels.JsonRoleSubscriptionData original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonRoleSubscriptionData Original => _original;
+    public ulong RoleSubscriptionListingId { get { return _original.RoleSubscriptionListingId; } set { _original.RoleSubscriptionListingId = value; } }
+    public string TierName { get { return _original.TierName; } set { _original.TierName = value; } }
+    public int TotalMonthsSubscribed { get { return _original.TotalMonthsSubscribed; } set { _original.TotalMonthsSubscribed = value; } }
+    public bool IsRenewal { get { return _original.IsRenewal; } set { _original.IsRenewal = value; } }
+}
+
+
+public class DiscordJsonMessagePoll : IDiscordJsonMessagePoll 
+{
+    private readonly NetCord.JsonModels.JsonMessagePoll _original;
+    public DiscordJsonMessagePoll(NetCord.JsonModels.JsonMessagePoll original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessagePoll Original => _original;
+    public IDiscordJsonMessagePollMedia Question { get { return new DiscordJsonMessagePollMedia(_original.Question); } set { _original.Question = value.Original; } }
+    public IDiscordJsonMessagePollAnswer[] Answers { get { return _original.Answers.Select(x => new DiscordJsonMessagePollAnswer(x)).ToArray(); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
+    public System.DateTimeOffset? ExpiresAt { get { return _original.ExpiresAt; } set { _original.ExpiresAt = value; } }
+    public bool AllowMultiselect { get { return _original.AllowMultiselect; } set { _original.AllowMultiselect = value; } }
+    public NetCord.MessagePollLayoutType LayoutType { get { return _original.LayoutType; } set { _original.LayoutType = value; } }
+    public IDiscordJsonMessagePollResults? Results { get { return _original.Results is null ? null : new DiscordJsonMessagePollResults(_original.Results); } set { _original.Results = value?.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonMessageCall : IDiscordJsonMessageCall 
+{
+    private readonly NetCord.JsonModels.JsonMessageCall _original;
+    public DiscordJsonMessageCall(NetCord.JsonModels.JsonMessageCall original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageCall Original => _original;
+    public ulong[] Participants { get { return _original.Participants; } set { _original.Participants = value; } }
+    public System.DateTimeOffset? EndedAt { get { return _original.EndedAt; } set { _original.EndedAt = value; } }
+}
+
+
+public class DiscordTeam : IDiscordTeam 
+{
+    private readonly NetCord.Team _original;
+    public DiscordTeam(NetCord.Team original)
+    {
+        _original = original;
+    }
+    public NetCord.Team Original => _original;
+    public ulong Id => _original.Id;
+    public string? IconHash => _original.IconHash;
+    public IReadOnlyList<IDiscordTeamUser> Users => _original.Users.Select(x => new DiscordTeamUser(x)).ToList();
+    public string Name => _original.Name;
+    public ulong OwnerId => _original.OwnerId;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format) 
+    {
+        var temp = _original.GetIconUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+}
+
+
+public class DiscordApplicationInstallParams : IDiscordApplicationInstallParams 
+{
+    private readonly NetCord.ApplicationInstallParams _original;
+    public DiscordApplicationInstallParams(NetCord.ApplicationInstallParams original)
+    {
+        _original = original;
+    }
+    public NetCord.ApplicationInstallParams Original => _original;
+    public IReadOnlyList<string> Scopes => _original.Scopes;
+    public NetCord.Permissions Permissions => _original.Permissions;
+}
+
+
+public class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicationIntegrationTypeConfiguration 
+{
+    private readonly NetCord.ApplicationIntegrationTypeConfiguration _original;
+    public DiscordApplicationIntegrationTypeConfiguration(NetCord.ApplicationIntegrationTypeConfiguration original)
+    {
+        _original = original;
+    }
+    public NetCord.ApplicationIntegrationTypeConfiguration Original => _original;
+    public IDiscordApplicationInstallParams? OAuth2InstallParams => _original.OAuth2InstallParams is null ? null : new DiscordApplicationInstallParams(_original.OAuth2InstallParams);
+}
+
+
 public class DiscordApplicationInstallParamsProperties : IDiscordApplicationInstallParamsProperties 
 {
     private readonly NetCord.Rest.ApplicationInstallParamsProperties _original;
@@ -14039,6 +15355,1424 @@ public class DiscordSticker : IDiscordSticker
     {
         return new DiscordImageUrl(_original.GetImageUrl(format));
     }
+}
+
+
+public class DiscordWebhookClient : IDiscordWebhookClient 
+{
+    private readonly NetCord.Rest.WebhookClient _original;
+    public DiscordWebhookClient(NetCord.Rest.WebhookClient original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.WebhookClient Original => _original;
+    public ulong Id => _original.Id;
+    public string Token => _original.Token;
+    public void Dispose() 
+    {
+        _original.Dispose();
+    }
+    public async Task<IDiscordWebhook> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordWebhook(await _original.ModifyAsync(x => action(new DiscordWebhookOptions(x)), properties?.Original, cancellationToken));
+    }
+    public Task DeleteAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteAsync(properties?.Original, cancellationToken);
+    }
+    public async Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties?.Original, cancellationToken);
+        return temp is null ? null : new DiscordRestMessage(temp);
+    }
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordRestMessage(await _original.ModifyMessageAsync(messageId, x => action(new DiscordMessageOptions(x)), threadId, withComponents, properties?.Original, cancellationToken));
+    }
+    public Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.DeleteMessageAsync(messageId, threadId, properties?.Original, cancellationToken);
+    }
+}
+
+
+public class DiscordWebhookClientConfiguration : IDiscordWebhookClientConfiguration 
+{
+    private readonly NetCord.Rest.WebhookClientConfiguration _original;
+    public DiscordWebhookClientConfiguration(NetCord.Rest.WebhookClientConfiguration original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.WebhookClientConfiguration Original => _original;
+    public IDiscordRestClient? Client { get { return _original.Client is null ? null : new DiscordRestClient(_original.Client); } set { _original.Client = value?.Original; } }
+}
+
+
+public class DiscordAttachmentExpirationInfo : IDiscordAttachmentExpirationInfo 
+{
+    private readonly NetCord.AttachmentExpirationInfo _original;
+    public DiscordAttachmentExpirationInfo(NetCord.AttachmentExpirationInfo original)
+    {
+        _original = original;
+    }
+    public NetCord.AttachmentExpirationInfo Original => _original;
+    public System.DateTimeOffset ExpiresAt => _original.ExpiresAt;
+    public System.DateTimeOffset IssuedAt => _original.IssuedAt;
+    public string Signature => _original.Signature;
+}
+
+
+public class DiscordEmbedFooter : IDiscordEmbedFooter 
+{
+    private readonly NetCord.EmbedFooter _original;
+    public DiscordEmbedFooter(NetCord.EmbedFooter original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedFooter Original => _original;
+    public string Text => _original.Text;
+    public string? IconUrl => _original.IconUrl;
+    public string? ProxyIconUrl => _original.ProxyIconUrl;
+}
+
+
+public class DiscordEmbedImage : IDiscordEmbedImage 
+{
+    private readonly NetCord.EmbedImage _original;
+    public DiscordEmbedImage(NetCord.EmbedImage original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedImage Original => _original;
+    public string? Url => _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl;
+    public int? Height => _original.Height;
+    public int? Width => _original.Width;
+}
+
+
+public class DiscordEmbedThumbnail : IDiscordEmbedThumbnail 
+{
+    private readonly NetCord.EmbedThumbnail _original;
+    public DiscordEmbedThumbnail(NetCord.EmbedThumbnail original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedThumbnail Original => _original;
+    public string? Url => _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl;
+    public int? Height => _original.Height;
+    public int? Width => _original.Width;
+}
+
+
+public class DiscordEmbedVideo : IDiscordEmbedVideo 
+{
+    private readonly NetCord.EmbedVideo _original;
+    public DiscordEmbedVideo(NetCord.EmbedVideo original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedVideo Original => _original;
+    public string? Url => _original.Url;
+    public string? ProxyUrl => _original.ProxyUrl;
+    public int? Height => _original.Height;
+    public int? Width => _original.Width;
+}
+
+
+public class DiscordEmbedProvider : IDiscordEmbedProvider 
+{
+    private readonly NetCord.EmbedProvider _original;
+    public DiscordEmbedProvider(NetCord.EmbedProvider original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedProvider Original => _original;
+    public string? Name => _original.Name;
+    public string? Url => _original.Url;
+}
+
+
+public class DiscordEmbedAuthor : IDiscordEmbedAuthor 
+{
+    private readonly NetCord.EmbedAuthor _original;
+    public DiscordEmbedAuthor(NetCord.EmbedAuthor original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedAuthor Original => _original;
+    public string? Name => _original.Name;
+    public string? Url => _original.Url;
+    public string? IconUrl => _original.IconUrl;
+    public string? ProxyIconUrl => _original.ProxyIconUrl;
+}
+
+
+public class DiscordEmbedField : IDiscordEmbedField 
+{
+    private readonly NetCord.EmbedField _original;
+    public DiscordEmbedField(NetCord.EmbedField original)
+    {
+        _original = original;
+    }
+    public NetCord.EmbedField Original => _original;
+    public string Name => _original.Name;
+    public string Value => _original.Value;
+    public bool Inline => _original.Inline;
+}
+
+
+public class DiscordMessageReactionCountDetails : IDiscordMessageReactionCountDetails 
+{
+    private readonly NetCord.MessageReactionCountDetails _original;
+    public DiscordMessageReactionCountDetails(NetCord.MessageReactionCountDetails original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageReactionCountDetails Original => _original;
+    public int Burst => _original.Burst;
+    public int Normal => _original.Normal;
+}
+
+
+public class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji 
+{
+    private readonly NetCord.MessageReactionEmoji _original;
+    public DiscordMessageReactionEmoji(NetCord.MessageReactionEmoji original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageReactionEmoji Original => _original;
+    public ulong? Id => _original.Id;
+    public string? Name => _original.Name;
+    public bool Animated => _original.Animated;
+}
+
+
+public class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMessage 
+{
+    private readonly NetCord.MessageSnapshotMessage _original;
+    public DiscordMessageSnapshotMessage(NetCord.MessageSnapshotMessage original)
+    {
+        _original = original;
+    }
+    public NetCord.MessageSnapshotMessage Original => _original;
+    public NetCord.MessageType Type => _original.Type;
+    public string Content => _original.Content;
+    public IReadOnlyList<IDiscordEmbed> Embeds => _original.Embeds.Select(x => new DiscordEmbed(x)).ToList();
+    public IReadOnlyList<IDiscordAttachment> Attachments => _original.Attachments.Select(x => new DiscordAttachment(x)).ToList();
+    public System.DateTimeOffset? EditedAt => _original.EditedAt;
+    public NetCord.MessageFlags Flags => _original.Flags;
+    public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Select(x => new DiscordUser(x)).ToList();
+    public IReadOnlyList<ulong> MentionedRoleIds => _original.MentionedRoleIds;
+}
+
+
+public class DiscordMessagePollMedia : IDiscordMessagePollMedia 
+{
+    private readonly NetCord.MessagePollMedia _original;
+    public DiscordMessagePollMedia(NetCord.MessagePollMedia original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollMedia Original => _original;
+    public string? Text => _original.Text;
+    public IDiscordEmojiReference? Emoji => _original.Emoji is null ? null : new DiscordEmojiReference(_original.Emoji);
+}
+
+
+public class DiscordMessagePollAnswer : IDiscordMessagePollAnswer 
+{
+    private readonly NetCord.MessagePollAnswer _original;
+    public DiscordMessagePollAnswer(NetCord.MessagePollAnswer original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollAnswer Original => _original;
+    public int AnswerId => _original.AnswerId;
+    public IDiscordMessagePollMedia PollMedia => new DiscordMessagePollMedia(_original.PollMedia);
+}
+
+
+public class DiscordMessagePollResults : IDiscordMessagePollResults 
+{
+    private readonly NetCord.MessagePollResults _original;
+    public DiscordMessagePollResults(NetCord.MessagePollResults original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollResults Original => _original;
+    public bool IsFinalized => _original.IsFinalized;
+    public IReadOnlyList<IDiscordMessagePollAnswerCount> Answers => _original.Answers.Select(x => new DiscordMessagePollAnswerCount(x)).ToList();
+}
+
+
+public class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties 
+{
+    private readonly NetCord.Rest.EmbedFooterProperties _original;
+    public DiscordEmbedFooterProperties(NetCord.Rest.EmbedFooterProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedFooterProperties Original => _original;
+    public string? Text { get { return _original.Text; } set { _original.Text = value; } }
+    public string? IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
+    public IDiscordEmbedFooterProperties WithText(string text) 
+    {
+        return new DiscordEmbedFooterProperties(_original.WithText(text));
+    }
+    public IDiscordEmbedFooterProperties WithIconUrl(string iconUrl) 
+    {
+        return new DiscordEmbedFooterProperties(_original.WithIconUrl(iconUrl));
+    }
+}
+
+
+public class DiscordEmbedImageProperties : IDiscordEmbedImageProperties 
+{
+    private readonly NetCord.Rest.EmbedImageProperties _original;
+    public DiscordEmbedImageProperties(NetCord.Rest.EmbedImageProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedImageProperties Original => _original;
+    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
+    public IDiscordEmbedImageProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedImageProperties(_original.WithUrl(url));
+    }
+}
+
+
+public class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties 
+{
+    private readonly NetCord.Rest.EmbedThumbnailProperties _original;
+    public DiscordEmbedThumbnailProperties(NetCord.Rest.EmbedThumbnailProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedThumbnailProperties Original => _original;
+    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
+    public IDiscordEmbedThumbnailProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedThumbnailProperties(_original.WithUrl(url));
+    }
+}
+
+
+public class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties 
+{
+    private readonly NetCord.Rest.EmbedAuthorProperties _original;
+    public DiscordEmbedAuthorProperties(NetCord.Rest.EmbedAuthorProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedAuthorProperties Original => _original;
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string? IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
+    public IDiscordEmbedAuthorProperties WithName(string name) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithName(name));
+    }
+    public IDiscordEmbedAuthorProperties WithUrl(string url) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithUrl(url));
+    }
+    public IDiscordEmbedAuthorProperties WithIconUrl(string iconUrl) 
+    {
+        return new DiscordEmbedAuthorProperties(_original.WithIconUrl(iconUrl));
+    }
+}
+
+
+public class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties 
+{
+    private readonly NetCord.Rest.EmbedFieldProperties _original;
+    public DiscordEmbedFieldProperties(NetCord.Rest.EmbedFieldProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.EmbedFieldProperties Original => _original;
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string? Value { get { return _original.Value; } set { _original.Value = value; } }
+    public bool Inline { get { return _original.Inline; } set { _original.Inline = value; } }
+    public IDiscordEmbedFieldProperties WithName(string name) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithName(name));
+    }
+    public IDiscordEmbedFieldProperties WithValue(string value) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithValue(value));
+    }
+    public IDiscordEmbedFieldProperties WithInline(bool inline = true) 
+    {
+        return new DiscordEmbedFieldProperties(_original.WithInline(inline));
+    }
+}
+
+
+public class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaProperties 
+{
+    private readonly NetCord.MessagePollMediaProperties _original;
+    public DiscordMessagePollMediaProperties(NetCord.MessagePollMediaProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollMediaProperties Original => _original;
+    public string? Text { get { return _original.Text; } set { _original.Text = value; } }
+    public IDiscordEmojiProperties? Emoji { get { return _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji); } set { _original.Emoji = value?.Original; } }
+    public IDiscordMessagePollMediaProperties WithText(string text) 
+    {
+        return new DiscordMessagePollMediaProperties(_original.WithText(text));
+    }
+    public IDiscordMessagePollMediaProperties WithEmoji(IDiscordEmojiProperties? emoji) 
+    {
+        return new DiscordMessagePollMediaProperties(_original.WithEmoji(emoji?.Original));
+    }
+}
+
+
+public class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerProperties 
+{
+    private readonly NetCord.MessagePollAnswerProperties _original;
+    public DiscordMessagePollAnswerProperties(NetCord.MessagePollAnswerProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollAnswerProperties Original => _original;
+    public IDiscordMessagePollMediaProperties PollMedia { get { return new DiscordMessagePollMediaProperties(_original.PollMedia); } set { _original.PollMedia = value.Original; } }
+    public IDiscordMessagePollAnswerProperties WithPollMedia(IDiscordMessagePollMediaProperties pollMedia) 
+    {
+        return new DiscordMessagePollAnswerProperties(_original.WithPollMedia(pollMedia.Original));
+    }
+}
+
+
+public class DiscordUserActivityTimestamps : IDiscordUserActivityTimestamps 
+{
+    private readonly NetCord.Gateway.UserActivityTimestamps _original;
+    public DiscordUserActivityTimestamps(NetCord.Gateway.UserActivityTimestamps original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.UserActivityTimestamps Original => _original;
+    public System.DateTimeOffset? StartTime => _original.StartTime;
+    public System.DateTimeOffset? EndTime => _original.EndTime;
+}
+
+
+public class DiscordEmoji : IDiscordEmoji 
+{
+    private readonly NetCord.Emoji _original;
+    public DiscordEmoji(NetCord.Emoji original)
+    {
+        _original = original;
+    }
+    public NetCord.Emoji Original => _original;
+    public string Name => _original.Name;
+    public bool Animated => _original.Animated;
+}
+
+
+public class DiscordParty : IDiscordParty 
+{
+    private readonly NetCord.Gateway.Party _original;
+    public DiscordParty(NetCord.Gateway.Party original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.Party Original => _original;
+    public string? Id => _original.Id;
+    public int? CurrentSize => _original.CurrentSize;
+    public int? MaxSize => _original.MaxSize;
+}
+
+
+public class DiscordUserActivityAssets : IDiscordUserActivityAssets 
+{
+    private readonly NetCord.Gateway.UserActivityAssets _original;
+    public DiscordUserActivityAssets(NetCord.Gateway.UserActivityAssets original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.UserActivityAssets Original => _original;
+    public string? LargeImageId => _original.LargeImageId;
+    public string? LargeText => _original.LargeText;
+    public string? SmallImageId => _original.SmallImageId;
+    public string? SmallText => _original.SmallText;
+}
+
+
+public class DiscordUserActivitySecrets : IDiscordUserActivitySecrets 
+{
+    private readonly NetCord.Gateway.UserActivitySecrets _original;
+    public DiscordUserActivitySecrets(NetCord.Gateway.UserActivitySecrets original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.UserActivitySecrets Original => _original;
+    public string? Join => _original.Join;
+    public string? Spectate => _original.Spectate;
+    public string? Match => _original.Match;
+}
+
+
+public class DiscordUserActivityButton : IDiscordUserActivityButton 
+{
+    private readonly NetCord.Gateway.UserActivityButton _original;
+    public DiscordUserActivityButton(NetCord.Gateway.UserActivityButton original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.UserActivityButton Original => _original;
+    public string Label => _original.Label;
+}
+
+
+public class DiscordGuildScheduledEventRecurrenceRuleNWeekday : IDiscordGuildScheduledEventRecurrenceRuleNWeekday 
+{
+    private readonly NetCord.GuildScheduledEventRecurrenceRuleNWeekday _original;
+    public DiscordGuildScheduledEventRecurrenceRuleNWeekday(NetCord.GuildScheduledEventRecurrenceRuleNWeekday original)
+    {
+        _original = original;
+    }
+    public NetCord.GuildScheduledEventRecurrenceRuleNWeekday Original => _original;
+    public int N => _original.N;
+    public NetCord.GuildScheduledEventRecurrenceRuleWeekday Day => _original.Day;
+}
+
+
+public class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionMetadata 
+{
+    private readonly NetCord.AutoModerationActionMetadata _original;
+    public DiscordAutoModerationActionMetadata(NetCord.AutoModerationActionMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationActionMetadata Original => _original;
+    public ulong? ChannelId => _original.ChannelId;
+    public int? DurationSeconds => _original.DurationSeconds;
+    public string? CustomMessage => _original.CustomMessage;
+}
+
+
+public class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerationActionMetadataProperties 
+{
+    private readonly NetCord.AutoModerationActionMetadataProperties _original;
+    public DiscordAutoModerationActionMetadataProperties(NetCord.AutoModerationActionMetadataProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.AutoModerationActionMetadataProperties Original => _original;
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public int? DurationSeconds { get { return _original.DurationSeconds; } set { _original.DurationSeconds = value; } }
+    public string? CustomMessage { get { return _original.CustomMessage; } set { _original.CustomMessage = value; } }
+    public IDiscordAutoModerationActionMetadataProperties WithChannelId(ulong? channelId) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithChannelId(channelId));
+    }
+    public IDiscordAutoModerationActionMetadataProperties WithDurationSeconds(int? durationSeconds) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithDurationSeconds(durationSeconds));
+    }
+    public IDiscordAutoModerationActionMetadataProperties WithCustomMessage(string customMessage) 
+    {
+        return new DiscordAutoModerationActionMetadataProperties(_original.WithCustomMessage(customMessage));
+    }
+}
+
+
+public class DiscordEmojiProperties : IDiscordEmojiProperties 
+{
+    private readonly NetCord.EmojiProperties _original;
+    public DiscordEmojiProperties(NetCord.EmojiProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.EmojiProperties Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public string? Unicode { get { return _original.Unicode; } set { _original.Unicode = value; } }
+    public IDiscordEmojiProperties WithId(ulong? id) 
+    {
+        return new DiscordEmojiProperties(_original.WithId(id));
+    }
+    public IDiscordEmojiProperties WithUnicode(string unicode) 
+    {
+        return new DiscordEmojiProperties(_original.WithUnicode(unicode));
+    }
+}
+
+
+public class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptOption 
+{
+    private readonly NetCord.Rest.GuildOnboardingPromptOption _original;
+    public DiscordGuildOnboardingPromptOption(NetCord.Rest.GuildOnboardingPromptOption original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildOnboardingPromptOption Original => _original;
+    public ulong Id => _original.Id;
+    public IReadOnlyList<ulong> ChannelIds => _original.ChannelIds;
+    public IReadOnlyList<ulong> RoleIds => _original.RoleIds;
+    public IDiscordEmoji? Emoji => _original.Emoji is null ? null : new DiscordEmoji(_original.Emoji);
+    public string Title => _original.Title;
+    public string? Description => _original.Description;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboardingPromptOptionProperties 
+{
+    private readonly NetCord.Rest.GuildOnboardingPromptOptionProperties _original;
+    public DiscordGuildOnboardingPromptOptionProperties(NetCord.Rest.GuildOnboardingPromptOptionProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildOnboardingPromptOptionProperties Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public IEnumerable<ulong>? ChannelIds { get { return _original.ChannelIds; } set { _original.ChannelIds = value; } }
+    public IEnumerable<ulong>? RoleIds { get { return _original.RoleIds; } set { _original.RoleIds = value; } }
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
+    public bool? EmojiAnimated { get { return _original.EmojiAnimated; } set { _original.EmojiAnimated = value; } }
+    public string Title { get { return _original.Title; } set { _original.Title = value; } }
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public IDiscordGuildOnboardingPromptOptionProperties WithId(ulong? id) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithId(id));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithChannelIds(IEnumerable<ulong>? channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(IEnumerable<ulong> channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong>? roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiId(ulong? emojiId) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiId(emojiId));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiName(string emojiName) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiName(emojiName));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithEmojiAnimated(bool? emojiAnimated = true) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithEmojiAnimated(emojiAnimated));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithTitle(string title) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithTitle(title));
+    }
+    public IDiscordGuildOnboardingPromptOptionProperties WithDescription(string description) 
+    {
+        return new DiscordGuildOnboardingPromptOptionProperties(_original.WithDescription(description));
+    }
+}
+
+
+public class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandOptionChoice 
+{
+    private readonly NetCord.Rest.ApplicationCommandOptionChoice _original;
+    public DiscordApplicationCommandOptionChoice(NetCord.Rest.ApplicationCommandOptionChoice original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ApplicationCommandOptionChoice Original => _original;
+    public string Name => _original.Name;
+    public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
+    public string? ValueString => _original.ValueString;
+    public double? ValueNumeric => _original.ValueNumeric;
+    public NetCord.Rest.ApplicationCommandOptionChoiceValueType ValueType => _original.ValueType;
+}
+
+
+public class DiscordJsonGuild : IDiscordJsonGuild 
+{
+    private readonly NetCord.JsonModels.JsonGuild _original;
+    public DiscordJsonGuild(NetCord.JsonModels.JsonGuild original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuild Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string? IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
+    public string? IconHashTemplate { get { return _original.IconHashTemplate; } set { _original.IconHashTemplate = value; } }
+    public string? SplashHash { get { return _original.SplashHash; } set { _original.SplashHash = value; } }
+    public string? DiscoverySplashHash { get { return _original.DiscoverySplashHash; } set { _original.DiscoverySplashHash = value; } }
+    public bool IsOwner { get { return _original.IsOwner; } set { _original.IsOwner = value; } }
+    public ulong OwnerId { get { return _original.OwnerId; } set { _original.OwnerId = value; } }
+    public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
+    public ulong? AfkChannelId { get { return _original.AfkChannelId; } set { _original.AfkChannelId = value; } }
+    public int AfkTimeout { get { return _original.AfkTimeout; } set { _original.AfkTimeout = value; } }
+    public bool? WidgetEnabled { get { return _original.WidgetEnabled; } set { _original.WidgetEnabled = value; } }
+    public ulong? WidgetChannelId { get { return _original.WidgetChannelId; } set { _original.WidgetChannelId = value; } }
+    public NetCord.VerificationLevel VerificationLevel { get { return _original.VerificationLevel; } set { _original.VerificationLevel = value; } }
+    public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get { return _original.DefaultMessageNotificationLevel; } set { _original.DefaultMessageNotificationLevel = value; } }
+    public NetCord.ContentFilter ContentFilter { get { return _original.ContentFilter; } set { _original.ContentFilter = value; } }
+    public ImmutableDictionary<ulong, IDiscordJsonRole> Roles { get { return _original.Roles.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonRole)new DiscordJsonRole(kv.Value)); } set { _original.Roles = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableArray<IDiscordJsonEmoji> Emojis { get { return _original.Emojis.Select(x => new DiscordJsonEmoji(x) as IDiscordJsonEmoji).ToImmutableArray(); } set { _original.Emojis = value.Select(x => x.Original).ToImmutableArray(); } }
+    public string[] Features { get { return _original.Features; } set { _original.Features = value; } }
+    public NetCord.MfaLevel MfaLevel { get { return _original.MfaLevel; } set { _original.MfaLevel = value; } }
+    public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public ulong? SystemChannelId { get { return _original.SystemChannelId; } set { _original.SystemChannelId = value; } }
+    public NetCord.Rest.SystemChannelFlags SystemChannelFlags { get { return _original.SystemChannelFlags; } set { _original.SystemChannelFlags = value; } }
+    public ulong? RulesChannelId { get { return _original.RulesChannelId; } set { _original.RulesChannelId = value; } }
+    public System.DateTimeOffset JoinedAt { get { return _original.JoinedAt; } set { _original.JoinedAt = value; } }
+    public bool IsLarge { get { return _original.IsLarge; } set { _original.IsLarge = value; } }
+    public bool IsUnavailable { get { return _original.IsUnavailable; } set { _original.IsUnavailable = value; } }
+    public int UserCount { get { return _original.UserCount; } set { _original.UserCount = value; } }
+    public ImmutableDictionary<ulong, IDiscordJsonVoiceState> VoiceStates { get { return _original.VoiceStates.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonVoiceState)new DiscordJsonVoiceState(kv.Value)); } set { _original.VoiceStates = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableDictionary<ulong, IDiscordJsonGuildUser> Users { get { return _original.Users.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonGuildUser)new DiscordJsonGuildUser(kv.Value)); } set { _original.Users = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableDictionary<ulong, IDiscordJsonChannel> Channels { get { return _original.Channels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.Channels = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableDictionary<ulong, IDiscordJsonChannel> ActiveThreads { get { return _original.ActiveThreads.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.ActiveThreads = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableDictionary<ulong, IDiscordJsonPresence> Presences { get { return _original.Presences.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonPresence)new DiscordJsonPresence(kv.Value)); } set { _original.Presences = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public int? MaxPresences { get { return _original.MaxPresences; } set { _original.MaxPresences = value; } }
+    public int? MaxUsers { get { return _original.MaxUsers; } set { _original.MaxUsers = value; } }
+    public string? VanityUrlCode { get { return _original.VanityUrlCode; } set { _original.VanityUrlCode = value; } }
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string? BannerHash { get { return _original.BannerHash; } set { _original.BannerHash = value; } }
+    public int PremiumTier { get { return _original.PremiumTier; } set { _original.PremiumTier = value; } }
+    public int? PremiumSubscriptionCount { get { return _original.PremiumSubscriptionCount; } set { _original.PremiumSubscriptionCount = value; } }
+    public string PreferredLocale { get { return _original.PreferredLocale; } set { _original.PreferredLocale = value; } }
+    public ulong? PublicUpdatesChannelId { get { return _original.PublicUpdatesChannelId; } set { _original.PublicUpdatesChannelId = value; } }
+    public int? MaxVideoChannelUsers { get { return _original.MaxVideoChannelUsers; } set { _original.MaxVideoChannelUsers = value; } }
+    public int? MaxStageVideoChannelUsers { get { return _original.MaxStageVideoChannelUsers; } set { _original.MaxStageVideoChannelUsers = value; } }
+    public int? ApproximateUserCount { get { return _original.ApproximateUserCount; } set { _original.ApproximateUserCount = value; } }
+    public int? ApproximatePresenceCount { get { return _original.ApproximatePresenceCount; } set { _original.ApproximatePresenceCount = value; } }
+    public IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get { return _original.WelcomeScreen is null ? null : new DiscordJsonGuildWelcomeScreen(_original.WelcomeScreen); } set { _original.WelcomeScreen = value?.Original; } }
+    public NetCord.NsfwLevel NsfwLevel { get { return _original.NsfwLevel; } set { _original.NsfwLevel = value; } }
+    public ImmutableDictionary<ulong, IDiscordJsonStageInstance> StageInstances { get { return _original.StageInstances.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonStageInstance)new DiscordJsonStageInstance(kv.Value)); } set { _original.StageInstances = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public ImmutableArray<IDiscordJsonSticker> Stickers { get { return _original.Stickers.Select(x => new DiscordJsonSticker(x) as IDiscordJsonSticker).ToImmutableArray(); } set { _original.Stickers = value.Select(x => x.Original).ToImmutableArray(); } }
+    public ImmutableDictionary<ulong, IDiscordJsonGuildScheduledEvent> ScheduledEvents { get { return _original.ScheduledEvents.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonGuildScheduledEvent)new DiscordJsonGuildScheduledEvent(kv.Value)); } set { _original.ScheduledEvents = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public bool PremiumProgressBarEnabled { get { return _original.PremiumProgressBarEnabled; } set { _original.PremiumProgressBarEnabled = value; } }
+    public ulong? SafetyAlertsChannelId { get { return _original.SafetyAlertsChannelId; } set { _original.SafetyAlertsChannelId = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonRole : IDiscordJsonRole 
+{
+    private readonly NetCord.JsonModels.JsonRole _original;
+    public DiscordJsonRole(NetCord.JsonModels.JsonRole original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonRole Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Color Color { get { return _original.Color; } set { _original.Color = value; } }
+    public bool Hoist { get { return _original.Hoist; } set { _original.Hoist = value; } }
+    public string IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
+    public string UnicodeEmoji { get { return _original.UnicodeEmoji; } set { _original.UnicodeEmoji = value; } }
+    public int Position { get { return _original.Position; } set { _original.Position = value; } }
+    public NetCord.Permissions Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
+    public bool Managed { get { return _original.Managed; } set { _original.Managed = value; } }
+    public bool Mentionable { get { return _original.Mentionable; } set { _original.Mentionable = value; } }
+    public IDiscordJsonRoleTags Tags { get { return new DiscordJsonRoleTags(_original.Tags); } set { _original.Tags = value.Original; } }
+    public NetCord.RoleFlags Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonEmoji : IDiscordJsonEmoji 
+{
+    private readonly NetCord.JsonModels.JsonEmoji _original;
+    public DiscordJsonEmoji(NetCord.JsonModels.JsonEmoji original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmoji Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public ulong[] AllowedRoles { get { return _original.AllowedRoles; } set { _original.AllowedRoles = value; } }
+    public IDiscordJsonUser Creator { get { return new DiscordJsonUser(_original.Creator); } set { _original.Creator = value.Original; } }
+    public bool? RequireColons { get { return _original.RequireColons; } set { _original.RequireColons = value; } }
+    public bool? Managed { get { return _original.Managed; } set { _original.Managed = value; } }
+    public bool Animated { get { return _original.Animated; } set { _original.Animated = value; } }
+    public bool? Available { get { return _original.Available; } set { _original.Available = value; } }
+}
+
+
+public class DiscordJsonMenuSelectOption : IDiscordJsonMenuSelectOption 
+{
+    private readonly NetCord.JsonModels.JsonMenuSelectOption _original;
+    public DiscordJsonMenuSelectOption(NetCord.JsonModels.JsonMenuSelectOption original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMenuSelectOption Original => _original;
+    public string Label { get { return _original.Label; } set { _original.Label = value; } }
+    public string Value { get { return _original.Value; } set { _original.Value = value; } }
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public IDiscordJsonEmoji? Emoji { get { return _original.Emoji is null ? null : new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value?.Original; } }
+    public bool Default { get { return _original.Default; } set { _original.Default = value; } }
+}
+
+
+public class DiscordJsonSelectMenuDefaultValue : IDiscordJsonSelectMenuDefaultValue 
+{
+    private readonly NetCord.JsonModels.JsonSelectMenuDefaultValue _original;
+    public DiscordJsonSelectMenuDefaultValue(NetCord.JsonModels.JsonSelectMenuDefaultValue original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonSelectMenuDefaultValue Original => _original;
+    public NetCord.JsonModels.JsonSelectMenuDefaultValueType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonComponentMedia : IDiscordJsonComponentMedia 
+{
+    private readonly NetCord.JsonModels.JsonComponentMedia _original;
+    public DiscordJsonComponentMedia(NetCord.JsonModels.JsonComponentMedia original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonComponentMedia Original => _original;
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
+    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
+    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+    public string ContentType { get { return _original.ContentType; } set { _original.ContentType = value; } }
+    public NetCord.ComponentMediaLoadingState? LoadingState { get { return _original.LoadingState; } set { _original.LoadingState = value; } }
+}
+
+
+public class DiscordJsonEmbedFooter : IDiscordJsonEmbedFooter 
+{
+    private readonly NetCord.JsonModels.JsonEmbedFooter _original;
+    public DiscordJsonEmbedFooter(NetCord.JsonModels.JsonEmbedFooter original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedFooter Original => _original;
+    public string Text { get { return _original.Text; } set { _original.Text = value; } }
+    public string IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
+    public string ProxyIconUrl { get { return _original.ProxyIconUrl; } set { _original.ProxyIconUrl = value; } }
+}
+
+
+public class DiscordJsonEmbedImage : IDiscordJsonEmbedImage 
+{
+    private readonly NetCord.JsonModels.JsonEmbedImage _original;
+    public DiscordJsonEmbedImage(NetCord.JsonModels.JsonEmbedImage original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedImage Original => _original;
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
+    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
+    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+}
+
+
+public class DiscordJsonEmbedThumbnail : IDiscordJsonEmbedThumbnail 
+{
+    private readonly NetCord.JsonModels.JsonEmbedThumbnail _original;
+    public DiscordJsonEmbedThumbnail(NetCord.JsonModels.JsonEmbedThumbnail original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedThumbnail Original => _original;
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
+    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
+    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+}
+
+
+public class DiscordJsonEmbedVideo : IDiscordJsonEmbedVideo 
+{
+    private readonly NetCord.JsonModels.JsonEmbedVideo _original;
+    public DiscordJsonEmbedVideo(NetCord.JsonModels.JsonEmbedVideo original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedVideo Original => _original;
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
+    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
+    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+}
+
+
+public class DiscordJsonEmbedProvider : IDiscordJsonEmbedProvider 
+{
+    private readonly NetCord.JsonModels.JsonEmbedProvider _original;
+    public DiscordJsonEmbedProvider(NetCord.JsonModels.JsonEmbedProvider original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedProvider Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+}
+
+
+public class DiscordJsonEmbedAuthor : IDiscordJsonEmbedAuthor 
+{
+    private readonly NetCord.JsonModels.JsonEmbedAuthor _original;
+    public DiscordJsonEmbedAuthor(NetCord.JsonModels.JsonEmbedAuthor original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedAuthor Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public string IconUrl { get { return _original.IconUrl; } set { _original.IconUrl = value; } }
+    public string ProxyIconUrl { get { return _original.ProxyIconUrl; } set { _original.ProxyIconUrl = value; } }
+}
+
+
+public class DiscordJsonEmbedField : IDiscordJsonEmbedField 
+{
+    private readonly NetCord.JsonModels.JsonEmbedField _original;
+    public DiscordJsonEmbedField(NetCord.JsonModels.JsonEmbedField original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmbedField Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Value { get { return _original.Value; } set { _original.Value = value; } }
+    public bool Inline { get { return _original.Inline; } set { _original.Inline = value; } }
+}
+
+
+public class DiscordJsonMessageReactionCountDetails : IDiscordJsonMessageReactionCountDetails 
+{
+    private readonly NetCord.JsonModels.JsonMessageReactionCountDetails _original;
+    public DiscordJsonMessageReactionCountDetails(NetCord.JsonModels.JsonMessageReactionCountDetails original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageReactionCountDetails Original => _original;
+    public int Burst { get { return _original.Burst; } set { _original.Burst = value; } }
+    public int Normal { get { return _original.Normal; } set { _original.Normal = value; } }
+}
+
+
+public class DiscordJsonTeam : IDiscordJsonTeam 
+{
+    private readonly NetCord.JsonModels.JsonTeam _original;
+    public DiscordJsonTeam(NetCord.JsonModels.JsonTeam original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonTeam Original => _original;
+    public string? IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
+    public IDiscordJsonTeamUser[] Users { get { return _original.Users.Select(x => new DiscordJsonTeamUser(x)).ToArray(); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public ulong OwnerId { get { return _original.OwnerId; } set { _original.OwnerId = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonApplicationInstallParams : IDiscordJsonApplicationInstallParams 
+{
+    private readonly NetCord.JsonModels.JsonApplicationInstallParams _original;
+    public DiscordJsonApplicationInstallParams(NetCord.JsonModels.JsonApplicationInstallParams original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonApplicationInstallParams Original => _original;
+    public string[] Scopes { get { return _original.Scopes; } set { _original.Scopes = value; } }
+    public NetCord.Permissions Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
+}
+
+
+public class DiscordJsonApplicationIntegrationTypeConfiguration : IDiscordJsonApplicationIntegrationTypeConfiguration 
+{
+    private readonly NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration _original;
+    public DiscordJsonApplicationIntegrationTypeConfiguration(NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration Original => _original;
+    public IDiscordJsonApplicationInstallParams OAuth2InstallParams { get { return new DiscordJsonApplicationInstallParams(_original.OAuth2InstallParams); } set { _original.OAuth2InstallParams = value.Original; } }
+}
+
+
+public class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnapshotMessage 
+{
+    private readonly NetCord.JsonModels.JsonMessageSnapshotMessage _original;
+    public DiscordJsonMessageSnapshotMessage(NetCord.JsonModels.JsonMessageSnapshotMessage original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessageSnapshotMessage Original => _original;
+    public NetCord.MessageType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string Content { get { return _original.Content; } set { _original.Content = value; } }
+    public IDiscordJsonEmbed[] Embeds { get { return _original.Embeds.Select(x => new DiscordJsonEmbed(x)).ToArray(); } set { _original.Embeds = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonAttachment[] Attachments { get { return _original.Attachments.Select(x => new DiscordJsonAttachment(x)).ToArray(); } set { _original.Attachments = value.Select(x => x.Original).ToArray(); } }
+    public System.DateTimeOffset CreatedAt { get { return _original.CreatedAt; } set { _original.CreatedAt = value; } }
+    public System.DateTimeOffset? EditedAt { get { return _original.EditedAt; } set { _original.EditedAt = value; } }
+    public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public IDiscordJsonUser[] MentionedUsers { get { return _original.MentionedUsers.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.MentionedUsers = value.Select(x => x.Original).ToArray(); } }
+    public ulong[] MentionedRoleIds { get { return _original.MentionedRoleIds; } set { _original.MentionedRoleIds = value; } }
+}
+
+
+public class DiscordJsonMessagePollMedia : IDiscordJsonMessagePollMedia 
+{
+    private readonly NetCord.JsonModels.JsonMessagePollMedia _original;
+    public DiscordJsonMessagePollMedia(NetCord.JsonModels.JsonMessagePollMedia original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessagePollMedia Original => _original;
+    public string Text { get { return _original.Text; } set { _original.Text = value; } }
+    public IDiscordJsonEmoji Emoji { get { return new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonMessagePollAnswer : IDiscordJsonMessagePollAnswer 
+{
+    private readonly NetCord.JsonModels.JsonMessagePollAnswer _original;
+    public DiscordJsonMessagePollAnswer(NetCord.JsonModels.JsonMessagePollAnswer original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessagePollAnswer Original => _original;
+    public int AnswerId { get { return _original.AnswerId; } set { _original.AnswerId = value; } }
+    public IDiscordJsonMessagePollMedia PollMedia { get { return new DiscordJsonMessagePollMedia(_original.PollMedia); } set { _original.PollMedia = value.Original; } }
+}
+
+
+public class DiscordJsonMessagePollResults : IDiscordJsonMessagePollResults 
+{
+    private readonly NetCord.JsonModels.JsonMessagePollResults _original;
+    public DiscordJsonMessagePollResults(NetCord.JsonModels.JsonMessagePollResults original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessagePollResults Original => _original;
+    public bool IsFinalized { get { return _original.IsFinalized; } set { _original.IsFinalized = value; } }
+    public IDiscordJsonMessagePollAnswerCount[] Answers { get { return _original.Answers.Select(x => new DiscordJsonMessagePollAnswerCount(x)).ToArray(); } set { _original.Answers = value.Select(x => x.Original).ToArray(); } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordTeamUser : IDiscordTeamUser 
+{
+    private readonly NetCord.TeamUser _original;
+    public DiscordTeamUser(NetCord.TeamUser original)
+    {
+        _original = original;
+    }
+    public NetCord.TeamUser Original => _original;
+    public NetCord.MembershipState MembershipState => _original.MembershipState;
+    public ulong TeamId => _original.TeamId;
+    public NetCord.TeamRole Role => _original.Role;
+    public ulong Id => _original.Id;
+    public string Username => _original.Username;
+    public ushort Discriminator => _original.Discriminator;
+    public string? GlobalName => _original.GlobalName;
+    public string? AvatarHash => _original.AvatarHash;
+    public bool IsBot => _original.IsBot;
+    public bool? IsSystemUser => _original.IsSystemUser;
+    public bool? MfaEnabled => _original.MfaEnabled;
+    public string? BannerHash => _original.BannerHash;
+    public NetCord.Color? AccentColor => _original.AccentColor;
+    public string? Locale => _original.Locale;
+    public bool? Verified => _original.Verified;
+    public string? Email => _original.Email;
+    public NetCord.UserFlags? Flags => _original.Flags;
+    public NetCord.PremiumType? PremiumType => _original.PremiumType;
+    public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
+    public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public bool HasAvatar => _original.HasAvatar;
+    public bool HasBanner => _original.HasBanner;
+    public bool HasAvatarDecoration => _original.HasAvatarDecoration;
+    public IDiscordImageUrl DefaultAvatarUrl => new DiscordImageUrl(_original.DefaultAvatarUrl);
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public IDiscordImageUrl? GetAvatarUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetAvatarUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default) 
+    {
+        var temp = _original.GetBannerUrl(format);
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public IDiscordImageUrl? GetAvatarDecorationUrl() 
+    {
+        var temp = _original.GetAvatarDecorationUrl();
+        return temp is null ? null : new DiscordImageUrl(temp);
+    }
+    public async Task<IDiscordUser> GetAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordUser(await _original.GetAsync(properties?.Original, cancellationToken));
+    }
+    public async Task<IDiscordDMChannel> GetDMChannelAsync(IDiscordRestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordDMChannel(await _original.GetDMChannelAsync(properties?.Original, cancellationToken));
+    }
+}
+
+
+public class DiscordEmojiReference : IDiscordEmojiReference 
+{
+    private readonly NetCord.EmojiReference _original;
+    public DiscordEmojiReference(NetCord.EmojiReference original)
+    {
+        _original = original;
+    }
+    public NetCord.EmojiReference Original => _original;
+    public ulong? Id => _original.Id;
+    public string Name => _original.Name;
+    public bool Animated => _original.Animated;
+}
+
+
+public class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCount 
+{
+    private readonly NetCord.MessagePollAnswerCount _original;
+    public DiscordMessagePollAnswerCount(NetCord.MessagePollAnswerCount original)
+    {
+        _original = original;
+    }
+    public NetCord.MessagePollAnswerCount Original => _original;
+    public int AnswerId => _original.AnswerId;
+    public int Count => _original.Count;
+    public bool MeVoted => _original.MeVoted;
+}
+
+
+public class DiscordJsonVoiceState : IDiscordJsonVoiceState 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonVoiceState _original;
+    public DiscordJsonVoiceState(NetCord.Gateway.JsonModels.JsonVoiceState original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonVoiceState Original => _original;
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public ulong UserId { get { return _original.UserId; } set { _original.UserId = value; } }
+    public IDiscordJsonGuildUser? User { get { return _original.User is null ? null : new DiscordJsonGuildUser(_original.User); } set { _original.User = value?.Original; } }
+    public string SessionId { get { return _original.SessionId; } set { _original.SessionId = value; } }
+    public bool IsDeafened { get { return _original.IsDeafened; } set { _original.IsDeafened = value; } }
+    public bool IsMuted { get { return _original.IsMuted; } set { _original.IsMuted = value; } }
+    public bool IsSelfDeafened { get { return _original.IsSelfDeafened; } set { _original.IsSelfDeafened = value; } }
+    public bool IsSelfMuted { get { return _original.IsSelfMuted; } set { _original.IsSelfMuted = value; } }
+    public bool? SelfStreamExists { get { return _original.SelfStreamExists; } set { _original.SelfStreamExists = value; } }
+    public bool SelfVideoExists { get { return _original.SelfVideoExists; } set { _original.SelfVideoExists = value; } }
+    public bool Suppressed { get { return _original.Suppressed; } set { _original.Suppressed = value; } }
+    public System.DateTimeOffset? RequestToSpeakTimestamp { get { return _original.RequestToSpeakTimestamp; } set { _original.RequestToSpeakTimestamp = value; } }
+}
+
+
+public class DiscordJsonPresence : IDiscordJsonPresence 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonPresence _original;
+    public DiscordJsonPresence(NetCord.Gateway.JsonModels.JsonPresence original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonPresence Original => _original;
+    public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public NetCord.UserStatusType Status { get { return _original.Status; } set { _original.Status = value; } }
+    public IDiscordJsonUserActivity[]? Activities { get { return _original.Activities is null ? null : _original.Activities.Select(x => new DiscordJsonUserActivity(x)).ToArray(); } set { _original.Activities = value?.Select(x => x.Original).ToArray(); } }
+    public IReadOnlyDictionary<NetCord.Gateway.Platform, NetCord.UserStatusType> Platform { get { return _original.Platform; } set { _original.Platform = value; } }
+}
+
+
+public class DiscordJsonGuildWelcomeScreen : IDiscordJsonGuildWelcomeScreen 
+{
+    private readonly NetCord.JsonModels.JsonGuildWelcomeScreen _original;
+    public DiscordJsonGuildWelcomeScreen(NetCord.JsonModels.JsonGuildWelcomeScreen original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildWelcomeScreen Original => _original;
+    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
+    public IDiscordJsonWelcomeScreenChannel[] WelcomeChannels { get { return _original.WelcomeChannels.Select(x => new DiscordJsonWelcomeScreenChannel(x)).ToArray(); } set { _original.WelcomeChannels = value.Select(x => x.Original).ToArray(); } }
+}
+
+
+public class DiscordJsonStageInstance : IDiscordJsonStageInstance 
+{
+    private readonly NetCord.JsonModels.JsonStageInstance _original;
+    public DiscordJsonStageInstance(NetCord.JsonModels.JsonStageInstance original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonStageInstance Original => _original;
+    public ulong GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public ulong ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public string Topic { get { return _original.Topic; } set { _original.Topic = value; } }
+    public NetCord.StageInstancePrivacyLevel PrivacyLevel { get { return _original.PrivacyLevel; } set { _original.PrivacyLevel = value; } }
+    public bool DiscoverableDisabled { get { return _original.DiscoverableDisabled; } set { _original.DiscoverableDisabled = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonSticker : IDiscordJsonSticker 
+{
+    private readonly NetCord.JsonModels.JsonSticker _original;
+    public DiscordJsonSticker(NetCord.JsonModels.JsonSticker original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonSticker Original => _original;
+    public ulong? PackId { get { return _original.PackId; } set { _original.PackId = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public string Tags { get { return _original.Tags; } set { _original.Tags = value; } }
+    public NetCord.StickerFormat Format { get { return _original.Format; } set { _original.Format = value; } }
+    public bool? Available { get { return _original.Available; } set { _original.Available = value; } }
+    public ulong GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public IDiscordJsonUser? Creator { get { return _original.Creator is null ? null : new DiscordJsonUser(_original.Creator); } set { _original.Creator = value?.Original; } }
+    public int SortValue { get { return _original.SortValue; } set { _original.SortValue = value; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonGuildScheduledEvent : IDiscordJsonGuildScheduledEvent 
+{
+    private readonly NetCord.JsonModels.JsonGuildScheduledEvent _original;
+    public DiscordJsonGuildScheduledEvent(NetCord.JsonModels.JsonGuildScheduledEvent original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildScheduledEvent Original => _original;
+    public ulong GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
+    public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public ulong? CreatorId { get { return _original.CreatorId; } set { _original.CreatorId = value; } }
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public System.DateTimeOffset ScheduledStartTime { get { return _original.ScheduledStartTime; } set { _original.ScheduledStartTime = value; } }
+    public System.DateTimeOffset? ScheduledEndTime { get { return _original.ScheduledEndTime; } set { _original.ScheduledEndTime = value; } }
+    public NetCord.GuildScheduledEventPrivacyLevel PrivacyLevel { get { return _original.PrivacyLevel; } set { _original.PrivacyLevel = value; } }
+    public NetCord.GuildScheduledEventStatus Status { get { return _original.Status; } set { _original.Status = value; } }
+    public NetCord.GuildScheduledEventEntityType EntityType { get { return _original.EntityType; } set { _original.EntityType = value; } }
+    public ulong? EntityId { get { return _original.EntityId; } set { _original.EntityId = value; } }
+    public IDiscordJsonGuildScheduledEventMetadata EntityMetadata { get { return new DiscordJsonGuildScheduledEventMetadata(_original.EntityMetadata); } set { _original.EntityMetadata = value.Original; } }
+    public IDiscordJsonUser Creator { get { return new DiscordJsonUser(_original.Creator); } set { _original.Creator = value.Original; } }
+    public int? UserCount { get { return _original.UserCount; } set { _original.UserCount = value; } }
+    public string CoverImageHash { get { return _original.CoverImageHash; } set { _original.CoverImageHash = value; } }
+    public IDiscordJsonGuildScheduledEventRecurrenceRule RecurrenceRule { get { return new DiscordJsonGuildScheduledEventRecurrenceRule(_original.RecurrenceRule); } set { _original.RecurrenceRule = value.Original; } }
+    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
+}
+
+
+public class DiscordJsonRoleTags : IDiscordJsonRoleTags 
+{
+    private readonly NetCord.JsonModels.JsonRoleTags _original;
+    public DiscordJsonRoleTags(NetCord.JsonModels.JsonRoleTags original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonRoleTags Original => _original;
+    public ulong? BotId { get { return _original.BotId; } set { _original.BotId = value; } }
+    public ulong? IntegrationId { get { return _original.IntegrationId; } set { _original.IntegrationId = value; } }
+    public bool IsPremiumSubscriber { get { return _original.IsPremiumSubscriber; } set { _original.IsPremiumSubscriber = value; } }
+    public ulong? SubscriptionListingId { get { return _original.SubscriptionListingId; } set { _original.SubscriptionListingId = value; } }
+    public bool IsAvailableForPurchase { get { return _original.IsAvailableForPurchase; } set { _original.IsAvailableForPurchase = value; } }
+    public bool GuildConnections { get { return _original.GuildConnections; } set { _original.GuildConnections = value; } }
+}
+
+
+public class DiscordJsonTeamUser : IDiscordJsonTeamUser 
+{
+    private readonly NetCord.JsonModels.JsonTeamUser _original;
+    public DiscordJsonTeamUser(NetCord.JsonModels.JsonTeamUser original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonTeamUser Original => _original;
+    public NetCord.MembershipState MembershipState { get { return _original.MembershipState; } set { _original.MembershipState = value; } }
+    public ulong TeamId { get { return _original.TeamId; } set { _original.TeamId = value; } }
+    public IDiscordJsonUser User { get { return new DiscordJsonUser(_original.User); } set { _original.User = value.Original; } }
+    public NetCord.TeamRole Role { get { return _original.Role; } set { _original.Role = value; } }
+}
+
+
+public class DiscordJsonMessagePollAnswerCount : IDiscordJsonMessagePollAnswerCount 
+{
+    private readonly NetCord.JsonModels.JsonMessagePollAnswerCount _original;
+    public DiscordJsonMessagePollAnswerCount(NetCord.JsonModels.JsonMessagePollAnswerCount original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonMessagePollAnswerCount Original => _original;
+    public int AnswerId { get { return _original.AnswerId; } set { _original.AnswerId = value; } }
+    public int Count { get { return _original.Count; } set { _original.Count = value; } }
+    public bool MeVoted { get { return _original.MeVoted; } set { _original.MeVoted = value; } }
+}
+
+
+public class DiscordJsonUserActivity : IDiscordJsonUserActivity 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonUserActivity _original;
+    public DiscordJsonUserActivity(NetCord.Gateway.JsonModels.JsonUserActivity original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonUserActivity Original => _original;
+    public string Name { get { return _original.Name; } set { _original.Name = value; } }
+    public NetCord.Gateway.UserActivityType Type { get { return _original.Type; } set { _original.Type = value; } }
+    public string Url { get { return _original.Url; } set { _original.Url = value; } }
+    public System.DateTimeOffset CreatedAt { get { return _original.CreatedAt; } set { _original.CreatedAt = value; } }
+    public IDiscordJsonUserActivityTimestamps Timestamps { get { return new DiscordJsonUserActivityTimestamps(_original.Timestamps); } set { _original.Timestamps = value.Original; } }
+    public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
+    public string Details { get { return _original.Details; } set { _original.Details = value; } }
+    public string State { get { return _original.State; } set { _original.State = value; } }
+    public IDiscordJsonEmoji Emoji { get { return new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value.Original; } }
+    public IDiscordJsonParty Party { get { return new DiscordJsonParty(_original.Party); } set { _original.Party = value.Original; } }
+    public IDiscordJsonUserActivityAssets Assets { get { return new DiscordJsonUserActivityAssets(_original.Assets); } set { _original.Assets = value.Original; } }
+    public IDiscordJsonUserActivitySecrets Secrets { get { return new DiscordJsonUserActivitySecrets(_original.Secrets); } set { _original.Secrets = value.Original; } }
+    public bool? Instance { get { return _original.Instance; } set { _original.Instance = value; } }
+    public NetCord.Gateway.UserActivityFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public string[] ButtonsLabels { get { return _original.ButtonsLabels; } set { _original.ButtonsLabels = value; } }
+}
+
+
+public class DiscordJsonWelcomeScreenChannel : IDiscordJsonWelcomeScreenChannel 
+{
+    private readonly NetCord.JsonModels.JsonWelcomeScreenChannel _original;
+    public DiscordJsonWelcomeScreenChannel(NetCord.JsonModels.JsonWelcomeScreenChannel original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonWelcomeScreenChannel Original => _original;
+    public ulong ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
+    public string Description { get { return _original.Description; } set { _original.Description = value; } }
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
+}
+
+
+public class DiscordJsonGuildScheduledEventMetadata : IDiscordJsonGuildScheduledEventMetadata 
+{
+    private readonly NetCord.JsonModels.JsonGuildScheduledEventMetadata _original;
+    public DiscordJsonGuildScheduledEventMetadata(NetCord.JsonModels.JsonGuildScheduledEventMetadata original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildScheduledEventMetadata Original => _original;
+    public string Location { get { return _original.Location; } set { _original.Location = value; } }
+}
+
+
+public class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJsonGuildScheduledEventRecurrenceRule 
+{
+    private readonly NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule _original;
+    public DiscordJsonGuildScheduledEventRecurrenceRule(NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule Original => _original;
+    public System.DateTimeOffset? StartAt { get { return _original.StartAt; } set { _original.StartAt = value; } }
+    public System.DateTimeOffset? EndAt { get { return _original.EndAt; } set { _original.EndAt = value; } }
+    public NetCord.GuildScheduledEventRecurrenceRuleFrequency Frequency { get { return _original.Frequency; } set { _original.Frequency = value; } }
+    public int Interval { get { return _original.Interval; } set { _original.Interval = value; } }
+    public NetCord.GuildScheduledEventRecurrenceRuleWeekday[] ByWeekday { get { return _original.ByWeekday; } set { _original.ByWeekday = value; } }
+    public IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday[]? ByNWeekday { get { return _original.ByNWeekday is null ? null : _original.ByNWeekday.Select(x => new DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday(x)).ToArray(); } set { _original.ByNWeekday = value?.Select(x => x.Original).ToArray(); } }
+    public NetCord.GuildScheduledEventRecurrenceRuleMonth[] ByMonth { get { return _original.ByMonth; } set { _original.ByMonth = value; } }
+    public int[] ByMonthDay { get { return _original.ByMonthDay; } set { _original.ByMonthDay = value; } }
+    public int[] ByYearDay { get { return _original.ByYearDay; } set { _original.ByYearDay = value; } }
+    public int? Count => _original.Count;
+}
+
+
+public class DiscordJsonUserActivityTimestamps : IDiscordJsonUserActivityTimestamps 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonUserActivityTimestamps _original;
+    public DiscordJsonUserActivityTimestamps(NetCord.Gateway.JsonModels.JsonUserActivityTimestamps original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonUserActivityTimestamps Original => _original;
+    public System.DateTimeOffset? StartTime { get { return _original.StartTime; } set { _original.StartTime = value; } }
+    public System.DateTimeOffset? EndTime { get { return _original.EndTime; } set { _original.EndTime = value; } }
+}
+
+
+public class DiscordJsonParty : IDiscordJsonParty 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonParty _original;
+    public DiscordJsonParty(NetCord.Gateway.JsonModels.JsonParty original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonParty Original => _original;
+    public string Id { get { return _original.Id; } set { _original.Id = value; } }
+    public int[] Size { get { return _original.Size; } set { _original.Size = value; } }
+}
+
+
+public class DiscordJsonUserActivityAssets : IDiscordJsonUserActivityAssets 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonUserActivityAssets _original;
+    public DiscordJsonUserActivityAssets(NetCord.Gateway.JsonModels.JsonUserActivityAssets original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonUserActivityAssets Original => _original;
+    public string LargeImageId { get { return _original.LargeImageId; } set { _original.LargeImageId = value; } }
+    public string LargeText { get { return _original.LargeText; } set { _original.LargeText = value; } }
+    public string SmallImageId { get { return _original.SmallImageId; } set { _original.SmallImageId = value; } }
+    public string SmallText { get { return _original.SmallText; } set { _original.SmallText = value; } }
+}
+
+
+public class DiscordJsonUserActivitySecrets : IDiscordJsonUserActivitySecrets 
+{
+    private readonly NetCord.Gateway.JsonModels.JsonUserActivitySecrets _original;
+    public DiscordJsonUserActivitySecrets(NetCord.Gateway.JsonModels.JsonUserActivitySecrets original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.JsonModels.JsonUserActivitySecrets Original => _original;
+    public string Join { get { return _original.Join; } set { _original.Join = value; } }
+    public string Spectate { get { return _original.Spectate; } set { _original.Spectate = value; } }
+    public string Match { get { return _original.Match; } set { _original.Match = value; } }
+}
+
+
+public class DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday : IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday 
+{
+    private readonly NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday _original;
+    public DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday(NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday Original => _original;
+    public int N { get { return _original.N; } set { _original.N = value; } }
+    public NetCord.GuildScheduledEventRecurrenceRuleWeekday Day { get { return _original.Day; } set { _original.Day = value; } }
 }
 
 

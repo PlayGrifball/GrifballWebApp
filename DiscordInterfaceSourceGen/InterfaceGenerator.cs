@@ -110,6 +110,10 @@ public class Program
         }
         foreach (var prop in type.GetProperties())
         {
+            if (prop.Name is "Emojis" && type.Name == "JsonGuild")
+            {
+                var f = 1;
+            }
             if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
                 continue; // Skip obsolete properties
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
@@ -198,6 +202,45 @@ public class Program
                     else
                     {
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original); }} }}");
+                    }
+                    continue;
+                }
+            }
+            // Handle ImmutableArray<T> of generated interface
+            if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(ImmutableArray<>))
+            {
+                var argType = prop.PropertyType.GetGenericArguments()[0];
+                var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
+                if (argTypeName.StartsWith("IDiscord"))
+                {
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    if (!hasSetter)
+                    {
+                        // Not sure why cast to as I{argClassName} is needed here, but it is
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x) as I{argClassName}).ToImmutableArray();");
+                    }
+                    else
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x) as I{argClassName}).ToImmutableArray(); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original).ToImmutableArray(); }} }}");
+                    }
+                    continue;
+                }
+            }
+            // Handle array of generated interface
+            if (prop.PropertyType.IsArray)
+            {
+                var argType = prop.PropertyType.GetElementType() ?? throw new Exception("Array is missing element type");
+                var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
+                if (argTypeName.StartsWith("IDiscord"))
+                {
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    if (!hasSetter)
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToArray();");
+                    }
+                    else
+                    {
+                        classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} {{ get {{ return {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToArray(); }} set {{ _original.{prop.Name} = value{nullableModifier}.Select(x => x.Original).ToArray(); }} }}");
                     }
                     continue;
                 }
@@ -552,7 +595,7 @@ public class Program
     private static void AddMethods(Type type, Queue<Type> interfaceQueue, StringBuilder sb, bool forInterface)
     {
         string[] ignored = ["GetType", "ToString", "Equals", "GetHashCode", "TryFormat", "<Clone>$", "Clone"];
-        var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !m.IsStatic && !ignored.Contains(m.Name)).ToArray();
+        var methods = type.GetMethods().Where(m => m.IsPublic && !m.IsSpecialName && !ignored.Contains(m.Name)).ToArray();
         foreach (var method in methods)
         {
             if (method.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
@@ -560,11 +603,16 @@ public class Program
 
             if (method.DeclaringType != type && methods.Any(m => MethodsAreEquivalent(m, method) && m.DeclaringType == type))
                 continue; // Skip inherited methods that are overridden
+            if (method.IsStatic)
+            {
+                var f = 1;
+            }
             var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter, 0, method); // Handle nullables here, its get infeasible to do it later
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
             var anyOutParams = parameters.Any(p => p.IsOut);
+            var staticModifier = method.IsStatic ? "static " : "";
 
             foreach (var param in parameters)
             {
@@ -605,7 +653,7 @@ public class Program
                         paramStr += $" = {param.DefaultValue}";
                 }
                 paramStrings.Add(paramStr);
-                if (!forInterface)
+                if (!forInterface || method.IsStatic)
                 {
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(Action<>))
                     {
@@ -623,6 +671,24 @@ public class Program
                             }
                         }
                     }
+
+                    // TODO: figure out func
+                    //if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(Func))
+                    //{
+                    //    var trueType = param.ParameterType.GenericTypeArguments[0];
+                    //    if (trueType?.Assembly?.FullName is null)
+                    //        throw new Exception("Full name null");
+                    //    if (trueType.Assembly.FullName.StartsWith("NetCord")) // Missing logic to make sure this is one of our types: IDiscord.
+                    //    {
+                    //        var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
+                    //        if (trueTypeName.StartsWith("IDiscord"))
+                    //        {
+                    //            var trueClassName = $"Discord{GetTypeNameWithoutLeadingI(trueType, method.IsGenericMethod)}";
+                    //            argNames.Add($"x => {param.Name}(new {trueClassName}(x))");
+                    //            continue;
+                    //        }
+                    //    }
+                    //}
 
                     if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
                     {
@@ -706,6 +772,47 @@ public class Program
                             argNames.Add(param.Name ?? throw new Exception("Name null"));
                         }
                     }
+                    else if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(ImmutableDictionary<,>))
+                    {
+                        var types = param.ParameterType.GetGenericArguments();
+                        if (types.Any(x =>
+                        {
+                            if (x?.Assembly?.FullName is null)
+                                throw new Exception("Full name null");
+                            var netCord = x.Assembly.FullName.StartsWith("NetCord");
+                            var f = GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod);
+                            return netCord && f.StartsWith("IDiscord");
+                        }))
+                        {
+                            var nullableModifier = NullabilityModifier(param);
+                            if (types.Any(x => param.ParameterType.Assembly.FullName is null))
+                                throw new Exception("Full name null");
+                            if (types.All(x => param.ParameterType.Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(x, interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord")))
+                            {
+                                var nullableModifier0 = NullabilityModifier(types[0]);
+                                var nullableModifier1 = NullabilityModifier(types[1]);
+                                argNames.Add($"{param.Name}{nullableModifier}.ToImmutableDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value{nullableModifier1}.Original)");
+                            }
+                            else if (types[0].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[0], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            {
+                                var nullableModifier0 = NullabilityModifier(types[0]);
+                                argNames.Add($"{param.Name}{nullableModifier}.ToImmutableDictionary(kv => kv.Key{nullableModifier0}.Original, kv => kv.Value)");
+                            }
+                            else if (types[1].Assembly.FullName!.StartsWith("NetCord") && GetDiscordTypeName(types[1], interfaceQueue, method.IsGenericMethod).StartsWith("IDiscord"))
+                            {
+                                var nullableModifier1 = NullabilityModifier(types[1]);
+                                argNames.Add($"{param.Name}{nullableModifier}.ToImmutableDictionary(kv => kv.Key, kv => kv.Value{nullableModifier1}.Original)");
+                            }
+                            else
+                            {
+                                throw new ArgumentOutOfRangeException("Detected NetCord type with IDiscord generated interface but then somehow did not find it on dictionary");
+                            }
+                        }
+                        else
+                        {
+                            argNames.Add(param.Name ?? throw new Exception("Name null"));
+                        }
+                    }
                     else if (param.ParameterType.Assembly.FullName.StartsWith("NetCord") && paramType.StartsWith("IDiscord"))
                     {
                         var nullableModifier = NullabilityModifier(param);
@@ -734,11 +841,26 @@ public class Program
             }
             if (forInterface)
             {
+                //if (method.IsStatic)
+                //    continue; // Static methods not supported in classes for now
                 var nullableModifier = NullabilityModifier(method); // This might be wrong for generic methods
-                sb.AppendLine($"    {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}){genericConstraint};");
+                if (method.IsStatic)
+                {
+                    sb.AppendLine($"    {staticModifier}{returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}){genericConstraint}");
+                    sb.AppendLine($"    {{");
+                    var withoutI = returnType.Substring(1);
+                    sb.AppendLine($"        return new {withoutI}({type.FullName}.{method.Name}({string.Join(", ", argNames)}));");
+                    sb.AppendLine($"    }}");
+                }
+                else
+                {
+                    sb.AppendLine($"    {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}){genericConstraint};");
+                }
             }
             else
             {
+                if (method.IsStatic)
+                    continue; // Static methods not supported in classes for now
                 // Have to map out parameter to original
                 if (anyOutParams)
                 {
@@ -978,7 +1100,7 @@ public class Program
         if (typeMap.TryGetValue(type.Name, out var alias))
             return alias + NullabilityModifier(type);
         // If type is not interface or class, use its name directly
-        if (!type.IsInterface && !type.IsClass)
+        if (!type.IsInterface && !type.IsClass && !type.IsGenericType)
             return type.FullName + NullabilityModifier(withNullable, genericIndex) ?? type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
         // If type is from NetCord, wrap it (but not for enums)
         if (type.Namespace != null && type.Namespace.StartsWith("NetCord"))
@@ -1023,7 +1145,7 @@ public class Program
         if (type.IsGenericType)
         {
             var genericTypeName = type.Name.Split('`')[0];
-            var isDict = genericTypeName is "IReadOnlyDictionary" or "IDictionary" or "Dictionary" or "ImmutableDictionary" or "IEnumerable";
+            var isDict = genericTypeName is "IReadOnlyDictionary" or "IDictionary" or "Dictionary" or "ImmutableDictionary" or "IEnumerable" or "Func";
             var incrementBy = isDict ? 0 : 1; // Dictionary has 2 generic args, so don't increment index for nullability
             var genericArgs = type.GetGenericArguments();
             var args = string.Join(", ", genericArgs.Select((t, i) =>
