@@ -1,4 +1,5 @@
-﻿using NetCord.Services;
+﻿using NetCord.Rest;
+using NetCord.Services;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Reflection;
@@ -110,10 +111,6 @@ public class Program
         }
         foreach (var prop in type.GetProperties())
         {
-            if (prop.Name is "Emojis" && type.Name == "JsonGuild")
-            {
-                var f = 1;
-            }
             if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
                 continue; // Skip obsolete properties
             var memberTypeName = GetDiscordTypeName(prop.PropertyType, interfaceQueue);
@@ -194,7 +191,7 @@ public class Program
                 var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                 if (argTypeName.StartsWith("IDiscord"))
                 {
-                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x));");
@@ -213,10 +210,10 @@ public class Program
                 var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                 if (argTypeName.StartsWith("IDiscord"))
                 {
-                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
-                        // Not sure why cast to as I{argClassName} is needed here, but it is
+                        // TODO: Not sure why cast to as I{argClassName} is needed here, but it is
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x) as I{argClassName}).ToImmutableArray();");
                     }
                     else
@@ -233,7 +230,7 @@ public class Program
                 var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                 if (argTypeName.StartsWith("IDiscord"))
                 {
-                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToArray();");
@@ -252,7 +249,7 @@ public class Program
                 var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                 if (argTypeName.StartsWith("IDiscord"))
                 {
-                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, false)}";
+                    var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x)).ToList();");
                     continue;
                 }
@@ -264,7 +261,7 @@ public class Program
                 var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
                 if (valueTypeName.StartsWith("IDiscord"))
                 {
-                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, false)}";
+                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
@@ -284,7 +281,7 @@ public class Program
                 var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
                 if (valueTypeName.StartsWith("IDiscord"))
                 {
-                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, false)}";
+                    var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
@@ -300,7 +297,7 @@ public class Program
             // If the property type is a generated interface, construct the corresponding class
             if (memberTypeName.StartsWith("IDiscord"))
             {
-                var propClassName = $"Discord{GetTypeNameWithoutLeadingI(prop.PropertyType, false)}";
+                var propClassName = $"Discord{GetTypeNameWithoutLeadingI(prop.PropertyType, interfaceQueue, false)}";
                 if (!hasSetter)
                 {
                     classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}new {propClassName}(_original.{prop.Name});");
@@ -378,6 +375,12 @@ public class Program
                 // For single generic argument, use arr[0]
                 // For multiple, you may want to handle each separately
                 // Here, just use the last one (usually the value type)
+
+                if (prop.Name is "sendResponseAsync" && prop.ParameterType.IsGenericType && prop.ParameterType.GetGenericTypeDefinition() == typeof(Func<,,,,>))
+                {
+                    return ""; // Known issue with this specific method, skip for now. Does not matter anyways since we currently just hard coded this one method.
+                }
+
                 if (index > arr.Count - 1)
                 {
                     throw new Exception("Index out of range for NullableAttribute array");
@@ -520,6 +523,151 @@ public class Program
         { "WebhookClientConfiguration.Client", true },
         { "AuditLogChange`1.NewValue", true },
         { "AuditLogChange`1.OldValue", true },
+        { "JsonInteraction.Data", true },
+        { "JsonInteraction.GuildReference", true },
+        { "JsonInteraction.Channel", true },
+        { "JsonInteraction.GuildUser", true },
+        { "JsonInteraction.User", true },
+        { "JsonInteraction.Message", true },
+        { "JsonInteraction.UserLocale", true },
+        { "JsonInteraction.GuildLocale", true },
+        { "JsonInteraction.AuthorizingIntegrationOwners", true },
+        { "JsonChannel.Name", true },
+        { "JsonChannel.Topic", true },
+        { "JsonChannel.IconHash", true },
+        { "JsonChannel.RtcRegion", true },
+        { "JsonChannel.Metadata", true },
+        { "JsonChannel.CurrentUser", true },
+        { "JsonChannel.AppliedTags", true },
+        { "JsonChannel.DefaultReactionEmoji", true },
+        { "JsonChannel.Message", true },
+        { "JsonInteractionData.Name", true },
+        { "JsonInteractionData.ResolvedData", true },
+        { "JsonInteractionData.CustomId", true },
+        { "JsonGuildUser.Nickname", true },
+        { "JsonGuildUser.GuildAvatarHash", true },
+        { "JsonGuildUser.GuildBannerHash", true },
+        { "JsonGuildUser.GuildAvatarDecorationData", true },
+        { "JsonUser.GlobalName", true },
+        { "JsonUser.AvatarHash", true },
+        { "JsonUser.BannerHash", true },
+        { "JsonUser.Locale", true },
+        { "JsonUser.Email", true },
+        { "JsonUser.AvatarDecorationData", true },
+        { "JsonUser.GuildUser", true },
+        { "JsonMessage.Author", true },
+        { "JsonMessage.Content", true },
+        { "JsonMessage.MentionedRoleIds", true },
+        { "JsonMessage.Nonce", true },
+        { "JsonMessage.Activity", true },
+        { "JsonMessage.Application", true },
+        { "JsonMessage.MessageReference", true },
+        { "JsonMessage.ReferencedMessage", true },
+        { "JsonMessage.InteractionMetadata", true },
+        { "JsonMessage.StartedThread", true },
+        { "JsonMessage.RoleSubscriptionData", true },
+        { "JsonMessage.GuildUser", true },
+        { "JsonMessage.ResolvedData", true },
+        { "JsonMessage.Poll", true },
+        { "JsonMessage.Call", true },
+        { "JsonWebhook.Creator", true },
+        { "JsonWebhook.Name", true },
+        { "JsonWebhook.AvatarHash", true },
+        { "JsonWebhook.Token", true },
+        { "JsonWebhook.Guild", true },
+        { "JsonWebhook.Channel", true },
+        { "JsonWebhook.Url", true },
+        { "JsonForumGuildChannelDefaultReaction.EmojiName", true },
+        { "JsonComponent.CustomId", true },
+        { "JsonComponent.Label", true },
+        { "JsonComponent.Emoji", true },
+        { "JsonComponent.Url", true },
+        { "JsonComponent.ChannelTypes", true },
+        { "JsonComponent.Placeholder", true },
+        { "JsonComponent.Value", true },
+        { "JsonComponent.Accessory", true },
+        { "JsonComponent.Content", true },
+        { "JsonComponent.Media", true },
+        { "JsonComponent.File", true },
+        { "JsonComponent.Description", true },
+        { "JsonAttachment.Title", true },
+        { "JsonAttachment.Description", true },
+        { "JsonAttachment.ContentType", true },
+        { "JsonAttachment.Waveform", true },
+        { "JsonEmbed.Title", true },
+        { "JsonEmbed.Description", true },
+        { "JsonEmbed.Url", true },
+        { "JsonEmbed.Footer", true },
+        { "JsonEmbed.Image", true },
+        { "JsonEmbed.Thumbnail", true },
+        { "JsonEmbed.Video", true },
+        { "JsonEmbed.Provider", true },
+        { "JsonEmbed.Author", true },
+        { "JsonMessageActivity.PartyId", true },
+        { "JsonApplication.IconHash", true },
+        { "JsonApplication.Bot", true },
+        { "JsonApplication.TermsOfServiceUrl", true },
+        { "JsonApplication.PrivacyPolicyUrl", true },
+        { "JsonApplication.Owner", true },
+        { "JsonApplication.Team", true },
+        { "JsonApplication.Guild", true },
+        { "JsonApplication.Slug", true },
+        { "JsonApplication.CoverImageHash", true },
+        { "JsonApplication.InteractionsEndpointUrl", true },
+        { "JsonApplication.RoleConnectionsVerificationUrl", true },
+        { "JsonApplication.InstallParams", true },
+        { "JsonApplication.CustomInstallUrl", true },
+        { "JsonRole.IconHash", true },
+        { "JsonRole.UnicodeEmoji", true },
+        { "JsonRole.Tags", true },
+        { "JsonEmoji.Name", true },
+        { "JsonEmoji.AllowedRoles", true },
+        { "JsonEmoji.Creator", true },
+        { "JsonComponentMedia.ProxyUrl", true },
+        { "JsonComponentMedia.ContentType", true },
+        { "JsonEmbedFooter.IconUrl", true },
+        { "JsonEmbedFooter.ProxyIconUrl", true },
+        { "JsonEmbedImage.Url", true },
+        { "JsonEmbedImage.ProxyUrl", true },
+        { "JsonEmbedThumbnail.Url", true },
+        { "JsonEmbedThumbnail.ProxyUrl", true },
+        { "JsonEmbedVideo.Url", true },
+        { "JsonEmbedVideo.ProxyUrl", true },
+        { "JsonEmbedProvider.Name", true },
+        { "JsonEmbedProvider.Url", true },
+        { "JsonEmbedAuthor.Name", true },
+        { "JsonEmbedAuthor.Url", true },
+        { "JsonEmbedAuthor.IconUrl", true },
+        { "JsonEmbedAuthor.ProxyIconUrl", true },
+        { "JsonApplicationIntegrationTypeConfiguration.OAuth2InstallParams", true },
+        { "JsonMessagePollMedia.Text", true },
+        { "JsonMessagePollMedia.Emoji", true },
+        { "JsonGuildScheduledEvent.Description", true },
+        { "JsonGuildScheduledEvent.EntityMetadata", true },
+        { "JsonGuildScheduledEvent.Creator", true },
+        { "JsonGuildScheduledEvent.CoverImageHash", true },
+        { "JsonGuildScheduledEvent.RecurrenceRule", true },
+        { "JsonUserActivity.Url", true },
+        { "JsonUserActivity.Details", true },
+        { "JsonUserActivity.State", true },
+        { "JsonUserActivity.Emoji", true },
+        { "JsonUserActivity.Party", true },
+        { "JsonUserActivity.Assets", true },
+        { "JsonUserActivity.Secrets", true },
+        { "JsonGuildScheduledEventMetadata.Location", true },
+        { "JsonGuildScheduledEventRecurrenceRule.ByWeekday", true },
+        { "JsonGuildScheduledEventRecurrenceRule.ByMonth", true },
+        { "JsonGuildScheduledEventRecurrenceRule.ByMonthDay", true },
+        { "JsonGuildScheduledEventRecurrenceRule.ByYearDay", true },
+        { "JsonParty.Id", true },
+        { "JsonParty.Size", true },
+        { "JsonUserActivityAssets.LargeImageId", true },
+        { "JsonUserActivityAssets.LargeText", true },
+        { "JsonUserActivityAssets.SmallImageId", true },
+        { "JsonUserActivityAssets.SmallText", true },
+        { "JsonUserActivitySecrets.Join", true },
+        { "JsonUserActivitySecrets.Spectate", true },
+        { "JsonUserActivitySecrets.Match", true },
         // Add more entries as needed, format: { "Name.PropertyName", true }
     };
 
@@ -603,16 +751,28 @@ public class Program
 
             if (method.DeclaringType != type && methods.Any(m => MethodsAreEquivalent(m, method) && m.DeclaringType == type))
                 continue; // Skip inherited methods that are overridden
-            if (method.IsStatic)
-            {
-                var f = 1;
-            }
             var returnType = GetDiscordTypeName(method.ReturnType, interfaceQueue, method.IsGenericMethod, method.ReturnParameter, 0, method); // Handle nullables here, its get infeasible to do it later
             var parameters = method.GetParameters();
             var paramStrings = new List<string>();
             var argNames = new List<string>();
             var anyOutParams = parameters.Any(p => p.IsOut);
             var staticModifier = method.IsStatic ? "static " : "";
+
+            if (forInterface && method.IsStatic && type == typeof(NetCord.Interaction) && returnType is "IDiscordInteraction" && method.Name is "CreateFromJson" && parameters.Length is 4)
+            {
+                sb.AppendLine($"    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallback, IDiscordRestRequestProperties?, System.Threading.CancellationToken, Task> sendResponseAsync, IDiscordRestClient client)");
+                sb.AppendLine($"    {{");
+                sb.AppendLine($"        Task converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)");
+                sb.AppendLine($"        {{");
+                sb.AppendLine($"            NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception(\"Cast failed\");"); // TODO: is this cast right?
+                sb.AppendLine($"            IDiscordInteraction discordInteraction = new DiscordInteraction(casted);"); // TODO: is this cast right?
+                sb.AppendLine($"            IDiscordRestRequestProperties? discordProperties = properties is null ? null : new DiscordRestRequestProperties(properties);");
+                sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, discordProperties, cancellationToken);");
+                sb.AppendLine($"        }}");
+                sb.AppendLine($"        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, converted, client.Original));");
+                sb.AppendLine($"    }}");
+                continue;
+            }
 
             foreach (var param in parameters)
             {
@@ -665,7 +825,7 @@ public class Program
                             var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
                             if (trueTypeName.StartsWith("IDiscord"))
                             {
-                                var trueClassName = $"Discord{GetTypeNameWithoutLeadingI(trueType, method.IsGenericMethod)}";
+                                var trueClassName = $"Discord{GetTypeNameWithoutLeadingI(trueType, interfaceQueue, method.IsGenericMethod)}";
                                 argNames.Add($"x => {param.Name}(new {trueClassName}(x))");
                                 continue;
                             }
@@ -866,7 +1026,7 @@ public class Program
                 {
                     if (returnType.StartsWith("IDiscord"))
                     {
-                        var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, method.IsGenericMethod)}";
+                        var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, interfaceQueue, method.IsGenericMethod)}";
                         sb.AppendLine($"    public {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                         sb.AppendLine("    {");
                         sb.AppendLine($"        var result = new {returnClassName}(_original.{CallMethod(method)}({string.Join(", ", argNames)}));");
@@ -911,7 +1071,7 @@ public class Program
                         var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                         if (argTypeName.StartsWith("IDiscord"))
                         {
-                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, method.IsGenericMethod)}";
+                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, method.IsGenericMethod)}";
                             sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        return (await _original.{CallMethod(method)}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x));");
@@ -926,7 +1086,7 @@ public class Program
                         var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                         if (argTypeName.StartsWith("IDiscord"))
                         {
-                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, method.IsGenericMethod)}";
+                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, method.IsGenericMethod)}";
                             sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        return (await _original.{CallMethod(method)}({string.Join(", ", argNames)})).Select(x => new {argClassName}(x)).ToList();");
@@ -941,7 +1101,7 @@ public class Program
                         var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
                         if (valueTypeName.StartsWith("IDiscord"))
                         {
-                            var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, method.IsGenericMethod)}";
+                            var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, interfaceQueue, method.IsGenericMethod)}";
                             sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        return (await _original.{CallMethod(method)}({string.Join(", ", argNames)})).ToImmutableDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
@@ -956,7 +1116,7 @@ public class Program
                         var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
                         if (valueTypeName.StartsWith("IDiscord"))
                         {
-                            var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, method.IsGenericMethod)}";
+                            var valueClassName = $"Discord{GetTypeNameWithoutLeadingI(valueType, interfaceQueue, method.IsGenericMethod)}";
                             sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        return (await _original.{CallMethod(method)}({string.Join(", ", argNames)})).ToDictionary(kv => kv.Key, kv => (I{valueClassName})new {valueClassName}(kv.Value));");
@@ -1001,7 +1161,7 @@ public class Program
                         var argTypeName = GetDiscordTypeName(argType, interfaceQueue);
                         if (argTypeName.StartsWith("IDiscord"))
                         {
-                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, method.IsGenericMethod)}";
+                            var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, method.IsGenericMethod)}";
                             sb.AppendLine($"    public async {returnType} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
                             sb.AppendLine($"    {{");
                             sb.AppendLine($"        await foreach(var original in _original.{CallMethod(method)}({string.Join(", ", argNames)}))");
@@ -1016,7 +1176,7 @@ public class Program
                     // is method.ReturnType generic type?
                     if (returnType.StartsWith("IDiscord"))
                     {
-                        var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, method.IsGenericMethod)}";
+                        var returnClassName = $"Discord{GetTypeNameWithoutLeadingI(method.ReturnType, interfaceQueue, method.IsGenericMethod)}";
                         var nullableModifier = NullabilityModifier(method);
                         var isNullable = nullableModifier is "?" || returnType.EndsWith("?"); // Nullable reflection check busted on some types so gotta check the ending of the returnType
                         sb.AppendLine($"    public {returnType}{nullableModifier} {method.Name}{genericDecl}({string.Join(", ", paramStrings)}) {genericConstraint}");
@@ -1100,7 +1260,7 @@ public class Program
         if (typeMap.TryGetValue(type.Name, out var alias))
             return alias + NullabilityModifier(type);
         // If type is not interface or class, use its name directly
-        if (!type.IsInterface && !type.IsClass && !type.IsGenericType)
+        if ((!type.IsInterface && !type.IsClass && !type.IsGenericType) || type == typeof(InteractionCallback) || type == typeof(InteractionCallback<>)) // TODO: Not sure if excluding InteractionCallback is correct here, might not be able to intercept with NSubstitute
             return type.FullName + NullabilityModifier(withNullable, genericIndex) ?? type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
         // If type is from NetCord, wrap it (but not for enums)
         if (type.Namespace != null && type.Namespace.StartsWith("NetCord"))
@@ -1145,7 +1305,7 @@ public class Program
         if (type.IsGenericType)
         {
             var genericTypeName = type.Name.Split('`')[0];
-            var isDict = genericTypeName is "IReadOnlyDictionary" or "IDictionary" or "Dictionary" or "ImmutableDictionary" or "IEnumerable" or "Func";
+            var isDict = genericTypeName is "IReadOnlyDictionary" or "IDictionary" or "Dictionary" or "ImmutableDictionary" or "IEnumerable";
             var incrementBy = isDict ? 0 : 1; // Dictionary has 2 generic args, so don't increment index for nullability
             var genericArgs = type.GetGenericArguments();
             var args = string.Join(", ", genericArgs.Select((t, i) =>
@@ -1165,14 +1325,14 @@ public class Program
         return type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
     }
 
-    private static string GetTypeNameWithoutLeadingI(Type type, bool isGenericMethod)
+    private static string GetTypeNameWithoutLeadingI(Type type, Queue<Type> interfaceQueue, bool isGenericMethod)
     {
         var typeName = type.Name;
         if (type.IsGenericType)
         {
             typeName = type.Name.Split('`')[0];
             var types = type.GetGenericArguments();
-            var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, new Queue<Type>(), isGenericMethod)));
+            var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod)));
             typeName = $"{typeName}<{final}>";
         }
         if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
