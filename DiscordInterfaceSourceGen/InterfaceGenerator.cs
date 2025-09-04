@@ -96,7 +96,7 @@ public class Program
 
         // Interface
         var sb = new StringBuilder();
-        sb.AppendLine($"public interface {interfaceName} {genericConstraint}");
+        sb.AppendLine($"public partial interface {interfaceName} {genericConstraint}");
         sb.AppendLine("{");
         // Add Original property to interface
         if (type.IsGenericType)
@@ -136,7 +136,7 @@ public class Program
         interfaceBodies.Add(sb.ToString());
         // Class
         var classSb = new StringBuilder();
-        classSb.AppendLine($"public class {className} : {interfaceName}{genericConstraint}");
+        classSb.AppendLine($"internal partial class {className} : {interfaceName}{genericConstraint}");
         classSb.AppendLine("{");
         if (type.IsGenericType)
         {

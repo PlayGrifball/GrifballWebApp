@@ -1,4 +1,4 @@
-﻿using DiscordInterfaces;
+﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NetCord.Rest;
 using NSubstitute;
 using System.Security.Claims;
 using Role = GrifballWebApp.Database.Models.Role;
@@ -97,7 +96,7 @@ public class DiscordSetGamertagTests
             Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
-                    .ModifyResponseAsync(Arg.Any<Action<MessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<IDiscordRestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
             Assert.DoesNotThrowAsync(async () =>
             {
@@ -142,7 +141,7 @@ public class DiscordSetGamertagTests
             Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
-                    .ModifyResponseAsync(Arg.Any<Action<MessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<IDiscordRestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
             Assert.DoesNotThrowAsync(async () =>
             {
@@ -201,7 +200,7 @@ public class DiscordSetGamertagTests
             Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
-                    .ModifyResponseAsync(Arg.Any<Action<MessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+                    .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<IDiscordRestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
             Assert.DoesNotThrowAsync(async () =>
             {

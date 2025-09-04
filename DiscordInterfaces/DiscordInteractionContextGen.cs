@@ -7,14 +7,14 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace DiscordInterface.Generated;
 
-public interface IDiscordInteractionContext  
+public partial interface IDiscordInteractionContext  
 {
     NetCord.Services.IInteractionContext Original { get; }
     IDiscordInteraction Interaction { get; }
 }
 
 
-public interface IDiscordInteraction  
+public partial interface IDiscordInteraction  
 {
     NetCord.Interaction Original { get; }
     ulong Id { get; }
@@ -59,7 +59,7 @@ public interface IDiscordInteraction
 }
 
 
-public interface IDiscordInteractionGuildReference  
+public partial interface IDiscordInteractionGuildReference  
 {
     NetCord.InteractionGuildReference Original { get; }
     ulong Id { get; }
@@ -69,7 +69,7 @@ public interface IDiscordInteractionGuildReference
 }
 
 
-public interface IDiscordGuild  
+public partial interface IDiscordGuild  
 {
     NetCord.Gateway.Guild Original { get; }
     System.DateTimeOffset JoinedAt { get; }
@@ -227,7 +227,7 @@ public interface IDiscordGuild
 }
 
 
-public interface IDiscordTextChannel  
+public partial interface IDiscordTextChannel  
 {
     NetCord.TextChannel Original { get; }
     ulong? LastMessageId { get; }
@@ -266,7 +266,7 @@ public interface IDiscordTextChannel
 }
 
 
-public interface IDiscordUser  
+public partial interface IDiscordUser  
 {
     NetCord.User Original { get; }
     ulong Id { get; }
@@ -299,7 +299,7 @@ public interface IDiscordUser
 }
 
 
-public interface IDiscordEntitlement  
+public partial interface IDiscordEntitlement  
 {
     NetCord.Entitlement Original { get; }
     ulong Id { get; }
@@ -318,13 +318,13 @@ public interface IDiscordEntitlement
 }
 
 
-public interface IDiscordInteractionData  
+public partial interface IDiscordInteractionData  
 {
     NetCord.InteractionData Original { get; }
 }
 
 
-public interface IDiscordJsonInteraction  
+public partial interface IDiscordJsonInteraction  
 {
     NetCord.JsonModels.JsonInteraction Original { get; }
     ulong ApplicationId { get; set; }
@@ -347,7 +347,7 @@ public interface IDiscordJsonInteraction
 }
 
 
-public interface IDiscordGatewayClientCache  
+public partial interface IDiscordGatewayClientCache  
 {
     NetCord.Gateway.IGatewayClientCache Original { get; }
     IDiscordCurrentUser? User { get; }
@@ -379,7 +379,7 @@ public interface IDiscordGatewayClientCache
 }
 
 
-public interface IDiscordRestClient  
+public partial interface IDiscordRestClient  
 {
     NetCord.Rest.RestClient Original { get; }
     IDiscordToken? Token { get; }
@@ -592,7 +592,7 @@ public interface IDiscordRestClient
 }
 
 
-public interface IDiscordRestRequestProperties  
+public partial interface IDiscordRestRequestProperties  
 {
     NetCord.Rest.RestRequestProperties Original { get; }
     NetCord.Rest.RestRateLimitHandling? RateLimitHandling { get; set; }
@@ -604,7 +604,7 @@ public interface IDiscordRestRequestProperties
 }
 
 
-public interface IDiscordRestMessage  
+public partial interface IDiscordRestMessage  
 {
     NetCord.Rest.RestMessage Original { get; }
     ulong Id { get; }
@@ -661,7 +661,7 @@ public interface IDiscordRestMessage
 }
 
 
-public interface IDiscordMessageOptions  
+public partial interface IDiscordMessageOptions  
 {
     NetCord.Rest.MessageOptions Original { get; }
     string? Content { get; set; }
@@ -686,7 +686,7 @@ public interface IDiscordMessageOptions
 }
 
 
-public interface IDiscordInteractionMessageProperties  
+public partial interface IDiscordInteractionMessageProperties  
 {
     NetCord.Rest.InteractionMessageProperties Original { get; }
     bool Tts { get; set; }
@@ -715,7 +715,7 @@ public interface IDiscordInteractionMessageProperties
 }
 
 
-public interface IDiscordVoiceState  
+public partial interface IDiscordVoiceState  
 {
     NetCord.Gateway.VoiceState Original { get; }
     ulong GuildId { get; }
@@ -734,7 +734,7 @@ public interface IDiscordVoiceState
 }
 
 
-public interface IDiscordGuildUser  
+public partial interface IDiscordGuildUser  
 {
     NetCord.GuildUser Original { get; }
     ulong GuildId { get; }
@@ -797,7 +797,7 @@ public interface IDiscordGuildUser
 }
 
 
-public interface IDiscordGuildChannel  
+public partial interface IDiscordGuildChannel  
 {
     NetCord.IGuildChannel Original { get; }
     ulong GuildId { get; }
@@ -815,7 +815,7 @@ public interface IDiscordGuildChannel
 }
 
 
-public interface IDiscordGuildThread  
+public partial interface IDiscordGuildThread  
 {
     NetCord.GuildThread Original { get; }
     ulong OwnerId { get; }
@@ -888,7 +888,7 @@ public interface IDiscordGuildThread
 }
 
 
-public interface IDiscordPresence  
+public partial interface IDiscordPresence  
 {
     NetCord.Gateway.Presence Original { get; }
     IDiscordUser User { get; }
@@ -899,7 +899,7 @@ public interface IDiscordPresence
 }
 
 
-public interface IDiscordStageInstance  
+public partial interface IDiscordStageInstance  
 {
     NetCord.StageInstance Original { get; }
     ulong Id { get; }
@@ -915,7 +915,7 @@ public interface IDiscordStageInstance
 }
 
 
-public interface IDiscordGuildScheduledEvent  
+public partial interface IDiscordGuildScheduledEvent  
 {
     NetCord.GuildScheduledEvent Original { get; }
     ulong Id { get; }
@@ -945,7 +945,7 @@ public interface IDiscordGuildScheduledEvent
 }
 
 
-public interface IDiscordRole  
+public partial interface IDiscordRole  
 {
     NetCord.Role Original { get; }
     ulong Id { get; }
@@ -969,7 +969,7 @@ public interface IDiscordRole
 }
 
 
-public interface IDiscordGuildEmoji  
+public partial interface IDiscordGuildEmoji  
 {
     NetCord.GuildEmoji Original { get; }
     IReadOnlyList<ulong>? AllowedRoles { get; }
@@ -988,7 +988,7 @@ public interface IDiscordGuildEmoji
 }
 
 
-public interface IDiscordGuildWelcomeScreen  
+public partial interface IDiscordGuildWelcomeScreen  
 {
     NetCord.GuildWelcomeScreen Original { get; }
     string? Description { get; }
@@ -996,7 +996,7 @@ public interface IDiscordGuildWelcomeScreen
 }
 
 
-public interface IDiscordGuildSticker  
+public partial interface IDiscordGuildSticker  
 {
     NetCord.GuildSticker Original { get; }
     bool? Available { get; }
@@ -1015,7 +1015,7 @@ public interface IDiscordGuildSticker
 }
 
 
-public interface IDiscordPartialGuildUser  
+public partial interface IDiscordPartialGuildUser  
 {
     NetCord.PartialGuildUser Original { get; }
     string? Nickname { get; }
@@ -1065,7 +1065,7 @@ public interface IDiscordPartialGuildUser
 }
 
 
-public interface IDiscordImageUrl  
+public partial interface IDiscordImageUrl  
 {
     NetCord.ImageUrl Original { get; }
     static IDiscordImageUrl CustomEmoji(ulong emojiId, NetCord.ImageFormat format)
@@ -1163,7 +1163,7 @@ public interface IDiscordImageUrl
 }
 
 
-public interface IDiscordRestAuditLogEntry  
+public partial interface IDiscordRestAuditLogEntry  
 {
     NetCord.Rest.RestAuditLogEntry Original { get; }
     IDiscordRestAuditLogEntryData Data { get; }
@@ -1184,7 +1184,7 @@ public interface IDiscordRestAuditLogEntry
 }
 
 
-public interface IDiscordGuildAuditLogPaginationProperties  
+public partial interface IDiscordGuildAuditLogPaginationProperties  
 {
     NetCord.Rest.GuildAuditLogPaginationProperties Original { get; }
     ulong? UserId { get; set; }
@@ -1200,7 +1200,7 @@ public interface IDiscordGuildAuditLogPaginationProperties
 }
 
 
-public interface IDiscordAutoModerationRule  
+public partial interface IDiscordAutoModerationRule  
 {
     NetCord.AutoModerationRule Original { get; }
     ulong Id { get; }
@@ -1221,7 +1221,7 @@ public interface IDiscordAutoModerationRule
 }
 
 
-public interface IDiscordAutoModerationRuleProperties  
+public partial interface IDiscordAutoModerationRuleProperties  
 {
     NetCord.AutoModerationRuleProperties Original { get; }
     string Name { get; set; }
@@ -1249,7 +1249,7 @@ public interface IDiscordAutoModerationRuleProperties
 }
 
 
-public interface IDiscordAutoModerationRuleOptions  
+public partial interface IDiscordAutoModerationRuleOptions  
 {
     NetCord.AutoModerationRuleOptions Original { get; }
     string? Name { get; set; }
@@ -1275,7 +1275,7 @@ public interface IDiscordAutoModerationRuleOptions
 }
 
 
-public interface IDiscordGuildEmojiProperties  
+public partial interface IDiscordGuildEmojiProperties  
 {
     NetCord.Rest.GuildEmojiProperties Original { get; }
     string Name { get; set; }
@@ -1289,7 +1289,7 @@ public interface IDiscordGuildEmojiProperties
 }
 
 
-public interface IDiscordGuildEmojiOptions  
+public partial interface IDiscordGuildEmojiOptions  
 {
     NetCord.Rest.GuildEmojiOptions Original { get; }
     string? Name { get; set; }
@@ -1301,7 +1301,7 @@ public interface IDiscordGuildEmojiOptions
 }
 
 
-public interface IDiscordRestGuild  
+public partial interface IDiscordRestGuild  
 {
     NetCord.Rest.RestGuild Original { get; }
     ulong Id { get; }
@@ -1447,7 +1447,7 @@ public interface IDiscordRestGuild
 }
 
 
-public interface IDiscordGuildPreview  
+public partial interface IDiscordGuildPreview  
 {
     NetCord.Rest.GuildPreview Original { get; }
     ulong Id { get; }
@@ -1464,7 +1464,7 @@ public interface IDiscordGuildPreview
 }
 
 
-public interface IDiscordGuildOptions  
+public partial interface IDiscordGuildOptions  
 {
     NetCord.Rest.GuildOptions Original { get; }
     string? Name { get; set; }
@@ -1512,7 +1512,7 @@ public interface IDiscordGuildOptions
 }
 
 
-public interface IDiscordGuildChannelProperties  
+public partial interface IDiscordGuildChannelProperties  
 {
     NetCord.Rest.GuildChannelProperties Original { get; }
     string Name { get; set; }
@@ -1558,7 +1558,7 @@ public interface IDiscordGuildChannelProperties
 }
 
 
-public interface IDiscordGuildChannelPositionProperties  
+public partial interface IDiscordGuildChannelPositionProperties  
 {
     NetCord.Rest.GuildChannelPositionProperties Original { get; }
     ulong Id { get; set; }
@@ -1572,7 +1572,7 @@ public interface IDiscordGuildChannelPositionProperties
 }
 
 
-public interface IDiscordPaginationProperties<T>  where T : struct
+public partial interface IDiscordPaginationProperties<T>  where T : struct
 {
     NetCord.Rest.PaginationProperties<T> Original { get; }
     T? From { get; set; }
@@ -1584,7 +1584,7 @@ public interface IDiscordPaginationProperties<T>  where T : struct
 }
 
 
-public interface IDiscordGuildUserProperties  
+public partial interface IDiscordGuildUserProperties  
 {
     NetCord.Rest.GuildUserProperties Original { get; }
     string AccessToken { get; set; }
@@ -1602,7 +1602,7 @@ public interface IDiscordGuildUserProperties
 }
 
 
-public interface IDiscordGuildUserOptions  
+public partial interface IDiscordGuildUserOptions  
 {
     NetCord.Rest.GuildUserOptions Original { get; }
     IEnumerable<ulong>? RoleIds { get; set; }
@@ -1624,7 +1624,7 @@ public interface IDiscordGuildUserOptions
 }
 
 
-public interface IDiscordCurrentGuildUserOptions  
+public partial interface IDiscordCurrentGuildUserOptions  
 {
     NetCord.Rest.CurrentGuildUserOptions Original { get; }
     string? Nickname { get; set; }
@@ -1632,7 +1632,7 @@ public interface IDiscordCurrentGuildUserOptions
 }
 
 
-public interface IDiscordGuildBan  
+public partial interface IDiscordGuildBan  
 {
     NetCord.Rest.GuildBan Original { get; }
     string? Reason { get; }
@@ -1642,7 +1642,7 @@ public interface IDiscordGuildBan
 }
 
 
-public interface IDiscordGuildBulkBan  
+public partial interface IDiscordGuildBulkBan  
 {
     NetCord.Rest.GuildBulkBan Original { get; }
     IReadOnlyList<ulong> BannedUsers { get; }
@@ -1650,7 +1650,7 @@ public interface IDiscordGuildBulkBan
 }
 
 
-public interface IDiscordRoleProperties  
+public partial interface IDiscordRoleProperties  
 {
     NetCord.Rest.RoleProperties Original { get; }
     string? Name { get; set; }
@@ -1670,7 +1670,7 @@ public interface IDiscordRoleProperties
 }
 
 
-public interface IDiscordRolePositionProperties  
+public partial interface IDiscordRolePositionProperties  
 {
     NetCord.Rest.RolePositionProperties Original { get; }
     ulong Id { get; set; }
@@ -1680,7 +1680,7 @@ public interface IDiscordRolePositionProperties
 }
 
 
-public interface IDiscordRoleOptions  
+public partial interface IDiscordRoleOptions  
 {
     NetCord.Rest.RoleOptions Original { get; }
     string? Name { get; set; }
@@ -1700,7 +1700,7 @@ public interface IDiscordRoleOptions
 }
 
 
-public interface IDiscordGuildPruneProperties  
+public partial interface IDiscordGuildPruneProperties  
 {
     NetCord.Rest.GuildPruneProperties Original { get; }
     int Days { get; set; }
@@ -1714,7 +1714,7 @@ public interface IDiscordGuildPruneProperties
 }
 
 
-public interface IDiscordVoiceRegion  
+public partial interface IDiscordVoiceRegion  
 {
     NetCord.Rest.VoiceRegion Original { get; }
     string Id { get; }
@@ -1725,7 +1725,7 @@ public interface IDiscordVoiceRegion
 }
 
 
-public interface IDiscordRestInvite  
+public partial interface IDiscordRestInvite  
 {
     NetCord.Rest.RestInvite Original { get; }
     NetCord.InviteType Type { get; }
@@ -1751,7 +1751,7 @@ public interface IDiscordRestInvite
 }
 
 
-public interface IDiscordIntegration  
+public partial interface IDiscordIntegration  
 {
     NetCord.Integration Original { get; }
     ulong Id { get; }
@@ -1773,7 +1773,7 @@ public interface IDiscordIntegration
 }
 
 
-public interface IDiscordGuildWidgetSettings  
+public partial interface IDiscordGuildWidgetSettings  
 {
     NetCord.Rest.GuildWidgetSettings Original { get; }
     bool Enabled { get; }
@@ -1781,7 +1781,7 @@ public interface IDiscordGuildWidgetSettings
 }
 
 
-public interface IDiscordGuildWidgetSettingsOptions  
+public partial interface IDiscordGuildWidgetSettingsOptions  
 {
     NetCord.Rest.GuildWidgetSettingsOptions Original { get; }
     bool Enabled { get; set; }
@@ -1791,7 +1791,7 @@ public interface IDiscordGuildWidgetSettingsOptions
 }
 
 
-public interface IDiscordGuildWidget  
+public partial interface IDiscordGuildWidget  
 {
     NetCord.Rest.GuildWidget Original { get; }
     ulong Id { get; }
@@ -1804,7 +1804,7 @@ public interface IDiscordGuildWidget
 }
 
 
-public interface IDiscordGuildVanityInvite  
+public partial interface IDiscordGuildVanityInvite  
 {
     NetCord.Rest.GuildVanityInvite Original { get; }
     string Code { get; }
@@ -1812,7 +1812,7 @@ public interface IDiscordGuildVanityInvite
 }
 
 
-public interface IDiscordGuildWelcomeScreenOptions  
+public partial interface IDiscordGuildWelcomeScreenOptions  
 {
     NetCord.Rest.GuildWelcomeScreenOptions Original { get; }
     bool? Enabled { get; set; }
@@ -1826,7 +1826,7 @@ public interface IDiscordGuildWelcomeScreenOptions
 }
 
 
-public interface IDiscordGuildOnboarding  
+public partial interface IDiscordGuildOnboarding  
 {
     NetCord.Rest.GuildOnboarding Original { get; }
     ulong GuildId { get; }
@@ -1837,7 +1837,7 @@ public interface IDiscordGuildOnboarding
 }
 
 
-public interface IDiscordGuildOnboardingOptions  
+public partial interface IDiscordGuildOnboardingOptions  
 {
     NetCord.Rest.GuildOnboardingOptions Original { get; }
     IEnumerable<IDiscordGuildOnboardingPromptProperties>? Prompts { get; set; }
@@ -1855,7 +1855,7 @@ public interface IDiscordGuildOnboardingOptions
 }
 
 
-public interface IDiscordGuildScheduledEventProperties  
+public partial interface IDiscordGuildScheduledEventProperties  
 {
     NetCord.Rest.GuildScheduledEventProperties Original { get; }
     ulong? ChannelId { get; set; }
@@ -1879,7 +1879,7 @@ public interface IDiscordGuildScheduledEventProperties
 }
 
 
-public interface IDiscordGuildScheduledEventOptions  
+public partial interface IDiscordGuildScheduledEventOptions  
 {
     NetCord.Rest.GuildScheduledEventOptions Original { get; }
     ulong? ChannelId { get; set; }
@@ -1905,7 +1905,7 @@ public interface IDiscordGuildScheduledEventOptions
 }
 
 
-public interface IDiscordGuildScheduledEventUser  
+public partial interface IDiscordGuildScheduledEventUser  
 {
     NetCord.Rest.GuildScheduledEventUser Original { get; }
     ulong ScheduledEventId { get; }
@@ -1913,7 +1913,7 @@ public interface IDiscordGuildScheduledEventUser
 }
 
 
-public interface IDiscordOptionalGuildUsersPaginationProperties  
+public partial interface IDiscordOptionalGuildUsersPaginationProperties  
 {
     NetCord.Rest.OptionalGuildUsersPaginationProperties Original { get; }
     bool WithGuildUsers { get; set; }
@@ -1927,7 +1927,7 @@ public interface IDiscordOptionalGuildUsersPaginationProperties
 }
 
 
-public interface IDiscordGuildTemplate  
+public partial interface IDiscordGuildTemplate  
 {
     NetCord.GuildTemplate Original { get; }
     string Code { get; }
@@ -1949,7 +1949,7 @@ public interface IDiscordGuildTemplate
 }
 
 
-public interface IDiscordGuildTemplateProperties  
+public partial interface IDiscordGuildTemplateProperties  
 {
     NetCord.Rest.GuildTemplateProperties Original { get; }
     string Name { get; set; }
@@ -1959,7 +1959,7 @@ public interface IDiscordGuildTemplateProperties
 }
 
 
-public interface IDiscordGuildTemplateOptions  
+public partial interface IDiscordGuildTemplateOptions  
 {
     NetCord.Rest.GuildTemplateOptions Original { get; }
     string? Name { get; set; }
@@ -1969,7 +1969,7 @@ public interface IDiscordGuildTemplateOptions
 }
 
 
-public interface IDiscordGuildApplicationCommand  
+public partial interface IDiscordGuildApplicationCommand  
 {
     NetCord.Rest.GuildApplicationCommand Original { get; }
     ulong GuildId { get; }
@@ -1997,7 +1997,7 @@ public interface IDiscordGuildApplicationCommand
 }
 
 
-public interface IDiscordApplicationCommandProperties  
+public partial interface IDiscordApplicationCommandProperties  
 {
     NetCord.Rest.ApplicationCommandProperties Original { get; }
     NetCord.ApplicationCommandType Type { get; }
@@ -2020,7 +2020,7 @@ public interface IDiscordApplicationCommandProperties
 }
 
 
-public interface IDiscordApplicationCommandOptions  
+public partial interface IDiscordApplicationCommandOptions  
 {
     NetCord.Rest.ApplicationCommandOptions Original { get; }
     string? Name { get; set; }
@@ -2050,7 +2050,7 @@ public interface IDiscordApplicationCommandOptions
 }
 
 
-public interface IDiscordApplicationCommandGuildPermissions  
+public partial interface IDiscordApplicationCommandGuildPermissions  
 {
     NetCord.Rest.ApplicationCommandGuildPermissions Original { get; }
     ulong CommandId { get; }
@@ -2060,7 +2060,7 @@ public interface IDiscordApplicationCommandGuildPermissions
 }
 
 
-public interface IDiscordApplicationCommandGuildPermissionProperties  
+public partial interface IDiscordApplicationCommandGuildPermissionProperties  
 {
     NetCord.Rest.ApplicationCommandGuildPermissionProperties Original { get; }
     ulong Id { get; set; }
@@ -2072,7 +2072,7 @@ public interface IDiscordApplicationCommandGuildPermissionProperties
 }
 
 
-public interface IDiscordGuildStickerProperties  
+public partial interface IDiscordGuildStickerProperties  
 {
     NetCord.Rest.GuildStickerProperties Original { get; }
     IDiscordAttachmentProperties Attachment { get; set; }
@@ -2087,7 +2087,7 @@ public interface IDiscordGuildStickerProperties
 }
 
 
-public interface IDiscordGuildStickerOptions  
+public partial interface IDiscordGuildStickerOptions  
 {
     NetCord.Rest.GuildStickerOptions Original { get; }
     string? Name { get; set; }
@@ -2099,7 +2099,7 @@ public interface IDiscordGuildStickerOptions
 }
 
 
-public interface IDiscordGuildUserInfo  
+public partial interface IDiscordGuildUserInfo  
 {
     NetCord.Rest.GuildUserInfo Original { get; }
     IDiscordGuildUser User { get; }
@@ -2109,7 +2109,7 @@ public interface IDiscordGuildUserInfo
 }
 
 
-public interface IDiscordGuildUsersSearchPaginationProperties  
+public partial interface IDiscordGuildUsersSearchPaginationProperties  
 {
     NetCord.Rest.GuildUsersSearchPaginationProperties Original { get; }
     IEnumerable<IDiscordGuildUsersSearchQuery>? OrQuery { get; set; }
@@ -2129,7 +2129,7 @@ public interface IDiscordGuildUsersSearchPaginationProperties
 }
 
 
-public interface IDiscordCurrentUserVoiceStateOptions  
+public partial interface IDiscordCurrentUserVoiceStateOptions  
 {
     NetCord.Rest.CurrentUserVoiceStateOptions Original { get; }
     ulong? ChannelId { get; set; }
@@ -2141,7 +2141,7 @@ public interface IDiscordCurrentUserVoiceStateOptions
 }
 
 
-public interface IDiscordVoiceStateOptions  
+public partial interface IDiscordVoiceStateOptions  
 {
     NetCord.Rest.VoiceStateOptions Original { get; }
     ulong ChannelId { get; }
@@ -2150,7 +2150,7 @@ public interface IDiscordVoiceStateOptions
 }
 
 
-public interface IDiscordWebhook  
+public partial interface IDiscordWebhook  
 {
     NetCord.Rest.Webhook Original { get; }
     ulong Id { get; }
@@ -2175,7 +2175,7 @@ public interface IDiscordWebhook
 }
 
 
-public interface IDiscordJsonChannel  
+public partial interface IDiscordJsonChannel  
 {
     NetCord.JsonModels.JsonChannel Original { get; }
     NetCord.ChannelType Type { get; set; }
@@ -2218,7 +2218,7 @@ public interface IDiscordJsonChannel
 }
 
 
-public interface IDiscordMessageProperties  
+public partial interface IDiscordMessageProperties  
 {
     NetCord.Rest.MessageProperties Original { get; }
     string? Content { get; set; }
@@ -2255,7 +2255,7 @@ public interface IDiscordMessageProperties
 }
 
 
-public interface IDiscordReactionEmojiProperties  
+public partial interface IDiscordReactionEmojiProperties  
 {
     NetCord.Rest.ReactionEmojiProperties Original { get; }
     string Name { get; set; }
@@ -2265,7 +2265,7 @@ public interface IDiscordReactionEmojiProperties
 }
 
 
-public interface IDiscordMessageReactionsPaginationProperties  
+public partial interface IDiscordMessageReactionsPaginationProperties  
 {
     NetCord.Rest.MessageReactionsPaginationProperties Original { get; }
     NetCord.ReactionType? Type { get; set; }
@@ -2279,7 +2279,7 @@ public interface IDiscordMessageReactionsPaginationProperties
 }
 
 
-public interface IDiscordGoogleCloudPlatformStorageBucket  
+public partial interface IDiscordGoogleCloudPlatformStorageBucket  
 {
     NetCord.Rest.GoogleCloudPlatformStorageBucket Original { get; }
     long? Id { get; }
@@ -2288,7 +2288,7 @@ public interface IDiscordGoogleCloudPlatformStorageBucket
 }
 
 
-public interface IDiscordGoogleCloudPlatformStorageBucketProperties  
+public partial interface IDiscordGoogleCloudPlatformStorageBucketProperties  
 {
     NetCord.Rest.GoogleCloudPlatformStorageBucketProperties Original { get; }
     string FileName { get; set; }
@@ -2300,7 +2300,7 @@ public interface IDiscordGoogleCloudPlatformStorageBucketProperties
 }
 
 
-public interface IDiscordAvatarDecorationData  
+public partial interface IDiscordAvatarDecorationData  
 {
     NetCord.AvatarDecorationData Original { get; }
     string Hash { get; }
@@ -2308,7 +2308,7 @@ public interface IDiscordAvatarDecorationData
 }
 
 
-public interface IDiscordDMChannel  
+public partial interface IDiscordDMChannel  
 {
     NetCord.DMChannel Original { get; }
     IReadOnlyDictionary<ulong, IDiscordUser> Users { get; }
@@ -2348,7 +2348,7 @@ public interface IDiscordDMChannel
 }
 
 
-public interface IDiscordJsonInteractionData  
+public partial interface IDiscordJsonInteractionData  
 {
     NetCord.JsonModels.JsonInteractionData Original { get; }
     ulong? Id { get; set; }
@@ -2364,7 +2364,7 @@ public interface IDiscordJsonInteractionData
 }
 
 
-public interface IDiscordJsonInteractionGuildReference  
+public partial interface IDiscordJsonInteractionGuildReference  
 {
     NetCord.JsonModels.JsonInteractionGuildReference Original { get; }
     string[] Features { get; set; }
@@ -2373,7 +2373,7 @@ public interface IDiscordJsonInteractionGuildReference
 }
 
 
-public interface IDiscordJsonGuildUser  
+public partial interface IDiscordJsonGuildUser  
 {
     NetCord.JsonModels.JsonGuildUser Original { get; }
     IDiscordJsonUser User { get; set; }
@@ -2394,7 +2394,7 @@ public interface IDiscordJsonGuildUser
 }
 
 
-public interface IDiscordJsonUser  
+public partial interface IDiscordJsonUser  
 {
     NetCord.JsonModels.JsonUser Original { get; }
     string Username { get; set; }
@@ -2418,7 +2418,7 @@ public interface IDiscordJsonUser
 }
 
 
-public interface IDiscordJsonMessage  
+public partial interface IDiscordJsonMessage  
 {
     NetCord.JsonModels.JsonMessage Original { get; }
     ulong ChannelId { get; set; }
@@ -2459,7 +2459,7 @@ public interface IDiscordJsonMessage
 }
 
 
-public interface IDiscordJsonEntitlement  
+public partial interface IDiscordJsonEntitlement  
 {
     NetCord.JsonModels.JsonEntitlement Original { get; }
     ulong SkuId { get; set; }
@@ -2475,7 +2475,7 @@ public interface IDiscordJsonEntitlement
 }
 
 
-public interface IDiscordCurrentUser  
+public partial interface IDiscordCurrentUser  
 {
     NetCord.CurrentUser Original { get; }
     ulong Id { get; }
@@ -2515,7 +2515,7 @@ public interface IDiscordCurrentUser
 }
 
 
-public interface IDiscordToken  
+public partial interface IDiscordToken  
 {
     NetCord.IToken Original { get; }
     string RawToken { get; }
@@ -2523,7 +2523,7 @@ public interface IDiscordToken
 }
 
 
-public interface IDiscordCurrentApplication  
+public partial interface IDiscordCurrentApplication  
 {
     NetCord.CurrentApplication Original { get; }
     ulong Id { get; }
@@ -2578,7 +2578,7 @@ public interface IDiscordCurrentApplication
 }
 
 
-public interface IDiscordCurrentApplicationOptions  
+public partial interface IDiscordCurrentApplicationOptions  
 {
     NetCord.Rest.CurrentApplicationOptions Original { get; }
     string? CustomInstallUrl { get; set; }
@@ -2606,7 +2606,7 @@ public interface IDiscordCurrentApplicationOptions
 }
 
 
-public interface IDiscordApplicationRoleConnectionMetadata  
+public partial interface IDiscordApplicationRoleConnectionMetadata  
 {
     NetCord.Rest.ApplicationRoleConnectionMetadata Original { get; }
     NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; }
@@ -2618,7 +2618,7 @@ public interface IDiscordApplicationRoleConnectionMetadata
 }
 
 
-public interface IDiscordApplicationRoleConnectionMetadataProperties  
+public partial interface IDiscordApplicationRoleConnectionMetadataProperties  
 {
     NetCord.Rest.ApplicationRoleConnectionMetadataProperties Original { get; }
     NetCord.Rest.ApplicationRoleConnectionMetadataType Type { get; set; }
@@ -2636,7 +2636,7 @@ public interface IDiscordApplicationRoleConnectionMetadataProperties
 }
 
 
-public interface IDiscordChannel  
+public partial interface IDiscordChannel  
 {
     NetCord.Channel Original { get; }
     ulong Id { get; }
@@ -2652,7 +2652,7 @@ public interface IDiscordChannel
 }
 
 
-public interface IDiscordGroupDMChannelOptions  
+public partial interface IDiscordGroupDMChannelOptions  
 {
     NetCord.Rest.GroupDMChannelOptions Original { get; }
     string? Name { get; set; }
@@ -2662,7 +2662,7 @@ public interface IDiscordGroupDMChannelOptions
 }
 
 
-public interface IDiscordGuildChannelOptions  
+public partial interface IDiscordGuildChannelOptions  
 {
     NetCord.Rest.GuildChannelOptions Original { get; }
     string? Name { get; set; }
@@ -2722,7 +2722,7 @@ public interface IDiscordGuildChannelOptions
 }
 
 
-public interface IDiscordPermissionOverwriteProperties  
+public partial interface IDiscordPermissionOverwriteProperties  
 {
     NetCord.Rest.PermissionOverwriteProperties Original { get; }
     ulong Id { get; set; }
@@ -2736,7 +2736,7 @@ public interface IDiscordPermissionOverwriteProperties
 }
 
 
-public interface IDiscordInviteProperties  
+public partial interface IDiscordInviteProperties  
 {
     NetCord.Rest.InviteProperties Original { get; }
     int? MaxAge { get; set; }
@@ -2756,7 +2756,7 @@ public interface IDiscordInviteProperties
 }
 
 
-public interface IDiscordFollowedChannel  
+public partial interface IDiscordFollowedChannel  
 {
     NetCord.Rest.FollowedChannel Original { get; }
     ulong Id { get; }
@@ -2765,7 +2765,7 @@ public interface IDiscordFollowedChannel
 }
 
 
-public interface IDiscordGroupDMChannelUserAddProperties  
+public partial interface IDiscordGroupDMChannelUserAddProperties  
 {
     NetCord.Rest.GroupDMChannelUserAddProperties Original { get; }
     string AccessToken { get; set; }
@@ -2775,7 +2775,7 @@ public interface IDiscordGroupDMChannelUserAddProperties
 }
 
 
-public interface IDiscordGuildThreadFromMessageProperties  
+public partial interface IDiscordGuildThreadFromMessageProperties  
 {
     NetCord.Rest.GuildThreadFromMessageProperties Original { get; }
     string Name { get; set; }
@@ -2787,7 +2787,7 @@ public interface IDiscordGuildThreadFromMessageProperties
 }
 
 
-public interface IDiscordGuildThreadProperties  
+public partial interface IDiscordGuildThreadProperties  
 {
     NetCord.Rest.GuildThreadProperties Original { get; }
     NetCord.ChannelType? ChannelType { get; set; }
@@ -2803,7 +2803,7 @@ public interface IDiscordGuildThreadProperties
 }
 
 
-public interface IDiscordForumGuildThread  
+public partial interface IDiscordForumGuildThread  
 {
     NetCord.ForumGuildThread Original { get; }
     IDiscordRestMessage Message { get; }
@@ -2874,7 +2874,7 @@ public interface IDiscordForumGuildThread
 }
 
 
-public interface IDiscordForumGuildThreadProperties  
+public partial interface IDiscordForumGuildThreadProperties  
 {
     NetCord.Rest.ForumGuildThreadProperties Original { get; }
     IDiscordForumGuildThreadMessageProperties Message { get; set; }
@@ -2893,7 +2893,7 @@ public interface IDiscordForumGuildThreadProperties
 }
 
 
-public interface IDiscordThreadUser  
+public partial interface IDiscordThreadUser  
 {
     NetCord.ThreadUser Original { get; }
     ulong Id { get; }
@@ -2904,7 +2904,7 @@ public interface IDiscordThreadUser
 }
 
 
-public interface IDiscordApplicationEmoji  
+public partial interface IDiscordApplicationEmoji  
 {
     NetCord.ApplicationEmoji Original { get; }
     ulong ApplicationId { get; }
@@ -2922,7 +2922,7 @@ public interface IDiscordApplicationEmoji
 }
 
 
-public interface IDiscordApplicationEmojiProperties  
+public partial interface IDiscordApplicationEmojiProperties  
 {
     NetCord.Rest.ApplicationEmojiProperties Original { get; }
     string Name { get; set; }
@@ -2932,7 +2932,7 @@ public interface IDiscordApplicationEmojiProperties
 }
 
 
-public interface IDiscordApplicationEmojiOptions  
+public partial interface IDiscordApplicationEmojiOptions  
 {
     NetCord.Rest.ApplicationEmojiOptions Original { get; }
     string? Name { get; set; }
@@ -2940,7 +2940,7 @@ public interface IDiscordApplicationEmojiOptions
 }
 
 
-public interface IDiscordGatewayBot  
+public partial interface IDiscordGatewayBot  
 {
     NetCord.Rest.GatewayBot Original { get; }
     string Url { get; }
@@ -2949,7 +2949,7 @@ public interface IDiscordGatewayBot
 }
 
 
-public interface IDiscordGuildProperties  
+public partial interface IDiscordGuildProperties  
 {
     NetCord.Rest.GuildProperties Original { get; }
     string Name { get; set; }
@@ -2981,7 +2981,7 @@ public interface IDiscordGuildProperties
 }
 
 
-public interface IDiscordGuildFromGuildTemplateProperties  
+public partial interface IDiscordGuildFromGuildTemplateProperties  
 {
     NetCord.Rest.GuildFromGuildTemplateProperties Original { get; }
     string Name { get; set; }
@@ -2991,7 +2991,7 @@ public interface IDiscordGuildFromGuildTemplateProperties
 }
 
 
-public interface IDiscordApplicationCommand  
+public partial interface IDiscordApplicationCommand  
 {
     NetCord.Rest.ApplicationCommand Original { get; }
     ulong Id { get; }
@@ -3016,7 +3016,7 @@ public interface IDiscordApplicationCommand
 }
 
 
-public interface IDiscordEntitlementsPaginationProperties  
+public partial interface IDiscordEntitlementsPaginationProperties  
 {
     NetCord.Rest.EntitlementsPaginationProperties Original { get; }
     ulong? UserId { get; set; }
@@ -3038,7 +3038,7 @@ public interface IDiscordEntitlementsPaginationProperties
 }
 
 
-public interface IDiscordTestEntitlementProperties  
+public partial interface IDiscordTestEntitlementProperties  
 {
     NetCord.Rest.TestEntitlementProperties Original { get; }
     ulong SkuId { get; set; }
@@ -3050,7 +3050,7 @@ public interface IDiscordTestEntitlementProperties
 }
 
 
-public interface IDiscordSku  
+public partial interface IDiscordSku  
 {
     NetCord.Rest.Sku Original { get; }
     ulong Id { get; }
@@ -3065,7 +3065,7 @@ public interface IDiscordSku
 }
 
 
-public interface IDiscordAuthorizationInformation  
+public partial interface IDiscordAuthorizationInformation  
 {
     NetCord.Rest.AuthorizationInformation Original { get; }
     IDiscordApplication Application { get; }
@@ -3075,7 +3075,7 @@ public interface IDiscordAuthorizationInformation
 }
 
 
-public interface IDiscordStageInstanceProperties  
+public partial interface IDiscordStageInstanceProperties  
 {
     NetCord.Rest.StageInstanceProperties Original { get; }
     ulong ChannelId { get; set; }
@@ -3091,7 +3091,7 @@ public interface IDiscordStageInstanceProperties
 }
 
 
-public interface IDiscordStageInstanceOptions  
+public partial interface IDiscordStageInstanceOptions  
 {
     NetCord.Rest.StageInstanceOptions Original { get; }
     string? Topic { get; set; }
@@ -3101,7 +3101,7 @@ public interface IDiscordStageInstanceOptions
 }
 
 
-public interface IDiscordStandardSticker  
+public partial interface IDiscordStandardSticker  
 {
     NetCord.StandardSticker Original { get; }
     ulong PackId { get; }
@@ -3116,7 +3116,7 @@ public interface IDiscordStandardSticker
 }
 
 
-public interface IDiscordStickerPack  
+public partial interface IDiscordStickerPack  
 {
     NetCord.Rest.StickerPack Original { get; }
     IReadOnlyList<IDiscordSticker> Stickers { get; }
@@ -3128,7 +3128,7 @@ public interface IDiscordStickerPack
 }
 
 
-public interface IDiscordSubscription  
+public partial interface IDiscordSubscription  
 {
     NetCord.Subscription Original { get; }
     ulong Id { get; }
@@ -3145,7 +3145,7 @@ public interface IDiscordSubscription
 }
 
 
-public interface IDiscordSubscriptionPaginationProperties  
+public partial interface IDiscordSubscriptionPaginationProperties  
 {
     NetCord.Rest.SubscriptionPaginationProperties Original { get; }
     ulong? UserId { get; set; }
@@ -3167,7 +3167,7 @@ public interface IDiscordSubscriptionPaginationProperties
 }
 
 
-public interface IDiscordApplication  
+public partial interface IDiscordApplication  
 {
     NetCord.Application Original { get; }
     ulong Id { get; }
@@ -3213,7 +3213,7 @@ public interface IDiscordApplication
 }
 
 
-public interface IDiscordCurrentUserOptions  
+public partial interface IDiscordCurrentUserOptions  
 {
     NetCord.Rest.CurrentUserOptions Original { get; }
     string? Username { get; set; }
@@ -3225,7 +3225,7 @@ public interface IDiscordCurrentUserOptions
 }
 
 
-public interface IDiscordGuildsPaginationProperties  
+public partial interface IDiscordGuildsPaginationProperties  
 {
     NetCord.Rest.GuildsPaginationProperties Original { get; }
     bool WithCounts { get; set; }
@@ -3239,7 +3239,7 @@ public interface IDiscordGuildsPaginationProperties
 }
 
 
-public interface IDiscordGroupDMChannel  
+public partial interface IDiscordGroupDMChannel  
 {
     NetCord.GroupDMChannel Original { get; }
     string Name { get; }
@@ -3283,7 +3283,7 @@ public interface IDiscordGroupDMChannel
 }
 
 
-public interface IDiscordGroupDMChannelProperties  
+public partial interface IDiscordGroupDMChannelProperties  
 {
     NetCord.Rest.GroupDMChannelProperties Original { get; }
     IEnumerable<string> AccessTokens { get; set; }
@@ -3295,7 +3295,7 @@ public interface IDiscordGroupDMChannelProperties
 }
 
 
-public interface IDiscordConnection  
+public partial interface IDiscordConnection  
 {
     NetCord.Rest.Connection Original { get; }
     string Id { get; }
@@ -3311,7 +3311,7 @@ public interface IDiscordConnection
 }
 
 
-public interface IDiscordApplicationRoleConnection  
+public partial interface IDiscordApplicationRoleConnection  
 {
     NetCord.Rest.ApplicationRoleConnection Original { get; }
     string? PlatformName { get; }
@@ -3320,7 +3320,7 @@ public interface IDiscordApplicationRoleConnection
 }
 
 
-public interface IDiscordApplicationRoleConnectionProperties  
+public partial interface IDiscordApplicationRoleConnectionProperties  
 {
     NetCord.Rest.ApplicationRoleConnectionProperties Original { get; }
     string? PlatformName { get; set; }
@@ -3332,7 +3332,7 @@ public interface IDiscordApplicationRoleConnectionProperties
 }
 
 
-public interface IDiscordIncomingWebhook  
+public partial interface IDiscordIncomingWebhook  
 {
     NetCord.Rest.IncomingWebhook Original { get; }
     string Token { get; }
@@ -3362,7 +3362,7 @@ public interface IDiscordIncomingWebhook
 }
 
 
-public interface IDiscordWebhookProperties  
+public partial interface IDiscordWebhookProperties  
 {
     NetCord.Rest.WebhookProperties Original { get; }
     string Name { get; set; }
@@ -3372,7 +3372,7 @@ public interface IDiscordWebhookProperties
 }
 
 
-public interface IDiscordWebhookOptions  
+public partial interface IDiscordWebhookOptions  
 {
     NetCord.Rest.WebhookOptions Original { get; }
     string? Name { get; set; }
@@ -3384,7 +3384,7 @@ public interface IDiscordWebhookOptions
 }
 
 
-public interface IDiscordWebhookMessageProperties  
+public partial interface IDiscordWebhookMessageProperties  
 {
     NetCord.Rest.WebhookMessageProperties Original { get; }
     string? Content { get; set; }
@@ -3423,7 +3423,7 @@ public interface IDiscordWebhookMessageProperties
 }
 
 
-public interface IDiscordGuildChannelMention  
+public partial interface IDiscordGuildChannelMention  
 {
     NetCord.GuildChannelMention Original { get; }
     ulong Id { get; }
@@ -3434,7 +3434,7 @@ public interface IDiscordGuildChannelMention
 }
 
 
-public interface IDiscordAttachment  
+public partial interface IDiscordAttachment  
 {
     NetCord.Attachment Original { get; }
     ulong Id { get; }
@@ -3456,7 +3456,7 @@ public interface IDiscordAttachment
 }
 
 
-public interface IDiscordEmbed  
+public partial interface IDiscordEmbed  
 {
     NetCord.Embed Original { get; }
     string? Title { get; }
@@ -3475,7 +3475,7 @@ public interface IDiscordEmbed
 }
 
 
-public interface IDiscordMessageReaction  
+public partial interface IDiscordMessageReaction  
 {
     NetCord.MessageReaction Original { get; }
     int Count { get; }
@@ -3487,7 +3487,7 @@ public interface IDiscordMessageReaction
 }
 
 
-public interface IDiscordMessageActivity  
+public partial interface IDiscordMessageActivity  
 {
     NetCord.MessageActivity Original { get; }
     NetCord.MessageActivityType Type { get; }
@@ -3495,7 +3495,7 @@ public interface IDiscordMessageActivity
 }
 
 
-public interface IDiscordMessageReference  
+public partial interface IDiscordMessageReference  
 {
     NetCord.MessageReference Original { get; }
     ulong MessageId { get; }
@@ -3505,14 +3505,14 @@ public interface IDiscordMessageReference
 }
 
 
-public interface IDiscordMessageSnapshot  
+public partial interface IDiscordMessageSnapshot  
 {
     NetCord.MessageSnapshot Original { get; }
     IDiscordMessageSnapshotMessage Message { get; }
 }
 
 
-public interface IDiscordMessageInteractionMetadata  
+public partial interface IDiscordMessageInteractionMetadata  
 {
     NetCord.MessageInteractionMetadata Original { get; }
     ulong Id { get; }
@@ -3526,7 +3526,7 @@ public interface IDiscordMessageInteractionMetadata
 }
 
 
-public interface IDiscordComponent  
+public partial interface IDiscordComponent  
 {
     NetCord.IComponent Original { get; }
     int Id { get; }
@@ -3537,7 +3537,7 @@ public interface IDiscordComponent
 }
 
 
-public interface IDiscordMessageSticker  
+public partial interface IDiscordMessageSticker  
 {
     NetCord.MessageSticker Original { get; }
     ulong Id { get; }
@@ -3547,7 +3547,7 @@ public interface IDiscordMessageSticker
 }
 
 
-public interface IDiscordRoleSubscriptionData  
+public partial interface IDiscordRoleSubscriptionData  
 {
     NetCord.RoleSubscriptionData Original { get; }
     ulong RoleSubscriptionListingId { get; }
@@ -3557,7 +3557,7 @@ public interface IDiscordRoleSubscriptionData
 }
 
 
-public interface IDiscordInteractionResolvedData  
+public partial interface IDiscordInteractionResolvedData  
 {
     NetCord.InteractionResolvedData Original { get; }
     IReadOnlyDictionary<ulong, IDiscordUser>? Users { get; }
@@ -3567,7 +3567,7 @@ public interface IDiscordInteractionResolvedData
 }
 
 
-public interface IDiscordMessagePoll  
+public partial interface IDiscordMessagePoll  
 {
     NetCord.MessagePoll Original { get; }
     IDiscordMessagePollMedia Question { get; }
@@ -3579,7 +3579,7 @@ public interface IDiscordMessagePoll
 }
 
 
-public interface IDiscordMessageCall  
+public partial interface IDiscordMessageCall  
 {
     NetCord.Rest.MessageCall Original { get; }
     IReadOnlyList<ulong> Participants { get; }
@@ -3587,7 +3587,7 @@ public interface IDiscordMessageCall
 }
 
 
-public interface IDiscordReplyMessageProperties  
+public partial interface IDiscordReplyMessageProperties  
 {
     NetCord.Rest.ReplyMessageProperties Original { get; }
     string? Content { get; set; }
@@ -3624,7 +3624,7 @@ public interface IDiscordReplyMessageProperties
 }
 
 
-public interface IDiscordEmbedProperties  
+public partial interface IDiscordEmbedProperties  
 {
     NetCord.Rest.EmbedProperties Original { get; }
     string? Title { get; set; }
@@ -3652,7 +3652,7 @@ public interface IDiscordEmbedProperties
 }
 
 
-public interface IDiscordAllowedMentionsProperties  
+public partial interface IDiscordAllowedMentionsProperties  
 {
     NetCord.Rest.AllowedMentionsProperties Original { get; }
     bool Everyone { get; set; }
@@ -3672,7 +3672,7 @@ public interface IDiscordAllowedMentionsProperties
 }
 
 
-public interface IDiscordComponentProperties  
+public partial interface IDiscordComponentProperties  
 {
     NetCord.Rest.IComponentProperties Original { get; }
     int? Id { get; set; }
@@ -3681,7 +3681,7 @@ public interface IDiscordComponentProperties
 }
 
 
-public interface IDiscordAttachmentProperties  
+public partial interface IDiscordAttachmentProperties  
 {
     NetCord.Rest.AttachmentProperties Original { get; }
     string FileName { get; set; }
@@ -3695,7 +3695,7 @@ public interface IDiscordAttachmentProperties
 }
 
 
-public interface IDiscordMessagePollProperties  
+public partial interface IDiscordMessagePollProperties  
 {
     NetCord.MessagePollProperties Original { get; }
     IDiscordMessagePollMediaProperties Question { get; set; }
@@ -3713,7 +3713,7 @@ public interface IDiscordMessagePollProperties
 }
 
 
-public interface IDiscordPermissionOverwrite  
+public partial interface IDiscordPermissionOverwrite  
 {
     NetCord.PermissionOverwrite Original { get; }
     ulong Id { get; }
@@ -3724,7 +3724,7 @@ public interface IDiscordPermissionOverwrite
 }
 
 
-public interface IDiscordGuildThreadMetadata  
+public partial interface IDiscordGuildThreadMetadata  
 {
     NetCord.GuildThreadMetadata Original { get; }
     bool Archived { get; }
@@ -3735,7 +3735,7 @@ public interface IDiscordGuildThreadMetadata
 }
 
 
-public interface IDiscordThreadCurrentUser  
+public partial interface IDiscordThreadCurrentUser  
 {
     NetCord.ThreadCurrentUser Original { get; }
     System.DateTimeOffset JoinTimestamp { get; }
@@ -3743,7 +3743,7 @@ public interface IDiscordThreadCurrentUser
 }
 
 
-public interface IDiscordUserActivity  
+public partial interface IDiscordUserActivity  
 {
     NetCord.Gateway.UserActivity Original { get; }
     string Name { get; }
@@ -3765,7 +3765,7 @@ public interface IDiscordUserActivity
 }
 
 
-public interface IDiscordGuildScheduledEventRecurrenceRule  
+public partial interface IDiscordGuildScheduledEventRecurrenceRule  
 {
     NetCord.GuildScheduledEventRecurrenceRule Original { get; }
     System.DateTimeOffset? StartAt { get; }
@@ -3781,7 +3781,7 @@ public interface IDiscordGuildScheduledEventRecurrenceRule
 }
 
 
-public interface IDiscordRoleTags  
+public partial interface IDiscordRoleTags  
 {
     NetCord.RoleTags Original { get; }
     ulong? BotId { get; }
@@ -3793,7 +3793,7 @@ public interface IDiscordRoleTags
 }
 
 
-public interface IDiscordGuildWelcomeScreenChannel  
+public partial interface IDiscordGuildWelcomeScreenChannel  
 {
     NetCord.GuildWelcomeScreenChannel Original { get; }
     ulong Id { get; }
@@ -3804,7 +3804,7 @@ public interface IDiscordGuildWelcomeScreenChannel
 }
 
 
-public interface IDiscordRestAuditLogEntryData  
+public partial interface IDiscordRestAuditLogEntryData  
 {
     NetCord.Rest.RestAuditLogEntryData Original { get; }
     IReadOnlyDictionary<ulong, IDiscordApplicationCommand> ApplicationCommands { get; }
@@ -3817,7 +3817,7 @@ public interface IDiscordRestAuditLogEntryData
 }
 
 
-public interface IDiscordAuditLogChange  
+public partial interface IDiscordAuditLogChange  
 {
     NetCord.AuditLogChange Original { get; }
     string Key { get; }
@@ -3828,7 +3828,7 @@ public interface IDiscordAuditLogChange
 }
 
 
-public interface IDiscordAuditLogEntryInfo  
+public partial interface IDiscordAuditLogEntryInfo  
 {
     NetCord.AuditLogEntryInfo Original { get; }
     ulong? ApplicationId { get; }
@@ -3846,7 +3846,7 @@ public interface IDiscordAuditLogEntryInfo
 }
 
 
-public interface IDiscordAuditLogChange<TValue>  
+public partial interface IDiscordAuditLogChange<TValue>  
 {
     NetCord.AuditLogChange<TValue> Original { get; }
     TValue? NewValue { get; }
@@ -3859,7 +3859,7 @@ public interface IDiscordAuditLogChange<TValue>
 }
 
 
-public interface IDiscordAutoModerationRuleTriggerMetadata  
+public partial interface IDiscordAutoModerationRuleTriggerMetadata  
 {
     NetCord.AutoModerationRuleTriggerMetadata Original { get; }
     IReadOnlyList<string>? KeywordFilter { get; }
@@ -3871,7 +3871,7 @@ public interface IDiscordAutoModerationRuleTriggerMetadata
 }
 
 
-public interface IDiscordAutoModerationAction  
+public partial interface IDiscordAutoModerationAction  
 {
     NetCord.AutoModerationAction Original { get; }
     NetCord.AutoModerationActionType Type { get; }
@@ -3879,7 +3879,7 @@ public interface IDiscordAutoModerationAction
 }
 
 
-public interface IDiscordAutoModerationRuleTriggerMetadataProperties  
+public partial interface IDiscordAutoModerationRuleTriggerMetadataProperties  
 {
     NetCord.AutoModerationRuleTriggerMetadataProperties Original { get; }
     IEnumerable<string>? KeywordFilter { get; set; }
@@ -3905,7 +3905,7 @@ public interface IDiscordAutoModerationRuleTriggerMetadataProperties
 }
 
 
-public interface IDiscordAutoModerationActionProperties  
+public partial interface IDiscordAutoModerationActionProperties  
 {
     NetCord.AutoModerationActionProperties Original { get; }
     NetCord.AutoModerationActionType Type { get; set; }
@@ -3915,7 +3915,7 @@ public interface IDiscordAutoModerationActionProperties
 }
 
 
-public interface IDiscordForumTagProperties  
+public partial interface IDiscordForumTagProperties  
 {
     NetCord.Rest.ForumTagProperties Original { get; }
     ulong? Id { get; set; }
@@ -3931,7 +3931,7 @@ public interface IDiscordForumTagProperties
 }
 
 
-public interface IDiscordAccount  
+public partial interface IDiscordAccount  
 {
     NetCord.Account Original { get; }
     ulong Id { get; }
@@ -3940,7 +3940,7 @@ public interface IDiscordAccount
 }
 
 
-public interface IDiscordIntegrationApplication  
+public partial interface IDiscordIntegrationApplication  
 {
     NetCord.IntegrationApplication Original { get; }
     ulong Id { get; }
@@ -3953,7 +3953,7 @@ public interface IDiscordIntegrationApplication
 }
 
 
-public interface IDiscordGuildWidgetChannel  
+public partial interface IDiscordGuildWidgetChannel  
 {
     NetCord.Rest.GuildWidgetChannel Original { get; }
     ulong Id { get; }
@@ -3963,7 +3963,7 @@ public interface IDiscordGuildWidgetChannel
 }
 
 
-public interface IDiscordGuildWelcomeScreenChannelProperties  
+public partial interface IDiscordGuildWelcomeScreenChannelProperties  
 {
     NetCord.Rest.GuildWelcomeScreenChannelProperties Original { get; }
     ulong ChannelId { get; set; }
@@ -3975,7 +3975,7 @@ public interface IDiscordGuildWelcomeScreenChannelProperties
 }
 
 
-public interface IDiscordGuildOnboardingPrompt  
+public partial interface IDiscordGuildOnboardingPrompt  
 {
     NetCord.Rest.GuildOnboardingPrompt Original { get; }
     ulong Id { get; }
@@ -3989,7 +3989,7 @@ public interface IDiscordGuildOnboardingPrompt
 }
 
 
-public interface IDiscordGuildOnboardingPromptProperties  
+public partial interface IDiscordGuildOnboardingPromptProperties  
 {
     NetCord.Rest.GuildOnboardingPromptProperties Original { get; }
     ulong? Id { get; set; }
@@ -4011,7 +4011,7 @@ public interface IDiscordGuildOnboardingPromptProperties
 }
 
 
-public interface IDiscordGuildScheduledEventMetadataProperties  
+public partial interface IDiscordGuildScheduledEventMetadataProperties  
 {
     NetCord.Rest.GuildScheduledEventMetadataProperties Original { get; }
     string Location { get; set; }
@@ -4019,7 +4019,7 @@ public interface IDiscordGuildScheduledEventMetadataProperties
 }
 
 
-public interface IDiscordGuildTemplatePreview  
+public partial interface IDiscordGuildTemplatePreview  
 {
     NetCord.Rest.GuildTemplatePreview Original { get; }
     string Name { get; }
@@ -4038,7 +4038,7 @@ public interface IDiscordGuildTemplatePreview
 }
 
 
-public interface IDiscordApplicationCommandOption  
+public partial interface IDiscordApplicationCommandOption  
 {
     NetCord.Rest.ApplicationCommandOption Original { get; }
     NetCord.ApplicationCommandOptionType Type { get; }
@@ -4058,7 +4058,7 @@ public interface IDiscordApplicationCommandOption
 }
 
 
-public interface IDiscordApplicationCommandOptionProperties  
+public partial interface IDiscordApplicationCommandOptionProperties  
 {
     NetCord.Rest.ApplicationCommandOptionProperties Original { get; }
     NetCord.ApplicationCommandOptionType Type { get; set; }
@@ -4098,7 +4098,7 @@ public interface IDiscordApplicationCommandOptionProperties
 }
 
 
-public interface IDiscordApplicationCommandPermission  
+public partial interface IDiscordApplicationCommandPermission  
 {
     NetCord.ApplicationCommandPermission Original { get; }
     ulong Id { get; }
@@ -4108,14 +4108,14 @@ public interface IDiscordApplicationCommandPermission
 }
 
 
-public interface IDiscordGuildUsersSearchQuery  
+public partial interface IDiscordGuildUsersSearchQuery  
 {
     NetCord.Rest.IGuildUsersSearchQuery Original { get; }
     void Serialize(Utf8JsonWriter writer);
 }
 
 
-public interface IDiscordJsonWebhook  
+public partial interface IDiscordJsonWebhook  
 {
     NetCord.JsonModels.JsonWebhook Original { get; }
     NetCord.Rest.WebhookType Type { get; set; }
@@ -4133,7 +4133,7 @@ public interface IDiscordJsonWebhook
 }
 
 
-public interface IDiscordJsonPermissionOverwrite  
+public partial interface IDiscordJsonPermissionOverwrite  
 {
     NetCord.JsonModels.JsonPermissionOverwrite Original { get; }
     NetCord.PermissionOverwriteType Type { get; set; }
@@ -4143,7 +4143,7 @@ public interface IDiscordJsonPermissionOverwrite
 }
 
 
-public interface IDiscordJsonGuildThreadMetadata  
+public partial interface IDiscordJsonGuildThreadMetadata  
 {
     NetCord.JsonModels.JsonGuildThreadMetadata Original { get; }
     bool Archived { get; set; }
@@ -4154,7 +4154,7 @@ public interface IDiscordJsonGuildThreadMetadata
 }
 
 
-public interface IDiscordJsonThreadCurrentUser  
+public partial interface IDiscordJsonThreadCurrentUser  
 {
     NetCord.JsonModels.JsonThreadCurrentUser Original { get; }
     System.DateTimeOffset JoinTimestamp { get; set; }
@@ -4162,7 +4162,7 @@ public interface IDiscordJsonThreadCurrentUser
 }
 
 
-public interface IDiscordJsonForumTag  
+public partial interface IDiscordJsonForumTag  
 {
     NetCord.JsonModels.JsonForumTag Original { get; }
     string Name { get; set; }
@@ -4173,7 +4173,7 @@ public interface IDiscordJsonForumTag
 }
 
 
-public interface IDiscordJsonForumGuildChannelDefaultReaction  
+public partial interface IDiscordJsonForumGuildChannelDefaultReaction  
 {
     NetCord.JsonModels.JsonForumGuildChannelDefaultReaction Original { get; }
     ulong? EmojiId { get; set; }
@@ -4181,7 +4181,7 @@ public interface IDiscordJsonForumGuildChannelDefaultReaction
 }
 
 
-public interface IDiscordNonceProperties  
+public partial interface IDiscordNonceProperties  
 {
     NetCord.Rest.NonceProperties Original { get; }
     bool Unique { get; set; }
@@ -4189,7 +4189,7 @@ public interface IDiscordNonceProperties
 }
 
 
-public interface IDiscordMessageReferenceProperties  
+public partial interface IDiscordMessageReferenceProperties  
 {
     NetCord.Rest.MessageReferenceProperties Original { get; }
     NetCord.MessageReferenceType Type { get; set; }
@@ -4211,7 +4211,7 @@ public interface IDiscordMessageReferenceProperties
 }
 
 
-public interface IDiscordJsonInteractionResolvedData  
+public partial interface IDiscordJsonInteractionResolvedData  
 {
     NetCord.JsonModels.JsonInteractionResolvedData Original { get; }
     IReadOnlyDictionary<ulong, IDiscordJsonUser>? Users { get; set; }
@@ -4223,7 +4223,7 @@ public interface IDiscordJsonInteractionResolvedData
 }
 
 
-public interface IDiscordJsonApplicationCommandInteractionDataOption  
+public partial interface IDiscordJsonApplicationCommandInteractionDataOption  
 {
     NetCord.JsonModels.JsonApplicationCommandInteractionDataOption Original { get; }
     string Name { get; set; }
@@ -4234,7 +4234,7 @@ public interface IDiscordJsonApplicationCommandInteractionDataOption
 }
 
 
-public interface IDiscordJsonComponent  
+public partial interface IDiscordJsonComponent  
 {
     NetCord.JsonModels.JsonComponent Original { get; }
     int Id { get; set; }
@@ -4270,7 +4270,7 @@ public interface IDiscordJsonComponent
 }
 
 
-public interface IDiscordJsonAvatarDecorationData  
+public partial interface IDiscordJsonAvatarDecorationData  
 {
     NetCord.JsonModels.JsonAvatarDecorationData Original { get; }
     string Hash { get; set; }
@@ -4278,7 +4278,7 @@ public interface IDiscordJsonAvatarDecorationData
 }
 
 
-public interface IDiscordJsonGuildChannelMention  
+public partial interface IDiscordJsonGuildChannelMention  
 {
     NetCord.JsonModels.JsonGuildChannelMention Original { get; }
     ulong GuildId { get; set; }
@@ -4288,7 +4288,7 @@ public interface IDiscordJsonGuildChannelMention
 }
 
 
-public interface IDiscordJsonAttachment  
+public partial interface IDiscordJsonAttachment  
 {
     NetCord.JsonModels.JsonAttachment Original { get; }
     string FileName { get; set; }
@@ -4308,7 +4308,7 @@ public interface IDiscordJsonAttachment
 }
 
 
-public interface IDiscordJsonEmbed  
+public partial interface IDiscordJsonEmbed  
 {
     NetCord.JsonModels.JsonEmbed Original { get; }
     string? Title { get; set; }
@@ -4327,7 +4327,7 @@ public interface IDiscordJsonEmbed
 }
 
 
-public interface IDiscordJsonMessageReaction  
+public partial interface IDiscordJsonMessageReaction  
 {
     NetCord.JsonModels.JsonMessageReaction Original { get; }
     int Count { get; set; }
@@ -4339,7 +4339,7 @@ public interface IDiscordJsonMessageReaction
 }
 
 
-public interface IDiscordJsonMessageActivity  
+public partial interface IDiscordJsonMessageActivity  
 {
     NetCord.JsonModels.JsonMessageActivity Original { get; }
     NetCord.MessageActivityType Type { get; set; }
@@ -4347,7 +4347,7 @@ public interface IDiscordJsonMessageActivity
 }
 
 
-public interface IDiscordJsonApplication  
+public partial interface IDiscordJsonApplication  
 {
     NetCord.JsonModels.JsonApplication Original { get; }
     string Name { get; set; }
@@ -4381,7 +4381,7 @@ public interface IDiscordJsonApplication
 }
 
 
-public interface IDiscordJsonMessageReference  
+public partial interface IDiscordJsonMessageReference  
 {
     NetCord.JsonModels.JsonMessageReference Original { get; }
     ulong? MessageId { get; set; }
@@ -4391,14 +4391,14 @@ public interface IDiscordJsonMessageReference
 }
 
 
-public interface IDiscordJsonMessageSnapshot  
+public partial interface IDiscordJsonMessageSnapshot  
 {
     NetCord.JsonModels.JsonMessageSnapshot Original { get; }
     IDiscordJsonMessageSnapshotMessage Message { get; set; }
 }
 
 
-public interface IDiscordJsonMessageInteractionMetadata  
+public partial interface IDiscordJsonMessageInteractionMetadata  
 {
     NetCord.JsonModels.JsonMessageInteractionMetadata Original { get; }
     NetCord.InteractionType Type { get; set; }
@@ -4411,7 +4411,7 @@ public interface IDiscordJsonMessageInteractionMetadata
 }
 
 
-public interface IDiscordJsonMessageSticker  
+public partial interface IDiscordJsonMessageSticker  
 {
     NetCord.JsonModels.JsonMessageSticker Original { get; }
     string Name { get; set; }
@@ -4420,7 +4420,7 @@ public interface IDiscordJsonMessageSticker
 }
 
 
-public interface IDiscordJsonRoleSubscriptionData  
+public partial interface IDiscordJsonRoleSubscriptionData  
 {
     NetCord.JsonModels.JsonRoleSubscriptionData Original { get; }
     ulong RoleSubscriptionListingId { get; set; }
@@ -4430,7 +4430,7 @@ public interface IDiscordJsonRoleSubscriptionData
 }
 
 
-public interface IDiscordJsonMessagePoll  
+public partial interface IDiscordJsonMessagePoll  
 {
     NetCord.JsonModels.JsonMessagePoll Original { get; }
     IDiscordJsonMessagePollMedia Question { get; set; }
@@ -4443,7 +4443,7 @@ public interface IDiscordJsonMessagePoll
 }
 
 
-public interface IDiscordJsonMessageCall  
+public partial interface IDiscordJsonMessageCall  
 {
     NetCord.JsonModels.JsonMessageCall Original { get; }
     ulong[] Participants { get; set; }
@@ -4451,7 +4451,7 @@ public interface IDiscordJsonMessageCall
 }
 
 
-public interface IDiscordTeam  
+public partial interface IDiscordTeam  
 {
     NetCord.Team Original { get; }
     ulong Id { get; }
@@ -4464,7 +4464,7 @@ public interface IDiscordTeam
 }
 
 
-public interface IDiscordApplicationInstallParams  
+public partial interface IDiscordApplicationInstallParams  
 {
     NetCord.ApplicationInstallParams Original { get; }
     IReadOnlyList<string> Scopes { get; }
@@ -4472,14 +4472,14 @@ public interface IDiscordApplicationInstallParams
 }
 
 
-public interface IDiscordApplicationIntegrationTypeConfiguration  
+public partial interface IDiscordApplicationIntegrationTypeConfiguration  
 {
     NetCord.ApplicationIntegrationTypeConfiguration Original { get; }
     IDiscordApplicationInstallParams? OAuth2InstallParams { get; }
 }
 
 
-public interface IDiscordApplicationInstallParamsProperties  
+public partial interface IDiscordApplicationInstallParamsProperties  
 {
     NetCord.Rest.ApplicationInstallParamsProperties Original { get; }
     IEnumerable<string>? Scopes { get; set; }
@@ -4491,7 +4491,7 @@ public interface IDiscordApplicationInstallParamsProperties
 }
 
 
-public interface IDiscordApplicationIntegrationTypeConfigurationProperties  
+public partial interface IDiscordApplicationIntegrationTypeConfigurationProperties  
 {
     NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties Original { get; }
     IDiscordApplicationInstallParamsProperties? OAuth2InstallParams { get; set; }
@@ -4499,7 +4499,7 @@ public interface IDiscordApplicationIntegrationTypeConfigurationProperties
 }
 
 
-public interface IDiscordForumGuildThreadMessageProperties  
+public partial interface IDiscordForumGuildThreadMessageProperties  
 {
     NetCord.Rest.ForumGuildThreadMessageProperties Original { get; }
     string? Content { get; set; }
@@ -4527,7 +4527,7 @@ public interface IDiscordForumGuildThreadMessageProperties
 }
 
 
-public interface IDiscordGatewaySessionStartLimit  
+public partial interface IDiscordGatewaySessionStartLimit  
 {
     NetCord.Rest.GatewaySessionStartLimit Original { get; }
     int Total { get; }
@@ -4537,7 +4537,7 @@ public interface IDiscordGatewaySessionStartLimit
 }
 
 
-public interface IDiscordSticker  
+public partial interface IDiscordSticker  
 {
     NetCord.Sticker Original { get; }
     ulong Id { get; }
@@ -4550,7 +4550,7 @@ public interface IDiscordSticker
 }
 
 
-public interface IDiscordWebhookClient  
+public partial interface IDiscordWebhookClient  
 {
     NetCord.Rest.WebhookClient Original { get; }
     ulong Id { get; }
@@ -4566,14 +4566,14 @@ public interface IDiscordWebhookClient
 }
 
 
-public interface IDiscordWebhookClientConfiguration  
+public partial interface IDiscordWebhookClientConfiguration  
 {
     NetCord.Rest.WebhookClientConfiguration Original { get; }
     IDiscordRestClient? Client { get; set; }
 }
 
 
-public interface IDiscordAttachmentExpirationInfo  
+public partial interface IDiscordAttachmentExpirationInfo  
 {
     NetCord.AttachmentExpirationInfo Original { get; }
     System.DateTimeOffset ExpiresAt { get; }
@@ -4582,7 +4582,7 @@ public interface IDiscordAttachmentExpirationInfo
 }
 
 
-public interface IDiscordEmbedFooter  
+public partial interface IDiscordEmbedFooter  
 {
     NetCord.EmbedFooter Original { get; }
     string Text { get; }
@@ -4591,7 +4591,7 @@ public interface IDiscordEmbedFooter
 }
 
 
-public interface IDiscordEmbedImage  
+public partial interface IDiscordEmbedImage  
 {
     NetCord.EmbedImage Original { get; }
     string? Url { get; }
@@ -4601,7 +4601,7 @@ public interface IDiscordEmbedImage
 }
 
 
-public interface IDiscordEmbedThumbnail  
+public partial interface IDiscordEmbedThumbnail  
 {
     NetCord.EmbedThumbnail Original { get; }
     string? Url { get; }
@@ -4611,7 +4611,7 @@ public interface IDiscordEmbedThumbnail
 }
 
 
-public interface IDiscordEmbedVideo  
+public partial interface IDiscordEmbedVideo  
 {
     NetCord.EmbedVideo Original { get; }
     string? Url { get; }
@@ -4621,7 +4621,7 @@ public interface IDiscordEmbedVideo
 }
 
 
-public interface IDiscordEmbedProvider  
+public partial interface IDiscordEmbedProvider  
 {
     NetCord.EmbedProvider Original { get; }
     string? Name { get; }
@@ -4629,7 +4629,7 @@ public interface IDiscordEmbedProvider
 }
 
 
-public interface IDiscordEmbedAuthor  
+public partial interface IDiscordEmbedAuthor  
 {
     NetCord.EmbedAuthor Original { get; }
     string? Name { get; }
@@ -4639,7 +4639,7 @@ public interface IDiscordEmbedAuthor
 }
 
 
-public interface IDiscordEmbedField  
+public partial interface IDiscordEmbedField  
 {
     NetCord.EmbedField Original { get; }
     string Name { get; }
@@ -4648,7 +4648,7 @@ public interface IDiscordEmbedField
 }
 
 
-public interface IDiscordMessageReactionCountDetails  
+public partial interface IDiscordMessageReactionCountDetails  
 {
     NetCord.MessageReactionCountDetails Original { get; }
     int Burst { get; }
@@ -4656,7 +4656,7 @@ public interface IDiscordMessageReactionCountDetails
 }
 
 
-public interface IDiscordMessageReactionEmoji  
+public partial interface IDiscordMessageReactionEmoji  
 {
     NetCord.MessageReactionEmoji Original { get; }
     ulong? Id { get; }
@@ -4665,7 +4665,7 @@ public interface IDiscordMessageReactionEmoji
 }
 
 
-public interface IDiscordMessageSnapshotMessage  
+public partial interface IDiscordMessageSnapshotMessage  
 {
     NetCord.MessageSnapshotMessage Original { get; }
     NetCord.MessageType Type { get; }
@@ -4679,7 +4679,7 @@ public interface IDiscordMessageSnapshotMessage
 }
 
 
-public interface IDiscordMessagePollMedia  
+public partial interface IDiscordMessagePollMedia  
 {
     NetCord.MessagePollMedia Original { get; }
     string? Text { get; }
@@ -4687,7 +4687,7 @@ public interface IDiscordMessagePollMedia
 }
 
 
-public interface IDiscordMessagePollAnswer  
+public partial interface IDiscordMessagePollAnswer  
 {
     NetCord.MessagePollAnswer Original { get; }
     int AnswerId { get; }
@@ -4695,7 +4695,7 @@ public interface IDiscordMessagePollAnswer
 }
 
 
-public interface IDiscordMessagePollResults  
+public partial interface IDiscordMessagePollResults  
 {
     NetCord.MessagePollResults Original { get; }
     bool IsFinalized { get; }
@@ -4703,7 +4703,7 @@ public interface IDiscordMessagePollResults
 }
 
 
-public interface IDiscordEmbedFooterProperties  
+public partial interface IDiscordEmbedFooterProperties  
 {
     NetCord.Rest.EmbedFooterProperties Original { get; }
     string? Text { get; set; }
@@ -4713,7 +4713,7 @@ public interface IDiscordEmbedFooterProperties
 }
 
 
-public interface IDiscordEmbedImageProperties  
+public partial interface IDiscordEmbedImageProperties  
 {
     NetCord.Rest.EmbedImageProperties Original { get; }
     string? Url { get; set; }
@@ -4721,7 +4721,7 @@ public interface IDiscordEmbedImageProperties
 }
 
 
-public interface IDiscordEmbedThumbnailProperties  
+public partial interface IDiscordEmbedThumbnailProperties  
 {
     NetCord.Rest.EmbedThumbnailProperties Original { get; }
     string? Url { get; set; }
@@ -4729,7 +4729,7 @@ public interface IDiscordEmbedThumbnailProperties
 }
 
 
-public interface IDiscordEmbedAuthorProperties  
+public partial interface IDiscordEmbedAuthorProperties  
 {
     NetCord.Rest.EmbedAuthorProperties Original { get; }
     string? Name { get; set; }
@@ -4741,7 +4741,7 @@ public interface IDiscordEmbedAuthorProperties
 }
 
 
-public interface IDiscordEmbedFieldProperties  
+public partial interface IDiscordEmbedFieldProperties  
 {
     NetCord.Rest.EmbedFieldProperties Original { get; }
     string? Name { get; set; }
@@ -4753,7 +4753,7 @@ public interface IDiscordEmbedFieldProperties
 }
 
 
-public interface IDiscordMessagePollMediaProperties  
+public partial interface IDiscordMessagePollMediaProperties  
 {
     NetCord.MessagePollMediaProperties Original { get; }
     string? Text { get; set; }
@@ -4763,7 +4763,7 @@ public interface IDiscordMessagePollMediaProperties
 }
 
 
-public interface IDiscordMessagePollAnswerProperties  
+public partial interface IDiscordMessagePollAnswerProperties  
 {
     NetCord.MessagePollAnswerProperties Original { get; }
     IDiscordMessagePollMediaProperties PollMedia { get; set; }
@@ -4771,7 +4771,7 @@ public interface IDiscordMessagePollAnswerProperties
 }
 
 
-public interface IDiscordUserActivityTimestamps  
+public partial interface IDiscordUserActivityTimestamps  
 {
     NetCord.Gateway.UserActivityTimestamps Original { get; }
     System.DateTimeOffset? StartTime { get; }
@@ -4779,7 +4779,7 @@ public interface IDiscordUserActivityTimestamps
 }
 
 
-public interface IDiscordEmoji  
+public partial interface IDiscordEmoji  
 {
     NetCord.Emoji Original { get; }
     string Name { get; }
@@ -4791,7 +4791,7 @@ public interface IDiscordEmoji
 }
 
 
-public interface IDiscordParty  
+public partial interface IDiscordParty  
 {
     NetCord.Gateway.Party Original { get; }
     string? Id { get; }
@@ -4800,7 +4800,7 @@ public interface IDiscordParty
 }
 
 
-public interface IDiscordUserActivityAssets  
+public partial interface IDiscordUserActivityAssets  
 {
     NetCord.Gateway.UserActivityAssets Original { get; }
     string? LargeImageId { get; }
@@ -4810,7 +4810,7 @@ public interface IDiscordUserActivityAssets
 }
 
 
-public interface IDiscordUserActivitySecrets  
+public partial interface IDiscordUserActivitySecrets  
 {
     NetCord.Gateway.UserActivitySecrets Original { get; }
     string? Join { get; }
@@ -4819,14 +4819,14 @@ public interface IDiscordUserActivitySecrets
 }
 
 
-public interface IDiscordUserActivityButton  
+public partial interface IDiscordUserActivityButton  
 {
     NetCord.Gateway.UserActivityButton Original { get; }
     string Label { get; }
 }
 
 
-public interface IDiscordGuildScheduledEventRecurrenceRuleNWeekday  
+public partial interface IDiscordGuildScheduledEventRecurrenceRuleNWeekday  
 {
     NetCord.GuildScheduledEventRecurrenceRuleNWeekday Original { get; }
     int N { get; }
@@ -4834,7 +4834,7 @@ public interface IDiscordGuildScheduledEventRecurrenceRuleNWeekday
 }
 
 
-public interface IDiscordAutoModerationActionMetadata  
+public partial interface IDiscordAutoModerationActionMetadata  
 {
     NetCord.AutoModerationActionMetadata Original { get; }
     ulong? ChannelId { get; }
@@ -4843,7 +4843,7 @@ public interface IDiscordAutoModerationActionMetadata
 }
 
 
-public interface IDiscordAutoModerationActionMetadataProperties  
+public partial interface IDiscordAutoModerationActionMetadataProperties  
 {
     NetCord.AutoModerationActionMetadataProperties Original { get; }
     ulong? ChannelId { get; set; }
@@ -4855,7 +4855,7 @@ public interface IDiscordAutoModerationActionMetadataProperties
 }
 
 
-public interface IDiscordEmojiProperties  
+public partial interface IDiscordEmojiProperties  
 {
     NetCord.EmojiProperties Original { get; }
     ulong? Id { get; set; }
@@ -4865,7 +4865,7 @@ public interface IDiscordEmojiProperties
 }
 
 
-public interface IDiscordGuildOnboardingPromptOption  
+public partial interface IDiscordGuildOnboardingPromptOption  
 {
     NetCord.Rest.GuildOnboardingPromptOption Original { get; }
     ulong Id { get; }
@@ -4878,7 +4878,7 @@ public interface IDiscordGuildOnboardingPromptOption
 }
 
 
-public interface IDiscordGuildOnboardingPromptOptionProperties  
+public partial interface IDiscordGuildOnboardingPromptOptionProperties  
 {
     NetCord.Rest.GuildOnboardingPromptOptionProperties Original { get; }
     ulong? Id { get; set; }
@@ -4904,7 +4904,7 @@ public interface IDiscordGuildOnboardingPromptOptionProperties
 }
 
 
-public interface IDiscordApplicationCommandOptionChoice  
+public partial interface IDiscordApplicationCommandOptionChoice  
 {
     NetCord.Rest.ApplicationCommandOptionChoice Original { get; }
     string Name { get; }
@@ -4915,7 +4915,7 @@ public interface IDiscordApplicationCommandOptionChoice
 }
 
 
-public interface IDiscordApplicationCommandOptionChoiceProperties  
+public partial interface IDiscordApplicationCommandOptionChoiceProperties  
 {
     NetCord.Rest.ApplicationCommandOptionChoiceProperties Original { get; }
     string Name { get; set; }
@@ -4931,7 +4931,7 @@ public interface IDiscordApplicationCommandOptionChoiceProperties
 }
 
 
-public interface IDiscordJsonGuild  
+public partial interface IDiscordJsonGuild  
 {
     NetCord.JsonModels.JsonGuild Original { get; }
     string Name { get; set; }
@@ -4990,7 +4990,7 @@ public interface IDiscordJsonGuild
 }
 
 
-public interface IDiscordJsonRole  
+public partial interface IDiscordJsonRole  
 {
     NetCord.JsonModels.JsonRole Original { get; }
     string Name { get; set; }
@@ -5008,7 +5008,7 @@ public interface IDiscordJsonRole
 }
 
 
-public interface IDiscordJsonEmoji  
+public partial interface IDiscordJsonEmoji  
 {
     NetCord.JsonModels.JsonEmoji Original { get; }
     ulong? Id { get; set; }
@@ -5022,7 +5022,7 @@ public interface IDiscordJsonEmoji
 }
 
 
-public interface IDiscordJsonMenuSelectOption  
+public partial interface IDiscordJsonMenuSelectOption  
 {
     NetCord.JsonModels.JsonMenuSelectOption Original { get; }
     string Label { get; set; }
@@ -5033,7 +5033,7 @@ public interface IDiscordJsonMenuSelectOption
 }
 
 
-public interface IDiscordJsonSelectMenuDefaultValue  
+public partial interface IDiscordJsonSelectMenuDefaultValue  
 {
     NetCord.JsonModels.JsonSelectMenuDefaultValue Original { get; }
     NetCord.JsonModels.JsonSelectMenuDefaultValueType Type { get; set; }
@@ -5041,7 +5041,7 @@ public interface IDiscordJsonSelectMenuDefaultValue
 }
 
 
-public interface IDiscordJsonComponentMedia  
+public partial interface IDiscordJsonComponentMedia  
 {
     NetCord.JsonModels.JsonComponentMedia Original { get; }
     string Url { get; set; }
@@ -5053,7 +5053,7 @@ public interface IDiscordJsonComponentMedia
 }
 
 
-public interface IDiscordJsonEmbedFooter  
+public partial interface IDiscordJsonEmbedFooter  
 {
     NetCord.JsonModels.JsonEmbedFooter Original { get; }
     string Text { get; set; }
@@ -5062,7 +5062,7 @@ public interface IDiscordJsonEmbedFooter
 }
 
 
-public interface IDiscordJsonEmbedImage  
+public partial interface IDiscordJsonEmbedImage  
 {
     NetCord.JsonModels.JsonEmbedImage Original { get; }
     string? Url { get; set; }
@@ -5072,7 +5072,7 @@ public interface IDiscordJsonEmbedImage
 }
 
 
-public interface IDiscordJsonEmbedThumbnail  
+public partial interface IDiscordJsonEmbedThumbnail  
 {
     NetCord.JsonModels.JsonEmbedThumbnail Original { get; }
     string? Url { get; set; }
@@ -5082,7 +5082,7 @@ public interface IDiscordJsonEmbedThumbnail
 }
 
 
-public interface IDiscordJsonEmbedVideo  
+public partial interface IDiscordJsonEmbedVideo  
 {
     NetCord.JsonModels.JsonEmbedVideo Original { get; }
     string? Url { get; set; }
@@ -5092,7 +5092,7 @@ public interface IDiscordJsonEmbedVideo
 }
 
 
-public interface IDiscordJsonEmbedProvider  
+public partial interface IDiscordJsonEmbedProvider  
 {
     NetCord.JsonModels.JsonEmbedProvider Original { get; }
     string? Name { get; set; }
@@ -5100,7 +5100,7 @@ public interface IDiscordJsonEmbedProvider
 }
 
 
-public interface IDiscordJsonEmbedAuthor  
+public partial interface IDiscordJsonEmbedAuthor  
 {
     NetCord.JsonModels.JsonEmbedAuthor Original { get; }
     string? Name { get; set; }
@@ -5110,7 +5110,7 @@ public interface IDiscordJsonEmbedAuthor
 }
 
 
-public interface IDiscordJsonEmbedField  
+public partial interface IDiscordJsonEmbedField  
 {
     NetCord.JsonModels.JsonEmbedField Original { get; }
     string Name { get; set; }
@@ -5119,7 +5119,7 @@ public interface IDiscordJsonEmbedField
 }
 
 
-public interface IDiscordJsonMessageReactionCountDetails  
+public partial interface IDiscordJsonMessageReactionCountDetails  
 {
     NetCord.JsonModels.JsonMessageReactionCountDetails Original { get; }
     int Burst { get; set; }
@@ -5127,7 +5127,7 @@ public interface IDiscordJsonMessageReactionCountDetails
 }
 
 
-public interface IDiscordJsonTeam  
+public partial interface IDiscordJsonTeam  
 {
     NetCord.JsonModels.JsonTeam Original { get; }
     string? IconHash { get; set; }
@@ -5138,7 +5138,7 @@ public interface IDiscordJsonTeam
 }
 
 
-public interface IDiscordJsonApplicationInstallParams  
+public partial interface IDiscordJsonApplicationInstallParams  
 {
     NetCord.JsonModels.JsonApplicationInstallParams Original { get; }
     string[] Scopes { get; set; }
@@ -5146,14 +5146,14 @@ public interface IDiscordJsonApplicationInstallParams
 }
 
 
-public interface IDiscordJsonApplicationIntegrationTypeConfiguration  
+public partial interface IDiscordJsonApplicationIntegrationTypeConfiguration  
 {
     NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration Original { get; }
     IDiscordJsonApplicationInstallParams? OAuth2InstallParams { get; set; }
 }
 
 
-public interface IDiscordJsonMessageSnapshotMessage  
+public partial interface IDiscordJsonMessageSnapshotMessage  
 {
     NetCord.JsonModels.JsonMessageSnapshotMessage Original { get; }
     NetCord.MessageType Type { get; set; }
@@ -5168,7 +5168,7 @@ public interface IDiscordJsonMessageSnapshotMessage
 }
 
 
-public interface IDiscordJsonMessagePollMedia  
+public partial interface IDiscordJsonMessagePollMedia  
 {
     NetCord.JsonModels.JsonMessagePollMedia Original { get; }
     string? Text { get; set; }
@@ -5177,7 +5177,7 @@ public interface IDiscordJsonMessagePollMedia
 }
 
 
-public interface IDiscordJsonMessagePollAnswer  
+public partial interface IDiscordJsonMessagePollAnswer  
 {
     NetCord.JsonModels.JsonMessagePollAnswer Original { get; }
     int AnswerId { get; set; }
@@ -5185,7 +5185,7 @@ public interface IDiscordJsonMessagePollAnswer
 }
 
 
-public interface IDiscordJsonMessagePollResults  
+public partial interface IDiscordJsonMessagePollResults  
 {
     NetCord.JsonModels.JsonMessagePollResults Original { get; }
     bool IsFinalized { get; set; }
@@ -5194,7 +5194,7 @@ public interface IDiscordJsonMessagePollResults
 }
 
 
-public interface IDiscordTeamUser  
+public partial interface IDiscordTeamUser  
 {
     NetCord.TeamUser Original { get; }
     NetCord.MembershipState MembershipState { get; }
@@ -5230,7 +5230,7 @@ public interface IDiscordTeamUser
 }
 
 
-public interface IDiscordEmojiReference  
+public partial interface IDiscordEmojiReference  
 {
     NetCord.EmojiReference Original { get; }
     ulong? Id { get; }
@@ -5239,7 +5239,7 @@ public interface IDiscordEmojiReference
 }
 
 
-public interface IDiscordMessagePollAnswerCount  
+public partial interface IDiscordMessagePollAnswerCount  
 {
     NetCord.MessagePollAnswerCount Original { get; }
     int AnswerId { get; }
@@ -5248,7 +5248,7 @@ public interface IDiscordMessagePollAnswerCount
 }
 
 
-public interface IDiscordJsonVoiceState  
+public partial interface IDiscordJsonVoiceState  
 {
     NetCord.Gateway.JsonModels.JsonVoiceState Original { get; }
     ulong? GuildId { get; set; }
@@ -5267,7 +5267,7 @@ public interface IDiscordJsonVoiceState
 }
 
 
-public interface IDiscordJsonPresence  
+public partial interface IDiscordJsonPresence  
 {
     NetCord.Gateway.JsonModels.JsonPresence Original { get; }
     IDiscordJsonUser User { get; set; }
@@ -5278,7 +5278,7 @@ public interface IDiscordJsonPresence
 }
 
 
-public interface IDiscordJsonGuildWelcomeScreen  
+public partial interface IDiscordJsonGuildWelcomeScreen  
 {
     NetCord.JsonModels.JsonGuildWelcomeScreen Original { get; }
     string? Description { get; set; }
@@ -5286,7 +5286,7 @@ public interface IDiscordJsonGuildWelcomeScreen
 }
 
 
-public interface IDiscordJsonStageInstance  
+public partial interface IDiscordJsonStageInstance  
 {
     NetCord.JsonModels.JsonStageInstance Original { get; }
     ulong GuildId { get; set; }
@@ -5298,7 +5298,7 @@ public interface IDiscordJsonStageInstance
 }
 
 
-public interface IDiscordJsonSticker  
+public partial interface IDiscordJsonSticker  
 {
     NetCord.JsonModels.JsonSticker Original { get; }
     ulong? PackId { get; set; }
@@ -5314,7 +5314,7 @@ public interface IDiscordJsonSticker
 }
 
 
-public interface IDiscordJsonGuildScheduledEvent  
+public partial interface IDiscordJsonGuildScheduledEvent  
 {
     NetCord.JsonModels.JsonGuildScheduledEvent Original { get; }
     ulong GuildId { get; set; }
@@ -5337,7 +5337,7 @@ public interface IDiscordJsonGuildScheduledEvent
 }
 
 
-public interface IDiscordJsonRoleTags  
+public partial interface IDiscordJsonRoleTags  
 {
     NetCord.JsonModels.JsonRoleTags Original { get; }
     ulong? BotId { get; set; }
@@ -5349,7 +5349,7 @@ public interface IDiscordJsonRoleTags
 }
 
 
-public interface IDiscordJsonTeamUser  
+public partial interface IDiscordJsonTeamUser  
 {
     NetCord.JsonModels.JsonTeamUser Original { get; }
     NetCord.MembershipState MembershipState { get; set; }
@@ -5359,7 +5359,7 @@ public interface IDiscordJsonTeamUser
 }
 
 
-public interface IDiscordJsonMessagePollAnswerCount  
+public partial interface IDiscordJsonMessagePollAnswerCount  
 {
     NetCord.JsonModels.JsonMessagePollAnswerCount Original { get; }
     int AnswerId { get; set; }
@@ -5368,7 +5368,7 @@ public interface IDiscordJsonMessagePollAnswerCount
 }
 
 
-public interface IDiscordJsonUserActivity  
+public partial interface IDiscordJsonUserActivity  
 {
     NetCord.Gateway.JsonModels.JsonUserActivity Original { get; }
     string Name { get; set; }
@@ -5389,7 +5389,7 @@ public interface IDiscordJsonUserActivity
 }
 
 
-public interface IDiscordJsonWelcomeScreenChannel  
+public partial interface IDiscordJsonWelcomeScreenChannel  
 {
     NetCord.JsonModels.JsonWelcomeScreenChannel Original { get; }
     ulong ChannelId { get; set; }
@@ -5399,14 +5399,14 @@ public interface IDiscordJsonWelcomeScreenChannel
 }
 
 
-public interface IDiscordJsonGuildScheduledEventMetadata  
+public partial interface IDiscordJsonGuildScheduledEventMetadata  
 {
     NetCord.JsonModels.JsonGuildScheduledEventMetadata Original { get; }
     string? Location { get; set; }
 }
 
 
-public interface IDiscordJsonGuildScheduledEventRecurrenceRule  
+public partial interface IDiscordJsonGuildScheduledEventRecurrenceRule  
 {
     NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule Original { get; }
     System.DateTimeOffset? StartAt { get; set; }
@@ -5422,7 +5422,7 @@ public interface IDiscordJsonGuildScheduledEventRecurrenceRule
 }
 
 
-public interface IDiscordJsonUserActivityTimestamps  
+public partial interface IDiscordJsonUserActivityTimestamps  
 {
     NetCord.Gateway.JsonModels.JsonUserActivityTimestamps Original { get; }
     System.DateTimeOffset? StartTime { get; set; }
@@ -5430,7 +5430,7 @@ public interface IDiscordJsonUserActivityTimestamps
 }
 
 
-public interface IDiscordJsonParty  
+public partial interface IDiscordJsonParty  
 {
     NetCord.Gateway.JsonModels.JsonParty Original { get; }
     string? Id { get; set; }
@@ -5438,7 +5438,7 @@ public interface IDiscordJsonParty
 }
 
 
-public interface IDiscordJsonUserActivityAssets  
+public partial interface IDiscordJsonUserActivityAssets  
 {
     NetCord.Gateway.JsonModels.JsonUserActivityAssets Original { get; }
     string? LargeImageId { get; set; }
@@ -5448,7 +5448,7 @@ public interface IDiscordJsonUserActivityAssets
 }
 
 
-public interface IDiscordJsonUserActivitySecrets  
+public partial interface IDiscordJsonUserActivitySecrets  
 {
     NetCord.Gateway.JsonModels.JsonUserActivitySecrets Original { get; }
     string? Join { get; set; }
@@ -5457,7 +5457,7 @@ public interface IDiscordJsonUserActivitySecrets
 }
 
 
-public interface IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday  
+public partial interface IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday  
 {
     NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday Original { get; }
     int N { get; set; }
@@ -5465,7 +5465,7 @@ public interface IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday
 }
 
 
-public class DiscordInteractionContext : IDiscordInteractionContext 
+internal partial class DiscordInteractionContext : IDiscordInteractionContext 
 {
     private readonly NetCord.Services.IInteractionContext _original;
     public DiscordInteractionContext(NetCord.Services.IInteractionContext original)
@@ -5477,7 +5477,7 @@ public class DiscordInteractionContext : IDiscordInteractionContext
 }
 
 
-public class DiscordInteraction : IDiscordInteraction 
+internal partial class DiscordInteraction : IDiscordInteraction 
 {
     private readonly NetCord.Interaction _original;
     public DiscordInteraction(NetCord.Interaction original)
@@ -5536,7 +5536,7 @@ public class DiscordInteraction : IDiscordInteraction
 }
 
 
-public class DiscordInteractionGuildReference : IDiscordInteractionGuildReference 
+internal partial class DiscordInteractionGuildReference : IDiscordInteractionGuildReference 
 {
     private readonly NetCord.InteractionGuildReference _original;
     public DiscordInteractionGuildReference(NetCord.InteractionGuildReference original)
@@ -5551,7 +5551,7 @@ public class DiscordInteractionGuildReference : IDiscordInteractionGuildReferenc
 }
 
 
-public class DiscordGuild : IDiscordGuild 
+internal partial class DiscordGuild : IDiscordGuild 
 {
     private readonly NetCord.Gateway.Guild _original;
     public DiscordGuild(NetCord.Gateway.Guild original)
@@ -6016,7 +6016,7 @@ public class DiscordGuild : IDiscordGuild
 }
 
 
-public class DiscordTextChannel : IDiscordTextChannel 
+internal partial class DiscordTextChannel : IDiscordTextChannel 
 {
     private readonly NetCord.TextChannel _original;
     public DiscordTextChannel(NetCord.TextChannel original)
@@ -6137,7 +6137,7 @@ public class DiscordTextChannel : IDiscordTextChannel
 }
 
 
-public class DiscordUser : IDiscordUser 
+internal partial class DiscordUser : IDiscordUser 
 {
     private readonly NetCord.User _original;
     public DiscordUser(NetCord.User original)
@@ -6193,7 +6193,7 @@ public class DiscordUser : IDiscordUser
 }
 
 
-public class DiscordEntitlement : IDiscordEntitlement 
+internal partial class DiscordEntitlement : IDiscordEntitlement 
 {
     private readonly NetCord.Entitlement _original;
     public DiscordEntitlement(NetCord.Entitlement original)
@@ -6223,7 +6223,7 @@ public class DiscordEntitlement : IDiscordEntitlement
 }
 
 
-public class DiscordInteractionData : IDiscordInteractionData 
+internal partial class DiscordInteractionData : IDiscordInteractionData 
 {
     private readonly NetCord.InteractionData _original;
     public DiscordInteractionData(NetCord.InteractionData original)
@@ -6234,7 +6234,7 @@ public class DiscordInteractionData : IDiscordInteractionData
 }
 
 
-public class DiscordJsonInteraction : IDiscordJsonInteraction 
+internal partial class DiscordJsonInteraction : IDiscordJsonInteraction 
 {
     private readonly NetCord.JsonModels.JsonInteraction _original;
     public DiscordJsonInteraction(NetCord.JsonModels.JsonInteraction original)
@@ -6262,7 +6262,7 @@ public class DiscordJsonInteraction : IDiscordJsonInteraction
 }
 
 
-public class DiscordGatewayClientCache : IDiscordGatewayClientCache 
+internal partial class DiscordGatewayClientCache : IDiscordGatewayClientCache 
 {
     private readonly NetCord.Gateway.IGatewayClientCache _original;
     public DiscordGatewayClientCache(NetCord.Gateway.IGatewayClientCache original)
@@ -6371,7 +6371,7 @@ public class DiscordGatewayClientCache : IDiscordGatewayClientCache
 }
 
 
-public class DiscordRestClient : IDiscordRestClient 
+internal partial class DiscordRestClient : IDiscordRestClient 
 {
     private readonly NetCord.Rest.RestClient _original;
     public DiscordRestClient(NetCord.Rest.RestClient original)
@@ -7254,7 +7254,7 @@ public class DiscordRestClient : IDiscordRestClient
 }
 
 
-public class DiscordRestRequestProperties : IDiscordRestRequestProperties 
+internal partial class DiscordRestRequestProperties : IDiscordRestRequestProperties 
 {
     private readonly NetCord.Rest.RestRequestProperties _original;
     public DiscordRestRequestProperties(NetCord.Rest.RestRequestProperties original)
@@ -7280,7 +7280,7 @@ public class DiscordRestRequestProperties : IDiscordRestRequestProperties
 }
 
 
-public class DiscordRestMessage : IDiscordRestMessage 
+internal partial class DiscordRestMessage : IDiscordRestMessage 
 {
     private readonly NetCord.Rest.RestMessage _original;
     public DiscordRestMessage(NetCord.Rest.RestMessage original)
@@ -7399,7 +7399,7 @@ public class DiscordRestMessage : IDiscordRestMessage
 }
 
 
-public class DiscordMessageOptions : IDiscordMessageOptions 
+internal partial class DiscordMessageOptions : IDiscordMessageOptions 
 {
     private readonly NetCord.Rest.MessageOptions _original;
     public DiscordMessageOptions(NetCord.Rest.MessageOptions original)
@@ -7468,7 +7468,7 @@ public class DiscordMessageOptions : IDiscordMessageOptions
 }
 
 
-public class DiscordInteractionMessageProperties : IDiscordInteractionMessageProperties 
+internal partial class DiscordInteractionMessageProperties : IDiscordInteractionMessageProperties 
 {
     private readonly NetCord.Rest.InteractionMessageProperties _original;
     public DiscordInteractionMessageProperties(NetCord.Rest.InteractionMessageProperties original)
@@ -7547,7 +7547,7 @@ public class DiscordInteractionMessageProperties : IDiscordInteractionMessagePro
 }
 
 
-public class DiscordVoiceState : IDiscordVoiceState 
+internal partial class DiscordVoiceState : IDiscordVoiceState 
 {
     private readonly NetCord.Gateway.VoiceState _original;
     public DiscordVoiceState(NetCord.Gateway.VoiceState original)
@@ -7571,7 +7571,7 @@ public class DiscordVoiceState : IDiscordVoiceState
 }
 
 
-public class DiscordGuildUser : IDiscordGuildUser 
+internal partial class DiscordGuildUser : IDiscordGuildUser 
 {
     private readonly NetCord.GuildUser _original;
     public DiscordGuildUser(NetCord.GuildUser original)
@@ -7699,7 +7699,7 @@ public class DiscordGuildUser : IDiscordGuildUser
 }
 
 
-public class DiscordGuildChannel : IDiscordGuildChannel 
+internal partial class DiscordGuildChannel : IDiscordGuildChannel 
 {
     private readonly NetCord.IGuildChannel _original;
     public DiscordGuildChannel(NetCord.IGuildChannel original)
@@ -7733,7 +7733,7 @@ public class DiscordGuildChannel : IDiscordGuildChannel
 }
 
 
-public class DiscordGuildThread : IDiscordGuildThread 
+internal partial class DiscordGuildThread : IDiscordGuildThread 
 {
     private readonly NetCord.GuildThread _original;
     public DiscordGuildThread(NetCord.GuildThread original)
@@ -7954,7 +7954,7 @@ public class DiscordGuildThread : IDiscordGuildThread
 }
 
 
-public class DiscordPresence : IDiscordPresence 
+internal partial class DiscordPresence : IDiscordPresence 
 {
     private readonly NetCord.Gateway.Presence _original;
     public DiscordPresence(NetCord.Gateway.Presence original)
@@ -7970,7 +7970,7 @@ public class DiscordPresence : IDiscordPresence
 }
 
 
-public class DiscordStageInstance : IDiscordStageInstance 
+internal partial class DiscordStageInstance : IDiscordStageInstance 
 {
     private readonly NetCord.StageInstance _original;
     public DiscordStageInstance(NetCord.StageInstance original)
@@ -8000,7 +8000,7 @@ public class DiscordStageInstance : IDiscordStageInstance
 }
 
 
-public class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent 
+internal partial class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent 
 {
     private readonly NetCord.GuildScheduledEvent _original;
     public DiscordGuildScheduledEvent(NetCord.GuildScheduledEvent original)
@@ -8054,7 +8054,7 @@ public class DiscordGuildScheduledEvent : IDiscordGuildScheduledEvent
 }
 
 
-public class DiscordRole : IDiscordRole 
+internal partial class DiscordRole : IDiscordRole 
 {
     private readonly NetCord.Role _original;
     public DiscordRole(NetCord.Role original)
@@ -8096,7 +8096,7 @@ public class DiscordRole : IDiscordRole
 }
 
 
-public class DiscordGuildEmoji : IDiscordGuildEmoji 
+internal partial class DiscordGuildEmoji : IDiscordGuildEmoji 
 {
     private readonly NetCord.GuildEmoji _original;
     public DiscordGuildEmoji(NetCord.GuildEmoji original)
@@ -8132,7 +8132,7 @@ public class DiscordGuildEmoji : IDiscordGuildEmoji
 }
 
 
-public class DiscordGuildWelcomeScreen : IDiscordGuildWelcomeScreen 
+internal partial class DiscordGuildWelcomeScreen : IDiscordGuildWelcomeScreen 
 {
     private readonly NetCord.GuildWelcomeScreen _original;
     public DiscordGuildWelcomeScreen(NetCord.GuildWelcomeScreen original)
@@ -8145,7 +8145,7 @@ public class DiscordGuildWelcomeScreen : IDiscordGuildWelcomeScreen
 }
 
 
-public class DiscordGuildSticker : IDiscordGuildSticker 
+internal partial class DiscordGuildSticker : IDiscordGuildSticker 
 {
     private readonly NetCord.GuildSticker _original;
     public DiscordGuildSticker(NetCord.GuildSticker original)
@@ -8181,7 +8181,7 @@ public class DiscordGuildSticker : IDiscordGuildSticker
 }
 
 
-public class DiscordPartialGuildUser : IDiscordPartialGuildUser 
+internal partial class DiscordPartialGuildUser : IDiscordPartialGuildUser 
 {
     private readonly NetCord.PartialGuildUser _original;
     public DiscordPartialGuildUser(NetCord.PartialGuildUser original)
@@ -8258,7 +8258,7 @@ public class DiscordPartialGuildUser : IDiscordPartialGuildUser
 }
 
 
-public class DiscordImageUrl : IDiscordImageUrl 
+internal partial class DiscordImageUrl : IDiscordImageUrl 
 {
     private readonly NetCord.ImageUrl _original;
     public DiscordImageUrl(NetCord.ImageUrl original)
@@ -8269,7 +8269,7 @@ public class DiscordImageUrl : IDiscordImageUrl
 }
 
 
-public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry 
+internal partial class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry 
 {
     private readonly NetCord.Rest.RestAuditLogEntry _original;
     public DiscordRestAuditLogEntry(NetCord.Rest.RestAuditLogEntry original)
@@ -8311,7 +8311,7 @@ public class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
 }
 
 
-public class DiscordGuildAuditLogPaginationProperties : IDiscordGuildAuditLogPaginationProperties 
+internal partial class DiscordGuildAuditLogPaginationProperties : IDiscordGuildAuditLogPaginationProperties 
 {
     private readonly NetCord.Rest.GuildAuditLogPaginationProperties _original;
     public DiscordGuildAuditLogPaginationProperties(NetCord.Rest.GuildAuditLogPaginationProperties original)
@@ -8347,7 +8347,7 @@ public class DiscordGuildAuditLogPaginationProperties : IDiscordGuildAuditLogPag
 }
 
 
-public class DiscordAutoModerationRule : IDiscordAutoModerationRule 
+internal partial class DiscordAutoModerationRule : IDiscordAutoModerationRule 
 {
     private readonly NetCord.AutoModerationRule _original;
     public DiscordAutoModerationRule(NetCord.AutoModerationRule original)
@@ -8382,7 +8382,7 @@ public class DiscordAutoModerationRule : IDiscordAutoModerationRule
 }
 
 
-public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRuleProperties 
+internal partial class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRuleProperties 
 {
     private readonly NetCord.AutoModerationRuleProperties _original;
     public DiscordAutoModerationRuleProperties(NetCord.AutoModerationRuleProperties original)
@@ -8457,7 +8457,7 @@ public class DiscordAutoModerationRuleProperties : IDiscordAutoModerationRulePro
 }
 
 
-public class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOptions 
+internal partial class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOptions 
 {
     private readonly NetCord.AutoModerationRuleOptions _original;
     public DiscordAutoModerationRuleOptions(NetCord.AutoModerationRuleOptions original)
@@ -8527,7 +8527,7 @@ public class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRuleOption
 }
 
 
-public class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties 
+internal partial class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties 
 {
     private readonly NetCord.Rest.GuildEmojiProperties _original;
     public DiscordGuildEmojiProperties(NetCord.Rest.GuildEmojiProperties original)
@@ -8561,7 +8561,7 @@ public class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties
 }
 
 
-public class DiscordGuildEmojiOptions : IDiscordGuildEmojiOptions 
+internal partial class DiscordGuildEmojiOptions : IDiscordGuildEmojiOptions 
 {
     private readonly NetCord.Rest.GuildEmojiOptions _original;
     public DiscordGuildEmojiOptions(NetCord.Rest.GuildEmojiOptions original)
@@ -8590,7 +8590,7 @@ public class DiscordGuildEmojiOptions : IDiscordGuildEmojiOptions
 }
 
 
-public class DiscordRestGuild : IDiscordRestGuild 
+internal partial class DiscordRestGuild : IDiscordRestGuild 
 {
     private readonly NetCord.Rest.RestGuild _original;
     public DiscordRestGuild(NetCord.Rest.RestGuild original)
@@ -9040,7 +9040,7 @@ public class DiscordRestGuild : IDiscordRestGuild
 }
 
 
-public class DiscordGuildPreview : IDiscordGuildPreview 
+internal partial class DiscordGuildPreview : IDiscordGuildPreview 
 {
     private readonly NetCord.Rest.GuildPreview _original;
     public DiscordGuildPreview(NetCord.Rest.GuildPreview original)
@@ -9062,7 +9062,7 @@ public class DiscordGuildPreview : IDiscordGuildPreview
 }
 
 
-public class DiscordGuildOptions : IDiscordGuildOptions 
+internal partial class DiscordGuildOptions : IDiscordGuildOptions 
 {
     private readonly NetCord.Rest.GuildOptions _original;
     public DiscordGuildOptions(NetCord.Rest.GuildOptions original)
@@ -9181,7 +9181,7 @@ public class DiscordGuildOptions : IDiscordGuildOptions
 }
 
 
-public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties 
+internal partial class DiscordGuildChannelProperties : IDiscordGuildChannelProperties 
 {
     private readonly NetCord.Rest.GuildChannelProperties _original;
     public DiscordGuildChannelProperties(NetCord.Rest.GuildChannelProperties original)
@@ -9298,7 +9298,7 @@ public class DiscordGuildChannelProperties : IDiscordGuildChannelProperties
 }
 
 
-public class DiscordGuildChannelPositionProperties : IDiscordGuildChannelPositionProperties 
+internal partial class DiscordGuildChannelPositionProperties : IDiscordGuildChannelPositionProperties 
 {
     private readonly NetCord.Rest.GuildChannelPositionProperties _original;
     public DiscordGuildChannelPositionProperties(NetCord.Rest.GuildChannelPositionProperties original)
@@ -9329,7 +9329,7 @@ public class DiscordGuildChannelPositionProperties : IDiscordGuildChannelPositio
 }
 
 
-public class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> where T : struct
+internal partial class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> where T : struct
 {
     private readonly NetCord.Rest.PaginationProperties<T> _original;
     public DiscordPaginationProperties(NetCord.Rest.PaginationProperties<T> original)
@@ -9355,7 +9355,7 @@ public class DiscordPaginationProperties<T> : IDiscordPaginationProperties<T> wh
 }
 
 
-public class DiscordGuildUserProperties : IDiscordGuildUserProperties 
+internal partial class DiscordGuildUserProperties : IDiscordGuildUserProperties 
 {
     private readonly NetCord.Rest.GuildUserProperties _original;
     public DiscordGuildUserProperties(NetCord.Rest.GuildUserProperties original)
@@ -9399,7 +9399,7 @@ public class DiscordGuildUserProperties : IDiscordGuildUserProperties
 }
 
 
-public class DiscordGuildUserOptions : IDiscordGuildUserOptions 
+internal partial class DiscordGuildUserOptions : IDiscordGuildUserOptions 
 {
     private readonly NetCord.Rest.GuildUserOptions _original;
     public DiscordGuildUserOptions(NetCord.Rest.GuildUserOptions original)
@@ -9453,7 +9453,7 @@ public class DiscordGuildUserOptions : IDiscordGuildUserOptions
 }
 
 
-public class DiscordCurrentGuildUserOptions : IDiscordCurrentGuildUserOptions 
+internal partial class DiscordCurrentGuildUserOptions : IDiscordCurrentGuildUserOptions 
 {
     private readonly NetCord.Rest.CurrentGuildUserOptions _original;
     public DiscordCurrentGuildUserOptions(NetCord.Rest.CurrentGuildUserOptions original)
@@ -9469,7 +9469,7 @@ public class DiscordCurrentGuildUserOptions : IDiscordCurrentGuildUserOptions
 }
 
 
-public class DiscordGuildBan : IDiscordGuildBan 
+internal partial class DiscordGuildBan : IDiscordGuildBan 
 {
     private readonly NetCord.Rest.GuildBan _original;
     public DiscordGuildBan(NetCord.Rest.GuildBan original)
@@ -9487,7 +9487,7 @@ public class DiscordGuildBan : IDiscordGuildBan
 }
 
 
-public class DiscordGuildBulkBan : IDiscordGuildBulkBan 
+internal partial class DiscordGuildBulkBan : IDiscordGuildBulkBan 
 {
     private readonly NetCord.Rest.GuildBulkBan _original;
     public DiscordGuildBulkBan(NetCord.Rest.GuildBulkBan original)
@@ -9500,7 +9500,7 @@ public class DiscordGuildBulkBan : IDiscordGuildBulkBan
 }
 
 
-public class DiscordRoleProperties : IDiscordRoleProperties 
+internal partial class DiscordRoleProperties : IDiscordRoleProperties 
 {
     private readonly NetCord.Rest.RoleProperties _original;
     public DiscordRoleProperties(NetCord.Rest.RoleProperties original)
@@ -9546,7 +9546,7 @@ public class DiscordRoleProperties : IDiscordRoleProperties
 }
 
 
-public class DiscordRolePositionProperties : IDiscordRolePositionProperties 
+internal partial class DiscordRolePositionProperties : IDiscordRolePositionProperties 
 {
     private readonly NetCord.Rest.RolePositionProperties _original;
     public DiscordRolePositionProperties(NetCord.Rest.RolePositionProperties original)
@@ -9567,7 +9567,7 @@ public class DiscordRolePositionProperties : IDiscordRolePositionProperties
 }
 
 
-public class DiscordRoleOptions : IDiscordRoleOptions 
+internal partial class DiscordRoleOptions : IDiscordRoleOptions 
 {
     private readonly NetCord.Rest.RoleOptions _original;
     public DiscordRoleOptions(NetCord.Rest.RoleOptions original)
@@ -9613,7 +9613,7 @@ public class DiscordRoleOptions : IDiscordRoleOptions
 }
 
 
-public class DiscordGuildPruneProperties : IDiscordGuildPruneProperties 
+internal partial class DiscordGuildPruneProperties : IDiscordGuildPruneProperties 
 {
     private readonly NetCord.Rest.GuildPruneProperties _original;
     public DiscordGuildPruneProperties(NetCord.Rest.GuildPruneProperties original)
@@ -9647,7 +9647,7 @@ public class DiscordGuildPruneProperties : IDiscordGuildPruneProperties
 }
 
 
-public class DiscordVoiceRegion : IDiscordVoiceRegion 
+internal partial class DiscordVoiceRegion : IDiscordVoiceRegion 
 {
     private readonly NetCord.Rest.VoiceRegion _original;
     public DiscordVoiceRegion(NetCord.Rest.VoiceRegion original)
@@ -9663,7 +9663,7 @@ public class DiscordVoiceRegion : IDiscordVoiceRegion
 }
 
 
-public class DiscordRestInvite : IDiscordRestInvite 
+internal partial class DiscordRestInvite : IDiscordRestInvite 
 {
     private readonly NetCord.Rest.RestInvite _original;
     public DiscordRestInvite(NetCord.Rest.RestInvite original)
@@ -9700,7 +9700,7 @@ public class DiscordRestInvite : IDiscordRestInvite
 }
 
 
-public class DiscordIntegration : IDiscordIntegration 
+internal partial class DiscordIntegration : IDiscordIntegration 
 {
     private readonly NetCord.Integration _original;
     public DiscordIntegration(NetCord.Integration original)
@@ -9727,7 +9727,7 @@ public class DiscordIntegration : IDiscordIntegration
 }
 
 
-public class DiscordGuildWidgetSettings : IDiscordGuildWidgetSettings 
+internal partial class DiscordGuildWidgetSettings : IDiscordGuildWidgetSettings 
 {
     private readonly NetCord.Rest.GuildWidgetSettings _original;
     public DiscordGuildWidgetSettings(NetCord.Rest.GuildWidgetSettings original)
@@ -9740,7 +9740,7 @@ public class DiscordGuildWidgetSettings : IDiscordGuildWidgetSettings
 }
 
 
-public class DiscordGuildWidgetSettingsOptions : IDiscordGuildWidgetSettingsOptions 
+internal partial class DiscordGuildWidgetSettingsOptions : IDiscordGuildWidgetSettingsOptions 
 {
     private readonly NetCord.Rest.GuildWidgetSettingsOptions _original;
     public DiscordGuildWidgetSettingsOptions(NetCord.Rest.GuildWidgetSettingsOptions original)
@@ -9761,7 +9761,7 @@ public class DiscordGuildWidgetSettingsOptions : IDiscordGuildWidgetSettingsOpti
 }
 
 
-public class DiscordGuildWidget : IDiscordGuildWidget 
+internal partial class DiscordGuildWidget : IDiscordGuildWidget 
 {
     private readonly NetCord.Rest.GuildWidget _original;
     public DiscordGuildWidget(NetCord.Rest.GuildWidget original)
@@ -9779,7 +9779,7 @@ public class DiscordGuildWidget : IDiscordGuildWidget
 }
 
 
-public class DiscordGuildVanityInvite : IDiscordGuildVanityInvite 
+internal partial class DiscordGuildVanityInvite : IDiscordGuildVanityInvite 
 {
     private readonly NetCord.Rest.GuildVanityInvite _original;
     public DiscordGuildVanityInvite(NetCord.Rest.GuildVanityInvite original)
@@ -9792,7 +9792,7 @@ public class DiscordGuildVanityInvite : IDiscordGuildVanityInvite
 }
 
 
-public class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOptions 
+internal partial class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOptions 
 {
     private readonly NetCord.Rest.GuildWelcomeScreenOptions _original;
     public DiscordGuildWelcomeScreenOptions(NetCord.Rest.GuildWelcomeScreenOptions original)
@@ -9826,7 +9826,7 @@ public class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScreenOption
 }
 
 
-public class DiscordGuildOnboarding : IDiscordGuildOnboarding 
+internal partial class DiscordGuildOnboarding : IDiscordGuildOnboarding 
 {
     private readonly NetCord.Rest.GuildOnboarding _original;
     public DiscordGuildOnboarding(NetCord.Rest.GuildOnboarding original)
@@ -9842,7 +9842,7 @@ public class DiscordGuildOnboarding : IDiscordGuildOnboarding
 }
 
 
-public class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions 
+internal partial class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions 
 {
     private readonly NetCord.Rest.GuildOnboardingOptions _original;
     public DiscordGuildOnboardingOptions(NetCord.Rest.GuildOnboardingOptions original)
@@ -9889,7 +9889,7 @@ public class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOptions
 }
 
 
-public class DiscordGuildScheduledEventProperties : IDiscordGuildScheduledEventProperties 
+internal partial class DiscordGuildScheduledEventProperties : IDiscordGuildScheduledEventProperties 
 {
     private readonly NetCord.Rest.GuildScheduledEventProperties _original;
     public DiscordGuildScheduledEventProperties(NetCord.Rest.GuildScheduledEventProperties original)
@@ -9945,7 +9945,7 @@ public class DiscordGuildScheduledEventProperties : IDiscordGuildScheduledEventP
 }
 
 
-public class DiscordGuildScheduledEventOptions : IDiscordGuildScheduledEventOptions 
+internal partial class DiscordGuildScheduledEventOptions : IDiscordGuildScheduledEventOptions 
 {
     private readonly NetCord.Rest.GuildScheduledEventOptions _original;
     public DiscordGuildScheduledEventOptions(NetCord.Rest.GuildScheduledEventOptions original)
@@ -10006,7 +10006,7 @@ public class DiscordGuildScheduledEventOptions : IDiscordGuildScheduledEventOpti
 }
 
 
-public class DiscordGuildScheduledEventUser : IDiscordGuildScheduledEventUser 
+internal partial class DiscordGuildScheduledEventUser : IDiscordGuildScheduledEventUser 
 {
     private readonly NetCord.Rest.GuildScheduledEventUser _original;
     public DiscordGuildScheduledEventUser(NetCord.Rest.GuildScheduledEventUser original)
@@ -10019,7 +10019,7 @@ public class DiscordGuildScheduledEventUser : IDiscordGuildScheduledEventUser
 }
 
 
-public class DiscordOptionalGuildUsersPaginationProperties : IDiscordOptionalGuildUsersPaginationProperties 
+internal partial class DiscordOptionalGuildUsersPaginationProperties : IDiscordOptionalGuildUsersPaginationProperties 
 {
     private readonly NetCord.Rest.OptionalGuildUsersPaginationProperties _original;
     public DiscordOptionalGuildUsersPaginationProperties(NetCord.Rest.OptionalGuildUsersPaginationProperties original)
@@ -10050,7 +10050,7 @@ public class DiscordOptionalGuildUsersPaginationProperties : IDiscordOptionalGui
 }
 
 
-public class DiscordGuildTemplate : IDiscordGuildTemplate 
+internal partial class DiscordGuildTemplate : IDiscordGuildTemplate 
 {
     private readonly NetCord.GuildTemplate _original;
     public DiscordGuildTemplate(NetCord.GuildTemplate original)
@@ -10092,7 +10092,7 @@ public class DiscordGuildTemplate : IDiscordGuildTemplate
 }
 
 
-public class DiscordGuildTemplateProperties : IDiscordGuildTemplateProperties 
+internal partial class DiscordGuildTemplateProperties : IDiscordGuildTemplateProperties 
 {
     private readonly NetCord.Rest.GuildTemplateProperties _original;
     public DiscordGuildTemplateProperties(NetCord.Rest.GuildTemplateProperties original)
@@ -10113,7 +10113,7 @@ public class DiscordGuildTemplateProperties : IDiscordGuildTemplateProperties
 }
 
 
-public class DiscordGuildTemplateOptions : IDiscordGuildTemplateOptions 
+internal partial class DiscordGuildTemplateOptions : IDiscordGuildTemplateOptions 
 {
     private readonly NetCord.Rest.GuildTemplateOptions _original;
     public DiscordGuildTemplateOptions(NetCord.Rest.GuildTemplateOptions original)
@@ -10134,7 +10134,7 @@ public class DiscordGuildTemplateOptions : IDiscordGuildTemplateOptions
 }
 
 
-public class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand 
+internal partial class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand 
 {
     private readonly NetCord.Rest.GuildApplicationCommand _original;
     public DiscordGuildApplicationCommand(NetCord.Rest.GuildApplicationCommand original)
@@ -10188,7 +10188,7 @@ public class DiscordGuildApplicationCommand : IDiscordGuildApplicationCommand
 }
 
 
-public class DiscordApplicationCommandProperties : IDiscordApplicationCommandProperties 
+internal partial class DiscordApplicationCommandProperties : IDiscordApplicationCommandProperties 
 {
     private readonly NetCord.Rest.ApplicationCommandProperties _original;
     public DiscordApplicationCommandProperties(NetCord.Rest.ApplicationCommandProperties original)
@@ -10246,7 +10246,7 @@ public class DiscordApplicationCommandProperties : IDiscordApplicationCommandPro
 }
 
 
-public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOptions 
+internal partial class DiscordApplicationCommandOptions : IDiscordApplicationCommandOptions 
 {
     private readonly NetCord.Rest.ApplicationCommandOptions _original;
     public DiscordApplicationCommandOptions(NetCord.Rest.ApplicationCommandOptions original)
@@ -10326,7 +10326,7 @@ public class DiscordApplicationCommandOptions : IDiscordApplicationCommandOption
 }
 
 
-public class DiscordApplicationCommandGuildPermissions : IDiscordApplicationCommandGuildPermissions 
+internal partial class DiscordApplicationCommandGuildPermissions : IDiscordApplicationCommandGuildPermissions 
 {
     private readonly NetCord.Rest.ApplicationCommandGuildPermissions _original;
     public DiscordApplicationCommandGuildPermissions(NetCord.Rest.ApplicationCommandGuildPermissions original)
@@ -10341,7 +10341,7 @@ public class DiscordApplicationCommandGuildPermissions : IDiscordApplicationComm
 }
 
 
-public class DiscordApplicationCommandGuildPermissionProperties : IDiscordApplicationCommandGuildPermissionProperties 
+internal partial class DiscordApplicationCommandGuildPermissionProperties : IDiscordApplicationCommandGuildPermissionProperties 
 {
     private readonly NetCord.Rest.ApplicationCommandGuildPermissionProperties _original;
     public DiscordApplicationCommandGuildPermissionProperties(NetCord.Rest.ApplicationCommandGuildPermissionProperties original)
@@ -10367,7 +10367,7 @@ public class DiscordApplicationCommandGuildPermissionProperties : IDiscordApplic
 }
 
 
-public class DiscordGuildStickerProperties : IDiscordGuildStickerProperties 
+internal partial class DiscordGuildStickerProperties : IDiscordGuildStickerProperties 
 {
     private readonly NetCord.Rest.GuildStickerProperties _original;
     public DiscordGuildStickerProperties(NetCord.Rest.GuildStickerProperties original)
@@ -10405,7 +10405,7 @@ public class DiscordGuildStickerProperties : IDiscordGuildStickerProperties
 }
 
 
-public class DiscordGuildStickerOptions : IDiscordGuildStickerOptions 
+internal partial class DiscordGuildStickerOptions : IDiscordGuildStickerOptions 
 {
     private readonly NetCord.Rest.GuildStickerOptions _original;
     public DiscordGuildStickerOptions(NetCord.Rest.GuildStickerOptions original)
@@ -10431,7 +10431,7 @@ public class DiscordGuildStickerOptions : IDiscordGuildStickerOptions
 }
 
 
-public class DiscordGuildUserInfo : IDiscordGuildUserInfo 
+internal partial class DiscordGuildUserInfo : IDiscordGuildUserInfo 
 {
     private readonly NetCord.Rest.GuildUserInfo _original;
     public DiscordGuildUserInfo(NetCord.Rest.GuildUserInfo original)
@@ -10446,7 +10446,7 @@ public class DiscordGuildUserInfo : IDiscordGuildUserInfo
 }
 
 
-public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSearchPaginationProperties 
+internal partial class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSearchPaginationProperties 
 {
     private readonly NetCord.Rest.GuildUsersSearchPaginationProperties _original;
     public DiscordGuildUsersSearchPaginationProperties(NetCord.Rest.GuildUsersSearchPaginationProperties original)
@@ -10498,7 +10498,7 @@ public class DiscordGuildUsersSearchPaginationProperties : IDiscordGuildUsersSea
 }
 
 
-public class DiscordCurrentUserVoiceStateOptions : IDiscordCurrentUserVoiceStateOptions 
+internal partial class DiscordCurrentUserVoiceStateOptions : IDiscordCurrentUserVoiceStateOptions 
 {
     private readonly NetCord.Rest.CurrentUserVoiceStateOptions _original;
     public DiscordCurrentUserVoiceStateOptions(NetCord.Rest.CurrentUserVoiceStateOptions original)
@@ -10524,7 +10524,7 @@ public class DiscordCurrentUserVoiceStateOptions : IDiscordCurrentUserVoiceState
 }
 
 
-public class DiscordVoiceStateOptions : IDiscordVoiceStateOptions 
+internal partial class DiscordVoiceStateOptions : IDiscordVoiceStateOptions 
 {
     private readonly NetCord.Rest.VoiceStateOptions _original;
     public DiscordVoiceStateOptions(NetCord.Rest.VoiceStateOptions original)
@@ -10541,7 +10541,7 @@ public class DiscordVoiceStateOptions : IDiscordVoiceStateOptions
 }
 
 
-public class DiscordWebhook : IDiscordWebhook 
+internal partial class DiscordWebhook : IDiscordWebhook 
 {
     private readonly NetCord.Rest.Webhook _original;
     public DiscordWebhook(NetCord.Rest.Webhook original)
@@ -10576,7 +10576,7 @@ public class DiscordWebhook : IDiscordWebhook
 }
 
 
-public class DiscordJsonChannel : IDiscordJsonChannel 
+internal partial class DiscordJsonChannel : IDiscordJsonChannel 
 {
     private readonly NetCord.JsonModels.JsonChannel _original;
     public DiscordJsonChannel(NetCord.JsonModels.JsonChannel original)
@@ -10624,7 +10624,7 @@ public class DiscordJsonChannel : IDiscordJsonChannel
 }
 
 
-public class DiscordMessageProperties : IDiscordMessageProperties 
+internal partial class DiscordMessageProperties : IDiscordMessageProperties 
 {
     private readonly NetCord.Rest.MessageProperties _original;
     public DiscordMessageProperties(NetCord.Rest.MessageProperties original)
@@ -10726,7 +10726,7 @@ public class DiscordMessageProperties : IDiscordMessageProperties
 }
 
 
-public class DiscordReactionEmojiProperties : IDiscordReactionEmojiProperties 
+internal partial class DiscordReactionEmojiProperties : IDiscordReactionEmojiProperties 
 {
     private readonly NetCord.Rest.ReactionEmojiProperties _original;
     public DiscordReactionEmojiProperties(NetCord.Rest.ReactionEmojiProperties original)
@@ -10747,7 +10747,7 @@ public class DiscordReactionEmojiProperties : IDiscordReactionEmojiProperties
 }
 
 
-public class DiscordMessageReactionsPaginationProperties : IDiscordMessageReactionsPaginationProperties 
+internal partial class DiscordMessageReactionsPaginationProperties : IDiscordMessageReactionsPaginationProperties 
 {
     private readonly NetCord.Rest.MessageReactionsPaginationProperties _original;
     public DiscordMessageReactionsPaginationProperties(NetCord.Rest.MessageReactionsPaginationProperties original)
@@ -10778,7 +10778,7 @@ public class DiscordMessageReactionsPaginationProperties : IDiscordMessageReacti
 }
 
 
-public class DiscordGoogleCloudPlatformStorageBucket : IDiscordGoogleCloudPlatformStorageBucket 
+internal partial class DiscordGoogleCloudPlatformStorageBucket : IDiscordGoogleCloudPlatformStorageBucket 
 {
     private readonly NetCord.Rest.GoogleCloudPlatformStorageBucket _original;
     public DiscordGoogleCloudPlatformStorageBucket(NetCord.Rest.GoogleCloudPlatformStorageBucket original)
@@ -10792,7 +10792,7 @@ public class DiscordGoogleCloudPlatformStorageBucket : IDiscordGoogleCloudPlatfo
 }
 
 
-public class DiscordGoogleCloudPlatformStorageBucketProperties : IDiscordGoogleCloudPlatformStorageBucketProperties 
+internal partial class DiscordGoogleCloudPlatformStorageBucketProperties : IDiscordGoogleCloudPlatformStorageBucketProperties 
 {
     private readonly NetCord.Rest.GoogleCloudPlatformStorageBucketProperties _original;
     public DiscordGoogleCloudPlatformStorageBucketProperties(NetCord.Rest.GoogleCloudPlatformStorageBucketProperties original)
@@ -10818,7 +10818,7 @@ public class DiscordGoogleCloudPlatformStorageBucketProperties : IDiscordGoogleC
 }
 
 
-public class DiscordAvatarDecorationData : IDiscordAvatarDecorationData 
+internal partial class DiscordAvatarDecorationData : IDiscordAvatarDecorationData 
 {
     private readonly NetCord.AvatarDecorationData _original;
     public DiscordAvatarDecorationData(NetCord.AvatarDecorationData original)
@@ -10831,7 +10831,7 @@ public class DiscordAvatarDecorationData : IDiscordAvatarDecorationData
 }
 
 
-public class DiscordDMChannel : IDiscordDMChannel 
+internal partial class DiscordDMChannel : IDiscordDMChannel 
 {
     private readonly NetCord.DMChannel _original;
     public DiscordDMChannel(NetCord.DMChannel original)
@@ -10953,7 +10953,7 @@ public class DiscordDMChannel : IDiscordDMChannel
 }
 
 
-public class DiscordJsonInteractionData : IDiscordJsonInteractionData 
+internal partial class DiscordJsonInteractionData : IDiscordJsonInteractionData 
 {
     private readonly NetCord.JsonModels.JsonInteractionData _original;
     public DiscordJsonInteractionData(NetCord.JsonModels.JsonInteractionData original)
@@ -10974,7 +10974,7 @@ public class DiscordJsonInteractionData : IDiscordJsonInteractionData
 }
 
 
-public class DiscordJsonInteractionGuildReference : IDiscordJsonInteractionGuildReference 
+internal partial class DiscordJsonInteractionGuildReference : IDiscordJsonInteractionGuildReference 
 {
     private readonly NetCord.JsonModels.JsonInteractionGuildReference _original;
     public DiscordJsonInteractionGuildReference(NetCord.JsonModels.JsonInteractionGuildReference original)
@@ -10988,7 +10988,7 @@ public class DiscordJsonInteractionGuildReference : IDiscordJsonInteractionGuild
 }
 
 
-public class DiscordJsonGuildUser : IDiscordJsonGuildUser 
+internal partial class DiscordJsonGuildUser : IDiscordJsonGuildUser 
 {
     private readonly NetCord.JsonModels.JsonGuildUser _original;
     public DiscordJsonGuildUser(NetCord.JsonModels.JsonGuildUser original)
@@ -11014,7 +11014,7 @@ public class DiscordJsonGuildUser : IDiscordJsonGuildUser
 }
 
 
-public class DiscordJsonUser : IDiscordJsonUser 
+internal partial class DiscordJsonUser : IDiscordJsonUser 
 {
     private readonly NetCord.JsonModels.JsonUser _original;
     public DiscordJsonUser(NetCord.JsonModels.JsonUser original)
@@ -11043,7 +11043,7 @@ public class DiscordJsonUser : IDiscordJsonUser
 }
 
 
-public class DiscordJsonMessage : IDiscordJsonMessage 
+internal partial class DiscordJsonMessage : IDiscordJsonMessage 
 {
     private readonly NetCord.JsonModels.JsonMessage _original;
     public DiscordJsonMessage(NetCord.JsonModels.JsonMessage original)
@@ -11089,7 +11089,7 @@ public class DiscordJsonMessage : IDiscordJsonMessage
 }
 
 
-public class DiscordJsonEntitlement : IDiscordJsonEntitlement 
+internal partial class DiscordJsonEntitlement : IDiscordJsonEntitlement 
 {
     private readonly NetCord.JsonModels.JsonEntitlement _original;
     public DiscordJsonEntitlement(NetCord.JsonModels.JsonEntitlement original)
@@ -11110,7 +11110,7 @@ public class DiscordJsonEntitlement : IDiscordJsonEntitlement
 }
 
 
-public class DiscordCurrentUser : IDiscordCurrentUser 
+internal partial class DiscordCurrentUser : IDiscordCurrentUser 
 {
     private readonly NetCord.CurrentUser _original;
     public DiscordCurrentUser(NetCord.CurrentUser original)
@@ -11197,7 +11197,7 @@ public class DiscordCurrentUser : IDiscordCurrentUser
 }
 
 
-public class DiscordToken : IDiscordToken 
+internal partial class DiscordToken : IDiscordToken 
 {
     private readonly NetCord.IToken _original;
     public DiscordToken(NetCord.IToken original)
@@ -11210,7 +11210,7 @@ public class DiscordToken : IDiscordToken
 }
 
 
-public class DiscordCurrentApplication : IDiscordCurrentApplication 
+internal partial class DiscordCurrentApplication : IDiscordCurrentApplication 
 {
     private readonly NetCord.CurrentApplication _original;
     public DiscordCurrentApplication(NetCord.CurrentApplication original)
@@ -11338,7 +11338,7 @@ public class DiscordCurrentApplication : IDiscordCurrentApplication
 }
 
 
-public class DiscordCurrentApplicationOptions : IDiscordCurrentApplicationOptions 
+internal partial class DiscordCurrentApplicationOptions : IDiscordCurrentApplicationOptions 
 {
     private readonly NetCord.Rest.CurrentApplicationOptions _original;
     public DiscordCurrentApplicationOptions(NetCord.Rest.CurrentApplicationOptions original)
@@ -11407,7 +11407,7 @@ public class DiscordCurrentApplicationOptions : IDiscordCurrentApplicationOption
 }
 
 
-public class DiscordApplicationRoleConnectionMetadata : IDiscordApplicationRoleConnectionMetadata 
+internal partial class DiscordApplicationRoleConnectionMetadata : IDiscordApplicationRoleConnectionMetadata 
 {
     private readonly NetCord.Rest.ApplicationRoleConnectionMetadata _original;
     public DiscordApplicationRoleConnectionMetadata(NetCord.Rest.ApplicationRoleConnectionMetadata original)
@@ -11424,7 +11424,7 @@ public class DiscordApplicationRoleConnectionMetadata : IDiscordApplicationRoleC
 }
 
 
-public class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplicationRoleConnectionMetadataProperties 
+internal partial class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplicationRoleConnectionMetadataProperties 
 {
     private readonly NetCord.Rest.ApplicationRoleConnectionMetadataProperties _original;
     public DiscordApplicationRoleConnectionMetadataProperties(NetCord.Rest.ApplicationRoleConnectionMetadataProperties original)
@@ -11465,7 +11465,7 @@ public class DiscordApplicationRoleConnectionMetadataProperties : IDiscordApplic
 }
 
 
-public class DiscordChannel : IDiscordChannel 
+internal partial class DiscordChannel : IDiscordChannel 
 {
     private readonly NetCord.Channel _original;
     public DiscordChannel(NetCord.Channel original)
@@ -11491,7 +11491,7 @@ public class DiscordChannel : IDiscordChannel
 }
 
 
-public class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions 
+internal partial class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions 
 {
     private readonly NetCord.Rest.GroupDMChannelOptions _original;
     public DiscordGroupDMChannelOptions(NetCord.Rest.GroupDMChannelOptions original)
@@ -11512,7 +11512,7 @@ public class DiscordGroupDMChannelOptions : IDiscordGroupDMChannelOptions
 }
 
 
-public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions 
+internal partial class DiscordGuildChannelOptions : IDiscordGuildChannelOptions 
 {
     private readonly NetCord.Rest.GuildChannelOptions _original;
     public DiscordGuildChannelOptions(NetCord.Rest.GuildChannelOptions original)
@@ -11667,7 +11667,7 @@ public class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
 }
 
 
-public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteProperties 
+internal partial class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteProperties 
 {
     private readonly NetCord.Rest.PermissionOverwriteProperties _original;
     public DiscordPermissionOverwriteProperties(NetCord.Rest.PermissionOverwriteProperties original)
@@ -11698,7 +11698,7 @@ public class DiscordPermissionOverwriteProperties : IDiscordPermissionOverwriteP
 }
 
 
-public class DiscordInviteProperties : IDiscordInviteProperties 
+internal partial class DiscordInviteProperties : IDiscordInviteProperties 
 {
     private readonly NetCord.Rest.InviteProperties _original;
     public DiscordInviteProperties(NetCord.Rest.InviteProperties original)
@@ -11744,7 +11744,7 @@ public class DiscordInviteProperties : IDiscordInviteProperties
 }
 
 
-public class DiscordFollowedChannel : IDiscordFollowedChannel 
+internal partial class DiscordFollowedChannel : IDiscordFollowedChannel 
 {
     private readonly NetCord.Rest.FollowedChannel _original;
     public DiscordFollowedChannel(NetCord.Rest.FollowedChannel original)
@@ -11758,7 +11758,7 @@ public class DiscordFollowedChannel : IDiscordFollowedChannel
 }
 
 
-public class DiscordGroupDMChannelUserAddProperties : IDiscordGroupDMChannelUserAddProperties 
+internal partial class DiscordGroupDMChannelUserAddProperties : IDiscordGroupDMChannelUserAddProperties 
 {
     private readonly NetCord.Rest.GroupDMChannelUserAddProperties _original;
     public DiscordGroupDMChannelUserAddProperties(NetCord.Rest.GroupDMChannelUserAddProperties original)
@@ -11779,7 +11779,7 @@ public class DiscordGroupDMChannelUserAddProperties : IDiscordGroupDMChannelUser
 }
 
 
-public class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMessageProperties 
+internal partial class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMessageProperties 
 {
     private readonly NetCord.Rest.GuildThreadFromMessageProperties _original;
     public DiscordGuildThreadFromMessageProperties(NetCord.Rest.GuildThreadFromMessageProperties original)
@@ -11805,7 +11805,7 @@ public class DiscordGuildThreadFromMessageProperties : IDiscordGuildThreadFromMe
 }
 
 
-public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties 
+internal partial class DiscordGuildThreadProperties : IDiscordGuildThreadProperties 
 {
     private readonly NetCord.Rest.GuildThreadProperties _original;
     public DiscordGuildThreadProperties(NetCord.Rest.GuildThreadProperties original)
@@ -11841,7 +11841,7 @@ public class DiscordGuildThreadProperties : IDiscordGuildThreadProperties
 }
 
 
-public class DiscordForumGuildThread : IDiscordForumGuildThread 
+internal partial class DiscordForumGuildThread : IDiscordForumGuildThread 
 {
     private readonly NetCord.ForumGuildThread _original;
     public DiscordForumGuildThread(NetCord.ForumGuildThread original)
@@ -12064,7 +12064,7 @@ public class DiscordForumGuildThread : IDiscordForumGuildThread
 }
 
 
-public class DiscordForumGuildThreadProperties : IDiscordForumGuildThreadProperties 
+internal partial class DiscordForumGuildThreadProperties : IDiscordForumGuildThreadProperties 
 {
     private readonly NetCord.Rest.ForumGuildThreadProperties _original;
     public DiscordForumGuildThreadProperties(NetCord.Rest.ForumGuildThreadProperties original)
@@ -12112,7 +12112,7 @@ public class DiscordForumGuildThreadProperties : IDiscordForumGuildThreadPropert
 }
 
 
-public class DiscordThreadUser : IDiscordThreadUser 
+internal partial class DiscordThreadUser : IDiscordThreadUser 
 {
     private readonly NetCord.ThreadUser _original;
     public DiscordThreadUser(NetCord.ThreadUser original)
@@ -12128,7 +12128,7 @@ public class DiscordThreadUser : IDiscordThreadUser
 }
 
 
-public class DiscordApplicationEmoji : IDiscordApplicationEmoji 
+internal partial class DiscordApplicationEmoji : IDiscordApplicationEmoji 
 {
     private readonly NetCord.ApplicationEmoji _original;
     public DiscordApplicationEmoji(NetCord.ApplicationEmoji original)
@@ -12163,7 +12163,7 @@ public class DiscordApplicationEmoji : IDiscordApplicationEmoji
 }
 
 
-public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiProperties 
+internal partial class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiProperties 
 {
     private readonly NetCord.Rest.ApplicationEmojiProperties _original;
     public DiscordApplicationEmojiProperties(NetCord.Rest.ApplicationEmojiProperties original)
@@ -12184,7 +12184,7 @@ public class DiscordApplicationEmojiProperties : IDiscordApplicationEmojiPropert
 }
 
 
-public class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions 
+internal partial class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions 
 {
     private readonly NetCord.Rest.ApplicationEmojiOptions _original;
     public DiscordApplicationEmojiOptions(NetCord.Rest.ApplicationEmojiOptions original)
@@ -12200,7 +12200,7 @@ public class DiscordApplicationEmojiOptions : IDiscordApplicationEmojiOptions
 }
 
 
-public class DiscordGatewayBot : IDiscordGatewayBot 
+internal partial class DiscordGatewayBot : IDiscordGatewayBot 
 {
     private readonly NetCord.Rest.GatewayBot _original;
     public DiscordGatewayBot(NetCord.Rest.GatewayBot original)
@@ -12214,7 +12214,7 @@ public class DiscordGatewayBot : IDiscordGatewayBot
 }
 
 
-public class DiscordGuildProperties : IDiscordGuildProperties 
+internal partial class DiscordGuildProperties : IDiscordGuildProperties 
 {
     private readonly NetCord.Rest.GuildProperties _original;
     public DiscordGuildProperties(NetCord.Rest.GuildProperties original)
@@ -12296,7 +12296,7 @@ public class DiscordGuildProperties : IDiscordGuildProperties
 }
 
 
-public class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTemplateProperties 
+internal partial class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTemplateProperties 
 {
     private readonly NetCord.Rest.GuildFromGuildTemplateProperties _original;
     public DiscordGuildFromGuildTemplateProperties(NetCord.Rest.GuildFromGuildTemplateProperties original)
@@ -12317,7 +12317,7 @@ public class DiscordGuildFromGuildTemplateProperties : IDiscordGuildFromGuildTem
 }
 
 
-public class DiscordApplicationCommand : IDiscordApplicationCommand 
+internal partial class DiscordApplicationCommand : IDiscordApplicationCommand 
 {
     private readonly NetCord.Rest.ApplicationCommand _original;
     public DiscordApplicationCommand(NetCord.Rest.ApplicationCommand original)
@@ -12362,7 +12362,7 @@ public class DiscordApplicationCommand : IDiscordApplicationCommand
 }
 
 
-public class DiscordEntitlementsPaginationProperties : IDiscordEntitlementsPaginationProperties 
+internal partial class DiscordEntitlementsPaginationProperties : IDiscordEntitlementsPaginationProperties 
 {
     private readonly NetCord.Rest.EntitlementsPaginationProperties _original;
     public DiscordEntitlementsPaginationProperties(NetCord.Rest.EntitlementsPaginationProperties original)
@@ -12416,7 +12416,7 @@ public class DiscordEntitlementsPaginationProperties : IDiscordEntitlementsPagin
 }
 
 
-public class DiscordTestEntitlementProperties : IDiscordTestEntitlementProperties 
+internal partial class DiscordTestEntitlementProperties : IDiscordTestEntitlementProperties 
 {
     private readonly NetCord.Rest.TestEntitlementProperties _original;
     public DiscordTestEntitlementProperties(NetCord.Rest.TestEntitlementProperties original)
@@ -12442,7 +12442,7 @@ public class DiscordTestEntitlementProperties : IDiscordTestEntitlementPropertie
 }
 
 
-public class DiscordSku : IDiscordSku 
+internal partial class DiscordSku : IDiscordSku 
 {
     private readonly NetCord.Rest.Sku _original;
     public DiscordSku(NetCord.Rest.Sku original)
@@ -12471,7 +12471,7 @@ public class DiscordSku : IDiscordSku
 }
 
 
-public class DiscordAuthorizationInformation : IDiscordAuthorizationInformation 
+internal partial class DiscordAuthorizationInformation : IDiscordAuthorizationInformation 
 {
     private readonly NetCord.Rest.AuthorizationInformation _original;
     public DiscordAuthorizationInformation(NetCord.Rest.AuthorizationInformation original)
@@ -12486,7 +12486,7 @@ public class DiscordAuthorizationInformation : IDiscordAuthorizationInformation
 }
 
 
-public class DiscordStageInstanceProperties : IDiscordStageInstanceProperties 
+internal partial class DiscordStageInstanceProperties : IDiscordStageInstanceProperties 
 {
     private readonly NetCord.Rest.StageInstanceProperties _original;
     public DiscordStageInstanceProperties(NetCord.Rest.StageInstanceProperties original)
@@ -12522,7 +12522,7 @@ public class DiscordStageInstanceProperties : IDiscordStageInstanceProperties
 }
 
 
-public class DiscordStageInstanceOptions : IDiscordStageInstanceOptions 
+internal partial class DiscordStageInstanceOptions : IDiscordStageInstanceOptions 
 {
     private readonly NetCord.Rest.StageInstanceOptions _original;
     public DiscordStageInstanceOptions(NetCord.Rest.StageInstanceOptions original)
@@ -12543,7 +12543,7 @@ public class DiscordStageInstanceOptions : IDiscordStageInstanceOptions
 }
 
 
-public class DiscordStandardSticker : IDiscordStandardSticker 
+internal partial class DiscordStandardSticker : IDiscordStandardSticker 
 {
     private readonly NetCord.StandardSticker _original;
     public DiscordStandardSticker(NetCord.StandardSticker original)
@@ -12566,7 +12566,7 @@ public class DiscordStandardSticker : IDiscordStandardSticker
 }
 
 
-public class DiscordStickerPack : IDiscordStickerPack 
+internal partial class DiscordStickerPack : IDiscordStickerPack 
 {
     private readonly NetCord.Rest.StickerPack _original;
     public DiscordStickerPack(NetCord.Rest.StickerPack original)
@@ -12583,7 +12583,7 @@ public class DiscordStickerPack : IDiscordStickerPack
 }
 
 
-public class DiscordSubscription : IDiscordSubscription 
+internal partial class DiscordSubscription : IDiscordSubscription 
 {
     private readonly NetCord.Subscription _original;
     public DiscordSubscription(NetCord.Subscription original)
@@ -12605,7 +12605,7 @@ public class DiscordSubscription : IDiscordSubscription
 }
 
 
-public class DiscordSubscriptionPaginationProperties : IDiscordSubscriptionPaginationProperties 
+internal partial class DiscordSubscriptionPaginationProperties : IDiscordSubscriptionPaginationProperties 
 {
     private readonly NetCord.Rest.SubscriptionPaginationProperties _original;
     public DiscordSubscriptionPaginationProperties(NetCord.Rest.SubscriptionPaginationProperties original)
@@ -12636,7 +12636,7 @@ public class DiscordSubscriptionPaginationProperties : IDiscordSubscriptionPagin
 }
 
 
-public class DiscordApplication : IDiscordApplication 
+internal partial class DiscordApplication : IDiscordApplication 
 {
     private readonly NetCord.Application _original;
     public DiscordApplication(NetCord.Application original)
@@ -12725,7 +12725,7 @@ public class DiscordApplication : IDiscordApplication
 }
 
 
-public class DiscordCurrentUserOptions : IDiscordCurrentUserOptions 
+internal partial class DiscordCurrentUserOptions : IDiscordCurrentUserOptions 
 {
     private readonly NetCord.Rest.CurrentUserOptions _original;
     public DiscordCurrentUserOptions(NetCord.Rest.CurrentUserOptions original)
@@ -12751,7 +12751,7 @@ public class DiscordCurrentUserOptions : IDiscordCurrentUserOptions
 }
 
 
-public class DiscordGuildsPaginationProperties : IDiscordGuildsPaginationProperties 
+internal partial class DiscordGuildsPaginationProperties : IDiscordGuildsPaginationProperties 
 {
     private readonly NetCord.Rest.GuildsPaginationProperties _original;
     public DiscordGuildsPaginationProperties(NetCord.Rest.GuildsPaginationProperties original)
@@ -12782,7 +12782,7 @@ public class DiscordGuildsPaginationProperties : IDiscordGuildsPaginationPropert
 }
 
 
-public class DiscordGroupDMChannel : IDiscordGroupDMChannel 
+internal partial class DiscordGroupDMChannel : IDiscordGroupDMChannel 
 {
     private readonly NetCord.GroupDMChannel _original;
     public DiscordGroupDMChannel(NetCord.GroupDMChannel original)
@@ -12921,7 +12921,7 @@ public class DiscordGroupDMChannel : IDiscordGroupDMChannel
 }
 
 
-public class DiscordGroupDMChannelProperties : IDiscordGroupDMChannelProperties 
+internal partial class DiscordGroupDMChannelProperties : IDiscordGroupDMChannelProperties 
 {
     private readonly NetCord.Rest.GroupDMChannelProperties _original;
     public DiscordGroupDMChannelProperties(NetCord.Rest.GroupDMChannelProperties original)
@@ -12950,7 +12950,7 @@ public class DiscordGroupDMChannelProperties : IDiscordGroupDMChannelProperties
 }
 
 
-public class DiscordConnection : IDiscordConnection 
+internal partial class DiscordConnection : IDiscordConnection 
 {
     private readonly NetCord.Rest.Connection _original;
     public DiscordConnection(NetCord.Rest.Connection original)
@@ -12971,7 +12971,7 @@ public class DiscordConnection : IDiscordConnection
 }
 
 
-public class DiscordApplicationRoleConnection : IDiscordApplicationRoleConnection 
+internal partial class DiscordApplicationRoleConnection : IDiscordApplicationRoleConnection 
 {
     private readonly NetCord.Rest.ApplicationRoleConnection _original;
     public DiscordApplicationRoleConnection(NetCord.Rest.ApplicationRoleConnection original)
@@ -12985,7 +12985,7 @@ public class DiscordApplicationRoleConnection : IDiscordApplicationRoleConnectio
 }
 
 
-public class DiscordApplicationRoleConnectionProperties : IDiscordApplicationRoleConnectionProperties 
+internal partial class DiscordApplicationRoleConnectionProperties : IDiscordApplicationRoleConnectionProperties 
 {
     private readonly NetCord.Rest.ApplicationRoleConnectionProperties _original;
     public DiscordApplicationRoleConnectionProperties(NetCord.Rest.ApplicationRoleConnectionProperties original)
@@ -13011,7 +13011,7 @@ public class DiscordApplicationRoleConnectionProperties : IDiscordApplicationRol
 }
 
 
-public class DiscordIncomingWebhook : IDiscordIncomingWebhook 
+internal partial class DiscordIncomingWebhook : IDiscordIncomingWebhook 
 {
     private readonly NetCord.Rest.IncomingWebhook _original;
     public DiscordIncomingWebhook(NetCord.Rest.IncomingWebhook original)
@@ -13080,7 +13080,7 @@ public class DiscordIncomingWebhook : IDiscordIncomingWebhook
 }
 
 
-public class DiscordWebhookProperties : IDiscordWebhookProperties 
+internal partial class DiscordWebhookProperties : IDiscordWebhookProperties 
 {
     private readonly NetCord.Rest.WebhookProperties _original;
     public DiscordWebhookProperties(NetCord.Rest.WebhookProperties original)
@@ -13101,7 +13101,7 @@ public class DiscordWebhookProperties : IDiscordWebhookProperties
 }
 
 
-public class DiscordWebhookOptions : IDiscordWebhookOptions 
+internal partial class DiscordWebhookOptions : IDiscordWebhookOptions 
 {
     private readonly NetCord.Rest.WebhookOptions _original;
     public DiscordWebhookOptions(NetCord.Rest.WebhookOptions original)
@@ -13127,7 +13127,7 @@ public class DiscordWebhookOptions : IDiscordWebhookOptions
 }
 
 
-public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties 
+internal partial class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties 
 {
     private readonly NetCord.Rest.WebhookMessageProperties _original;
     public DiscordWebhookMessageProperties(NetCord.Rest.WebhookMessageProperties original)
@@ -13234,7 +13234,7 @@ public class DiscordWebhookMessageProperties : IDiscordWebhookMessageProperties
 }
 
 
-public class DiscordGuildChannelMention : IDiscordGuildChannelMention 
+internal partial class DiscordGuildChannelMention : IDiscordGuildChannelMention 
 {
     private readonly NetCord.GuildChannelMention _original;
     public DiscordGuildChannelMention(NetCord.GuildChannelMention original)
@@ -13250,7 +13250,7 @@ public class DiscordGuildChannelMention : IDiscordGuildChannelMention
 }
 
 
-public class DiscordAttachment : IDiscordAttachment 
+internal partial class DiscordAttachment : IDiscordAttachment 
 {
     private readonly NetCord.Attachment _original;
     public DiscordAttachment(NetCord.Attachment original)
@@ -13276,7 +13276,7 @@ public class DiscordAttachment : IDiscordAttachment
 }
 
 
-public class DiscordEmbed : IDiscordEmbed 
+internal partial class DiscordEmbed : IDiscordEmbed 
 {
     private readonly NetCord.Embed _original;
     public DiscordEmbed(NetCord.Embed original)
@@ -13300,7 +13300,7 @@ public class DiscordEmbed : IDiscordEmbed
 }
 
 
-public class DiscordMessageReaction : IDiscordMessageReaction 
+internal partial class DiscordMessageReaction : IDiscordMessageReaction 
 {
     private readonly NetCord.MessageReaction _original;
     public DiscordMessageReaction(NetCord.MessageReaction original)
@@ -13317,7 +13317,7 @@ public class DiscordMessageReaction : IDiscordMessageReaction
 }
 
 
-public class DiscordMessageActivity : IDiscordMessageActivity 
+internal partial class DiscordMessageActivity : IDiscordMessageActivity 
 {
     private readonly NetCord.MessageActivity _original;
     public DiscordMessageActivity(NetCord.MessageActivity original)
@@ -13330,7 +13330,7 @@ public class DiscordMessageActivity : IDiscordMessageActivity
 }
 
 
-public class DiscordMessageReference : IDiscordMessageReference 
+internal partial class DiscordMessageReference : IDiscordMessageReference 
 {
     private readonly NetCord.MessageReference _original;
     public DiscordMessageReference(NetCord.MessageReference original)
@@ -13345,7 +13345,7 @@ public class DiscordMessageReference : IDiscordMessageReference
 }
 
 
-public class DiscordMessageSnapshot : IDiscordMessageSnapshot 
+internal partial class DiscordMessageSnapshot : IDiscordMessageSnapshot 
 {
     private readonly NetCord.MessageSnapshot _original;
     public DiscordMessageSnapshot(NetCord.MessageSnapshot original)
@@ -13357,7 +13357,7 @@ public class DiscordMessageSnapshot : IDiscordMessageSnapshot
 }
 
 
-public class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetadata 
+internal partial class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetadata 
 {
     private readonly NetCord.MessageInteractionMetadata _original;
     public DiscordMessageInteractionMetadata(NetCord.MessageInteractionMetadata original)
@@ -13376,7 +13376,7 @@ public class DiscordMessageInteractionMetadata : IDiscordMessageInteractionMetad
 }
 
 
-public class DiscordComponent : IDiscordComponent 
+internal partial class DiscordComponent : IDiscordComponent 
 {
     private readonly NetCord.IComponent _original;
     public DiscordComponent(NetCord.IComponent original)
@@ -13388,7 +13388,7 @@ public class DiscordComponent : IDiscordComponent
 }
 
 
-public class DiscordMessageSticker : IDiscordMessageSticker 
+internal partial class DiscordMessageSticker : IDiscordMessageSticker 
 {
     private readonly NetCord.MessageSticker _original;
     public DiscordMessageSticker(NetCord.MessageSticker original)
@@ -13403,7 +13403,7 @@ public class DiscordMessageSticker : IDiscordMessageSticker
 }
 
 
-public class DiscordRoleSubscriptionData : IDiscordRoleSubscriptionData 
+internal partial class DiscordRoleSubscriptionData : IDiscordRoleSubscriptionData 
 {
     private readonly NetCord.RoleSubscriptionData _original;
     public DiscordRoleSubscriptionData(NetCord.RoleSubscriptionData original)
@@ -13418,7 +13418,7 @@ public class DiscordRoleSubscriptionData : IDiscordRoleSubscriptionData
 }
 
 
-public class DiscordInteractionResolvedData : IDiscordInteractionResolvedData 
+internal partial class DiscordInteractionResolvedData : IDiscordInteractionResolvedData 
 {
     private readonly NetCord.InteractionResolvedData _original;
     public DiscordInteractionResolvedData(NetCord.InteractionResolvedData original)
@@ -13433,7 +13433,7 @@ public class DiscordInteractionResolvedData : IDiscordInteractionResolvedData
 }
 
 
-public class DiscordMessagePoll : IDiscordMessagePoll 
+internal partial class DiscordMessagePoll : IDiscordMessagePoll 
 {
     private readonly NetCord.MessagePoll _original;
     public DiscordMessagePoll(NetCord.MessagePoll original)
@@ -13450,7 +13450,7 @@ public class DiscordMessagePoll : IDiscordMessagePoll
 }
 
 
-public class DiscordMessageCall : IDiscordMessageCall 
+internal partial class DiscordMessageCall : IDiscordMessageCall 
 {
     private readonly NetCord.Rest.MessageCall _original;
     public DiscordMessageCall(NetCord.Rest.MessageCall original)
@@ -13463,7 +13463,7 @@ public class DiscordMessageCall : IDiscordMessageCall
 }
 
 
-public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties 
+internal partial class DiscordReplyMessageProperties : IDiscordReplyMessageProperties 
 {
     private readonly NetCord.Rest.ReplyMessageProperties _original;
     public DiscordReplyMessageProperties(NetCord.Rest.ReplyMessageProperties original)
@@ -13565,7 +13565,7 @@ public class DiscordReplyMessageProperties : IDiscordReplyMessageProperties
 }
 
 
-public class DiscordEmbedProperties : IDiscordEmbedProperties 
+internal partial class DiscordEmbedProperties : IDiscordEmbedProperties 
 {
     private readonly NetCord.Rest.EmbedProperties _original;
     public DiscordEmbedProperties(NetCord.Rest.EmbedProperties original)
@@ -13634,7 +13634,7 @@ public class DiscordEmbedProperties : IDiscordEmbedProperties
 }
 
 
-public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsProperties 
+internal partial class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsProperties 
 {
     private readonly NetCord.Rest.AllowedMentionsProperties _original;
     public DiscordAllowedMentionsProperties(NetCord.Rest.AllowedMentionsProperties original)
@@ -13683,7 +13683,7 @@ public class DiscordAllowedMentionsProperties : IDiscordAllowedMentionsPropertie
 }
 
 
-public class DiscordComponentProperties : IDiscordComponentProperties 
+internal partial class DiscordComponentProperties : IDiscordComponentProperties 
 {
     private readonly NetCord.Rest.IComponentProperties _original;
     public DiscordComponentProperties(NetCord.Rest.IComponentProperties original)
@@ -13700,7 +13700,7 @@ public class DiscordComponentProperties : IDiscordComponentProperties
 }
 
 
-public class DiscordAttachmentProperties : IDiscordAttachmentProperties 
+internal partial class DiscordAttachmentProperties : IDiscordAttachmentProperties 
 {
     private readonly NetCord.Rest.AttachmentProperties _original;
     public DiscordAttachmentProperties(NetCord.Rest.AttachmentProperties original)
@@ -13731,7 +13731,7 @@ public class DiscordAttachmentProperties : IDiscordAttachmentProperties
 }
 
 
-public class DiscordMessagePollProperties : IDiscordMessagePollProperties 
+internal partial class DiscordMessagePollProperties : IDiscordMessagePollProperties 
 {
     private readonly NetCord.MessagePollProperties _original;
     public DiscordMessagePollProperties(NetCord.MessagePollProperties original)
@@ -13775,7 +13775,7 @@ public class DiscordMessagePollProperties : IDiscordMessagePollProperties
 }
 
 
-public class DiscordPermissionOverwrite : IDiscordPermissionOverwrite 
+internal partial class DiscordPermissionOverwrite : IDiscordPermissionOverwrite 
 {
     private readonly NetCord.PermissionOverwrite _original;
     public DiscordPermissionOverwrite(NetCord.PermissionOverwrite original)
@@ -13791,7 +13791,7 @@ public class DiscordPermissionOverwrite : IDiscordPermissionOverwrite
 }
 
 
-public class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata 
+internal partial class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata 
 {
     private readonly NetCord.GuildThreadMetadata _original;
     public DiscordGuildThreadMetadata(NetCord.GuildThreadMetadata original)
@@ -13807,7 +13807,7 @@ public class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata
 }
 
 
-public class DiscordThreadCurrentUser : IDiscordThreadCurrentUser 
+internal partial class DiscordThreadCurrentUser : IDiscordThreadCurrentUser 
 {
     private readonly NetCord.ThreadCurrentUser _original;
     public DiscordThreadCurrentUser(NetCord.ThreadCurrentUser original)
@@ -13820,7 +13820,7 @@ public class DiscordThreadCurrentUser : IDiscordThreadCurrentUser
 }
 
 
-public class DiscordUserActivity : IDiscordUserActivity 
+internal partial class DiscordUserActivity : IDiscordUserActivity 
 {
     private readonly NetCord.Gateway.UserActivity _original;
     public DiscordUserActivity(NetCord.Gateway.UserActivity original)
@@ -13847,7 +13847,7 @@ public class DiscordUserActivity : IDiscordUserActivity
 }
 
 
-public class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildScheduledEventRecurrenceRule 
+internal partial class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildScheduledEventRecurrenceRule 
 {
     private readonly NetCord.GuildScheduledEventRecurrenceRule _original;
     public DiscordGuildScheduledEventRecurrenceRule(NetCord.GuildScheduledEventRecurrenceRule original)
@@ -13868,7 +13868,7 @@ public class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildScheduledEv
 }
 
 
-public class DiscordRoleTags : IDiscordRoleTags 
+internal partial class DiscordRoleTags : IDiscordRoleTags 
 {
     private readonly NetCord.RoleTags _original;
     public DiscordRoleTags(NetCord.RoleTags original)
@@ -13885,7 +13885,7 @@ public class DiscordRoleTags : IDiscordRoleTags
 }
 
 
-public class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChannel 
+internal partial class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChannel 
 {
     private readonly NetCord.GuildWelcomeScreenChannel _original;
     public DiscordGuildWelcomeScreenChannel(NetCord.GuildWelcomeScreenChannel original)
@@ -13901,7 +13901,7 @@ public class DiscordGuildWelcomeScreenChannel : IDiscordGuildWelcomeScreenChanne
 }
 
 
-public class DiscordRestAuditLogEntryData : IDiscordRestAuditLogEntryData 
+internal partial class DiscordRestAuditLogEntryData : IDiscordRestAuditLogEntryData 
 {
     private readonly NetCord.Rest.RestAuditLogEntryData _original;
     public DiscordRestAuditLogEntryData(NetCord.Rest.RestAuditLogEntryData original)
@@ -13919,7 +13919,7 @@ public class DiscordRestAuditLogEntryData : IDiscordRestAuditLogEntryData
 }
 
 
-public class DiscordAuditLogChange : IDiscordAuditLogChange 
+internal partial class DiscordAuditLogChange : IDiscordAuditLogChange 
 {
     private readonly NetCord.AuditLogChange _original;
     public DiscordAuditLogChange(NetCord.AuditLogChange original)
@@ -13941,7 +13941,7 @@ public class DiscordAuditLogChange : IDiscordAuditLogChange
 }
 
 
-public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo 
+internal partial class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo 
 {
     private readonly NetCord.AuditLogEntryInfo _original;
     public DiscordAuditLogEntryInfo(NetCord.AuditLogEntryInfo original)
@@ -13964,7 +13964,7 @@ public class DiscordAuditLogEntryInfo : IDiscordAuditLogEntryInfo
 }
 
 
-public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> 
+internal partial class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue> 
 {
     private readonly NetCord.AuditLogChange<TValue> _original;
     public DiscordAuditLogChange(NetCord.AuditLogChange<TValue> original)
@@ -13988,7 +13988,7 @@ public class DiscordAuditLogChange<TValue> : IDiscordAuditLogChange<TValue>
 }
 
 
-public class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRuleTriggerMetadata 
+internal partial class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRuleTriggerMetadata 
 {
     private readonly NetCord.AutoModerationRuleTriggerMetadata _original;
     public DiscordAutoModerationRuleTriggerMetadata(NetCord.AutoModerationRuleTriggerMetadata original)
@@ -14005,7 +14005,7 @@ public class DiscordAutoModerationRuleTriggerMetadata : IDiscordAutoModerationRu
 }
 
 
-public class DiscordAutoModerationAction : IDiscordAutoModerationAction 
+internal partial class DiscordAutoModerationAction : IDiscordAutoModerationAction 
 {
     private readonly NetCord.AutoModerationAction _original;
     public DiscordAutoModerationAction(NetCord.AutoModerationAction original)
@@ -14018,7 +14018,7 @@ public class DiscordAutoModerationAction : IDiscordAutoModerationAction
 }
 
 
-public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoModerationRuleTriggerMetadataProperties 
+internal partial class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoModerationRuleTriggerMetadataProperties 
 {
     private readonly NetCord.AutoModerationRuleTriggerMetadataProperties _original;
     public DiscordAutoModerationRuleTriggerMetadataProperties(NetCord.AutoModerationRuleTriggerMetadataProperties original)
@@ -14091,7 +14091,7 @@ public class DiscordAutoModerationRuleTriggerMetadataProperties : IDiscordAutoMo
 }
 
 
-public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActionProperties 
+internal partial class DiscordAutoModerationActionProperties : IDiscordAutoModerationActionProperties 
 {
     private readonly NetCord.AutoModerationActionProperties _original;
     public DiscordAutoModerationActionProperties(NetCord.AutoModerationActionProperties original)
@@ -14112,7 +14112,7 @@ public class DiscordAutoModerationActionProperties : IDiscordAutoModerationActio
 }
 
 
-public class DiscordForumTagProperties : IDiscordForumTagProperties 
+internal partial class DiscordForumTagProperties : IDiscordForumTagProperties 
 {
     private readonly NetCord.Rest.ForumTagProperties _original;
     public DiscordForumTagProperties(NetCord.Rest.ForumTagProperties original)
@@ -14148,7 +14148,7 @@ public class DiscordForumTagProperties : IDiscordForumTagProperties
 }
 
 
-public class DiscordAccount : IDiscordAccount 
+internal partial class DiscordAccount : IDiscordAccount 
 {
     private readonly NetCord.Account _original;
     public DiscordAccount(NetCord.Account original)
@@ -14162,7 +14162,7 @@ public class DiscordAccount : IDiscordAccount
 }
 
 
-public class DiscordIntegrationApplication : IDiscordIntegrationApplication 
+internal partial class DiscordIntegrationApplication : IDiscordIntegrationApplication 
 {
     private readonly NetCord.IntegrationApplication _original;
     public DiscordIntegrationApplication(NetCord.IntegrationApplication original)
@@ -14180,7 +14180,7 @@ public class DiscordIntegrationApplication : IDiscordIntegrationApplication
 }
 
 
-public class DiscordGuildWidgetChannel : IDiscordGuildWidgetChannel 
+internal partial class DiscordGuildWidgetChannel : IDiscordGuildWidgetChannel 
 {
     private readonly NetCord.Rest.GuildWidgetChannel _original;
     public DiscordGuildWidgetChannel(NetCord.Rest.GuildWidgetChannel original)
@@ -14195,7 +14195,7 @@ public class DiscordGuildWidgetChannel : IDiscordGuildWidgetChannel
 }
 
 
-public class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeScreenChannelProperties 
+internal partial class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeScreenChannelProperties 
 {
     private readonly NetCord.Rest.GuildWelcomeScreenChannelProperties _original;
     public DiscordGuildWelcomeScreenChannelProperties(NetCord.Rest.GuildWelcomeScreenChannelProperties original)
@@ -14221,7 +14221,7 @@ public class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildWelcomeSc
 }
 
 
-public class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPrompt 
+internal partial class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPrompt 
 {
     private readonly NetCord.Rest.GuildOnboardingPrompt _original;
     public DiscordGuildOnboardingPrompt(NetCord.Rest.GuildOnboardingPrompt original)
@@ -14240,7 +14240,7 @@ public class DiscordGuildOnboardingPrompt : IDiscordGuildOnboardingPrompt
 }
 
 
-public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPromptProperties 
+internal partial class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPromptProperties 
 {
     private readonly NetCord.Rest.GuildOnboardingPromptProperties _original;
     public DiscordGuildOnboardingPromptProperties(NetCord.Rest.GuildOnboardingPromptProperties original)
@@ -14294,7 +14294,7 @@ public class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboardingPro
 }
 
 
-public class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildScheduledEventMetadataProperties 
+internal partial class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildScheduledEventMetadataProperties 
 {
     private readonly NetCord.Rest.GuildScheduledEventMetadataProperties _original;
     public DiscordGuildScheduledEventMetadataProperties(NetCord.Rest.GuildScheduledEventMetadataProperties original)
@@ -14310,7 +14310,7 @@ public class DiscordGuildScheduledEventMetadataProperties : IDiscordGuildSchedul
 }
 
 
-public class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview 
+internal partial class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview 
 {
     private readonly NetCord.Rest.GuildTemplatePreview _original;
     public DiscordGuildTemplatePreview(NetCord.Rest.GuildTemplatePreview original)
@@ -14334,7 +14334,7 @@ public class DiscordGuildTemplatePreview : IDiscordGuildTemplatePreview
 }
 
 
-public class DiscordApplicationCommandOption : IDiscordApplicationCommandOption 
+internal partial class DiscordApplicationCommandOption : IDiscordApplicationCommandOption 
 {
     private readonly NetCord.Rest.ApplicationCommandOption _original;
     public DiscordApplicationCommandOption(NetCord.Rest.ApplicationCommandOption original)
@@ -14359,7 +14359,7 @@ public class DiscordApplicationCommandOption : IDiscordApplicationCommandOption
 }
 
 
-public class DiscordApplicationCommandOptionProperties : IDiscordApplicationCommandOptionProperties 
+internal partial class DiscordApplicationCommandOptionProperties : IDiscordApplicationCommandOptionProperties 
 {
     private readonly NetCord.Rest.ApplicationCommandOptionProperties _original;
     public DiscordApplicationCommandOptionProperties(NetCord.Rest.ApplicationCommandOptionProperties original)
@@ -14464,7 +14464,7 @@ public class DiscordApplicationCommandOptionProperties : IDiscordApplicationComm
 }
 
 
-public class DiscordApplicationCommandPermission : IDiscordApplicationCommandPermission 
+internal partial class DiscordApplicationCommandPermission : IDiscordApplicationCommandPermission 
 {
     private readonly NetCord.ApplicationCommandPermission _original;
     public DiscordApplicationCommandPermission(NetCord.ApplicationCommandPermission original)
@@ -14479,7 +14479,7 @@ public class DiscordApplicationCommandPermission : IDiscordApplicationCommandPer
 }
 
 
-public class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery 
+internal partial class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery 
 {
     private readonly NetCord.Rest.IGuildUsersSearchQuery _original;
     public DiscordGuildUsersSearchQuery(NetCord.Rest.IGuildUsersSearchQuery original)
@@ -14494,7 +14494,7 @@ public class DiscordGuildUsersSearchQuery : IDiscordGuildUsersSearchQuery
 }
 
 
-public class DiscordJsonWebhook : IDiscordJsonWebhook 
+internal partial class DiscordJsonWebhook : IDiscordJsonWebhook 
 {
     private readonly NetCord.JsonModels.JsonWebhook _original;
     public DiscordJsonWebhook(NetCord.JsonModels.JsonWebhook original)
@@ -14517,7 +14517,7 @@ public class DiscordJsonWebhook : IDiscordJsonWebhook
 }
 
 
-public class DiscordJsonPermissionOverwrite : IDiscordJsonPermissionOverwrite 
+internal partial class DiscordJsonPermissionOverwrite : IDiscordJsonPermissionOverwrite 
 {
     private readonly NetCord.JsonModels.JsonPermissionOverwrite _original;
     public DiscordJsonPermissionOverwrite(NetCord.JsonModels.JsonPermissionOverwrite original)
@@ -14532,7 +14532,7 @@ public class DiscordJsonPermissionOverwrite : IDiscordJsonPermissionOverwrite
 }
 
 
-public class DiscordJsonGuildThreadMetadata : IDiscordJsonGuildThreadMetadata 
+internal partial class DiscordJsonGuildThreadMetadata : IDiscordJsonGuildThreadMetadata 
 {
     private readonly NetCord.JsonModels.JsonGuildThreadMetadata _original;
     public DiscordJsonGuildThreadMetadata(NetCord.JsonModels.JsonGuildThreadMetadata original)
@@ -14548,7 +14548,7 @@ public class DiscordJsonGuildThreadMetadata : IDiscordJsonGuildThreadMetadata
 }
 
 
-public class DiscordJsonThreadCurrentUser : IDiscordJsonThreadCurrentUser 
+internal partial class DiscordJsonThreadCurrentUser : IDiscordJsonThreadCurrentUser 
 {
     private readonly NetCord.JsonModels.JsonThreadCurrentUser _original;
     public DiscordJsonThreadCurrentUser(NetCord.JsonModels.JsonThreadCurrentUser original)
@@ -14561,7 +14561,7 @@ public class DiscordJsonThreadCurrentUser : IDiscordJsonThreadCurrentUser
 }
 
 
-public class DiscordJsonForumTag : IDiscordJsonForumTag 
+internal partial class DiscordJsonForumTag : IDiscordJsonForumTag 
 {
     private readonly NetCord.JsonModels.JsonForumTag _original;
     public DiscordJsonForumTag(NetCord.JsonModels.JsonForumTag original)
@@ -14577,7 +14577,7 @@ public class DiscordJsonForumTag : IDiscordJsonForumTag
 }
 
 
-public class DiscordJsonForumGuildChannelDefaultReaction : IDiscordJsonForumGuildChannelDefaultReaction 
+internal partial class DiscordJsonForumGuildChannelDefaultReaction : IDiscordJsonForumGuildChannelDefaultReaction 
 {
     private readonly NetCord.JsonModels.JsonForumGuildChannelDefaultReaction _original;
     public DiscordJsonForumGuildChannelDefaultReaction(NetCord.JsonModels.JsonForumGuildChannelDefaultReaction original)
@@ -14590,7 +14590,7 @@ public class DiscordJsonForumGuildChannelDefaultReaction : IDiscordJsonForumGuil
 }
 
 
-public class DiscordNonceProperties : IDiscordNonceProperties 
+internal partial class DiscordNonceProperties : IDiscordNonceProperties 
 {
     private readonly NetCord.Rest.NonceProperties _original;
     public DiscordNonceProperties(NetCord.Rest.NonceProperties original)
@@ -14606,7 +14606,7 @@ public class DiscordNonceProperties : IDiscordNonceProperties
 }
 
 
-public class DiscordMessageReferenceProperties : IDiscordMessageReferenceProperties 
+internal partial class DiscordMessageReferenceProperties : IDiscordMessageReferenceProperties 
 {
     private readonly NetCord.Rest.MessageReferenceProperties _original;
     public DiscordMessageReferenceProperties(NetCord.Rest.MessageReferenceProperties original)
@@ -14637,7 +14637,7 @@ public class DiscordMessageReferenceProperties : IDiscordMessageReferencePropert
 }
 
 
-public class DiscordJsonInteractionResolvedData : IDiscordJsonInteractionResolvedData 
+internal partial class DiscordJsonInteractionResolvedData : IDiscordJsonInteractionResolvedData 
 {
     private readonly NetCord.JsonModels.JsonInteractionResolvedData _original;
     public DiscordJsonInteractionResolvedData(NetCord.JsonModels.JsonInteractionResolvedData original)
@@ -14654,7 +14654,7 @@ public class DiscordJsonInteractionResolvedData : IDiscordJsonInteractionResolve
 }
 
 
-public class DiscordJsonApplicationCommandInteractionDataOption : IDiscordJsonApplicationCommandInteractionDataOption 
+internal partial class DiscordJsonApplicationCommandInteractionDataOption : IDiscordJsonApplicationCommandInteractionDataOption 
 {
     private readonly NetCord.JsonModels.JsonApplicationCommandInteractionDataOption _original;
     public DiscordJsonApplicationCommandInteractionDataOption(NetCord.JsonModels.JsonApplicationCommandInteractionDataOption original)
@@ -14670,7 +14670,7 @@ public class DiscordJsonApplicationCommandInteractionDataOption : IDiscordJsonAp
 }
 
 
-public class DiscordJsonComponent : IDiscordJsonComponent 
+internal partial class DiscordJsonComponent : IDiscordJsonComponent 
 {
     private readonly NetCord.JsonModels.JsonComponent _original;
     public DiscordJsonComponent(NetCord.JsonModels.JsonComponent original)
@@ -14711,7 +14711,7 @@ public class DiscordJsonComponent : IDiscordJsonComponent
 }
 
 
-public class DiscordJsonAvatarDecorationData : IDiscordJsonAvatarDecorationData 
+internal partial class DiscordJsonAvatarDecorationData : IDiscordJsonAvatarDecorationData 
 {
     private readonly NetCord.JsonModels.JsonAvatarDecorationData _original;
     public DiscordJsonAvatarDecorationData(NetCord.JsonModels.JsonAvatarDecorationData original)
@@ -14724,7 +14724,7 @@ public class DiscordJsonAvatarDecorationData : IDiscordJsonAvatarDecorationData
 }
 
 
-public class DiscordJsonGuildChannelMention : IDiscordJsonGuildChannelMention 
+internal partial class DiscordJsonGuildChannelMention : IDiscordJsonGuildChannelMention 
 {
     private readonly NetCord.JsonModels.JsonGuildChannelMention _original;
     public DiscordJsonGuildChannelMention(NetCord.JsonModels.JsonGuildChannelMention original)
@@ -14739,7 +14739,7 @@ public class DiscordJsonGuildChannelMention : IDiscordJsonGuildChannelMention
 }
 
 
-public class DiscordJsonAttachment : IDiscordJsonAttachment 
+internal partial class DiscordJsonAttachment : IDiscordJsonAttachment 
 {
     private readonly NetCord.JsonModels.JsonAttachment _original;
     public DiscordJsonAttachment(NetCord.JsonModels.JsonAttachment original)
@@ -14764,7 +14764,7 @@ public class DiscordJsonAttachment : IDiscordJsonAttachment
 }
 
 
-public class DiscordJsonEmbed : IDiscordJsonEmbed 
+internal partial class DiscordJsonEmbed : IDiscordJsonEmbed 
 {
     private readonly NetCord.JsonModels.JsonEmbed _original;
     public DiscordJsonEmbed(NetCord.JsonModels.JsonEmbed original)
@@ -14788,7 +14788,7 @@ public class DiscordJsonEmbed : IDiscordJsonEmbed
 }
 
 
-public class DiscordJsonMessageReaction : IDiscordJsonMessageReaction 
+internal partial class DiscordJsonMessageReaction : IDiscordJsonMessageReaction 
 {
     private readonly NetCord.JsonModels.JsonMessageReaction _original;
     public DiscordJsonMessageReaction(NetCord.JsonModels.JsonMessageReaction original)
@@ -14805,7 +14805,7 @@ public class DiscordJsonMessageReaction : IDiscordJsonMessageReaction
 }
 
 
-public class DiscordJsonMessageActivity : IDiscordJsonMessageActivity 
+internal partial class DiscordJsonMessageActivity : IDiscordJsonMessageActivity 
 {
     private readonly NetCord.JsonModels.JsonMessageActivity _original;
     public DiscordJsonMessageActivity(NetCord.JsonModels.JsonMessageActivity original)
@@ -14818,7 +14818,7 @@ public class DiscordJsonMessageActivity : IDiscordJsonMessageActivity
 }
 
 
-public class DiscordJsonApplication : IDiscordJsonApplication 
+internal partial class DiscordJsonApplication : IDiscordJsonApplication 
 {
     private readonly NetCord.JsonModels.JsonApplication _original;
     public DiscordJsonApplication(NetCord.JsonModels.JsonApplication original)
@@ -14857,7 +14857,7 @@ public class DiscordJsonApplication : IDiscordJsonApplication
 }
 
 
-public class DiscordJsonMessageReference : IDiscordJsonMessageReference 
+internal partial class DiscordJsonMessageReference : IDiscordJsonMessageReference 
 {
     private readonly NetCord.JsonModels.JsonMessageReference _original;
     public DiscordJsonMessageReference(NetCord.JsonModels.JsonMessageReference original)
@@ -14872,7 +14872,7 @@ public class DiscordJsonMessageReference : IDiscordJsonMessageReference
 }
 
 
-public class DiscordJsonMessageSnapshot : IDiscordJsonMessageSnapshot 
+internal partial class DiscordJsonMessageSnapshot : IDiscordJsonMessageSnapshot 
 {
     private readonly NetCord.JsonModels.JsonMessageSnapshot _original;
     public DiscordJsonMessageSnapshot(NetCord.JsonModels.JsonMessageSnapshot original)
@@ -14884,7 +14884,7 @@ public class DiscordJsonMessageSnapshot : IDiscordJsonMessageSnapshot
 }
 
 
-public class DiscordJsonMessageInteractionMetadata : IDiscordJsonMessageInteractionMetadata 
+internal partial class DiscordJsonMessageInteractionMetadata : IDiscordJsonMessageInteractionMetadata 
 {
     private readonly NetCord.JsonModels.JsonMessageInteractionMetadata _original;
     public DiscordJsonMessageInteractionMetadata(NetCord.JsonModels.JsonMessageInteractionMetadata original)
@@ -14902,7 +14902,7 @@ public class DiscordJsonMessageInteractionMetadata : IDiscordJsonMessageInteract
 }
 
 
-public class DiscordJsonMessageSticker : IDiscordJsonMessageSticker 
+internal partial class DiscordJsonMessageSticker : IDiscordJsonMessageSticker 
 {
     private readonly NetCord.JsonModels.JsonMessageSticker _original;
     public DiscordJsonMessageSticker(NetCord.JsonModels.JsonMessageSticker original)
@@ -14916,7 +14916,7 @@ public class DiscordJsonMessageSticker : IDiscordJsonMessageSticker
 }
 
 
-public class DiscordJsonRoleSubscriptionData : IDiscordJsonRoleSubscriptionData 
+internal partial class DiscordJsonRoleSubscriptionData : IDiscordJsonRoleSubscriptionData 
 {
     private readonly NetCord.JsonModels.JsonRoleSubscriptionData _original;
     public DiscordJsonRoleSubscriptionData(NetCord.JsonModels.JsonRoleSubscriptionData original)
@@ -14931,7 +14931,7 @@ public class DiscordJsonRoleSubscriptionData : IDiscordJsonRoleSubscriptionData
 }
 
 
-public class DiscordJsonMessagePoll : IDiscordJsonMessagePoll 
+internal partial class DiscordJsonMessagePoll : IDiscordJsonMessagePoll 
 {
     private readonly NetCord.JsonModels.JsonMessagePoll _original;
     public DiscordJsonMessagePoll(NetCord.JsonModels.JsonMessagePoll original)
@@ -14949,7 +14949,7 @@ public class DiscordJsonMessagePoll : IDiscordJsonMessagePoll
 }
 
 
-public class DiscordJsonMessageCall : IDiscordJsonMessageCall 
+internal partial class DiscordJsonMessageCall : IDiscordJsonMessageCall 
 {
     private readonly NetCord.JsonModels.JsonMessageCall _original;
     public DiscordJsonMessageCall(NetCord.JsonModels.JsonMessageCall original)
@@ -14962,7 +14962,7 @@ public class DiscordJsonMessageCall : IDiscordJsonMessageCall
 }
 
 
-public class DiscordTeam : IDiscordTeam 
+internal partial class DiscordTeam : IDiscordTeam 
 {
     private readonly NetCord.Team _original;
     public DiscordTeam(NetCord.Team original)
@@ -14984,7 +14984,7 @@ public class DiscordTeam : IDiscordTeam
 }
 
 
-public class DiscordApplicationInstallParams : IDiscordApplicationInstallParams 
+internal partial class DiscordApplicationInstallParams : IDiscordApplicationInstallParams 
 {
     private readonly NetCord.ApplicationInstallParams _original;
     public DiscordApplicationInstallParams(NetCord.ApplicationInstallParams original)
@@ -14997,7 +14997,7 @@ public class DiscordApplicationInstallParams : IDiscordApplicationInstallParams
 }
 
 
-public class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicationIntegrationTypeConfiguration 
+internal partial class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicationIntegrationTypeConfiguration 
 {
     private readonly NetCord.ApplicationIntegrationTypeConfiguration _original;
     public DiscordApplicationIntegrationTypeConfiguration(NetCord.ApplicationIntegrationTypeConfiguration original)
@@ -15009,7 +15009,7 @@ public class DiscordApplicationIntegrationTypeConfiguration : IDiscordApplicatio
 }
 
 
-public class DiscordApplicationInstallParamsProperties : IDiscordApplicationInstallParamsProperties 
+internal partial class DiscordApplicationInstallParamsProperties : IDiscordApplicationInstallParamsProperties 
 {
     private readonly NetCord.Rest.ApplicationInstallParamsProperties _original;
     public DiscordApplicationInstallParamsProperties(NetCord.Rest.ApplicationInstallParamsProperties original)
@@ -15038,7 +15038,7 @@ public class DiscordApplicationInstallParamsProperties : IDiscordApplicationInst
 }
 
 
-public class DiscordApplicationIntegrationTypeConfigurationProperties : IDiscordApplicationIntegrationTypeConfigurationProperties 
+internal partial class DiscordApplicationIntegrationTypeConfigurationProperties : IDiscordApplicationIntegrationTypeConfigurationProperties 
 {
     private readonly NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties _original;
     public DiscordApplicationIntegrationTypeConfigurationProperties(NetCord.Rest.ApplicationIntegrationTypeConfigurationProperties original)
@@ -15054,7 +15054,7 @@ public class DiscordApplicationIntegrationTypeConfigurationProperties : IDiscord
 }
 
 
-public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThreadMessageProperties 
+internal partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThreadMessageProperties 
 {
     private readonly NetCord.Rest.ForumGuildThreadMessageProperties _original;
     public DiscordForumGuildThreadMessageProperties(NetCord.Rest.ForumGuildThreadMessageProperties original)
@@ -15132,7 +15132,7 @@ public class DiscordForumGuildThreadMessageProperties : IDiscordForumGuildThread
 }
 
 
-public class DiscordGatewaySessionStartLimit : IDiscordGatewaySessionStartLimit 
+internal partial class DiscordGatewaySessionStartLimit : IDiscordGatewaySessionStartLimit 
 {
     private readonly NetCord.Rest.GatewaySessionStartLimit _original;
     public DiscordGatewaySessionStartLimit(NetCord.Rest.GatewaySessionStartLimit original)
@@ -15147,7 +15147,7 @@ public class DiscordGatewaySessionStartLimit : IDiscordGatewaySessionStartLimit
 }
 
 
-public class DiscordSticker : IDiscordSticker 
+internal partial class DiscordSticker : IDiscordSticker 
 {
     private readonly NetCord.Sticker _original;
     public DiscordSticker(NetCord.Sticker original)
@@ -15168,7 +15168,7 @@ public class DiscordSticker : IDiscordSticker
 }
 
 
-public class DiscordWebhookClient : IDiscordWebhookClient 
+internal partial class DiscordWebhookClient : IDiscordWebhookClient 
 {
     private readonly NetCord.Rest.WebhookClient _original;
     public DiscordWebhookClient(NetCord.Rest.WebhookClient original)
@@ -15214,7 +15214,7 @@ public class DiscordWebhookClient : IDiscordWebhookClient
 }
 
 
-public class DiscordWebhookClientConfiguration : IDiscordWebhookClientConfiguration 
+internal partial class DiscordWebhookClientConfiguration : IDiscordWebhookClientConfiguration 
 {
     private readonly NetCord.Rest.WebhookClientConfiguration _original;
     public DiscordWebhookClientConfiguration(NetCord.Rest.WebhookClientConfiguration original)
@@ -15226,7 +15226,7 @@ public class DiscordWebhookClientConfiguration : IDiscordWebhookClientConfigurat
 }
 
 
-public class DiscordAttachmentExpirationInfo : IDiscordAttachmentExpirationInfo 
+internal partial class DiscordAttachmentExpirationInfo : IDiscordAttachmentExpirationInfo 
 {
     private readonly NetCord.AttachmentExpirationInfo _original;
     public DiscordAttachmentExpirationInfo(NetCord.AttachmentExpirationInfo original)
@@ -15240,7 +15240,7 @@ public class DiscordAttachmentExpirationInfo : IDiscordAttachmentExpirationInfo
 }
 
 
-public class DiscordEmbedFooter : IDiscordEmbedFooter 
+internal partial class DiscordEmbedFooter : IDiscordEmbedFooter 
 {
     private readonly NetCord.EmbedFooter _original;
     public DiscordEmbedFooter(NetCord.EmbedFooter original)
@@ -15254,7 +15254,7 @@ public class DiscordEmbedFooter : IDiscordEmbedFooter
 }
 
 
-public class DiscordEmbedImage : IDiscordEmbedImage 
+internal partial class DiscordEmbedImage : IDiscordEmbedImage 
 {
     private readonly NetCord.EmbedImage _original;
     public DiscordEmbedImage(NetCord.EmbedImage original)
@@ -15269,7 +15269,7 @@ public class DiscordEmbedImage : IDiscordEmbedImage
 }
 
 
-public class DiscordEmbedThumbnail : IDiscordEmbedThumbnail 
+internal partial class DiscordEmbedThumbnail : IDiscordEmbedThumbnail 
 {
     private readonly NetCord.EmbedThumbnail _original;
     public DiscordEmbedThumbnail(NetCord.EmbedThumbnail original)
@@ -15284,7 +15284,7 @@ public class DiscordEmbedThumbnail : IDiscordEmbedThumbnail
 }
 
 
-public class DiscordEmbedVideo : IDiscordEmbedVideo 
+internal partial class DiscordEmbedVideo : IDiscordEmbedVideo 
 {
     private readonly NetCord.EmbedVideo _original;
     public DiscordEmbedVideo(NetCord.EmbedVideo original)
@@ -15299,7 +15299,7 @@ public class DiscordEmbedVideo : IDiscordEmbedVideo
 }
 
 
-public class DiscordEmbedProvider : IDiscordEmbedProvider 
+internal partial class DiscordEmbedProvider : IDiscordEmbedProvider 
 {
     private readonly NetCord.EmbedProvider _original;
     public DiscordEmbedProvider(NetCord.EmbedProvider original)
@@ -15312,7 +15312,7 @@ public class DiscordEmbedProvider : IDiscordEmbedProvider
 }
 
 
-public class DiscordEmbedAuthor : IDiscordEmbedAuthor 
+internal partial class DiscordEmbedAuthor : IDiscordEmbedAuthor 
 {
     private readonly NetCord.EmbedAuthor _original;
     public DiscordEmbedAuthor(NetCord.EmbedAuthor original)
@@ -15327,7 +15327,7 @@ public class DiscordEmbedAuthor : IDiscordEmbedAuthor
 }
 
 
-public class DiscordEmbedField : IDiscordEmbedField 
+internal partial class DiscordEmbedField : IDiscordEmbedField 
 {
     private readonly NetCord.EmbedField _original;
     public DiscordEmbedField(NetCord.EmbedField original)
@@ -15341,7 +15341,7 @@ public class DiscordEmbedField : IDiscordEmbedField
 }
 
 
-public class DiscordMessageReactionCountDetails : IDiscordMessageReactionCountDetails 
+internal partial class DiscordMessageReactionCountDetails : IDiscordMessageReactionCountDetails 
 {
     private readonly NetCord.MessageReactionCountDetails _original;
     public DiscordMessageReactionCountDetails(NetCord.MessageReactionCountDetails original)
@@ -15354,7 +15354,7 @@ public class DiscordMessageReactionCountDetails : IDiscordMessageReactionCountDe
 }
 
 
-public class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji 
+internal partial class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji 
 {
     private readonly NetCord.MessageReactionEmoji _original;
     public DiscordMessageReactionEmoji(NetCord.MessageReactionEmoji original)
@@ -15368,7 +15368,7 @@ public class DiscordMessageReactionEmoji : IDiscordMessageReactionEmoji
 }
 
 
-public class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMessage 
+internal partial class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMessage 
 {
     private readonly NetCord.MessageSnapshotMessage _original;
     public DiscordMessageSnapshotMessage(NetCord.MessageSnapshotMessage original)
@@ -15387,7 +15387,7 @@ public class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMessage
 }
 
 
-public class DiscordMessagePollMedia : IDiscordMessagePollMedia 
+internal partial class DiscordMessagePollMedia : IDiscordMessagePollMedia 
 {
     private readonly NetCord.MessagePollMedia _original;
     public DiscordMessagePollMedia(NetCord.MessagePollMedia original)
@@ -15400,7 +15400,7 @@ public class DiscordMessagePollMedia : IDiscordMessagePollMedia
 }
 
 
-public class DiscordMessagePollAnswer : IDiscordMessagePollAnswer 
+internal partial class DiscordMessagePollAnswer : IDiscordMessagePollAnswer 
 {
     private readonly NetCord.MessagePollAnswer _original;
     public DiscordMessagePollAnswer(NetCord.MessagePollAnswer original)
@@ -15413,7 +15413,7 @@ public class DiscordMessagePollAnswer : IDiscordMessagePollAnswer
 }
 
 
-public class DiscordMessagePollResults : IDiscordMessagePollResults 
+internal partial class DiscordMessagePollResults : IDiscordMessagePollResults 
 {
     private readonly NetCord.MessagePollResults _original;
     public DiscordMessagePollResults(NetCord.MessagePollResults original)
@@ -15426,7 +15426,7 @@ public class DiscordMessagePollResults : IDiscordMessagePollResults
 }
 
 
-public class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties 
+internal partial class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties 
 {
     private readonly NetCord.Rest.EmbedFooterProperties _original;
     public DiscordEmbedFooterProperties(NetCord.Rest.EmbedFooterProperties original)
@@ -15447,7 +15447,7 @@ public class DiscordEmbedFooterProperties : IDiscordEmbedFooterProperties
 }
 
 
-public class DiscordEmbedImageProperties : IDiscordEmbedImageProperties 
+internal partial class DiscordEmbedImageProperties : IDiscordEmbedImageProperties 
 {
     private readonly NetCord.Rest.EmbedImageProperties _original;
     public DiscordEmbedImageProperties(NetCord.Rest.EmbedImageProperties original)
@@ -15463,7 +15463,7 @@ public class DiscordEmbedImageProperties : IDiscordEmbedImageProperties
 }
 
 
-public class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties 
+internal partial class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties 
 {
     private readonly NetCord.Rest.EmbedThumbnailProperties _original;
     public DiscordEmbedThumbnailProperties(NetCord.Rest.EmbedThumbnailProperties original)
@@ -15479,7 +15479,7 @@ public class DiscordEmbedThumbnailProperties : IDiscordEmbedThumbnailProperties
 }
 
 
-public class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties 
+internal partial class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties 
 {
     private readonly NetCord.Rest.EmbedAuthorProperties _original;
     public DiscordEmbedAuthorProperties(NetCord.Rest.EmbedAuthorProperties original)
@@ -15505,7 +15505,7 @@ public class DiscordEmbedAuthorProperties : IDiscordEmbedAuthorProperties
 }
 
 
-public class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties 
+internal partial class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties 
 {
     private readonly NetCord.Rest.EmbedFieldProperties _original;
     public DiscordEmbedFieldProperties(NetCord.Rest.EmbedFieldProperties original)
@@ -15531,7 +15531,7 @@ public class DiscordEmbedFieldProperties : IDiscordEmbedFieldProperties
 }
 
 
-public class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaProperties 
+internal partial class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaProperties 
 {
     private readonly NetCord.MessagePollMediaProperties _original;
     public DiscordMessagePollMediaProperties(NetCord.MessagePollMediaProperties original)
@@ -15552,7 +15552,7 @@ public class DiscordMessagePollMediaProperties : IDiscordMessagePollMediaPropert
 }
 
 
-public class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerProperties 
+internal partial class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerProperties 
 {
     private readonly NetCord.MessagePollAnswerProperties _original;
     public DiscordMessagePollAnswerProperties(NetCord.MessagePollAnswerProperties original)
@@ -15568,7 +15568,7 @@ public class DiscordMessagePollAnswerProperties : IDiscordMessagePollAnswerPrope
 }
 
 
-public class DiscordUserActivityTimestamps : IDiscordUserActivityTimestamps 
+internal partial class DiscordUserActivityTimestamps : IDiscordUserActivityTimestamps 
 {
     private readonly NetCord.Gateway.UserActivityTimestamps _original;
     public DiscordUserActivityTimestamps(NetCord.Gateway.UserActivityTimestamps original)
@@ -15581,7 +15581,7 @@ public class DiscordUserActivityTimestamps : IDiscordUserActivityTimestamps
 }
 
 
-public class DiscordEmoji : IDiscordEmoji 
+internal partial class DiscordEmoji : IDiscordEmoji 
 {
     private readonly NetCord.Emoji _original;
     public DiscordEmoji(NetCord.Emoji original)
@@ -15594,7 +15594,7 @@ public class DiscordEmoji : IDiscordEmoji
 }
 
 
-public class DiscordParty : IDiscordParty 
+internal partial class DiscordParty : IDiscordParty 
 {
     private readonly NetCord.Gateway.Party _original;
     public DiscordParty(NetCord.Gateway.Party original)
@@ -15608,7 +15608,7 @@ public class DiscordParty : IDiscordParty
 }
 
 
-public class DiscordUserActivityAssets : IDiscordUserActivityAssets 
+internal partial class DiscordUserActivityAssets : IDiscordUserActivityAssets 
 {
     private readonly NetCord.Gateway.UserActivityAssets _original;
     public DiscordUserActivityAssets(NetCord.Gateway.UserActivityAssets original)
@@ -15623,7 +15623,7 @@ public class DiscordUserActivityAssets : IDiscordUserActivityAssets
 }
 
 
-public class DiscordUserActivitySecrets : IDiscordUserActivitySecrets 
+internal partial class DiscordUserActivitySecrets : IDiscordUserActivitySecrets 
 {
     private readonly NetCord.Gateway.UserActivitySecrets _original;
     public DiscordUserActivitySecrets(NetCord.Gateway.UserActivitySecrets original)
@@ -15637,7 +15637,7 @@ public class DiscordUserActivitySecrets : IDiscordUserActivitySecrets
 }
 
 
-public class DiscordUserActivityButton : IDiscordUserActivityButton 
+internal partial class DiscordUserActivityButton : IDiscordUserActivityButton 
 {
     private readonly NetCord.Gateway.UserActivityButton _original;
     public DiscordUserActivityButton(NetCord.Gateway.UserActivityButton original)
@@ -15649,7 +15649,7 @@ public class DiscordUserActivityButton : IDiscordUserActivityButton
 }
 
 
-public class DiscordGuildScheduledEventRecurrenceRuleNWeekday : IDiscordGuildScheduledEventRecurrenceRuleNWeekday 
+internal partial class DiscordGuildScheduledEventRecurrenceRuleNWeekday : IDiscordGuildScheduledEventRecurrenceRuleNWeekday 
 {
     private readonly NetCord.GuildScheduledEventRecurrenceRuleNWeekday _original;
     public DiscordGuildScheduledEventRecurrenceRuleNWeekday(NetCord.GuildScheduledEventRecurrenceRuleNWeekday original)
@@ -15662,7 +15662,7 @@ public class DiscordGuildScheduledEventRecurrenceRuleNWeekday : IDiscordGuildSch
 }
 
 
-public class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionMetadata 
+internal partial class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionMetadata 
 {
     private readonly NetCord.AutoModerationActionMetadata _original;
     public DiscordAutoModerationActionMetadata(NetCord.AutoModerationActionMetadata original)
@@ -15676,7 +15676,7 @@ public class DiscordAutoModerationActionMetadata : IDiscordAutoModerationActionM
 }
 
 
-public class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerationActionMetadataProperties 
+internal partial class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerationActionMetadataProperties 
 {
     private readonly NetCord.AutoModerationActionMetadataProperties _original;
     public DiscordAutoModerationActionMetadataProperties(NetCord.AutoModerationActionMetadataProperties original)
@@ -15702,7 +15702,7 @@ public class DiscordAutoModerationActionMetadataProperties : IDiscordAutoModerat
 }
 
 
-public class DiscordEmojiProperties : IDiscordEmojiProperties 
+internal partial class DiscordEmojiProperties : IDiscordEmojiProperties 
 {
     private readonly NetCord.EmojiProperties _original;
     public DiscordEmojiProperties(NetCord.EmojiProperties original)
@@ -15723,7 +15723,7 @@ public class DiscordEmojiProperties : IDiscordEmojiProperties
 }
 
 
-public class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptOption 
+internal partial class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptOption 
 {
     private readonly NetCord.Rest.GuildOnboardingPromptOption _original;
     public DiscordGuildOnboardingPromptOption(NetCord.Rest.GuildOnboardingPromptOption original)
@@ -15741,7 +15741,7 @@ public class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptO
 }
 
 
-public class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboardingPromptOptionProperties 
+internal partial class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboardingPromptOptionProperties 
 {
     private readonly NetCord.Rest.GuildOnboardingPromptOptionProperties _original;
     public DiscordGuildOnboardingPromptOptionProperties(NetCord.Rest.GuildOnboardingPromptOptionProperties original)
@@ -15808,7 +15808,7 @@ public class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuildOnboard
 }
 
 
-public class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandOptionChoice 
+internal partial class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandOptionChoice 
 {
     private readonly NetCord.Rest.ApplicationCommandOptionChoice _original;
     public DiscordApplicationCommandOptionChoice(NetCord.Rest.ApplicationCommandOptionChoice original)
@@ -15824,7 +15824,7 @@ public class DiscordApplicationCommandOptionChoice : IDiscordApplicationCommandO
 }
 
 
-public class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicationCommandOptionChoiceProperties 
+internal partial class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicationCommandOptionChoiceProperties 
 {
     private readonly NetCord.Rest.ApplicationCommandOptionChoiceProperties _original;
     public DiscordApplicationCommandOptionChoiceProperties(NetCord.Rest.ApplicationCommandOptionChoiceProperties original)
@@ -15860,7 +15860,7 @@ public class DiscordApplicationCommandOptionChoiceProperties : IDiscordApplicati
 }
 
 
-public class DiscordJsonGuild : IDiscordJsonGuild 
+internal partial class DiscordJsonGuild : IDiscordJsonGuild 
 {
     private readonly NetCord.JsonModels.JsonGuild _original;
     public DiscordJsonGuild(NetCord.JsonModels.JsonGuild original)
@@ -15924,7 +15924,7 @@ public class DiscordJsonGuild : IDiscordJsonGuild
 }
 
 
-public class DiscordJsonRole : IDiscordJsonRole 
+internal partial class DiscordJsonRole : IDiscordJsonRole 
 {
     private readonly NetCord.JsonModels.JsonRole _original;
     public DiscordJsonRole(NetCord.JsonModels.JsonRole original)
@@ -15947,7 +15947,7 @@ public class DiscordJsonRole : IDiscordJsonRole
 }
 
 
-public class DiscordJsonEmoji : IDiscordJsonEmoji 
+internal partial class DiscordJsonEmoji : IDiscordJsonEmoji 
 {
     private readonly NetCord.JsonModels.JsonEmoji _original;
     public DiscordJsonEmoji(NetCord.JsonModels.JsonEmoji original)
@@ -15966,7 +15966,7 @@ public class DiscordJsonEmoji : IDiscordJsonEmoji
 }
 
 
-public class DiscordJsonMenuSelectOption : IDiscordJsonMenuSelectOption 
+internal partial class DiscordJsonMenuSelectOption : IDiscordJsonMenuSelectOption 
 {
     private readonly NetCord.JsonModels.JsonMenuSelectOption _original;
     public DiscordJsonMenuSelectOption(NetCord.JsonModels.JsonMenuSelectOption original)
@@ -15982,7 +15982,7 @@ public class DiscordJsonMenuSelectOption : IDiscordJsonMenuSelectOption
 }
 
 
-public class DiscordJsonSelectMenuDefaultValue : IDiscordJsonSelectMenuDefaultValue 
+internal partial class DiscordJsonSelectMenuDefaultValue : IDiscordJsonSelectMenuDefaultValue 
 {
     private readonly NetCord.JsonModels.JsonSelectMenuDefaultValue _original;
     public DiscordJsonSelectMenuDefaultValue(NetCord.JsonModels.JsonSelectMenuDefaultValue original)
@@ -15995,7 +15995,7 @@ public class DiscordJsonSelectMenuDefaultValue : IDiscordJsonSelectMenuDefaultVa
 }
 
 
-public class DiscordJsonComponentMedia : IDiscordJsonComponentMedia 
+internal partial class DiscordJsonComponentMedia : IDiscordJsonComponentMedia 
 {
     private readonly NetCord.JsonModels.JsonComponentMedia _original;
     public DiscordJsonComponentMedia(NetCord.JsonModels.JsonComponentMedia original)
@@ -16012,7 +16012,7 @@ public class DiscordJsonComponentMedia : IDiscordJsonComponentMedia
 }
 
 
-public class DiscordJsonEmbedFooter : IDiscordJsonEmbedFooter 
+internal partial class DiscordJsonEmbedFooter : IDiscordJsonEmbedFooter 
 {
     private readonly NetCord.JsonModels.JsonEmbedFooter _original;
     public DiscordJsonEmbedFooter(NetCord.JsonModels.JsonEmbedFooter original)
@@ -16026,7 +16026,7 @@ public class DiscordJsonEmbedFooter : IDiscordJsonEmbedFooter
 }
 
 
-public class DiscordJsonEmbedImage : IDiscordJsonEmbedImage 
+internal partial class DiscordJsonEmbedImage : IDiscordJsonEmbedImage 
 {
     private readonly NetCord.JsonModels.JsonEmbedImage _original;
     public DiscordJsonEmbedImage(NetCord.JsonModels.JsonEmbedImage original)
@@ -16041,7 +16041,7 @@ public class DiscordJsonEmbedImage : IDiscordJsonEmbedImage
 }
 
 
-public class DiscordJsonEmbedThumbnail : IDiscordJsonEmbedThumbnail 
+internal partial class DiscordJsonEmbedThumbnail : IDiscordJsonEmbedThumbnail 
 {
     private readonly NetCord.JsonModels.JsonEmbedThumbnail _original;
     public DiscordJsonEmbedThumbnail(NetCord.JsonModels.JsonEmbedThumbnail original)
@@ -16056,7 +16056,7 @@ public class DiscordJsonEmbedThumbnail : IDiscordJsonEmbedThumbnail
 }
 
 
-public class DiscordJsonEmbedVideo : IDiscordJsonEmbedVideo 
+internal partial class DiscordJsonEmbedVideo : IDiscordJsonEmbedVideo 
 {
     private readonly NetCord.JsonModels.JsonEmbedVideo _original;
     public DiscordJsonEmbedVideo(NetCord.JsonModels.JsonEmbedVideo original)
@@ -16071,7 +16071,7 @@ public class DiscordJsonEmbedVideo : IDiscordJsonEmbedVideo
 }
 
 
-public class DiscordJsonEmbedProvider : IDiscordJsonEmbedProvider 
+internal partial class DiscordJsonEmbedProvider : IDiscordJsonEmbedProvider 
 {
     private readonly NetCord.JsonModels.JsonEmbedProvider _original;
     public DiscordJsonEmbedProvider(NetCord.JsonModels.JsonEmbedProvider original)
@@ -16084,7 +16084,7 @@ public class DiscordJsonEmbedProvider : IDiscordJsonEmbedProvider
 }
 
 
-public class DiscordJsonEmbedAuthor : IDiscordJsonEmbedAuthor 
+internal partial class DiscordJsonEmbedAuthor : IDiscordJsonEmbedAuthor 
 {
     private readonly NetCord.JsonModels.JsonEmbedAuthor _original;
     public DiscordJsonEmbedAuthor(NetCord.JsonModels.JsonEmbedAuthor original)
@@ -16099,7 +16099,7 @@ public class DiscordJsonEmbedAuthor : IDiscordJsonEmbedAuthor
 }
 
 
-public class DiscordJsonEmbedField : IDiscordJsonEmbedField 
+internal partial class DiscordJsonEmbedField : IDiscordJsonEmbedField 
 {
     private readonly NetCord.JsonModels.JsonEmbedField _original;
     public DiscordJsonEmbedField(NetCord.JsonModels.JsonEmbedField original)
@@ -16113,7 +16113,7 @@ public class DiscordJsonEmbedField : IDiscordJsonEmbedField
 }
 
 
-public class DiscordJsonMessageReactionCountDetails : IDiscordJsonMessageReactionCountDetails 
+internal partial class DiscordJsonMessageReactionCountDetails : IDiscordJsonMessageReactionCountDetails 
 {
     private readonly NetCord.JsonModels.JsonMessageReactionCountDetails _original;
     public DiscordJsonMessageReactionCountDetails(NetCord.JsonModels.JsonMessageReactionCountDetails original)
@@ -16126,7 +16126,7 @@ public class DiscordJsonMessageReactionCountDetails : IDiscordJsonMessageReactio
 }
 
 
-public class DiscordJsonTeam : IDiscordJsonTeam 
+internal partial class DiscordJsonTeam : IDiscordJsonTeam 
 {
     private readonly NetCord.JsonModels.JsonTeam _original;
     public DiscordJsonTeam(NetCord.JsonModels.JsonTeam original)
@@ -16142,7 +16142,7 @@ public class DiscordJsonTeam : IDiscordJsonTeam
 }
 
 
-public class DiscordJsonApplicationInstallParams : IDiscordJsonApplicationInstallParams 
+internal partial class DiscordJsonApplicationInstallParams : IDiscordJsonApplicationInstallParams 
 {
     private readonly NetCord.JsonModels.JsonApplicationInstallParams _original;
     public DiscordJsonApplicationInstallParams(NetCord.JsonModels.JsonApplicationInstallParams original)
@@ -16155,7 +16155,7 @@ public class DiscordJsonApplicationInstallParams : IDiscordJsonApplicationInstal
 }
 
 
-public class DiscordJsonApplicationIntegrationTypeConfiguration : IDiscordJsonApplicationIntegrationTypeConfiguration 
+internal partial class DiscordJsonApplicationIntegrationTypeConfiguration : IDiscordJsonApplicationIntegrationTypeConfiguration 
 {
     private readonly NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration _original;
     public DiscordJsonApplicationIntegrationTypeConfiguration(NetCord.JsonModels.JsonApplicationIntegrationTypeConfiguration original)
@@ -16167,7 +16167,7 @@ public class DiscordJsonApplicationIntegrationTypeConfiguration : IDiscordJsonAp
 }
 
 
-public class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnapshotMessage 
+internal partial class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnapshotMessage 
 {
     private readonly NetCord.JsonModels.JsonMessageSnapshotMessage _original;
     public DiscordJsonMessageSnapshotMessage(NetCord.JsonModels.JsonMessageSnapshotMessage original)
@@ -16187,7 +16187,7 @@ public class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnapshotMess
 }
 
 
-public class DiscordJsonMessagePollMedia : IDiscordJsonMessagePollMedia 
+internal partial class DiscordJsonMessagePollMedia : IDiscordJsonMessagePollMedia 
 {
     private readonly NetCord.JsonModels.JsonMessagePollMedia _original;
     public DiscordJsonMessagePollMedia(NetCord.JsonModels.JsonMessagePollMedia original)
@@ -16201,7 +16201,7 @@ public class DiscordJsonMessagePollMedia : IDiscordJsonMessagePollMedia
 }
 
 
-public class DiscordJsonMessagePollAnswer : IDiscordJsonMessagePollAnswer 
+internal partial class DiscordJsonMessagePollAnswer : IDiscordJsonMessagePollAnswer 
 {
     private readonly NetCord.JsonModels.JsonMessagePollAnswer _original;
     public DiscordJsonMessagePollAnswer(NetCord.JsonModels.JsonMessagePollAnswer original)
@@ -16214,7 +16214,7 @@ public class DiscordJsonMessagePollAnswer : IDiscordJsonMessagePollAnswer
 }
 
 
-public class DiscordJsonMessagePollResults : IDiscordJsonMessagePollResults 
+internal partial class DiscordJsonMessagePollResults : IDiscordJsonMessagePollResults 
 {
     private readonly NetCord.JsonModels.JsonMessagePollResults _original;
     public DiscordJsonMessagePollResults(NetCord.JsonModels.JsonMessagePollResults original)
@@ -16228,7 +16228,7 @@ public class DiscordJsonMessagePollResults : IDiscordJsonMessagePollResults
 }
 
 
-public class DiscordTeamUser : IDiscordTeamUser 
+internal partial class DiscordTeamUser : IDiscordTeamUser 
 {
     private readonly NetCord.TeamUser _original;
     public DiscordTeamUser(NetCord.TeamUser original)
@@ -16287,7 +16287,7 @@ public class DiscordTeamUser : IDiscordTeamUser
 }
 
 
-public class DiscordEmojiReference : IDiscordEmojiReference 
+internal partial class DiscordEmojiReference : IDiscordEmojiReference 
 {
     private readonly NetCord.EmojiReference _original;
     public DiscordEmojiReference(NetCord.EmojiReference original)
@@ -16301,7 +16301,7 @@ public class DiscordEmojiReference : IDiscordEmojiReference
 }
 
 
-public class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCount 
+internal partial class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCount 
 {
     private readonly NetCord.MessagePollAnswerCount _original;
     public DiscordMessagePollAnswerCount(NetCord.MessagePollAnswerCount original)
@@ -16315,7 +16315,7 @@ public class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCount
 }
 
 
-public class DiscordJsonVoiceState : IDiscordJsonVoiceState 
+internal partial class DiscordJsonVoiceState : IDiscordJsonVoiceState 
 {
     private readonly NetCord.Gateway.JsonModels.JsonVoiceState _original;
     public DiscordJsonVoiceState(NetCord.Gateway.JsonModels.JsonVoiceState original)
@@ -16339,7 +16339,7 @@ public class DiscordJsonVoiceState : IDiscordJsonVoiceState
 }
 
 
-public class DiscordJsonPresence : IDiscordJsonPresence 
+internal partial class DiscordJsonPresence : IDiscordJsonPresence 
 {
     private readonly NetCord.Gateway.JsonModels.JsonPresence _original;
     public DiscordJsonPresence(NetCord.Gateway.JsonModels.JsonPresence original)
@@ -16355,7 +16355,7 @@ public class DiscordJsonPresence : IDiscordJsonPresence
 }
 
 
-public class DiscordJsonGuildWelcomeScreen : IDiscordJsonGuildWelcomeScreen 
+internal partial class DiscordJsonGuildWelcomeScreen : IDiscordJsonGuildWelcomeScreen 
 {
     private readonly NetCord.JsonModels.JsonGuildWelcomeScreen _original;
     public DiscordJsonGuildWelcomeScreen(NetCord.JsonModels.JsonGuildWelcomeScreen original)
@@ -16368,7 +16368,7 @@ public class DiscordJsonGuildWelcomeScreen : IDiscordJsonGuildWelcomeScreen
 }
 
 
-public class DiscordJsonStageInstance : IDiscordJsonStageInstance 
+internal partial class DiscordJsonStageInstance : IDiscordJsonStageInstance 
 {
     private readonly NetCord.JsonModels.JsonStageInstance _original;
     public DiscordJsonStageInstance(NetCord.JsonModels.JsonStageInstance original)
@@ -16385,7 +16385,7 @@ public class DiscordJsonStageInstance : IDiscordJsonStageInstance
 }
 
 
-public class DiscordJsonSticker : IDiscordJsonSticker 
+internal partial class DiscordJsonSticker : IDiscordJsonSticker 
 {
     private readonly NetCord.JsonModels.JsonSticker _original;
     public DiscordJsonSticker(NetCord.JsonModels.JsonSticker original)
@@ -16406,7 +16406,7 @@ public class DiscordJsonSticker : IDiscordJsonSticker
 }
 
 
-public class DiscordJsonGuildScheduledEvent : IDiscordJsonGuildScheduledEvent 
+internal partial class DiscordJsonGuildScheduledEvent : IDiscordJsonGuildScheduledEvent 
 {
     private readonly NetCord.JsonModels.JsonGuildScheduledEvent _original;
     public DiscordJsonGuildScheduledEvent(NetCord.JsonModels.JsonGuildScheduledEvent original)
@@ -16434,7 +16434,7 @@ public class DiscordJsonGuildScheduledEvent : IDiscordJsonGuildScheduledEvent
 }
 
 
-public class DiscordJsonRoleTags : IDiscordJsonRoleTags 
+internal partial class DiscordJsonRoleTags : IDiscordJsonRoleTags 
 {
     private readonly NetCord.JsonModels.JsonRoleTags _original;
     public DiscordJsonRoleTags(NetCord.JsonModels.JsonRoleTags original)
@@ -16451,7 +16451,7 @@ public class DiscordJsonRoleTags : IDiscordJsonRoleTags
 }
 
 
-public class DiscordJsonTeamUser : IDiscordJsonTeamUser 
+internal partial class DiscordJsonTeamUser : IDiscordJsonTeamUser 
 {
     private readonly NetCord.JsonModels.JsonTeamUser _original;
     public DiscordJsonTeamUser(NetCord.JsonModels.JsonTeamUser original)
@@ -16466,7 +16466,7 @@ public class DiscordJsonTeamUser : IDiscordJsonTeamUser
 }
 
 
-public class DiscordJsonMessagePollAnswerCount : IDiscordJsonMessagePollAnswerCount 
+internal partial class DiscordJsonMessagePollAnswerCount : IDiscordJsonMessagePollAnswerCount 
 {
     private readonly NetCord.JsonModels.JsonMessagePollAnswerCount _original;
     public DiscordJsonMessagePollAnswerCount(NetCord.JsonModels.JsonMessagePollAnswerCount original)
@@ -16480,7 +16480,7 @@ public class DiscordJsonMessagePollAnswerCount : IDiscordJsonMessagePollAnswerCo
 }
 
 
-public class DiscordJsonUserActivity : IDiscordJsonUserActivity 
+internal partial class DiscordJsonUserActivity : IDiscordJsonUserActivity 
 {
     private readonly NetCord.Gateway.JsonModels.JsonUserActivity _original;
     public DiscordJsonUserActivity(NetCord.Gateway.JsonModels.JsonUserActivity original)
@@ -16506,7 +16506,7 @@ public class DiscordJsonUserActivity : IDiscordJsonUserActivity
 }
 
 
-public class DiscordJsonWelcomeScreenChannel : IDiscordJsonWelcomeScreenChannel 
+internal partial class DiscordJsonWelcomeScreenChannel : IDiscordJsonWelcomeScreenChannel 
 {
     private readonly NetCord.JsonModels.JsonWelcomeScreenChannel _original;
     public DiscordJsonWelcomeScreenChannel(NetCord.JsonModels.JsonWelcomeScreenChannel original)
@@ -16521,7 +16521,7 @@ public class DiscordJsonWelcomeScreenChannel : IDiscordJsonWelcomeScreenChannel
 }
 
 
-public class DiscordJsonGuildScheduledEventMetadata : IDiscordJsonGuildScheduledEventMetadata 
+internal partial class DiscordJsonGuildScheduledEventMetadata : IDiscordJsonGuildScheduledEventMetadata 
 {
     private readonly NetCord.JsonModels.JsonGuildScheduledEventMetadata _original;
     public DiscordJsonGuildScheduledEventMetadata(NetCord.JsonModels.JsonGuildScheduledEventMetadata original)
@@ -16533,7 +16533,7 @@ public class DiscordJsonGuildScheduledEventMetadata : IDiscordJsonGuildScheduled
 }
 
 
-public class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJsonGuildScheduledEventRecurrenceRule 
+internal partial class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJsonGuildScheduledEventRecurrenceRule 
 {
     private readonly NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule _original;
     public DiscordJsonGuildScheduledEventRecurrenceRule(NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRule original)
@@ -16554,7 +16554,7 @@ public class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJsonGuildSch
 }
 
 
-public class DiscordJsonUserActivityTimestamps : IDiscordJsonUserActivityTimestamps 
+internal partial class DiscordJsonUserActivityTimestamps : IDiscordJsonUserActivityTimestamps 
 {
     private readonly NetCord.Gateway.JsonModels.JsonUserActivityTimestamps _original;
     public DiscordJsonUserActivityTimestamps(NetCord.Gateway.JsonModels.JsonUserActivityTimestamps original)
@@ -16567,7 +16567,7 @@ public class DiscordJsonUserActivityTimestamps : IDiscordJsonUserActivityTimesta
 }
 
 
-public class DiscordJsonParty : IDiscordJsonParty 
+internal partial class DiscordJsonParty : IDiscordJsonParty 
 {
     private readonly NetCord.Gateway.JsonModels.JsonParty _original;
     public DiscordJsonParty(NetCord.Gateway.JsonModels.JsonParty original)
@@ -16580,7 +16580,7 @@ public class DiscordJsonParty : IDiscordJsonParty
 }
 
 
-public class DiscordJsonUserActivityAssets : IDiscordJsonUserActivityAssets 
+internal partial class DiscordJsonUserActivityAssets : IDiscordJsonUserActivityAssets 
 {
     private readonly NetCord.Gateway.JsonModels.JsonUserActivityAssets _original;
     public DiscordJsonUserActivityAssets(NetCord.Gateway.JsonModels.JsonUserActivityAssets original)
@@ -16595,7 +16595,7 @@ public class DiscordJsonUserActivityAssets : IDiscordJsonUserActivityAssets
 }
 
 
-public class DiscordJsonUserActivitySecrets : IDiscordJsonUserActivitySecrets 
+internal partial class DiscordJsonUserActivitySecrets : IDiscordJsonUserActivitySecrets 
 {
     private readonly NetCord.Gateway.JsonModels.JsonUserActivitySecrets _original;
     public DiscordJsonUserActivitySecrets(NetCord.Gateway.JsonModels.JsonUserActivitySecrets original)
@@ -16609,7 +16609,7 @@ public class DiscordJsonUserActivitySecrets : IDiscordJsonUserActivitySecrets
 }
 
 
-public class DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday : IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday 
+internal partial class DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday : IDiscordJsonGuildScheduledEventRecurrenceRuleNWeekday 
 {
     private readonly NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday _original;
     public DiscordJsonGuildScheduledEventRecurrenceRuleNWeekday(NetCord.JsonModels.JsonGuildScheduledEventRecurrenceRuleNWeekday original)

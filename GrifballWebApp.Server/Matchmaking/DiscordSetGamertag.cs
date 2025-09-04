@@ -1,4 +1,4 @@
-﻿using DiscordInterfaces;
+﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
