@@ -5,8 +5,11 @@
         <Configuration>
           <Exclude>
             <Module>[GrifballWebApp.Database.Migrations]*</Module>
+            <Module>[DiscordInterfaceSourceGen]</Module>
+            <Module>[DiscordInterfaces]</Module>
           </Exclude>
           <ExcludeByFile>
+            <File>**/DiscordInterfaces/*.cs</File>
             <File>**/GrifballWebApp.Database/Migrations/*.cs</File>
           </ExcludeByFile>
         </Configuration>
