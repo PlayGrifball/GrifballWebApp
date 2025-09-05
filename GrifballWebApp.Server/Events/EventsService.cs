@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Signups;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,11 @@ public class EventsService
     private readonly ILogger<EventsService> _logger;
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _eventsChannel;
-    private readonly IDiscordClient _discordClient;
+    private readonly IDiscordRestClient _discordClient;
     private readonly SignupsService _signupsService;
     private readonly GrifballContext _context;
     private readonly UrlService _urlService;
-    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IDiscordClient discordClient, SignupsService signupsService, GrifballContext grifballContext, UrlService urlService)
+    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IDiscordRestClient discordClient, SignupsService signupsService, GrifballContext grifballContext, UrlService urlService)
     {
         _logger = logger;
         _discordOptions = discordOptions;

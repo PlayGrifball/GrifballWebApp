@@ -136,7 +136,7 @@ public class Program
         interfaceBodies.Add(sb.ToString());
         // Class
         var classSb = new StringBuilder();
-        classSb.AppendLine($"internal partial class {className} : {interfaceName}{genericConstraint}");
+        classSb.AppendLine($"public partial class {className} : {interfaceName}{genericConstraint}");
         classSb.AppendLine("{");
         if (type.IsGenericType)
         {
@@ -342,7 +342,7 @@ public class Program
     {
         bool isNullableValueType = Nullable.GetUnderlyingType(prop.ReturnType) != null;
         var nullable = prop.CustomAttributes
-            .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableContextAttribute");
+            .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute");
         bool isNullableReferenceType = nullable != null &&
             nullable.ConstructorArguments.Count > 0 &&
             (nullable.ConstructorArguments[0].Value?.ToString() == "2");
@@ -683,6 +683,14 @@ public class Program
         { "Application.GetCoverUrl", true },
         { "Application.GetAssetUrl", true },
         { "Application.GetStorePageAssetUrl", true },
+        { "RestGuild.GetIconUrl", true },
+        { "RestGuild.GetSplashUrl", true },
+        { "RestGuild.GetDiscoverySplashUrl", true },
+        { "RestGuild.GetBannerUrl", true },
+        { "GuildUser.GetGuildAvatarUrl", true },
+        { "GuildUser.GetGuildBannerUrl", true },
+        { "Role.GetIconUrl", true },
+        { "Team.GetIconUrl", true },
         // Add more entries as needed, format: { "Name.PropertyName", true }
     };
 
@@ -760,14 +768,13 @@ public class Program
 
             if (forInterface && method.IsStatic && type == typeof(NetCord.Interaction) && returnType is "IDiscordInteraction" && method.Name is "CreateFromJson" && parameters.Length is 4)
             {
-                sb.AppendLine($"    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallback, IDiscordRestRequestProperties?, System.Threading.CancellationToken, Task> sendResponseAsync, IDiscordRestClient client)");
+                sb.AppendLine($"    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallback, NetCord.Rest.RestRequestProperties?, System.Threading.CancellationToken, Task> sendResponseAsync, IDiscordRestClient client)");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        Task converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)");
                 sb.AppendLine($"        {{");
                 sb.AppendLine($"            NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception(\"Cast failed\");"); // TODO: is this cast right?
                 sb.AppendLine($"            IDiscordInteraction discordInteraction = new DiscordInteraction(casted);"); // TODO: is this cast right?
-                sb.AppendLine($"            IDiscordRestRequestProperties? discordProperties = properties is null ? null : new DiscordRestRequestProperties(properties);");
-                sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, discordProperties, cancellationToken);");
+                sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, properties, cancellationToken);");
                 sb.AppendLine($"        }}");
                 sb.AppendLine($"        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, converted, client.Original));");
                 sb.AppendLine($"    }}");
@@ -1259,8 +1266,37 @@ public class Program
         }
         if (typeMap.TryGetValue(type.Name, out var alias))
             return alias + NullabilityModifier(type);
+        // If the type is one of these then just return the type
+        Type[] ignoredTypes = [
+            typeof(RestRequestProperties),
+            typeof(GuildThreadFromMessageProperties),
+            typeof(InteractionCallback),
+            typeof(MessageProperties),
+            typeof(InteractionCallback<>),
+            typeof(PaginationProperties<>),
+            typeof(AttachmentProperties),
+            typeof(EmbedProperties),
+            typeof(AllowedMentionsProperties),
+            typeof(IComponentProperties),
+        ];
+        if ((!type.IsGenericType && ignoredTypes.Contains(type)) || (type.IsGenericType && ignoredTypes.Contains(type.GetGenericTypeDefinition()))) // TODO: Not sure if excluding InteractionCallback is correct here, might not be able to intercept with NSubstitute
+        {
+            if (type.IsGenericType)
+            {
+                if (type.FullName is null)
+                    throw new Exception("Full name null");
+                var genericTypeName = type.FullName.Split('`')[0];
+                var types = type.GetGenericArguments();
+                var final = string.Join(", ", types.Select(t => GetDiscordTypeName(t, interfaceQueue, isGenericMethod, withNullable, genericIndex + 1)));
+                return $"{genericTypeName}<{final}>" + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
+            }
+            else
+            {
+                return type.FullName + NullabilityModifier(withNullable, genericIndex) ?? type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
+            }
+        }
         // If type is not interface or class, use its name directly
-        if ((!type.IsInterface && !type.IsClass && !type.IsGenericType) || type == typeof(InteractionCallback) || type == typeof(InteractionCallback<>)) // TODO: Not sure if excluding InteractionCallback is correct here, might not be able to intercept with NSubstitute
+        if (!type.IsInterface && !type.IsClass && !type.IsGenericType)
             return type.FullName + NullabilityModifier(withNullable, genericIndex) ?? type.Name + NullabilityModifier(withNullable, genericIndex); // Add nullable ? here
         // If type is from NetCord, wrap it (but not for enums)
         if (type.Namespace != null && type.Namespace.StartsWith("NetCord"))

@@ -1,14 +1,16 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using Docker.DotNet.Models;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Seeder;
+using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NSubstitute;
-using GrifballWebApp.Server;
 using Microsoft.Extensions.Options;
-using GrifballWebApp.Seeder;
-using GrifballWebApp.Server.Services;
 using NetCord.Rest;
+using NSubstitute;
 
 namespace GrifballWebApp.Test;
 
@@ -20,7 +22,7 @@ public class QueueServiceTests
     private IQueueRepository _queueRepository;
     private IDataPullService _dataPullService;
     private GrifballContext _context;
-    private IDiscordClient _discordClient;
+    private IDiscordRestClient _discordClient;
     private IOptions<DiscordOptions> _discordOptions;
 
     private QueueService _service;
@@ -34,21 +36,17 @@ public class QueueServiceTests
         _logger = Substitute.For<ILogger<QueueService>>();
         _queueRepository = new QueueRepository(_context);
         _dataPullService = Substitute.For<IDataPullService>();
-        _discordClient = Substitute.For<IDiscordClient>();
+        _discordClient = Substitute.For<IDiscordRestClient>();
+        var msg = Substitute.For<IDiscordRestMessage>();
+        var author = Substitute.For<IDiscordUser>();
+        author.Id.Returns(1ul); // Should match bot id
+        msg.Author.Returns(author);
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
-            .Returns(new Server.RestMessage()
-            {
-                Author = new Author()
-                {
-                    Id = 1, // Should match bot id
-                },
-                Embeds = [],
-            });
+            .Returns(msg);
+        var thread = Substitute.For<IDiscordGuildThread>();
+        thread.Id.Returns(1ul);
         _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
-            .Returns(new GuildThread()
-            {
-                Id = 1,
-            });
+            .Returns(thread);
         _discordOptions = Substitute.For<IOptions<DiscordOptions>>();
         _discordOptions.Value.Returns(new DiscordOptions
         {

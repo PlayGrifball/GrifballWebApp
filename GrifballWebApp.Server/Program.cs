@@ -1,3 +1,4 @@
+using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Database.Services;
@@ -226,7 +227,7 @@ public class Program
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
-        builder.Services.AddSingleton<IDiscordClient, DiscordClient>();
+        builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
         builder.Services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
