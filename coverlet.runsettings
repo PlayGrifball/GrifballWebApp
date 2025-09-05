@@ -6,7 +6,7 @@
           <Exclude>
             <Module>[GrifballWebApp.Database.Migrations]*</Module>
 			<Module>[DiscordInterfaceSourceGen]</Module>
-			<Module>[DiscordInterface.Generated]*</Module>
+			<Module>[DiscordInterfaces]</Module>
           </Exclude>
           <ExcludeByFile>
             <File>**/GrifballWebApp.Database/Migrations/*.cs</File>
