@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using MediatR;
@@ -15,11 +16,11 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     private readonly IQueueRepository _queryService;
     private readonly IPublisher _publisher;
     private readonly GrifballContext _context;
-    private readonly IDiscordClient _discordClient;
+    private readonly IDiscordRestClient _discordClient;
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly QueueService _displayQueueService;
 
-    public ButtonInteractions(IQueueRepository queryService, IPublisher publisher, GrifballContext context, IDiscordClient discordClient, IOptions<DiscordOptions> discordOptions, QueueService displayQueueService)
+    public ButtonInteractions(IQueueRepository queryService, IPublisher publisher, GrifballContext context, IDiscordRestClient discordClient, IOptions<DiscordOptions> discordOptions, QueueService displayQueueService)
     {
         _queryService = queryService;
         _publisher = publisher;

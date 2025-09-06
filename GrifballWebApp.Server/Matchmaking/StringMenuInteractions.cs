@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +12,9 @@ namespace GrifballWebApp.Server.Matchmaking;
 public class StringMenuInteractions : ComponentInteractionModule<StringMenuInteractionContext>
 {
     private readonly GrifballContext _context;
-    private readonly IDiscordClient _discordClient;
+    private readonly IDiscordRestClient _discordClient;
     private readonly QueueService _displayQueueService;
-    public StringMenuInteractions(GrifballContext context, IDiscordClient discordClient, QueueService displayQueueService)
+    public StringMenuInteractions(GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService)
     {
         _context = context;
         _discordClient = discordClient;

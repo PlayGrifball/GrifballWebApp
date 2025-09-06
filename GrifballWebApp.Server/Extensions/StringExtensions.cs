@@ -1,4 +1,5 @@
-﻿using DiscordInterfaces;
+﻿using DiscordInterface.Generated;
+using DiscordInterfaces;
 using GrifballWebApp.Database.Models;
 using NetCord.Rest;
 using NetCord.Services;

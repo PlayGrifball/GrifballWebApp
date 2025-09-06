@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
@@ -17,13 +18,13 @@ public class QueueService
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _queueChannel;
     private readonly IQueueRepository _queueRepository;
-    private readonly IDiscordClient _discordClient;
+    private readonly IDiscordRestClient _discordClient;
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
-        IDiscordClient discordClient,
+        IDiscordRestClient discordClient,
         GrifballContext context,
         IDataPullService dataPullService)
     {
@@ -352,7 +353,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordRestClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -453,7 +454,7 @@ public class QueueService
         // TODO: Requeue players?
     }
 
-    private async Task CloseThread(IDiscordClient restClient, ulong? threadId, CancellationToken ct)
+    private async Task CloseThread(IDiscordRestClient restClient, ulong? threadId, CancellationToken ct)
     {
         // Delete thread soon...
         if (threadId is not null)
@@ -505,7 +506,7 @@ public class QueueService
     }
 
 
-    public async Task UpdateThreadMessage(MatchedMatch? match, GrifballContext _context, IDiscordClient _discordClient) // TODO: Use DI
+    public async Task UpdateThreadMessage(MatchedMatch? match, GrifballContext _context, IDiscordRestClient _discordClient) // TODO: Use DI
     {
         if (match is not null && match.ThreadID is not null)
         {

@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+﻿using DiscordInterface.Generated;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
@@ -13,7 +14,7 @@ using System.Threading.Channels;
 namespace GrifballWebApp.Server;
 
 [GatewayEvent(nameof(GatewayClient.MessageCreate))]
-public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IGatewayEventHandler<Message>
+public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IGatewayEventHandler<Message>
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
@@ -59,7 +60,7 @@ public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactor
         // Ensure the user exists in the database
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
         {
-            context.Add(new DiscordUser()
+            context.Add(new Database.Models.DiscordUser()
             {
                 DiscordUserID = UserId,
                 DiscordUsername = message.Author.Username,
@@ -69,7 +70,7 @@ public class MessageCreateHandler(IDiscordClient discordClient, IDbContextFactor
 
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == BotID))
         {
-            context.Add(new DiscordUser()
+            context.Add(new Database.Models.DiscordUser()
             {
                 DiscordUserID = BotID,
                 DiscordUsername = "GrifballWebApp",
