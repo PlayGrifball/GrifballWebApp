@@ -1,0 +1,185 @@
+﻿using DiscordInterface.Generated;
+using DiscordInterfaces;
+using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server;
+using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Services;
+using MediatR;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NetCord.Rest;
+using NSubstitute;
+
+namespace GrifballWebApp.Test
+{
+    [TestFixture]
+    [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+    public class ButtonInteractionsTests
+    {
+        private GrifballContext _context;
+        private IQueueRepository _queueRepository;
+        private IPublisher _publisher;
+        private IDiscordRestClient _discordClient;
+        private IOptions<DiscordOptions> _discordOptions;
+        private QueueService _queueService;
+        private ButtonInteractions _buttonInteractions;
+        private ILogger<QueueService> _logger;
+        private IDataPullService _dataPullService;
+        private IDiscordButtonInteractionContext _discordContext;
+
+        [SetUp]
+        public async Task SetUp()
+        {
+            _context = await SetUpFixture.NewGrifballContext();
+            _queueRepository = Substitute.For<IQueueRepository>();
+            _publisher = Substitute.For<IPublisher>();
+            _discordClient = Substitute.For<IDiscordRestClient>();
+            _discordOptions = Substitute.For<IOptions<DiscordOptions>>();
+            _discordOptions.Value.Returns(new DiscordOptions { QueueChannel = 123456 });
+            _logger = Substitute.For<ILogger<QueueService>>();
+            _dataPullService = Substitute.For<IDataPullService>();
+            _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
+            _buttonInteractions = new ButtonInteractions(_queueRepository, _publisher, _context, _discordClient, _discordOptions, _queueService);
+
+            _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
+            var type = _buttonInteractions.GetType();
+            var field = type.GetField("_discordContext", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field!.SetValue(_buttonInteractions, _discordContext);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _context.Dispose();
+        }
+
+        [Test]
+        public async Task SetGamertag_Should_SendModal()
+        {
+            // Act
+            await _buttonInteractions.SetGamertag();
+
+            // Assert
+            await _discordContext.Received(1).Interaction.SendResponseAsync(Arg.Is<InteractionCallback>(cb =>
+                cb.Type == InteractionCallbackType.Modal
+            ));
+        }
+
+        [Test]
+        public async Task JoinQueue_Should_Reject_If_User_Has_No_Gamertag()
+        {
+            // Arrange
+            _discordContext.User.Id.Returns(123UL);
+
+            // No user in DB
+            // Act
+            await _buttonInteractions.JoinQueue();
+
+            // Assert
+            await AssertSendResponse("You must set your gamertag first");
+        }
+
+        private async Task AssertSendResponse(string message)
+        {
+            await _discordContext.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallback<InteractionMessageProperties>>(x => x.Data.Content == message), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        }
+
+        [Test]
+        public async Task JoinQueue_Should_Reject_If_Already_In_Queue()
+        {
+            // Arrange
+            var discordUser = new Database.Models.DiscordUser { DiscordUserID = 123, DiscordUsername = "TestUser" };
+            var user = new User { Id = 1, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT" } };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(123UL);
+
+            _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
+
+            // Act
+            await _buttonInteractions.JoinQueue();
+
+            // Assert
+            await AssertSendResponse("You are already in the queue!");
+        }
+
+        [Test]
+        public async Task JoinQueue_Should_Succeed_If_Not_In_Queue_Or_Match()
+        {
+            // Arrange
+            var discordUser = new Database.Models.DiscordUser()
+            {
+                DiscordUserID = 456,
+                DiscordUsername = "456",
+            };
+            var user = new User { Id = 2, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT2" } };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(456UL);
+
+            _queueRepository.GetQueuePlayer(user.Id).Returns((QueuedPlayer)null);
+            _queueRepository.IsInMatch(user.Id).Returns(false);
+
+            // Act
+            await _buttonInteractions.JoinQueue();
+
+            // Assert
+            await _queueRepository.Received(1).AddPlayerToQueue(user.Id);
+            await AssertSendResponse("You have joined the queue! 🎉");
+        }
+
+        [Test]
+        public async Task LeaveQueue_Should_Reject_If_Not_In_Queue()
+        {
+            // Arrange
+            var discordUser = new Database.Models.DiscordUser()
+            {
+                DiscordUserID = 789,
+                DiscordUsername = "789",
+            };
+            var user = new User { Id = 3, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT3" } };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(789UL);
+
+            _queueRepository.GetQueuePlayer(user.Id).Returns((QueuedPlayer)null);
+
+            // Act
+            await _buttonInteractions.LeaveQueue();
+
+            // Assert
+            await AssertSendResponse("You are not in the matchmaking queue.");
+        }
+
+        [Test]
+        public async Task LeaveQueue_Should_Succeed_If_In_Queue()
+        {
+            // Arrange
+            var discordUser = new Database.Models.DiscordUser()
+            {
+                DiscordUserID = 1011,
+                DiscordUsername = "1011",
+            };
+            var user = new User { Id = 4, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT4" } };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(1011UL);
+
+            _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
+
+            // Act
+            await _buttonInteractions.LeaveQueue();
+
+            // Assert
+            await _queueRepository.Received(1).RemovePlayerToQueue(user.Id);
+            await AssertSendResponse("You have left the queue");
+        }
+
+        // Add more tests for VoteForWinner, etc.
+    }
+}

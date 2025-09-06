@@ -1,4 +1,5 @@
 ﻿using DiscordInterface.Generated;
+using DiscordInterfaces;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
@@ -13,6 +14,8 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionContext>
 {
+    // Instead of using Context directly, use _discordContext which is a wrapper that exposes only what we want, allows for NSubstitute mocking
+    private IDiscordButtonInteractionContext? _discordContext;
     private readonly IQueueRepository _queryService;
     private readonly IPublisher _publisher;
     private readonly GrifballContext _context;
@@ -32,13 +35,14 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
     private async Task<Database.Models.User?> UserGuard()
     {
+        _discordContext ??= Context.ToDiscordContext();
         var user = await _context.Users
                     .Include(x => x.XboxUser)
-                    .Where(x => x.DiscordUserID == (long)Context.User.Id)
+                    .Where(x => x.DiscordUserID == (long)_discordContext.User.Id)
                     .FirstOrDefaultAsync();
         if (user is null || user.XboxUser is null)
         {
-            await Context.TempResponse("You must set your gamertag first");
+            await _discordContext.TempResponse("You must set your gamertag first");
             return null;
         }
 
@@ -48,6 +52,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     [ComponentInteraction(DiscordButtonContants.SetGamertag)]
     public async Task SetGamertag()
     {
+        _discordContext ??= Context.ToDiscordContext();
         var modal = new ModalProperties(DiscordModalsContants.SetGamertag, "Set Gamertag")
             .AddComponents(new TextInputProperties("gamertag", TextInputStyle.Short, "Gamertag")
             {
@@ -55,14 +60,14 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
                 MaxLength = 20,
             });
 
-        
-       await Context.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+        await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
     }
 
 
     [ComponentInteraction(DiscordButtonContants.JoinQueue)]
     public async Task JoinQueue()
     {
+        _discordContext ??= Context.ToDiscordContext();
         var user = await UserGuard();
         if (user is null) return;
 
@@ -71,20 +76,21 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         if (queuePlayer is not null || inMatch)
         {
-            await Context.TempResponse(queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!");
+            await _discordContext.TempResponse(queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!");
         }
         else
         {
             await _queryService.AddPlayerToQueue(user.Id);
 
             _ = _publisher.Publish(new UpdateDisplayNotification());
-            await Context.TempResponse("You have joined the queue! 🎉");
+            await _discordContext.TempResponse("You have joined the queue! 🎉");
         }
     }
 
     [ComponentInteraction(DiscordButtonContants.LeaveQueue)]
     public async Task LeaveQueue()
     {
+        _discordContext ??= Context.ToDiscordContext();
         var user = await UserGuard();
         if (user is null) return;
 
@@ -92,26 +98,27 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         if (queuePlayer is null)
         {
-            await Context.TempResponse("You are not in the matchmaking queue.");
+            await _discordContext.TempResponse("You are not in the matchmaking queue.");
         }
         else
         {
             await _queryService.RemovePlayerToQueue(user.Id);
             _ = _publisher.Publish(new UpdateDisplayNotification());
-            await Context.TempResponse("You have left the queue");
+            await _discordContext.TempResponse("You have left the queue");
         }
     }
 
     [ComponentInteraction(DiscordButtonContants.VoteForWinner)]
     public async Task VoteForWinner(int matchId, string winner)
     {
+        _discordContext ??= Context.ToDiscordContext();
         var user = await UserGuard();
         if (user is null) return;
 
         var parsed = Enum.TryParse<WinnerVote>(winner, out var outValue);
         if (parsed is false)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"I could not parse the value {winner}. Contact developer, expected values are {string.Join(',', Enum.GetValues<WinnerVote>())}",
             }));
@@ -130,7 +137,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         if (match is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"Match does not exist or it is no longer active",
                 Flags = MessageFlags.Ephemeral,
@@ -144,7 +151,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         if (me is null)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"You are not allowed to vote since you are not in this match",
                 Flags = MessageFlags.Ephemeral,
@@ -153,7 +160,7 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
         }
         else if (me.Kicked)
         {
-            await Context.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
             {
                 Content = $"You are not allowed to vote since you have been kicked",
                 Flags = MessageFlags.Ephemeral,
@@ -176,6 +183,6 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
 
         await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
 
-        await Context.TempResponse($"Thanks for voting! You voted for {outValue}");
+        await _discordContext.TempResponse($"Thanks for voting! You voted for {outValue}");
     }
 }
