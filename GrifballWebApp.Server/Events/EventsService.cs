@@ -1,7 +1,6 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Signups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;
@@ -15,10 +14,9 @@ public class EventsService
     private readonly IOptions<DiscordOptions> _discordOptions;
     private readonly ulong _eventsChannel;
     private readonly IDiscordRestClient _discordClient;
-    private readonly SignupsService _signupsService;
     private readonly GrifballContext _context;
     private readonly UrlService _urlService;
-    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IDiscordRestClient discordClient, SignupsService signupsService, GrifballContext grifballContext, UrlService urlService)
+    public EventsService(ILogger<EventsService> logger, IOptions<DiscordOptions> discordOptions, IDiscordRestClient discordClient, GrifballContext grifballContext, UrlService urlService)
     {
         _logger = logger;
         _discordOptions = discordOptions;
@@ -26,7 +24,6 @@ public class EventsService
         if (_eventsChannel is 0)
             throw new Exception("Discord:EventsChannel is not set");
         _discordClient = discordClient;
-        _signupsService = signupsService;
         _context = grifballContext;
         _urlService = urlService;
     }
@@ -37,8 +34,6 @@ public class EventsService
 
     private async Task UpdateMessage(CancellationToken ct)
     {
-        var me = await _discordClient.GetCurrentUserAsync(null, ct);
-
         var messages = (await _discordClient.GetMessagesAsync(_eventsChannel, new PaginationProperties<ulong>()
         {
             BatchSize = 20,
