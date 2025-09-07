@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
-import { Config, MatchWithMetadata, ViewerData } from '../../bracketTypes/types';
+import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,8 +10,7 @@ import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDi
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
-//import { BracketsViewer } from 'brackets-viewer';
-//import { BracketsManager } from 'brackets-manager/dist'
+import { Locale } from 'brackets-viewer/dist/lang';
 
 @UntilDestroy()
 @Component({
@@ -71,7 +70,7 @@ export class PlayoffBracketComponent implements OnInit {
         'winner-bracket-final': 'WB Final',
         'consolation-final': 'Semi {{position}}',
       },
-    });
+    } as Locale);
 
     let config: Config = {
       clear: true
