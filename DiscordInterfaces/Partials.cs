@@ -21,7 +21,7 @@ public partial class DiscordRestClient
         else
         {
             return await ModifyMessageAsync(channelId, messageId.Value,
-                (x) => x.WithContent(message.Content!) // TODO: This generated wrong. It should accept null
+                (x) => x.WithContent(message.Content!) // This generated wrong. It can accept null
                 .WithAttachments(message.Attachments)
                 .WithEmbeds(message.Embeds)
                 .WithAllowedMentions(message.AllowedMentions)

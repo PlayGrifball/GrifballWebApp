@@ -213,7 +213,7 @@ public class Program
                     var argClassName = $"Discord{GetTypeNameWithoutLeadingI(argType, interfaceQueue, false)}";
                     if (!hasSetter)
                     {
-                        // TODO: Not sure why cast to as I{argClassName} is needed here, but it is
+                        // Have not tested these cast yet, currently no usage
                         classSb.AppendLine($"    public {memberTypeName}{nullableModifier} {prop.Name} => {nullCheck}_original.{prop.Name}.Select(x => new {argClassName}(x) as I{argClassName}).ToImmutableArray();");
                     }
                     else
@@ -772,8 +772,8 @@ public class Program
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        Task converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)");
                 sb.AppendLine($"        {{");
-                sb.AppendLine($"            NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception(\"Cast failed\");"); // TODO: is this cast right?
-                sb.AppendLine($"            IDiscordInteraction discordInteraction = new DiscordInteraction(casted);"); // TODO: is this cast right?
+                sb.AppendLine($"            NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception(\"Cast failed\");"); // This cast has not been tested yet... but currently has no usage so I don't care
+                sb.AppendLine($"            IDiscordInteraction discordInteraction = new DiscordInteraction(casted);");
                 sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, properties, cancellationToken);");
                 sb.AppendLine($"        }}");
                 sb.AppendLine($"        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, converted, client.Original));");
