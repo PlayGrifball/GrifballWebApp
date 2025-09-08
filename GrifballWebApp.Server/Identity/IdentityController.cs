@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,14 +21,17 @@ public class IdentityController : ControllerBase
     private readonly SignInManager<User> _signInManager;
     private readonly IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
+    private readonly UserManagementService _userManagementService;
+    
     public IdentityController(ILogger<IdentityController> logger, UserManager<User> userManager, SignInManager<User> signInManager,
-        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider)
+        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider, UserManagementService userManagementService)
     {
         _logger = logger;
         _userManager = userManager;
         _signInManager = signInManager;
         _optionsMonitor = optionsMonitor;
         _timeProvider = timeProvider;
+        _userManagementService = userManagementService;
     }
 
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -234,6 +238,25 @@ public class IdentityController : ControllerBase
             DisplayName = User?.Identity?.Name ?? "Friend",
             UserID = GetUserID() ?? 0,
         };
+    }
+
+    [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [HttpPost(Name = "ResetPassword")]
+    public async Task<IActionResult> ResetPassword([FromBody] UsePasswordResetLinkRequestDto request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return BadRequest("Token is required");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword))
+            return BadRequest("New password is required");
+
+        var (success, message) = await _userManagementService.UsePasswordResetLink(request.Token, request.NewPassword, ct);
+
+        if (!success)
+            return BadRequest(message);
+
+        return Ok(message);
     }
 
     private int? GetUserID()

@@ -239,4 +239,101 @@ public class UserManagementService
         await transaction.CommitAsync(ct);
         return null;
     }
+
+    public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct)
+    {
+        var user = await _userManager.FindByNameAsync(username);
+        if (user == null)
+        {
+            return (false, "User not found", null, null);
+        }
+
+        // Check if user has a password (username/password login)
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            return (false, "User does not have a password set (likely uses external login only)", null, null);
+        }
+
+        // Generate a secure token
+        var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        // Clean up any existing unused reset links for this user
+        var existingLinks = await _context.PasswordResetLinks
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ToListAsync(ct);
+
+        _context.PasswordResetLinks.RemoveRange(existingLinks);
+
+        // Create new reset link
+        var resetLink = new PasswordResetLink
+        {
+            UserId = user.Id,
+            Token = token,
+            ExpiresAt = expiresAt,
+            CreatedByID = createdByUserId,
+            ModifiedByID = createdByUserId,
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+
+        _context.PasswordResetLinks.Add(resetLink);
+        await _context.SaveChangesAsync(ct);
+
+        return (true, "Password reset link generated successfully", token, expiresAt);
+    }
+
+    public async Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var resetLink = await _context.PasswordResetLinks
+            .Include(x => x.User)
+            .Where(x => x.Token == token && !x.IsUsed)
+            .FirstOrDefaultAsync(ct);
+
+        if (resetLink == null)
+        {
+            return (false, "Invalid or already used reset link");
+        }
+
+        if (resetLink.ExpiresAt <= DateTime.UtcNow)
+        {
+            // Clean up expired link
+            _context.PasswordResetLinks.Remove(resetLink);
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return (false, "Reset link has expired");
+        }
+
+        // Reset the password
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(resetLink.User);
+        var result = await _userManager.ResetPasswordAsync(resetLink.User, resetToken, newPassword);
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, $"Failed to reset password: {errors}");
+        }
+
+        // Mark the reset link as used and clean up
+        _context.PasswordResetLinks.Remove(resetLink);
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        return (true, "Password reset successfully");
+    }
+
+    public async Task CleanupExpiredPasswordResetLinks(CancellationToken ct)
+    {
+        var expiredLinks = await _context.PasswordResetLinks
+            .Where(x => x.ExpiresAt <= DateTime.UtcNow || x.IsUsed)
+            .ToListAsync(ct);
+
+        if (expiredLinks.Any())
+        {
+            _context.PasswordResetLinks.RemoveRange(expiredLinks);
+            await _context.SaveChangesAsync(ct);
+        }
+    }
 }
