@@ -33,6 +33,12 @@ public class SetGamertagServiceTests
         );
     }
 
+    [TearDown]
+    public async Task Teardown()
+    {
+        await _context.DropDatabaseAndDispose();
+    }
+
     [Test]
     public async Task CanSetGamertag()
     {

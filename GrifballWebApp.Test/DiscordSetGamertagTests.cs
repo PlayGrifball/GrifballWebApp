@@ -1,6 +1,5 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Identity;
@@ -61,10 +60,10 @@ public class DiscordSetGamertagTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
+        await _context.DropDatabase();
         _scope.Dispose();
-        _context.Dispose();
     }
 
     // Test in different scenerios that may occur.

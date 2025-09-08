@@ -31,7 +31,7 @@ public class UserManagementServiceTests
     }
 
     [TearDown]
-    public void TearDown() => _context.Dispose();
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
     public async Task GetUsers_ShouldReturnPaginatedUsers()

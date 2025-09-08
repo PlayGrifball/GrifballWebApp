@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.MsSql;
 
 namespace GrifballWebApp.Test;
-internal class Utility
+internal static class Utility
 {
     internal static async Task<MsSqlContainer> NewSqlServer()
     {
@@ -44,5 +44,27 @@ internal class Utility
         var context = new GrifballContext(options);
         await context.Database.MigrateAsync();
         return context;
+    }
+
+    internal static async Task DropDatabaseAndDispose(this GrifballContext context)
+    {
+        await context.DropDatabase();
+        await context.DisposeAsync();
+    }
+
+    internal static async Task DropDatabase(this GrifballContext context)
+    {
+        var cs = context.Database.GetConnectionString();
+        var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(cs);
+        var dbName = builder.InitialCatalog;
+        builder.InitialCatalog = "master";
+        using var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString);
+        await connection.OpenAsync();
+        using var command = connection.CreateCommand();
+        command.CommandText = $@"
+        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+        DROP DATABASE [{dbName}];
+        ";
+        await command.ExecuteNonQueryAsync();
     }
 }

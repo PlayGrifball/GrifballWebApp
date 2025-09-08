@@ -40,6 +40,35 @@ public static class ContextExtensions
             );
             if (identityProp == null) continue;
 
+            var any = _context.ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Added)
+                .Where(e => e.Entity.GetType() == entityType.ClrType)
+                .Where(e =>
+                {
+                    if (identityProp.PropertyInfo is null)
+                        return false;
+                    var current = e.Property(identityProp.Name).CurrentValue;
+                    var bar = current != default;
+                    if (identityProp.ClrType == typeof(int))
+                    {
+                        return (int)current! > 0;
+                    }
+                    else if (identityProp.ClrType == typeof(long))
+                    {
+                        return (long)current! > 0;
+                    }
+                    else
+                    {
+                        return current != default;
+                    }
+                })
+                .ToList();
+
+            if (any.Any() is false)
+            {
+                continue;
+            }
+
             var tableName = entityType.GetTableName();
             var schema = entityType.GetSchema() ?? "dbo";
             if (tablesWithIdentity.Any())

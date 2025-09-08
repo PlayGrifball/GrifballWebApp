@@ -1,5 +1,4 @@
 ﻿using DiscordInterface.Generated;
-using Docker.DotNet.Models;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Seeder;
@@ -62,9 +61,9 @@ public class QueueServiceTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
-        _context.Dispose();
+        await _context.DropDatabaseAndDispose();
     }
 
     [Test]

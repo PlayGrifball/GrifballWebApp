@@ -24,9 +24,9 @@ public class BracketServiceTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
-        _context.Dispose();
+        await _context.DropDatabaseAndDispose();
     }
 
     private async Task EnsureSeasonExists(int seasonID)

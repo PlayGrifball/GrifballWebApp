@@ -1,4 +1,3 @@
-using GrifballWebApp.Database;
 using GrifballWebApp.Database.Interceptors;
 using GrifballWebApp.Database.Services;
 using Microsoft.Extensions.DependencyInjection;
