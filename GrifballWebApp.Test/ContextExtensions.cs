@@ -7,9 +7,6 @@ public static class ContextExtensions
 #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
     public static async Task DisableContraints(this GrifballContext _context, string table)
     {
-        if (_context.Database.CurrentTransaction is null)
-            throw new Exception("You should not being using this method outside a transaction");
-
         //await _context.Database.ExecuteSqlRawAsync("EXEC sp_msforeachtable \"ALTER TABLE ? NOCHECK CONSTRAINT all\"");
         await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} ON");
     }
@@ -45,6 +42,8 @@ public static class ContextExtensions
 
             var tableName = entityType.GetTableName();
             var schema = entityType.GetSchema() ?? "dbo";
+            if (tablesWithIdentity.Any())
+                throw new Exception("Unable to save identity column for more than one column at once");
             tablesWithIdentity.Add((schema, tableName));
         }
 

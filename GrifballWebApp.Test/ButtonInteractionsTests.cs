@@ -180,6 +180,149 @@ namespace GrifballWebApp.Test
             await AssertSendResponse("You have left the queue");
         }
 
-        // Add more tests for VoteForWinner, etc.
+        [TestCase(WinnerVote.Home)]
+        [TestCase(WinnerVote.Away)]
+        [TestCase(WinnerVote.Cancel)]
+        public async Task VoteForWinner_Should_SaveVote_And_Respond_When_Valid(WinnerVote voteFor)
+        {
+            // Arrange
+            var discordUserId = 2000UL;
+            var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+            var homeTeam = new MatchedTeam();
+            var awayTeam = new MatchedTeam();
+            var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = false };
+            var match = new MatchedMatch
+            {
+                Id = 99,
+                HomeTeam = homeTeam,
+                AwayTeam = awayTeam,
+                Active = true,
+            };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+            _context.MatchedTeams.Add(homeTeam);
+            _context.MatchedTeams.Add(awayTeam);
+            await _context.SaveChangesAsync();
+            matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
+            _context.MatchedPlayers.Add(matchedPlayer);
+            await _context.SaveChangesWithoutContraints();
+            _context.MatchedMatches.Add(match);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(discordUserId);
+
+            // Act
+            await _buttonInteractions.VoteForWinner(match.Id, voteFor.ToString());
+
+            // Assert
+            // Vote is saved
+            var vote = _context.MatchedWinnerVotes.FirstOrDefault(x => x.MatchId == match.Id && x.MatchedPlayerId == matchedPlayer.Id);
+            Assert.That(vote, Is.Not.Null, "Vote was not saved to the database.");
+            Assert.That(vote.WinnerVote, Is.EqualTo(voteFor));
+
+            // User receives thanks message
+            await AssertSendResponse($"Thanks for voting! You voted for {voteFor}");
+        }
+
+        [Test]
+        public async Task VoteForWinner_Should_HandleKickedFromMatch()
+        {
+            // Arrange
+            var discordUserId = 2000UL;
+            var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+            var homeTeam = new MatchedTeam();
+            var awayTeam = new MatchedTeam();
+            var matchedPlayer = new MatchedPlayer { Id = 100, UserID = user.Id, User = user, Kicked = true };
+            var match = new MatchedMatch
+            {
+                Id = 99,
+                HomeTeam = homeTeam,
+                AwayTeam = awayTeam,
+                Active = true,
+            };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+            _context.MatchedTeams.Add(homeTeam);
+            _context.MatchedTeams.Add(awayTeam);
+            await _context.SaveChangesAsync();
+            matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
+            _context.MatchedPlayers.Add(matchedPlayer);
+            await _context.SaveChangesWithoutContraints();
+            _context.MatchedMatches.Add(match);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(discordUserId);
+
+            // Act
+            await _buttonInteractions.VoteForWinner(match.Id, WinnerVote.Home.ToString());
+
+            // Assert
+            // Vote is saved
+            var vote = _context.MatchedWinnerVotes.FirstOrDefault();
+            Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
+
+            // User receives thanks message
+            await AssertSendResponse("You are not allowed to vote since you have been kicked");
+        }
+
+        [Test]
+        public async Task VoteForWinner_Should_HandleNotInMatch()
+        {
+            // Arrange
+            var discordUserId = 2000UL;
+            var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+            var homeTeam = new MatchedTeam();
+            var awayTeam = new MatchedTeam();
+            var match = new MatchedMatch
+            {
+                Id = 99,
+                HomeTeam = homeTeam,
+                AwayTeam = awayTeam,
+                Active = true,
+            };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+            _context.MatchedTeams.Add(homeTeam);
+            _context.MatchedTeams.Add(awayTeam);
+            await _context.SaveChangesAsync();
+            _context.MatchedMatches.Add(match);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(discordUserId);
+
+            // Act
+            await _buttonInteractions.VoteForWinner(match.Id, WinnerVote.Home.ToString());
+
+            // Assert
+            // Vote is saved
+            var vote = _context.MatchedWinnerVotes.FirstOrDefault();
+            Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
+
+            // User receives thanks message
+            await AssertSendResponse("You are not allowed to vote since you are not in this match");
+        }
+
+        [Test]
+        public async Task VoteForWinner_Should_HandleNoMatch()
+        {
+            // Arrange
+            var discordUserId = 2000UL;
+            var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
+            _context.Users.Add(user);
+            await _context.SaveChangesWithoutContraints();
+
+            _discordContext.User.Id.Returns(discordUserId);
+
+            // Act
+            await _buttonInteractions.VoteForWinner(11, WinnerVote.Home.ToString());
+
+            // Assert
+            // Vote is not saved
+            var vote = _context.MatchedWinnerVotes.FirstOrDefault();
+            Assert.That(vote, Is.Null, "Vote was saved to the database for some reason.");
+
+            // User receives thanks message
+            await AssertSendResponse("Match does not exist or it is no longer active");
+        }
     }
 }
