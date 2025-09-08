@@ -1,4 +1,4 @@
-﻿using DiscordInterfaces;
+﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
@@ -40,7 +40,7 @@ public class DiscordSetGamertag
 
         if (discordUser == null)
         {
-            discordUser = new DiscordUser()
+            discordUser = new Database.Models.DiscordUser()
             {
                 DiscordUserID = (long)Context.Interaction.User.Id,
                 DiscordUsername = Context.Interaction.User.Username

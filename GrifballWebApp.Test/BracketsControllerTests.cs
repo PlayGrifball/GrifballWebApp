@@ -15,7 +15,7 @@ public class BracketsControllerTests
     private BracketsController _controller;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
         _logger = Substitute.For<ILogger<BracketsController>>();
         _bracketService = Substitute.For<IBracketService>();

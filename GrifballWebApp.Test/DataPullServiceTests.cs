@@ -31,9 +31,9 @@ public class DataPullServiceTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
-        _context.Dispose();
+        await _context.DropDatabaseAndDispose();
     }
 
     [Test]

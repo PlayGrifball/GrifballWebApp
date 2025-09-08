@@ -1,3 +1,4 @@
+using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
@@ -11,11 +12,11 @@ namespace GrifballWebApp.Server.Reschedule;
 public class RescheduleService
 {
     private readonly GrifballContext _context;
-    private readonly IDiscordClient _discordClient;
+    private readonly IDiscordRestClient _discordClient;
     private readonly ILogger<RescheduleService> _logger;
     private readonly IOptions<DiscordOptions> _options;
 
-    public RescheduleService(GrifballContext context, IDiscordClient discordClient, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
+    public RescheduleService(GrifballContext context, IDiscordRestClient discordClient, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
     {
         _context = context;
         _discordClient = discordClient;
@@ -109,7 +110,7 @@ public class RescheduleService
             {
                 await _discordClient.SendMessageAsync(reschedule.DiscordThreadID.Value,
                 new NetCord.Rest.MessageProperties { Content = $"Your request has been {reschedule.Status} by {reschedule.ApprovedByUserID}" },
-                ct: ct);
+                cancellationToken: ct);
             }
 
             return reschedule;
@@ -140,12 +141,12 @@ public class RescheduleService
         {
             MatchRescheduleID = mr.MatchRescheduleID,
             SeasonMatchID = mr.SeasonMatchID,
-            HomeCaptain = mr.SeasonMatch.HomeTeam.Captain.User.XboxUser.Gamertag,
-            AwayCaptain = mr.SeasonMatch.AwayTeam.Captain.User.XboxUser.Gamertag,
+            HomeCaptain = mr.SeasonMatch.HomeTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
+            AwayCaptain = mr.SeasonMatch.AwayTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
             OriginalScheduledTime = mr.OriginalScheduledTime,
             NewScheduledTime = mr.NewScheduledTime,
             Reason = mr.Reason,
-            RequestedByGamertag = mr.RequestedByUser.XboxUser.Gamertag,
+            RequestedByGamertag = mr.RequestedByUser.ToDisplayName() ?? "UNKNOWN",
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
             DiscordThreadID = mr.DiscordThreadID
@@ -203,7 +204,7 @@ public class RescheduleService
                             $"**Requested By:** {reschedule.RequestedByUser.XboxUser?.Gamertag}\n" +
                             $"**Reason:** {reschedule.Reason}";
 
-        var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, ct: ct);
+        var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, cancellationToken: ct);
 
         var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser?.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser?.Gamertag}";
         var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id,
@@ -215,7 +216,7 @@ public class RescheduleService
         await _context.SaveChangesAsync(ct);
     }
 
-    private async Task AddUsersToThread(MatchReschedule reschedule, IGuildThread thread, CancellationToken ct)
+    private async Task AddUsersToThread(MatchReschedule reschedule, IDiscordGuildThread thread, CancellationToken ct)
     {
         var sb = new StringBuilder();
         await AddUserToThread(reschedule.SeasonMatch.HomeTeam.Captain.User, thread, sb, ct);
@@ -233,11 +234,11 @@ public class RescheduleService
         {
             await _discordClient.SendMessageAsync(thread.Id,
                 new NetCord.Rest.MessageProperties { Content = finalErrors },
-                ct: ct);
+                cancellationToken: ct);
         }
     }
 
-    private async Task AddUserToThread(User user, IGuildThread thread, StringBuilder sb, CancellationToken ct)
+    private async Task AddUserToThread(User user, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
     {
         var discordUserId = (ulong?)user.DiscordUserID;
         if (discordUserId.HasValue)

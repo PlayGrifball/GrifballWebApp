@@ -1,6 +1,7 @@
-﻿using NetCord;
-using NetCord.Rest;
+﻿using DiscordInterface.Generated;
+using NetCord.Gateway;
 using NetCord.Services;
+using NetCord.Services.ComponentInteractions;
 
 namespace DiscordInterfaces;
 
@@ -10,138 +11,92 @@ public static class Ext
     {
         return new DiscordInteractionContext(interactionContext);
     }
-}
 
-internal class DiscordInteractionContext : IDiscordInteractionContext
-{
-    private readonly IDiscordInteraction _discordInteraction;
-    public DiscordInteractionContext(IInteractionContext interactionContext)
+    public static IDiscordStringMenuInteractionContext ToDiscordContext(this StringMenuInteractionContext interactionContext)
     {
-        _discordInteraction = new DiscordInteraction(interactionContext.Interaction);
-    }
-    public IDiscordInteraction Interaction => _discordInteraction;
-}
-
-public interface IDiscordInteractionContext
-{
-    IDiscordInteraction Interaction { get; }
-}
-
-internal class DiscordInteraction : IDiscordInteraction
-{
-    private readonly Interaction _interaction;
-    private readonly IUser _user;
-    public DiscordInteraction(Interaction interaction)
-    {
-        _interaction = interaction;
-        _user = new DiscordUser(interaction.User);
-    }
-    public ulong ApplicationId => _interaction.ApplicationId;
-    public IUser User => _user;
-    public string Token => _interaction.Token;
-    public Permissions AppPermissions => _interaction.AppPermissions;
-
-    public Task SendResponseAsync(InteractionCallback callback, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.SendResponseAsync(callback, properties, cancellationToken);
+        return new DiscordStringMenuInteractionContext(interactionContext);
     }
 
-    public Task<RestMessage> GetResponseAsync(RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
+    public static IDiscordButtonInteractionContext ToDiscordContext(this ButtonInteractionContext interactionContext)
     {
-        return _interaction.GetResponseAsync(properties, cancellationToken);
-    }
-
-    public Task<RestMessage> ModifyResponseAsync(Action<MessageOptions> action, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.ModifyResponseAsync(action, properties, cancellationToken);
-    }
-
-    public Task DeleteResponseAsync(RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.DeleteResponseAsync(properties, cancellationToken);
-    }
-
-    public Task<RestMessage> SendFollowupMessageAsync(InteractionMessageProperties message, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.SendFollowupMessageAsync(message, properties, cancellationToken);
-    }
-
-    public Task<RestMessage> GetFollowupMessageAsync(ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.GetFollowupMessageAsync(messageId, properties, cancellationToken);
-    }
-
-    public Task<RestMessage> ModifyFollowupMessageAsync(ulong messageId, Action<MessageOptions> action, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.ModifyFollowupMessageAsync(messageId, action, properties, cancellationToken);
-    }
-
-    public Task DeleteFollowupMessageAsync(ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken))
-    {
-        return _interaction.DeleteFollowupMessageAsync(messageId, properties, cancellationToken);
+        return new DiscordButtonInteractionContext(interactionContext);
     }
 }
 
-public interface IDiscordInteraction
+public partial interface IDiscordStringMenuInteractionContext : IDiscordInteractionContext
 {
-    ulong ApplicationId { get; }
-    IUser User { get; }
-    string Token { get; }
-    Permissions AppPermissions { get; }
-    Task SendResponseAsync(InteractionCallback callback, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<RestMessage> GetResponseAsync(RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<RestMessage> ModifyResponseAsync(Action<MessageOptions> action, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task DeleteResponseAsync(RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<RestMessage> SendFollowupMessageAsync(InteractionMessageProperties message, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<RestMessage> GetFollowupMessageAsync(ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task<RestMessage> ModifyFollowupMessageAsync(ulong messageId, Action<MessageOptions> action, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
-    Task DeleteFollowupMessageAsync(ulong messageId, RestRequestProperties? properties = null, CancellationToken cancellationToken = default(CancellationToken));
+    GatewayClient Client { get; }
+
+    IDiscordRestMessage Message { get; }
+
+    IDiscordUser User { get; }
+
+    IDiscordGuild? Guild { get; }
+
+    IDiscordTextChannel Channel { get; }
+
+    IReadOnlyList<string> SelectedValues { get; }
 }
 
-internal class DiscordUser : IUser
+public partial class DiscordStringMenuInteractionContext : IDiscordStringMenuInteractionContext
 {
-    private readonly User _user;
+    private readonly StringMenuInteractionContext _original;
 
-    public DiscordUser(User user)
+    public GatewayClient Client => _original.Client;
+
+    public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
+
+    public IDiscordUser User => new DiscordUser(_original.User);
+
+    public IDiscordGuild? Guild => _original.Guild is null ? null : new DiscordGuild(_original.Guild);
+
+    public IDiscordTextChannel Channel => new DiscordTextChannel(_original.Channel);
+
+    public IReadOnlyList<string> SelectedValues => _original.SelectedValues;
+
+    public IInteractionContext Original => _original;
+
+    public IDiscordInteraction Interaction => new DiscordInteraction(_original.Interaction);
+
+    public DiscordStringMenuInteractionContext(StringMenuInteractionContext original)
     {
-        _user = user;
+        _original = original;
     }
-
-    public ulong Id => _user.Id;
-    public string Username => _user.Username;
-    public ushort Discriminator => _user.Discriminator;
-    public string? GlobalName => _user.GlobalName;
-    public string? AvatarHash => _user.AvatarHash;
-    public bool IsBot => _user.IsBot;
-    public bool? IsSystemUser => _user.IsSystemUser;
-    public bool? MfaEnabled => _user.MfaEnabled;
-    public string? BannerHash => _user.BannerHash;
-    public Color? AccentColor => _user.AccentColor;
-    public string? Locale => _user.Locale;
-    public bool? Verified => _user.Verified;
-    public string? Email => _user.Email;
-    public UserFlags? Flags => _user.Flags;
-    public PremiumType? PremiumType => _user.PremiumType;
-    public UserFlags? PublicFlags => _user.PublicFlags;
 }
 
-public interface IUser
+public partial interface IDiscordButtonInteractionContext : IDiscordInteractionContext
 {
-    ulong Id { get; }
-    string Username { get; }
-    ushort Discriminator { get; }
-    string? GlobalName { get; }
-    string? AvatarHash { get; }
-    bool IsBot { get; }
-    bool? IsSystemUser { get; }
-    bool? MfaEnabled { get; }
-    string? BannerHash { get; }
-    Color? AccentColor { get; }
-    string? Locale { get; }
-    bool? Verified { get; }
-    string? Email { get; }
-    UserFlags? Flags { get; }
-    PremiumType? PremiumType { get; }
-    UserFlags? PublicFlags { get; }
-    // AvatarDecorationData
+    GatewayClient Client { get; }
+
+    IDiscordRestMessage Message { get; }
+
+    IDiscordUser User { get; }
+
+    IDiscordGuild? Guild { get; }
+
+    IDiscordTextChannel Channel { get; }
+}
+
+public partial class DiscordButtonInteractionContext : IDiscordButtonInteractionContext
+{
+    private readonly ButtonInteractionContext _original;
+
+    public GatewayClient Client => _original.Client;
+
+    public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
+
+    public IDiscordUser User => new DiscordUser(_original.User);
+
+    public IDiscordGuild? Guild => _original.Guild is null ? null : new DiscordGuild(_original.Guild);
+
+    public IDiscordTextChannel Channel => new DiscordTextChannel(_original.Channel);
+
+    public IInteractionContext Original => _original;
+
+    public IDiscordInteraction Interaction => new DiscordInteraction(_original.Interaction);
+
+    public DiscordButtonInteractionContext(ButtonInteractionContext original)
+    {
+        _original = original;
+    }
 }
