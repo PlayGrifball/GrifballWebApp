@@ -34,7 +34,13 @@ module.exports = function (config) {
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
-    browsers: ['Chrome'],
+    browsers: ['ChromeHeadless'],
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox', '--disable-web-security', '--disable-features=VizDisplayCompositor']
+      }
+    },
     singleRun: false,
     restartOnFileChange: true,
     listenAddress: 'localhost',
