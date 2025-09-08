@@ -141,12 +141,12 @@ public class RescheduleService
         {
             MatchRescheduleID = mr.MatchRescheduleID,
             SeasonMatchID = mr.SeasonMatchID,
-            HomeCaptain = mr.SeasonMatch.HomeTeam.Captain.User.XboxUser.Gamertag,
-            AwayCaptain = mr.SeasonMatch.AwayTeam.Captain.User.XboxUser.Gamertag,
+            HomeCaptain = mr.SeasonMatch.HomeTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
+            AwayCaptain = mr.SeasonMatch.AwayTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
             OriginalScheduledTime = mr.OriginalScheduledTime,
             NewScheduledTime = mr.NewScheduledTime,
             Reason = mr.Reason,
-            RequestedByGamertag = mr.RequestedByUser.XboxUser.Gamertag,
+            RequestedByGamertag = mr.RequestedByUser.ToDisplayName() ?? "UNKNOWN",
             RequestedAt = mr.RequestedAt,
             Status = mr.Status,
             DiscordThreadID = mr.DiscordThreadID
