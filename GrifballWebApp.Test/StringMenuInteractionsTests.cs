@@ -215,7 +215,7 @@ public class StringMenuInteractionsTests
         // Act
         await _stringMenuInteractions.VoteToKick(1);
         // Assert
-        await _discordContext.Interaction.ReceivedWithAnyArgs().SendResponseAsync(default!);
+        await _discordContext.AssertSendResponse($"{me.ToDisplayName()} has voted to kick {them.ToDisplayName()}");
     }
 
     [Test]
@@ -250,5 +250,39 @@ public class StringMenuInteractionsTests
         await _stringMenuInteractions.VoteToKick(1);
         // Assert
         await _discordContext.AssertSendResponse($"You have already voted to kick {them.ToDisplayName()}");
+    }
+
+    [Test]
+    public async Task VoteToKick_Should_Kick_Target_When_Threshold_Reached()
+    {
+        // Arrange
+        var user = new User { Id = 1, DiscordUser = new DiscordUser { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "GT" }, DisplayName = "Voter" };
+        var otherUser = new User { Id = 2, DiscordUser = new DiscordUser { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" }, DisplayName = "TargetUser" };
+        var thirdUser = new User { Id = 3, DiscordUser = new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, DisplayName = "Voter2" };
+        var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
+        _context.Users.AddRange(user, otherUser, thirdUser);
+        await _context.SaveChangesWithoutContraints();
+        _context.MatchedMatches.Add(match);
+        await _context.SaveChangesWithoutContraints();
+        var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
+        var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
+        var voter2 = new MatchedPlayer { Id = 30, UserID = 3, Kicked = false, User = thirdUser };
+        match.HomeTeam.Players.Add(me);
+        match.AwayTeam.Players.Add(them);
+        match.HomeTeam.Players.Add(voter2);
+        _context.MatchedPlayers.AddRange(me, them, voter2);
+        await _context.SaveChangesWithoutContraints();
+        // Add a vote from voter2 (so threshold will be reached with this vote)
+        _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 30, KickMatchedPlayerId = 20 });
+        await _context.SaveChangesWithoutContraints();
+        _discordContext.User.Id.Returns(123UL); // user 1
+        _discordContext.SelectedValues.Returns(new List<string> { "2" });
+        // Act
+        await _stringMenuInteractions.VoteToKick(1);
+        // Assert: Target should be kicked
+        var kicked = await _context.MatchedPlayers.FindAsync(20);
+        Assert.That(kicked, Is.Not.Null);
+        Assert.That(kicked.Kicked, Is.True);
+        await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has been kicked");
     }
 }
