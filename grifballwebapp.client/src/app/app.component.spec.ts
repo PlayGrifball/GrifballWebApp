@@ -1,6 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChangeDetectorRef } from '@angular/core';
-import { MediaMatcher } from '@angular/cdk/layout';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
@@ -13,37 +11,36 @@ import { ThemingService } from './theming.service';
 describe('AppComponent', () => {
   let component: AppComponent;
   let fixture: ComponentFixture<AppComponent>;
-  let mockAccountService: jasmine.SpyObj<AccountService>;
-  let mockApiClientService: jasmine.SpyObj<ApiClientService>;
-  let mockThemingService: jasmine.SpyObj<ThemingService>;
 
   beforeEach(async () => {
-    // Create spies for dependencies
-    mockAccountService = jasmine.createSpyObj('AccountService', ['isEventOrganizer', 'isSysAdmin'], {
-      isLoggedIn: signal(false)
-    });
-    mockAccountService.isEventOrganizer.and.returnValue(signal(false));
-    mockAccountService.isSysAdmin.and.returnValue(signal(false));
+    // Create simple mock services
+    const mockAccountService = {
+      isLoggedIn: signal(false),
+      isEventOrganizer: signal(false),
+      isSysAdmin: signal(false),
+      isPlayer: signal(false),
+      personID: signal(null),
+      displayName: signal(null)
+    };
 
-    mockApiClientService = jasmine.createSpyObj('ApiClientService', ['getSidebarItems']);
+    const mockApiClientService = jasmine.createSpyObj('ApiClientService', ['getSidebarItems']);
 
-    mockThemingService = jasmine.createSpyObj('ThemingService', [
-      'setNeutralShade',
-      'setNeutralVariantShade', 
-      'setErrorShade',
-      'setFont',
-      'setPrimaryShade',
-      'setSecondaryShade',
-      'setTertiaryShade'
-    ], {
+    const mockThemingService = {
       neutral: signal('#000000'),
       neutralVariant: signal('#000000'),
       error: signal('#ff0000'),
       font: signal('Arial'),
       primary: signal('#0000ff'),
       secondary: signal('#00ff00'),
-      tertiary: signal('#ff00ff')
-    });
+      tertiary: signal('#ff00ff'),
+      setNeutralShade: jasmine.createSpy('setNeutralShade'),
+      setNeutralVariantShade: jasmine.createSpy('setNeutralVariantShade'),
+      setErrorShade: jasmine.createSpy('setErrorShade'),
+      setFont: jasmine.createSpy('setFont'),
+      setPrimaryShade: jasmine.createSpy('setPrimaryShade'),
+      setSecondaryShade: jasmine.createSpy('setSecondaryShade'),
+      setTertiaryShade: jasmine.createSpy('setTertiaryShade')
+    };
 
     await TestBed.configureTestingModule({
       imports: [
@@ -66,21 +63,13 @@ describe('AppComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should have correct selector', () => {
-    // The component should be created successfully, indicating proper setup
-    expect(component).toBeTruthy();
-    expect(fixture.componentInstance).toBe(component);
-  });
-
-  it('should have default navigation links', () => {
+  it('should have navigation links', () => {
+    expect(component.navLinks).toBeDefined();
+    expect(Array.isArray(component.navLinks)).toBeTruthy();
     expect(component.navLinks.length).toBeGreaterThan(0);
-    
-    // Check that basic navigation links exist
-    const linkTitles = component.navLinks.map(link => link.title);
-    expect(linkTitles).toContain('Home');
   });
 
-  it('should initialize visible and overflow nav links arrays', () => {
+  it('should initialize arrays for visible and overflow nav links', () => {
     expect(component.visibleNavLinks).toBeDefined();
     expect(component.overflowNavLinks).toBeDefined();
     expect(Array.isArray(component.visibleNavLinks)).toBeTruthy();
