@@ -87,7 +87,7 @@ public class ButtonInteractionsTests
         var discordUser = new Database.Models.DiscordUser { DiscordUserID = 123, DiscordUsername = "TestUser" };
         var user = new User { Id = 1, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(123UL);
 
@@ -111,7 +111,7 @@ public class ButtonInteractionsTests
         };
         var user = new User { Id = 2, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT2" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(456UL);
 
@@ -137,7 +137,7 @@ public class ButtonInteractionsTests
         };
         var user = new User { Id = 3, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT3" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(789UL);
 
@@ -161,7 +161,7 @@ public class ButtonInteractionsTests
         };
         var user = new User { Id = 4, DiscordUser = discordUser, XboxUser = new XboxUser { Gamertag = "TestGT4" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(1011UL);
 
@@ -194,15 +194,15 @@ public class ButtonInteractionsTests
             Active = true,
         };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);
         _context.MatchedTeams.Add(awayTeam);
         await _context.SaveChangesAsync();
         matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
         _context.MatchedPlayers.Add(matchedPlayer);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(discordUserId);
 
@@ -236,15 +236,15 @@ public class ButtonInteractionsTests
             Active = true,
         };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);
         _context.MatchedTeams.Add(awayTeam);
         await _context.SaveChangesAsync();
         matchedPlayer.MatchedTeamID = homeTeam.MatchedTeamId;
         _context.MatchedPlayers.Add(matchedPlayer);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(discordUserId);
 
@@ -276,12 +276,12 @@ public class ButtonInteractionsTests
             Active = true,
         };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedTeams.Add(homeTeam);
         _context.MatchedTeams.Add(awayTeam);
         await _context.SaveChangesAsync();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(discordUserId);
 
@@ -304,7 +304,7 @@ public class ButtonInteractionsTests
         var discordUserId = 2000UL;
         var user = new User { Id = 10, DiscordUser = new Database.Models.DiscordUser { DiscordUserID = (long)discordUserId, DiscordUsername = "winner" }, XboxUser = new XboxUser { Gamertag = "GT" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(discordUserId);
 

@@ -275,7 +275,7 @@ public class TeamStandingsServiceTests
         {
             var season = new Season { SeasonID = seasonId, SeasonName = $"Season {seasonId}" };
             await _context.Seasons.AddAsync(season);
-            await _context.SaveChangesWithoutContraints();
+            await _context.SaveChangesWithoutConstraints();
         }
     }
 }
