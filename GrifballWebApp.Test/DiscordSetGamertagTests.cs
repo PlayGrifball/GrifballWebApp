@@ -60,9 +60,9 @@ public class DiscordSetGamertagTests
     }
 
     [TearDown]
-    public async Task TearDown()
+    public void TearDown()
     {
-        await _context.DropDatabase();
+        _context.DropDatabase();
         _scope.Dispose();
     }
 
