@@ -48,23 +48,27 @@ internal static class Utility
 
     internal static async Task DropDatabaseAndDispose(this GrifballContext context)
     {
-        await context.DropDatabase();
+        context.DropDatabase();
         await context.DisposeAsync();
     }
 
-    internal static async Task DropDatabase(this GrifballContext context)
+    internal static void DropDatabase(this GrifballContext context)
     {
         var cs = context.Database.GetConnectionString();
         var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(cs);
         var dbName = builder.InitialCatalog;
         builder.InitialCatalog = "master";
-        using var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString);
-        await connection.OpenAsync();
-        using var command = connection.CreateCommand();
-        command.CommandText = $@"
-        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-        DROP DATABASE [{dbName}];
-        ";
-        await command.ExecuteNonQueryAsync();
+        // Run the drop in a separate task to avoid blocking the next test. It's not required for the db to be dropped immediately.
+        _ = Task.Run(async () =>
+        {
+            using var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString);
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
+            command.CommandText = $@"
+            ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+            DROP DATABASE [{dbName}];
+            ";
+            await command.ExecuteNonQueryAsync();
+        });
     }
 }
