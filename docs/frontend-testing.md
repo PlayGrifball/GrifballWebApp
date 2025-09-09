@@ -31,6 +31,22 @@ As of initial implementation:
 - **19 tests passing** (68% success rate)
 - **Code coverage**: 27.14% statements, 20% functions, 26.09% lines
 
+### Code Coverage Reporting
+
+The frontend testing infrastructure includes code coverage reporting that:
+- Generates HTML reports in `coverage/` directory for local viewing
+- Produces LCOV format (`coverage/lcov.info`) for integration with external tools
+- Provides text summaries in console output
+- Automatically uploads coverage to **Codecov** via GitHub Actions workflow
+
+### Codecov Integration
+
+Frontend test coverage is automatically uploaded to Codecov through the `frontend-tests.yml` GitHub Actions workflow:
+- Coverage reports are generated in LCOV format
+- Uploaded with `frontend` flag for separate tracking from backend coverage
+- Integrated with pull request checks and status reporting
+- Similar to the existing backend .NET codecov integration
+
 ## Test Files
 
 ### Component Tests
