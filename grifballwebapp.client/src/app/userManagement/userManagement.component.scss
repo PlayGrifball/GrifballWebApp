@@ -1,3 +1,13 @@
 :host {
   display: block;
 }
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  
+  mat-icon {
+    margin-right: 4px;
+  }
+}

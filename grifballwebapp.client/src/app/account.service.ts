@@ -8,6 +8,7 @@ import { AccessTokenResponse, MetaInfoResponse } from './accessTokenResponse';
 import { RegisterDto } from './api/dtos/registerDto';
 import { Observable, catchError, map, throwError, timer } from 'rxjs';
 import { Router } from '@angular/router';
+import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from './api/dtos/passwordResetDtos';
 
 @Injectable({
   providedIn: 'root',
@@ -144,5 +145,15 @@ export class AccountService {
     this.accessTokenResponse.set(undefined);
   }
 
+  generatePasswordResetLink(request: GeneratePasswordResetLinkRequestDto): Observable<GeneratePasswordResetLinkResponseDto> {
+    return this.http.post<GeneratePasswordResetLinkResponseDto>('/api/admin/generatepasswordresetlink', request);
+  }
 
+  resetPassword(request: UsePasswordResetLinkRequestDto): Observable<string> {
+    return this.http.post('/api/identity/resetpassword', request, { responseType: 'text' });
+  }
+
+  cleanupExpiredPasswordResetLinks(): Observable<string> {
+    return this.http.post('/api/admin/cleanupexpiredpasswordresetlinks', {}, { responseType: 'text' });
+  }
 }
