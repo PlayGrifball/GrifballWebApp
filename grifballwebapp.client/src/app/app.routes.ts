@@ -64,6 +64,11 @@ export const APP_ROUTES: Routes = [
     title: 'Register'
   },
   {
+    path: 'reset-password',
+    loadComponent: () => import('./password-reset/password-reset.component').then(m => m.PasswordResetComponent),
+    title: 'Reset Password'
+  },
+  {
     path: 'seasonManager',
     loadComponent: () => import('./seasonManager/seasonManager.component').then(m => m.SeasonManagerComponent),
     title: 'Season Manager',

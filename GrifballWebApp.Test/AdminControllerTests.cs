@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,7 @@ public class AdminControllerTests
     private IAccountAuthorization _accountAuthorization;
     private IDataPullService _dataPullService;
     private IOptionsMonitor<ClientConfiguration> _options;
+    private IUserManagementService _userManagementService;
     private AdminController _controller;
 
     [SetUp]
@@ -31,7 +33,8 @@ public class AdminControllerTests
         _accountAuthorization = Substitute.For<IAccountAuthorization>();
         _dataPullService = Substitute.For<IDataPullService>();
         _options = Substitute.For<IOptionsMonitor<ClientConfiguration>>();
-        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options);
+        _userManagementService = Substitute.For<IUserManagementService>();
+        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService);
     }
 
     [Test]
