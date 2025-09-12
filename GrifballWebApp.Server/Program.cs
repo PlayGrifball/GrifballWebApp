@@ -239,7 +239,7 @@ public class Program
         builder.Services.AddTransient<SignupsService>();
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
-        builder.Services.AddTransient<UserManagementService>();
+        builder.Services.AddTransient<IUserManagementService, UserManagementService>();
         builder.Services.AddTransient<ExcelService>();
         builder.Services.AddTransient<MatchPlannerService>();
         builder.Services.AddTransient<SeasonMatchService>();

@@ -21,10 +21,10 @@ public class IdentityController : ControllerBase
     private readonly SignInManager<User> _signInManager;
     private readonly IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
-    private readonly UserManagementService _userManagementService;
+    private readonly IUserManagementService _userManagementService;
     
     public IdentityController(ILogger<IdentityController> logger, UserManager<User> userManager, SignInManager<User> signInManager,
-        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider, UserManagementService userManagementService)
+        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider, IUserManagementService userManagementService)
     {
         _logger = logger;
         _userManager = userManager;

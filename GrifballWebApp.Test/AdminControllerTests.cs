@@ -1,9 +1,6 @@
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
-using GrifballWebApp.Database;
-using GrifballWebApp.Database.Models;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -25,30 +22,20 @@ public class AdminControllerTests
     private IAccountAuthorization _accountAuthorization;
     private IDataPullService _dataPullService;
     private IOptionsMonitor<ClientConfiguration> _options;
-    private UserManagementService _userManagementService;
-    private GrifballContext _context;
-    private UserManager<GrifballWebApp.Database.Models.User> _userManager;
-    private IGetsertXboxUserService _getsertXboxUserService;
+    private IUserManagementService _userManagementService;
     private AdminController _controller;
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        _context = await SetUpFixture.NewGrifballContext();
         _logger = Substitute.For<ILogger<AdminController>>();
         _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
         _accountAuthorization = Substitute.For<IAccountAuthorization>();
         _dataPullService = Substitute.For<IDataPullService>();
         _options = Substitute.For<IOptionsMonitor<ClientConfiguration>>();
-        _userManager = Substitute.For<UserManager<GrifballWebApp.Database.Models.User>>(
-            Substitute.For<IUserStore<GrifballWebApp.Database.Models.User>>(), null, null, null, null, null, null, null, null);
-        _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
-        _userManagementService = new UserManagementService(_context, _haloInfiniteClientFactory, _userManager, _getsertXboxUserService);
+        _userManagementService = Substitute.For<IUserManagementService>();
         _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService);
     }
-
-    [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
     public void Get_ShouldThrowException_WhenGameIsNotGuid()

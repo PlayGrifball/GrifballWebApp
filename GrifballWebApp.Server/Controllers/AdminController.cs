@@ -20,11 +20,11 @@ public class AdminController : ControllerBase
     private readonly IAccountAuthorization _accountAuthorization;
     private readonly IDataPullService _dataPullService;
     private readonly IOptionsMonitor<ClientConfiguration> _options;
-    private readonly UserManagementService _userManagementService;
+    private readonly IUserManagementService _userManagementService;
 
     public AdminController(ILogger<AdminController> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory,
         IAccountAuthorization accountAuthorization, IDataPullService dataPullService,
-        IOptionsMonitor<ClientConfiguration> optionsMonitor, UserManagementService userManagementService)
+        IOptionsMonitor<ClientConfiguration> optionsMonitor, IUserManagementService userManagementService)
     {
         _logger = logger;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;

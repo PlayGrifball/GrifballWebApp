@@ -33,16 +33,25 @@ public class RoleDto
     public bool HasRole { get; set; }
 }
 
-public class UserManagementService
+public interface IUserManagementService
+{
+    Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, string search, CancellationToken ct);
+    Task<UserResponseDto?> GetUser(int userID, CancellationToken ct);
+    Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct);
+    Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct);
+    Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct);
+    Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct);
+    Task CleanupExpiredPasswordResetLinks(CancellationToken ct);
+}
+
+public class UserManagementService : IUserManagementService
 {
     private readonly GrifballContext _context;
-    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly UserManager<User> _userManager;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
-    public UserManagementService(GrifballContext grifballContext, IHaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
+    public UserManagementService(GrifballContext grifballContext, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
     {
         _context = grifballContext;
-        _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _userManager = userManager;
         _getsertXboxUserService = getsertXboxUserService;
     }

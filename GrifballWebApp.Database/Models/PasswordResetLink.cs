@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GrifballWebApp.Database.Models;
 
-public class PasswordResetLink : IAuditable
+public class PasswordResetLink : AuditableEntity
 {
     [Key]
     public int Id { get; set; }
@@ -19,10 +19,4 @@ public class PasswordResetLink : IAuditable
     public DateTime ExpiresAt { get; set; }
     
     public bool IsUsed { get; set; } = false;
-    
-    // IAuditable properties
-    public int? CreatedByID { get; set; }
-    public int? ModifiedByID { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime ModifiedAt { get; set; }
 }
