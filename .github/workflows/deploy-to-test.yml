@@ -9,7 +9,7 @@ on:
 
 jobs:
   deploy-to-test:
-    runs-on: k8s-runner-test
+    runs-on: grif-k8s
     env:
       K8S_NAMESPACE: grif-test
     steps:
