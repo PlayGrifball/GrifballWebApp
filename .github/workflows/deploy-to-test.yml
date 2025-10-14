@@ -27,8 +27,8 @@ jobs:
         run: dotnet tool install --global dotnet-ef
 
       - name: Add dotnet tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-        
+        run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
@@ -70,7 +70,7 @@ jobs:
           MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
           MSSQL_BACKUP_PASSWORD: ${{ secrets.MSSQL_BACKUP_PASSWORD }}
           PATH: $HOME/.dotnet:$PATH
-        run: dotnet ef database update --connection "Server=sqlserver.$K8S_NAMESPACE.svc.cluster.local;Database=GrifballWebApp;User Id=$MSSQL_BACKUP_USER;Password=$MSSQL_BACKUP_PASSWORD;"
+        run: dotnet ef database update --project GrifballWebApp.Database --connection "Server=sqlserver.$K8S_NAMESPACE.svc.cluster.local;Database=GrifballWebApp;User Id=$MSSQL_BACKUP_USER;Password=$MSSQL_BACKUP_PASSWORD;"
 
       - name: Scale up backend
         run: |
