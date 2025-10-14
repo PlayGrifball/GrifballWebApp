@@ -25,6 +25,9 @@ jobs:
 
       - name: Install dotnet ef cli tool
         run: dotnet tool install --global dotnet-ef
+
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
         
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
