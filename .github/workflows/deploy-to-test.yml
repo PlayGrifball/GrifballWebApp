@@ -1,86 +1,18 @@
 name: Deploy to Test
 
 on:
-  #push:
-  #  branches: [ master ]
+  push:
+    branches: [ master ]
   #pull_request:
   #  branches: [ master ]
   workflow_dispatch:
 
 jobs:
   deploy-to-test:
-    runs-on: grif-k8s
-    env:
-      K8S_NAMESPACE: grif-test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-        env:
-          DOTNET_INSTALL_DIR: $HOME/.dotnet
-
-      - name: Install dotnet ef cli tool
-        run: dotnet tool install --global dotnet-ef
-
-      - name: Add dotnet tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Check kubectl version
-        run: kubectl version --client
-
-      - name: Ensure .kube directory exists
-        run: mkdir -p $HOME/.kube
-
-      - name: Write kubeconfig
-        run: echo "${{ secrets.KUBECONFIG_DATA }}" > $HOME/.kube/config
-
-      - name: List deployments
-        run: kubectl get deployments -n $K8S_NAMESPACE
-
-      - name: Scale down backend
-        run: |
-          kubectl scale deployment grif-backend --replicas=0 -n $K8S_NAMESPACE
-          kubectl rollout status deployment grif-backend -n $K8S_NAMESPACE
-
-      - name: Scale down frontend
-        run: |
-          kubectl scale deployment grif-frontend --replicas=0 -n $K8S_NAMESPACE
-          kubectl rollout status deployment grif-frontend -n $K8S_NAMESPACE
-
-      - name: List deployments
-        run: kubectl get deployments -n $K8S_NAMESPACE
-
-      - name: Run MSSQL backup
-        env:
-          MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
-          MSSQL_BACKUP_PASSWORD: ${{ secrets.MSSQL_BACKUP_PASSWORD }}
-        run: |
-          kubectl exec -n $K8S_NAMESPACE mssql-tools -- /opt/mssql-tools/bin/sqlcmd -S sqlserver -U "$MSSQL_BACKUP_USER" -P "$MSSQL_BACKUP_PASSWORD" -C \
-            -Q "BACKUP DATABASE [GrifballWebApp] TO DISK = N'/var/opt/mssql/backup/Test/GrifballWebApp_$(date +%Y%m%d_%H%M%S).bak' WITH FORMAT, INIT, NAME = 'Full Backup of GrifballWebApp';"
-
-      - name: Apply EF migrations
-        env:
-          MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
-          MSSQL_BACKUP_PASSWORD: ${{ secrets.MSSQL_BACKUP_PASSWORD }}
-          PATH: $HOME/.dotnet:$PATH
-        run: dotnet ef database update --project GrifballWebApp.Database --startup-project GrifballWebApp.Database --connection "Server=sqlserver.$K8S_NAMESPACE.svc.cluster.local;Database=GrifballWebApp;User Id=$MSSQL_BACKUP_USER;Password=$MSSQL_BACKUP_PASSWORD;TrustServerCertificate=True;"
-
-      - name: Scale up backend
-        run: |
-          kubectl scale deployment grif-backend --replicas=1 -n $K8S_NAMESPACE
-          kubectl rollout status deployment grif-backend -n $K8S_NAMESPACE
-
-      - name: Scale up frontend
-        run: |
-          kubectl scale deployment grif-frontend --replicas=1 -n $K8S_NAMESPACE
-          kubectl rollout status deployment grif-frontend -n $K8S_NAMESPACE
-
-      - name: List deployments
-        run: kubectl get deployments -n $K8S_NAMESPACE
+    uses: ./.github/workflows/deploy-to-env.yml
+    with:
+      k8s_namespace: grif-test
+    secrets:
+      KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA }}
+      MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
+      MSSQL_BACKUP_PASSWORD: ${{ secrets.MSSQL_BACKUP_PASSWORD }}
