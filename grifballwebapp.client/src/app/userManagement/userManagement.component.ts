@@ -2,9 +2,14 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { UserResponseDto } from './userResponseDto';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
+import { AccountService } from '../account.service';
+import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
 
 @Component({
     selector: 'app-user-management',
@@ -12,6 +17,8 @@ import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
         CommonModule,
         RouterModule,
         MatButtonModule,
+        MatIconModule,
+        MatTooltipModule,
         TableComponent,
         SearchBoxComponent,
     ],
@@ -20,7 +27,7 @@ import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserManagementComponent {
-  public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'edit'];
+  public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   url = '/api/UserManagement/GetUsers';
 
   filter = signal<string>('');
@@ -32,6 +39,58 @@ export class UserManagementComponent {
       }
     ];
   });
+
+  constructor(
+    private accountService: AccountService,
+    private snackBar: MatSnackBar
+  ) {}
+
+  generatePasswordResetLink(user: UserResponseDto): void {
+    if (user.externalAuthCount > 0 && !this.hasInternalLogin(user)) {
+      this.snackBar.open('This user only uses external authentication (Discord). Password reset is not applicable.', 'Close', {
+        duration: 5000
+      });
+      return;
+    }
+
+    const request: GeneratePasswordResetLinkRequestDto = {
+      username: user.userName
+    };
+
+    this.accountService.generatePasswordResetLink(request).subscribe({
+      next: (response) => {
+        const fullUrl = `${window.location.origin}${response.resetLink}`;
+        
+        // Copy to clipboard
+        navigator.clipboard.writeText(fullUrl).then(() => {
+          this.snackBar.open(`Password reset link copied to clipboard! Link expires at ${new Date(response.expiresAt).toLocaleString()}`, 'Close', {
+            duration: 10000
+          });
+        }).catch(() => {
+          // Fallback: show the link
+          this.snackBar.open(`Password reset link: ${fullUrl} (Expires: ${new Date(response.expiresAt).toLocaleString()})`, 'Close', {
+            duration: 15000
+          });
+        });
+      },
+      error: (error) => {
+        let errorMessage = 'Failed to generate password reset link';
+        if (error.error && typeof error.error === 'string') {
+          errorMessage = error.error;
+        }
+        this.snackBar.open(errorMessage, 'Close', {
+          duration: 5000
+        });
+      }
+    });
+  }
+
+  private hasInternalLogin(user: UserResponseDto): boolean {
+    // Assume if external auth count is less than 1, they have internal login
+    // Or if they have external auth but this is a special case where they also have a password
+    // This logic might need to be refined based on your actual user data structure
+    return user.externalAuthCount === 0;
+  }
 
   columns: Column<UserResponseDto>[] = [
     {
@@ -86,8 +145,8 @@ export class UserManagementComponent {
       cell: (element: UserResponseDto) => `${element.externalAuthCount}`,
     },
     {
-      columnDef: 'edit',
-      header: 'edit',
+      columnDef: 'actions',
+      header: 'Actions',
       cell: (element: UserResponseDto) => `IGNOREME`,
       template: 0,
       isSortable: false,

@@ -10,10 +10,10 @@ namespace GrifballWebApp.Server.UserManagement;
 [ApiController]
 public class UserManagementController : ControllerBase
 {
-    private readonly UserManagementService _userManagementService;
+    private readonly IUserManagementService _userManagementService;
     private readonly IUserMergeService _userMergeService;
 
-    public UserManagementController(UserManagementService userManagementService, IUserMergeService userMergeService)
+    public UserManagementController(IUserManagementService userManagementService, IUserMergeService userMergeService)
     {
         _userManagementService = userManagementService;
         _userMergeService = userMergeService;
