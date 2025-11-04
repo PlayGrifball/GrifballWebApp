@@ -1,18 +1,14 @@
-name: Deploy to Test
+name: Deploy to Staging
 
 on:
-  push:
-    branches: [ master ]
-  #pull_request:
-  #  branches: [ master ]
   workflow_dispatch:
 
 jobs:
   deploy-to-test:
     uses: ./.github/workflows/deploy-to-env.yml
     with:
-      k8s_namespace: grif-test
+      k8s_namespace: grif-staging
     secrets:
-      KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA_TEST }}
+      KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_DATA_STAGING }}
       MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
       MSSQL_BACKUP_PASSWORD: ${{ secrets.MSSQL_BACKUP_PASSWORD }}
