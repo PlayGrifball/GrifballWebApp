@@ -1,10 +1,10 @@
 name: Deploy to Test
 
 on:
-  push:
-    branches: [ master ]
-  #pull_request:
-  #  branches: [ master ]
+  workflow_run:
+    workflows: ["Docker"]
+    types:
+      - success
   workflow_dispatch:
 
 jobs:
