@@ -2,9 +2,9 @@ name: Deploy to Test
 
 on:
   workflow_run:
-    workflows: ["Docker"]
-    types:
-      - success
+    workflows: [Docker]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
