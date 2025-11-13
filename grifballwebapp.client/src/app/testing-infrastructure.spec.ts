@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { AccountService } from './account.service';
 
 // Simple integration test to verify basic testing infrastructure
 describe('Testing Infrastructure', () => {

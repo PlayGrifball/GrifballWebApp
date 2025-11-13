@@ -112,7 +112,7 @@ describe('CommissionerDashboardComponent', () => {
     const testDate = '2024-01-15T20:30:00Z';
     const result = component.formatDateTime(testDate);
     
-    // The exact format depends on the DateTime implementation, 
+    // The exact format depends on the DateTime implementation,
     // but we can check that it returns a non-empty string
     expect(result).toBeTruthy();
     expect(typeof result).toBe('string');
