@@ -64,7 +64,7 @@ describe('AccountService', () => {
   });
 
   it('should load access token from localStorage on initialization', () => {
-    // Setup localStorage with a mock token
+    // Setup localStorage with a mock token BEFORE creating service
     const mockAccessToken: AccessTokenResponse = {
       tokenType: 'Bearer',
       accessToken: 'mock-access-token',
@@ -73,7 +73,19 @@ describe('AccountService', () => {
     };
     localStorage.setItem('access_token', JSON.stringify(mockAccessToken));
 
-    // Create a new service instance to test initialization
+    // Create a fresh TestBed with new service instance
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        AccountService,
+        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: Router, useValue: mockRouter },
+        { provide: JwtHelperService, useValue: mockJwtHelper },
+        { provide: ApiClientService, useValue: mockApiClient }
+      ]
+    });
+    
     const newService = TestBed.inject(AccountService);
     
     expect(newService.accessToken()).toBe('mock-access-token');
@@ -90,11 +102,23 @@ describe('AccountService', () => {
     };
     localStorage.setItem('metaInfo', JSON.stringify(mockMetaInfo));
 
-    // Create a new service instance to test initialization
+    // Create a fresh TestBed with new service instance
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        AccountService,
+        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: Router, useValue: mockRouter },
+        { provide: JwtHelperService, useValue: mockJwtHelper },
+        { provide: ApiClientService, useValue: mockApiClient }
+      ]
+    });
+
     const newService = TestBed.inject(AccountService);
 
     expect(newService.isSysAdmin()).toBeTruthy();
-    expect(newService.isEventOrganizer()).toBeFalsy();
+    expect(newService.isEventOrganizer()).toBeFalsy(); // isCommissioner is false in mockMetaInfo
     expect(newService.isPlayer()).toBeTruthy();
     expect(newService.personID()).toBe(123);
     expect(newService.displayName()).toBe('Test User');

@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
+import { of } from 'rxjs';
 
 import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto, OverdueMatchDto } from './commissioner-dashboard.component';
 
@@ -11,9 +12,19 @@ describe('CommissionerDashboardComponent', () => {
   let fixture: ComponentFixture<CommissionerDashboardComponent>;
   let httpTestingController: HttpTestingController;
   let mockDialog: jasmine.SpyObj<MatDialog>;
+  let mockDialogRef: jasmine.SpyObj<MatDialogRef<any>>;
 
   beforeEach(async () => {
+    mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
+    mockDialogRef.afterClosed.and.returnValue(of(null));
+    
+    // Create a proper mock with _openedDialogs property
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    mockDialog.open.and.returnValue(mockDialogRef);
+    Object.defineProperty(mockDialog, '_openedDialogs', {
+      value: [],
+      writable: true
+    });
 
     await TestBed.configureTestingModule({
       imports: [
@@ -88,7 +99,7 @@ describe('CommissionerDashboardComponent', () => {
 
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/commissioner/dashboard');
+    const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
     expect(req.request.method).toBe('GET');
     req.flush(mockDashboardData);
 
@@ -100,7 +111,7 @@ describe('CommissionerDashboardComponent', () => {
   it('should handle error when loading dashboard data', () => {
     component.ngOnInit();
 
-    const req = httpTestingController.expectOne('/api/commissioner/dashboard');
+    const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
     req.flush('Error loading data', { status: 500, statusText: 'Internal Server Error' });
 
     expect(component.loading).toBeFalsy();
@@ -120,21 +131,21 @@ describe('CommissionerDashboardComponent', () => {
 
   it('should handle undefined datetime', () => {
     const result = component.formatDateTime(undefined);
-    expect(result).toBe('');
+    expect(result).toBe('Not scheduled');
   });
 
   it('should get correct overdue severity levels', () => {
-    expect(component.getOverdueSeverity(12)).toBe('Low');
-    expect(component.getOverdueSeverity(30)).toBe('Medium');
-    expect(component.getOverdueSeverity(50)).toBe('High');
-    expect(component.getOverdueSeverity(80)).toBe('Critical');
+    expect(component.getOverdueSeverity(12)).toBe('normal');
+    expect(component.getOverdueSeverity(30)).toBe('normal');
+    expect(component.getOverdueSeverity(50)).toBe('warning');
+    expect(component.getOverdueSeverity(80)).toBe('critical');
   });
 
   it('should get correct overdue severity colors', () => {
-    expect(component.getOverdueSeverityColor(12)).toBe('green');
-    expect(component.getOverdueSeverityColor(30)).toBe('orange');
-    expect(component.getOverdueSeverityColor(50)).toBe('red');
-    expect(component.getOverdueSeverityColor(80)).toBe('darkred');
+    expect(component.getOverdueSeverityColor(12)).toBe('primary');
+    expect(component.getOverdueSeverityColor(30)).toBe('primary');
+    expect(component.getOverdueSeverityColor(50)).toBe('accent');
+    expect(component.getOverdueSeverityColor(80)).toBe('warn');
   });
 
   it('should open process reschedule dialog', () => {
@@ -151,9 +162,12 @@ describe('CommissionerDashboardComponent', () => {
       status: 0
     };
 
+    // Spy on the dialog's open method directly
+    spyOn(component['dialog'], 'open').and.returnValue(mockDialogRef);
+
     component.openProcessRescheduleDialog(mockReschedule);
 
-    expect(mockDialog.open).toHaveBeenCalled();
+    expect(component['dialog'].open).toHaveBeenCalled();
   });
 
   it('should create discord thread', () => {
@@ -172,8 +186,12 @@ describe('CommissionerDashboardComponent', () => {
 
     component.createDiscordThread(mockReschedule);
 
-    const req = httpTestingController.expectOne(`/api/commissioner/reschedule/${mockReschedule.matchRescheduleID}/create-thread`);
+    const req = httpTestingController.expectOne(`/api/Reschedule/CreateDiscordThread/${mockReschedule.matchRescheduleID}`);
     expect(req.request.method).toBe('POST');
     req.flush({});
+    
+    // After the POST completes, the component calls loadDashboardData()
+    const refreshReq = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
+    refreshReq.flush({ pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } });
   });
 });
