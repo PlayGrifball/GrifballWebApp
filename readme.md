@@ -83,7 +83,7 @@ To get started with Grifball Web App development, install the following tools:
   - Inside the `grifballwebapp.client` folder, run `npm install --force` to install all required packages.
 
 - **Entity Framework Core Tools**  
-  - Used for managing database migrations: `dotnet tool install --global dotnet-ef`
+  - Used for managing database migrations: `dotnet tool install --global dotnet-ef --version 9.*`
   - See [EF Core CLI documentation](https://learn.microsoft.com/en-us/ef/core/cli/dotnet) for more information.
 
 ### Configuration
