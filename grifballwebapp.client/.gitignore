@@ -34,6 +34,7 @@ yarn-error.log
 .sass-cache/
 /connect.lock
 /coverage
+/test-results
 /libpeerconnection.log
 testem.log
 /typings
@@ -41,3 +42,5 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+/src/app/coverage-import.spec.ts
