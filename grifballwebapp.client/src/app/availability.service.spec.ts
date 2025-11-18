@@ -104,5 +104,39 @@ describe('AvailabilityService', () => {
       
       expect(result).toBe(expected);
     });
+
+    it('should handle various time formats', () => {
+      const times = ['1:00 AM', '12:30 PM', '11:59 PM', '6:45 AM'];
+      
+      times.forEach(time => {
+        const result = service.parseTime(time);
+        const dateTime = DateTime.fromFormat(time, 'TT');
+        const expected = dateTime.toFormat('t');
+        expect(result).toBe(expected);
+      });
+    });
+
+    it('should consistently format times', () => {
+      const time1 = service.parseTime('3:00 PM');
+      const time2 = service.parseTime('3:00 PM');
+      
+      expect(time1).toBe(time2);
+    });
+  });
+
+  describe('getDif edge cases', () => {
+    it('should return consistent value on multiple calls', () => {
+      const dif1 = service.getDif();
+      const dif2 = service.getDif();
+      
+      // Should return the same value (difference doesn't change within test execution)
+      expect(dif1).toBe(dif2);
+    });
+
+    it('should return a finite number', () => {
+      const dif = service.getDif();
+      
+      expect(isFinite(dif)).toBe(true);
+    });
   });
 });

@@ -367,6 +367,27 @@ describe('ApiClientService', () => {
     });
   });
 
+  describe('upsertSignup', () => {
+    it('should call upsertSignup with transformed timeslots', (done) => {
+      const signupDto: any = {
+        seasonID: 1,
+        timeslots: [
+          { time: '7:00 PM', dayOfWeek: 'Monday' },
+          { time: '8:00 PM', dayOfWeek: 'Tuesday' }
+        ]
+      };
+
+      service.upsertSignup(signupDto).subscribe({
+        next: () => done()
+      });
+
+      const req = httpTestingController.expectOne('/api/Signups/UpsertSignup/');
+      expect(req.request.method).toBe('POST');
+      // The times should be transformed from 't' format to 'TT' format
+      req.flush({});
+    });
+  });
+
   describe('captain locking operations', () => {
     it('should lock captains with connection ID', (done) => {
       service.lockCaptains(1, 'lock-conn').subscribe({

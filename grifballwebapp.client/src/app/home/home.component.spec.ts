@@ -170,5 +170,84 @@ describe('HomeComponent', () => {
       const req = httpTestingController.expectOne((request) => request.url === '/api/Home/PastSeasons');
       req.flush(mockResult);
     });
+
+    it('should update total count when getting past seasons', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 42,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, undefined, undefined).subscribe({
+        next: () => {
+          expect(component.total()).toBe(42);
+          done();
+        }
+      });
+
+      const req = httpTestingController.expectOne((request) => request.url === '/api/Home/PastSeasons');
+      req.flush(mockResult);
+    });
+  });
+
+  describe('pagination and sorting', () => {
+    it('should handle page size changes', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 25
+      };
+
+      component.getPastSeasons(25, 1, undefined, undefined).subscribe({
+        next: () => done()
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/Home/PastSeasons' &&
+        request.params.get('pageSize') === '25'
+      );
+      req.flush(mockResult);
+    });
+
+    it('should handle page number changes', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 3,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 3, undefined, undefined).subscribe({
+        next: () => done()
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/Home/PastSeasons' &&
+        request.params.get('pageNumber') === '3'
+      );
+      req.flush(mockResult);
+    });
+
+    it('should handle descending sort', (done) => {
+      const mockResult = {
+        results: [],
+        totalCount: 0,
+        pageNumber: 1,
+        pageSize: 10
+      };
+
+      component.getPastSeasons(10, 1, 'desc', 'name').subscribe({
+        next: () => done()
+      });
+
+      const req = httpTestingController.expectOne((request) => 
+        request.url === '/api/Home/PastSeasons' &&
+        request.params.get('sortDirection') === 'desc' &&
+        request.params.get('sortColumn') === 'name'
+      );
+      req.flush(mockResult);
+    });
   });
 });
