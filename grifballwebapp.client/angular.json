@@ -107,14 +107,7 @@
               "src/styles.scss"
             ],
             "scripts": [],
-            "karmaConfig": "karma.conf.js",
-            "codeCoverage": true,
-            "codeCoverageExclude": [
-              "src/**/*.spec.ts",
-              "src/test.ts",
-              "src/environments/**",
-              "src/main.ts"
-            ]
+            "karmaConfig": "karma.conf.js"
           }
         }
       }
