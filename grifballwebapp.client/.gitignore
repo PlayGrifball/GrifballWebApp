@@ -43,4 +43,4 @@ testem.log
 .DS_Store
 Thumbs.db
 
-coverage-import.spec.ts
+/src/app/coverage-import.spec.ts
