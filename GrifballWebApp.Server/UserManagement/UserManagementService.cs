@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Sorting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace GrifballWebApp.Server.UserManagement;
@@ -263,8 +264,13 @@ public class UserManagementService : IUserManagementService
             return (false, "User does not have a password set (likely uses external login only)", null, null);
         }
 
-        // Generate a secure token
-        var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+        // Generate a cryptographically secure random token (64 characters)
+        var tokenBytes = new byte[32]; // 32 bytes = 64 hex characters
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(tokenBytes);
+        }
+        var token = Convert.ToHexString(tokenBytes).ToLower();
         var expiresAt = DateTime.UtcNow.AddMinutes(10);
 
         // Clean up any existing unused reset links for this user

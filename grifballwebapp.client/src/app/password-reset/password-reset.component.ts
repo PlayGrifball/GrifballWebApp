@@ -6,10 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { Router, RouterLink } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { UsePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDtos';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
+import { AccountService } from '../account.service';
 
 @Component({
   selector: 'app-password-reset',
@@ -39,7 +39,7 @@ export class PasswordResetComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private http: HttpClient,
+    private accountService: AccountService,
     private snackBar: MatSnackBar
   ) {}
 
@@ -68,7 +68,7 @@ export class PasswordResetComponent implements OnInit {
       newPassword: this.model.newPassword
     };
 
-    this.http.post('/api/identity/resetpassword', request, { responseType: 'text' }).subscribe({
+    this.accountService.resetPassword(request).subscribe({
       next: (response) => {
         this.snackBar.open('Password reset successfully! You can now log in with your new password.', 'Close', {
           duration: 5000

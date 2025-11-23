@@ -46,7 +46,7 @@ export class UserManagementComponent {
   ) {}
 
   generatePasswordResetLink(user: UserResponseDto): void {
-    if (user.externalAuthCount > 0 && !this.hasInternalLogin(user)) {
+    if (!this.hasInternalLogin(user)) {
       this.snackBar.open('This user only uses external authentication (Discord). Password reset is not applicable.', 'Close', {
         duration: 5000
       });
@@ -85,10 +85,9 @@ export class UserManagementComponent {
     });
   }
 
-  private hasInternalLogin(user: UserResponseDto): boolean {
-    // Assume if external auth count is less than 1, they have internal login
-    // Or if they have external auth but this is a special case where they also have a password
-    // This logic might need to be refined based on your actual user data structure
+  hasInternalLogin(user: UserResponseDto): boolean {
+    // Returns true if the user does not have any external authentication (i.e., only has internal login).
+    // If users can have both external authentication and an internal password, this logic may need to be updated.
     return user.externalAuthCount === 0;
   }
 
