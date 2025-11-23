@@ -266,10 +266,7 @@ public class UserManagementService : IUserManagementService
 
         // Generate a cryptographically secure random token (64 characters)
         var tokenBytes = new byte[32]; // 32 bytes = 64 hex characters
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(tokenBytes);
-        }
+        RandomNumberGenerator.Fill(tokenBytes);
         var token = Convert.ToHexString(tokenBytes).ToLower();
         var expiresAt = DateTime.UtcNow.AddMinutes(10);
 
