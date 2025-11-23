@@ -26,10 +26,10 @@ npm run test:ci
 
 ## Current Test Coverage
 
-As of initial implementation:
-- **28 total tests** discovered by Karma
-- **19 tests passing** (68% success rate)
-- **Code coverage**: 27.14% statements, 20% functions, 26.09% lines
+As of current implementation:
+- **377 total tests** discovered by Karma
+- **377 tests passing** (100% success rate)
+- **Code coverage**: 45.49% statements, 33.87% functions, 46.02% lines
 
 ### Code Coverage Reporting
 
