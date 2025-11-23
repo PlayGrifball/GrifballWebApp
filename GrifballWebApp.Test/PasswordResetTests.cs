@@ -75,20 +75,30 @@ public class PasswordResetTests
     }
 
     [Test]
-    public async Task GeneratePasswordResetLink_ShouldFail_WhenUserHasNoPassword()
+    public async Task GeneratePasswordResetLink_ShouldSucceed_WhenUserHasNoPassword()
     {
         // Arrange
         var user = new User { UserName = "oauthuser", PasswordHash = null };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
         _userManager.FindByNameAsync("oauthuser").Returns(user);
 
         // Act
         var (success, message, token, expiresAt) = await _service.GeneratePasswordResetLink("oauthuser", 1, CancellationToken.None);
 
         // Assert
-        Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("User does not have a password set (likely uses external login only)"));
-        Assert.That(token, Is.Null);
-        Assert.That(expiresAt, Is.Null);
+        Assert.That(success, Is.True);
+        Assert.That(message, Is.EqualTo("Password reset link generated successfully"));
+        Assert.That(token, Is.Not.Null.And.Not.Empty);
+        Assert.That(expiresAt, Is.Not.Null);
+        Assert.That(expiresAt!.Value, Is.GreaterThan(DateTime.UtcNow));
+
+        // Verify reset link was saved in database
+        var resetLink = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == token);
+        Assert.That(resetLink, Is.Not.Null);
+        Assert.That(resetLink.UserId, Is.EqualTo(user.Id));
+        Assert.That(resetLink.IsUsed, Is.False);
     }
 
     [Test]
@@ -159,7 +169,7 @@ public class PasswordResetTests
 
         // Assert
         Assert.That(success, Is.True);
-        Assert.That(message, Is.EqualTo("Password reset successfully"));
+        Assert.That(message, Is.EqualTo("Password set successfully"));
 
         // Verify reset link is removed
         var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "validtoken");
@@ -243,7 +253,45 @@ public class PasswordResetTests
 
         // Assert
         Assert.That(success, Is.False);
-        Assert.That(message, Is.EqualTo("Failed to reset password: Password too weak"));
+        Assert.That(message, Is.EqualTo("Failed to set password: Password too weak"));
+    }
+
+    [Test]
+    public async Task UsePasswordResetLink_ShouldAddPassword_WhenUserHasNoPassword()
+    {
+        // Arrange
+        var user = new User { UserName = "oauthuser", PasswordHash = null };
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        var resetLink = new PasswordResetLink
+        {
+            UserId = user.Id,
+            Token = "validtoken",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            CreatedByID = 1,
+            ModifiedByID = 1,
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+        _context.PasswordResetLinks.Add(resetLink);
+        await _context.SaveChangesAsync();
+
+        _userManager.AddPasswordAsync(user, "newpassword").Returns(IdentityResult.Success);
+
+        // Act
+        var (success, message) = await _service.UsePasswordResetLink("validtoken", "newpassword", CancellationToken.None);
+
+        // Assert
+        Assert.That(success, Is.True);
+        Assert.That(message, Is.EqualTo("Password set successfully"));
+
+        // Verify reset link is removed
+        var linkAfterUse = await _context.PasswordResetLinks.FirstOrDefaultAsync(x => x.Token == "validtoken");
+        Assert.That(linkAfterUse, Is.Null);
+
+        // Verify AddPasswordAsync was called
+        await _userManager.Received(1).AddPasswordAsync(user, "newpassword");
     }
 
     [Test]

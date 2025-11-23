@@ -46,13 +46,6 @@ export class UserManagementComponent {
   ) {}
 
   generatePasswordResetLink(user: UserResponseDto): void {
-    if (!this.hasInternalLogin(user)) {
-      this.snackBar.open('This user only uses external authentication (Discord). Password reset is not applicable.', 'Close', {
-        duration: 5000
-      });
-      return;
-    }
-
     const request: GeneratePasswordResetLinkRequestDto = {
       username: user.userName
     };
@@ -83,12 +76,6 @@ export class UserManagementComponent {
         });
       }
     });
-  }
-
-  hasInternalLogin(user: UserResponseDto): boolean {
-    // Returns true if the user has no external authentication providers configured.
-    // Current business rule: Users either have internal password OR external auth, not both.
-    return user.externalAuthCount === 0;
   }
 
   columns: Column<UserResponseDto>[] = [

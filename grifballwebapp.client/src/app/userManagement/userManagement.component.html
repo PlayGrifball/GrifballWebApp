@@ -18,8 +18,7 @@
       </a>
       <button mat-button 
               (click)="generatePasswordResetLink(row)"
-              matTooltip="Generate password reset link for this user"
-              [disabled]="!hasInternalLogin(row)">
+              matTooltip="Generate password reset/setup link for this user">
         <mat-icon>lock_reset</mat-icon>
         RESET PASSWORD
       </button>

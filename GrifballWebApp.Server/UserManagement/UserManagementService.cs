@@ -25,6 +25,7 @@ public class UserResponseDto
     public required string? Gamertag { get; set; }
     public required string? Discord { get; set; }
     public required int ExternalAuthCount { get; set; }
+    public required bool HasPassword { get; set; }
     public List<RoleDto> Roles { get; set; }
 }
 
@@ -74,6 +75,7 @@ public class UserManagementService : IUserManagementService
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,
@@ -116,6 +118,7 @@ public class UserManagementService : IUserManagementService
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,
@@ -258,12 +261,6 @@ public class UserManagementService : IUserManagementService
             return (false, "User not found", null, null);
         }
 
-        // Check if user has a password (username/password login)
-        if (string.IsNullOrEmpty(user.PasswordHash))
-        {
-            return (false, "User does not have a password set (likely uses external login only)", null, null);
-        }
-
         // Generate a cryptographically secure random token (64 characters)
         var tokenBytes = new byte[32]; // 32 bytes = 64 hex characters
         RandomNumberGenerator.Fill(tokenBytes);
@@ -318,14 +315,24 @@ public class UserManagementService : IUserManagementService
             return (false, "Reset link has expired");
         }
 
-        // Reset the password
-        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(resetLink.User);
-        var result = await _userManager.ResetPasswordAsync(resetLink.User, resetToken, newPassword);
+        // Set or reset the password
+        IdentityResult result;
+        if (string.IsNullOrEmpty(resetLink.User.PasswordHash))
+        {
+            // User doesn't have a password yet, add one
+            result = await _userManager.AddPasswordAsync(resetLink.User, newPassword);
+        }
+        else
+        {
+            // User already has a password, reset it
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(resetLink.User);
+            result = await _userManager.ResetPasswordAsync(resetLink.User, resetToken, newPassword);
+        }
 
         if (!result.Succeeded)
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return (false, $"Failed to reset password: {errors}");
+            return (false, $"Failed to set password: {errors}");
         }
 
         // Mark the reset link as used and clean up
@@ -333,7 +340,7 @@ public class UserManagementService : IUserManagementService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
-        return (true, "Password reset successfully");
+        return (true, "Password set successfully");
     }
 
     public async Task CleanupExpiredPasswordResetLinks(CancellationToken ct)

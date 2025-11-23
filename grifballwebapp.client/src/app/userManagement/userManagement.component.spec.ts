@@ -58,71 +58,13 @@ describe('UserManagementComponent', () => {
     expect(component.displayedColumns).toContain('actions');
   });
 
-  describe('hasInternalLogin', () => {
-    it('should return true when externalAuthCount is 0', () => {
-      const user: UserResponseDto = {
-        userID: 1,
-        userName: 'testuser',
-        externalAuthCount: 0,
-        lockoutEnd: null,
-        lockoutEnabled: false,
-        isDummyUser: false,
-        accessFailedCount: 0,
-        region: 'US',
-        displayName: 'Test User',
-        gamertag: 'TestGT',
-        discord: null,
-        roles: []
-      };
-
-      expect(component.hasInternalLogin(user)).toBe(true);
-    });
-
-    it('should return false when externalAuthCount is greater than 0', () => {
-      const user: UserResponseDto = {
-        userID: 1,
-        userName: 'oauthuser',
-        externalAuthCount: 1,
-        lockoutEnd: null,
-        lockoutEnabled: false,
-        isDummyUser: false,
-        accessFailedCount: 0,
-        region: 'US',
-        displayName: 'OAuth User',
-        gamertag: 'OAuthGT',
-        discord: 'discord#1234',
-        roles: []
-      };
-
-      expect(component.hasInternalLogin(user)).toBe(false);
-    });
-
-    it('should return false when externalAuthCount is 2 or more', () => {
-      const user: UserResponseDto = {
-        userID: 1,
-        userName: 'multiauth',
-        externalAuthCount: 2,
-        lockoutEnd: null,
-        lockoutEnabled: false,
-        isDummyUser: false,
-        accessFailedCount: 0,
-        region: 'US',
-        displayName: 'Multi Auth',
-        gamertag: 'MultiGT',
-        discord: 'discord#5678',
-        roles: []
-      };
-
-      expect(component.hasInternalLogin(user)).toBe(false);
-    });
-  });
-
   describe('generatePasswordResetLink', () => {
-    it('should show error and return early for users with only external authentication', () => {
+    it('should call generatePasswordResetLink for any user', () => {
       const user: UserResponseDto = {
         userID: 1,
         userName: 'oauthuser',
         externalAuthCount: 1,
+        hasPassword: false,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -133,15 +75,19 @@ describe('UserManagementComponent', () => {
         discord: 'discord#1234',
         roles: []
       };
+
+      const mockResponse = {
+        resetLink: '/reset-password?token=abc123',
+        expiresAt: '2025-01-01T12:00:00Z'
+      };
+
+      mockAccountService.generatePasswordResetLink.and.returnValue(of(mockResponse));
 
       component.generatePasswordResetLink(user);
 
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'This user only uses external authentication (Discord). Password reset is not applicable.',
-        'Close',
-        { duration: 5000 }
-      );
-      expect(mockAccountService.generatePasswordResetLink).not.toHaveBeenCalled();
+      expect(mockAccountService.generatePasswordResetLink).toHaveBeenCalledWith({
+        username: 'oauthuser'
+      });
     });
 
     it('should call generatePasswordResetLink for users with internal login', () => {
@@ -149,6 +95,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'internaluser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -179,6 +126,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'testuser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -213,6 +161,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'testuser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -248,6 +197,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'testuser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -283,6 +233,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'testuser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -312,6 +263,7 @@ describe('UserManagementComponent', () => {
         userID: 1,
         userName: 'testuser',
         externalAuthCount: 0,
+        hasPassword: true,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -336,11 +288,12 @@ describe('UserManagementComponent', () => {
       );
     });
 
-    it('should handle users with multiple external auth correctly', () => {
+    it('should allow password reset/setup for users with multiple external auth', () => {
       const user: UserResponseDto = {
         userID: 1,
         userName: 'multiauth',
         externalAuthCount: 3,
+        hasPassword: false,
         lockoutEnd: null,
         lockoutEnabled: false,
         isDummyUser: false,
@@ -352,14 +305,18 @@ describe('UserManagementComponent', () => {
         roles: []
       };
 
+      const mockResponse = {
+        resetLink: '/reset-password?token=xyz789',
+        expiresAt: '2025-01-01T12:00:00Z'
+      };
+
+      mockAccountService.generatePasswordResetLink.and.returnValue(of(mockResponse));
+
       component.generatePasswordResetLink(user);
 
-      expect(mockSnackBar.open).toHaveBeenCalledWith(
-        'This user only uses external authentication (Discord). Password reset is not applicable.',
-        'Close',
-        { duration: 5000 }
-      );
-      expect(mockAccountService.generatePasswordResetLink).not.toHaveBeenCalled();
+      expect(mockAccountService.generatePasswordResetLink).toHaveBeenCalledWith({
+        username: 'multiauth'
+      });
     });
   });
 

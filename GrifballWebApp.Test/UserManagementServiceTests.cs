@@ -91,6 +91,7 @@ public class UserManagementServiceTests
             Region = "NA",
             Discord = "discord",
             ExternalAuthCount = 0,
+            HasPassword = true,
             Roles = new List<RoleDto> { new RoleDto { RoleName = "Admin", HasRole = true } }
         };
         var result = await _service.EditUser(editDto, CancellationToken.None);

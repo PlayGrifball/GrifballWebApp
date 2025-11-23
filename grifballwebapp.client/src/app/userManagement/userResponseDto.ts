@@ -12,6 +12,7 @@ export interface UserResponseDto {
   gamertag: string | null,
   discord: string | null,
   externalAuthCount: number,
+  hasPassword: boolean,
   roles: RoleDto[]
 }
 
