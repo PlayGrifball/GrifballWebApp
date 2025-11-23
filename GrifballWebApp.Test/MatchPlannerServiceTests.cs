@@ -39,30 +39,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
-        await _context.Users.AddRangeAsync(user1, user2);
-        await _context.SaveChangesAsync();
-
-        var captain1 = new TeamPlayer { UserID = user1.Id, DraftCaptainOrder = 1 };
-        var captain2 = new TeamPlayer { UserID = user2.Id, DraftCaptainOrder = 2 };
-
-        var team1 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 1",
-            Captain = captain1
-        };
-
-        var team2 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 2",
-            Captain = captain2
-        };
-
-        team1.TeamPlayers.Add(captain1);
-        team2.TeamPlayers.Add(captain2);
+        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
+        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -90,30 +68,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
-        await _context.Users.AddRangeAsync(user1, user2);
-        await _context.SaveChangesAsync();
-
-        var captain1 = new TeamPlayer { UserID = user1.Id, DraftCaptainOrder = 1 };
-        var captain2 = new TeamPlayer { UserID = user2.Id, DraftCaptainOrder = 2 };
-
-        var team1 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 1",
-            Captain = captain1
-        };
-
-        var team2 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 2",
-            Captain = captain2
-        };
-
-        team1.TeamPlayers.Add(captain1);
-        team2.TeamPlayers.Add(captain2);
+        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
+        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
@@ -187,30 +143,8 @@ public class MatchPlannerServiceTests
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
 
-        var user1 = new User { UserName = "user1", DisplayName = "User 1" };
-        var user2 = new User { UserName = "user2", DisplayName = "User 2" };
-        await _context.Users.AddRangeAsync(user1, user2);
-        await _context.SaveChangesAsync();
-
-        var captain1 = new TeamPlayer { UserID = user1.Id, DraftCaptainOrder = 1 };
-        var captain2 = new TeamPlayer { UserID = user2.Id, DraftCaptainOrder = 2 };
-
-        var team1 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 1",
-            Captain = captain1
-        };
-
-        var team2 = new Team
-        {
-            SeasonID = season.SeasonID,
-            TeamName = "Team 2",
-            Captain = captain2
-        };
-
-        team1.TeamPlayers.Add(captain1);
-        team2.TeamPlayers.Add(captain2);
+        var team1 = new Team { SeasonID = season.SeasonID, TeamName = "Team 1" };
+        var team2 = new Team { SeasonID = season.SeasonID, TeamName = "Team 2" };
 
         await _context.Teams.AddRangeAsync(team1, team2);
         await _context.SaveChangesAsync();
