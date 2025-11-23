@@ -14,6 +14,21 @@ describe('UserManagementComponent', () => {
   let mockAccountService: jasmine.SpyObj<AccountService>;
   let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
 
+  // Helper function to mock clipboard
+  function mockClipboard(shouldSucceed: boolean) {
+    const mockClipboard = {
+      writeText: jasmine.createSpy('writeText').and.returnValue(
+        shouldSucceed ? Promise.resolve() : Promise.reject(new Error('Clipboard error'))
+      )
+    };
+    Object.defineProperty(navigator, 'clipboard', {
+      value: mockClipboard,
+      writable: true,
+      configurable: true
+    });
+    return mockClipboard;
+  }
+
   beforeEach(async () => {
     mockAccountService = jasmine.createSpyObj('AccountService', ['generatePasswordResetLink']);
     mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
@@ -180,16 +195,7 @@ describe('UserManagementComponent', () => {
         expiresAt: '2025-01-01T12:00:00Z'
       };
 
-      // Mock clipboard
-      const mockClipboard = {
-        writeText: jasmine.createSpy('writeText').and.returnValue(Promise.resolve())
-      };
-      Object.defineProperty(navigator, 'clipboard', {
-        value: mockClipboard,
-        writable: true,
-        configurable: true
-      });
-
+      const clipboard = mockClipboard(true);
       mockAccountService.generatePasswordResetLink.and.returnValue(of(mockResponse));
 
       component.generatePasswordResetLink(user);
@@ -197,8 +203,8 @@ describe('UserManagementComponent', () => {
       // Wait for the async clipboard operation
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      expect(mockClipboard.writeText).toHaveBeenCalled();
-      const clipboardCall = (mockClipboard.writeText as jasmine.Spy).calls.mostRecent();
+      expect(clipboard.writeText).toHaveBeenCalled();
+      const clipboardCall = (clipboard.writeText as jasmine.Spy).calls.mostRecent();
       expect(clipboardCall.args[0]).toContain('/reset-password?token=abc123');
     });
 
@@ -223,16 +229,7 @@ describe('UserManagementComponent', () => {
         expiresAt: '2025-01-01T12:00:00Z'
       };
 
-      // Mock clipboard
-      const mockClipboard = {
-        writeText: jasmine.createSpy('writeText').and.returnValue(Promise.resolve())
-      };
-      Object.defineProperty(navigator, 'clipboard', {
-        value: mockClipboard,
-        writable: true,
-        configurable: true
-      });
-
+      mockClipboard(true);
       mockAccountService.generatePasswordResetLink.and.returnValue(of(mockResponse));
 
       component.generatePasswordResetLink(user);
@@ -267,16 +264,7 @@ describe('UserManagementComponent', () => {
         expiresAt: '2025-01-01T12:00:00Z'
       };
 
-      // Mock clipboard to fail
-      const mockClipboard = {
-        writeText: jasmine.createSpy('writeText').and.returnValue(Promise.reject(new Error('Clipboard error')))
-      };
-      Object.defineProperty(navigator, 'clipboard', {
-        value: mockClipboard,
-        writable: true,
-        configurable: true
-      });
-
+      mockClipboard(false);
       mockAccountService.generatePasswordResetLink.and.returnValue(of(mockResponse));
 
       component.generatePasswordResetLink(user);

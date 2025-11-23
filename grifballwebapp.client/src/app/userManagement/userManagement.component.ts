@@ -86,8 +86,8 @@ export class UserManagementComponent {
   }
 
   hasInternalLogin(user: UserResponseDto): boolean {
-    // Returns true if the user does not have any external authentication (i.e., only has internal login).
-    // If users can have both external authentication and an internal password, this logic may need to be updated.
+    // Returns true if the user has no external authentication providers configured.
+    // Current business rule: Users either have internal password OR external auth, not both.
     return user.externalAuthCount === 0;
   }
 
