@@ -3,14 +3,14 @@ import { DateTime } from "luxon";
 export interface UserResponseDto {
   userID: number,
   userName: string,
-  lockoutEnd: DateTime,
+  lockoutEnd: DateTime | null,
   lockoutEnabled: boolean,
   isDummyUser: boolean,
   accessFailedCount: number,
-  region: string,
-  displayName: string,
-  gamertag: string,
-  discord: string,
+  region: string | null,
+  displayName: string | null,
+  gamertag: string | null,
+  discord: string | null,
   externalAuthCount: number,
   roles: RoleDto[]
 }
