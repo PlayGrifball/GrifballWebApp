@@ -63,7 +63,7 @@ public class StringMenuInteractionsTests
         // Arrange
         var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
@@ -79,9 +79,9 @@ public class StringMenuInteractionsTests
         var user = new GrifballWebApp.Database.Models.User { Id = 1, DiscordUser = new DiscordUser() { DiscordUserID = 123, DiscordUsername = "123" }, XboxUser = new XboxUser { Gamertag = "GT" } };
         var match = new MatchedMatch { Id = 1, Active = false, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
@@ -98,9 +98,9 @@ public class StringMenuInteractionsTests
         var otherUser = new User { Id = 2, DiscordUser = new DiscordUser() { DiscordUserID = 456, DiscordUsername = "456" }, XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "GT2" } };
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
@@ -119,10 +119,10 @@ public class StringMenuInteractionsTests
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         
         _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = true, User = user };
         var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
@@ -146,12 +146,12 @@ public class StringMenuInteractionsTests
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.Add(user);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedPlayers.Add(me);
         match.HomeTeam.Players.Add(me);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "999" }); // Not in match
         // Act
@@ -169,17 +169,17 @@ public class StringMenuInteractionsTests
         
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = true, User = otherUser };
         match.HomeTeam.Players.Add(me);
         match.AwayTeam.Players.Add(them);
         _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
@@ -198,17 +198,17 @@ public class StringMenuInteractionsTests
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
 
         _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
         match.HomeTeam.Players.Add(me);
         match.AwayTeam.Players.Add(them);
         _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
@@ -228,20 +228,20 @@ public class StringMenuInteractionsTests
         var vote = new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 10, KickMatchedPlayerId = 20 };
 
         _context.Users.AddRange(user, otherUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
         match.HomeTeam.Players.Add(me);
         match.AwayTeam.Players.Add(them);
         _context.MatchedPlayers.AddRange(me, them);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _context.MatchedKickVotes.Add(vote);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
 
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
@@ -261,9 +261,9 @@ public class StringMenuInteractionsTests
         var thirdUser = new User { Id = 3, DiscordUser = new DiscordUser { DiscordUserID = 789, DiscordUsername = "789" }, XboxUser = new XboxUser { XboxUserID = 3, Gamertag = "GT3" }, DisplayName = "Voter2" };
         var match = new MatchedMatch { Id = 1, Active = true, HomeTeam = new MatchedTeam { Players = [] }, AwayTeam = new MatchedTeam { Players = [] } };
         _context.Users.AddRange(user, otherUser, thirdUser);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _context.MatchedMatches.Add(match);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         var me = new MatchedPlayer { Id = 10, UserID = 1, Kicked = false, User = user };
         var them = new MatchedPlayer { Id = 20, UserID = 2, Kicked = false, User = otherUser };
         var voter2 = new MatchedPlayer { Id = 30, UserID = 3, Kicked = false, User = thirdUser };
@@ -271,10 +271,10 @@ public class StringMenuInteractionsTests
         match.AwayTeam.Players.Add(them);
         match.HomeTeam.Players.Add(voter2);
         _context.MatchedPlayers.AddRange(me, them, voter2);
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         // Add a vote from voter2 (so threshold will be reached with this vote)
         _context.MatchedKickVotes.Add(new MatchedKickVote { MatchId = 1, VoterMatchedPlayerId = 30, KickMatchedPlayerId = 20 });
-        await _context.SaveChangesWithoutContraints();
+        await _context.SaveChangesWithoutConstraints();
         _discordContext.User.Id.Returns(123UL); // user 1
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act

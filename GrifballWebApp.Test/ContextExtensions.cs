@@ -17,7 +17,7 @@ public static class ContextExtensions
         await _context.Database.ExecuteSqlRawAsync($"SET IDENTITY_INSERT {table} OFF");
     }
 
-    public static async Task SaveChangesWithoutContraints(this GrifballContext _context)
+    public static async Task SaveChangesWithoutConstraints(this GrifballContext _context)
     {
         // Get all entities being added
         var entries = _context.ChangeTracker.Entries()

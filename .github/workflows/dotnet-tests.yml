@@ -7,6 +7,11 @@ on:
   push:
     branches: [ "master" ]
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
 env:
   DOTNET_VERSION: '9.0.x'
   # Testcontainers configuration
@@ -53,13 +58,14 @@ jobs:
         path: TestResults/
         
     - name: Publish Test Results
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       if: always()
       with:
         name: .NET Test Results
         path: TestResults/*.trx
         reporter: dotnet-trx
         fail-on-error: true
+        use-actions-summary: 'false'
 
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -67,7 +73,8 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/**/coverage.cobertura.xml
-        name: codecov-coverage
+        flags: backend
+        name: backend-coverage
         fail_ci_if_error: true
 
     - name: Upload Test Results to Codecov (Test Analytics)
