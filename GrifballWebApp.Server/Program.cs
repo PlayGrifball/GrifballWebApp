@@ -34,6 +34,9 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 using Surprenant.Grunt.Util;
 using System.Text.Json.Serialization;
@@ -75,7 +78,40 @@ public class Program
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services));
 
-        // Add services to the container.
+        var resourceName = builder.Configuration.GetValue<string>("OTLP_RESOURCE_NAME") ?? builder.Environment.ApplicationName;
+        var otlpEndpoint = builder.Configuration.GetValue<string>("OTLP_ENDPOINT_URL");
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService(resourceName))
+            .WithMetrics(metrics => metrics
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddSqlClientInstrumentation()
+                .AddRuntimeInstrumentation()
+                .AddProcessInstrumentation()
+                .AddMeter("Microsoft.EntityFrameworkCore")
+                .AddPrometheusExporter()
+            )
+            .WithTracing(tracing =>
+            {
+                tracing
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddSqlClientInstrumentation()
+                .AddEntityFrameworkCoreInstrumentation();
+
+                if (!string.IsNullOrEmpty(otlpEndpoint))
+                {
+                    tracing.AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(otlpEndpoint);
+                    });
+                }
+                else if (builder.Environment.IsDevelopment())
+                {
+                    tracing.AddConsoleExporter();
+                }
+            });
+
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
 
@@ -352,6 +388,8 @@ public class Program
         //app.UseHttpsRedirection();
 
         app.UseAuthorization();
+
+        app.MapPrometheusScrapingEndpoint();
 
         app.MapControllers();
         app.MapHub<TeamsHub>("TeamsHub", options =>
