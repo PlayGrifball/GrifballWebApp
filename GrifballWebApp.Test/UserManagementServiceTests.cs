@@ -5,7 +5,6 @@ using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Dtos;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
-using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Test;
 
@@ -15,7 +14,6 @@ public class UserManagementServiceTests
 {
     private GrifballContext _context;
     private UserManagementService _service;
-    private IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private UserManager<User> _userManager;
     private IGetsertXboxUserService _getsertXboxUserService;
 
@@ -23,11 +21,10 @@ public class UserManagementServiceTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
         _userManager = Substitute.For<UserManager<User>>(
             Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
         _getsertXboxUserService = Substitute.For<IGetsertXboxUserService>();
-        _service = new UserManagementService(_context, _haloInfiniteClientFactory, _userManager, _getsertXboxUserService);
+        _service = new UserManagementService(_context, _userManager, _getsertXboxUserService);
     }
 
     [TearDown]
@@ -94,6 +91,7 @@ public class UserManagementServiceTests
             Region = "NA",
             Discord = "discord",
             ExternalAuthCount = 0,
+            HasPassword = true,
             Roles = new List<RoleDto> { new RoleDto { RoleName = "Admin", HasRole = true } }
         };
         var result = await _service.EditUser(editDto, CancellationToken.None);

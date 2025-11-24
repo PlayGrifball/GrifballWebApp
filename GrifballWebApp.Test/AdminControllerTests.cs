@@ -1,5 +1,7 @@
 using GrifballWebApp.Server.Controllers;
+using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.Services;
+using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,6 +23,7 @@ public class AdminControllerTests
     private IAccountAuthorization _accountAuthorization;
     private IDataPullService _dataPullService;
     private IOptionsMonitor<ClientConfiguration> _options;
+    private IUserManagementService _userManagementService;
     private AdminController _controller;
 
     [SetUp]
@@ -31,7 +34,8 @@ public class AdminControllerTests
         _accountAuthorization = Substitute.For<IAccountAuthorization>();
         _dataPullService = Substitute.For<IDataPullService>();
         _options = Substitute.For<IOptionsMonitor<ClientConfiguration>>();
-        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options);
+        _userManagementService = Substitute.For<IUserManagementService>();
+        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService);
     }
 
     [Test]
@@ -90,5 +94,84 @@ public class AdminControllerTests
         _options.CurrentValue.Returns(config);
         var result = await _controller.CheckStatus();
         Assert.That(result, Is.EqualTo("https://login.live.com/oauth20_authorize.srf?client_id=cid&response_type=code&approval_prompt=auto&scope=Xboxlive.signin+Xboxlive.offline_access&redirect_uri=http%3a%2f%2fredir"));
+    }
+
+    [Test]
+    public async Task GeneratePasswordResetLink_ShouldReturnBadRequest_WhenUsernameIsEmpty()
+    {
+        var request = new GeneratePasswordResetLinkRequestDto { Username = "" };
+        var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
+        
+        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
+        var badRequest = (BadRequestObjectResult)result.Result;
+        Assert.That(badRequest.Value, Is.EqualTo("Username is required"));
+    }
+
+    [Test]
+    public async Task GeneratePasswordResetLink_ShouldReturnBadRequest_WhenServiceFails()
+    {
+        var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
+        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((false, "User not found", null, null));
+
+        // Mock the User.FindFirstValue to return a valid user ID
+        var claims = new System.Collections.Generic.List<System.Security.Claims.Claim>
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "1")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims);
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+        _controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = principal }
+        };
+
+        var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
+        
+        Assert.That(result.Result, Is.TypeOf<BadRequestObjectResult>());
+        var badRequest = (BadRequestObjectResult)result.Result;
+        Assert.That(badRequest.Value, Is.EqualTo("User not found"));
+    }
+
+    [Test]
+    public async Task GeneratePasswordResetLink_ShouldReturnOk_WhenSuccessful()
+    {
+        var request = new GeneratePasswordResetLinkRequestDto { Username = "testuser" };
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+        _userManagementService.GeneratePasswordResetLink("testuser", Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((true, "Password reset link generated successfully", "abc123token", expiresAt));
+
+        // Mock the User.FindFirstValue to return a valid user ID
+        var claims = new System.Collections.Generic.List<System.Security.Claims.Claim>
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "1")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims);
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+        _controller.ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = principal }
+        };
+
+        var result = await _controller.GeneratePasswordResetLink(request, CancellationToken.None);
+        
+        Assert.That(result.Result, Is.TypeOf<OkObjectResult>());
+        var okResult = (OkObjectResult)result.Result;
+        var response = (GeneratePasswordResetLinkResponseDto)okResult.Value;
+        Assert.That(response.ResetLink, Is.EqualTo("/reset-password?token=abc123token"));
+        Assert.That(response.ExpiresAt, Is.EqualTo(expiresAt));
+    }
+
+    [Test]
+    public async Task CleanupExpiredPasswordResetLinks_ShouldReturnOk()
+    {
+        await _userManagementService.CleanupExpiredPasswordResetLinks(Arg.Any<CancellationToken>());
+        
+        var result = await _controller.CleanupExpiredPasswordResetLinks(CancellationToken.None);
+        
+        Assert.That(result, Is.TypeOf<OkObjectResult>());
+        var okResult = (OkObjectResult)result;
+        Assert.That(okResult.Value, Is.EqualTo("Expired password reset links cleaned up"));
+        await _userManagementService.Received(1).CleanupExpiredPasswordResetLinks(Arg.Any<CancellationToken>());
     }
 }

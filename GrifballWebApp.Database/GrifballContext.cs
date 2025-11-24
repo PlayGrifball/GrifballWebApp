@@ -51,6 +51,7 @@ public class GrifballContext :
     public virtual DbSet<MatchedWinnerVote> MatchedWinnerVotes { get; set; }
     public virtual DbSet<MatchedKickVote> MatchedKickVotes { get; set; }
     public virtual DbSet<MatchReschedule> MatchReschedules { get; set; }
+    public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -94,6 +95,7 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.MatchedWinnerVoteConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchedKickVoteConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MatchRescheduleConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.PasswordResetLinkConfiguration());
 
         modelBuilder.Entity<IdentityRoleClaim<int>>(b => b.ToTable("RoleClaims", "Auth", tb => tb.IsTemporal()));
         modelBuilder.Entity<IdentityUserToken<int>>(b =>
