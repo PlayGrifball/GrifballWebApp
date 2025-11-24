@@ -28,13 +28,6 @@
   Register
 </button>
 
-<div class="space"></div>
-
-<p class="forgot-password-note">
-  <mat-icon>info</mat-icon>
-  Forgot your password? Contact a system administrator to request a password reset link.
-</p>
-
 <h2>External Login Providers:</h2>
 
 <a [href]="(followUp() !== undefined && followUp() !== '') ? '/api/identity/externallogin?followUp=' + followUp() : '/api/identity/externallogin'">
