@@ -64,7 +64,9 @@ public class StringExtensionsTests
     {
         // Arrange
         const string display = "Click Here";
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type
         string? url = null;
+#pragma warning restore CS8625
 
         // Act
         var result = display.LinkMarkdown(url!);
