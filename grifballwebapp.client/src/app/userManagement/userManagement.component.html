@@ -11,7 +11,18 @@
  -->
 <app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()">
   <ng-template let-row>
-    <a mat-list-item [routerLink]="['edituser', row.userID]">EDIT</a>
+    <div class="action-buttons">
+      <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">
+        <mat-icon>edit</mat-icon>
+        EDIT
+      </a>
+      <button mat-button 
+              (click)="generatePasswordResetLink(row)"
+              matTooltip="Generate password reset/setup link for this user">
+        <mat-icon>lock_reset</mat-icon>
+        RESET PASSWORD
+      </button>
+    </div>
   </ng-template>
   <ng-template let-row>
     {{row.lockoutEnd | date:'short' }}

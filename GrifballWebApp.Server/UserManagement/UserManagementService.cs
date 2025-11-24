@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Sorting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace GrifballWebApp.Server.UserManagement;
@@ -24,6 +25,7 @@ public class UserResponseDto
     public required string? Gamertag { get; set; }
     public required string? Discord { get; set; }
     public required int ExternalAuthCount { get; set; }
+    public required bool HasPassword { get; set; }
     public List<RoleDto> Roles { get; set; }
 }
 
@@ -33,16 +35,25 @@ public class RoleDto
     public bool HasRole { get; set; }
 }
 
-public class UserManagementService
+public interface IUserManagementService
+{
+    Task<PaginationResult<UserResponseDto>> GetUsers(PaginationFilter filter, string search, CancellationToken ct);
+    Task<UserResponseDto?> GetUser(int userID, CancellationToken ct);
+    Task<string?> CreateUser(CreateUserRequestDto createUserRequest, CancellationToken ct);
+    Task<string?> EditUser(UserResponseDto editUser, CancellationToken ct);
+    Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct);
+    Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct);
+    Task CleanupExpiredPasswordResetLinks(CancellationToken ct);
+}
+
+public class UserManagementService : IUserManagementService
 {
     private readonly GrifballContext _context;
-    private readonly IHaloInfiniteClientFactory _haloInfiniteClientFactory;
     private readonly UserManager<User> _userManager;
     private readonly IGetsertXboxUserService _getsertXboxUserService;
-    public UserManagementService(GrifballContext grifballContext, IHaloInfiniteClientFactory haloInfiniteClientFactory, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
+    public UserManagementService(GrifballContext grifballContext, UserManager<User> userManager, IGetsertXboxUserService getsertXboxUserService)
     {
         _context = grifballContext;
-        _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _userManager = userManager;
         _getsertXboxUserService = getsertXboxUserService;
     }
@@ -64,6 +75,7 @@ public class UserManagementService
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,
@@ -106,6 +118,7 @@ public class UserManagementService
                 Gamertag = user.XboxUser.Gamertag,
                 Discord = user.DiscordUser.DiscordUsername,
                 ExternalAuthCount = user.UserLogins.Count,
+                HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 Roles = _context.Roles.AsSplitQuery().AsNoTracking().Select(r => new RoleDto()
                 {
                     RoleName = r.Name,
@@ -238,5 +251,108 @@ public class UserManagementService
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return null;
+    }
+
+    public async Task<(bool Success, string Message, string? Token, DateTime? ExpiresAt)> GeneratePasswordResetLink(string username, int createdByUserId, CancellationToken ct)
+    {
+        var user = await _userManager.FindByNameAsync(username);
+        if (user == null)
+        {
+            return (false, "User not found", null, null);
+        }
+
+        // Generate a cryptographically secure random token (64 characters)
+        var tokenBytes = new byte[32]; // 32 bytes = 64 hex characters
+        RandomNumberGenerator.Fill(tokenBytes);
+        var token = Convert.ToHexString(tokenBytes);
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        // Clean up any existing unused reset links for this user
+        var existingLinks = await _context.PasswordResetLinks
+            .Where(x => x.UserId == user.Id && !x.IsUsed)
+            .ToListAsync(ct);
+
+        _context.PasswordResetLinks.RemoveRange(existingLinks);
+
+        // Create new reset link
+        var resetLink = new PasswordResetLink
+        {
+            UserId = user.Id,
+            Token = token,
+            ExpiresAt = expiresAt,
+            CreatedByID = createdByUserId,
+            ModifiedByID = createdByUserId,
+            CreatedAt = DateTime.UtcNow,
+            ModifiedAt = DateTime.UtcNow
+        };
+
+        _context.PasswordResetLinks.Add(resetLink);
+        await _context.SaveChangesAsync(ct);
+
+        return (true, "Password reset link generated successfully", token, expiresAt);
+    }
+
+    public async Task<(bool Success, string Message)> UsePasswordResetLink(string token, string newPassword, CancellationToken ct)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var resetLink = await _context.PasswordResetLinks
+            .Include(x => x.User)
+            .Where(x => x.Token == token && !x.IsUsed)
+            .FirstOrDefaultAsync(ct);
+
+        if (resetLink == null)
+        {
+            return (false, "Invalid or already used reset link");
+        }
+
+        if (resetLink.ExpiresAt <= DateTime.UtcNow)
+        {
+            // Clean up expired link
+            _context.PasswordResetLinks.Remove(resetLink);
+            await _context.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return (false, "Reset link has expired");
+        }
+
+        // Set or reset the password
+        IdentityResult result;
+        if (string.IsNullOrEmpty(resetLink.User.PasswordHash))
+        {
+            // User doesn't have a password yet, add one
+            result = await _userManager.AddPasswordAsync(resetLink.User, newPassword);
+        }
+        else
+        {
+            // User already has a password, reset it
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(resetLink.User);
+            result = await _userManager.ResetPasswordAsync(resetLink.User, resetToken, newPassword);
+        }
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, $"Failed to set password: {errors}");
+        }
+
+        // Mark the reset link as used and clean up
+        _context.PasswordResetLinks.Remove(resetLink);
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        return (true, "Password set successfully");
+    }
+
+    public async Task CleanupExpiredPasswordResetLinks(CancellationToken ct)
+    {
+        var expiredLinks = await _context.PasswordResetLinks
+            .Where(x => x.ExpiresAt <= DateTime.UtcNow || x.IsUsed)
+            .ToListAsync(ct);
+
+        if (expiredLinks.Any())
+        {
+            _context.PasswordResetLinks.RemoveRange(expiredLinks);
+            await _context.SaveChangesAsync(ct);
+        }
     }
 }
