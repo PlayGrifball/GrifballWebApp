@@ -73,6 +73,9 @@ jobs:
           kubectl exec -n $K8S_NAMESPACE $(kubectl get pod -n $K8S_NAMESPACE -l app=mssql-tools -o jsonpath="{.items[0].metadata.name}") -- /opt/mssql-tools/bin/sqlcmd -S sqlserver -U "$MSSQL_BACKUP_USER" -P "$MSSQL_BACKUP_PASSWORD" -C \
             -Q "BACKUP DATABASE [GrifballWebApp] TO DISK = N'/var/opt/mssql/backup/${{ env.SAFE_ENV }}/GrifballWebApp_$(date +%Y%m%d_%H%M%S).bak' WITH FORMAT, INIT, NAME = 'Full Backup of GrifballWebApp';"
 
+      - name: Build Database Project
+        run: dotnet build GrifballWebApp.Database/GrifballWebApp.Database.csproj
+
       - name: Apply EF migrations
         env:
           MSSQL_BACKUP_USER: ${{ secrets.MSSQL_BACKUP_USER }}
