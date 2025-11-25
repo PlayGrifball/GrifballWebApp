@@ -26,12 +26,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
         env:
           DOTNET_INSTALL_DIR: $HOME/.dotnet
 
       - name: Install dotnet ef cli tool
-        run: dotnet tool install --global dotnet-ef --version 9.*
+        run: dotnet tool install --global dotnet-ef --version 10.*
 
       - name: Add dotnet tools to PATH
         run: echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
