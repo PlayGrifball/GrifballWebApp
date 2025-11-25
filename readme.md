@@ -31,7 +31,7 @@ https://docs.google.com/spreadsheets/d/14tRPXLkjauRV-xfQiegUD6VMlqso7_EYe68E9HY4
 https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240
 
 ## Backend Technologies
-- [.NET 9](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
+- [.NET 10](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
 - [ASP.NET Core Web API](https://learn.microsoft.com/en-us/aspnet/core) - [source](https://github.com/dotnet/aspnetcore)
 - [SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/) - [source](https://github.com/dotnet/aspnetcore/tree/main/src/SignalR)
 - [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/) - [source](https://github.com/dotnet/efcore)
@@ -50,7 +50,7 @@ https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF
 
 To get started with Grifball Web App development, install the following tools:
 
-- **[Visual Studio 2022](https://visualstudio.microsoft.com/downloads/)**  
+- **[Visual Studio 2026](https://visualstudio.microsoft.com/downloads/)**  
   - Community Edition is sufficient.
   - During installation, select the "ASP.NET and web development" workload.
   - If already installed, you can modify the installation via the Visual Studio Installer. 
@@ -61,7 +61,7 @@ To get started with Grifball Web App development, install the following tools:
   - Recommended for frontend development.
   - When you open the project, VS Code will prompt you to install recommended extensions (see [extensions.json](grifballwebapp.client/.vscode/extensions.json)).
   - You can use VS Code for backend development as well, but some additional configuration may be required (e.g., setting up launch configurations in [launch.json](grifballwebapp.client/.vscode/launch.json)).
-	- In theory this would involve installing the .NET SDK manually (Assuming you did not install it with VS 2022)
+	- In theory this would involve installing the .NET SDK manually (Assuming you did not install it with VS 2026)
 	- Manually using the terminal to run and debug the backend application with commands like `dotnet watch run` or setting up launch.json to do it for you.
 
 - **[SQL Server 2022 Developer](https://go.microsoft.com/fwlink/p/?linkid=2215158&clcid=0x809&culture=en-gb&country=gb)**  
@@ -83,7 +83,7 @@ To get started with Grifball Web App development, install the following tools:
   - Inside the `grifballwebapp.client` folder, run `npm install --force` to install all required packages.
 
 - **Entity Framework Core Tools**  
-  - Used for managing database migrations: `dotnet tool install --global dotnet-ef --version 9.*`
+  - Used for managing database migrations: `dotnet tool install --global dotnet-ef --version 10.*`
   - See [EF Core CLI documentation](https://learn.microsoft.com/en-us/ef/core/cli/dotnet) for more information.
 
 ### Configuration
