@@ -1,14 +1,11 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
-using OfficeOpenXml.Style;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Google.Apis.Auth.OAuth2;
 using System.Text.RegularExpressions;
 using GrifballWebApp.Server.Services;
-using System;
 
 namespace GrifballWebApp.Server.Excel;
 
@@ -20,7 +17,6 @@ public class ExcelService
     private readonly IConfiguration _configuration;
     public ExcelService(GrifballContext context, IDataPullService dataPullService, IConfiguration configuration)
     {
-        ExcelPackage.License.SetNonCommercialOrganization("PlayGrifball");
         _context = context;
         _dataPullService = dataPullService;
         _configuration = configuration;
@@ -407,150 +403,6 @@ public class ExcelService
         updateData.Add(dataValueRange);
         var response = await _sheetsService.Spreadsheets.Values.BatchUpdate(requestBody, spreadsheetID).ExecuteAsync();
         return response;
-    }
-
-    public void CreateExcelPerMatchOld()
-    {
-        FileInfo newFile = new FileInfo("AllMatchStats.xlsx");
-        if (newFile.Exists)
-        {
-            newFile.Delete();
-            newFile = new FileInfo("AllMatchStats.xlsx");
-        }
-
-        using var package = new ExcelPackage(newFile);
-        var worksheet = package.Workbook.Worksheets.Add("AllMatchStats");
-
-        var matches = _context.Matches
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.MedalEarned)
-                        .ThenInclude(x => x.Medal)
-            .Include(x => x.MatchTeams)
-                .ThenInclude(x => x.MatchParticipants)
-                    .ThenInclude(x => x.XboxUser)
-            .OrderBy(x => x.StartTime)
-            .Where(x => x.MatchLink.SeasonMatch.SeasonID == 4)
-            .ToArray();
-
-        var column = 1;
-        worksheet.Cells[1, column++].Value = "Player";
-        worksheet.Cells[1, column++].Value = "Wins";
-        worksheet.Cells[1, column++].Value = "Losses";
-        worksheet.Cells[1, column++].Value = "Score";
-        worksheet.Cells[1, column++].Value = "Damage Dealt";
-        worksheet.Cells[1, column++].Value = "Damage Taken";
-        worksheet.Cells[1, column++].Value = "Goals";
-        worksheet.Cells[1, column++].Value = "Ball Punches";
-        worksheet.Cells[1, column++].Value = "Kills";
-        worksheet.Cells[1, column++].Value = "Deaths";
-        worksheet.Cells[1, column++].Value = "Spread";
-        worksheet.Cells[1, column++].Value = "KD Ratio";
-        worksheet.Cells[1, column++].Value = "Assists";
-        worksheet.Cells[1, column++].Value = "Game Time";
-        worksheet.Cells[1, column++].Value = "Killing Sprees";
-        worksheet.Cells[1, column++].Value = "Killing Frenzies";
-        worksheet.Cells[1, column++].Value = "Running Riots";
-        worksheet.Cells[1, column++].Value = "Rampages";
-        worksheet.Cells[1, column++].Value = "Grand Slam";
-        worksheet.Cells[1, column++].Value = "Double Kills";
-        worksheet.Cells[1, column++].Value = "Triple Kills";
-        worksheet.Cells[1, column++].Value = "Overkills";
-        worksheet.Cells[1, column++].Value = "Killtaculars";
-        worksheet.Cells[1, column++].Value = "Killtrocities";
-        worksheet.Cells[1, column++].Value = "Killamanjaros";
-        worksheet.Cells[1, column++].Value = "Killtastrophe";
-        worksheet.Cells[1, column++].Value = "Killpocalypses";
-        worksheet.Cells[1, column++].Value = "Killionaire";
-        worksheet.Cells[1, column++].Value = "Exterms";
-        worksheet.Cells[1, column++].Value = "Bulltrues";
-        worksheet.Cells[1, column++].Value = "Ninja";
-        worksheet.Cells[1, column++].Value = "Pancake";
-        worksheet.Cells[1, column++].Value = "Whiplash";
-        worksheet.Cells[1, column++].Value = "Killjoys";
-        worksheet.Cells[1, column++].Value = "Harpoons";
-        worksheet.Cells[1, column++].Value = "Start Time UTC";
-        worksheet.Cells[1, column++].Value = "MatchID";
-
-        var columnCount = 37;
-
-        using var header = worksheet.Cells[1, 1, 1, columnCount];
-        header.Style.Font.Bold = true;
-        header.AutoFitColumns();
-
-        using var firstRow = worksheet.Cells[2, 1, 2, columnCount];
-        firstRow.Style.Border.Top.Style = ExcelBorderStyle.Medium;
-        firstRow.Style.Border.Top.Color.SetColor(System.Drawing.Color.Black);
-
-        package.Workbook.Properties.Title = "Grifball Stats";
-        package.Workbook.Properties.Author = "Noah Surprenant";
-
-        var row = 2;
-        foreach (var match in matches)
-        {
-            foreach (var team in match.MatchTeams.OrderBy(x => x.Outcome)) // Winning team first
-            {
-                foreach (var s in team.MatchParticipants.OrderBy(x => x.XboxUser.Gamertag))
-                {
-                    column = 1;
-                    worksheet.Cells[row, column++].Value = s.XboxUser.Gamertag;
-
-                    if (s.XboxUser.Gamertag is "Grunt Padre" or "ASpence501" or "Sauted Smurf" or "TommyWstSide")
-                    {
-                        worksheet.Cells[row, column - 1].SetHyperlink(new Uri("https://www.youtube.com/watch?v=mHjDfIazM7Y"));
-                    }
-
-                    worksheet.Cells[row, column++].Value = s.MatchTeam.Outcome == Outcomes.Won ? 1 : 0; // Wins
-                    worksheet.Cells[row, column++].Value = s.MatchTeam.Outcome == Outcomes.Lost ? 1 : 0; // Losses
-                    worksheet.Cells[row, column++].Value = s.PersonalScore;
-                    worksheet.Cells[row, column++].Value = s.DamageDealt;
-                    worksheet.Cells[row, column++].Value = s.DamageTaken;
-                    worksheet.Cells[row, column++].Value = s.Score; // Goals
-                    worksheet.Cells[row, column++].Value = s.Kills - s.PowerWeaponKills; // Ball punches = Kills - Power Weapon Kills
-                    worksheet.Cells[row, column++].Value = s.Kills;
-                    worksheet.Cells[row, column++].Value = s.Deaths;
-                    worksheet.Cells[row, column++].Value = s.Kills - s.Deaths;
-                    worksheet.Cells[row, column++].Value = s.Kills / (decimal)Math.Max(s.Deaths, 1); // Prevent division by 0
-                    worksheet.Cells[row, column++].Value = s.Assists;
-                    worksheet.Cells[row, column++].Value = s.MatchTeam.Match.Duration.TotalMinutes;
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killing Spree");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killing Frenzy");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Running Riot");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Rampage");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Grand Slam");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Double Kill");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Triple Kill");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Overkill");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killtacular");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killtrocity");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killamanjaro");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killtastrophe");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killpocalypse");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killionaire");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Extermination");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Bulltrue");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Ninja");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Pancake");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Whiplash");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Killjoy");
-                    worksheet.Cells[row, column++].Value = s.MedalEarned.Count("Harpoon");
-                    worksheet.Cells[row, column++].Value = s.MatchTeam.Match.StartTime.ToString();
-                    worksheet.Cells[row, column++].Value = s.MatchTeam.Match.MatchID;
-                    row++;
-                }
-            }
-
-            // Add underline
-            using var nextRow = worksheet.Cells[row, 1, row, columnCount];
-            nextRow.Style.Border.Top.Style = ExcelBorderStyle.Medium;
-            nextRow.Style.Border.Top.Color.SetColor(System.Drawing.Color.Black);
-        }
-
-        worksheet.Cells[1, 1, row, 1].AutoFitColumns();
-
-        package.Save();
     }
 }
 

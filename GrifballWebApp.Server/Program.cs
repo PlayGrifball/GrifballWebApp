@@ -29,7 +29,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
@@ -134,29 +134,19 @@ public class Program
         {
             option.CustomSchemaIds(x => x.FullName);
 
-            option.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme()
+            option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
             {
-                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                In = ParameterLocation.Header,
                 Description = "Please enter a valid token",
                 Name = "Authorization",
-                Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+                Type = SecuritySchemeType.Http,
                 BearerFormat = "JWT",
                 Scheme = "Bearer"
             });
 
-            option.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement()
+            option.AddSecurityRequirement(document => new OpenApiSecurityRequirement
             {
-                {
-                    new OpenApiSecurityScheme()
-                    {
-                        Reference = new OpenApiReference()
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    new string[]{}
-                }
+                [new OpenApiSecuritySchemeReference("bearer", document)] = []
             });
         });
 
