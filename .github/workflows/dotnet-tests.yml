@@ -13,7 +13,7 @@ permissions:
   checks: write
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
   # Testcontainers configuration
   TESTCONTAINERS_REUSE_ENABLE: false
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
