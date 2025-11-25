@@ -5,8 +5,8 @@ GrifballWebApp is a full-stack web application for planning and organizing Grifb
 
 ## Technology Stack
 
-### Backend (.NET 9)
-- **Framework**: .NET 9 with ASP.NET Core Web API
+### Backend (.NET 10)
+- **Framework**: .NET 10 with ASP.NET Core Web API
 - **Real-time**: SignalR for live updates
 - **Database**: Entity Framework Core with SQL Server
 - **Authentication**: JWT Bearer tokens with Discord OAuth
@@ -32,9 +32,9 @@ GrifballWebApp is a full-stack web application for planning and organizing Grifb
 ## Prerequisites & Setup
 
 ### Required Software
-1. **.NET 9 SDK**: Download from https://dotnet.microsoft.com/en-us/download/dotnet/9.0
+1. **.NET 10 SDK**: Download from https://dotnet.microsoft.com/en-us/download/dotnet/10.0
    - Use the Linux x64 installer for Linux systems
-   - Verify installation: `dotnet --version` should show 9.0.x
+   - Verify installation: `dotnet --version` should show 10.0.x
 2. **Node.js & npm**: Version compatible with Angular 20 (Node.js 18.19+ or 20.9+)
 3. **Docker**: For SQL Server database and containerized development
 4. **Git**: For version control
