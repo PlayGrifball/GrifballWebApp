@@ -349,7 +349,11 @@ public class Program
                                     {
                                         var until = date - DateTimeOffset.UtcNow;
                                         if (until > TimeSpan.Zero)
-                                            delay = until;
+                                        {
+                                            var jitterMs = Random.Shared.Next(0, 1000);
+                                            var capped = Math.Min(until.TotalMilliseconds + jitterMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
+                                            delay = TimeSpan.FromMilliseconds(capped);
+                                        }
                                     }
                                 }
                             }
