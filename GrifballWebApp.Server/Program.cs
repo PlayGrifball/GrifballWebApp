@@ -38,8 +38,13 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Formatting.Json;
+using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Util;
+using System.Net;
 using System.Text.Json.Serialization;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace GrifballWebApp.Server;
 
@@ -48,9 +53,8 @@ public class Program
     public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .WriteTo.Debug(Serilog.Events.LogEventLevel.Verbose)
-                .WriteTo.Console(Serilog.Events.LogEventLevel.Verbose)
+                .WriteTo.Debug(new JsonFormatter())
+                .WriteTo.Console(new JsonFormatter())
                 .MinimumLevel.Verbose()
                 .CreateBootstrapLogger();
 
@@ -106,7 +110,7 @@ public class Program
                         options.Endpoint = new Uri(otlpEndpoint);
                     });
                 }
-                else if (builder.Environment.IsDevelopment())
+                if (builder.Configuration.GetValue<bool>("OTLP_CONSOLE_EXPORTER_ENABLED"))
                 {
                     tracing.AddConsoleExporter();
                 }
@@ -325,96 +329,161 @@ public class Program
             });
 
         builder.RegisterHaloInfiniteClientFactory();
-
-        var app = builder.Build();
-
-        {
-            using var scope = app.Services.CreateScope();
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            
-            using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
-
-            var exists = context.Database.GetService<IRelationalDatabaseCreator>().Exists();
-            var missingMigrations = context.Database.GetPendingMigrations();
-
-            if (exists is false || missingMigrations.Any())
+        // Configure HaloInfiniteClient HttpClient with a Polly retry policy that honours Retry-After and falls back to exponential backoff
+        builder.Services.AddHttpClient<IHaloInfiniteClient, HaloInfiniteClient>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
             {
-                if (exists is false)
-                    logger.LogWarning("Database does not exist");
-                else
-                    logger.LogWarning("Missing migrations: {MissingMigrations}", missingMigrations);
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+            })
+            .AddPolicyHandler((services, request) =>
+             {
+                 var logger = services.GetRequiredService<ILogger<Program>>();
+                 const int maxRetries = 5;
+                 const int maxWaitSeconds = 30;
 
-                if (app.Services.GetRequiredService<IConfiguration>().GetValue("ApplyMigrations", false) is false)
-                {
-                    throw new Exception("Database is missing migrations or does not exist, ApplyMigrations is false so no attempt will be made to apply migrations");
-                }
+                 return HttpPolicyExtensions
+                     .HandleTransientHttpError()
+                     .OrResult(msg => (int)msg.StatusCode == 429)
+                     .WaitAndRetryAsync(
+                         maxRetries,
+                         (int retryAttempt, DelegateResult<HttpResponseMessage> outcome, Context ctx) =>
+                         {
+                             // exponential base (1s, 2s, 4s, 8s...)
+                             var exponential = TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt - 1) * 1000);
+                             TimeSpan delay = exponential;
 
-                if (exists is false && app.Services.GetRequiredService<IConfiguration>().GetValue("CreateDatabase", false) is false)
-                {
-                    throw new Exception("Database does not exist and CreateDatabase is false. Will not attempt to apply migrations");
-                }
+                             var resp = outcome?.Result;
+                             if (resp != null && resp.Headers.TryGetValues("Retry-After", out var values))
+                             {
+                                 var first = values.FirstOrDefault();
+                                 if (!string.IsNullOrEmpty(first))
+                                 {
+                                     if (int.TryParse(first, out var seconds))
+                                     {
+                                         var server = TimeSpan.FromSeconds(seconds);
+                                         // honor server minimum but use exponential growth when larger, add jitter, and cap to 30s
+                                         var jitterMs = Random.Shared.Next(0, 1000);
+                                         var combinedMs = Math.Max(exponential.TotalMilliseconds, server.TotalMilliseconds) + jitterMs;
+                                         var capped = Math.Min(combinedMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
+                                         delay = TimeSpan.FromMilliseconds(capped);
+                                     }
+                                     else if (DateTimeOffset.TryParse(first, out var date))
+                                     {
+                                         var until = date - DateTimeOffset.UtcNow;
+                                         if (until > TimeSpan.Zero)
+                                             delay = until;
+                                     }
+                                 }
+                             }
+                             else
+                             {
+                                 // no Retry-After header: use exponential + jitter, capped
+                                 var jitterMs = Random.Shared.Next(0, 1000);
+                                 var capped = Math.Min(exponential.TotalMilliseconds + jitterMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
+                                 delay = TimeSpan.FromMilliseconds(capped);
+                             }
 
-                logger.LogInformation("Applying migrations");
-                await context.Database.MigrateAsync();
-                logger.LogInformation("Migrations applied");
-            }
+                             return delay;
+                         },
+                         async (outcome, timespan, retryNumber, ctx) =>
+                         {
+                             var status = outcome?.Result?.StatusCode.ToString() ?? (outcome?.Exception?.GetType().Name ?? "Unknown");
+                             logger.LogWarning("Received HTTP {Status} for {Method} {Uri}. Retry {Retry}/{MaxRetries}. Next delay {Delay}.", status, request.Method, request.RequestUri, retryNumber, maxRetries, timespan);
+                             await Task.CompletedTask;
+                         });
+             });
+ 
+         var app = builder.Build();
 
-            var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
-            await legacyTransferService.TransferAllAsync();
-        }
+         {
+             using var scope = app.Services.CreateScope();
+             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+             
+             using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
-        app.UseForwardedHeaders(new ForwardedHeadersOptions()
-        {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
-        });
+             var exists = context.Database.GetService<IRelationalDatabaseCreator>().Exists();
+             var missingMigrations = context.Database.GetPendingMigrations();
 
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
+             if (exists is false || missingMigrations.Any())
+             {
+                 if (exists is false)
+                     logger.LogWarning("Database does not exist");
+                 else
+                     logger.LogWarning("Missing migrations: {MissingMigrations}", missingMigrations);
 
-        //app.UseHttpsRedirection();
+                 if (app.Services.GetRequiredService<IConfiguration>().GetValue("ApplyMigrations", false) is false)
+                 {
+                     throw new Exception("Database is missing migrations or does not exist, ApplyMigrations is false so no attempt will be made to apply migrations");
+                 }
 
-        app.UseAuthorization();
+                 if (exists is false && app.Services.GetRequiredService<IConfiguration>().GetValue("CreateDatabase", false) is false)
+                 {
+                     throw new Exception("Database does not exist and CreateDatabase is false. Will not attempt to apply migrations");
+                 }
 
-        app.MapPrometheusScrapingEndpoint();
+                 logger.LogInformation("Applying migrations");
+                 await context.Database.MigrateAsync();
+                 logger.LogInformation("Migrations applied");
+             }
 
-        app.MapControllers();
-        app.MapHub<TeamsHub>("TeamsHub", options =>
-        {
-            // Need to reinvestigate this with bearer tokens
-            options.CloseOnAuthenticationExpiration = true;
-        });
+             var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
+             await legacyTransferService.TransferAllAsync();
+         }
 
-        app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
-        app.MapGet("CommitDate", () => GitInfo.CommitDate);
+         app.UseForwardedHeaders(new ForwardedHeadersOptions()
+         {
+             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+         });
 
-        app.AddModules(typeof(Program).Assembly);
-        app.UseGatewayEventHandlers();
+        app.UseExceptionHandler();
 
-        app.Run();
-    }
-}
+         // Configure the HTTP request pipeline.
+         if (app.Environment.IsDevelopment())
+         {
+             app.UseSwagger();
+             app.UseSwaggerUI();
+         }
 
-public class DiscordOptions
-{
-    public string ClientId { get; set; } = null!;
-    public string ClientSecret { get; set; } = null!;
-    public string Token { get; set; } = null!;
-    public ulong DraftChannel { get; set; }
-    public bool DisableGlobally { get; set; } = false;
-    public ulong QueueChannel { get; set; }
-    public ulong EventsChannel { get; set; }
-    public ulong ReschedulesChannel { get; set; }
-    public ulong LogChannel { get; set; }
-    public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
-    public int KFactor { get; set; } = 32;
-    public int WinThreshold { get; set; } = 3;
-    public int BonusPerWin { get; set; } = 10;
-    public int MaxBonus { get; set; } = 20;
-    public int LossThreshold { get; set; } = 3;
-    public int PenaltyPerLoss { get; set; } = 10;
-    public int MaxPenalty { get; set; } = 20;
-}
+         //app.UseHttpsRedirection();
+
+         app.UseAuthorization();
+
+         app.MapPrometheusScrapingEndpoint();
+
+         app.MapControllers();
+         app.MapHub<TeamsHub>("TeamsHub", options =>
+         {
+             // Need to reinvestigate this with bearer tokens
+             options.CloseOnAuthenticationExpiration = true;
+         });
+
+         app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
+         app.MapGet("CommitDate", () => GitInfo.CommitDate);
+
+         app.AddModules(typeof(Program).Assembly);
+         app.UseGatewayEventHandlers();
+
+         app.Run();
+     }
+ }
+ 
+ public class DiscordOptions
+ {
+     public string ClientId { get; set; } = null!;
+     public string ClientSecret { get; set; } = null!;
+     public string Token { get; set; } = null!;
+     public ulong DraftChannel { get; set; }
+     public bool DisableGlobally { get; set; } = false;
+     public ulong QueueChannel { get; set; }
+     public ulong EventsChannel { get; set; }
+     public ulong ReschedulesChannel { get; set; }
+     public ulong LogChannel { get; set; }
+     public int MatchPlayers { get; set; } = 8; // Default to 8 players per match
+     public int KFactor { get; set; } = 32;
+     public int WinThreshold { get; set; } = 3;
+     public int BonusPerWin { get; set; } = 10;
+     public int MaxBonus { get; set; } = 20;
+     public int LossThreshold { get; set; } = 3;
+     public int PenaltyPerLoss { get; set; } = 10;
+     public int MaxPenalty { get; set; } = 20;
+ }

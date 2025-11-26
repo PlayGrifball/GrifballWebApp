@@ -120,7 +120,7 @@ public class SeasonMatchService
 
         var allIDs = homeTeamIDs.Union(awayTeamIDs).Distinct().ToList();
 
-        await _dataPullService.DownloadRecentMatchesForPlayers(allIDs);
+        await _dataPullService.DownloadRecentMatchesForPlayers(allIDs, ct: ct);
 
         var matches = await _context.Matches
             .Include(x => x.MatchTeams)
