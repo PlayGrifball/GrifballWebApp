@@ -332,11 +332,11 @@ public class Program
                         {
                             return retryDelayCalculator.CalculateDelay(retryAttempt, outcome?.Result);
                         },
-                        async (outcome, timespan, retryNumber, ctx) =>
+                        (outcome, timespan, retryNumber, ctx) =>
                         {
                             var status = outcome?.Result?.StatusCode.ToString() ?? (outcome?.Exception?.GetType().Name ?? "Unknown");
                             logger.LogWarning("Received HTTP {Status} for {Method} {Uri}. Retry {Retry}/{MaxRetries}. Next delay {Delay}.", status, request.Method, request.RequestUri, retryNumber, maxRetries, timespan);
-                            await Task.CompletedTask;
+                            return Task.CompletedTask;
                         });
             });
 
