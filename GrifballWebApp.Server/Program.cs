@@ -311,6 +311,9 @@ public class Program
 
         builder.RegisterHaloInfiniteClientFactory();
 
+        var retryDelayCalculator = new RetryDelayCalculator();
+        builder.Services.AddSingleton<IRetryDelayCalculator>(retryDelayCalculator);
+
         builder.Services.AddHttpClient<IHaloInfiniteClient, HaloInfiniteClient>()
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
             {
@@ -320,7 +323,6 @@ public class Program
             {
                 var logger = services.GetRequiredService<ILogger<Program>>();
                 const int maxRetries = 5;
-                const int maxWaitSeconds = 30;
 
                 return HttpPolicyExtensions.HandleTransientHttpError()
                     .OrResult(msg => (int)msg.StatusCode == 429)
@@ -328,43 +330,7 @@ public class Program
                         maxRetries,
                         (int retryAttempt, DelegateResult<HttpResponseMessage> outcome, Context ctx) =>
                         {
-                            var exponential = TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt - 1) * 1000);
-                            TimeSpan delay = exponential;
-
-                            var resp = outcome?.Result;
-                            if (resp != null && resp.Headers.TryGetValues("Retry-After", out var values))
-                            {
-                                var first = values.FirstOrDefault();
-                                if (!string.IsNullOrEmpty(first))
-                                {
-                                    if (int.TryParse(first, out var seconds))
-                                    {
-                                        var server = TimeSpan.FromSeconds(seconds);
-                                        var jitterMs = Random.Shared.Next(0, 1000);
-                                        var combinedMs = Math.Max(exponential.TotalMilliseconds, server.TotalMilliseconds) + jitterMs;
-                                        var capped = Math.Min(combinedMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
-                                        delay = TimeSpan.FromMilliseconds(capped);
-                                    }
-                                    else if (DateTimeOffset.TryParse(first, out var date))
-                                    {
-                                        var until = date - DateTimeOffset.UtcNow;
-                                        if (until > TimeSpan.Zero)
-                                        {
-                                            var jitterMs = Random.Shared.Next(0, 1000);
-                                            var capped = Math.Min(until.TotalMilliseconds + jitterMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
-                                            delay = TimeSpan.FromMilliseconds(capped);
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                var jitterMs = Random.Shared.Next(0, 1000);
-                                var capped = Math.Min(exponential.TotalMilliseconds + jitterMs, TimeSpan.FromSeconds(maxWaitSeconds).TotalMilliseconds);
-                                delay = TimeSpan.FromMilliseconds(capped);
-                            }
-
-                            return delay;
+                            return retryDelayCalculator.CalculateDelay(retryAttempt, outcome?.Result);
                         },
                         async (outcome, timespan, retryNumber, ctx) =>
                         {
