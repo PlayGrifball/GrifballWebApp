@@ -227,7 +227,7 @@ public class RetryDelayCalculatorTests
     }
 
     [Test]
-    public void CalculateDelay_WithInvalidRetryAfterValue_ShouldUseExponentialBackoff()
+    public void CalculateDelay_WithInvalidRetryAfterValue_ShouldUseExponentialBackoffWithJitter()
     {
         // Arrange - use TryAddWithoutValidation to bypass header format validation
         var calculator = new RetryDelayCalculator(MaxWaitSeconds, new PredictableRandom(0));
@@ -237,8 +237,23 @@ public class RetryDelayCalculatorTests
         // Act
         var delay = calculator.CalculateDelay(2, response);
 
-        // Assert - should fall through to exponential (2s) since parsing fails
+        // Assert - should fall through to exponential (2s) + jitter (0) = 2s
         Assert.That(delay.TotalSeconds, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void CalculateDelay_WithInvalidRetryAfterValue_ShouldApplyJitter()
+    {
+        // Arrange - use TryAddWithoutValidation to bypass header format validation
+        var calculator = new RetryDelayCalculator(MaxWaitSeconds, new PredictableRandom(500));
+        var response = new HttpResponseMessage((HttpStatusCode)429);
+        response.Headers.TryAddWithoutValidation("Retry-After", "invalid-value");
+
+        // Act
+        var delay = calculator.CalculateDelay(2, response);
+
+        // Assert - should fall through to exponential (2s) + jitter (500ms) = 2.5s
+        Assert.That(delay.TotalMilliseconds, Is.EqualTo(2500));
     }
 
     [Test]

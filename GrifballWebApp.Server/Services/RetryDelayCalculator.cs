@@ -41,7 +41,7 @@ public class RetryDelayCalculator : IRetryDelayCalculator
     public TimeSpan CalculateDelay(int retryAttempt, HttpResponseMessage? response)
     {
         var exponential = CalculateExponentialDelay(retryAttempt);
-        TimeSpan delay = exponential;
+        TimeSpan delay;
 
         if (response != null && response.Headers.TryGetValues("Retry-After", out var values))
         {
@@ -56,6 +56,16 @@ public class RetryDelayCalculator : IRetryDelayCalculator
                 {
                     delay = CalculateDelayWithRetryAfterDate(date);
                 }
+                else
+                {
+                    // Invalid Retry-After format, fall back to exponential with jitter
+                    delay = ApplyJitterAndCap(exponential);
+                }
+            }
+            else
+            {
+                // Empty Retry-After value, fall back to exponential with jitter
+                delay = ApplyJitterAndCap(exponential);
             }
         }
         else
