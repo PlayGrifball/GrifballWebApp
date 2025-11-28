@@ -38,8 +38,13 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Serilog.Formatting.Json;
+using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Util;
+using System.Net;
 using System.Text.Json.Serialization;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace GrifballWebApp.Server;
 
@@ -48,14 +53,13 @@ public class Program
     public static async Task Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .WriteTo.Debug(Serilog.Events.LogEventLevel.Verbose)
-                .WriteTo.Console(Serilog.Events.LogEventLevel.Verbose)
-                .MinimumLevel.Verbose()
-                .CreateBootstrapLogger();
+            .WriteTo.Debug(new JsonFormatter())
+            .WriteTo.Console(new JsonFormatter())
+            .MinimumLevel.Verbose()
+            .CreateBootstrapLogger();
 
         Log.Logger.ForContext<Program>().Information("Starting up");
-        
+
         try
         {
             await Run(args);
@@ -80,6 +84,7 @@ public class Program
 
         var resourceName = builder.Configuration.GetValue<string>("OTLP_RESOURCE_NAME") ?? builder.Environment.ApplicationName;
         var otlpEndpoint = builder.Configuration.GetValue<string>("OTLP_ENDPOINT_URL");
+
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(resourceName))
             .WithMetrics(metrics => metrics
@@ -89,24 +94,21 @@ public class Program
                 .AddRuntimeInstrumentation()
                 .AddProcessInstrumentation()
                 .AddMeter("Microsoft.EntityFrameworkCore")
-                .AddPrometheusExporter()
-            )
+                .AddPrometheusExporter())
             .WithTracing(tracing =>
             {
                 tracing
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddSqlClientInstrumentation()
-                .AddEntityFrameworkCoreInstrumentation();
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddSqlClientInstrumentation()
+                    .AddEntityFrameworkCoreInstrumentation();
 
                 if (!string.IsNullOrEmpty(otlpEndpoint))
                 {
-                    tracing.AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(otlpEndpoint);
-                    });
+                    tracing.AddOtlpExporter(options => { options.Endpoint = new Uri(otlpEndpoint); });
                 }
-                else if (builder.Environment.IsDevelopment())
+
+                if (builder.Configuration.GetValue<bool>("OTLP_CONSOLE_EXPORTER_ENABLED"))
                 {
                     tracing.AddConsoleExporter();
                 }
@@ -128,8 +130,10 @@ public class Program
                 options.JsonSerializerOptions.Converters.Add(new DateTimeJsonConverter());
                 options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
             });
+
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
+
         builder.Services.AddSwaggerGen(option =>
         {
             option.CustomSchemaIds(x => x.FullName);
@@ -158,8 +162,8 @@ public class Program
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
             options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
-            ?? throw new Exception("GrifballContext failed to configure"))
-            .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
+                    ?? throw new Exception("GrifballContext failed to configure"))
+                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
         });
 
         // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
@@ -169,8 +173,6 @@ public class Program
         //    => options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
         //    ?? throw new Exception("GrifballContext failed to configure")));
 
-        
-
         builder.Services.AddAuthorization();
 
         builder.Services.AddIdentity<User, Role>(options =>
@@ -179,9 +181,9 @@ public class Program
             options.SignIn.RequireConfirmedPhoneNumber = false;
             options.SignIn.RequireConfirmedEmail = false;
         })
-            .AddDefaultTokenProviders()
-            .AddSignInManager<SignInManager<User>>()
-            .AddEntityFrameworkStores<GrifballContext>();
+        .AddDefaultTokenProviders()
+        .AddSignInManager<SignInManager<User>>()
+        .AddEntityFrameworkStores<GrifballContext>();
 
         builder.Services.ConfigureApplicationCookie(o =>
         {
@@ -217,22 +219,15 @@ public class Program
                     errors.Add("ClientId is required");
                 if (string.IsNullOrWhiteSpace(options.ClientSecret))
                     errors.Add("ClientSecret is required");
-                if (options.DisableGlobally)
-                {
 
-                }
-                else
-                {
-                    if (string.IsNullOrWhiteSpace(options.Token))
-                        errors.Add("Token is required");
-                    if (options.DraftChannel is 0)
-                        errors.Add("DraftChannel is required");
-                }
-                
+                if (string.IsNullOrWhiteSpace(options.Token))
+                    errors.Add("Token is required");
+                if (options.DraftChannel is 0)
+                    errors.Add("DraftChannel is required");
+
                 if (errors.Count > 0)
-                {
                     throw new ArgumentException(string.Join(", ", errors));
-                }
+
                 return true;
             })
             .ValidateOnStart();
@@ -244,20 +239,22 @@ public class Program
         builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
         builder.Services.AddHostedService<EventsBackgroundService>();
+
         builder.Services.AddDiscordGateway(options =>
-            {
-                options.Intents = NetCord.Gateway.GatewayIntents.MessageContent | NetCord.Gateway.GatewayIntents.GuildMessages | NetCord.Gateway.GatewayIntents.DirectMessages;
-            })
-            .AddGatewayEventHandlers(typeof(Program).Assembly)
-            .AddApplicationCommands()
-            .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
-            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
-            .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
-        builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
-        builder.Services.AddMediatR(cfg =>
         {
-            cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
-        });
+            options.Intents = NetCord.Gateway.GatewayIntents.MessageContent |
+                              NetCord.Gateway.GatewayIntents.GuildMessages |
+                              NetCord.Gateway.GatewayIntents.DirectMessages;
+        })
+        .AddGatewayEventHandlers(typeof(Program).Assembly)
+        .AddApplicationCommands()
+        .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
+        .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
+        .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
+
+        builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
+
+        builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
         builder.Services.AddTransient<IBracketService, BracketService>();
@@ -280,58 +277,75 @@ public class Program
         builder.Services.AddTransient<TransferLegacyDiscordService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
-        builder.Services.AddDataProtection()
-            .PersistKeysToDbContext<GrifballContext>();
+        builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
 
-        builder.Services.
-            AddAuthentication(options =>
-            {
-                options.DefaultScheme = IdentityConstants.BearerScheme;
-                options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
-            })
-            .AddBearerToken("Identity.Bearer", options =>
-            {
-                // Bearer defaults 1 hr
-                // Refresh defaults to 14 days
-                options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
-                //options.RefreshTokenExpiration = TimeSpan.FromMinutes(10);
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = IdentityConstants.BearerScheme;
+            options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+        })
+        .AddBearerToken("Identity.Bearer", options =>
+        {
+            options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
 
-                options.Events = new BearerTokenEvents()
+            options.Events = new BearerTokenEvents()
+            {
+                OnMessageReceived = context =>
                 {
-                    OnMessageReceived = context =>
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/api/TeamsHub")))
                     {
-                        var accessToken = context.Request.Query["access_token"];
-                        // TODO: may be able to use IsWebSocketRequest
-                        //var isWebSocketRequest = context.HttpContext.WebSockets.IsWebSocketRequest;
-                        // If the request is for our hub...
-                        var path = context.HttpContext.Request.Path;
-                        if (!string.IsNullOrEmpty(accessToken) &&
-                            (path.StartsWithSegments("/api/TeamsHub")))
-                        {
-                            // Read the token out of the query string
-                            context.Token = accessToken;
-                        }
-                        return Task.CompletedTask;
+                        context.Token = accessToken;
                     }
-                };
-
-
-            })
-            .AddDiscord(options =>
-            {
-                options.ClientId = builder.Configuration.GetValue<string>("Discord:ClientId") ?? throw new Exception("Discord:ClientId is missing");
-                options.ClientSecret = builder.Configuration.GetValue<string>("Discord:ClientSecret") ?? throw new Exception("Discord:ClientSecret is missing");
-                options.SignInScheme = IdentityConstants.ExternalScheme;
-            });
+                    return Task.CompletedTask;
+                }
+            };
+        })
+        .AddDiscord(options =>
+        {
+            options.ClientId = builder.Configuration.GetValue<string>("Discord:ClientId") ?? throw new Exception("Discord:ClientId is missing");
+            options.ClientSecret = builder.Configuration.GetValue<string>("Discord:ClientSecret") ?? throw new Exception("Discord:ClientSecret is missing");
+            options.SignInScheme = IdentityConstants.ExternalScheme;
+        });
 
         builder.RegisterHaloInfiniteClientFactory();
 
+        var retryDelayCalculator = new RetryDelayCalculator();
+        builder.Services.AddSingleton<IRetryDelayCalculator>(retryDelayCalculator);
+
+        builder.Services.AddHttpClient<IHaloInfiniteClient, HaloInfiniteClient>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+            })
+            .AddPolicyHandler((services, request) =>
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                const int maxRetries = 5;
+
+                return HttpPolicyExtensions.HandleTransientHttpError()
+                    .OrResult(msg => (int)msg.StatusCode == 429)
+                    .WaitAndRetryAsync(
+                        maxRetries,
+                        (int retryAttempt, DelegateResult<HttpResponseMessage> outcome, Context ctx) =>
+                        {
+                            return retryDelayCalculator.CalculateDelay(retryAttempt, outcome?.Result);
+                        },
+                        (outcome, timespan, retryNumber, ctx) =>
+                        {
+                            var status = outcome?.Result?.StatusCode.ToString() ?? (outcome?.Exception?.GetType().Name ?? "Unknown");
+                            logger.LogWarning("Received HTTP {Status} for {Method} {Uri}. Retry {Retry}/{MaxRetries}. Next delay {Delay}.", status, request.Method, request.RequestUri, retryNumber, maxRetries, timespan);
+                            return Task.CompletedTask;
+                        });
+            });
+
         var app = builder.Build();
 
+        using (var scope = app.Services.CreateScope())
         {
-            using var scope = app.Services.CreateScope();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            
+
             using var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
             var exists = context.Database.GetService<IRelationalDatabaseCreator>().Exists();
@@ -368,6 +382,8 @@ public class Program
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
         });
 
+    app.UseExceptionHandler();
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -382,11 +398,8 @@ public class Program
         app.MapPrometheusScrapingEndpoint();
 
         app.MapControllers();
-        app.MapHub<TeamsHub>("TeamsHub", options =>
-        {
-            // Need to reinvestigate this with bearer tokens
-            options.CloseOnAuthenticationExpiration = true;
-        });
+
+        app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
 
         app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
         app.MapGet("CommitDate", () => GitInfo.CommitDate);

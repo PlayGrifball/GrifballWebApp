@@ -17,7 +17,7 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
     {
         if (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogTrace("Client has disconnected");
+            _logger.LogWarning(exception, "Client has disconnected");
             return true;
         }
         _logger.LogError(exception, "Exception occurred: {Message}", exception.Message);

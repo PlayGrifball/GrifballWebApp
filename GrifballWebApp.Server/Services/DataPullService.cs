@@ -24,6 +24,9 @@ public class DataPullService : IDataPullService
     }
     public async Task DownloadRecentMatchesForPlayers(List<long> xboxIDs, int startPage = 0, int endPage = 10, int perPage = 25, CancellationToken ct = default)
     {
+        if (xboxIDs.Any() is false)
+            return;
+        ct.ThrowIfCancellationRequested();
         var stringXboxIDs = xboxIDs.Distinct().Select(x => $"xuid({x})").ToList();
 
         var matchIDBag = new ConcurrentBag<Guid>();
@@ -31,21 +34,32 @@ public class DataPullService : IDataPullService
         var parallelOptions = new ParallelOptions()
         {
             CancellationToken = ct,
-            //MaxDegreeOfParallelism = 1,
-            MaxDegreeOfParallelism = -1,
+            MaxDegreeOfParallelism = 2,
         };
 
-        await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, ct) =>
+        await Parallel.ForEachAsync(stringXboxIDs, parallelOptions, async (xboxUserID, outerCt) =>
         {
-            var source = new CancellationTokenSource();
-            var linked = CancellationTokenSource.CreateLinkedTokenSource(source.Token, ct);
+            using var source = new CancellationTokenSource();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(source.Token, outerCt);
             var linkedToken = linked.Token;
+            var innerParallelOptions = new ParallelOptions()
+            {
+                CancellationToken = linkedToken,
+                MaxDegreeOfParallelism = 2,
+            };
             try
             {
-                await Parallel.ForAsync(startPage, endPage + 1, parallelOptions, async (page, linkedToken) =>
+                await Parallel.ForAsync(startPage, endPage + 1, innerParallelOptions, async (page, innerCt) =>
                 {
+                    if (source.IsCancellationRequested is true)
+                    {
+                        _logger.LogWarning("Caught error while looking for matches {XboxUserID}. Will continue looking for other users matches", xboxUserID);
+                        return;
+                    }
+
                     var start = Math.Max(page * perPage - 1, 0);
                     var response = await _haloInfiniteClientFactory.StatsGetMatchHistory(xboxUserID, start, perPage, Surprenant.Grunt.Models.HaloInfinite.MatchType.Custom);
+                    innerCt.ThrowIfCancellationRequested();
 
                     if (response.Result is null)
                     {
