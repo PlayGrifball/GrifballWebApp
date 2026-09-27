@@ -29,6 +29,10 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    # Digests of this run's images, for the release job.
+    outputs:
+      frontend-digest: ${{ steps.build-and-push-frontend.outputs.digest }}
+      backend-digest: ${{ steps.build-and-push-backend.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -73,8 +77,9 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+          # Only the immutable sha- tag here. :latest moves in the release job, once every image
+          # in this run has built and pushed - never a partial set.
           tags: |
-            type=raw,value=latest
             type=sha
 
       # Build and push Docker image with Buildx (don't push on PR)
@@ -112,8 +117,9 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          # Only the immutable sha- tag here. :latest moves in the release job, once every image
+          # in this run has built and pushed - never a partial set.
           tags: |
-            type=raw,value=latest
             type=sha
 
       # Build and push Docker image with Buildx (don't push on PR)
@@ -144,3 +150,40 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  # Moves :latest to this run's images, all or nothing: it runs only after every build above
+  # succeeded, so a failed build leaves :latest on the previous complete set. The homelab's ArgoCD
+  # Image Updater follows :latest by digest. Retagging is metadata only (no rebuild, no re-upload),
+  # and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
+  # has to stay API-compatible for the seconds between the two.
+  release:
+    needs: build
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Point latest at this run's images
+        env:
+          BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest }}
+          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_DIGEST" && test -n "$FRONTEND_DIGEST"
+          # Image references are lowercase; IMAGE_NAME_* keep the org's capitalisation.
+          BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
+          docker buildx imagetools create -t "$BACKEND:latest" "$BACKEND@$BACKEND_DIGEST"
+          docker buildx imagetools create -t "$FRONTEND:latest" "$FRONTEND@$FRONTEND_DIGEST"

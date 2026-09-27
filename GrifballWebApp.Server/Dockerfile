@@ -26,7 +26,20 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD
 
+# EF Core migrations bundle: one self-contained binary that applies pending migrations. Shipping it
+# inside the backend image means the migrations that run before a deploy always come from the same
+# build as the backend being deployed. The homelab's ArgoCD PreSync hook runs it with
+# ConnectionStrings__GrifballWebApp set in the environment.
+FROM build AS migrations
+RUN dotnet tool install --global dotnet-ef --version 10.0.0
+ENV PATH="$PATH:/root/.dotnet/tools"
+WORKDIR /src
+RUN dotnet ef migrations bundle \
+      --project GrifballWebApp.Database --startup-project GrifballWebApp.Database \
+      --configuration Release --self-contained -r linux-musl-x64 -o /app/efbundle
+
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY --from=migrations /app/efbundle /app/efbundle
 ENTRYPOINT ["dotnet", "GrifballWebApp.Server.dll"]

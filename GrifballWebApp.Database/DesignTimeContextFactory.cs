@@ -30,7 +30,9 @@ public class DesignTimeContextFactory : IDesignTimeDbContextFactory<GrifballCont
         var connectionString = config.GetConnectionString("GrifballWebApp")
             ?? throw new Exception("Failed to find GrifballWebApp connection string in configuration");
 
-        Console.WriteLine($"Using connection string: {connectionString}");
+        // Log where it points, never the whole string: the password would land in CI and pod logs.
+        var target = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+        Console.WriteLine($"Using connection string for server {target.DataSource}, database {target.InitialCatalog}");
 
         var optionsBuilder = new DbContextOptionsBuilder<GrifballContext>();
         optionsBuilder.UseSqlServer(connectionString);
