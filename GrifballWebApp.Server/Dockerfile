@@ -40,8 +40,22 @@ RUN dotnet ef migrations bundle \
       --project GrifballWebApp.Database --startup-project GrifballWebApp.Database \
       --configuration Release -o /app/efbundle
 
+# The build's migration IDs, one per line. The deploy hook compares them with the database's
+# __EFMigrationsHistory and scales the app down only when one is pending. --no-connect lists them
+# without a database; the design-time factory still wants a connection string, so it gets a dummy.
+# The build fails if the list is empty or not the YYYYMMDDHHMMSS_Name shape the hook relies on.
+RUN ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
+      dotnet ef migrations list --no-connect --prefix-output \
+        --project GrifballWebApp.Database --startup-project GrifballWebApp.Database \
+        --configuration Release \
+    | sed -n 's/^data:[[:space:]]*//p' > /app/migrations.txt \
+ && test -s /app/migrations.txt \
+ && ! grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' /app/migrations.txt \
+ && echo "Migrations in this build:" && cat /app/migrations.txt
+
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
+COPY --from=migrations /app/migrations.txt /app/migrations.txt
 ENTRYPOINT ["dotnet", "GrifballWebApp.Server.dll"]
