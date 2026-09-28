@@ -1,0 +1,15 @@
+name: Promote to staging
+
+# The staging deploy button: points :staging at the images :test runs, and the homelab deploys them.
+on:
+  workflow_dispatch:
+
+jobs:
+  promote:
+    uses: ./.github/workflows/promote.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      from: test
+      to: staging

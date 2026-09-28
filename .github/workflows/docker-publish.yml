@@ -151,10 +151,10 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-  # Moves :latest to this run's images, all or nothing: it runs only after every build above
-  # succeeded, so a failed build leaves :latest on the previous complete set. The homelab's ArgoCD
-  # Image Updater follows :latest by digest. Retagging is metadata only (no rebuild, no re-upload),
-  # and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
+  # Moves :test and :latest to this run's images, all or nothing: it runs only after every build
+  # above succeeded, so a failed build leaves them on the previous complete set. The homelab's
+  # ArgoCD Image Updater follows :test (and :staging, :prod) by digest. Retagging is metadata only
+  # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
   release:
     needs: build
@@ -174,7 +174,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Point latest at this run's images
+      - name: Point test and latest at this run's images
         env:
           BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
           FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
@@ -185,5 +185,9 @@ jobs:
           test -n "$BACKEND_DIGEST" && test -n "$FRONTEND_DIGEST"
           # Image references are lowercase; IMAGE_NAME_* keep the org's capitalisation.
           BACKEND="${BACKEND,,}"; FRONTEND="${FRONTEND,,}"
-          docker buildx imagetools create -t "$BACKEND:latest" "$BACKEND@$BACKEND_DIGEST"
-          docker buildx imagetools create -t "$FRONTEND:latest" "$FRONTEND@$FRONTEND_DIGEST"
+          # :test is what the homelab's grif-test deploys; :latest is kept for anyone else following
+          # the newest build. Staging and prod move only through the Promote workflows.
+          for tag in test latest; do
+            docker buildx imagetools create -t "$BACKEND:$tag" "$BACKEND@$BACKEND_DIGEST"
+            docker buildx imagetools create -t "$FRONTEND:$tag" "$FRONTEND@$FRONTEND_DIGEST"
+          done

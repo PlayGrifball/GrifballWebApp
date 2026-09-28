@@ -1,0 +1,16 @@
+name: Promote to prod
+
+# The prod deploy button: points :prod at the images :staging runs, and the homelab deploys them.
+# This is the only way prod changes.
+on:
+  workflow_dispatch:
+
+jobs:
+  promote:
+    uses: ./.github/workflows/promote.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      from: staging
+      to: prod
