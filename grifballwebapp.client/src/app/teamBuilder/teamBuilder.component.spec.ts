@@ -451,4 +451,57 @@ describe('TeamBuilderComponent', () => {
       expect(() => component.resortPreviousTeam(grabbedPlayer)).not.toThrow();
     });
   });
+
+  describe('template rendering (@for)', () => {
+    const cap = (n: number): CaptainDto => ({ name: 'Cap ' + n, personID: 100 + n, order: n });
+    const player = (id: number, round: number): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round });
+
+    function teamCards(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll('mat-card.item:not(.dndPlaceholder)'));
+    }
+
+    function poolItems(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll('mat-list-item.player-pool-item:not([dndPlaceholderRef])'));
+    }
+
+    beforeEach(() => {
+      mockApiClient.getTeams.and.returnValue(of([
+        { teamID: 1, teamName: 'Alpha', captain: cap(1), players: [player(1, 1), player(2, 2)] },
+        { teamID: 2, teamName: 'Bravo', captain: cap(2), players: [] }
+      ]));
+      mockApiClient.getPlayerPool.and.returnValue(of([player(3, 0), player(4, 0), player(5, 0)]));
+      fixture.detectChanges();
+    });
+
+    it('renders one card per team, in order', () => {
+      const cards = teamCards();
+      expect(cards.length).toBe(2);
+      expect(cards[0].querySelector('mat-card-title')?.textContent).toContain('1 - Alpha');
+      expect(cards[0].querySelector('mat-card-subtitle')?.textContent).toContain('Captain: Cap 1');
+      expect(cards[1].querySelector('mat-card-title')?.textContent).toContain('2 - Bravo');
+    });
+
+    it('renders the players of each team with round and name', () => {
+      const [alpha, bravo] = teamCards();
+      const alphaPlayers = Array.from(alpha.querySelectorAll('.players-area > div')).map(d => d.textContent?.trim());
+      expect(alphaPlayers).toEqual(['1 Player 1', '2 Player 2']);
+      expect(bravo.querySelectorAll('.players-area > div').length).toBe(0);
+    });
+
+    it('renders one pool item per available player', () => {
+      expect(poolItems().map(i => i.textContent?.trim())).toEqual(['Player 3', 'Player 4', 'Player 5']);
+    });
+
+    it('re-renders after the lists are mutated in place, as drag and drop does', () => {
+      const picked = component.playerPool.splice(1, 1)[0];
+      component.teams[1].players.push({ ...picked, round: 1 });
+      component.teams.reverse();
+      fixture.detectChanges();
+
+      const cards = teamCards();
+      expect(cards.map(c => c.querySelector('mat-card-title')?.textContent?.trim())).toEqual(['2 - Bravo', '1 - Alpha']);
+      expect(Array.from(cards[0].querySelectorAll('.players-area > div')).map(d => d.textContent?.trim())).toEqual(['1 Player 4']);
+      expect(poolItems().map(i => i.textContent?.trim())).toEqual(['Player 3', 'Player 5']);
+    });
+  });
 });
