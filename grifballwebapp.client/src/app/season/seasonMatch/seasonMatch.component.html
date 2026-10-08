@@ -27,7 +27,7 @@
   @if (seasonMatch()?.bracketInfo?.awayTeamPreviousMatchID == null) {
 <div>Away Team Seed {{seasonMatch()?.bracketInfo?.awayTeamSeed}}</div>
   } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID]">Away Team Previous Match</a>
+<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.awayTeamPreviousMatchID]">Away Team Previous Match</a>
   }
 
   @if (seasonMatch()?.bracketInfo?.winnerNextMatchID == null) {

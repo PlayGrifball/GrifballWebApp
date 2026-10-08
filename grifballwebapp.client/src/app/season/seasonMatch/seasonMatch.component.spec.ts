@@ -152,6 +152,15 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     expect(links()[0].href).toBe('/seasonmatch/5');
   });
 
+  it("points each previous-match link at that side's own previous match", () => {
+    load(page({ isPlayoff: true, bracketInfo: bracket({ homeTeamPreviousMatchID: 5, awayTeamPreviousMatchID: 6 }) }));
+
+    expect(links()).toEqual([
+      { text: 'Home Team Previous Match', href: '/seasonmatch/5' },
+      { text: 'Away Team Previous Match', href: '/seasonmatch/6' }
+    ]);
+  });
+
   it('formats the scheduled time once loaded', () => {
     load(page({ scheduledTime: '2026-01-02T03:04:00' as unknown as SeasonMatchPageDto['scheduledTime'] }));
 
