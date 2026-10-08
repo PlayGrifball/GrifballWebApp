@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -264,5 +265,69 @@ public class TeamServiceTests
         // Assert
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].Name, Is.EqualTo("DiscordUser"));
+    }
+
+    [Test]
+    public async Task RemoveCaptain_Should_ResequenceRemainingCaptains_And_ReturnTeamToPool_When_SecondOfFourIsRemoved()
+    {
+        // Arrange: four captains in draft order 1-4, and captain #2 has drafted one player.
+        var season = new Season { SeasonName = "Test Season", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var users = Enumerable.Range(1, 5).Select(i => new User { UserName = $"user{i}", DisplayName = $"User {i}" }).ToList();
+        await _context.Users.AddRangeAsync(users);
+        await _context.SaveChangesAsync();
+        await _context.SeasonSignups.AddRangeAsync(users.Select(u => new SeasonSignup { UserID = u.Id, SeasonID = season.SeasonID, Timestamp = DateTime.UtcNow, TeamName = $"Team {u.UserName}" }));
+        await _context.SaveChangesAsync();
+
+        for (var i = 0; i < 4; i++)
+            await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = users[i].Id, OrderNumber = i + 1 }, resortOnly: false);
+
+        var secondTeam = _context.Teams.Single(t => t.TeamName == "Team user2");
+        await _context.TeamPlayers.AddAsync(new TeamPlayer { TeamID = secondTeam.TeamID, UserID = users[4].Id, DraftRound = 1 });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        // Act: remove captain #2. RemoveCaptainDto has no order number to send.
+        await _service.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = users[1].Id });
+        _context.ChangeTracker.Clear();
+
+        // Assert
+        var teams = await _service.GetTeams(season.SeasonID);
+        var captainOrders = await _context.TeamPlayers
+            .Where(tp => tp.Team.SeasonID == season.SeasonID && tp.CaptainTeam != null)
+            .OrderBy(tp => tp.DraftCaptainOrder)
+            .Select(tp => new { tp.UserID, tp.DraftCaptainOrder })
+            .ToListAsync();
+        var pool = await _service.GetPlayerPool(season.SeasonID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(teams.Select(t => t.Captain.PersonID), Is.EqualTo(new[] { users[0].Id, users[2].Id, users[3].Id }));
+            Assert.That(teams.Select(t => t.Captain.Order), Is.EqualTo(new int?[] { 1, 2, 3 }));
+            Assert.That(captainOrders.Select(c => c.DraftCaptainOrder), Is.EqualTo(new int?[] { 1, 2, 3 }), "stored DraftCaptainOrder");
+            Assert.That(_context.Teams.Any(t => t.TeamID == secondTeam.TeamID), Is.False, "removed captain's team is deleted");
+            Assert.That(pool.Select(p => p.PersonID), Is.EquivalentTo(new[] { users[1].Id, users[4].Id }), "captain and their pick are back in the pool");
+        });
+    }
+
+    [Test]
+    public void RemoveCaptainDto_Should_IgnoreUnknownOrderNumber_When_BoundFromWebJson()
+    {
+        // Older clients posted RemoveCaptain with a CaptainPlacementDto shape that included
+        // "orderNumber": 0. ASP.NET Core binds bodies with JsonSerializerDefaults.Web, which
+        // skips unknown members, so the field never reaches TeamService.RemoveCaptain.
+        var dto = System.Text.Json.JsonSerializer.Deserialize<RemoveCaptainDto>(
+            """{"seasonID":7,"personID":201,"orderNumber":0}""",
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        Assert.That(dto, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto!.SeasonID, Is.EqualTo(7));
+            Assert.That(dto.PersonID, Is.EqualTo(201));
+            Assert.That(typeof(RemoveCaptainDto).GetProperty("OrderNumber"), Is.Null);
+        });
     }
 }
