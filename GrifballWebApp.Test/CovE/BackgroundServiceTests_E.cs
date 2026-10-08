@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using NetCord.Rest;
 using NSubstitute;
 
@@ -174,5 +175,67 @@ public class BackgroundServiceDbTests_E
         Assert.That(finished, Is.True);
         await _discordClient.Received(1).UpsertMessageAsync(66ul, null, Arg.Is<MessageProperties>(m => m.Content == "BG Season"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         Assert.That(logger.Entries, Is.Empty);
+    }
+}
+
+[TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+public class UpdateDisplayHandlerTests_E
+{
+    private GrifballContext _context;
+
+    [SetUp]
+    public async Task SetUp() => _context = await SetUpFixture.NewGrifballContext();
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
+    [Test]
+    public async Task Handle_RefreshesQueueDisplay()
+    {
+        var discordClient = Substitute.For<IDiscordRestClient>();
+        discordClient.GetCurrentUserAsync(Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(Substitute.For<IDiscordCurrentUser>());
+        discordClient.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
+            .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
+        var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
+            new QueueRepository(_context), discordClient, _context, Substitute.For<IDataPullService>());
+
+        await new UpdateDisplayHandler(queueService).Handle(new UpdateDisplayNotification(), CancellationToken.None);
+
+        await discordClient.Received(1).SendMessageAsync(55ul, Arg.Is<MessageProperties>(m => m.Content == "Matchmaking Queue"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
+}
+
+[TestFixture]
+public class GrifballContextFactoryTests_E
+{
+    private static IServiceProvider Provider(string? connectionString)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString }).Build();
+        return new ServiceCollection().AddSingleton<IConfiguration>(config).BuildServiceProvider();
+    }
+
+    [Test]
+    public void CreateDbContext_UsesConfiguredConnectionString()
+    {
+        const string cs = "Server=example;Database=Grif;Trusted_Connection=True;";
+
+        using var context = new GrifballContextFactory(Provider(cs)).CreateDbContext();
+
+        var actual = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(context.Database.GetConnectionString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(actual.DataSource, Is.EqualTo("example"));
+            Assert.That(actual.InitialCatalog, Is.EqualTo("Grif"));
+        });
+    }
+
+    [Test]
+    public void CreateDbContext_MissingConnectionString_Throws()
+    {
+        var ex = Assert.Throws<Exception>(() => new GrifballContextFactory(Provider(null)).CreateDbContext());
+
+        Assert.That(ex!.Message, Is.EqualTo("GrifballContext failed to configure"));
     }
 }
