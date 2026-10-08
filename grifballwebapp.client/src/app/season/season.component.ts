@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
@@ -12,7 +11,6 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
     templateUrl: './season.component.html',
     styleUrl: './season.component.scss',
     imports: [
-        CommonModule,
         RouterModule,
         MatButtonModule,
         ScheduleListComponent,

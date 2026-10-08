@@ -1,14 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { KillsDto } from '../api/dtos/killsDto';
 import { MatTableModule } from '@angular/material/table';
-import { CommonModule } from '@angular/common';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
     selector: 'app-top-stats',
     imports: [
-        CommonModule,
         MatTableModule,
         MatSnackBarModule
     ],

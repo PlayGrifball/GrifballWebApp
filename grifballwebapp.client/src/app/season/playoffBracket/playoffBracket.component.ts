@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
@@ -16,7 +15,6 @@ import { Locale } from 'brackets-viewer/dist/lang';
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
-        CommonModule,
         MatButtonModule,
         MatDialogModule,
         MatSnackBarModule

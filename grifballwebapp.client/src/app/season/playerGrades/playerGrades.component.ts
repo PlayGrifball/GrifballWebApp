@@ -1,4 +1,4 @@
-import { CommonModule, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
@@ -8,8 +8,7 @@ import { MatTableModule } from '@angular/material/table';
 @Component({
     selector: 'app-player-grades',
     imports: [
-        CommonModule,
-        MatTableModule,
+        MatTableModule
     ],
     providers: [DecimalPipe],
     templateUrl: './playerGrades.component.html',

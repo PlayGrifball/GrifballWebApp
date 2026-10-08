@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
@@ -14,7 +13,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 @Component({
     selector: 'app-season-edit',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
@@ -22,7 +20,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         ErrorMessageComponent,
         MtxDatetimepickerModule,
         RouterModule,
-        MatCheckboxModule,
+        MatCheckboxModule
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss'

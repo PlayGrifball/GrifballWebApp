@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -8,7 +7,6 @@ import { MatTableModule } from '@angular/material/table';
 @Component({
     selector: 'app-team-standings',
     imports: [
-        CommonModule,
         MatTableModule,
         RouterModule
     ],

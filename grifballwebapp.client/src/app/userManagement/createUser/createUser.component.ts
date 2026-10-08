@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,12 +11,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 @Component({
     selector: 'app-create-user',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
         MatButtonModule,
-        ErrorMessageComponent,
+        ErrorMessageComponent
     ],
     templateUrl: './createUser.component.html',
     styleUrl: './createUser.component.scss'

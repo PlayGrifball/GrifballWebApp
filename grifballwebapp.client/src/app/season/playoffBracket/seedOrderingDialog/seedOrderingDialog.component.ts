@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Inject, OnInit, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -19,7 +18,6 @@ interface TeamStanding {
 @Component({
     selector: 'app-seed-ordering-dialog',
     imports: [
-        CommonModule,
         MatDialogModule,
         MatButtonModule,
         MatSnackBarModule,

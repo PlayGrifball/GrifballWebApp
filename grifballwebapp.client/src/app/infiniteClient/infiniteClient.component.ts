@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,13 +11,12 @@ import { ActivatedRoute } from '@angular/router';
 @Component({
     selector: 'app-infinite-client',
     imports: [
-        CommonModule,
         MatSnackBarModule,
         MatInputModule,
         MatFormFieldModule,
         FormsModule,
         MatButtonModule,
-        ErrorMessageComponent,
+        ErrorMessageComponent
     ],
     templateUrl: './infiniteClient.component.html',
     styleUrl: './infiniteClient.component.scss'

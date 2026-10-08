@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, ViewChild } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,14 +15,13 @@ import { AvailabilityService } from '../availability.service';
 @Component({
     selector: 'app-signup-form',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
         MatButtonModule,
         ErrorMessageComponent,
         MatCheckboxModule,
-        AvailabilityTableComponent,
+        AvailabilityTableComponent
     ],
     templateUrl: './signupForm.component.html',
     styleUrl: './signupForm.component.scss'

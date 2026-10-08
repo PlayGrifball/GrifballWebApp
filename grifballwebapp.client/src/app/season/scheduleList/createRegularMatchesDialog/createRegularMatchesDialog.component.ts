@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Inject, Input } from '@angular/core';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
@@ -12,7 +11,6 @@ import { HttpClient } from '@angular/common/http';
 @Component({
     selector: 'app-create-regular-matches-dialog',
     imports: [
-        CommonModule,
         MatDialogModule,
         MatButtonModule,
         FormsModule,

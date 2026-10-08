@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
 import { PaletteComponent } from './palette/palette.component';
 import { MatFormField, MatFormFieldModule } from '@angular/material/form-field';
@@ -9,11 +8,10 @@ import { ThemingService } from '../theming.service';
 @Component({
     selector: 'app-theme',
     imports: [
-        CommonModule,
         PaletteComponent,
         MatFormFieldModule,
         MatSelectModule,
-        ReactiveFormsModule,
+        ReactiveFormsModule
     ],
     templateUrl: './theme.component.html',
     styleUrl: './theme.component.scss',

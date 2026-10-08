@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
@@ -34,12 +33,11 @@ interface DropzoneLayout {
 @Component({
     selector: 'app-team-builder',
     imports: [
-        CommonModule,
         DndModule,
         MatListModule,
         MatIconModule,
         MatButtonModule,
-        MatCardModule,
+        MatCardModule
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss'

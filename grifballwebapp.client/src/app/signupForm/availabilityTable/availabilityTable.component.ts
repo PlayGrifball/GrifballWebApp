@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
@@ -9,10 +8,9 @@ import { FormsModule } from '@angular/forms';
 @Component({
     selector: 'app-availability-table',
     imports: [
-        CommonModule,
         MatCheckboxModule,
         MatTableModule,
-        FormsModule,
+        FormsModule
     ],
     templateUrl: './availabilityTable.component.html',
     styleUrl: './availabilityTable.component.scss'
