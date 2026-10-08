@@ -24,7 +24,23 @@ internal sealed class FakeRestRequestHandler_b : IRestRequestHandler
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        string? body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+        string? body = null;
+        if (request.Content is MultipartContent multipart)
+        {
+            // NetCord sends messages as multipart/form-data with the JSON in the "payload_json" part
+            foreach (var part in multipart)
+            {
+                var name = part.Headers.ContentDisposition?.Name?.Trim('"');
+                if (name == "payload_json" || body is null)
+                    body = await part.ReadAsStringAsync(cancellationToken);
+                if (name == "payload_json")
+                    break;
+            }
+        }
+        else if (request.Content is not null)
+        {
+            body = await request.Content.ReadAsStringAsync(cancellationToken);
+        }
         lock (_requests)
             _requests.Add(new RecordedRequest(request.Method, request.RequestUri!.AbsolutePath, body));
 
