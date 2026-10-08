@@ -39,6 +39,10 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean } = 
     localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 }));
   });
 
+  // Keep the run hermetic: index.html pulls Google Fonts and a jsDelivr script that the
+  // team builder doesn't need, and a slow CDN would otherwise stall the page's load event.
+  await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
+
   // The Teams SignalR hub is not available: negotiation fails, the page logs it and
   // keeps working (the hub only pushes other users' changes).
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
