@@ -1,0 +1,98 @@
+name: Preview label
+
+# Gatekeeper for PR preview environments (https://pr-<N>.grifball.xyz, behind Authentik). The `preview` label opts a PR
+# in: docker-publish then pushes its images, and the homelab deploys them. When the label is added, this either allows
+# it (and comments the URL, once) or removes it again and comments why:
+#  - previews are for PRs from branches of this repository only, never forks;
+#  - at most MAX_PREVIEWS open PRs can carry the label at once.
+# The `preview` label must exist in the repository (Issues > Labels); it was created alongside this workflow.
+#
+# Two triggers, each handling only its own kind of PR:
+#  - pull_request, for same-repo PRs. Its token can write for them.
+#  - pull_request_target, for fork PRs only, because pull_request gives forks a read-only token, so it could not
+#    remove the label. This is the safe use of pull_request_target: the job runs this file from master, never checks
+#    out or runs the PR's code, only calls the GitHub API, and passes every PR-controlled value through env.
+on:
+  pull_request:
+    branches: [ "master" ]
+    types: [ labeled, reopened ]
+  pull_request_target:
+    branches: [ "master" ]
+    types: [ labeled ]
+
+permissions: {}
+
+concurrency:
+  group: preview-label-${{ github.event_name }}-${{ github.event.pull_request.number }}
+
+jobs:
+  same-repo:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+       (github.event.action == 'reopened' && contains(github.event.pull_request.labels.*.name, 'preview')))
+    runs-on: ubuntu-latest
+    permissions:
+      # Read open PRs' labels, remove the label, comment. Labels and comments on PRs go through the issues API.
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      MAX_PREVIEWS: 3
+    steps:
+      - name: Allow the preview, or remove the label if over the cap
+        run: |
+          set -euo pipefail
+          # The label is already on this PR, so it counts itself.
+          mapfile -t labeled < <(gh api "repos/$REPO/pulls?state=open&per_page=100" --paginate \
+            --jq '.[] | select(any(.labels[]; .name == "preview")) | .number')
+          echo "Open PRs with the preview label: ${labeled[*]:-none}"
+
+          if [ "${#labeled[@]}" -gt "$MAX_PREVIEWS" ]; then
+            others=""
+            for n in "${labeled[@]}"; do [ "$n" = "$PR" ] || others="$others #$n"; done
+            gh api -X DELETE "repos/$REPO/issues/$PR/labels/preview" > /dev/null
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@- > /dev/null <<EOF
+          The \`preview\` label was removed: at most $MAX_PREVIEWS open PRs can have a preview environment at once, and${others} already do. Remove the label from one of those (or close it), then add it here again.
+          EOF
+            echo "::notice::Over the cap of $MAX_PREVIEWS previews; removed the label from #$PR"
+            exit 0
+          fi
+
+          # Comment the URL once per PR, not on every push or re-label.
+          marker='<!-- preview-environment-url -->'
+          if gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[].body' | grep -qF -- "$marker"; then
+            echo "URL comment already posted"
+            exit 0
+          fi
+          gh api "repos/$REPO/issues/$PR/comments" -F body=@- > /dev/null <<EOF
+          $marker
+          Preview environment: https://pr-$PR.grifball.xyz (Authentik login)
+
+          It runs this PR's images (\`sha-<first 7 of the head commit>\`), rebuilt on every push, against a copy of the test database with this PR's migrations applied. Discord, Halo Infinite and Google are off in previews (\`Preview__Enabled=true\`). Remove the \`preview\` label or close the PR to tear it down; its images are deleted then too.
+          EOF
+
+  fork:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      github.event.label.name == 'preview'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Remove the label from a fork PR
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/preview" > /dev/null
+          gh api "repos/$REPO/issues/$PR/comments" -F body=@- > /dev/null <<EOF
+          The \`preview\` label was removed: preview environments are only for PRs from branches of $REPO, not forks, because a preview publishes images with this repository's credentials.
+          EOF
