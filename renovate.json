@@ -1,0 +1,144 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigestsToSemver",
+    ":enableVulnerabilityAlerts"
+  ],
+  "schedule": [
+    "* 0-5 1 * *"
+  ],
+  "customManagers": [
+    {
+      "description": "The Angular CLI installed globally in the debug image",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)debug\\.Dockerfile$/"
+      ],
+      "matchStrings": [
+        "npm i(?:nstall)? -g (?<depName>@angular/cli)@(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "npm"
+    },
+    {
+      "description": "The dotnet-ef tool the backend image uses to build the migrations bundle. semver versioning, because NuGet versioning reads a bare 10.0.0 as the range >= 10.0.0 and never offers an update",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "dotnet tool install --global (?<depName>dotnet-ef) --version (?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "nuget",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Everything goes into one PR, majors included",
+      "matchPackageNames": [
+        "*"
+      ],
+      "groupName": "all dependencies",
+      "groupSlug": "all-dependencies",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Packages tied to the Angular or .NET version: keep minors in the big PR but split majors out",
+      "matchPackageNames": [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@schematics/angular",
+        "@ng-matero/**",
+        "ngx-drag-drop",
+        "zone.js",
+        "typescript",
+        "node",
+        "actions/node-versions",
+        "Microsoft.AspNetCore.**",
+        "Microsoft.EntityFrameworkCore.**",
+        "Microsoft.Extensions.**",
+        "AspNet.Security.OAuth.**",
+        "Serilog.Extensions.Hosting",
+        "Serilog.Settings.Configuration",
+        "dotnet-ef",
+        "dotnet-sdk",
+        "mcr.microsoft.com/dotnet/**"
+      ],
+      "separateMajorMinor": true
+    },
+    {
+      "description": "Angular majors get their own PR; they need ng update migrations and careful testing. @angular/material and @angular/cdk are covered by @angular/**; the @ng-matero libraries and ngx-drag-drop release one major per Angular major, so they ride along",
+      "matchPackageNames": [
+        "@angular/**",
+        "@angular-devkit/**",
+        "@schematics/angular",
+        "@ng-matero/**",
+        "ngx-drag-drop"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Angular major",
+      "groupSlug": "angular"
+    },
+    {
+      "description": "zone.js is 0.x and each minor pairs with an Angular major; the slug makes its minor land in the same renovate/major-angular branch as the Angular majors",
+      "matchPackageNames": [
+        "zone.js"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "groupName": "Angular major",
+      "groupSlug": "major-angular"
+    },
+    {
+      "description": "Node (the client build images and the CI setup-node versions, which Renovate looks up as actions/node-versions) must be a version the Angular CLI supports",
+      "matchDatasources": [
+        "docker",
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "node",
+        "actions/node-versions"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Angular major",
+      "groupSlug": "angular"
+    },
+    {
+      "description": "Angular only supports one TypeScript minor at a time and ng update bumps it during Angular majors, so Renovate only does TypeScript patches",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": ".NET majors get their own PR: the projects' TargetFramework (net10.0) has to move with them, which Renovate can't do. AspNet.Security.OAuth.* and the Serilog hosting/configuration bridges are versioned with .NET; dotnet-ef must match EF Core; dotnet-sdk is the CI setup-dotnet version",
+      "matchPackageNames": [
+        "Microsoft.AspNetCore.**",
+        "Microsoft.EntityFrameworkCore.**",
+        "Microsoft.Extensions.**",
+        "AspNet.Security.OAuth.**",
+        "Serilog.Extensions.Hosting",
+        "Serilog.Settings.Configuration",
+        "dotnet-ef",
+        "dotnet-sdk",
+        "mcr.microsoft.com/dotnet/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": ".NET major",
+      "groupSlug": "dotnet"
+    }
+  ]
+}
