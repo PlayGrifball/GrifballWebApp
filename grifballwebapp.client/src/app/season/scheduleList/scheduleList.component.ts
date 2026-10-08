@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -40,13 +40,13 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
         RouterModule,
         MatDialogModule,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent  implements OnInit {
   private seasonID : number = 0;
-  unscheduledMatches: UnscheduledMatchDto[] = [];
-  scheduledMatches: WeekDto[] = [];
-  isEditing: boolean = false;
+  unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
+  scheduledMatches = signal<WeekDto[]>([]);
+  isEditing = signal(false);
 
   constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private dialog: MatDialog) {}
 
@@ -80,7 +80,7 @@ export class ScheduleListComponent  implements OnInit {
   GetUnscheduledMatches(): void {
     this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + this.seasonID)
     .subscribe({
-      next: r => this.unscheduledMatches = r,
+      next: r => this.unscheduledMatches.set(r),
     });
   }
 
@@ -111,7 +111,7 @@ export class ScheduleListComponent  implements OnInit {
         weeks.push(weekDto);
     });
 
-    this.scheduledMatches = weeks;
+    this.scheduledMatches.set(weeks);
   }
 
   private map(value: ScheduledMatchDto, index: number, array: ScheduledMatchDto[]): TimeDto {
@@ -144,7 +144,7 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   toggleEdit(): void {
-    this.isEditing = !this.isEditing;
+    this.isEditing.update(v => !v);
   }
 
   onSubmit(match: UnscheduledMatchDto | WeekGameDto): void {

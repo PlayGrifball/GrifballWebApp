@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
@@ -44,6 +44,11 @@ interface DropzoneLayout {
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class TeamBuilderComponent {
+  // Zoneless bridge: SignalR and HTTP callbacks mutate plain fields and arrays in place,
+  // so tell Angular to re-render after each one.
+  private readonly cdr = inject(ChangeDetectorRef);
+  private refresh = <T>(fn: (v: T) => void) => (v: T) => { fn(v); this.cdr.markForCheck(); };
+
   private seasonID: number = 0;
   captainLocked: boolean = true;
   teams : TeamResponseDto[] = [];
@@ -94,7 +99,7 @@ export class TeamBuilderComponent {
       this.load();
     }
 
-    this.signalR.addCaptain((dto) => {
+    this.signalR.addCaptain(this.refresh((dto) => {
       if (this.seasonID != dto.seasonID)
         return;
 
@@ -129,9 +134,9 @@ export class TeamBuilderComponent {
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
-    });
+    }));
 
-    this.signalR.resortCaptain((dto) => {
+    this.signalR.resortCaptain(this.refresh((dto) => {
       if (this.seasonID != dto.seasonID)
         return;
 
@@ -159,9 +164,9 @@ export class TeamBuilderComponent {
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
-    });
+    }));
 
-    this.signalR.removeCaptain((dto) => {
+    this.signalR.removeCaptain(this.refresh((dto) => {
       if (this.seasonID != dto.seasonID)
         return;
 
@@ -201,9 +206,9 @@ export class TeamBuilderComponent {
         t.captain.order = trueIndex++;
       });
 
-    });
+    }));
 
-    this.signalR.addPlayerToTeam((dto) => {
+    this.signalR.addPlayerToTeam(this.refresh((dto) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
@@ -237,9 +242,9 @@ export class TeamBuilderComponent {
       team.players.forEach(p => {
         p.round = trueIndex++;
       });
-    });
+    }));
 
-    this.signalR.movePlayerToTeam((dto) => {
+    this.signalR.movePlayerToTeam(this.refresh((dto) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
@@ -324,9 +329,9 @@ export class TeamBuilderComponent {
           p.round = trueIndex++;
         })
       }
-    });
+    }));
 
-    this.signalR.removePlayerFromTeam((dto) => {
+    this.signalR.removePlayerFromTeam(this.refresh((dto) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
@@ -363,37 +368,37 @@ export class TeamBuilderComponent {
       });
 
       this.playerPool.splice(0, 0, player);
-    });
+    }));
 
-    this.signalR.lockCaptains((seasonID) => {
+    this.signalR.lockCaptains(this.refresh((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
       this.captainLocked = true;
-    });
+    }));
 
-    this.signalR.unlockCaptains((seasonID) => {
+    this.signalR.unlockCaptains(this.refresh((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
       this.captainLocked = false;
-    });
+    }));
   }
 
   load(): void {
     this.api.getTeams(this.seasonID)
         .subscribe({
-          next: (result) => this.teams = result,
+          next: this.refresh((result: TeamResponseDto[]) => this.teams = result),
         });
     this.api.getPlayerPool(this.seasonID)
         .subscribe({
-          next: (result) => {
+          next: this.refresh((result: PlayerDto[]) => {
             this.playerPool = result;
-          },
+          }),
         });
     this.api.areCaptainsLocked(this.seasonID)
       .subscribe({
-        next: (result) => {
+        next: this.refresh((result: boolean) => {
           this.captainLocked = result;
-        },
+        }),
       });
   }
 
@@ -401,14 +406,14 @@ export class TeamBuilderComponent {
     if (this.captainLocked) {
       this.api.unlockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe({
-          next: r => this.captainLocked = false
+          next: this.refresh(() => this.captainLocked = false)
         })
     }
     else {
       this.api.lockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe(
           {
-            next: r => this.captainLocked = true
+            next: this.refresh(() => this.captainLocked = true)
           })
     }
   }

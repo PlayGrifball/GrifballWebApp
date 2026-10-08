@@ -1,6 +1,6 @@
 @if (accountService.isEventOrganizer()) {
 <button mat-flat-button color="primary" (click)="toggleEdit()">
-  {{isEditing === true ? 'Close Edit' : 'Show Edit'}}
+  {{isEditing() === true ? 'Close Edit' : 'Show Edit'}}
 </button>
 
 <button mat-flat-button color="primary" (click)="createRegularSeasonMatches()">
@@ -10,7 +10,7 @@
 
 <div style="">
 
-  @for (week of scheduledMatches; track week) {
+  @for (week of scheduledMatches(); track week) {
   <mat-card style="max-width: 300px; margin: 5px; display: inline-flex">
     <mat-card-header>
       <mat-card-title>Week {{week.weekNumber}}</mat-card-title>
@@ -20,7 +20,7 @@
       <mat-divider></mat-divider>
       <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
             [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
-      @if (accountService.isEventOrganizer() && isEditing) {
+      @if (accountService.isEventOrganizer() && isEditing()) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>
           <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
@@ -49,12 +49,12 @@
     <mat-card-title>Unscheduled Matches</mat-card-title>
   </mat-card-header>
   <mat-card-content>
-    @for (match of unscheduledMatches; track match.seasonMatchID) {
+    @for (match of unscheduledMatches(); track match.seasonMatchID) {
     <mat-divider></mat-divider>
     <div>
       <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
             [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
-      @if (accountService.isEventOrganizer() && isEditing) {
+      @if (accountService.isEventOrganizer() && isEditing()) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>
           <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
