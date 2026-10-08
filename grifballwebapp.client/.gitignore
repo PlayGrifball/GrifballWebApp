@@ -44,3 +44,7 @@ testem.log
 Thumbs.db
 
 /src/app/coverage-import.spec.ts
+
+# Playwright
+/e2e-results
+/playwright-report

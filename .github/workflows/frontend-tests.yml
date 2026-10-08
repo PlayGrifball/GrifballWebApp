@@ -74,3 +74,46 @@ jobs:
         flags: frontend
         name: frontend-coverage
         fail_ci_if_error: false
+
+  e2e:
+    name: e2e (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: ./grifballwebapp.client
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright Chromium
+      run: npx playwright install --with-deps chromium
+
+    - name: Build and run end-to-end tests
+      run: npm run e2e
+
+    - name: Upload Playwright traces and report
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: failure()
+      with:
+        name: playwright-traces
+        path: |
+          grifballwebapp.client/e2e-results/
+          grifballwebapp.client/playwright-report/
+        retention-days: 7
