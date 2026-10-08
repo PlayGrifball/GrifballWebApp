@@ -135,11 +135,12 @@ test('moves a drafted player from one team to another', async ({ page }) => {
   });
 });
 
-test('moves a pick to the end of its own team', async ({ page }) => {
+test('moves a pick to the end of its own team (intended: picks are not reordered mid-list)', async ({ page }) => {
   const calls = await openTeamBuilder(page);
 
-  // A team's players area has no placeholder, so a drop never carries an insertion
-  // index: re-dropping a pick on its own team moves it to the last round.
+  // Intended behaviour: re-dropping a pick on its own team moves it to the last round.
+  // The players area deliberately has no placeholder, so a drop never carries an
+  // insertion index and the pick is appended.
   await drag(teamPlayer(page, 'Red Team', 'Player Pat'), playersArea(page, 'Red Team'));
 
   await expect.poll(() => rosterOf(page, 'Red Team')).toEqual(['1 Player Quinn', '2 Player Pat']);
@@ -191,7 +192,7 @@ test('returns a captain and their picks to the pool when captains are unlocked',
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Blue Team']);
   await expect.poll(async () => (await poolNames(page)).sort()).toEqual(['Captain Red', 'Player Pat', 'Player Quinn', 'Pool Alex', 'Pool Blair', 'Pool Casey']);
   await waitForCalls(calls, 1);
-  expect(calls[0]).toEqual({ path: '/api/Teams/RemoveCaptain/', body: { seasonID: SEASON_ID, personID: 201, orderNumber: 0 } });
+  expect(calls[0]).toEqual({ path: '/api/Teams/RemoveCaptain/', body: { seasonID: SEASON_ID, personID: 201 } });
 });
 
 test('does not let teams be dragged while captains are locked', async ({ page }) => {

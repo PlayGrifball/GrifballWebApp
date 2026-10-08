@@ -18,7 +18,7 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
 import { CaptainDto } from '../api/dtos/captainDto';
-import { CaptainPlacementDto } from '../api/dtos/captainPlacementDto';
+import { CaptainPlacementDto, RemoveCaptainDto } from '../api/dtos/captainPlacementDto';
 import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -583,11 +583,12 @@ export class TeamBuilderComponent {
         list.splice(index!, 0, p);
       });
 
-      // Announce to backend that player is now available
-      const dto = new CaptainPlacementDto();
-      dto.seasonID = this.seasonID;
-      dto.personID = player.personID;
-      this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });;
+      // Announce to backend that player is now available. RemoveCaptainDto carries no order
+      // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
+      // This used to send a CaptainPlacementDto, whose unused orderNumber defaulted to 0; the API
+      // ignored it, but it read like "captain stored at order 0".
+      const dto: RemoveCaptainDto = { seasonID: this.seasonID, personID: player.personID };
+      this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
 
     }
     else {
