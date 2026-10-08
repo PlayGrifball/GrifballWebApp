@@ -127,4 +127,42 @@ describe('authInterceptor', () => {
       });
     });
   });
+
+  it('retries with the refreshed token in the Authorization header', (done) => {
+    (mockAccountService.accessToken as jasmine.Spy).and.returnValue('old-token');
+    const error401 = new HttpErrorResponse({ status: 401, statusText: 'Unauthorized' });
+    const seen: (string | null)[] = [];
+    mockNext.and.callFake((r: HttpRequest<any>) => {
+      seen.push(r.headers.get('Authorization'));
+      return seen.length === 1 ? throwError(() => error401) : of({} as HttpEvent<any>);
+    });
+    mockAccountService.refresh.and.returnValue(of({ accessToken: 'new-token', tokenType: 'Bearer', refreshToken: 'r', expiresIn: 1 }));
+
+    TestBed.runInInjectionContext(() => {
+      authInterceptor(new HttpRequest('GET', '/api/test'), mockNext).subscribe(() => {
+        expect(seen).toEqual(['Bearer old-token', 'Bearer new-token']);
+        done();
+      });
+    });
+  });
+
+  it('propagates the refresh error without retrying when the refresh fails', (done) => {
+    spyOn(console, 'log');
+    (mockAccountService.accessToken as jasmine.Spy).and.returnValue('old-token');
+    const refreshError = new HttpErrorResponse({ status: 400, statusText: 'Bad Request' });
+    mockNext.and.returnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
+    mockAccountService.refresh.and.returnValue(throwError(() => refreshError));
+
+    TestBed.runInInjectionContext(() => {
+      authInterceptor(new HttpRequest('GET', '/api/test'), mockNext).subscribe({
+        next: () => fail('should not succeed'),
+        error: (err) => {
+          expect(err).toBe(refreshError);
+          expect(mockNext).toHaveBeenCalledTimes(1);
+          expect(console.log).toHaveBeenCalledWith('Unable to retry request, failed to get new access token');
+          done();
+        }
+      });
+    });
+  });
 });

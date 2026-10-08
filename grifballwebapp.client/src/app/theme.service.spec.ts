@@ -132,4 +132,23 @@ describe('ThemeService', () => {
       expect(typeof result).toBe('string');
     });
   });
+
+  describe('theme effect', () => {
+    beforeEach(() => document.body.classList.remove('light-theme'));
+    afterEach(() => document.body.classList.remove('light-theme'));
+
+    it('applies the selected theme to the body and removes it when toggled back', () => {
+      TestBed.tick();
+      expect(document.body.classList.contains('light-theme')).toBeFalse();
+
+      service.buttonClicked();
+      TestBed.tick();
+      expect(document.body.classList.contains('light-theme')).toBeTrue();
+
+      service.buttonClicked();
+      TestBed.tick();
+      expect(document.body.classList.contains('light-theme')).toBeFalse();
+      expect(localStorage.getItem('theme')).toBe('');
+    });
+  });
 });

@@ -1,4 +1,31 @@
 import { APP_ROUTES } from './app.routes';
+import { HomeComponent } from './home/home.component';
+import { ThemeComponent } from './theme/theme.component';
+import { SeasonComponent } from './season/season.component';
+import { SignupsComponent } from './signups/signups.component';
+import { SignupFormComponent } from './signupForm/signupForm.component';
+import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
+import { TeamComponent } from './season/team/team.component';
+import { PlayerGradesComponent } from './season/playerGrades/playerGrades.component';
+import { SeasonMatchComponent } from './season/seasonMatch/seasonMatch.component';
+import { TopStatsComponent } from './top-stats/top-stats.component';
+import { LoginComponent } from './login/login.component';
+import { RegisterComponent } from './register/register.component';
+import { PasswordResetComponent } from './password-reset/password-reset.component';
+import { SeasonManagerComponent } from './seasonManager/seasonManager.component';
+import { SeasonEditComponent } from './seasonEdit/seasonEdit.component';
+import { SeasonAvailabilityComponent } from './seasonEdit/seasonAvailability/seasonAvailability.component';
+import { InfiniteClientComponent } from './infiniteClient/infiniteClient.component';
+import { UserManagementComponent } from './userManagement/userManagement.component';
+import { CreateUserComponent } from './userManagement/createUser/createUser.component';
+import { EditUserComponent } from './userManagement/editUser/editUser.component';
+import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
+import { ProfileComponent } from './profile/profile.component';
+import { ExcelComponent } from './excel/excel.component';
+import { LateLeagueComponent } from './lateLeague/lateLeague.component';
+import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
+import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
+import { NotFoundComponent } from './notFound/notFound.component';
 
 describe('APP_ROUTES', () => {
   it('should have routes defined', () => {
@@ -125,5 +152,65 @@ describe('APP_ROUTES', () => {
     const rescheduleRoute = APP_ROUTES.find(r => r.path === 'reschedule-request/:seasonMatchID');
     expect(rescheduleRoute).toBeDefined();
     expect(rescheduleRoute?.title).toBe('Request Reschedule');
+  });
+});
+
+describe('APP_ROUTES lazy loading', () => {
+  // Each route lazily imports its page. Resolving every loader catches broken import paths
+  // and routes wired to the wrong component.
+  const expected: Record<string, unknown> = {
+    '': HomeComponent,
+    'theme': ThemeComponent,
+    'season/:seasonID': SeasonComponent,
+    'season/:seasonID/signups': SignupsComponent,
+    'season/:seasonID/signupForm': SignupFormComponent,
+    'season/:seasonID/teams': TeamBuilderComponent,
+    'season/:seasonID/team/:teamID': TeamComponent,
+    'season/:seasonID/playergrades': PlayerGradesComponent,
+    'seasonmatch/:seasonMatchID': SeasonMatchComponent,
+    'topstats': TopStatsComponent,
+    'login': LoginComponent,
+    'register': RegisterComponent,
+    'reset-password': PasswordResetComponent,
+    'seasonManager': SeasonManagerComponent,
+    'seasonEdit/:seasonID': SeasonEditComponent,
+    'seasonAvailability/:seasonID': SeasonAvailabilityComponent,
+    'infiniteclient': InfiniteClientComponent,
+    'usermanagement': UserManagementComponent,
+    'usermanagement/createuser': CreateUserComponent,
+    'usermanagement/edituser/:userID': EditUserComponent,
+    'usermanagement/mergeuser': MergeUserComponent,
+    'usermanagement/mergeuser/:fromInput': MergeUserComponent,
+    'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
+    'profile/:userID': ProfileComponent,
+    'excel': ExcelComponent,
+    'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
+    'lateLeague': LateLeagueComponent,
+    'commissioner-dashboard': CommissionerDashboardComponent,
+    'reschedule-request/:seasonMatchID': RescheduleRequestComponent,
+    '**': NotFoundComponent,
+  };
+
+  it('covers every route in the table above', () => {
+    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+  });
+
+  for (const [path, component] of Object.entries(expected)) {
+    it(`'${path}' lazily loads its component`, async () => {
+      const route = APP_ROUTES.find(r => r.path === path)!;
+      const loaded = await (route.loadComponent as () => Promise<unknown>)();
+      expect(loaded).toBe(component);
+    });
+  }
+
+  it('guards every admin and organizer page', () => {
+    const guarded = APP_ROUTES.filter(r => r.canActivate?.length).map(r => r.path);
+    expect(guarded).toEqual(jasmine.arrayWithExactContents([
+      'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
+      'infiniteclient', 'usermanagement', 'usermanagement/createuser',
+      'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
+      'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput',
+      'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
+    ]));
   });
 });
