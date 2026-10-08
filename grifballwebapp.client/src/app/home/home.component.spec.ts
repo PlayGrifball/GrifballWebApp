@@ -1,3 +1,5 @@
+import { ComponentFixture } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { HomeComponent } from './home.component';
@@ -249,5 +251,83 @@ describe('HomeComponent', () => {
       );
       req.flush(mockResult);
     });
+  });
+});
+
+describe('HomeComponent paginator and sort wiring', () => {
+  let fixture: ComponentFixture<HomeComponent>;
+  let component: HomeComponent;
+  let http: HttpTestingController;
+
+  const page = (names: string[], totalCount: number) => ({
+    totalCount,
+    results: names.map((name, i) => ({ seasonID: i + 1, name, start: '2025-01-01', end: '2025-02-01', eventType: 'Season' as const })),
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
+      providers: [provideRouter([])]
+    }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(HomeComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/Home/CurrentAndFutureEvents/').flush([]);
+    await settle();
+  });
+
+  afterEach(() => http.verify());
+
+  async function settle(): Promise<void> {
+    fixture.detectChanges();
+    TestBed.tick();
+    await Promise.resolve();
+    fixture.detectChanges();
+  }
+
+  function pastSeasonsRequest() {
+    const reqs = http.match(r => r.url === '/api/Home/PastSeasons');
+    expect(reqs.length).withContext('one past-seasons request').toBeGreaterThan(0);
+    return reqs[reqs.length - 1];
+  }
+
+  it('requests the first page of past seasons once the paginator is ready', async () => {
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('pageSize')).toBe('10');
+    expect(req.request.params.get('pageNumber')).toBe('1');
+    expect(req.request.params.has('sortColumn')).toBeFalse();
+    req.flush(page(['Season 1', 'Season 2'], 12));
+    fixture.detectChanges();
+
+    expect(component.total()).toBe(12);
+    expect(component.pastSeasons.data.map(e => e.name)).toEqual(['Season 1', 'Season 2']);
+  });
+
+  it('requests the next page when the paginator moves', async () => {
+    pastSeasonsRequest().flush(page(['a'], 30));
+    await settle();
+
+    component.paginator()!.page.emit({ pageIndex: 2, pageSize: 20, length: 30 });
+    await settle();
+
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('pageSize')).toBe('20');
+    expect(req.request.params.get('pageNumber')).toBe('3');
+    req.flush(page(['c'], 30));
+  });
+
+  it('requests sorted results when a column header sort changes', async () => {
+    pastSeasonsRequest().flush(page(['a'], 1));
+    await settle();
+
+    component.sort()!.sortChange.emit({ active: 'name', direction: 'desc' });
+    await settle();
+
+    const req = pastSeasonsRequest();
+    expect(req.request.params.get('sortColumn')).toBe('name');
+    expect(req.request.params.get('sortDirection')).toBe('desc');
+    req.flush(page(['z'], 1));
   });
 });

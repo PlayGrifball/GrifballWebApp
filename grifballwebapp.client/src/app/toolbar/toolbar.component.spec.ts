@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToolbarComponent } from './toolbar.component';
+import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../account.service';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
@@ -78,5 +79,17 @@ describe('ToolbarComponent', () => {
 
   it('should have account service injected', () => {
     expect(component.accountService).toBe(mockAccountService);
+  });
+
+  it('opens the theme editor as a borderless dialog', () => {
+    // The component imports MatDialogModule, so it gets its own MatDialog rather than the mock.
+    const open = spyOn(component['dialog'], 'open');
+    component.theme();
+    expect(open).toHaveBeenCalledWith(ThemeComponent, {
+      maxWidth: '100%',
+      backdropClass: 'no-backdrop',
+      maxHeight: '90vh',
+      panelClass: 'dialog-no-bg'
+    });
   });
 });

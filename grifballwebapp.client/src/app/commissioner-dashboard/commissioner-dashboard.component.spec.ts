@@ -194,4 +194,40 @@ describe('CommissionerDashboardComponent', () => {
     const refreshReq = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
     refreshReq.flush({ pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } });
   });
+
+  describe('reschedule actions', () => {
+    const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
+      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 0 } as RescheduleDto;
+    const empty = { pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } };
+
+    it('reloads the dashboard after the dialog reports a processed request', () => {
+      const ref = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
+      ref.afterClosed.and.returnValue(of(true));
+      spyOn(component['dialog'], 'open').and.returnValue(ref);
+
+      component.openProcessRescheduleDialog(reschedule);
+
+      expect(component['dialog'].open).toHaveBeenCalledWith(jasmine.any(Function), { width: '600px', data: reschedule });
+      httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush(empty);
+    });
+
+    it('does not reload when the dialog is cancelled', () => {
+      const ref = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
+      ref.afterClosed.and.returnValue(of(false));
+      spyOn(component['dialog'], 'open').and.returnValue(ref);
+
+      component.openProcessRescheduleDialog(reschedule);
+      expect(ref.afterClosed).toHaveBeenCalled();
+      httpTestingController.expectNone('/api/CommissionerDashboard/GetDashboardData');
+    });
+
+    it('still reloads and logs when creating the Discord thread fails', () => {
+      const err = spyOn(console, 'error');
+      component.createDiscordThread(reschedule);
+      httpTestingController.expectOne('/api/Reschedule/CreateDiscordThread/4').flush('x', { status: 500, statusText: 'Server Error' });
+
+      httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush(empty);
+      expect(err).toHaveBeenCalledWith('Failed to create Discord thread:', jasmine.anything());
+    });
+  });
 });

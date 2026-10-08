@@ -365,3 +365,68 @@ describe('PlayerGradesComponent', () => {
     });
   });
 });
+
+describe('PlayerGradesComponent rendering', () => {
+  let fixture: ComponentFixture<PlayerGradesComponent>;
+  let component: PlayerGradesComponent;
+  let http: HttpTestingController;
+
+  const letter: LetterDto = {
+    xboxUserID: 1, gamertag: 'Grif',
+    goals: 'S+', kdSpread: 'A', punches: 'B-', sprees: 'C', doubleKills: 'D+',
+    tripleKills: 'E', multiKills: 'F-', xFactor: 'A+', kills: 'S',
+    gradeAvgMath: 3, gradeAvg: 'B+'
+  };
+
+  const perMinute: PerMinuteDto = {
+    xboxUserID: 1, gamertag: 'Grif',
+    goalsPM: 0.1, kdSpreadPM: 0.2, punchesPM: 0.3, spreesPM: 0.4, doubleKillsPM: 0.5,
+    tripleKillsPM: 0.6, multiKillsPM: 0.7, xFactorPM: 0.8, killsPM: 0.9
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [PlayerGradesComponent, HttpClientTestingModule],
+      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }]
+    }).compileComponents();
+
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(PlayerGradesComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [perMinute], letters: [letter] });
+    fixture.detectChanges();
+  });
+
+  afterEach(() => http.verify());
+
+  const cells = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row td')) as HTMLElement[];
+
+  it('defines a column for every displayed column, in order', () => {
+    expect(component.letterColumns.map(c => c.columnDef)).toEqual(component.letterDisplayedColumns);
+    expect(component.pmColumns.map(c => c.columnDef)).toEqual(component.pmDisplayedColumns);
+  });
+
+  it('maps every per-minute column to its own stat', () => {
+    expect(component.pmColumns.map(c => c.cell(perMinute))).toEqual(
+      ['Grif', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9']);
+  });
+
+  it('renders one cell per grade with the average to two decimals', () => {
+    expect(cells().map(c => c.textContent!.trim())).toEqual(
+      ['Grif', 'S+', 'A', 'B-', 'C', 'D+', 'E', 'F-', 'A+', 'S', '3.00', 'B+']);
+  });
+
+  it('colours each grade cell by its letter and leaves the gamertag plain', () => {
+    const toHex = (c: HTMLElement) => {
+      const m = c.style.background.match(/rgb\((\d+), (\d+), (\d+)\)/);
+      return m ? '#' + m.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('').toUpperCase() : '';
+    };
+    expect(cells().map(toHex)).toEqual([
+      '', '#FFD700', '#C9DAF8', '#D9D2E9', '#B6D7A8', '#6FA8DC', '#C27BA0', '#A61C00', '#C9DAF8', '#FFD700',
+      '#D9D2E9', '#D9D2E9'
+    ]);
+    expect(cells()[1].style.color).toBe('black');
+    expect(cells()[0].style.color).toBe('');
+  });
+});
