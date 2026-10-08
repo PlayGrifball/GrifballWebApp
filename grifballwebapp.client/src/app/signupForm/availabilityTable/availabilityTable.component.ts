@@ -26,8 +26,11 @@ export class AvailabilityTableComponent {
 
   constructor(private availabilityService: AvailabilityService) { }
 
+  // The parent binds this before its HTTP request has resolved, so null/undefined
+  // must be treated as "no timeslots yet" rather than throwing.
   @Input({ required: true })
-  public set timeslots(timeslots: TimeslotDto[]) {
+  public set timeslots(value: TimeslotDto[] | null | undefined) {
+    const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 
     this.timeColumns = [this.DayOfWeek];

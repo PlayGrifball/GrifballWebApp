@@ -30,7 +30,9 @@ import { AvailabilityService } from '../availability.service';
 export class SignupFormComponent {
 
   @ViewChild('signupForm') registerForm!: NgForm;
-  model: SignupRequestDto = {} as SignupRequestDto;
+  // Initialised with the class defaults (timeslots: []) because the template binds
+  // model.timeslots on the first render, before getSignup has responded.
+  model: SignupRequestDto = new SignupRequestDto();
 
   constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBar: MatSnackBar, private availabilityService: AvailabilityService) { }
 
@@ -46,7 +48,7 @@ export class SignupFormComponent {
           {
             if (result === null)
             {
-              this.model = {} as SignupRequestDto;
+              this.model = new SignupRequestDto();
               this.model.seasonID = seasonID;
               this.api.getTimeslots(seasonID, this.availabilityService.getDif()).subscribe({
                 next: (r) => this.model.timeslots = r,
@@ -55,7 +57,7 @@ export class SignupFormComponent {
             }
             else
             {
-              this.model = result;
+              this.model = { ...result, timeslots: result.timeslots ?? [] };
             }
           },
           error: () => this.snackBar.open('Failed to get signup'),
