@@ -13,35 +13,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace GrifballWebApp.Test.CovA;
-
-/// <summary>Records Google Sheets API requests and returns canned JSON.</summary>
-internal sealed class FakeSheetsHandler_A : HttpMessageHandler
-{
-    public List<(HttpMethod Method, string Url, string Body)> Requests { get; } = new();
-    public Func<HttpRequestMessage, string> Respond { get; set; } = _ => "{}";
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
-        Requests.Add((request.Method, Uri.UnescapeDataString(request.RequestUri!.ToString()), body));
-        return new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(Respond(request), Encoding.UTF8, "application/json"),
-        };
-    }
-}
-
-internal sealed class FakeHttpClientFactory_A : Google.Apis.Http.HttpClientFactory
-{
-    private readonly HttpMessageHandler _handler;
-    public FakeHttpClientFactory_A(HttpMessageHandler handler) => _handler = handler;
-    protected override HttpMessageHandler CreateHandler(Google.Apis.Http.CreateHttpClientArgs args) => _handler;
-}
+namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
-public class ExcelServiceTests_A
+public class ExcelServiceTests
 {
     private const string CopySpreadsheet = "copy-spreadsheet";
     private const string TargetSpreadsheet = "target-spreadsheet";
@@ -49,7 +25,7 @@ public class ExcelServiceTests_A
 
     private GrifballContext _context;
     private IDataPullService _dataPull;
-    private FakeSheetsHandler_A _handler;
+    private FakeSheetsHandler _handler;
     private string _keyFile;
     private string _lColumnJson = """{"values":[]}""";
     private string _copySheetJson = """{"values":[]}""";
@@ -61,7 +37,7 @@ public class ExcelServiceTests_A
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
-        _handler = new FakeSheetsHandler_A
+        _handler = new FakeSheetsHandler
         {
             Respond = req =>
             {
@@ -118,7 +94,7 @@ public class ExcelServiceTests_A
         var service = new ExcelService(_context, _dataPull, config ?? Config());
         var sheets = new SheetsService(new Google.Apis.Services.BaseClientService.Initializer
         {
-            HttpClientFactory = new FakeHttpClientFactory_A(_handler),
+            HttpClientFactory = new FakeSheetsHttpClientFactory(_handler),
             ApplicationName = "tests",
             GZipEnabled = false,
         });
@@ -405,7 +381,7 @@ public class ExcelServiceTests_A
     [TestCase(nameof(ExcelController.AppendMatch))]
     public void Controller_Actions_RequireCommissionerOrSysadmin(string action)
     {
-        var attr = typeof(ExcelController).GetMethod(action)!.GetCustomAttribute<AuthorizeAttribute>();
+        var attr = ControllerTestHelpers.ActionAuthorize(typeof(ExcelController), action);
         Assert.That(attr, Is.Not.Null);
         Assert.That(attr!.Roles, Is.EqualTo("Commissioner,Sysadmin"));
     }
