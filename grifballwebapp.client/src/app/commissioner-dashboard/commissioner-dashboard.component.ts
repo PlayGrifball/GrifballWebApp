@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -62,7 +62,8 @@ export interface DashboardSummaryDto {
     MatDialogModule
   ],
   templateUrl: './commissioner-dashboard.component.html',
-  styleUrls: ['./commissioner-dashboard.component.scss']
+  styleUrls: ['./commissioner-dashboard.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CommissionerDashboardComponent implements OnInit {
   dashboardData: CommissionerDashboardDto | null = null;

@@ -1,6 +1,8 @@
 <h1 id="tableLabel">Top Kills</h1>
 
-<p *ngIf="!kills"><em>Loading... Please refresh once the ASP.NET backend has started. See <a href="https://aka.ms/jspsintegrationangular">https://aka.ms/jspsintegrationangular</a> for more details.</em></p>
+@if (!kills) {
+  <p><em>Loading... Please refresh once the ASP.NET backend has started. See <a href="https://aka.ms/jspsintegrationangular">https://aka.ms/jspsintegrationangular</a> for more details.</em></p>
+}
 
 <table mat-table [dataSource]="kills" class="mat-elevation-z8">
 

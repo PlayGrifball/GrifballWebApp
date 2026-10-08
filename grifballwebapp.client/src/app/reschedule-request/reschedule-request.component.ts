@@ -1,5 +1,4 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -23,7 +22,6 @@ interface RescheduleRequest {
   selector: 'app-reschedule-request',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     MatCardModule,
     MatFormFieldModule,
@@ -35,7 +33,8 @@ interface RescheduleRequest {
     MatSnackBarModule
   ],
   templateUrl: './reschedule-request.component.html',
-  styleUrls: ['./reschedule-request.component.scss']
+  styleUrls: ['./reschedule-request.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class RescheduleRequestComponent implements OnInit {
   seasonMatchID: number = 0;

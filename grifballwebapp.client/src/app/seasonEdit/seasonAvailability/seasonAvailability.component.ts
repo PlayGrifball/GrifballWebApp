@@ -1,5 +1,4 @@
-import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -14,17 +13,17 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 @Component({
     selector: 'app-season-availability',
     imports: [
-        CommonModule,
         MatCheckboxModule,
         MtxDatetimepickerModule,
         MatInputModule,
         FormsModule,
         MatFormField,
         MatButton,
-        MatSelectModule,
+        MatSelectModule
     ],
     templateUrl: './seasonAvailability.component.html',
-    styleUrl: './seasonAvailability.component.scss'
+    styleUrl: './seasonAvailability.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonAvailabilityComponent implements OnInit {
 

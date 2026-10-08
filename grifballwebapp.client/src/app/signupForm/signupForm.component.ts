@@ -1,5 +1,4 @@
-import { CommonModule } from '@angular/common';
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,17 +15,17 @@ import { AvailabilityService } from '../availability.service';
 @Component({
     selector: 'app-signup-form',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
         MatButtonModule,
         ErrorMessageComponent,
         MatCheckboxModule,
-        AvailabilityTableComponent,
+        AvailabilityTableComponent
     ],
     templateUrl: './signupForm.component.html',
-    styleUrl: './signupForm.component.scss'
+    styleUrl: './signupForm.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SignupFormComponent {
 

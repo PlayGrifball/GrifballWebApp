@@ -1,5 +1,4 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -14,7 +13,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 @Component({
     selector: 'app-season-edit',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
@@ -22,10 +20,11 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         ErrorMessageComponent,
         MtxDatetimepickerModule,
         RouterModule,
-        MatCheckboxModule,
+        MatCheckboxModule
     ],
     templateUrl: './seasonEdit.component.html',
-    styleUrl: './seasonEdit.component.scss'
+    styleUrl: './seasonEdit.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonEditComponent implements OnInit {
   @ViewChild('seasonForm') registerForm!: NgForm;

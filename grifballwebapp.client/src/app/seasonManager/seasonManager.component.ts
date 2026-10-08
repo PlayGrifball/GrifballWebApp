@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -15,7 +15,8 @@ import { MatButtonModule } from '@angular/material/button';
         MatButtonModule
     ],
     templateUrl: './seasonManager.component.html',
-    styleUrl: './seasonManager.component.scss'
+    styleUrl: './seasonManager.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonManagerComponent implements OnInit {
   public seasons: SeasonDto[] = [];

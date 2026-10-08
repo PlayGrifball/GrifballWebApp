@@ -1,5 +1,4 @@
-import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { TimeslotDto } from '../../api/dtos/signupResponseDto';
@@ -9,13 +8,13 @@ import { FormsModule } from '@angular/forms';
 @Component({
     selector: 'app-availability-table',
     imports: [
-        CommonModule,
         MatCheckboxModule,
         MatTableModule,
-        FormsModule,
+        FormsModule
     ],
     templateUrl: './availabilityTable.component.html',
-    styleUrl: './availabilityTable.component.scss'
+    styleUrl: './availabilityTable.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AvailabilityTableComponent {
 

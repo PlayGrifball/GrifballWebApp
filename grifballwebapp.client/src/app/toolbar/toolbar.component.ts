@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule} from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -22,7 +22,8 @@ import { ApiClientService } from '../api/apiClient.service';
         MatDialogModule,
     ],
     templateUrl: './toolbar.component.html',
-    styleUrl: './toolbar.component.css'
+    styleUrl: './toolbar.component.css',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ToolbarComponent implements OnInit {
   @Input({ required: true }) snav!: MatSidenav;

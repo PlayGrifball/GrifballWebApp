@@ -6,7 +6,6 @@ import { MatListModule } from '@angular/material/list';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
-import { CommonModule } from '@angular/common';
 import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,7 +15,6 @@ import { MatButtonModule } from '@angular/material/button';
 @Component({
     selector: 'app-root',
     imports: [
-        CommonModule,
         RouterLink,
         MatListModule,
         MatSidenavModule,
@@ -24,11 +22,11 @@ import { MatButtonModule } from '@angular/material/button';
         ToolbarComponent,
         MatButtonModule,
         MatMenuModule,
-        MatIconModule,
+        MatIconModule
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',
-    changeDetection: ChangeDetectionStrategy.Default
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   @ViewChild('snav') snav!: MatSidenav;

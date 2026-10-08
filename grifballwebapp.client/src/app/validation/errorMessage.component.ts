@@ -1,16 +1,16 @@
-import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { AbstractControl, AbstractControlDirective, FormControl } from '@angular/forms';
 import { ValidationService } from './validationService';
 
 @Component({
     selector: 'app-error-message',
-    imports: [
-        CommonModule,
-    ],
+    imports: [],
     template: `
-    <div *ngIf="errorMessage !== null">{{errorMessage}}</div>
-    `
+    @if (errorMessage !== null) {
+      <div>{{errorMessage}}</div>
+    }
+    `,
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ErrorMessageComponent {
   @Input() control!: AbstractControl | AbstractControlDirective;

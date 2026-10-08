@@ -1,5 +1,4 @@
-import { Component, Inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,7 +18,6 @@ interface ProcessRescheduleRequest {
   selector: 'app-process-reschedule-dialog',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     MatDialogModule,
     MatButtonModule,
@@ -29,7 +27,8 @@ interface ProcessRescheduleRequest {
     MatIconModule
   ],
   templateUrl: './process-reschedule-dialog.component.html',
-  styleUrls: ['./process-reschedule-dialog.component.scss']
+  styleUrls: ['./process-reschedule-dialog.component.scss'],
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ProcessRescheduleDialogComponent {
   decision: 'approve' | 'reject' | null = null;

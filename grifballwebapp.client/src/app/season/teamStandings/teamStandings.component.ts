@@ -1,6 +1,5 @@
-import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
@@ -8,12 +7,12 @@ import { MatTableModule } from '@angular/material/table';
 @Component({
     selector: 'app-team-standings',
     imports: [
-        CommonModule,
         MatTableModule,
         RouterModule
     ],
     templateUrl: './teamStandings.component.html',
-    styleUrl: './teamStandings.component.scss'
+    styleUrl: './teamStandings.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class TeamStandingsComponent implements OnInit {
   private seasonID: number = 0;

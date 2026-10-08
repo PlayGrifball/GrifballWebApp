@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, OnInit, WritableSignal } from '@angular/core';
 import { TileComponent } from './tile/tile.component';
 import { palette } from '../paletteTypes';
@@ -11,14 +10,13 @@ import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angu
 @Component({
     selector: 'app-palette',
     imports: [
-        CommonModule,
         TileComponent,
         MtxColorpickerModule,
         MatFormFieldModule,
         MatLabel,
         MatInput,
         FormsModule,
-        ReactiveFormsModule,
+        ReactiveFormsModule
     ],
     templateUrl: './palette.component.html',
     styleUrl: './palette.component.scss',

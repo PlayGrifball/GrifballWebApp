@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,7 +13,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 @Component({
     selector: 'app-edit-user',
     imports: [
-        CommonModule,
         FormsModule,
         MatInputModule,
         MatFormFieldModule,
@@ -24,7 +22,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         MatCheckboxModule
     ],
     templateUrl: './editUser.component.html',
-    styleUrl: './editUser.component.scss'
+    styleUrl: './editUser.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class EditUserComponent {
   model: UserResponseDto = {} as UserResponseDto;

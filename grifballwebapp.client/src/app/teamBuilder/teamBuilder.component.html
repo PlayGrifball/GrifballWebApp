@@ -26,7 +26,8 @@
     </mat-card-content>
   </mat-card>
 
-  <mat-card class="item" *ngFor="let item of teams"
+  @for (item of teams; track item) {
+  <mat-card class="item"
             [dndDisableIf]="DisableDraggingTeams()"
             [dndDraggable]="item"
             dndEffectAllowed="move"
@@ -45,7 +46,8 @@
                       [dndDropzone]="['availablePlayer', 'player']"
                       [dndDisableIf]="DisableDraggingPlayerToTeam(item)"
                       >
-      <div *ngFor="let player of item.players"
+      @for (player of item.players; track player) {
+      <div
            [dndDisableIf]="DisableDraggingPlayerFromTeam()"
            [dndDraggable]="createDraggedPlayer(player, item)"
            dndEffectAllowed="move"
@@ -56,8 +58,10 @@
            (dndStart)="onDragStart(player, $event, GrabbedThing.Player)">
         {{ player.round }} {{ player.name }}
       </div>
+      }
     </mat-card-content>
   </mat-card>
+  }
 
 </div>
 
@@ -74,7 +78,8 @@
     <span matListItemTitle> *** </span>
   </mat-list-item>
 
-  <mat-list-item *ngFor="let item of playerPool"
+  @for (item of playerPool; track item) {
+  <mat-list-item
                  class="player-pool-item"
                  [dndDisableIf]="DisableDraggingPlayerFromPool(item)"
                  [dndDraggable]="item"
@@ -86,4 +91,5 @@
                  (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)">
     <span matListItemTitle>{{ item.name }}</span>
   </mat-list-item>
+  }
 </mat-list>

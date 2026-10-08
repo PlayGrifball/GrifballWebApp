@@ -368,4 +368,47 @@ describe('AvailabilityTableComponent', () => {
       expect(() => component.timeslots = timeslots).not.toThrow();
     });
   });
+
+  describe('template rendering (@if ... as)', () => {
+    beforeEach(() => {
+      component.timeslots = [
+        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: true, isDisabled: false, isHeader: false },
+        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false },
+        { id: 3, dayOfWeek: 'Tuesday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+      ];
+      fixture.detectChanges();
+    });
+
+    function rows(): HTMLElement[] {
+      return Array.from(fixture.nativeElement.querySelectorAll('tr.mat-mdc-row'));
+    }
+
+    it('renders the day of week as a header cell and a checkbox for every time slot', () => {
+      const [monday, tuesday] = rows();
+      expect(rows().length).toBe(2);
+      expect(monday.querySelector('td div')?.textContent?.trim()).toBe('Monday');
+      expect(tuesday.querySelector('td div')?.textContent?.trim()).toBe('Tuesday');
+      expect(monday.querySelectorAll('mat-checkbox').length).toBe(2);
+      expect(tuesday.querySelectorAll('mat-checkbox').length).toBe(2);
+    });
+
+    it('disables the checkbox for a time slot the day does not have', async () => {
+      // ngModel applies the value and disabled state asynchronously
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const inputs = (row: HTMLElement) => Array.from(row.querySelectorAll<HTMLInputElement>('mat-checkbox input'));
+      const [monday, tuesday] = rows();
+      expect(inputs(monday).map(i => i.disabled)).toEqual([false, false]);
+      expect(inputs(tuesday).map(i => i.disabled)).toEqual([true, false]);
+      expect(inputs(monday).map(i => i.checked)).toEqual([true, false]);
+    });
+
+    it('toggles the row when the day of week header is clicked', () => {
+      const tuesdayHeader = rows()[1].querySelector<HTMLElement>('td div')!;
+      tuesdayHeader.click();
+      expect(component.timeslots.find(x => x.id === 3)?.isChecked).toBe(true);
+      expect(component.timeslots.find(x => x.id === 1)?.isChecked).toBe(true);
+      expect(component.timeslots.find(x => x.id === 2)?.isChecked).toBe(false);
+    });
+  });
 });

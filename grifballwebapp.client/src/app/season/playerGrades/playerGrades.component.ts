@@ -1,6 +1,6 @@
-import { CommonModule, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
@@ -8,12 +8,12 @@ import { MatTableModule } from '@angular/material/table';
 @Component({
     selector: 'app-player-grades',
     imports: [
-        CommonModule,
-        MatTableModule,
+        MatTableModule
     ],
     providers: [DecimalPipe],
     templateUrl: './playerGrades.component.html',
-    styleUrl: './playerGrades.component.scss'
+    styleUrl: './playerGrades.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PlayerGradesComponent implements OnInit {
   private seasonID: number = 0;

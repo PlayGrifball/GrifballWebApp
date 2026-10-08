@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
@@ -6,13 +6,14 @@ import { AppComponent } from './app/app.component';
 import { APP_ROUTES } from './app/app.routes';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
-import { importProvidersFrom } from '@angular/core';
+import { importProvidersFrom, provideZoneChangeDetection } from '@angular/core';
 import { JwtModule } from '@auth0/angular-jwt';
 import { authInterceptor } from './app/auth.interceptor';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 
 bootstrapApplication(AppComponent, {
   providers: [
+    provideZoneChangeDetection(),
     {
       provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { duration: 5000 }
     },
@@ -46,7 +47,7 @@ bootstrapApplication(AppComponent, {
       }
     }),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()
       //,withPreloading(PreloadAllModules)

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlayoffBracketComponent } from './playoffBracket.component';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
@@ -15,7 +15,7 @@ describe('PlayoffBracketComponent', () => {
     await TestBed.configureTestingModule({
       imports: [PlayoffBracketComponent],
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
         { provide: JWT_OPTIONS, useValue: {} },
