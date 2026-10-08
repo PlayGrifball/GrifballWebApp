@@ -11,6 +11,8 @@ import { PlayerDto } from '../api/dtos/playerDto';
 import { CaptainDto } from '../api/dtos/captainDto';
 import { GrabbedThing } from './personStatus';
 import { DndDropEvent } from 'ngx-drag-drop';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('TeamBuilderComponent', () => {
   let component: TeamBuilderComponent;
@@ -503,5 +505,93 @@ describe('TeamBuilderComponent', () => {
       expect(Array.from(cards[0].querySelectorAll('.players-area > div')).map(d => d.textContent?.trim())).toEqual(['1 Player 4']);
       expect(poolItems().map(i => i.textContent?.trim())).toEqual(['Player 3', 'Player 5']);
     });
+  });
+});
+
+describe('TeamBuilderComponent remove captain request (HttpTestingController)', () => {
+  let fixture: ComponentFixture<TeamBuilderComponent>;
+  let component: TeamBuilderComponent;
+  let httpTesting: HttpTestingController;
+  let mockSignalR: jasmine.SpyObj<SignalRService>;
+
+  const captain = (personID: number, order: number): CaptainDto => ({ name: 'Cap ' + personID, personID, order });
+  const pooled = (personID: number): PlayerDto => ({ name: 'Player ' + personID, personID, pick: null, round: null });
+
+  beforeEach(async () => {
+    mockSignalR = jasmine.createSpyObj('SignalRService', [
+      'addCaptain',
+      'resortCaptain',
+      'removeCaptain',
+      'addPlayerToTeam',
+      'movePlayerToTeam',
+      'removePlayerFromTeam',
+      'lockCaptains',
+      'unlockCaptains'
+    ]);
+    mockSignalR.hubConnection = { connectionId: 'conn-42' } as any;
+
+    const mockAccountService = jasmine.createSpyObj('AccountService', ['isEventOrganizer', 'isSysAdmin', 'personID']);
+    mockAccountService.isEventOrganizer.and.returnValue(true);
+    mockAccountService.personID.and.returnValue(0);
+
+    await TestBed.configureTestingModule({
+      imports: [TeamBuilderComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } },
+        { provide: MatSnackBar, useValue: jasmine.createSpyObj('MatSnackBar', ['open', 'dismiss']) },
+        { provide: AccountService, useValue: mockAccountService },
+        { provide: SignalRService, useValue: mockSignalR }
+      ]
+    }).compileComponents();
+
+    httpTesting = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(TeamBuilderComponent);
+    component = fixture.componentInstance;
+
+    // ngOnInit loads season 7 through the real ApiClientService.
+    component.ngOnInit();
+    httpTesting.expectOne('/api/Teams/GetTeams/7').flush([
+      { teamID: 1, teamName: 'Alpha', captain: captain(11, 1), players: [pooled(21)] },
+      { teamID: 2, teamName: 'Bravo', captain: captain(12, 2), players: [] },
+      { teamID: 3, teamName: 'Charlie', captain: captain(13, 3), players: [] }
+    ]);
+    httpTesting.expectOne('/api/Teams/GetPlayerPool/7').flush([pooled(30)]);
+    httpTesting.expectOne('/api/Teams/areCaptainsLocked/7').flush(false);
+  });
+
+  afterEach(() => {
+    httpTesting.verify();
+  });
+
+  function dropTeamInPool(team: TeamResponseDto): void {
+    component.onDragStart(team, new DragEvent('dragstart'), GrabbedThing.Team);
+    // ngx-drag-drop removes the dragged card from its source list on a "move".
+    component.onDragged(team, component.teams, 'move');
+    component.onDropInPool({ data: team, dropEffect: 'move', index: 0 } as DndDropEvent, component.playerPool);
+  }
+
+  it('posts a RemoveCaptainDto with only seasonID and personID', () => {
+    dropTeamInPool(component.teams[1]);
+
+    const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ seasonID: 7, personID: 12 });
+    expect(Object.keys(req.request.body).sort()).toEqual(['personID', 'seasonID']);
+    expect('orderNumber' in req.request.body).toBe(false);
+    expect(req.request.headers.get('SignalRConnectionID')).toBe('conn-42');
+    req.flush({});
+  });
+
+  it('returns the captain and their players to the pool and re-sequences the remaining captains', () => {
+    dropTeamInPool(component.teams[0]);
+
+    const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
+    expect(req.request.body).toEqual({ seasonID: 7, personID: 11 });
+    req.flush({});
+
+    expect(component.teams.map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
+    expect(component.playerPool.map(p => p.personID).sort()).toEqual([11, 21, 30]);
   });
 });
