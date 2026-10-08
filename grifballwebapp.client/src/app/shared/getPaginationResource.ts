@@ -46,8 +46,16 @@ export function getPaginationResource<T>(
     PaginationResult<T>
     >({
         source: () => resource,
-        computation: (value, prevValue) =>
-        value.isLoading() && prevValue ? prevValue.value : value.value(),
+        computation: (res, prevValue) => {
+            // Keep showing the previous page while the next one loads.
+            if (res.isLoading() && prevValue) {
+                return prevValue.value;
+            }
+            // value() throws while the resource is in the error state (Angular 20+),
+            // so only read it when hasValue() is true and fall back to an empty page.
+            // Callers render resource.error() to explain why the table is empty.
+            return res.hasValue() ? res.value() : PAGINATION_RESPONSE_DEFAULT;
+        },
     });
 
     return {

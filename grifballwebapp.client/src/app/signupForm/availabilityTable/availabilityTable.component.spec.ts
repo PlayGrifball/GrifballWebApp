@@ -411,4 +411,23 @@ describe('AvailabilityTableComponent', () => {
       expect(component.timeslots.find(x => x.id === 2)?.isChecked).toBe(false);
     });
   });
+
+  describe('missing timeslots', () => {
+    it('treats undefined timeslots as empty instead of throwing', () => {
+      expect(() => component.timeslots = undefined as unknown as TimeslotDto[]).not.toThrow();
+      expect(component.timeColumns).toEqual(['Day of Week']);
+      expect(component.dtos).toEqual([]);
+    });
+
+    it('treats null timeslots as empty instead of throwing', () => {
+      expect(() => component.timeslots = null as unknown as TimeslotDto[]).not.toThrow();
+      expect(component.dtos).toEqual([]);
+    });
+
+    it('renders when bound to undefined timeslots', () => {
+      fixture.componentRef.setInput('timeslots', undefined);
+      expect(() => fixture.detectChanges()).not.toThrow();
+      expect(fixture.nativeElement.querySelector('table')).toBeNull();
+    });
+  });
 });

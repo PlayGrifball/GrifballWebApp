@@ -2,12 +2,20 @@
   <div class="flex-1">
     <h2>Merge From</h2>
     <app-search-box [(value)]="mergeFromId" type="number"></app-search-box>
-    <app-user-detail [user]="mergeFrom.value()"></app-user-detail>
+    @if (mergeFrom.error()) {
+      <p class="merge-error" role="alert">Failed to load user.</p>
+    } @else {
+      <app-user-detail [user]="mergeFromUser()"></app-user-detail>
+    }
   </div>
   <div class="flex-1">
     <h2>Merge To</h2>
     <app-search-box [(value)]="mergeToId" type="number"></app-search-box>
-    <app-user-detail [user]="mergeTo.value()"></app-user-detail>
+    @if (mergeTo.error()) {
+      <p class="merge-error" role="alert">Failed to load user.</p>
+    } @else {
+      <app-user-detail [user]="mergeToUser()"></app-user-detail>
+    }
   </div>
 </div>
 
@@ -19,6 +27,6 @@
     <mat-slide-toggle [(ngModel)]="transferSignups">Transfer Signups</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="deleteMergeFrom">Delete Merge From</mat-slide-toggle>
     <div>
-        <button mat-flat-button (click)="submit()" [disabled]="mergeTo.value() == null || mergeFrom.value() == null || (mergeFromId() == mergeToId())">Merge Users</button>
+        <button mat-flat-button (click)="submit()" [disabled]="mergeToUser() == null || mergeFromUser() == null || (mergeFromId() == mergeToId())">Merge Users</button>
     </div>
 </div>

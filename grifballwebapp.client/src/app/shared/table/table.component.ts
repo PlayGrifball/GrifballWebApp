@@ -6,6 +6,7 @@ import { getPaginationResource } from '../getPaginationResource';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-table',
@@ -15,6 +16,7 @@ import { RouterModule } from '@angular/router';
     MatSortModule,
     CommonModule,
     RouterModule,
+    MatButtonModule,
   ],
   animations: [
       trigger('rowsAnimation', [

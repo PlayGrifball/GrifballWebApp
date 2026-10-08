@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TableComponent, Column, Filter } from './table.component';
 import { signal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Sort } from '@angular/material/sort';
 import { PageEvent } from '@angular/material/paginator';
 
@@ -152,5 +153,92 @@ describe('TableComponent', () => {
     component.onSortChange(sortEvent);
 
     expect(component.sort()).toEqual(sortEvent);
+  });
+});
+
+describe('TableComponent API responses', () => {
+  interface Row { id: number; name: string; }
+
+  let fixture: ComponentFixture<TableComponent<Row>>;
+  let component: TableComponent<Row>;
+  let httpMock: HttpTestingController;
+
+  const columns: Column<Row>[] = [
+    { columnDef: 'id', header: 'ID', cell: r => `${r.id}` },
+    { columnDef: 'name', header: 'Name', cell: r => r.name },
+  ];
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [TableComponent, NoopAnimationsModule],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting()],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(TableComponent<Row>);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('displayedColumns', ['id', 'name']);
+    fixture.componentRef.setInput('url', '/api/test');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => httpMock.verify());
+
+  const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+  const pending = () => httpMock.expectOne(r => r.url.startsWith('/api/test'));
+
+  it('renders rows on success', async () => {
+    pending().flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.current().totalCount).toBe(2);
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(2);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('does not throw on a server error and shows an error message', async () => {
+    pending().flush('boom', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+
+    expect(component.x.status()).toBe('error');
+    expect(() => component.current()).not.toThrow();
+    expect(component.current()).toEqual({ results: [], totalCount: 0 });
+    expect(() => fixture.detectChanges()).not.toThrow();
+
+    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement;
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toContain('Failed to load data');
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(0);
+  });
+
+  it('does not throw on a 403 error', async () => {
+    pending().flush(null, { status: 403, statusText: 'Forbidden' });
+    await fixture.whenStable();
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(text()).toContain('Failed to load data');
+  });
+
+  it('recovers when retried after an error', async () => {
+    pending().flush('boom', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    (fixture.nativeElement.querySelector('[role="alert"] button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    pending().flush({ totalCount: 1, results: [{ id: 1, name: 'alpha' }] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('tr[mat-row]').length).toBe(1);
+  });
+
+  it('shows an empty state when there are no results', async () => {
+    pending().flush({ totalCount: 0, results: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(text()).toContain('No results found');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

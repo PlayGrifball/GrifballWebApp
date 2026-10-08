@@ -28,6 +28,14 @@
     <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
     <tr mat-row [@rowsAnimation]="true" *matRowDef="let row; columns: displayedColumns();"></tr>
 </table>
+@if (x.error()) {
+<div class="table-message table-error" role="alert">
+    Failed to load data.
+    <button mat-button type="button" (click)="x.reload()">Retry</button>
+</div>
+} @else if (!x.isLoading() && current().results.length === 0) {
+<div class="table-message">No results found.</div>
+}
 <mat-paginator [pageSizeOptions]="[10, 20, 100]"
   (page)="onPageChange($event)"
   [length]="current().totalCount"
