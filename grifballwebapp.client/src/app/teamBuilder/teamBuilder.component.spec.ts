@@ -496,6 +496,9 @@ describe('TeamBuilderComponent', () => {
       const picked = component.playerPool.splice(1, 1)[0];
       component.teams[1].players.push({ ...picked, round: 1 });
       component.teams.reverse();
+      // Zoneless: in-place mutation sends no change notification. In the app the drop handlers run
+      // from template (dndDrop) listeners, which mark the view dirty; do the same here.
+      fixture.componentRef.changeDetectorRef.markForCheck();
       fixture.detectChanges();
 
       const cards = teamCards();

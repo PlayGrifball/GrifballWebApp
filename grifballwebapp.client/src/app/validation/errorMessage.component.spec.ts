@@ -46,6 +46,8 @@ describe('ErrorMessageComponent', () => {
     fixture.detectChanges();
 
     control.markAsTouched();
+    // Control state is not a change notification; in forms the blur listener marks the view dirty.
+    fixture.componentRef.changeDetectorRef.markForCheck();
     fixture.detectChanges();
 
     expect(messages().length).toBe(1);
@@ -60,6 +62,7 @@ describe('ErrorMessageComponent', () => {
     expect(messages().length).toBe(1);
 
     control.setValue('fixed');
+    fixture.componentRef.changeDetectorRef.markForCheck();
     fixture.detectChanges();
     expect(messages()).toEqual([]);
   });

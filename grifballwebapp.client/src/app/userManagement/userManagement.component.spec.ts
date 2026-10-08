@@ -7,6 +7,7 @@ import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;
@@ -39,6 +40,8 @@ describe('UserManagementComponent', () => {
         { provide: AccountService, useValue: mockAccountService },
         { provide: MatSnackBar, useValue: mockSnackBar },
         provideHttpClient(withXhr()),
+        // Zoneless TestBed renders the table on its own; keep its GetUsers request pending instead of a real 404.
+        provideHttpClientTesting(),
         provideRouter([])
       ]
     }).compileComponents();

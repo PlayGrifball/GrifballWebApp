@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { HomeComponent } from './home.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
 
 describe('HomeComponent', () => {
   let component: HomeComponent;
@@ -9,12 +10,19 @@ describe('HomeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule]
+      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
+      providers: [provideRouter([])]
     }).compileComponents();
 
     const fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
     httpTestingController = TestBed.inject(HttpTestingController);
+
+    // Zoneless TestBed auto-detects changes, so ngOnInit and its first requests run on their own.
+    // Run them now and answer them, so each test starts from a settled component.
+    fixture.detectChanges();
+    httpTestingController.match('/api/Home/CurrentAndFutureEvents/').forEach(r => r.flush([]));
+    httpTestingController.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ results: [], totalCount: 0, pageNumber: 1, pageSize: 10 }));
   });
 
   afterEach(() => {
@@ -56,6 +64,8 @@ describe('HomeComponent', () => {
     const req = httpTestingController.expectOne('/api/Home/CurrentAndFutureEvents/');
     expect(req.request.method).toBe('GET');
     req.flush(mockEvents);
+    // The second ngOnInit also re-subscribes the paginated past-seasons query.
+    httpTestingController.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ results: [], totalCount: 0, pageNumber: 1, pageSize: 10 }));
 
     expect(component.currentAndFutureEvents()).toEqual(mockEvents);
   });
