@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Inject, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -26,7 +26,8 @@ interface TeamStanding {
         MatIconModule
     ],
     templateUrl: './seedOrderingDialog.component.html',
-    styleUrl: './seedOrderingDialog.component.scss'
+    styleUrl: './seedOrderingDialog.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeedOrderingDialogComponent implements OnInit {
   @Output() seedingOrder = new EventEmitter<void>();

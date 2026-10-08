@@ -52,7 +52,7 @@
     @for (match of unscheduledMatches; track match.seasonMatchID) {
     <mat-divider></mat-divider>
     <div>
-      <span [routerLink]="['/seasonmatch', match?.seasonMatchID]"
+      <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
             [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
       @if (accountService.isEventOrganizer() && isEditing) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">

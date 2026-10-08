@@ -18,7 +18,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
         ErrorMessageComponent
     ],
     templateUrl: './createUser.component.html',
-    styleUrl: './createUser.component.scss'
+    styleUrl: './createUser.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateUserComponent {
   model: CreateUserDto = {} as CreateUserDto;

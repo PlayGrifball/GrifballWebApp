@@ -40,7 +40,8 @@ interface DropzoneLayout {
         MatCardModule
     ],
     templateUrl: './teamBuilder.component.html',
-    styleUrl: './teamBuilder.component.scss'
+    styleUrl: './teamBuilder.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class TeamBuilderComponent {
   private seasonID: number = 0;

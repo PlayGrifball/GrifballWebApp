@@ -1,4 +1,4 @@
-import { Component, OnInit, input } from '@angular/core';
+import { Component, OnInit, input, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -24,7 +24,8 @@ import { AccountService } from '../account.service';
     ErrorMessageComponent
   ],
   templateUrl: './password-reset.component.html',
-  styleUrl: './password-reset.component.css'
+  styleUrl: './password-reset.component.css',
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PasswordResetComponent implements OnInit {
   token = input<string>();

@@ -26,7 +26,7 @@ import { MatButtonModule } from '@angular/material/button';
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',
-    changeDetection: ChangeDetectionStrategy.Default
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   @ViewChild('snav') snav!: MatSidenav;

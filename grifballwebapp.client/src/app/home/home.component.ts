@@ -1,7 +1,7 @@
 import { animate, style, transition, trigger } from '@angular/animations';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Component, OnInit, signal, viewChild, WritableSignal } from '@angular/core';
+import { Component, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/sort';
@@ -33,7 +33,8 @@ import { PaginationResult } from '../shared/paginationResult';
                 style({ display: 'none' })
             ])
         ])
-    ]
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class HomeComponent implements OnInit {
 

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, Input } from '@angular/core';
+import { Component, EventEmitter, Inject, Input, ChangeDetectionStrategy } from '@angular/core';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +20,8 @@ import { HttpClient } from '@angular/common/http';
         MatSnackBarModule
     ],
     templateUrl: './createRegularMatchesDialog.component.html',
-    styleUrl: './createRegularMatchesDialog.component.scss'
+    styleUrl: './createRegularMatchesDialog.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateRegularMatchesDialogComponent {
   @Input({ required: true }) seasonID!: number;

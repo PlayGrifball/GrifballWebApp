@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, Input } from '@angular/core';
+import { Component, EventEmitter, Inject, Input, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
@@ -22,7 +22,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatSnackBarModule
     ],
     templateUrl: './createBracketDialog.component.html',
-    styleUrl: './createBracketDialog.component.scss'
+    styleUrl: './createBracketDialog.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateBracketDialogComponent {
   @Input({ required: true }) seasonID!: number;

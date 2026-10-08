@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 //import { PreloadAllModules, withDebugTracing, withPreloading } from '@angular/router';
@@ -47,7 +47,7 @@ bootstrapApplication(AppComponent, {
       }
     }),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([authInterceptor])),
+    provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()
       //,withPreloading(PreloadAllModules)

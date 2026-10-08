@@ -16,7 +16,8 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
         ScheduleListComponent,
         PlayoffBracketComponent,
         TeamStandingsComponent
-    ]
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonComponent implements OnInit {
   private seasonID : number = 0;

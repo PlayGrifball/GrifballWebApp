@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -27,7 +27,8 @@ import { AccountService } from '../account.service';
         MatchFieldsValidatorDirective
     ],
     templateUrl: './register.component.html',
-    styleUrl: './register.component.scss'
+    styleUrl: './register.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class RegisterComponent {
   @ViewChild('registerForm') registerForm!: NgForm;

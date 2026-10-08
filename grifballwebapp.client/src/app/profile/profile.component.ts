@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +20,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatSnackBarModule
     ],
     templateUrl: './profile.component.html',
-    styleUrl: './profile.component.scss'
+    styleUrl: './profile.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ProfileComponent implements OnInit {
   gamertag: string | null = null;

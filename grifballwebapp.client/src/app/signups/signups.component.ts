@@ -12,7 +12,8 @@ import { MatTableModule } from '@angular/material/table';
         MatTableModule,
     ],
     templateUrl: './signups.component.html',
-    styleUrl: './signups.component.scss'
+    styleUrl: './signups.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SignupsComponent implements OnInit {
   public signUps: SignupResponseDto[] = [];

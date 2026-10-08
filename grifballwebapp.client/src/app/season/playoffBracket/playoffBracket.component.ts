@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -20,7 +20,8 @@ import { Locale } from 'brackets-viewer/dist/lang';
         MatSnackBarModule
     ],
     templateUrl: './playoffBracket.component.html',
-    styleUrl: './playoffBracket.component.scss'
+    styleUrl: './playoffBracket.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PlayoffBracketComponent implements OnInit {
   private seasonID: number = 0;

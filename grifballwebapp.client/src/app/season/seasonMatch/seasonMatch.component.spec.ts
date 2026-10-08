@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonMatchComponent } from './seasonMatch.component';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 import { ActivatedRoute } from '@angular/router';
@@ -15,7 +15,7 @@ describe('SeasonMatchComponent', () => {
     await TestBed.configureTestingModule({
       imports: [SeasonMatchComponent],
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
         { provide: JWT_OPTIONS, useValue: {} },

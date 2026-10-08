@@ -5,7 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of, throwError } from 'rxjs';
 import { UserResponseDto } from './userResponseDto';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 
 describe('UserManagementComponent', () => {
@@ -38,7 +38,7 @@ describe('UserManagementComponent', () => {
       providers: [
         { provide: AccountService, useValue: mockAccountService },
         { provide: MatSnackBar, useValue: mockSnackBar },
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideRouter([])
       ]
     }).compileComponents();

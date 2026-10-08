@@ -22,7 +22,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         MatCheckboxModule
     ],
     templateUrl: './editUser.component.html',
-    styleUrl: './editUser.component.scss'
+    styleUrl: './editUser.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class EditUserComponent {
   model: UserResponseDto = {} as UserResponseDto;

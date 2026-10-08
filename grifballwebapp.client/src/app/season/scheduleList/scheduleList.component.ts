@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -39,7 +39,8 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
         MatButtonModule,
         RouterModule,
         MatDialogModule,
-    ]
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ScheduleListComponent  implements OnInit {
   private seasonID : number = 0;

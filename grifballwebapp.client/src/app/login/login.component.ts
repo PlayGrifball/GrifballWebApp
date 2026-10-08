@@ -1,4 +1,4 @@
-import { Component, input, OnInit } from '@angular/core';
+import { Component, input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +23,8 @@ import { MatCardModule } from '@angular/material/card';
         MatCardModule
     ],
     templateUrl: './login.component.html',
-    styleUrl: './login.component.css'
+    styleUrl: './login.component.css',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class LoginComponent implements OnInit {
   hide = true;

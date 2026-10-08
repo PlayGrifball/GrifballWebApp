@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, effect, input, signal, Signal, ViewChild, WritableSignal } from '@angular/core';
+import { Component, effect, input, signal, Signal, ViewChild, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
@@ -35,7 +35,8 @@ import { AccountService } from '../../account.service';
         MatTableModule
     ],
     templateUrl: './seasonMatch.component.html',
-    styleUrl: './seasonMatch.component.scss'
+    styleUrl: './seasonMatch.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonMatchComponent {
   seasonMatchID: Signal<number> = input.required<number>()

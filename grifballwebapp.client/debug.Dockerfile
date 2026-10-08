@@ -1,10 +1,10 @@
-FROM node:22.12.0-alpine AS build
+FROM node:24.21.0-alpine AS build
 
 RUN mkdir /usr/share/app
 WORKDIR /usr/share/app
 
 COPY package.json package.json
-RUN npm i -g @angular/cli@20.0.2
+RUN npm i -g @angular/cli@22.2.2
 COPY package-lock.json package-lock.json
 RUN npm i --force
 
