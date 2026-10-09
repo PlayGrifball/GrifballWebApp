@@ -27,12 +27,15 @@ public class AppForwardedHeadersTests
         ["ForwardedHeaders:ForwardedForHeaderName"] = "X-Real-IP",
     };
 
-    private static async Task<(string? RemoteIp, string Scheme, string Host)> Send(Dictionary<string, string?> settings, string peer, string? clientSuppliedXff = null)
+    private static async Task<(string? RemoteIp, string Scheme, string Host)> Send(Dictionary<string, string?> settings, string peer, string? clientSuppliedXff = null, HttpClient? cloudflare = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(settings);
-        builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+        if (cloudflare is null)
+            builder.Services.ConfigureAppForwardedHeaders(builder.Configuration);
+        else
+            await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration, cloudflare);
 
         await using var app = builder.Build();
         app.UseForwardedHeaders();
@@ -93,7 +96,7 @@ public class AppForwardedHeadersTests
     [Test]
     public async Task XForwardedFor_WithoutCloudflareRanges_StopsAtTheCloudflareEdge()
     {
-        // Why X-Real-IP: walking X-Forwarded-For would need every Cloudflare range trusted here as well.
+        // Without Cloudflare's ranges (FetchCloudflare off) the walk stops at the Cloudflare edge.
         var (remoteIp, _, _) = await Send(new()
         {
             ["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16",
@@ -160,5 +163,201 @@ public class AppForwardedHeadersTests
             Assert.That(options.ForwardedForHeaderName, Is.EqualTo(ForwardedHeadersDefaults.XForwardedForHeaderName));
             Assert.That(options.ForwardLimit, Is.EqualTo(1));
         });
+    }
+
+    // ---- Cloudflare ranges fetched at startup (ForwardedHeaders:FetchCloudflare) ----
+
+    private const string CloudflareV4 = "173.245.48.0/20\n172.64.0.0/13\n";
+    private const string CloudflareV6 = "2400:cb00::/32\n";
+
+    /// <summary>Answers per URL; counts requests. A null entry throws, as a failed connection would.</summary>
+    private sealed class FakeCloudflare(Dictionary<string, (HttpStatusCode Status, string Body)?> responses) : HttpMessageHandler
+    {
+        public List<string> Requested { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var url = request.RequestUri!.ToString();
+            Requested.Add(url);
+            if (!responses.TryGetValue(url, out var response) || response is null)
+                throw new HttpRequestException($"connection refused: {url}");
+            return Task.FromResult(new HttpResponseMessage(response.Value.Status) { Content = new StringContent(response.Value.Body) });
+        }
+    }
+
+    private static FakeCloudflare Published() => new(new()
+    {
+        [ForwardedHeadersSettings.DefaultCloudflareIpsV4Url] = (HttpStatusCode.OK, CloudflareV4),
+        [ForwardedHeadersSettings.DefaultCloudflareIpsV6Url] = (HttpStatusCode.OK, CloudflareV6),
+    });
+
+    private static IConfiguration Config(Dictionary<string, string?> values) =>
+        new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+
+    private static ForwardedHeadersOptions OptionsOf(IServiceCollection services) =>
+        services.BuildServiceProvider().GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;
+
+    [Test]
+    public async Task FetchCloudflare_Off_ByDefault_MakesNoRequest()
+    {
+        var handler = Published();
+        var services = new ServiceCollection();
+
+        var setup = await services.ConfigureAppForwardedHeadersAsync(Config(new()
+        {
+            ["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16",
+        }), new HttpClient(handler));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(handler.Requested, Is.Empty);
+            Assert.That(setup.Fetched, Is.Empty);
+            Assert.That(setup.FetchErrors, Is.Empty);
+            Assert.That(OptionsOf(services).KnownIPNetworks.Select(n => n.ToString()), Is.EqualTo(new[] { "10.42.0.0/16" }));
+        });
+    }
+
+    [Test]
+    public async Task FetchCloudflare_On_TrustsTheConfiguredAndPublishedRanges()
+    {
+        var handler = Published();
+        var services = new ServiceCollection();
+
+        var setup = await services.ConfigureAppForwardedHeadersAsync(Config(new()
+        {
+            ["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16",
+            ["ForwardedHeaders:KnownIPNetworks:1"] = "173.245.48.0/20", // also published: trusted once
+            ["ForwardedHeaders:FetchCloudflare"] = "true",
+        }), new HttpClient(handler));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(handler.Requested, Is.EquivalentTo(new[] { ForwardedHeadersSettings.DefaultCloudflareIpsV4Url, ForwardedHeadersSettings.DefaultCloudflareIpsV6Url }));
+            Assert.That(setup.Fetched.Select(n => n.ToString()), Is.EquivalentTo(new[] { "173.245.48.0/20", "172.64.0.0/13", "2400:cb00::/32" }));
+            Assert.That(setup.FetchErrors, Is.Empty);
+            Assert.That(OptionsOf(services).KnownIPNetworks.Select(n => n.ToString()),
+                Is.EquivalentTo(new[] { "10.42.0.0/16", "173.245.48.0/20", "172.64.0.0/13", "2400:cb00::/32" }));
+        });
+    }
+
+    [Test]
+    public async Task FetchCloudflare_UsesTheConfiguredUrls()
+    {
+        var handler = new FakeCloudflare(new()
+        {
+            ["https://mirror.example/v4"] = (HttpStatusCode.OK, CloudflareV4),
+            ["https://mirror.example/v6"] = (HttpStatusCode.OK, CloudflareV6),
+        });
+
+        var setup = await new ServiceCollection().ConfigureAppForwardedHeadersAsync(Config(new()
+        {
+            ["ForwardedHeaders:FetchCloudflare"] = "true",
+            ["ForwardedHeaders:CloudflareIpsV4Url"] = "https://mirror.example/v4",
+            ["ForwardedHeaders:CloudflareIpsV6Url"] = "https://mirror.example/v6",
+        }), new HttpClient(handler));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(handler.Requested, Is.EquivalentTo(new[] { "https://mirror.example/v4", "https://mirror.example/v6" }));
+            Assert.That(setup.Fetched, Has.Count.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public async Task FetchCloudflare_Failures_TrustNothingExtra_AndAreReported()
+    {
+        var handler = new FakeCloudflare(new()
+        {
+            [ForwardedHeadersSettings.DefaultCloudflareIpsV4Url] = (HttpStatusCode.ServiceUnavailable, "down"),
+            [ForwardedHeadersSettings.DefaultCloudflareIpsV6Url] = null, // throws
+        });
+        var services = new ServiceCollection();
+
+        var setup = await services.ConfigureAppForwardedHeadersAsync(Config(new()
+        {
+            ["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16",
+            ["ForwardedHeaders:FetchCloudflare"] = "true",
+        }), new HttpClient(handler));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(setup.Fetched, Is.Empty);
+            Assert.That(setup.FetchErrors, Has.Count.EqualTo(2));
+            Assert.That(setup.FetchErrors, Has.Some.Contains("HTTP 503"));
+            Assert.That(setup.FetchErrors, Has.Some.Contains("HttpRequestException"));
+            Assert.That(OptionsOf(services).KnownIPNetworks.Select(n => n.ToString()), Is.EqualTo(new[] { "10.42.0.0/16" }));
+        });
+    }
+
+    [Test]
+    public async Task FetchRanges_EmptyBody_IsAnError()
+    {
+        var handler = new FakeCloudflare(new() { ["https://cf.example/v4"] = (HttpStatusCode.OK, " \n \n") });
+
+        var (networks, errors) = await AppForwardedHeaders.FetchRanges(new HttpClient(handler), "https://cf.example/v4");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(networks, Is.Empty);
+            Assert.That(errors, Is.EqualTo(new[] { "https://cf.example/v4: empty response" }));
+        });
+    }
+
+    [Test]
+    public async Task FetchRanges_GarbageLine_IsSkipped_TheRestKept()
+    {
+        var handler = new FakeCloudflare(new() { ["https://cf.example/v4"] = (HttpStatusCode.OK, "173.245.48.0/20\r\n<html>oops</html>\n172.64.0.0/13") });
+
+        var (networks, errors) = await AppForwardedHeaders.FetchRanges(new HttpClient(handler), "https://cf.example/v4");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(networks.Select(n => n.ToString()), Is.EqualTo(new[] { "173.245.48.0/20", "172.64.0.0/13" }));
+            Assert.That(errors, Is.EqualTo(new[] { "https://cf.example/v4: invalid entry '<html>oops</html>'" }));
+        });
+    }
+
+    [Test]
+    public async Task WalkingXForwardedFor_WithFetchedCloudflareRanges_RecoversTheClient()
+    {
+        // The documented switch away from X-Real-IP: client, Cloudflare edge, Traefik pod; nginx is the peer.
+        var settings = new Dictionary<string, string?>
+        {
+            ["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16",
+            ["ForwardedHeaders:ForwardedForHeaderName"] = "X-Forwarded-For",
+            ["ForwardedHeaders:ForwardLimit"] = "3",
+            ["ForwardedHeaders:FetchCloudflare"] = "true",
+        };
+
+        var (remoteIp, _, _) = await Send(settings, NginxPod, cloudflare: new HttpClient(Published()));
+        var (spoofed, _, _) = await Send(settings, NginxPod, clientSuppliedXff: "127.0.0.1", cloudflare: new HttpClient(Published()));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(remoteIp, Is.EqualTo(Client));
+            Assert.That(spoofed, Is.EqualTo(Client), "an X-Forwarded-For entry the client typed sits left of the limit");
+        });
+    }
+
+    [Test]
+    public void ForwardedHeadersSetup_LogTo_ReportsEverything()
+    {
+        var sink = new CollectingSink();
+        using var logger = new Serilog.LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Sink(sink).CreateLogger();
+
+        new ForwardedHeadersSetup(["bogus"], [System.Net.IPNetwork.Parse("172.64.0.0/13")], ["https://cf.example/v4: HTTP 503"]).LogTo(logger);
+
+        Assert.That(sink.Events.Select(e => (e.Level, e.RenderMessage())), Is.EqualTo(new[]
+        {
+            (Serilog.Events.LogEventLevel.Warning, "Ignoring invalid ForwardedHeaders entry \"bogus\""),
+            (Serilog.Events.LogEventLevel.Warning, "Cloudflare range fetch: \"https://cf.example/v4: HTTP 503\""),
+            (Serilog.Events.LogEventLevel.Information, "Trusting Cloudflare network \"172.64.0.0/13\""),
+        }));
+    }
+
+    private sealed class CollectingSink : Serilog.Core.ILogEventSink
+    {
+        public List<Serilog.Events.LogEvent> Events { get; } = [];
+        public void Emit(Serilog.Events.LogEvent logEvent) => Events.Add(logEvent);
     }
 }

@@ -78,8 +78,7 @@ public class Program
         builder.AddSerilogLogging(telemetry);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
         builder.Services.AddAppHealthChecks(builder.Configuration);
-        foreach (var invalid in builder.Services.ConfigureAppForwardedHeaders(builder.Configuration))
-            Log.Warning("Ignoring invalid ForwardedHeaders entry {Entry}", invalid);
+        (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
