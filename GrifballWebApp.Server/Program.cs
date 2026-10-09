@@ -19,6 +19,7 @@ using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
+using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -34,11 +35,7 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Serilog;
-using Serilog.Formatting.Json;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Util;
 using System.Net;
@@ -50,23 +47,22 @@ namespace GrifballWebApp.Server;
 
 public class Program
 {
-    public static async Task Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
-        Log.Logger = new LoggerConfiguration()
-            .WriteTo.Debug(new JsonFormatter())
-            .WriteTo.Console(new JsonFormatter())
-            .MinimumLevel.Verbose()
-            .CreateBootstrapLogger();
+        Log.Logger = LoggingExtensions.CreateBootstrapLogger();
 
         Log.Logger.ForContext<Program>().Information("Starting up");
 
         try
         {
             await Run(args);
+            return 0;
         }
-        catch (Exception ex)
+        // HostAbortedException: EF tooling stopping the host on purpose after reading its services.
+        catch (Exception ex) when (ex is not HostAbortedException)
         {
             Log.Logger.ForContext<Program>().Fatal(ex, "Fatal error");
+            return 1;
         }
         finally
         {
@@ -78,41 +74,12 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Host.UseSerilog((context, services, configuration) => configuration
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services));
-
-        var resourceName = builder.Configuration.GetValue<string>("OTLP_RESOURCE_NAME") ?? builder.Environment.ApplicationName;
-        var otlpEndpoint = builder.Configuration.GetValue<string>("OTLP_ENDPOINT_URL");
-
-        builder.Services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService(resourceName))
-            .WithMetrics(metrics => metrics
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddSqlClientInstrumentation()
-                .AddRuntimeInstrumentation()
-                .AddProcessInstrumentation()
-                .AddMeter("Microsoft.EntityFrameworkCore")
-                .AddPrometheusExporter())
-            .WithTracing(tracing =>
-            {
-                tracing
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddSqlClientInstrumentation()
-                    .AddEntityFrameworkCoreInstrumentation();
-
-                if (!string.IsNullOrEmpty(otlpEndpoint))
-                {
-                    tracing.AddOtlpExporter(options => { options.Endpoint = new Uri(otlpEndpoint); });
-                }
-
-                if (builder.Configuration.GetValue<bool>("OTLP_CONSOLE_EXPORTER_ENABLED"))
-                {
-                    tracing.AddConsoleExporter();
-                }
-            });
+        var telemetry = TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment, GitInfo.CommitShortHash);
+        builder.AddSerilogLogging(telemetry);
+        builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
+        builder.Services.AddAppHealthChecks(builder.Configuration);
+        foreach (var invalid in builder.Services.ConfigureAppForwardedHeaders(builder.Configuration))
+            Log.Warning("Ignoring invalid ForwardedHeaders entry {Entry}", invalid);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
@@ -377,12 +344,11 @@ public class Program
             await legacyTransferService.TransferAllAsync();
         }
 
-        app.UseForwardedHeaders(new ForwardedHeadersOptions()
-        {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
-        });
+        // Forwarded headers first: everything after sees the real client address and scheme.
+        app.UseForwardedHeaders();
+        app.UseRequestTelemetry();
 
-    app.UseExceptionHandler();
+        app.UseExceptionHandler();
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
@@ -395,7 +361,7 @@ public class Program
 
         app.UseAuthorization();
 
-        app.MapPrometheusScrapingEndpoint();
+        app.MapAppHealthChecks();
 
         app.MapControllers();
 
