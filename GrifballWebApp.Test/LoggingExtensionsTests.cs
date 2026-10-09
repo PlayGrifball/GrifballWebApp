@@ -35,13 +35,16 @@ public class LoggingExtensionsTests
     private static TelemetryOptions Telemetry(IConfiguration configuration, string environment = "Production") =>
         TelemetryOptions.FromConfiguration(configuration, Environment(environment));
 
-    // What the grif manifests set before this change; Serilog.Sinks.Grafana.Loki is no longer shipped.
-    private static readonly Dictionary<string, string?> OldLokiSinkSettings = new()
+    /// <summary>
+    /// A sink added the way an environment variable would add one: <c>Serilog:Using</c> names this
+    /// assembly and <c>Serilog:WriteTo</c> the <see cref="ConfiguredSinkExtensions.Configured"/> method.
+    /// </summary>
+    private static Dictionary<string, string?> ConfiguredSinkSettings(string key) => new()
     {
         ["Serilog:MinimumLevel:Default"] = "Information",
-        ["Serilog:Using:1"] = "Serilog.Sinks.Grafana.Loki",
-        ["Serilog:WriteTo:1:Name"] = "GrafanaLoki",
-        ["Serilog:WriteTo:1:Args:uri"] = "http://loki-gateway.loki.svc.cluster.local",
+        ["Serilog:Using:0"] = typeof(ConfiguredSinkExtensions).Assembly.GetName().Name,
+        ["Serilog:WriteTo:0:Name"] = nameof(ConfiguredSinkExtensions.Configured),
+        ["Serilog:WriteTo:0:Args:key"] = key,
     };
 
     [Test]
@@ -53,34 +56,73 @@ public class LoggingExtensionsTests
     }
 
     [Test]
-    public void SerilogSettingsOnly_KeepsLevelsAndDropsSinks()
+    public void ConfigureLogging_SinkFromConfiguration_ReceivesEvents_AlongsideTheCodeSinks()
     {
-        var settings = LoggingExtensions.SerilogSettingsOnly(Configuration(new(OldLokiSinkSettings)
+        var key = Guid.NewGuid().ToString("N");
+        var configuration = Configuration(new(ConfiguredSinkSettings(key))
         {
-            ["Serilog:MinimumLevel:Override:GrifballWebApp"] = "Debug",
             ["Serilog:Properties:Application"] = "grif",
-        }));
+            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://127.0.0.1:9",
+        });
+        var codeSink = new CollectingSink();
 
+        using (var logger = new LoggerConfiguration()
+            .ConfigureLogging(configuration, Environment("Production"), Telemetry(configuration))
+            .WriteTo.Sink(codeSink)
+            .CreateLogger())
+        {
+            logger.Information("hello {Name}", "grif");
+            logger.Debug("below the configured minimum");
+        }
+
+        var configured = ConfiguredSinkExtensions.Sink(key).Events;
         Assert.Multiple(() =>
         {
-            Assert.That(settings["Serilog:MinimumLevel:Default"], Is.EqualTo("Information"));
-            Assert.That(settings["Serilog:MinimumLevel:Override:GrifballWebApp"], Is.EqualTo("Debug"));
-            Assert.That(settings["Serilog:Properties:Application"], Is.EqualTo("grif"));
-            Assert.That(settings["Serilog:Using:1"], Is.Null);
-            Assert.That(settings["Serilog:WriteTo:1:Name"], Is.Null);
+            Assert.That(configured.Select(e => e.MessageTemplate.Text), Is.EqualTo(new[] { "hello {Name}" }));
+            Assert.That(configured[0].Properties["Application"].ToString(), Is.EqualTo("\"grif\""));
+            Assert.That(codeSink.Events, Has.Count.EqualTo(1), "configuration adds sinks, it does not replace them");
         });
     }
 
     [Test]
-    public void ConfigureLogging_OldLokiSinkSettings_DoNotStopStartup()
+    public void ConfigureLogging_SinkFromConfiguration_HonoursMinimumLevelOverrides()
     {
-        var configuration = Configuration(OldLokiSinkSettings);
+        var key = Guid.NewGuid().ToString("N");
+        var configuration = Configuration(new(ConfiguredSinkSettings(key))
+        {
+            ["Serilog:MinimumLevel:Default"] = "Warning",
+            ["Serilog:MinimumLevel:Override:GrifballWebApp"] = "Debug",
+            ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Error",
+        });
 
-        using var logger = new LoggerConfiguration()
+        using (var logger = new LoggerConfiguration()
             .ConfigureLogging(configuration, Environment("Production"), Telemetry(configuration))
-            .CreateLogger();
+            .CreateLogger())
+        {
+            logger.ForContext(Constants.SourceContextPropertyName, "GrifballWebApp.Server.Thing").Debug("app debug");
+            logger.ForContext(Constants.SourceContextPropertyName, "Microsoft.AspNetCore.Routing").Warning("framework warning");
+            logger.ForContext(Constants.SourceContextPropertyName, "Microsoft.AspNetCore.Routing").Error("framework error");
+            logger.ForContext(Constants.SourceContextPropertyName, "NetCord").Information("other info");
+        }
 
-        Assert.DoesNotThrow(() => logger.Information("still running"));
+        Assert.That(ConfiguredSinkExtensions.Sink(key).Events.Select(e => e.MessageTemplate.Text),
+            Is.EqualTo(new[] { "app debug", "framework error" }));
+    }
+
+    [Test]
+    public void ConfigureLogging_UsingAnAssemblyThatIsNotShipped_StopsStartup()
+    {
+        // Why homelab's grif manifests had to lose the Serilog.Sinks.Grafana.Loki settings before this image.
+        var configuration = Configuration(new()
+        {
+            ["Serilog:Using:1"] = "Serilog.Sinks.Grafana.Loki",
+            ["Serilog:WriteTo:1:Name"] = "GrafanaLoki",
+            ["Serilog:WriteTo:1:Args:uri"] = "http://loki-gateway.loki.svc.cluster.local",
+        });
+
+        Assert.That(() => new LoggerConfiguration()
+            .ConfigureLogging(configuration, Environment("Production"), Telemetry(configuration))
+            .CreateLogger(), Throws.Exception);
     }
 
     [TestCase("Development", null, null)]
@@ -137,15 +179,45 @@ public class LoggingExtensionsTests
     [Test]
     public void AddSerilogLogging_ReplacesTheLoggerProvider()
     {
+        var key = Guid.NewGuid().ToString("N");
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Production" });
-        builder.Configuration.AddInMemoryCollection(OldLokiSinkSettings);
+        builder.Configuration.AddInMemoryCollection(ConfiguredSinkSettings(key));
 
         builder.AddSerilogLogging(TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment));
 
-        using var app = builder.Build();
-        var factory = app.Services.GetRequiredService<ILoggerFactory>();
+        using (var app = builder.Build())
+        {
+            var factory = app.Services.GetRequiredService<ILoggerFactory>();
+            Assert.That(factory.GetType().FullName, Does.Contain("Serilog"));
+            factory.CreateLogger("test").LogInformation("hello");
+        }
 
-        Assert.That(factory.GetType().FullName, Does.Contain("Serilog"));
-        Assert.DoesNotThrow(() => factory.CreateLogger("test").LogInformation("hello"));
+        Assert.That(ConfiguredSinkExtensions.Sink(key).Events.Select(e => e.MessageTemplate.Text), Does.Contain("hello"));
+    }
+}
+
+/// <summary>A sink Serilog.Settings.Configuration can find by name; events land in <see cref="Sink"/>(key).</summary>
+public static class ConfiguredSinkExtensions
+{
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CollectingEventSink> Sinks = new();
+
+    public static CollectingEventSink Sink(string key) => Sinks.GetOrAdd(key, _ => new CollectingEventSink());
+
+    public static LoggerConfiguration Configured(this Serilog.Configuration.LoggerSinkConfiguration writeTo, string key) =>
+        writeTo.Sink(Sink(key));
+}
+
+public sealed class CollectingEventSink : ILogEventSink
+{
+    private readonly List<LogEvent> _events = [];
+
+    public IReadOnlyList<LogEvent> Events
+    {
+        get { lock (_events) return [.. _events]; }
+    }
+
+    public void Emit(LogEvent logEvent)
+    {
+        lock (_events) _events.Add(logEvent);
     }
 }

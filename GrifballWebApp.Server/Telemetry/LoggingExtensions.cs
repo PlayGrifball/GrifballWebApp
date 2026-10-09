@@ -8,9 +8,6 @@ namespace GrifballWebApp.Server.Telemetry;
 
 public static class LoggingExtensions
 {
-    /// <summary>Configuration keys under <c>Serilog</c> that are read; sinks are code-owned (see <see cref="ConfigureLogging"/>).</summary>
-    private static readonly string[] ConfigurableSections = ["MinimumLevel", "Properties", "Enrich"];
-
     /// <summary>
     /// The logger used until the host is built, and for a crash before that: console only, compact JSON.
     /// </summary>
@@ -36,15 +33,17 @@ public static class LoggingExtensions
     /// trace and span id natively, so local output shows them as @tr and @sp.
     /// </summary>
     /// <remarks>
-    /// Only <c>Serilog:MinimumLevel</c>, <c>Serilog:Properties</c> and <c>Serilog:Enrich</c> are read from
-    /// configuration. <c>Serilog:Using</c> and <c>Serilog:WriteTo</c> are ignored on purpose: sinks are
-    /// defined here, and a leftover <c>Using</c> naming an assembly that is no longer shipped (the old
-    /// Grafana Loki sink) would otherwise stop the app at startup.
+    /// The whole <c>Serilog</c> section is read, so configuration can add sinks on top of these, e.g.
+    /// <c>Serilog__Using__0=Serilog.Sinks.File</c>, <c>Serilog__WriteTo__0__Name=File</c> and
+    /// <c>Serilog__WriteTo__0__Args__path=...</c> from the environment. Do not configure a Console sink
+    /// there: it would print every line twice. A <c>Using</c> naming an assembly the image does not ship
+    /// stops the app at startup, so drop such settings before deploying an image without that sink (the
+    /// old <c>Serilog.Sinks.Grafana.Loki</c> ones went with homelab's OTLP change).
     /// </remarks>
     public static LoggerConfiguration ConfigureLogging(this LoggerConfiguration logger, IConfiguration configuration,
         IHostEnvironment environment, TelemetryOptions telemetry, IServiceProvider? services = null)
     {
-        logger.ReadFrom.Configuration(SerilogSettingsOnly(configuration), new ConfigurationReaderOptions { SectionName = "Serilog" });
+        logger.ReadFrom.Configuration(configuration, new ConfigurationReaderOptions { SectionName = "Serilog" });
         if (services is not null)
             logger.ReadFrom.Services(services);
 
@@ -70,15 +69,5 @@ public static class LoggingExtensions
         }
 
         return logger;
-    }
-
-    /// <summary>A copy of the configuration holding only the <see cref="ConfigurableSections"/> of <c>Serilog</c>.</summary>
-    public static IConfiguration SerilogSettingsOnly(IConfiguration configuration)
-    {
-        var serilog = configuration.GetSection("Serilog");
-        var values = ConfigurableSections
-            .SelectMany(name => serilog.GetSection(name).AsEnumerable())
-            .Where(kv => kv.Value is not null);
-        return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 }
