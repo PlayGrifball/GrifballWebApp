@@ -189,6 +189,11 @@ public class RequestTelemetryTests
             });
             await server.SendAsync(c => c.Request.Path = "/health");
 
+            // TestServer hands back the response before the middleware unwinds and writes its line.
+            for (var i = 0; i < 100 && sink.Events.Count == 0; i++)
+                await Task.Delay(50);
+            await Task.Delay(100); // room for a wrongly logged /health line to show up too
+
             var requestLog = sink.Events.Single();
             Assert.Multiple(() =>
             {
