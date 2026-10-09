@@ -1,0 +1,190 @@
+suite: backend
+templates:
+  - templates/backend.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: turns nested config into Section__Key variables, lists into indexes, null into nothing
+    documentIndex: 1
+    set:
+      backend.config:
+        ApplyMigrations: false
+        BaseUrl: https://grifball.example
+        Discord:
+          DisableGlobally: null
+          KFactor: 40
+          DraftChannel: "1234567890123456789"
+        GoogleSheets:
+          Sheets:
+            - Name: Pro
+              SpreadsheetID: abc
+        HealthChecks:
+          HaloInfinite:
+            Timeout: "00:00:10"
+        Serilog:
+          MinimumLevel:
+            Override:
+              Microsoft.EntityFrameworkCore: Information
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ApplyMigrations, value: "false" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: BaseUrl, value: https://grifball.example } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Discord__KFactor, value: "40" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Discord__DraftChannel, value: "1234567890123456789" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: GoogleSheets__Sheets__0__Name, value: Pro } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: GoogleSheets__Sheets__0__SpreadsheetID, value: abc } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HealthChecks__HaloInfinite__Timeout, value: "00:00:10" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Serilog__MinimumLevel__Override__Microsoft.EntityFrameworkCore, value: Information } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Discord__DisableGlobally, value: "true" } }
+
+  - it: keeps $ literal (Kubernetes would expand $(VAR))
+    documentIndex: 1
+    set:
+      backend.config.AllowedHosts: "$(HOME)"
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: AllowedHosts, value: "$$(HOME)" } }
+
+  - it: refuses an unquoted number too large to be exact
+    set:
+      backend.config.Discord.DraftChannel: 1234567890123456789
+    values:
+      - ./big-number.yaml
+    asserts:
+      - failedTemplate:
+          errorPattern: "Discord__DraftChannel: .* quote it"
+
+  - it: reads secretConfig from secret.name, or from its own Secret
+    documentIndex: 1
+    set:
+      backend.secretConfig:
+        "Discord:Token": DiscordToken
+        ClientConfiguration__ClientId: { secretName: halo, key: id, optional: true }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: Discord__Token, valueFrom: { secretKeyRef: { name: grif-secrets, key: DiscordToken } } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ClientConfiguration__ClientId, valueFrom: { secretKeyRef: { name: halo, key: id, optional: true } } }
+
+  - it: builds the connection string for the chart's SQL Server
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content:
+            name: ConnectionStrings__GrifballWebApp
+            value: "Server=sqlserver,1433;Database=GrifballWebApp;User Id=sa;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True"
+
+  - it: builds it for an external database
+    documentIndex: 1
+    set:
+      mssql.enabled: false
+      database: { host: sql.example, port: 14330, name: Grif, user: grif, password: { secretName: db, key: pw }, options: "Encrypt=True" }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: db, key: pw } } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sql.example,14330;Database=Grif;User Id=grif;Password=$(DB_PASSWORD);Encrypt=True" }
+
+  - it: requires database.host without the chart's SQL Server
+    set:
+      mssql.enabled: false
+    asserts:
+      - failedTemplate:
+          errorMessage: database.host is required when mssql.enabled is false
+
+  - it: reads a whole connection string from a Secret
+    documentIndex: 1
+    set:
+      database.connectionString: { secretName: grif-secrets, key: SQL_CONNECTION_STRING }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, valueFrom: { secretKeyRef: { name: grif-secrets, key: SQL_CONNECTION_STRING } } }
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+
+  - it: pins the image by digest
+    documentIndex: 1
+    set:
+      backend.image: { tag: prod, digest: "sha256:abc" }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:abc" }
+
+  - it: takes tag@digest as Image Updater writes it
+    documentIndex: 1
+    set:
+      backend.image: { tag: "prod@sha256:def", digest: "sha256:abc" }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:def" }
+
+  - it: sets OpenTelemetry, service name defaulting to the namespace
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel:4317", environment: test, resourceAttributes: { team: grif }, metricExportInterval: "15000", consoleExporter: true }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_SERVICE_NAME, value: grif-x } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel:4317" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: grpc } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_RESOURCE_ATTRIBUTES, value: "deployment.environment.name=test,team=grif" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_METRIC_EXPORT_INTERVAL, value: "15000" } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: OTLP_CONSOLE_EXPORTER_ENABLED, value: "true" } }
+
+  - it: exports nothing with telemetry off
+    documentIndex: 1
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: grpc } }
+
+  - it: mounts the Google key and points GoogleSheets:Key at it
+    documentIndex: 1
+    set:
+      backend.googleCredentials.secretName: google-credentials
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: GoogleSheets__Key, value: /etc/google-credentials/grifball.json } }
+      - contains: { path: "spec.template.spec.volumes", content: { name: google-credentials, secret: { secretName: google-credentials } } }
+
+  - it: probes the configured health paths
+    documentIndex: 1
+    set:
+      backend.config.HealthChecks: { LivePath: /alive, ReadyPath: /ready }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].livenessProbe.httpGet.path", value: /alive }
+      - equal: { path: "spec.template.spec.containers[0].startupProbe.httpGet.path", value: /alive }
+      - equal: { path: "spec.template.spec.containers[0].readinessProbe.httpGet.path", value: /ready }
+
+  - it: uses an existing state claim instead of creating one
+    documentIndex: 0
+    set:
+      backend.persistence.existingClaim: mine
+    asserts:
+      - isKind: { of: Deployment }
+      - contains: { path: "spec.template.spec.volumes", content: { name: state, persistentVolumeClaim: { claimName: mine } } }
+
+  - it: falls back to an emptyDir without persistence
+    documentIndex: 0
+    set:
+      backend.persistence.enabled: false
+    asserts:
+      - isKind: { of: Deployment }
+      - contains: { path: "spec.template.spec.volumes", content: { name: state, emptyDir: {} } }
+
+  - it: names the Service as the frontend's nginx expects
+    documentIndex: 2
+    asserts:
+      - equal: { path: metadata.name, value: grifballwebapp-server }
+      - equal: { path: "spec.ports[0].port", value: 5295 }
+
+  - it: takes a bare digest in tag
+    documentIndex: 1
+    set:
+      backend.image: { tag: "sha256:fed", digest: "" }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver@sha256:fed" }

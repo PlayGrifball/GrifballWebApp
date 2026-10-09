@@ -1,0 +1,14 @@
+apiVersion: v2
+name: grifballwebapp
+description: >-
+  GrifballWebApp: the Angular frontend, the ASP.NET Core backend, and optionally SQL Server, with a
+  pre-deploy hook that backs up the database and applies EF Core migrations.
+type: application
+# Bump on every change to the chart: the Helm chart workflow publishes each new version to
+# oci://ghcr.io/playgrifball/charts and never overwrites one already published.
+version: 0.1.0
+# Informational only: which images run is set by backend.image and frontend.image.
+appVersion: "latest"
+home: https://github.com/PlayGrifball/GrifballWebApp
+sources:
+  - https://github.com/PlayGrifball/GrifballWebApp

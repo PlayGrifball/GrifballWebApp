@@ -1,0 +1,109 @@
+name: Helm chart
+
+# The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), and
+# every ci/*-values.yaml rendered and checked against the Kubernetes schemas. master: publish the
+# chart's version to oci://ghcr.io/playgrifball/charts/grifballwebapp, once - a version already
+# published is never overwritten, so a chart change has to bump Chart.yaml's version (checked here
+# on pull requests).
+on:
+  pull_request:
+    branches: [ "master" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml" ]
+  push:
+    branches: [ "master" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml" ]
+  workflow_dispatch:
+
+env:
+  CHART: charts/grifballwebapp
+  REGISTRY: ghcr.io
+  # Lowercase: OCI references are.
+  CHART_REPO: oci://ghcr.io/playgrifball/charts
+  KUBERNETES_VERSION: "1.33.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint
+        run: |
+          set -euo pipefail
+          for values in "$CHART"/ci/*-values.yaml; do
+            echo "::group::helm lint -f $values"
+            helm lint "$CHART" --strict -f "$values"
+            echo "::endgroup::"
+          done
+
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          # Helm 4 verifies plugin signatures by default; helm-unittest publishes none.
+          if helm version --short | grep -q '^v3'; then verify=; else verify=--verify=false; fi
+          helm plugin install https://github.com/helm-unittest/helm-unittest $verify
+          helm unittest "$CHART"
+
+      - name: Schema check
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          for values in "$CHART"/ci/*-values.yaml; do
+            echo "::group::$values"
+            # Traefik's IngressRoute from the community CRD catalog.
+            helm template ci "$CHART" -n grif-ci -f "$values" \
+              | ./kubeconform -strict -summary -kubernetes-version "$KUBERNETES_VERSION" \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+            echo "::endgroup::"
+          done
+
+      - name: Chart version bumped
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$BASE" HEAD -- "$CHART"; then echo "Chart unchanged."; exit 0; fi
+          new=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          old=$(git show "$BASE:$CHART/Chart.yaml" 2>/dev/null | sed -n 's/^version: *//p' || true)
+          if [ -n "$old" ] && [ "$old" = "$new" ]; then
+            echo "::error file=$CHART/Chart.yaml::The chart changed but its version is still $new: bump it, or master can't publish the change."
+            exit 1
+          fi
+          echo "Chart version ${old:-(new chart)} -> $new"
+
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Log into ${{ env.REGISTRY }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+
+      - name: Publish this version, unless it already is
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          if helm show chart "$CHART_REPO/grifballwebapp" --version "$version" >/dev/null 2>&1; then
+            echo "grifballwebapp $version is already published; not overwriting it."
+            exit 0
+          fi
+          helm package "$CHART" -d dist
+          helm push "dist/grifballwebapp-$version.tgz" "$CHART_REPO"
+          echo "Published $CHART_REPO/grifballwebapp:$version" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,231 @@
+{{- $b := .Values.backend -}}
+{{- if and $b.persistence.enabled (not $b.persistence.existingClaim) }}
+# Grunt's Halo Infinite tokens and account authorization (the backend's working directory).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $b.persistence.claimName }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  {{- with $b.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $b.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $b.persistence.size }}
+  {{- with $b.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-backend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ $b.replicas }}
+  selector:
+    matchLabels:
+      app: grif-backend
+  {{- with $b.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        app: grif-backend
+        {{- include "grif.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+        {{- with $b.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $b.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      # Never calls the Kubernetes API.
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $b.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: grif-backend
+          image: {{ include "grif.backendImage" . }}
+          imagePullPolicy: {{ $b.image.pullPolicy }}
+          # The working directory is the state volume (persistence); ASPNETCORE_CONTENTROOT keeps the
+          # app's own files (appsettings, wwwroot) at /app, and the dll is named by its absolute path.
+          workingDir: {{ $b.persistence.mountPath }}
+          command: ["dotnet", "/app/GrifballWebApp.Server.dll"]
+          ports:
+            - name: http
+              containerPort: {{ $b.port }}
+          startupProbe:
+            httpGet:
+              path: {{ include "grif.backendHealthPath" (dict "root" . "probe" "live") }}
+              port: http
+            {{- toYaml $b.startupProbe | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ include "grif.backendHealthPath" (dict "root" . "probe" "live") }}
+              port: http
+            {{- toYaml $b.livenessProbe | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ include "grif.backendHealthPath" (dict "root" . "probe" "ready") }}
+              port: http
+            {{- toYaml $b.readinessProbe | nindent 12 }}
+          {{- with $b.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $b.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: ASPNETCORE_CONTENTROOT
+              value: /app
+            - name: ASPNETCORE_HTTP_PORTS
+              value: {{ $b.port | quote }}
+            {{- if .Values.database.connectionString.secretName }}
+            - name: ConnectionStrings__GrifballWebApp
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.connectionString.secretName }}
+                  key: {{ required "database.connectionString.key is required with its secretName" .Values.database.connectionString.key }}
+            {{- else }}
+            {{- include "grif.dbPasswordEnv" . | nindent 12 }}
+            - name: ConnectionStrings__GrifballWebApp
+              value: {{ printf "Server=%s,%s;Database=%s;User Id=%s;Password=$(DB_PASSWORD);%s" (include "grif.dbHost" .) (include "grif.dbPort" . ) .Values.database.name .Values.database.user .Values.database.options | quote }}
+            {{- end }}
+            {{- $sheets := $b.config.GoogleSheets | default dict }}
+            {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}
+            - name: GoogleSheets__Key
+              value: {{ printf "%s/%s" $b.googleCredentials.mountPath $b.googleCredentials.key | quote }}
+            {{- end }}
+            {{- with $b.telemetry }}
+            {{- if .enabled }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .serviceName | default $.Release.Namespace | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ required "backend.telemetry.endpoint is required when telemetry is enabled" .endpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .protocol | quote }}
+            {{- $attrs := list }}
+            {{- if .environment }}{{ $attrs = append $attrs (printf "deployment.environment.name=%s" .environment) }}{{ end }}
+            {{- range $k, $v := .resourceAttributes }}{{ $attrs = append $attrs (printf "%s=%v" $k $v) }}{{ end }}
+            {{- if $attrs }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ join "," $attrs | quote }}
+            {{- end }}
+            {{- if .metricExportInterval }}
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: {{ .metricExportInterval | quote }}
+            {{- end }}
+            {{- if .consoleExporter }}
+            - name: OTLP_CONSOLE_EXPORTER_ENABLED
+              value: "true"
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- include "grif.configEnv" (dict "name" "" "value" $b.config) | trim | nindent 12 }}
+            {{- range $path, $ref := $b.secretConfig }}
+            {{- $r := ternary (dict "key" $ref) $ref (kindIs "string" $ref) }}
+            - name: {{ include "grif.envName" $path | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "grif.secretName" (dict "secretName" $r.secretName "root" $) }}
+                  key: {{ required (printf "backend.secretConfig.%s: key is required" $path) $r.key }}
+                  {{- if $r.optional }}
+                  optional: true
+                  {{- end }}
+            {{- end }}
+            {{- with $b.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $b.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: state
+              mountPath: {{ $b.persistence.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+            {{- if $b.googleCredentials.secretName }}
+            - name: google-credentials
+              mountPath: {{ $b.googleCredentials.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- with $b.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: state
+          {{- if $b.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $b.persistence.existingClaim | default $b.persistence.claimName }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}
+        {{- if $b.googleCredentials.secretName }}
+        - name: google-credentials
+          secret:
+            secretName: {{ $b.googleCredentials.secretName }}
+            {{- if $b.googleCredentials.optional }}
+            optional: true
+            {{- end }}
+        {{- end }}
+        {{- with $b.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $b.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $b.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $b.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+# The frontend's nginx proxies /api to this name and port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $b.service.name }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  {{- with $b.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $b.service.type }}
+  selector:
+    app: grif-backend
+  ports:
+    - name: http
+      port: {{ $b.port }}
+      targetPort: http

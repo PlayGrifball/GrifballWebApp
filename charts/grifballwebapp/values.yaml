@@ -1,0 +1,409 @@
+# GrifballWebApp chart. One release per namespace: the frontend's nginx reaches the backend at
+# grifballwebapp-server:5295 (grifballwebapp.client/default.conf), so object names are fixed, not
+# prefixed with the release name. Each name can still be overridden below.
+
+# The Secret secrets are read from by default: SQL Server's password (mssql.saPassword,
+# database.password) and backend.secretConfig entries that name no Secret of their own.
+secret:
+  name: grif-secrets
+  # Create it from stringData below. For trying the chart out: real secrets belong outside the
+  # values (SealedSecrets, External Secrets, kubectl create secret).
+  create: false
+  stringData: {}
+
+# Manage the namespace's default ServiceAccount with automountServiceAccountToken: false. The app's
+# pods never mount a token either way; this covers anything else in the namespace that uses it.
+defaultServiceAccount:
+  manage: false
+
+imagePullSecrets: []
+
+# The database the backend and the deploy hook use: the chart's SQL Server (mssql.enabled) or any
+# other one.
+database:
+  # Empty: the chart's SQL Server Service (mssql.service.name). Required when mssql.enabled is false.
+  host: ""
+  port: 1433
+  name: GrifballWebApp
+  user: sa
+  # The user's password. secretName empty: secret.name.
+  password:
+    secretName: ""
+    key: SA_PASSWORD
+  # Appended to the connection string the chart builds:
+  # Server=<host>,<port>;Database=<name>;User Id=<user>;Password=<password>;<options>
+  # The password goes in as is, so it must not contain ';'.
+  options: "Encrypt=True;TrustServerCertificate=True"
+  # Give the backend this whole connection string instead (ConnectionStrings:GrifballWebApp). The
+  # deploy hook still connects with host, port, user and password above.
+  connectionString:
+    secretName: ""
+    key: ""
+
+backend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappserver
+    # A tag, tag@sha256:... or sha256:... (Argo CD Image Updater can write either form).
+    tag: latest
+    # sha256:...; when set, runs repository:tag@digest. The deploy hook uses the same image.
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # Recreate: the state volume (persistence) is ReadWriteOnce, so a new pod can't start beside the
+  # old one.
+  strategy:
+    type: Recreate
+  # ASPNETCORE_HTTP_PORTS. The frontend's nginx proxies to 5295.
+  port: 5295
+  service:
+    name: grifballwebapp-server
+    type: ClusterIP
+    annotations: {}
+
+  # Non-secret settings, nested like appsettings.json. Each value becomes an environment variable
+  # (Section__Key; list items Section__0__Key), which take precedence over appsettings.json. null
+  # removes a key set here. Quote large numbers such as Discord channel IDs: Helm reads unquoted
+  # numbers as floating point and would round them, so the chart refuses them instead.
+  # Every setting the app reads, with its default in the app:
+  config:
+    # Apply EF Core migrations at startup (default false). The deploy hook applies them before an
+    # upgrade; this covers a first install, which has no hook run.
+    ApplyMigrations: true
+    # With ApplyMigrations, also create the database if it doesn't exist (default false): a first
+    # install starts from an empty SQL Server.
+    CreateDatabase: true
+    # The site's home page, used in links the app sends (required). Ex: https://grifball.example
+    # BaseUrl: ""
+    Discord:
+      # Don't send Discord messages (default false). The bot still connects: ClientId, ClientSecret,
+      # Token and DraftChannel are always required.
+      DisableGlobally: true
+      # ClientId / ClientSecret (Discord OAuth login) and Token (the bot) are secrets: set them
+      # through secretConfig.
+      # Channel IDs. DraftChannel is required; the queue and events services also stop without
+      # QueueChannel and EventsChannel.
+      # DraftChannel: "0"
+      # QueueChannel: "0"
+      # EventsChannel: "0"
+      # ReschedulesChannel: "0"
+      # LogChannel: "0"
+      # Matchmaking (defaults):
+      # MatchPlayers: 8
+      # KFactor: 32
+      # WinThreshold: 3
+      # BonusPerWin: 10
+      # MaxBonus: 20
+      # LossThreshold: 3
+      # PenaltyPerLoss: 10
+      # MaxPenalty: 20
+    # Halo Infinite API client (Grunt): ClientId, ClientSecret and RedirectUrl, set through
+    # secretConfig (ClientConfiguration:ClientId, ...).
+    # ClientConfiguration:
+    #   RedirectUrl: ""
+    # Google Sheets imports. Key (the service account's JSON key file) defaults to the file mounted
+    # by googleCredentials.
+    # GoogleSheets:
+    #   Sheets:
+    #     - Name: Season Match History
+    #       SpreadsheetID: ""
+    #       SheetName: Season Match History
+    #   CopySpreadsheetID: ""
+    #   CopySheetNameRange: ""
+    HealthChecks:
+      # Endpoint paths (defaults); the probes below follow them.
+      # Path: /health
+      # LivePath: /health/live
+      # ReadyPath: /health/ready
+      # Managed memory above this reports Degraded (default 384): about 75% of the memory limit.
+      MaxAllocatedMegabytes: 384
+      # HaloInfinite:
+      #   Interval: "00:05:00"
+      #   Timeout: "00:00:10"
+      #   MatchId: 1fde4c2a-7935-4fb0-9706-e226f4d13683
+    # Who may set the client address. The backend's only peer is the frontend's nginx, which passes
+    # on X-Real-IP; trust the pod network it runs in (Ex: 10.0.0.0/16).
+    # ForwardedHeaders:
+    #   KnownIPNetworks: []
+    #   KnownProxies: []
+    #   ForwardedForHeaderName: X-Real-IP   # default X-Forwarded-For
+    #   ForwardLimit: 1
+    #   FetchCloudflare: false
+    #   CloudflareIpsV4Url: https://www.cloudflare.com/ips-v4/
+    #   CloudflareIpsV6Url: https://www.cloudflare.com/ips-v6/
+    # Log levels (Serilog), defaults in appsettings.json:
+    # Serilog:
+    #   MinimumLevel:
+    #     Default: Warning
+    #     Override:
+    #       GrifballWebApp: Information
+    # AllowedHosts: "*"
+
+  # Settings read from Secrets: "Setting:Path": key in secret.name, or
+  # {secretName, key, optional}. Same paths as config (':' or '__').
+  secretConfig: {}
+  # Discord:ClientId: DiscordClientId
+  # Discord:ClientSecret: DiscordClientSecret
+  # Discord:Token: DiscordToken
+  # ClientConfiguration:ClientId: InfiniteClientId
+  # ClientConfiguration:ClientSecret: InfiniteClientSecret
+  # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
+  # BaseUrl: { secretName: grif-urls, key: BaseUrl }
+
+  # OpenTelemetry: logs, metrics and traces pushed over OTLP. Off: the app exports nothing.
+  telemetry:
+    enabled: false
+    # Ex: http://otel-collector.example:4317
+    endpoint: ""
+    # grpc or http/protobuf.
+    protocol: grpc
+    # OTEL_SERVICE_NAME. Empty: the namespace.
+    serviceName: ""
+    # deployment.environment.name. Empty: not set.
+    environment: ""
+    # More OTEL_RESOURCE_ATTRIBUTES.
+    resourceAttributes: {}
+    # OTEL_METRIC_EXPORT_INTERVAL in milliseconds. Empty: the app's default.
+    metricExportInterval: ""
+    # Also print metrics and traces to the console (OTLP_CONSOLE_EXPORTER_ENABLED), for debugging.
+    consoleExporter: false
+
+  # The Google service account key for GoogleSheets, mounted at mountPath; GoogleSheets:Key points
+  # at mountPath/key unless config sets it.
+  googleCredentials:
+    secretName: ""
+    key: grifball.json
+    mountPath: /etc/google-credentials
+    optional: false
+
+  # Grunt (the Halo Infinite client) keeps its OAuth tokens (tokens.json) and the one-time account
+  # authorization code (AccountAuthorization.txt) in the working directory, so the working directory
+  # is this volume. Disabled: an emptyDir, and the account is authorized again after each restart.
+  persistence:
+    enabled: true
+    # Use this PVC instead of creating one.
+    existingClaim: ""
+    claimName: grif-backend-state
+    size: 128Mi
+    storageClass: ""
+    accessModes: [ReadWriteOnce]
+    # Ex: argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    annotations: {}
+    mountPath: /data
+
+  # Probes on the app's health endpoints. Liveness runs no checks, so a database outage takes the pod
+  # out of the Service instead of restarting it. Startup allows 5 minutes: Kestrel listens only after
+  # pending migrations.
+  startupProbe:
+    periodSeconds: 5
+    failureThreshold: 60
+  livenessProbe:
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+    # The image's app user; owns the state volume.
+    fsGroup: 1654
+    fsGroupChangePolicy: OnRootMismatch
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+  extraEnv: []
+  extraEnvFrom: []
+  extraVolumes: []
+  extraVolumeMounts: []
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+frontend:
+  image:
+    repository: ghcr.io/playgrifball/grifballwebappclient
+    tag: latest
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  strategy: {}
+  service:
+    name: grif-frontend
+    type: ClusterIP
+    port: 80
+    annotations: {}
+  readinessProbe:
+    periodSeconds: 10
+    timeoutSeconds: 3
+  livenessProbe:
+    periodSeconds: 20
+    timeoutSeconds: 3
+  resources:
+    requests:
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Kubernetes Ingress to the frontend.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  # - grifball.example.com
+  tls: []
+  # - secretName: grifball-tls
+  #   hosts: [grifball.example.com]
+
+# Traefik IngressRoute (traefik.io/v1alpha1) to the frontend.
+ingressRoute:
+  enabled: false
+  name: grif-ingressroute
+  entryPoints: [websecure]
+  host: ""
+  middlewares: []
+  # - name: security-headers
+  #   namespace: traefik
+  tls:
+    secretName: ""
+  annotations: {}
+
+# SQL Server in the release. Disabled: set database.host to your own.
+mssql:
+  enabled: true
+  # Required with enabled: you accept the SQL Server EULA (ACCEPT_EULA=Y).
+  acceptEula: false
+  image:
+    repository: mcr.microsoft.com/mssql/server
+    # A major version's channel; pin a digest so a restart can't upgrade SQL Server. Databases are
+    # upgraded in place on a newer version's first start and can't go back.
+    tag: 2025-latest
+    digest: ""
+    pullPolicy: IfNotPresent
+  # MSSQL_PID: the edition (Developer, Express, Standard, ... or a product key). Empty: Developer.
+  edition: ""
+  # The sa password. secretName empty: secret.name.
+  saPassword:
+    secretName: ""
+    key: SA_PASSWORD
+  # The ClusterIP Service the app connects to.
+  service:
+    name: sqlserver
+    port: 1433
+  # Also expose SQL Server outside the cluster.
+  loadBalancer:
+    enabled: false
+    name: mssql-lb
+    port: 1433
+    annotations: {}
+  persistence:
+    existingClaim: ""
+    claimName: mssql-data-pvc
+    size: 10Gi
+    storageClass: ""
+    accessModes: [ReadWriteOnce]
+    annotations: {}
+  # The backup volume, mounted at /var/opt/mssql/backup; the deploy hook writes its backups here.
+  backup:
+    enabled: true
+    existingClaim: ""
+    claimName: nfs-pvc
+    size: 30Gi
+    accessModes: [ReadWriteMany]
+    # With nfs.server: a PersistentVolume for this NFS export (named <namespace>-nfs-pv), bound to
+    # the claim. Otherwise the claim is provisioned from storageClass.
+    nfs:
+      server: ""
+      path: ""
+    storageClass: ""
+    annotations: {}
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 500m
+    limits:
+      memory: 4Gi
+      cpu: "1"
+  # Creates the folders SQL Server writes outside data and backup on the data volume, owned by its
+  # user (10001); with a read-only root filesystem they live there.
+  initImage: docker.io/library/busybox:1.38
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    readOnlyRootFilesystem: true
+  extraEnv: []
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# An idle pod with sqlcmd, for kubectl exec.
+mssqlTools:
+  enabled: false
+  image: mcr.microsoft.com/mssql-tools:latest
+  resources:
+    requests:
+      memory: 16Mi
+    limits:
+      memory: 128Mi
+
+# Before every upgrade (Helm pre-upgrade, Argo CD PreSync): back up the database, then apply EF
+# migrations with the bundle in the backend image being deployed (/app/efbundle). If the build has
+# migrations the database lacks, backend and frontend are first scaled to 0, so no old code runs
+# during the backup and migration or against the new schema; the upgrade then scales them back.
+# With nothing pending the app stays up. A failed step stops the upgrade.
+deployHook:
+  enabled: true
+  backup:
+    enabled: true
+    # A folder on the SQL Server's side; created if missing. Empty:
+    # /var/opt/mssql/backup/<namespace> (mssql.backup's volume).
+    directory: ""
+  # Scale backend and frontend to 0 while pending migrations are applied.
+  scaleDown: true
+  serviceAccount:
+    # The hook's ServiceAccount, Role (scale backend and frontend, read SQL Server's Deployment) and
+    # RoleBinding, created as hooks themselves so they exist before the hook runs. false: bring
+    # your own with that access.
+    create: true
+    name: grif-deploy-hook
+  activeDeadlineSeconds: 1200
+  # Waits this long for SQL Server to accept connections (seconds).
+  databaseWaitSeconds: 120
+  images:
+    kubectl: docker.io/alpine/k8s:1.36.5
+    sqlcmd: mcr.microsoft.com/mssql-tools:latest
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  nodeSelector: {}
+  tolerations: []

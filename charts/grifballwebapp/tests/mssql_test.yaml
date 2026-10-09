@@ -1,0 +1,72 @@
+suite: mssql
+templates:
+  - templates/mssql.yaml
+release:
+  namespace: grif-x
+tests:
+  - it: needs the EULA accepted
+    asserts:
+      - failedTemplate:
+          errorPattern: mssql.acceptEula must be true
+
+  - it: renders nothing with an external database
+    set:
+      mssql.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: creates data and backup claims, its Service and Deployment
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - hasDocuments: { count: 4 }
+      - equal: { path: metadata.name, value: mssql-data-pvc }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: nfs-pvc }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: sqlserver }
+        documentIndex: 2
+      - isKind: { of: Deployment }
+        documentIndex: 3
+
+  - it: binds the backup claim to an NFS export
+    set:
+      mssql.acceptEula: true
+      mssql.backup.nfs: { server: 10.0.0.3, path: /backups }
+    asserts:
+      - isKind: { of: PersistentVolume }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: grif-x-nfs-pv }
+        documentIndex: 1
+      - equal: { path: spec.nfs, value: { server: 10.0.0.3, path: /backups } }
+        documentIndex: 1
+      - equal: { path: spec.volumeName, value: grif-x-nfs-pv }
+        documentIndex: 2
+
+  - it: uses existing claims, without a backup volume if disabled
+    set:
+      mssql.acceptEula: true
+      mssql.persistence.existingClaim: data
+      mssql.backup.enabled: false
+    asserts:
+      - hasDocuments: { count: 2 }
+      - contains: { path: spec.template.spec.volumes, content: { name: mssql-data, persistentVolumeClaim: { claimName: data } } }
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: backup, mountPath: /var/opt/mssql/backup } }
+        documentIndex: 1
+
+  - it: adds a LoadBalancer, the edition and a pinned image
+    set:
+      mssql.acceptEula: true
+      mssql.loadBalancer: { enabled: true, port: 14330 }
+      mssql.edition: Express
+      mssql.image.digest: sha256:abc
+    asserts:
+      - equal: { path: spec.type, value: LoadBalancer }
+        documentIndex: 3
+      - equal: { path: "spec.ports[0].port", value: 14330 }
+        documentIndex: 3
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: MSSQL_PID, value: Express } }
+        documentIndex: 4
+      - equal: { path: "spec.template.spec.containers[0].image", value: "mcr.microsoft.com/mssql/server:2025-latest@sha256:abc" }
+        documentIndex: 4

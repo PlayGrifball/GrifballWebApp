@@ -1,0 +1,35 @@
+# An external SQL Server, a Kubernetes Ingress, no state volume. Rendered and schema-checked by the
+# Helm chart workflow.
+mssql:
+  enabled: false
+database:
+  host: sql.example.internal
+  port: 1433
+  user: grif
+  password:
+    secretName: grif-db
+    key: password
+backend:
+  config:
+    BaseUrl: https://grifball.example
+    Discord:
+      DisableGlobally: false
+      DraftChannel: "1234567890123456789"
+      QueueChannel: "1234567890123456790"
+      EventsChannel: "1234567890123456791"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+  persistence:
+    enabled: false
+ingress:
+  enabled: true
+  className: nginx
+  hosts: [grifball.example]
+  tls:
+    - secretName: grifball-tls
+      hosts: [grifball.example]
+deployHook:
+  backup:
+    directory: /var/opt/mssql/backup/grifball

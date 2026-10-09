@@ -1,0 +1,117 @@
+{{/* Labels on every object. Selectors use only app: <name>, which stays stable across chart versions. */}}
+{{- define "grif.labels" -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/* repository:tag, repository:tag@digest, or repository@digest; tag may itself be tag@sha256:... or
+   sha256:... (what Image Updater may write). Takes an image values block. */}}
+{{- define "grif.image" -}}
+{{- $ref := .repository -}}
+{{- $tag := toString (.tag | default "") -}}
+{{- if hasPrefix "sha256:" $tag }}{{ $ref = printf "%s@%s" $ref $tag }}
+{{- else if $tag }}{{ $ref = printf "%s:%s" $ref $tag }}{{ end -}}
+{{- if and .digest (not (contains "@" $ref)) }}{{ $ref = printf "%s@%s" $ref .digest }}{{ end -}}
+{{- $ref -}}
+{{- end }}
+
+{{- define "grif.backendImage" -}}
+{{- include "grif.image" .Values.backend.image -}}
+{{- end }}
+
+{{- define "grif.secretName" -}}
+{{- .secretName | default .root.Values.secret.name -}}
+{{- end }}
+
+{{/* The database host: database.host, else the chart's SQL Server. */}}
+{{- define "grif.dbHost" -}}
+{{- if .Values.database.host -}}
+{{- .Values.database.host -}}
+{{- else if .Values.mssql.enabled -}}
+{{- .Values.mssql.service.name -}}
+{{- else -}}
+{{- fail "database.host is required when mssql.enabled is false" -}}
+{{- end -}}
+{{- end }}
+
+{{- define "grif.dbPort" -}}
+{{- if and .Values.mssql.enabled (not .Values.database.host) -}}
+{{- .Values.mssql.service.port -}}
+{{- else -}}
+{{- .Values.database.port -}}
+{{- end -}}
+{{- end }}
+
+{{/* DB_PASSWORD env entry, from database.password. */}}
+{{- define "grif.dbPasswordEnv" -}}
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "grif.secretName" (dict "secretName" .Values.database.password.secretName "root" .) }}
+      key: {{ .Values.database.password.key }}
+{{- end }}
+
+{{/*
+One setting as an environment variable value: strings as they are, numbers without float notation.
+Kubernetes expands $(VAR) in env values, so '$' is doubled to keep a value literal.
+*/}}
+{{- define "grif.configValue" -}}
+{{- $v := .value -}}
+{{- if kindIs "float64" $v -}}
+  {{- if eq $v (floor $v) -}}
+    {{- if or (gt $v 9007199254740991.0) (lt $v -9007199254740991.0) -}}
+      {{- fail (printf "%s: %v is too large to be exact as an unquoted number (Helm reads it as floating point); quote it" .name $v) -}}
+    {{- end -}}
+    {{- printf "%.0f" $v -}}
+  {{- else -}}
+    {{- toString $v -}}
+  {{- end -}}
+{{- else -}}
+  {{- toString $v | replace "$" "$$" -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+appsettings-style nested settings as env entries: maps become Section__Key, lists Section__0, null is
+skipped. Takes dict "name" (prefix, "" at the top) and "value".
+*/}}
+{{- define "grif.configEnv" -}}
+{{- $name := .name -}}
+{{- if kindIs "map" .value -}}
+  {{- range $k, $v := .value -}}
+    {{- include "grif.configEnv" (dict "name" (ternary $k (printf "%s__%s" $name $k) (eq $name "")) "value" $v) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .value -}}
+  {{- range $i, $v := .value -}}
+    {{- include "grif.configEnv" (dict "name" (printf "%s__%d" $name $i) "value" $v) -}}
+  {{- end -}}
+{{- else if not (kindIs "invalid" .value) -}}
+{{- printf "\n- name: %s\n  value: %s" ($name | quote) (include "grif.configValue" (dict "name" $name "value" .value) | quote) -}}
+{{- end -}}
+{{- end }}
+
+{{/* The setting path as an environment variable name: ':' becomes '__'. */}}
+{{- define "grif.envName" -}}
+{{- . | replace ":" "__" -}}
+{{- end }}
+
+{{- define "grif.backendHealthPath" -}}
+{{- $hc := .root.Values.backend.config.HealthChecks | default dict -}}
+{{- if eq .probe "live" -}}{{- $hc.LivePath | default "/health/live" -}}
+{{- else -}}{{- $hc.ReadyPath | default "/health/ready" -}}{{- end -}}
+{{- end }}
+
+{{/* The deploy hook's connection, for sqlcmd. */}}
+{{- define "grif.hookDbEnv" -}}
+- name: DB_HOST
+  value: {{ include "grif.dbHost" . | quote }}
+- name: DB_PORT
+  value: {{ include "grif.dbPort" . | quote }}
+- name: DB_NAME
+  value: {{ .Values.database.name | quote }}
+- name: DB_USER
+  value: {{ .Values.database.user | quote }}
+{{ include "grif.dbPasswordEnv" . }}
+{{- end }}

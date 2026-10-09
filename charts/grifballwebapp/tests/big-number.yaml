@@ -1,0 +1,4 @@
+backend:
+  config:
+    Discord:
+      DraftChannel: 1234567890123456789
