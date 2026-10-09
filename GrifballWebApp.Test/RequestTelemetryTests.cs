@@ -119,6 +119,20 @@ public class RequestTelemetryTests
         Assert.That(RequestTelemetryExtensions.GetLevel(context, 1.0, exception ? new InvalidOperationException() : null), Is.EqualTo(expected));
     }
 
+    [TestCase("/healthz", LogEventLevel.Verbose)]
+    [TestCase("/healthz/ready", LogEventLevel.Verbose)]
+    [TestCase("/health", LogEventLevel.Information)]
+    public void GetLevel_FollowsConfiguredHealthPaths(string path, LogEventLevel expected)
+    {
+        using var services = new ServiceCollection()
+            .AddSingleton(new HealthCheckPaths("/healthz", "/healthz/live", "/healthz/ready"))
+            .BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Request.Path = path;
+
+        Assert.That(RequestTelemetryExtensions.GetLevel(context, 1.0, null), Is.EqualTo(expected));
+    }
+
     [Test]
     public void EnrichDiagnosticContext_AuthenticatedRequest()
     {

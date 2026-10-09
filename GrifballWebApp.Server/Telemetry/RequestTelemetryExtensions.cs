@@ -68,7 +68,7 @@ public static class RequestTelemetryExtensions
     {
         if (exception is not null || context.Response.StatusCode >= StatusCodes.Status500InternalServerError)
             return LogEventLevel.Error;
-        if (HealthCheckExtensions.IsHealthPath(context.Request.Path))
+        if (HealthCheckExtensions.IsHealthPath(context))
             return LogEventLevel.Verbose;
         return LogEventLevel.Information;
     }

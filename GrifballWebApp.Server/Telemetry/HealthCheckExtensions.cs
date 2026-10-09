@@ -10,14 +10,14 @@ public static class HealthCheckExtensions
     /// <summary>Checks that must pass before the pod receives traffic.</summary>
     public const string ReadyTag = "ready";
 
-    public const string HealthPath = "/health";
-    public const string LivePath = "/health/live";
-    public const string ReadyPath = "/health/ready";
-
-    /// <summary>Default for <c>HealthChecks:MaxAllocatedMegabytes</c>: below the 512Mi container limit, above the ~240Mi peak.</summary>
+    /// <summary>
+    /// Fallback when <c>HealthChecks:MaxAllocatedMegabytes</c> is unset (appsettings.json sets the same value;
+    /// deployments set it per container limit): below a 512Mi limit, above grif's ~240Mi peak.
+    /// </summary>
     public const int DefaultMaxAllocatedMegabytes = 384;
 
-    public static bool IsHealthPath(PathString path) => path.StartsWithSegments(HealthPath, StringComparison.OrdinalIgnoreCase);
+    /// <summary>Whether the request is for a health endpoint, at the paths <see cref="AddAppHealthChecks"/> registered.</summary>
+    public static bool IsHealthPath(HttpContext context) => HealthCheckPaths.From(context.RequestServices).IsHealthPath(context.Request.Path);
 
     /// <summary>
     /// <list type="bullet">
@@ -30,6 +30,7 @@ public static class HealthCheckExtensions
     public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         var maxAllocated = configuration.GetValue("HealthChecks:MaxAllocatedMegabytes", DefaultMaxAllocatedMegabytes);
+        services.TryAddSingleton(HealthCheckPaths.FromConfiguration(configuration));
 
         services.TryAddSingleton<DiscordGatewayHealthCheck>();
         services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
@@ -48,13 +49,16 @@ public static class HealthCheckExtensions
     /// <c>/health/live</c> runs no checks: it answers while the process can serve requests, so a database
     /// outage never restarts the pod. <c>/health/ready</c> runs the <see cref="ReadyTag"/> checks.
     /// <c>/health</c> runs all of them. All three return only the status word, never details: the
-    /// frontend proxies <c>/api/*</c> here, so they are reachable from the internet.
+    /// frontend proxies <c>/api/*</c> here, so they are reachable from the internet. Those are the
+    /// default paths; see <see cref="HealthCheckPaths"/> to move them.
     /// </summary>
     public static IEndpointRouteBuilder MapAppHealthChecks(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapHealthChecks(LivePath, new HealthCheckOptions { Predicate = _ => false });
-        endpoints.MapHealthChecks(ReadyPath, new HealthCheckOptions { Predicate = check => check.Tags.Contains(ReadyTag) });
-        endpoints.MapHealthChecks(HealthPath);
+        var paths = endpoints.ServiceProvider.GetService<HealthCheckPaths>()
+            ?? HealthCheckPaths.FromConfiguration(endpoints.ServiceProvider.GetRequiredService<IConfiguration>());
+        endpoints.MapHealthChecks(paths.Live, new HealthCheckOptions { Predicate = _ => false });
+        endpoints.MapHealthChecks(paths.Ready, new HealthCheckOptions { Predicate = check => check.Tags.Contains(ReadyTag) });
+        endpoints.MapHealthChecks(paths.Health);
         return endpoints;
     }
 }

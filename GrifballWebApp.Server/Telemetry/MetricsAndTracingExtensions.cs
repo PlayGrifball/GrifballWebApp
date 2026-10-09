@@ -24,6 +24,7 @@ public static class MetricsAndTracingExtensions
     /// </summary>
     public static IServiceCollection AddMetricsAndTracing(this IServiceCollection services, TelemetryOptions telemetry, IConfiguration configuration)
     {
+        var healthPaths = HealthCheckPaths.FromConfiguration(configuration);
         services.AddOpenTelemetry()
             .ConfigureResource(resource => telemetry.ConfigureResource(resource))
             .WithMetrics(metrics =>
@@ -48,7 +49,7 @@ public static class MetricsAndTracingExtensions
             .WithTracing(tracing =>
             {
                 tracing
-                    .AddAspNetCoreInstrumentation(options => options.Filter = context => !HealthCheckExtensions.IsHealthPath(context.Request.Path))
+                    .AddAspNetCoreInstrumentation(options => options.Filter = context => !healthPaths.IsHealthPath(context.Request.Path))
                     .AddHttpClientInstrumentation()
                     .AddSqlClientInstrumentation()
                     .AddEntityFrameworkCoreInstrumentation();
