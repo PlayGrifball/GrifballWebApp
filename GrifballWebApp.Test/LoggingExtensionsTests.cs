@@ -84,6 +84,7 @@ public class LoggingExtensionsTests
     }
 
     [TestCase("Development", null, null)]
+    [TestCase("Development", "http://127.0.0.1:9", null)]
     [TestCase("Production", null, null)]
     [TestCase("Production", "http://127.0.0.1:9", null)]
     [TestCase("Production", "http://127.0.0.1:9", "http/protobuf")]

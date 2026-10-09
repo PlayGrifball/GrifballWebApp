@@ -30,9 +30,10 @@ public static class LoggingExtensions
     }
 
     /// <summary>
-    /// Development: human-readable console and debug output. Elsewhere: compact JSON on the console (what
-    /// kubectl logs and Alloy see) and, when an endpoint is set, OTLP to the collector with the same
-    /// resource as the metrics and traces. Each event carries its trace and span id natively.
+    /// Compact JSON on the console in every environment (what kubectl logs and Alloy see), plus the debug
+    /// output in Development; when an endpoint is set, OTLP to the collector with the same resource as
+    /// the metrics and traces (in Development too, e.g. a local Aspire dashboard). Each event carries its
+    /// trace and span id natively, so local output shows them as @tr and @sp.
     /// </summary>
     /// <remarks>
     /// Only <c>Serilog:MinimumLevel</c>, <c>Serilog:Properties</c> and <c>Serilog:Enrich</c> are read from
@@ -49,12 +50,11 @@ public static class LoggingExtensions
 
         logger.Enrich.FromLogContext();
 
+        // JSON everywhere, Development included, so every line carries its trace and span ids (@tr, @sp).
+        var json = new RenderedCompactJsonFormatter();
+        logger.WriteTo.Console(json);
         if (environment.IsDevelopment())
-        {
-            return logger.WriteTo.Console().WriteTo.Debug();
-        }
-
-        logger.WriteTo.Console(new RenderedCompactJsonFormatter());
+            logger.WriteTo.Debug(json);
 
         var endpoint = telemetry.SignalEndpoint("logs");
         if (endpoint is not null)
