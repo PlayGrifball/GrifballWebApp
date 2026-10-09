@@ -31,7 +31,7 @@ public class HealthCheckExtensionsTests
     }
 
     private static async Task<WebApplication> StartApp(string connectionString, bool discordConnected, int? maxAllocatedMegabytes = null,
-        IDictionary<string, string?>? settings = null)
+        IDictionary<string, string?>? settings = null, int haloStatusCode = 200)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -42,6 +42,7 @@ public class HealthCheckExtensionsTests
 
         builder.Services.AddDbContext<GrifballContext>(options => options.UseSqlServer(connectionString));
         builder.Services.AddSingleton(new DiscordGatewayHealthCheck(discordConnected));
+        builder.Services.AddSingleton(HaloInfiniteHealthCheckTests.Answering(haloStatusCode));
         builder.Services.AddAppHealthChecks(builder.Configuration);
 
         var app = builder.Build();
@@ -96,6 +97,19 @@ public class HealthCheckExtensionsTests
     }
 
     [Test]
+    public async Task HaloDown_OnlyDegrades_AndNeverGatesReadiness()
+    {
+        await using var app = await StartApp(ReachableDatabase(), discordConnected: true, haloStatusCode: 503);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await Get(app, "/health/live"), Is.EqualTo((200, "Healthy")));
+            Assert.That(await Get(app, "/health/ready"), Is.EqualTo((200, "Healthy")));
+            Assert.That(await Get(app, "/health"), Is.EqualTo((200, "Degraded")));
+        });
+    }
+
+    [Test]
     public void AddAppHealthChecks_RegistersChecksTagsAndThePublisher()
     {
         var services = new ServiceCollection();
@@ -107,7 +121,7 @@ public class HealthCheckExtensionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(registrations.Keys, Is.SupersetOf(new[] { "database", "discord", "memory" }));
+            Assert.That(registrations.Keys, Is.SupersetOf(new[] { "database", "discord", "halo_infinite", "memory" }));
             Assert.That(registrations["database"].Tags, Does.Contain(HealthCheckExtensions.ReadyTag));
             Assert.That(registrations["database"].FailureStatus, Is.EqualTo(HealthStatus.Unhealthy));
             Assert.That(registrations["discord"].Tags, Does.Not.Contain(HealthCheckExtensions.ReadyTag));

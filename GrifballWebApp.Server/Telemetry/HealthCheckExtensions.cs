@@ -22,8 +22,9 @@ public static class HealthCheckExtensions
     /// <summary>
     /// <list type="bullet">
     /// <item><b>ready</b>: the database, and the host having started and not begun stopping.</item>
-    /// <item><b>not gating</b>: the Discord gateway and managed memory, reported as Degraded only. A Discord
-    /// outage must not take the website out of service.</item>
+    /// <item><b>not gating</b>: the Discord gateway, the Halo Infinite API (probed at most every few minutes,
+    /// see <see cref="HaloInfiniteHealthCheck"/>) and managed memory, reported as Degraded only. A Discord or
+    /// Halo outage must not take the website out of service.</item>
     /// </list>
     /// Every result is also published as <c>dotnet.health_check.*</c> metrics every 30 s.
     /// </summary>
@@ -34,11 +35,14 @@ public static class HealthCheckExtensions
 
         services.TryAddSingleton<DiscordGatewayHealthCheck>();
         services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
+        // A singleton, so the cached probe result outlives each run.
+        services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
 
         var checks = services.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck(ReadyTag)
             .AddDbContextCheck<GrifballContext>("database", HealthStatus.Unhealthy, [ReadyTag])
             .AddCheck<DiscordGatewayHealthCheck>("discord", HealthStatus.Degraded)
+            .AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded)
             .AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
 
         services.AddTelemetryHealthCheckPublisher(options => options.LogOnlyUnhealthy = true);
