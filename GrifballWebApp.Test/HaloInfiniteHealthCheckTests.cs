@@ -10,7 +10,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Models;
-using QosServer = Surprenant.Grunt.Models.HaloInfinite.Server;
+using Surprenant.Grunt.Models.HaloInfinite;
 
 namespace GrifballWebApp.Test;
 
@@ -36,12 +36,12 @@ public class HaloInfiniteHealthCheckTests
     public static IHaloInfiniteClientFactory Answering(int code, IHaloInfiniteClientFactory? factory = null)
     {
         factory ??= Substitute.For<IHaloInfiniteClientFactory>();
-        factory.LobbyGetQosServers().Returns(Response(code));
+        factory.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(code));
         return factory;
     }
 
-    private static HaloApiResultContainer<List<QosServer>, HaloApiErrorContainer> Response(int code) =>
-        new([], new HaloApiErrorContainer { Code = code });
+    private static HaloApiResultContainer<MatchStats, HaloApiErrorContainer> Response(int code) =>
+        new(new MatchStats(), new HaloApiErrorContainer { Code = code });
 
     private static HealthCheckContext Context(IHealthCheck check) => new()
     {
@@ -65,7 +65,22 @@ public class HaloInfiniteHealthCheckTests
         });
     }
 
+    [Test]
+    public async Task Probe_FetchesTheConfiguredMatch()
+    {
+        Answering(200, _factory);
+        var check = new HaloInfiniteHealthCheck(_factory, Interval, Timeout, _time, NullLogger<HaloInfiniteHealthCheck>.Instance, "my-match");
+
+        await check.CheckHealthAsync(Context(check));
+        await Check();
+
+        await _factory.Received(1).StatsGetMatchStats("my-match");
+        await _factory.Received(1).StatsGetMatchStats(HaloInfiniteHealthCheck.DefaultMatchId);
+    }
+
     [TestCase(401)]
+    [TestCase(403)] // what the lobby qosservers endpoint answered on test, which is why the probe moved to match stats
+    [TestCase(404)]
     [TestCase(503)]
     [TestCase(0)]
     public async Task ApiFails_DegradedNotUnhealthy(int code)
@@ -84,7 +99,7 @@ public class HaloInfiniteHealthCheckTests
     [Test]
     public async Task NullResponse_Degraded()
     {
-        _factory.LobbyGetQosServers().Returns((HaloApiResultContainer<List<QosServer>, HaloApiErrorContainer>)null!);
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Returns((HaloApiResultContainer<MatchStats, HaloApiErrorContainer>)null!);
 
         Assert.That((await Check()).Status, Is.EqualTo(HealthStatus.Degraded));
     }
@@ -93,7 +108,7 @@ public class HaloInfiniteHealthCheckTests
     public async Task SignInThrows_Degraded_AndNothingEscapes()
     {
         var failure = new InvalidOperationException("Failed to get halo token.");
-        _factory.LobbyGetQosServers().ThrowsAsync(failure);
+        _factory.StatsGetMatchStats(Arg.Any<string>()).ThrowsAsync(failure);
 
         var result = await Check();
 
@@ -108,7 +123,7 @@ public class HaloInfiniteHealthCheckTests
     [Test]
     public async Task ThrowsSynchronously_Degraded()
     {
-        _factory.LobbyGetQosServers().Throws(new Exception("ClientId is null or empty"));
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Throws(new Exception("ClientId is null or empty"));
 
         Assert.That((await Check()).Status, Is.EqualTo(HealthStatus.Degraded));
     }
@@ -121,9 +136,9 @@ public class HaloInfiniteHealthCheckTests
         await Check();
         _time.Advance(Interval - TimeSpan.FromSeconds(1));
         var cached = await Check();
-        await _factory.Received(1).LobbyGetQosServers();
+        await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
 
-        _factory.LobbyGetQosServers().Returns(Response(500));
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(500));
         _time.Advance(TimeSpan.FromSeconds(1));
         var reprobed = await Check();
 
@@ -131,14 +146,14 @@ public class HaloInfiniteHealthCheckTests
         {
             Assert.That(cached.Status, Is.EqualTo(HealthStatus.Healthy));
             Assert.That(reprobed.Status, Is.EqualTo(HealthStatus.Degraded));
-            await _factory.Received(2).LobbyGetQosServers();
+            await _factory.Received(2).StatsGetMatchStats(Arg.Any<string>());
         });
     }
 
     [Test]
     public async Task Failure_IsCachedToo()
     {
-        _factory.LobbyGetQosServers().ThrowsAsync(new HttpRequestException("down"));
+        _factory.StatsGetMatchStats(Arg.Any<string>()).ThrowsAsync(new HttpRequestException("down"));
 
         await Check();
         var second = await Check();
@@ -146,15 +161,15 @@ public class HaloInfiniteHealthCheckTests
         Assert.Multiple(async () =>
         {
             Assert.That(second.Status, Is.EqualTo(HealthStatus.Degraded));
-            await _factory.Received(1).LobbyGetQosServers();
+            await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
         });
     }
 
     [Test]
     public async Task NoAnswer_TimesOut_Degraded_AndIsCached()
     {
-        var never = new TaskCompletionSource<HaloApiResultContainer<List<QosServer>, HaloApiErrorContainer>>();
-        _factory.LobbyGetQosServers().Returns(never.Task);
+        var never = new TaskCompletionSource<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>();
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Returns(never.Task);
 
         var pending = Check();
         Assert.That(pending.IsCompleted, Is.False);
@@ -167,15 +182,15 @@ public class HaloInfiniteHealthCheckTests
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Description, Does.Contain("10 s"));
             Assert.That(cached.Description, Is.EqualTo(result.Description));
-            await _factory.Received(1).LobbyGetQosServers();
+            await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
         });
     }
 
     [Test]
     public async Task ConcurrentChecks_ShareOneProbe()
     {
-        var answer = new TaskCompletionSource<HaloApiResultContainer<List<QosServer>, HaloApiErrorContainer>>();
-        _factory.LobbyGetQosServers().Returns(answer.Task);
+        var answer = new TaskCompletionSource<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>();
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Returns(answer.Task);
 
         var first = Check();
         var second = Check();
@@ -185,15 +200,15 @@ public class HaloInfiniteHealthCheckTests
         Assert.Multiple(async () =>
         {
             Assert.That(results.Select(r => r.Status), Is.All.EqualTo(HealthStatus.Healthy));
-            await _factory.Received(1).LobbyGetQosServers();
+            await _factory.Received(1).StatsGetMatchStats(Arg.Any<string>());
         });
     }
 
     [Test]
     public async Task CallerCancels_FailureStatus_NotCached()
     {
-        var never = new TaskCompletionSource<HaloApiResultContainer<List<QosServer>, HaloApiErrorContainer>>();
-        _factory.LobbyGetQosServers().Returns(never.Task);
+        var never = new TaskCompletionSource<HaloApiResultContainer<MatchStats, HaloApiErrorContainer>>();
+        _factory.StatsGetMatchStats(Arg.Any<string>()).Returns(never.Task);
         using var cancellation = new CancellationTokenSource();
 
         var pending = Check(cancellation.Token);
@@ -224,11 +239,13 @@ public class HaloInfiniteHealthCheckTests
         {
             ["HealthChecks:HaloInfinite:Interval"] = "00:10:00",
             ["HealthChecks:HaloInfinite:Timeout"] = "00:00:03",
+            ["HealthChecks:HaloInfinite:MatchId"] = " my-match ",
         }).Build());
         var invalid = HaloInfiniteHealthCheck.FromConfiguration(services, new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["HealthChecks:HaloInfinite:Interval"] = "soon",
             ["HealthChecks:HaloInfinite:Timeout"] = "-00:00:01",
+            ["HealthChecks:HaloInfinite:MatchId"] = " ",
         }).Build());
 
         Assert.Multiple(() =>
@@ -237,6 +254,8 @@ public class HaloInfiniteHealthCheckTests
             Assert.That(configured.Timeout, Is.EqualTo(TimeSpan.FromSeconds(3)));
             Assert.That(invalid.Interval, Is.EqualTo(HaloInfiniteHealthCheck.DefaultInterval));
             Assert.That(invalid.Timeout, Is.EqualTo(HaloInfiniteHealthCheck.DefaultTimeout));
+            Assert.That(configured.MatchId, Is.EqualTo("my-match"));
+            Assert.That(invalid.MatchId, Is.EqualTo(HaloInfiniteHealthCheck.DefaultMatchId));
         });
     }
 

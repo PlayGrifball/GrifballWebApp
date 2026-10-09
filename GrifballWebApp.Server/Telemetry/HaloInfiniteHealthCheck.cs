@@ -10,8 +10,11 @@ namespace GrifballWebApp.Server.Telemetry;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The probe is <see cref="IHaloInfiniteClient.LobbyGetQosServers"/> through the factory: one small GET
-/// that needs no arguments and carries the Spartan token. The factory reuses its cached token, refreshes
+/// The probe is <see cref="IHaloInfiniteClient.StatsGetMatchStats(string)"/> through the factory, for one
+/// known match (<c>HealthChecks:HaloInfinite:MatchId</c>, default the match the admin "Check status" button
+/// fetches): the stats API the pulls call, with the Spartan token. The lobby <c>qosservers</c> endpoint was
+/// tried first and answers 403 to this sign-in, so it cannot tell a working client from a broken one.
+/// The factory reuses its cached token, refreshes
 /// it when it is near expiry (the full Xbox Live and Spartan sign-in), and retries once with a new token
 /// on a 401 or 403, so a pass means the same path the stats pulls use works end to end.
 /// </para>
@@ -27,6 +30,8 @@ public sealed class HaloInfiniteHealthCheck : IHealthCheck
 {
     public static readonly TimeSpan DefaultInterval = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
+    /// <summary>The match the admin "Check status" button fetches; known to exist.</summary>
+    public const string DefaultMatchId = "1fde4c2a-7935-4fb0-9706-e226f4d13683";
 
     private readonly IHaloInfiniteClientFactory _factory;
     private readonly TimeProvider _time;
@@ -35,9 +40,10 @@ public sealed class HaloInfiniteHealthCheck : IHealthCheck
     private Probe? _last;
 
     public HaloInfiniteHealthCheck(IHaloInfiniteClientFactory factory, TimeSpan interval, TimeSpan timeout,
-        TimeProvider time, ILogger<HaloInfiniteHealthCheck> logger)
+        TimeProvider time, ILogger<HaloInfiniteHealthCheck> logger, string matchId = DefaultMatchId)
     {
         _factory = factory;
+        MatchId = matchId;
         Interval = interval;
         Timeout = timeout;
         _time = time;
@@ -48,16 +54,23 @@ public sealed class HaloInfiniteHealthCheck : IHealthCheck
 
     public TimeSpan Timeout { get; }
 
+    /// <summary>The match whose stats the probe fetches.</summary>
+    public string MatchId { get; }
+
     /// <summary>
     /// From <c>HealthChecks:HaloInfinite:Interval</c> and <c>HealthChecks:HaloInfinite:Timeout</c>
-    /// (TimeSpan strings, e.g. <c>00:05:00</c>). Unset, unparseable or not positive: the default.
+    /// (TimeSpan strings, e.g. <c>00:05:00</c>; unset, unparseable or not positive: the default), and
+    /// <c>HealthChecks:HaloInfinite:MatchId</c> (blank: <see cref="DefaultMatchId"/>).
     /// </summary>
     public static HaloInfiniteHealthCheck FromConfiguration(IServiceProvider services, IConfiguration configuration) => new(
         services.GetRequiredService<IHaloInfiniteClientFactory>(),
         ReadPositive(configuration, "HealthChecks:HaloInfinite:Interval", DefaultInterval),
         ReadPositive(configuration, "HealthChecks:HaloInfinite:Timeout", DefaultTimeout),
         services.GetService<TimeProvider>() ?? TimeProvider.System,
-        services.GetRequiredService<ILogger<HaloInfiniteHealthCheck>>());
+        services.GetRequiredService<ILogger<HaloInfiniteHealthCheck>>(),
+        configuration["HealthChecks:HaloInfinite:MatchId"] is { } matchId && !string.IsNullOrWhiteSpace(matchId)
+            ? matchId.Trim()
+            : DefaultMatchId);
 
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
@@ -99,7 +112,7 @@ public sealed class HaloInfiniteHealthCheck : IHealthCheck
         var at = _time.GetUtcNow();
         try
         {
-            var response = await _factory.LobbyGetQosServers().WaitAsync(Timeout, _time, cancellationToken);
+            var response = await _factory.StatsGetMatchStats(MatchId).WaitAsync(Timeout, _time, cancellationToken);
             var code = response?.Error?.Code ?? 0;
             return new Probe(at, code is >= 200 and < 300, $"Halo Infinite API answered {code}", null);
         }
