@@ -155,8 +155,42 @@ dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
 ```
 
-SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
-current rows. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+
+#### Row history
+SQL Server keeps a history of every row change in its temporal tables. Postgres has none, so the app keeps the same
+history itself, for the same tables (`RowHistory`, `RowHistoryInterceptor`):
+- Each of those tables has a `PeriodStart` column, when its row's current version began, and a history table beside
+  it, `<Table>History` in the same schema (as SQL Server names them): the table's columns, nullable but for the key,
+  and `Valid`, the `tsrange` (UTC, like every time here) in which a version was current.
+- On every `SaveChanges` that updates or deletes such a row, the interceptor adds its old version to the history,
+  `Valid` from its `PeriodStart` to now, in the same transaction: the change and its history are saved together or
+  not at all. For an entity attached rather than loaded (`Update`, `Remove` of an entity from elsewhere, as
+  Identity's `UserStore.UpdateAsync` does), the old version is read from the database. A delete records what the
+  database's `ON DELETE CASCADE` deletes with it: the interceptor reads those rows first.
+- Each history table has `UNIQUE (<key>, "Valid" WITHOUT OVERLAPS)` (PostgreSQL 18): no two versions of a row
+  current at once. It also rejects the second of two saves of the same version (both loaded it, both changed it),
+  which on SQL Server would silently overwrite the first; the second save fails, with no change.
+
+The tables hold only current rows, so they're queried as before, with no filter; history is asked for:
+`context.AsOf<Team>(utcTime)` (either database) reads a table as it was, `context.HistoryOf<Team>()` (Postgres) its
+history rows. In SQL, as of a time:
+```sql
+SELECT "TeamID", "TeamName", ... FROM "Event"."Teams" WHERE "PeriodStart" <= @asOf
+UNION ALL
+SELECT "TeamID", "TeamName", ... FROM "Event"."TeamsHistory" WHERE "Valid" @> @asOf;
+```
+
+Not recorded, as it bypasses `SaveChanges`: `ExecuteUpdate`, `ExecuteDelete` and raw SQL. To delete in bulk with
+history, use `ExecuteDeleteWithHistoryAsync` (`ExecuteDeleteAsync` on SQL Server). There's no history from before
+it began (the `AddRowHistory` migration): the rows already there have that as their `PeriodStart`. An `ON DELETE SET
+NULL` would change rows unseen, so there are none (a test fails on one).
+
+History tables follow the model: a column or table added to a table with history is added to its history by
+`migrations add`, the constraint too (`PostgresMigrationsSqlGenerator` creates the history table's GiST index as it).
+The constraint needs PostgreSQL 18 and the `btree_gist` extension (contrib, in the official images), which the
+migration creates; it's a trusted extension, so the migrations' user needs only `CREATE` on the database, as owner
+or granted. A managed PostgreSQL has to offer it.
 
 ### Running the Application
 

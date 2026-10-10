@@ -139,6 +139,8 @@ between providers):
   `user` and `password` unless the provider's defaults do (1433, `sa`, `SA_PASSWORD`; 5432, `postgres`,
   `POSTGRES_PASSWORD`). SQL Server writes the migrations' backups itself, to `migrations.backup.directory`
   on its side; PostgreSQL's are written by the chart's pods (below), so they need no access to its disk.
+  PostgreSQL must be 18 or later, with the `btree_gist` extension available (the app's row history
+  needs it; the migrations create it in the database, which a user with `CREATE` on it can).
 
 ```yaml
 database:
