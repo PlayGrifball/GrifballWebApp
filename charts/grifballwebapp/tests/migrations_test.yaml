@@ -34,6 +34,29 @@ tests:
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '/app/migrations.txt' }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '^set -eu\nsqlcmd ' }
 
+  - it: waits for the database itself to be online, not just SQL Server's port
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'until nc -w 2'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: 'DATABASEPROPERTYEX\(N.\\\$\$\(DB_NAME\)., .Status.\)'
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: '\[ "\$state" = ONLINE \]'
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content: { name: DB_NAME, value: GrifballWebApp }
+
+  - it: shows why reading the applied migrations failed
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.initContainers[1].args[0]
+          pattern: 'applied\.txt \|\| \{ echo "Reading \$DB_NAME.s migrations failed:"; cat /work/applied\.txt; exit 1; \}'
+
   - it: keeps the password off the command line
     template: templates/migrations-job.yaml
     asserts:

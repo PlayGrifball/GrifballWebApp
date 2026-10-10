@@ -142,6 +142,22 @@ until nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
 done
 {{- end }}
 
+{{/*
+After grif.waitForDatabaseScript (same deadline): until SQL Server answers a query and the database,
+if it exists, is ONLINE. SQL Server accepts logins before it has finished recovering its databases
+after a restart, and a query against one still recovering fails. Needs grif.dbEnv.
+*/}}
+{{- define "grif.waitForDatabaseOnlineScript" -}}
+until state=$(sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+    SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 'ONLINE'
+      ELSE CONVERT(nvarchar(60), DATABASEPROPERTYEX(N'\$$(DB_NAME)', 'Status')) END" 2>&1) \
+    && [ "$state" = ONLINE ]; do
+  if [ "$(date +%s)" -ge "$end" ]; then echo "Database $DB_NAME not ready: $(echo "$state" | head -c 300)"; exit 1; fi
+  sleep 2
+done
+echo "Database $DB_NAME is ready."
+{{- end }}
+
 {{/* The backup folder, on the SQL Server's side: migrations.backup.directory, or the chart's default. */}}
 {{- define "grif.backupDir" -}}
 {{- .Values.migrations.backup.directory | default (printf "/var/opt/mssql/backup/%s" .Release.Namespace) -}}
