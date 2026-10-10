@@ -114,9 +114,9 @@ spec:
                   name: {{ .Values.database.connectionString.secretName }}
                   key: {{ required "database.connectionString.key is required with its secretName" .Values.database.connectionString.key }}
             {{- else }}
-            {{- include "grif.dbPasswordEnv" . | nindent 12 }}
+            {{- include "grif.appPasswordEnv" (dict "root" . "name" "DB_PASSWORD") | nindent 12 }}
             - name: ConnectionStrings__GrifballWebApp
-              value: {{ printf "Server=%s,%s;Database=%s;User Id=%s;Password=$(DB_PASSWORD);%s" (include "grif.dbHost" .) (include "grif.dbPort" . ) .Values.database.name .Values.database.user .Values.database.options | quote }}
+              value: {{ printf "Server=%s,%s;Database=%s;User Id=%s;Password=$(DB_PASSWORD);%s" (include "grif.dbHost" .) (include "grif.dbPort" . ) .Values.database.name (include "grif.appUser" .) .Values.database.options | quote }}
             {{- end }}
             {{- $sheets := $b.config.GoogleSheets | default dict }}
             {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}

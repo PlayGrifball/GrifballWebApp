@@ -69,6 +69,11 @@ a misspelled or unknown key, or a value of the wrong type, fails the install ins
 
 ## Platforms
 
+Kubernetes 1.34 to 1.37 - the versions upstream supports - are tested (`kubeVersion` in `Chart.yaml`
+refuses older): every end-to-end scenario on 1.36, the broadest on 1.34 and 1.37 too, and every CI values
+file against both ends' API schemas. The chart uses nothing newer than 1.23's APIs, but only tested
+versions are claimed.
+
 The app images are built for linux/amd64 and linux/arm64. SQL Server's image is amd64 only, so the
 chart's SQL Server runs on amd64 nodes (`mssql.nodeSelector`); everything else runs on either. The
 third-party images the chart uses by default (SQL Server, busybox, sql_exporter) are pinned by digest.
@@ -119,6 +124,20 @@ which rounds anything above 2^53; the chart fails rather than deploy a rounded I
 
 The backend's connection string is built from `database` (password from its Secret), or read whole from
 `database.connectionString`.
+
+**Least-privilege logins** (`database.logins.enabled`, off by default). By default everything connects
+as `database.user` (`sa`), SQL Server's administrator. With logins on, the migration Job - still the
+administrator - creates and keeps in sync, on every run, passwords from your Secret included:
+
+| Login | Used by | Can |
+| --- | --- | --- |
+| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data (`db_datareader`, `db_datawriter`); not change its schema or the server |
+| `grif_monitor` (`logins.monitoring`) | sql-exporter (with `sqlExporter.enabled`, unless `sqlExporter.user` is set) | `VIEW SERVER STATE`, `VIEW ANY DEFINITION`; not open the database |
+
+The backend pod then holds no administrator password. Backup retention still runs as the administrator
+(it reads SQL Server's backup history and deletes files). The passwords go to SQL Server through a file
+in the Job's scratch volume, run with variable substitution off, never on a command line; its password
+policy applies.
 
 ## Migrations
 

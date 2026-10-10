@@ -28,6 +28,14 @@
       "type": "object",
       "additionalProperties": { "type": ["string", "null"] }
     },
+    "login": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,127}$" },
+        "password": { "$ref": "#/definitions/secretKeyRef" }
+      }
+    },
     "k8sObject": { "type": "object" },
     "k8sList": { "type": "array" },
     "storageSize": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?(Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$" },
@@ -67,7 +75,16 @@
         "user": { "type": "string", "minLength": 1 },
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "options": { "type": "string" },
-        "connectionString": { "$ref": "#/definitions/secretKeyRef" }
+        "connectionString": { "$ref": "#/definitions/secretKeyRef" },
+        "logins": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "app": { "$ref": "#/definitions/login" },
+            "monitoring": { "$ref": "#/definitions/login" }
+          }
+        }
       }
     },
     "backend": {

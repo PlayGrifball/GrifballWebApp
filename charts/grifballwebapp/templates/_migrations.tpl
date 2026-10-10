@@ -74,7 +74,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
         sleep 5
       done
   env:
-    {{- include "grif.dbEnv" . | nindent 4 }}
+    {{- include "grif.appDbEnv" . | nindent 4 }}
     {{- with $m.extraEnv }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -192,11 +192,28 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- if $m.scripts.migrate }}
       {{- $m.scripts.migrate | nindent 6 }}
       {{- else }}
-      if [ ! -s /work/pending.txt ]; then echo "Nothing to migrate."; exit 0; fi
-      exec /app/efbundle
+      if [ -s /work/pending.txt ]; then /app/efbundle; else echo "Nothing to migrate."; fi
+      {{- end }}
+      {{- if .Values.database.logins.enabled }}
+      {{- include "grif.loginSyncScript" . | nindent 6 }}
       {{- end }}
   env:
     {{- include "grif.migrationEnv" . | nindent 4 }}
+    {{- if .Values.database.logins.enabled }}
+    {{- include "grif.dbEnv" . | nindent 4 }}
+    - name: APP_USER
+      value: {{ .Values.database.logins.app.user | quote }}
+    {{- include "grif.appPasswordEnv" (dict "root" . "name" "APP_PASSWORD") | nindent 4 }}
+    {{- if include "grif.monitoringLogin" . }}
+    - name: MON_USER
+      value: {{ .Values.database.logins.monitoring.user | quote }}
+    - name: MON_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "grif.secretName" (dict "secretName" .Values.database.logins.monitoring.password.secretName "root" .) }}
+          key: {{ .Values.database.logins.monitoring.password.key }}
+    {{- end }}
+    {{- end }}
     {{- with $m.extraEnv }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -209,4 +226,39 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
+
+{{/*
+database.logins: create the logins or reset their passwords, and grant exactly their rights, as the
+administrator, after the migrations (the database exists by then). The SQL goes through a file in the
+Job's scratch volume with its quotes escaped, run with -x (no variable substitution), so no password
+is on a command line or expanded again. SQL Server's password policy applies.
+*/}}
+{{- define "grif.loginSyncScript" -}}
+# Logins (database.logins).
+lit() { printf %s "$1" | sed "s/'/''/g"; }
+ident() { printf %s "$1" | sed 's/]/]]/g'; }
+login() {
+  printf '%s\n' "IF SUSER_ID(N'$(lit "$1")') IS NULL CREATE LOGIN [$(ident "$1")] WITH PASSWORD = N'$(lit "$2")';"
+  printf '%s\n' "ELSE ALTER LOGIN [$(ident "$1")] WITH PASSWORD = N'$(lit "$2")';"
+}
+umask 077
+trap 'rm -f /work/logins.sql' EXIT
+{
+  printf '%s\n' "SET NOCOUNT ON;"
+  login "$APP_USER" "$APP_PASSWORD"
+  printf '%s\n' "USE [$(ident "$DB_NAME")];"
+  printf '%s\n' "IF USER_ID(N'$(lit "$APP_USER")') IS NULL CREATE USER [$(ident "$APP_USER")] FOR LOGIN [$(ident "$APP_USER")];"
+  printf '%s\n' "ALTER ROLE db_datareader ADD MEMBER [$(ident "$APP_USER")];"
+  printf '%s\n' "ALTER ROLE db_datawriter ADD MEMBER [$(ident "$APP_USER")];"
+  printf '%s\n' "PRINT N'Login $(lit "$APP_USER"): reads and writes $(lit "$DB_NAME").';"
+  if [ -n "${MON_USER:-}" ]; then
+    printf '%s\n' "USE [master];"
+    login "$MON_USER" "$MON_PASSWORD"
+    printf '%s\n' "GRANT VIEW SERVER STATE TO [$(ident "$MON_USER")];"
+    printf '%s\n' "GRANT VIEW ANY DEFINITION TO [$(ident "$MON_USER")];"
+    printf '%s\n' "PRINT N'Login $(lit "$MON_USER"): views server state.';"
+  fi
+} > /work/logins.sql
+sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -x -i /work/logins.sql
 {{- end }}

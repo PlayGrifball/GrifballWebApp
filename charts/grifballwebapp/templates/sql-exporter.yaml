@@ -1,7 +1,11 @@
 {{- $x := .Values.sqlExporter -}}
 {{- if $x.enabled }}
-{{- $passwordSecret := $x.password.secretName | default (include "grif.secretName" (dict "secretName" .Values.database.password.secretName "root" .)) }}
-{{- $passwordKey := $x.password.key | default .Values.database.password.key }}
+{{- /* Its login: sqlExporter.user, else the monitoring login (database.logins), else the administrator. */}}
+{{- $login := dict "user" .Values.database.user "password" .Values.database.password }}
+{{- if include "grif.monitoringLogin" . }}{{ $login = .Values.database.logins.monitoring }}{{ end }}
+{{- $user := $x.user | default $login.user }}
+{{- $passwordSecret := $x.password.secretName | default (include "grif.secretName" (dict "secretName" $login.password.secretName "root" .)) }}
+{{- $passwordKey := $x.password.key | default $login.password.key }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -79,7 +83,7 @@ spec:
             - name: DB_PORT
               value: {{ include "grif.dbPort" . | quote }}
             - name: DB_USER
-              value: {{ $x.user | default .Values.database.user | quote }}
+              value: {{ $user | quote }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

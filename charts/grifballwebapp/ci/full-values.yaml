@@ -4,9 +4,8 @@
 defaultServiceAccount:
   manage: true
 database:
-  connectionString:
-    secretName: grif-secrets
-    key: SQL_CONNECTION_STRING
+  logins:
+    enabled: true
 backend:
   image:
     tag: test

@@ -65,7 +65,7 @@ tests:
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -s /work/pending.txt \]; then echo "Nothing to migrate: no backup needed."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "BACKUP DATABASE" }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x } }
-      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: 'if \[ ! -s /work/pending.txt \]; then echo "Nothing to migrate."; exit 0; fi\nexec /app/efbundle' }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: 'if \[ -s /work/pending.txt \]; then /app/efbundle; else echo "Nothing to migrate."; fi' }
 
   - it: migrates with the database credentials, not the app's
     template: templates/migrations-job.yaml

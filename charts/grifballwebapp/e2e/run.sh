@@ -11,6 +11,8 @@
 #      waits for it, then starts; the frontend gets ready;
 #   2. sql-exporter reads SQL Server through its policy; a pod without a role reaches the frontend and
 #      the exporter, but not the chart's SQL Server;
+#      the least-privilege logins (database.logins): the backend connects as grif_app, which can't
+#      change the schema or the server; grif_monitor (sql-exporter) can't open the database;
 #   3. upgrade with nothing pending: a new Job checks, backs nothing up, migrates nothing, and
 #      replaces the previous one;
 #   4. the latest migration rolled back (the image's own bundle) and the backend restarted without
@@ -36,6 +38,9 @@ images=(--set "backend.image.repository=${backend_image%:*}" --set "backend.imag
         --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent)
 sql_image=mcr.microsoft.com/mssql/server:2025-latest
 password="E2e!$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')Aa1"
+# The least-privilege logins' passwords, with a quote and a $( ) to prove they're escaped.
+app_password='App'"'"'$(x)!'"$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')Aa1"
+mon_password='Mon'"'"'$(y)!'"$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')Bb2"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -128,6 +133,7 @@ kubectl create namespace "$ns"
 kubectl -n "$ns" create secret generic grif-secrets \
   --from-literal=SA_PASSWORD="$password" \
   --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e \
+  --from-literal=APP_DB_PASSWORD="$app_password" --from-literal=MONITOR_DB_PASSWORD="$mon_password" \
   --from-literal=DiscordToken=MTIzNDU2Nzg5MDEyMzQ1Njc4.AAAAAA.e2e-not-a-real-token
 
 if [ "$scenario" = minimal ]; then
@@ -182,6 +188,8 @@ sqlExporter:
 EOF
 if [ "$scenario" = bundled ]; then
   cat >> "$work/values.yaml" <<EOF
+database:
+  logins: { enabled: true }
 mssql:
   acceptEula: true
   resources: { requests: { memory: 1Gi, cpu: 100m }, limits: { memory: 2Gi } }
@@ -229,6 +237,7 @@ database:
   port: 1433
   user: sa
   password: { secretName: external-db, key: password }
+  logins: { enabled: true }
 migrations:
   backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, keepLast: 1, keepDays: 0 } }
 EOF
@@ -263,6 +272,25 @@ if [ "$scenario" = bundled ]; then
   echo "A pod without a role reaches the frontend but not SQL Server."
 fi
 kubectl -n "$ns" delete pod intruder --wait=false
+
+step "Least-privilege logins"
+# As each login, straight against SQL Server (its own sqlcmd; no shell, so the passwords pass as they are).
+as_login() {
+  local user=$1 pw=$2 db=$3 query=$4
+  kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- /opt/mssql-tools18/bin/sqlcmd -S localhost -U "$user" -P "$pw" \
+    -C -b -h -1 -W -d "$db" -Q "SET NOCOUNT ON; $query"
+}
+[ "$(kubectl -n "$ns" get deploy grif-backend -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="ConnectionStrings__GrifballWebApp")].value}' | grep -o 'User Id=[^;]*')" = "User Id=grif_app" ] \
+  || fail "the backend doesn't connect as grif_app"
+as_login grif_app "$app_password" GrifballWebApp "SELECT COUNT(*) FROM dbo.__EFMigrationsHistory;" | grep -qx "$count" \
+  || fail "grif_app can't read the database"
+if as_login grif_app "$app_password" GrifballWebApp "CREATE TABLE dbo.Nope (Id int);" 2>/dev/null; then fail "grif_app changed the schema"; fi
+if as_login grif_app "$app_password" master "CREATE LOGIN nope WITH PASSWORD = N'Nope!12345678';" 2>/dev/null; then fail "grif_app created a login"; fi
+as_login grif_monitor "$mon_password" master "SELECT COUNT(*) FROM sys.dm_exec_connections;" >/dev/null \
+  || fail "grif_monitor can't read server state"
+if as_login grif_monitor "$mon_password" GrifballWebApp "SELECT 1;" 2>/dev/null; then fail "grif_monitor opened the database"; fi
+echo "The backend connects as grif_app, which reads and writes but can't change the schema or the server;"
+echo "grif_monitor reads server state (sql-exporter's metrics) and can't open the database."
 
 step "Upgrade, nothing pending"
 helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"

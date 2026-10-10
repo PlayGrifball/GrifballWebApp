@@ -221,3 +221,11 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: "/backend/image/digest"
+
+  - it: renders for the oldest supported Kubernetes
+    capabilities:
+      majorVersion: 1
+      minorVersion: 34
+    documentIndex: 1
+    asserts:
+      - isKind: { of: Deployment }

@@ -146,3 +146,39 @@ done
 {{- define "grif.backupDir" -}}
 {{- .Values.migrations.backup.directory | default (printf "/var/opt/mssql/backup/%s" .Release.Namespace) -}}
 {{- end }}
+
+{{/*
+The backend's login: database.logins.app with logins on, else the administrator (database.user).
+grif.appLogin returns the user; grif.appPasswordEnv an env entry named by .name from its Secret.
+*/}}
+{{- define "grif.appUser" -}}
+{{- if .Values.database.logins.enabled }}{{ .Values.database.logins.app.user }}{{ else }}{{ .Values.database.user }}{{ end -}}
+{{- end }}
+
+{{- define "grif.appPasswordEnv" -}}
+{{- $p := ternary .root.Values.database.logins.app.password .root.Values.database.password .root.Values.database.logins.enabled -}}
+- name: {{ .name }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "grif.secretName" (dict "secretName" $p.secretName "root" .root) }}
+      key: {{ $p.key }}
+{{- end }}
+
+{{/* The backend's connection for sqlcmd (its wait for the migrations): the app login. */}}
+{{- define "grif.appDbEnv" -}}
+- name: DB_HOST
+  value: {{ include "grif.dbHost" . | quote }}
+- name: DB_PORT
+  value: {{ include "grif.dbPort" . | quote }}
+- name: DB_NAME
+  value: {{ .Values.database.name | quote }}
+- name: DB_USER
+  value: {{ include "grif.appUser" . | quote }}
+# sqlcmd reads the password from here, so it is never on a command line.
+{{ include "grif.appPasswordEnv" (dict "root" . "name" "SQLCMDPASSWORD") }}
+{{- end }}
+
+{{/* Whether the migration Job creates the monitoring login: logins on, sql-exporter on, its own login not set. */}}
+{{- define "grif.monitoringLogin" -}}
+{{- if and .Values.database.logins.enabled .Values.sqlExporter.enabled (not .Values.sqlExporter.user) }}true{{ end -}}
+{{- end }}

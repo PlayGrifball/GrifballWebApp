@@ -25,6 +25,8 @@ database:
   host: ""
   port: 1433
   name: GrifballWebApp
+  # The administrator login the migration Job (and backup retention) connects as. With logins off,
+  # everything connects as it.
   user: sa
   # The user's password. secretName empty: secret.name.
   password:
@@ -39,6 +41,26 @@ database:
   connectionString:
     secretName: ""
     key: ""
+  # Separate least-privilege logins, created and kept in sync (passwords included) by the migration
+  # Job on every run, as the administrator above:
+  #   app: the backend - reads and writes the database's data (db_datareader, db_datawriter); can't
+  #     change its schema or the server. The backend's wait for the migrations uses it too, so the
+  #     backend pod holds no administrator password.
+  #   monitoring: sql-exporter - VIEW SERVER STATE and VIEW ANY DEFINITION; can't open the database.
+  #     Created only with sqlExporter.enabled (and unless sqlExporter.user is set).
+  # Passwords from Secrets (secretName empty: secret.name); SQL Server's password policy applies.
+  logins:
+    enabled: false
+    app:
+      user: grif_app
+      password:
+        secretName: ""
+        key: APP_DB_PASSWORD
+    monitoring:
+      user: grif_monitor
+      password:
+        secretName: ""
+        key: MONITOR_DB_PASSWORD
 
 backend:
   image:

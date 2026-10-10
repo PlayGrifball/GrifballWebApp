@@ -7,6 +7,9 @@ type: application
 # The major and minor: the Helm chart workflow publishes each change as <major>.<minor>.<run number>
 # (oci://ghcr.io/playgrifball/charts, signed with cosign), so only a major or minor bump is an edit here.
 version: 0.1.0
+# The Kubernetes versions the Helm chart workflow tests (upstream's supported ones; the end-to-end runs
+# cover the oldest, the newest and 1.36). Raise it as old minors reach end of life.
+kubeVersion: ">=1.34.0-0"
 # Informational only: which images run is set by backend.image and frontend.image.
 appVersion: "latest"
 home: https://github.com/PlayGrifball/GrifballWebApp
