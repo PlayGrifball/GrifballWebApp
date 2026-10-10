@@ -121,9 +121,11 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-deploy-hook
+        {{- if .Values.sqlExporter.enabled }}
         - podSelector:
             matchLabels:
-              app: mssql-tools
+              app: sql-exporter
+        {{- end }}
       ports:
         - protocol: TCP
           port: 1433
@@ -178,23 +180,31 @@ spec:
     {{- end }}
 ---
 {{- end }}
-{{- if .Values.mssqlTools.enabled }}
+{{- if .Values.sqlExporter.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: mssql-tools
+  name: sql-exporter
   labels:
     {{- include "grif.labels" . | nindent 4 }}
-    app.kubernetes.io/component: mssql-tools
+    app.kubernetes.io/component: sql-exporter
 spec:
   podSelector:
     matchLabels:
-      app: mssql-tools
+      app: sql-exporter
   policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.sqlExporter.port }}
+      {{- with $np.sqlExporter.from }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- toYaml (list $database) | nindent 4 }}
-    {{- with $np.mssqlTools.extraEgress }}
+    {{- with $np.sqlExporter.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---

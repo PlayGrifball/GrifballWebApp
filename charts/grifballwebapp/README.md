@@ -90,6 +90,14 @@ It isn't a Helm install hook because one can't work here: `pre-install` runs bef
 Server exists, and `post-install` (like Argo CD's `PostSync`) waits for a backend that can't start
 without its database.
 
+## Metrics
+
+`sqlExporter.enabled` runs [sql_exporter](https://github.com/burningalchemist/sql_exporter) against the database (the
+chart's or an external one): connections, deadlocks, errors, page life expectancy, batch requests, IO
+stalls, memory. The login defaults to `database`'s; a monitoring login only needs `VIEW SERVER STATE`
+and `VIEW ANY DEFINITION` (`sqlExporter.user`, `password`). `sqlExporter.serviceMonitor` adds a
+Prometheus Operator ServiceMonitor; `extraCollectorFiles` and `collectors` add queries of your own.
+
 ## Network policies
 
 On by default (`networkPolicy.enabled`): each of the chart's pods gets a NetworkPolicy allowing only
@@ -99,9 +107,9 @@ what it needs.
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
 | backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port |
-| SQL Server | backend, deploy hook, mssql-tools; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
+| SQL Server | backend, deploy hook, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
 | deploy hook | - | DNS, the database, the Kubernetes API (`kubernetesApi`) |
-| mssql-tools | - | DNS, the database |
+| sql-exporter | its metrics port from anyone (`sqlExporter.from`) | DNS, the database |
 
 An external database is allowed anywhere on `database.port` unless `networkPolicy.database.to` says
 where. Every policy takes `extraIngress` / `extraEgress` rules; `networkPolicy.extraPolicies` adds

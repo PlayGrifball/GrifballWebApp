@@ -65,8 +65,12 @@ mssql:
     nfs:
       server: nfs.example
       path: /exports/sql-backups
-mssqlTools:
+sqlExporter:
   enabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      scrape: "true"
 databaseSetup:
   enabled: true
 deployHook:
@@ -90,25 +94,23 @@ networkPolicy:
   backend:
     telemetryTo:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } }
+  sqlExporter:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } }
   mssql:
     extraIngress:
       - from:
-          - podSelector: { matchLabels: { app: sql-exporter } }
+          - ipBlock: { cidr: 192.0.2.0/24 }
         ports:
           - { protocol: TCP, port: 1433 }
   extraPolicies:
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy
       metadata:
-        name: sql-exporter
+        name: deny-other-pods
       spec:
-        podSelector: { matchLabels: { app: sql-exporter } }
-        policyTypes: [Egress]
-        egress:
-          - to:
-              - podSelector: { matchLabels: { app: grif-mssql } }
-            ports:
-              - { protocol: TCP, port: 1433 }
+        podSelector: { matchLabels: { app: something-else } }
+        policyTypes: [Ingress, Egress]
 extraObjects:
   - apiVersion: v1
     kind: ConfigMap

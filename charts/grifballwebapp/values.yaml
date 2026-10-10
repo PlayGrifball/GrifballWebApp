@@ -363,15 +363,50 @@ mssql:
   tolerations: []
   affinity: {}
 
-# An idle pod with sqlcmd, for kubectl exec.
-mssqlTools:
+# Prometheus metrics for SQL Server, which publishes none itself (burningalchemist/sql_exporter):
+# connections, deadlocks, errors, page life expectancy, batch requests, IO stalls, memory
+# (files/mssql_standard.collector.yml). Works against the chart's SQL Server or an external one.
+sqlExporter:
   enabled: false
-  image: mcr.microsoft.com/mssql-tools:latest
+  image: docker.io/burningalchemist/sql_exporter:0.24.9
+  imagePullPolicy: IfNotPresent
+  # The login. Empty: database.user and database.password. It needs VIEW SERVER STATE and VIEW ANY
+  # DEFINITION, nothing more. The password is percent-encoded into the connection URL at start.
+  user: ""
+  password:
+    secretName: ""
+    key: ""
+  # Query string of the connection URL.
+  dsnOptions: "encrypt=true&TrustServerCertificate=true"
+  # Collectors the target runs, from the files below.
+  collectors: [mssql_standard]
+  # More collector files (name.collector.yml: content), beside the chart's mssql_standard.
+  extraCollectorFiles: {}
+  # Replace sql_exporter.yml (files/sql_exporter.yml). The target's address comes from the
+  # environment either way.
+  config: ""
+  port: 9399
+  # A Prometheus Operator ServiceMonitor.
+  serviceMonitor:
+    enabled: false
+    interval: 60s
+    labels: {}
+    # The default instance label is the exporter pod's address; one exporter per release, so the
+    # namespace names the database better.
+    relabelings:
+      - sourceLabels: [__meta_kubernetes_namespace]
+        targetLabel: instance
   resources:
     requests:
-      memory: 16Mi
+      cpu: 10m
+      memory: 32Mi
     limits:
       memory: 128Mi
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # Create the database and apply migrations before the backend starts: init containers in the backend
 # pod wait for the database, then run the image's migration bundle (/app/efbundle) with the
@@ -494,12 +529,13 @@ networkPolicy:
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
     loadBalancerFrom: []
-    # Ex: a metrics exporter.
     extraIngress: []
     extraEgress: []
   deployHook:
     extraEgress: []
-  mssqlTools:
+  sqlExporter:
+    # Who may scrape it (its port). Empty: anyone.
+    from: []
     extraEgress: []
   # Whole NetworkPolicies of your own, rendered as they are (templates allowed).
   extraPolicies: []

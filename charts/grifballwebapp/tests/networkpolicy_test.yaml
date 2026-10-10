@@ -89,11 +89,12 @@ tests:
           value: { to: [{ ipBlock: { cidr: 192.0.2.10/32 } }], ports: [{ protocol: TCP, port: 14330 }] }
         documentIndex: 2
 
-  - it: admits only the backend, the hook and mssql-tools to SQL Server, plus the LoadBalancer
+  - it: admits only the backend, the hook and sql-exporter to SQL Server, plus the LoadBalancer
     template: templates/networkpolicy.yaml
     documentIndex: 2
     set:
       mssql.loadBalancer.enabled: true
+      sqlExporter.enabled: true
       networkPolicy.mssql.loadBalancerFrom: [{ ipBlock: { cidr: 192.0.2.0/24 } }]
     asserts:
       - equal:
@@ -101,7 +102,7 @@ tests:
           value:
             - podSelector: { matchLabels: { app: grif-backend } }
             - podSelector: { matchLabels: { app: grif-deploy-hook } }
-            - podSelector: { matchLabels: { app: mssql-tools } }
+            - podSelector: { matchLabels: { app: sql-exporter } }
       - equal: { path: "spec.ingress[1]", value: { ports: [{ protocol: TCP, port: 1433 }], from: [{ ipBlock: { cidr: 192.0.2.0/24 } }] } }
       - equal: { path: spec.egress, value: [{ ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] }] }
 
@@ -114,10 +115,11 @@ tests:
       - equal: { path: "spec.egress[0].to", value: [{ podSelector: { matchLabels: { k8s-app: kube-dns } } }] }
       - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }] }
 
-  - it: adds extra rules, a policy for mssql-tools, and policies of your own
+  - it: adds extra rules, a policy for sql-exporter, and policies of your own
     template: templates/networkpolicy.yaml
     set:
-      mssqlTools.enabled: true
+      sqlExporter.enabled: true
+      networkPolicy.sqlExporter.from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }]
       networkPolicy.backend.extraIngress: [{ from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }] }]
       networkPolicy.extraPolicies:
         - apiVersion: networking.k8s.io/v1
@@ -128,7 +130,9 @@ tests:
       - hasDocuments: { count: 6 }
       - equal: { path: "spec.ingress[1].from[0].namespaceSelector.matchLabels", value: { team: monitoring } }
         documentIndex: 1
-      - equal: { path: metadata.name, value: mssql-tools }
+      - equal: { path: metadata.name, value: sql-exporter }
+        documentIndex: 4
+      - equal: { path: "spec.ingress[0]", value: { ports: [{ protocol: TCP, port: 9399 }], from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }] } }
         documentIndex: 4
       - equal: { path: metadata.name, value: RELEASE-NAME-mine }
         documentIndex: 5

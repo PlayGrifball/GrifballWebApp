@@ -7,7 +7,8 @@
 #   1. install: SQL Server (the chart's, or an "external" one in another namespace) comes up, the
 #      backend's databaseSetup init containers create the database through the network policies,
 #      the frontend gets ready;
-#   2. the network policies: a pod without a role can't reach SQL Server; mssql-tools can;
+#   2. sql-exporter reads SQL Server through its policy (its metrics carry the queries' results); a
+#      pod without a role reaches the frontend and the exporter but not SQL Server;
 #   3. upgrade: the deploy hook finds nothing pending, keeps the app up and writes a backup;
 #   4. upgrade after the database is dropped: the hook finds everything pending, scales the app
 #      down, skips the backup and the migration recreates the database.
@@ -91,6 +92,8 @@ frontend:
   image: { tag: "$frontend_tag", pullPolicy: IfNotPresent }
 databaseSetup:
   enabled: true
+sqlExporter:
+  enabled: true
 deployHook:
   databaseWaitSeconds: 300
 EOF
@@ -104,8 +107,6 @@ mssql:
   persistence: { size: 2Gi }
   # local-path (k3s) provisions ReadWriteOnce only.
   backup: { accessModes: [ReadWriteOnce], size: 1Gi }
-mssqlTools:
-  enabled: true
 EOF
 else
   step "External SQL Server in $ext_ns"
@@ -167,19 +168,20 @@ count=$(migration_count)
 [ "$count" -gt 0 ] && [ "$count" = "$expected" ] || fail "database has $count migrations, setup applied $expected"
 echo "Database has all $count migrations."
 
+step "Network policies and sql-exporter"
+kubectl -n "$ns" run intruder --image=docker.io/library/busybox:1.38 --restart=Never --command -- sleep 600
+kubectl -n "$ns" wait --for=condition=Ready pod/intruder --timeout=120s
+kubectl -n "$ns" exec intruder -- nc -w 3 grif-frontend 80 </dev/null || fail "intruder can't reach the frontend (control)"
+exporter_reads_sql() {
+  kubectl -n "$ns" exec intruder -- wget -qO- http://sql-exporter:9399/metrics | grep -q '^mssql_connections{'
+}
+wait_for 300 exporter_reads_sql || fail "sql-exporter has no SQL Server metrics"
+echo "sql-exporter reads SQL Server; its metrics are reachable."
 if [ "$scenario" = bundled ]; then
-  step "Network policies"
-  wait_for 300 kubectl -n "$ns" wait --for=condition=Ready pod -l app=mssql-tools --timeout=5s || fail "mssql-tools not ready"
-  kubectl -n "$ns" exec deploy/mssql-tools -- timeout 10 bash -c '</dev/tcp/sqlserver/1433' \
-    || fail "mssql-tools can't reach SQL Server"
-  echo "mssql-tools reaches SQL Server."
-  kubectl -n "$ns" run intruder --image=docker.io/library/busybox:1.38 --restart=Never --command -- sleep 600
-  kubectl -n "$ns" wait --for=condition=Ready pod/intruder --timeout=120s
-  kubectl -n "$ns" exec intruder -- nc -w 3 grif-frontend 80 </dev/null || fail "intruder can't reach the frontend (control)"
   if kubectl -n "$ns" exec intruder -- nc -w 3 sqlserver 1433 </dev/null; then fail "intruder reached SQL Server"; fi
   echo "A pod without a role reaches the frontend but not SQL Server."
-  kubectl -n "$ns" delete pod intruder --wait=false
 fi
+kubectl -n "$ns" delete pod intruder --wait=false
 
 step "Upgrade: nothing pending"
 helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" --timeout 15m || { hook_logs; fail "upgrade failed"; }
