@@ -311,6 +311,8 @@
         "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
         "securityContext": { "$ref": "#/definitions/k8sObject" },
         "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "extraVolumes": { "$ref": "#/definitions/k8sList" },
+        "extraVolumeMounts": { "$ref": "#/definitions/k8sList" },
         "podAnnotations": { "$ref": "#/definitions/stringMap" },
         "podLabels": { "$ref": "#/definitions/stringMap" },
         "nodeSelector": { "$ref": "#/definitions/stringMap" },

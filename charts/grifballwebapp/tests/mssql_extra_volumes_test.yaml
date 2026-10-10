@@ -1,0 +1,30 @@
+suite: mssql extra volumes
+templates:
+  - templates/mssql.yaml
+set:
+  mssql.acceptEula: true
+tests:
+  - it: adds extra volumes and mounts to SQL Server's container
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      mssql.extraVolumes:
+        - name: restore
+          nfs: { server: nas.example, path: /backups/test, readOnly: true }
+      mssql.extraVolumeMounts:
+        - { name: restore, mountPath: /var/opt/mssql/restore, readOnly: true }
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content: { name: restore, nfs: { server: nas.example, path: /backups/test, readOnly: true } }
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: { name: restore, mountPath: /var/opt/mssql/restore, readOnly: true }
+
+  - it: leaves out the backup volume when it is off
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      mssql.backup.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content: { name: backup, persistentVolumeClaim: { claimName: mssql-backup-pvc } }
