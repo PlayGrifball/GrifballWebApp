@@ -98,9 +98,12 @@ wait_job() {
   done
 }
 job_logs() {
-  local c
-  for c in check-pending backup migrate; do
-    echo "--- $c"; kubectl -n "$ns" logs "$1" -c "$c"
+  local c out
+  for c in wait-for-database check-pending backup migrate; do
+    out=$(kubectl -n "$ns" logs "$1" -c "$c")
+    echo "--- $c"; echo "$out"
+    # A shell error in a step's script (a command it couldn't find) fails the run even if the step passed.
+    if echo "$out" | grep -q ": not found"; then fail "a shell error in the Job's $c step: $(echo "$out" | grep ": not found" | head -1)"; fi
   done
 }
 backend_pod() { kubectl -n "$ns" get pods -l app=grif-backend -o jsonpath='{.items[0].metadata.name}'; }
@@ -358,6 +361,7 @@ wait_for 300 sh -c "kubectl -n $ns get job backup-now -o jsonpath='{.status.succ
   || { kubectl -n "$ns" logs job/backup-now >&2 || true; fail "the scheduled backup didn't succeed"; }
 kubectl -n "$ns" logs job/backup-now | tee "$work/scheduled.txt"
 expect "Database GrifballWebApp is ready." "$work/scheduled.txt"
+expect_not ": not found" "$work/scheduled.txt"
 expect "Backed up and verified: /var/opt/mssql/backup/$ns/GrifballWebApp_" "$work/scheduled.txt"
 sched=$(sed -n "s#^Backed up and verified: ##p" "$work/scheduled.txt")
 [ "$(sql "SET NOCOUNT ON; SELECT COUNT(*) FROM msdb.dbo.backupset b JOIN msdb.dbo.backupmediafamily m ON m.media_set_id = b.media_set_id WHERE m.physical_device_name = N'$sched' AND b.is_copy_only = 1 AND b.has_backup_checksums = 1" | tr -d '[:space:]')" = 1 ] \

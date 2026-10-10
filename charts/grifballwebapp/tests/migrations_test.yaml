@@ -46,6 +46,10 @@ tests:
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: '\[ "\$state" = ONLINE \]'
+      # sqlcmd variables inline in $(...) were mis-parsed by BusyBox sh: queries go through functions.
+      - notMatchRegex:
+          path: spec.template.spec.initContainers[0].args[0]
+          pattern: '\$\(sqlcmd'
       - contains:
           path: spec.template.spec.initContainers[0].env
           content: { name: DB_NAME, value: GrifballWebApp }

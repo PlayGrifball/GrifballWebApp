@@ -56,8 +56,12 @@ spec:
                   # controllers admit it late), and a database may still be recovering after a restart.
                   {{- include "grif.waitForDatabaseScript" . | nindent 18 }}
                   {{- include "grif.waitForDatabaseOnlineScript" . | nindent 18 }}
-                  exists=$(sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" \
-                    -Q "SET NOCOUNT ON; SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 0 ELSE 1 END")
+                  # A function, as in the wait above: no sqlcmd variables inside a command substitution.
+                  database_exists() {
+                    sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" \
+                      -Q "SET NOCOUNT ON; SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 0 ELSE 1 END"
+                  }
+                  exists=$(database_exists)
                   if [ "$exists" != 1 ]; then echo "Database $DB_NAME doesn't exist yet: nothing to back up."; exit 0; fi
                   file="$BACKUP_DIR/${DB_NAME}_$(date +%Y%m%d_%H%M%S).bak"
                   echo "Backing up $DB_NAME to $file"

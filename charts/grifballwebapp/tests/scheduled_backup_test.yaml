@@ -44,6 +44,9 @@ tests:
       - matchRegex:
           path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
           pattern: 'RESTORE VERIFYONLY'
+      - notMatchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: '\$\(sqlcmd'
       - contains:
           path: spec.jobTemplate.spec.template.spec.containers[0].env
           content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x }

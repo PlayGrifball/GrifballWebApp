@@ -156,10 +156,15 @@ if it exists, is ONLINE. SQL Server accepts logins before it has finished recove
 after a restart, and a query against one still recovering fails. Needs grif.dbEnv.
 */}}
 {{- define "grif.waitForDatabaseOnlineScript" -}}
-until state=$(sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+# A function, not inline in $(...): inside a multi-line command substitution the backend image's
+# BusyBox sh ran the first $(DB_NAME) as a command (DB_NAME: not found) instead of passing it to
+# sqlcmd, so the query asked about database '$' - which doesn't exist, so it read as ready.
+database_state() {
+  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
     SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 'ONLINE'
-      ELSE CONVERT(nvarchar(60), DATABASEPROPERTYEX(N'\$$(DB_NAME)', 'Status')) END" 2>&1) \
-    && [ "$state" = ONLINE ]; do
+      ELSE CONVERT(nvarchar(60), DATABASEPROPERTYEX(N'\$$(DB_NAME)', 'Status')) END" 2>&1
+}
+until state=$(database_state) && [ "$state" = ONLINE ]; do
   if [ "$(date +%s)" -ge "$end" ]; then echo "Database $DB_NAME not ready: $(echo "$state" | head -c 300)"; exit 1; fi
   sleep 2
 done
