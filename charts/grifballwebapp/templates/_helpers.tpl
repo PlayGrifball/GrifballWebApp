@@ -141,3 +141,8 @@ until nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
   sleep 2
 done
 {{- end }}
+
+{{/* The backup folder, on the SQL Server's side: migrations.backup.directory, or the chart's default. */}}
+{{- define "grif.backupDir" -}}
+{{- .Values.migrations.backup.directory | default (printf "/var/opt/mssql/backup/%s" .Release.Namespace) -}}
+{{- end }}

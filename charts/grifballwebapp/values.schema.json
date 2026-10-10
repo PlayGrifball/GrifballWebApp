@@ -340,7 +340,20 @@
         "backup": {
           "type": "object",
           "additionalProperties": false,
-          "properties": { "enabled": { "type": "boolean" }, "directory": { "type": "string" } }
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "directory": { "type": "string" },
+            "retention": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "schedule": { "type": "string", "minLength": 9 },
+                "keepLast": { "type": "integer", "minimum": 1 },
+                "keepDays": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
         },
         "databaseWaitSeconds": { "type": "integer", "minimum": 1 },
         "backoffLimit": { "type": "integer", "minimum": 0 },
@@ -411,6 +424,11 @@
           }
         },
         "migrations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }
+        },
+        "backupRetention": {
           "type": "object",
           "additionalProperties": false,
           "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }

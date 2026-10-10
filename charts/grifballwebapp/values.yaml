@@ -211,7 +211,10 @@ backend:
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
-    # The image's app user; owns the state volume.
+    # The image's app user (numeric, so Kubernetes can check it isn't root); owns the state volume.
+    runAsNonRoot: true
+    runAsUser: 1654
+    runAsGroup: 1654
     fsGroup: 1654
     fsGroupChangePolicy: OnRootMismatch
   securityContext:
@@ -360,8 +363,12 @@ mssql:
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
+  # SQL Server's own container (its init container runs as root, to chown the data volume).
   securityContext:
     readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
   extraEnv: []
   podAnnotations: {}
   podLabels: {}
@@ -444,6 +451,15 @@ migrations:
     # A folder on the SQL Server's side (it writes the file), created if missing. Empty:
     # /var/opt/mssql/backup/<namespace>, mssql.backup's volume.
     directory: ""
+    # Delete old backups on a schedule (a CronJob, optional). SQL Server lists and deletes its own files,
+    # so it works for an external one too and mounts no volume. Only backups this SQL Server wrote
+    # (in its msdb history) named <database>_*.bak in the folder above are considered; anything else
+    # there is never touched. One goes once it's older than keepDays and isn't among the newest keepLast.
+    retention:
+      enabled: false
+      schedule: "30 3 * * *"
+      keepLast: 5
+      keepDays: 30
   # How long the Job waits for the database to accept connections (seconds).
   databaseWaitSeconds: 300
   # A failed migration is usually deterministic; retries are off.
@@ -469,6 +485,10 @@ migrations:
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
+    # The backend image's app user.
+    runAsNonRoot: true
+    runAsUser: 1654
+    runAsGroup: 1654
   # Every step's container, the backend's wait included.
   securityContext:
     allowPrivilegeEscalation: false
@@ -525,6 +545,8 @@ networkPolicy:
     extraIngress: []
     extraEgress: []
   migrations:
+    extraEgress: []
+  backupRetention:
     extraEgress: []
   sqlExporter:
     # Who may scrape it (its port). Empty: anyone.

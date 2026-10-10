@@ -1,0 +1,103 @@
+{{- $m := .Values.migrations -}}
+{{- $r := $m.backup.retention -}}
+{{- if and $m.enabled $m.backup.enabled $r.enabled }}
+# Deletes old pre-migration backups (values.yaml, migrations.backup.retention). SQL Server lists and
+# deletes its own files: only backups it recorded writing (msdb) named <database>_*.bak in the backup
+# folder, and xp_delete_file 0 only deletes SQL Server backups. One goes once it's older than keepDays
+# and isn't among the newest keepLast.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grif-backup-retention
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-retention
+spec:
+  schedule: {{ $r.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: grif-backup-retention
+            {{- include "grif.labels" . | nindent 12 }}
+            app.kubernetes.io/component: backup-retention
+            {{- with $m.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $m.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: retention
+              {{- include "grif.migrationStepImage" . | nindent 14 }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W \
+                    -v BACKUP_DIR="$BACKUP_DIR" DB_NAME="$DB_NAME" KEEP_LAST="$KEEP_LAST" KEEP_DAYS="$KEEP_DAYS" \
+                    -Q "SET NOCOUNT ON;
+                  DECLARE @path nvarchar(4000), @n int = 0;
+                  EXEC master.sys.xp_create_subdir N'\$$(BACKUP_DIR)';
+                  DECLARE old CURSOR LOCAL FAST_FORWARD FOR
+                    SELECT full_filesystem_path FROM (
+                      SELECT full_filesystem_path, last_write_time,
+                             ROW_NUMBER() OVER (ORDER BY last_write_time DESC, file_or_directory_name DESC) AS newest
+                      FROM sys.dm_os_enumerate_filesystem(N'\$$(BACKUP_DIR)', N'\$$(DB_NAME)_*.bak')
+                      WHERE is_directory = 0
+                        AND EXISTS (SELECT 1 FROM msdb.dbo.backupmediafamily m WHERE m.physical_device_name = full_filesystem_path)) b
+                    WHERE newest > \$$(KEEP_LAST) AND last_write_time < DATEADD(day, -\$$(KEEP_DAYS), SYSDATETIME());
+                  OPEN old; FETCH NEXT FROM old INTO @path;
+                  WHILE @@FETCH_STATUS = 0
+                  BEGIN
+                    EXEC master.sys.xp_delete_file 0, @path;
+                    PRINT N'Deleted ' + @path;
+                    SET @n += 1;
+                    FETCH NEXT FROM old INTO @path;
+                  END;
+                  CLOSE old; DEALLOCATE old;
+                  PRINT CONCAT(N'Deleted ', @n, N' backup(s); kept the newest ', \$$(KEEP_LAST), N' and any from the last ', \$$(KEEP_DAYS), N' days.');"
+              env:
+                {{- include "grif.dbEnv" . | nindent 16 }}
+                - name: BACKUP_DIR
+                  value: {{ include "grif.backupDir" . | quote }}
+                - name: KEEP_LAST
+                  value: {{ $r.keepLast | quote }}
+                - name: KEEP_DAYS
+                  value: {{ $r.keepDays | quote }}
+                {{- with $m.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              resources:
+                {{- include "grif.migrationSmallResources" . | nindent 16 }}
+          {{- with $m.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

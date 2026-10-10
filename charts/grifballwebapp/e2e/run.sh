@@ -187,6 +187,8 @@ mssql:
   resources: { requests: { memory: 1Gi, cpu: 100m }, limits: { memory: 2Gi } }
   persistence: { size: 2Gi }
   backup: { size: 1Gi }
+migrations:
+  backup: { retention: { enabled: true, keepLast: 1, keepDays: 0 } }
 EOF
 else
   step "External SQL Server in $ext_ns"
@@ -228,7 +230,7 @@ database:
   user: sa
   password: { secretName: external-db, key: password }
 migrations:
-  backup: { directory: /var/opt/mssql/backup/$ns }
+  backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, keepLast: 1, keepDays: 0 } }
 EOF
 fi
 
@@ -321,5 +323,27 @@ expect "No database to back up." "$work/dropped.txt"
 [ "$(migration_count)" = "$count" ] || fail "the Job didn't recreate the database"
 wait_for 120 backend_waited || fail "the backend didn't start after the Job"
 echo "Database recreated with all $count migrations; the backend then started."
+
+step "Backup retention: the newest backup kept, older ones deleted, anything else left alone"
+dir=/var/opt/mssql/backup/$ns
+for n in 1 2; do
+  sql "BACKUP DATABASE GrifballWebApp TO DISK = N'$dir/GrifballWebApp_2026010${n}_000000.bak' WITH FORMAT, INIT;" >/dev/null
+  sleep 2
+done
+# Named like a backup, but not one SQL Server wrote.
+kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "echo junk > $dir/GrifballWebApp_20200101_000000.bak"
+latest_bak=$(kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "ls -t $dir/GrifballWebApp_2026*.bak | head -1")
+before=$(kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "ls $dir/GrifballWebApp_*.bak | wc -l")
+kubectl -n "$ns" create job retention-now --from=cronjob/grif-backup-retention
+wait_for 300 sh -c "kubectl -n $ns get job retention-now -o jsonpath='{.status.succeeded}' | grep -q 1" \
+  || { kubectl -n "$ns" logs job/retention-now >&2 || true; fail "the retention job didn't succeed"; }
+kubectl -n "$ns" logs job/retention-now | tee "$work/retention.txt"
+left=$(kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "ls $dir/GrifballWebApp_*.bak")
+echo "$left"
+echo "$left" | grep -qxF "$latest_bak" || fail "the newest backup was deleted"
+echo "$left" | grep -qxF "$dir/GrifballWebApp_20200101_000000.bak" || fail "a file SQL Server didn't write was deleted"
+[ "$(echo "$left" | wc -l)" = 2 ] || fail "expected the newest backup and the stray file left, of $before"
+expect "Deleted $(( before - 2 )) backup(s)" "$work/retention.txt"
+echo "Kept the newest backup and the stray file; deleted the other $(( before - 2 ))."
 
 step "PASS ($scenario)"

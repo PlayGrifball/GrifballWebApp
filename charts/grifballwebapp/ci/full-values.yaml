@@ -72,6 +72,11 @@ sqlExporter:
     labels:
       scrape: "true"
 migrations:
+  backup:
+    retention:
+      enabled: true
+      keepLast: 10
+      keepDays: 60
   extraEnv:
     - name: TZ
       value: UTC

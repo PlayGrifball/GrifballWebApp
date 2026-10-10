@@ -5,8 +5,14 @@ optionally, SQL Server. A migration Job backs up the database when it has migrat
 applies them with the EF Core bundle of the backend image being deployed; the backend waits for it.
 
 Published to `oci://ghcr.io/playgrifball/charts/grifballwebapp` by the
-[Helm chart workflow](../../.github/workflows/helm-chart.yml) whenever `version` in `Chart.yaml` changes on
-master.
+[Helm chart workflow](../../.github/workflows/helm-chart.yml) whenever the chart changes on master, as
+`<major>.<minor>.<run number>` (major and minor from `Chart.yaml`), and signed keyless with cosign:
+
+```sh
+cosign verify ghcr.io/playgrifball/charts/grifballwebapp:<version> \
+  --certificate-identity-regexp '^https://github\.com/PlayGrifball/GrifballWebApp/\.github/workflows/helm-chart\.yml@refs/heads/master$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 ## Quick start
 
@@ -49,7 +55,7 @@ kubectl -n grif create secret generic grif-secrets \
   --from-literal=DiscordClientId=... \
   --from-literal=DiscordClientSecret=... \
   --from-literal=DiscordToken=...
-helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version 0.1.0 -n grif -f values.yaml
+helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version <version> -n grif -f values.yaml
 ```
 
 That runs the frontend, the backend, SQL Server with data and backup volumes from the default storage
@@ -155,6 +161,17 @@ Each step's script can be replaced (`migrations.scripts`); `extraEnv`, annotatio
 labels, security contexts, scheduling and resources are values. `migrations.enabled: false` leaves
 migrating to the app (`ApplyMigrations`, `CreateDatabase`), without backups.
 
+**Old backups.** Each migration leaves a backup, and nothing deletes them unless
+`migrations.backup.retention.enabled`: a nightly CronJob that has SQL Server delete its own old ones,
+keeping the newest `keepLast` and any younger than `keepDays`. It only considers backups SQL Server
+recorded writing (its msdb history) named `<database>_*.bak` in the backup folder, and deletes with
+`xp_delete_file`, which only deletes SQL Server backups - anything else in the folder is never touched.
+It mounts no volume, so it works the same against an external SQL Server.
+
+The Job, the CronJob and the backend run as the backend image's non-root user (1654), checked by
+Kubernetes (`runAsNonRoot`); SQL Server runs as its own (10001). Only SQL Server's permission-fixing init
+container and the frontend's nginx start as root.
+
 The backend runs one replica: the Discord bot's gateway connection, the background queue and events
 services, and Grunt's token file on a ReadWriteOnce volume all assume a single instance. The migrations
 don't: more backend pods would only be more waiters.
@@ -209,9 +226,8 @@ helm plugin install https://github.com/helm-unittest/helm-unittest   # once; add
 helm unittest charts/grifballwebapp
 ```
 
-Bump `version` in Chart.yaml with every change; the workflow fails a pull request that changes the chart
-without it.
+No version bump needed: master publishes every change as a new patch version. Bump the major or minor
+in `Chart.yaml` for changes that need it.
 
-`e2e/run.sh bundled|external` runs the chart on a real cluster (the workflow uses k3s in Docker):
-install, the network policies, an upgrade with nothing pending, and one after the database is
-dropped.
+`e2e/run.sh bundled|external|minimal` runs the chart on a real cluster (the workflow uses k3s in
+Docker, with app images built from the checkout): the header of the script lists what it checks.

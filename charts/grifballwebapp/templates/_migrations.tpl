@@ -166,7 +166,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   env:
     {{- include "grif.dbEnv" . | nindent 4 }}
     - name: BACKUP_DIR
-      value: {{ $m.backup.directory | default (printf "/var/opt/mssql/backup/%s" .Release.Namespace) | quote }}
+      value: {{ include "grif.backupDir" . | quote }}
     {{- with $m.extraEnv }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

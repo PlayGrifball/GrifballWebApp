@@ -2,10 +2,9 @@ name: Helm chart
 
 # The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), every
 # ci/*-values.yaml rendered and checked against the Kubernetes schemas, and an end-to-end run on k3s
-# with the chart's SQL Server and an external one. master: the same, then publish the
-# chart's version to oci://ghcr.io/playgrifball/charts/grifballwebapp, once - a version already
-# published is never overwritten, so a chart change has to bump Chart.yaml's version (checked here
-# on pull requests).
+# with the chart's SQL Server, an external one, and the minimal install. master: the same, then, if
+# the chart changed, publish it to oci://ghcr.io/playgrifball/charts/grifballwebapp as
+# <Chart.yaml's major.minor>.<run number>, signed keyless with cosign.
 on:
   pull_request:
     branches: [ "master" ]
@@ -65,21 +64,6 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Chart version bumped
-        if: github.event_name == 'pull_request'
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet "$BASE" HEAD -- "$CHART"; then echo "Chart unchanged."; exit 0; fi
-          new=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
-          old=$(git show "$BASE:$CHART/Chart.yaml" 2>/dev/null | sed -n 's/^version: *//p' || true)
-          if [ -n "$old" ] && [ "$old" = "$new" ]; then
-            echo "::error file=$CHART/Chart.yaml::The chart changed but its version is still $new: bump it, or master can't publish the change."
-            exit 1
-          fi
-          echo "Chart version ${old:-(new chart)} -> $new"
-
   # The chart on a real cluster (k3s in Docker, which enforces NetworkPolicies): with the chart's SQL
   # Server, with an external one, and the minimal install: charts/grifballwebapp/e2e/run.sh.
   e2e:
@@ -136,6 +120,10 @@ jobs:
           FRONTEND_IMAGE: grif-frontend:e2e
         run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
 
+  # Publishes the chart when it changed: version <Chart.yaml's major.minor>.<this workflow's run
+  # number>, so every change (a Renovate digest update included) gets a new version without anyone
+  # bumping it; a major or minor bump is a Chart.yaml edit. Then signs it keyless with cosign (Sigstore),
+  # as docker-publish.yml signs the images, and checks the signature.
   publish:
     needs: [test, e2e]
     if: github.event_name != 'pull_request'
@@ -143,24 +131,69 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: azure/setup-helm@v4
-
-      - name: Log into ${{ env.REGISTRY }}
+      - name: Did the chart change?
+        id: changed
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
-
-      - name: Publish this version, unless it already is
+          BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          version=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          # A push that didn't touch the chart (only a Dockerfile, say) publishes nothing; a manual run
+          # or an unknown base always does.
+          if [ "${{ github.event_name }}" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             && git diff --quiet "$BEFORE" HEAD -- "$CHART"; then
+            echo "The chart didn't change: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: azure/setup-helm@v4
+        if: steps.changed.outputs.publish == 'true'
+
+      - uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+        if: steps.changed.outputs.publish == 'true'
+        with:
+          cosign-release: v2.2.4
+
+      - name: Log into ${{ env.REGISTRY }}
+        if: steps.changed.outputs.publish == 'true'
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish and sign
+        if: steps.changed.outputs.publish == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/helm-chart\.yml@refs/heads/master$
+        run: |
+          set -euo pipefail
+          echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          base=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          version="${base%.*}.${{ github.run_number }}"
+          # A re-run of this run would reuse its number: never overwrite a published version.
           if helm show chart "$CHART_REPO/grifballwebapp" --version "$version" >/dev/null 2>&1; then
             echo "grifballwebapp $version is already published; not overwriting it."
             exit 0
           fi
-          helm package "$CHART" -d dist
-          helm push "dist/grifballwebapp-$version.tgz" "$CHART_REPO"
-          echo "Published $CHART_REPO/grifballwebapp:$version" >> "$GITHUB_STEP_SUMMARY"
+          helm package "$CHART" --version "$version" -d dist
+          helm push "dist/grifballwebapp-$version.tgz" "$CHART_REPO" 2>&1 | tee push.txt
+          digest=$(sed -n 's/^Digest: *//p' push.txt)
+          test -n "$digest"
+          ref="${CHART_REPO#oci://}/grifballwebapp@$digest"
+          cosign sign --yes "$ref"
+          cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          {
+            echo "Published and signed $CHART_REPO/grifballwebapp:$version ($digest)."
+            echo
+            echo "Verify: cosign verify ${ref%@*}:$version --certificate-identity-regexp '$IDENTITY' --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+          } >> "$GITHUB_STEP_SUMMARY"
