@@ -371,6 +371,14 @@
                 "keepLast": { "type": "integer", "minimum": 1 },
                 "keepDays": { "type": "integer", "minimum": 0 }
               }
+            },
+            "scheduled": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "schedule": { "type": "string", "minLength": 9 }
+              }
             }
           }
         },
@@ -448,6 +456,11 @@
           "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }
         },
         "backupRetention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }
+        },
+        "scheduledBackup": {
           "type": "object",
           "additionalProperties": false,
           "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }

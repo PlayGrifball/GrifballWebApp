@@ -1,0 +1,97 @@
+{{- $m := .Values.migrations -}}
+{{- $s := $m.backup.scheduled -}}
+{{- if and $m.enabled $m.backup.enabled $s.enabled }}
+# Backs the database up on a schedule (values.yaml, migrations.backup.scheduled), beside the migration
+# Job's pre-migration backups: same folder, same <database>_<date>_<time>.bak names, so retention
+# covers both. Copy-only (it doesn't change what later differential or log backups are based on),
+# checksummed, then verified. A database that doesn't exist yet is skipped.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: grif-backup
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ $s.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app: grif-backup
+            {{- include "grif.podLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+            {{- with $m.podLabels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $m.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: backup
+              {{- include "grif.migrationStepImage" . | nindent 14 }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  # A new pod's address may reach SQL Server only seconds after it starts (network policy
+                  # controllers admit it late), and a database may still be recovering after a restart.
+                  {{- include "grif.waitForDatabaseScript" . | nindent 18 }}
+                  {{- include "grif.waitForDatabaseOnlineScript" . | nindent 18 }}
+                  # A function, as in the wait above: no sqlcmd variables inside a command substitution.
+                  database_exists() {
+                    sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" \
+                      -Q "SET NOCOUNT ON; SELECT CASE WHEN DB_ID(N'\$$(DB_NAME)') IS NULL THEN 0 ELSE 1 END"
+                  }
+                  exists=$(database_exists)
+                  if [ "$exists" != 1 ]; then echo "Database $DB_NAME doesn't exist yet: nothing to back up."; exit 0; fi
+                  file="$BACKUP_DIR/${DB_NAME}_$(date +%Y%m%d_%H%M%S).bak"
+                  echo "Backing up $DB_NAME to $file"
+                  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b \
+                    -v BACKUP_DIR="$BACKUP_DIR" BACKUP_FILE="$file" DB_NAME="$DB_NAME" \
+                    -Q "EXEC master.sys.xp_create_subdir N'\$$(BACKUP_DIR)';
+                      BACKUP DATABASE [\$$(DB_NAME)] TO DISK = N'\$$(BACKUP_FILE)' WITH COPY_ONLY, CHECKSUM, FORMAT, INIT, NAME = 'Scheduled backup';
+                      RESTORE VERIFYONLY FROM DISK = N'\$$(BACKUP_FILE)' WITH CHECKSUM;"
+                  echo "Backed up and verified: $file"
+              env:
+                {{- include "grif.dbEnv" . | nindent 16 }}
+                - name: BACKUP_DIR
+                  value: {{ include "grif.backupDir" . | quote }}
+                - name: WAIT_SECONDS
+                  value: {{ $m.databaseWaitSeconds | quote }}
+                {{- with $m.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              resources:
+                {{- include "grif.migrationSmallResources" . | nindent 16 }}
+          {{- with $m.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

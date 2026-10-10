@@ -137,6 +137,11 @@ spec:
             matchLabels:
               app: grif-backup-retention
         {{- end }}
+        {{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-backup
+        {{- end }}
         {{- if .Values.sqlExporter.enabled }}
         - podSelector:
             matchLabels:
@@ -209,6 +214,30 @@ spec:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- toYaml (list $database) | nindent 4 }}
     {{- with $np.backupRetention.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-backup
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-backup
+  policyTypes: [Ingress, Egress]
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.scheduledBackup.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---

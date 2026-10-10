@@ -180,6 +180,12 @@ Each step's script can be replaced (`migrations.scripts`); `extraEnv`, annotatio
 labels, security contexts, scheduling and resources are values. `migrations.enabled: false` leaves
 migrating to the app (`ApplyMigrations`, `CreateDatabase`), without backups.
 
+**Scheduled backups.** The Job backs up only when a migration is pending, so a database whose schema
+rarely changes is rarely backed up. `migrations.backup.scheduled.enabled` adds a nightly CronJob
+(`schedule`, default `0 3 * * *`) that writes a copy-only, checksummed backup to the same folder under
+the same `<database>_<date>_<time>.bak` names, then verifies it (`RESTORE VERIFYONLY`); retention below
+covers these too. A database that doesn't exist yet is skipped. Like retention, it mounts nothing.
+
 **Old backups.** Each migration leaves a backup, and nothing deletes them unless
 `migrations.backup.retention.enabled`: a nightly CronJob that has SQL Server delete its own old ones,
 keeping the newest `keepLast` and any younger than `keepDays`. It only considers backups SQL Server
