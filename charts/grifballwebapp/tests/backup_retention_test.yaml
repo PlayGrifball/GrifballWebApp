@@ -63,3 +63,11 @@ tests:
         documentIndex: 4
       - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-backup-retention } } } }
         documentIndex: 2
+
+  - it: waits for the database first (a new pod's address reaches SQL Server only seconds after it starts)
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'until nc -w 2 "\$DB_HOST" "\$DB_PORT"(.|\n)*sqlcmd -S' }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: WAIT_SECONDS, value: "300" } }

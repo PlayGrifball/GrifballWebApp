@@ -52,6 +52,9 @@ spec:
               args:
                 - |
                   set -eu
+                  # A new pod's address may reach SQL Server only seconds after it starts (network policy
+                  # controllers admit it late), so wait for it as the migration Job does.
+                  {{- include "grif.waitForDatabaseScript" . | nindent 18 }}
                   sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W \
                     -v BACKUP_DIR="$BACKUP_DIR" DB_NAME="$DB_NAME" KEEP_LAST="$KEEP_LAST" KEEP_DAYS="$KEEP_DAYS" \
                     -Q "SET NOCOUNT ON;
@@ -83,6 +86,8 @@ spec:
                   value: {{ $r.keepLast | quote }}
                 - name: KEEP_DAYS
                   value: {{ $r.keepDays | quote }}
+                - name: WAIT_SECONDS
+                  value: {{ $m.databaseWaitSeconds | quote }}
                 {{- with $m.extraEnv }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
