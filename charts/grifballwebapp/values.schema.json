@@ -113,6 +113,11 @@
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "options": { "type": "string" },
         "connectionString": { "$ref": "#/definitions/secretKeyRef" },
+        "history": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "enabled": { "type": "boolean" } }
+        },
         "logins": {
           "type": "object",
           "additionalProperties": false,
@@ -363,6 +368,7 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "image": { "$ref": "#/definitions/image" },
+        "historyImage": { "$ref": "#/definitions/image" },
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "service": { "$ref": "#/definitions/databaseService" },
         "loadBalancer": { "$ref": "#/definitions/loadBalancer" },

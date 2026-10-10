@@ -1,4 +1,6 @@
 {{- $p := .Values.postgres -}}
+{{- /* database.history: the image with the periods extension. */ -}}
+{{- $image := ternary $p.historyImage $p.image (eq (include "grif.history" .) "true") -}}
 {{- if include "grif.postgres" . }}
 {{- with .Values.migrations.backup }}
 {{- if .enabled }}
@@ -174,8 +176,8 @@ spec:
         # PostgreSQL runs as 70 and creates its data folder (<major>/docker) in the volume, whose root
         # kubelet may leave root-owned. PostgreSQL's own image, as root: nothing else to pull.
         - name: fix-permissions-data
-          image: {{ include "grif.image" $p.image }}
-          imagePullPolicy: {{ $p.image.pullPolicy }}
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
           command: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql"]
           securityContext:
             readOnlyRootFilesystem: true
@@ -184,8 +186,8 @@ spec:
               mountPath: /var/lib/postgresql
       containers:
         - name: grif-postgres
-          image: {{ include "grif.image" $p.image }}
-          imagePullPolicy: {{ $p.image.pullPolicy }}
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
           {{- with $p.settings }}
           args:
             - postgres

@@ -155,7 +155,7 @@ the administrator - creates and keeps in sync, on every run, passwords from your
 
 | Login | Used by | Can |
 | --- | --- | --- |
-| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema; not change its schema (no `CREATE`, owns nothing) or the server |
+| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema (with row history, only `SELECT` on the history); not change its schema (no `CREATE`, owns nothing), its history or the server |
 | `grif_monitor` (`logins.monitoring`) | sql-exporter (with `sqlExporter.enabled`, unless `sqlExporter.user` is set) | SQL Server: `VIEW SERVER STATE`, `VIEW ANY DEFINITION`, not open the database; PostgreSQL: `pg_monitor`, not read the app's tables |
 
 The backend pod then holds no administrator password. Backup retention and the scheduled backup still
@@ -165,6 +165,46 @@ reads them from the environment itself (`\getenv`) and quotes them (`format('%L'
 sets one reaches the server in plain text, so keep `log_statement` below `ddl` on an external server.
 On PostgreSQL the grants are made again after every migration, so tables a new migration adds are
 covered.
+
+**Row history** (`database.history.enabled`, PostgreSQL; off by default). SQL Server keeps every row's
+earlier versions (temporal tables) whatever this says; PostgreSQL has no such thing built in, and
+with this on gets it from the [periods](https://github.com/xocolatl/periods) extension: every table
+gets `SYSTEM VERSIONING`, so each update and delete (cascades and the app's own included) keeps the old
+row in `<table>_history`, with the time it was current (`PeriodStart`, `PeriodEnd`), queried with
+`<table>__as_of(time)`, `__between(from, to)` or the `<table>_with_history` view (the app's README,
+Database, has examples). Every run of the migration Job, after the migrations, as `database.user`:
+
+1. `CREATE EXTENSION periods` - which only a superuser can (it isn't a trusted extension);
+2. its functions closed to `PUBLIC`: they run as their owner and check nothing, so any login could
+   otherwise turn a table's history off, or purge it;
+3. `SYSTEM VERSIONING` on every table that hasn't it - those of a database from before history was on.
+   The app's migrations version the tables they create, and keep history working through the column
+   and table changes later migrations make.
+
+With logins, `grif_app` gets its rights table by table - periods refuses any grant on a history table
+or view - and reads the history with its tables (`SELECT`, which periods gives it), but can't change it.
+The chart's PostgreSQL runs `postgres.historyImage` instead of `postgres.image`: the same PostgreSQL,
+built on its digest, with the extension (`docker/postgres-periods` in the app's repository, published
+from master as `ghcr.io/playgrifball/postgres-periods:18-alpine`); either image opens the other's data,
+so turning it on is a restart. An external PostgreSQL needs the extension installed on the server and
+`database.user` a superuser: managed services (RDS, Cloud SQL, Azure, Neon, Supabase) offer neither.
+
+```yaml
+database:
+  provider: postgres
+  history:
+    enabled: true
+```
+
+Mind that:
+
+- `TRUNCATE` empties a table's history too.
+- Turning it off stops nothing: the extension and the versioning stay, and keep recording, until removed
+  by hand (`periods.drop_system_versioning` and `periods.drop_system_time_period` on each table, then
+  `DROP EXTENSION periods`).
+- A dump of such a database restores only where periods is installed (`pg_restore --no-privileges`, as
+  `migrations.restore` does; with privileges, periods' own grant checks refuse it). Its backups need
+  nothing more.
 
 ## Migrations
 

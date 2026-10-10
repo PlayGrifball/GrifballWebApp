@@ -54,12 +54,24 @@ database:
   connectionString:
     secretName: ""
     key: ""
+  # PostgreSQL: keep every row's history, as SQL Server's temporal tables do (SQL Server always does;
+  # ignored there). Every table gets SYSTEM VERSIONING from the periods extension: each update and
+  # delete keeps the old row in <table>_history, read with <table>__as_of(time) and the like (README,
+  # Row history). The migration Job, after the migrations, installs the extension (CREATE EXTENSION:
+  # the administrator, database.user, must be a superuser), closes its functions to PUBLIC and
+  # versions any table not yet versioned; the app's migrations version the tables they create and keep
+  # history working across their changes. The chart's PostgreSQL then runs postgres.historyImage; an
+  # external server needs the extension available (not on managed services: RDS, Cloud SQL, Azure).
+  # Turning it off later stops nothing: the database keeps recording until the extension is removed.
+  history:
+    enabled: false
   # Separate least-privilege logins, created and kept in sync (passwords included) by the migration
   # Job on every run, as the administrator above:
   #   app: the backend - reads and writes the database's data (SQL Server: db_datareader,
   #     db_datawriter; PostgreSQL: SELECT, INSERT, UPDATE, DELETE on every table and its sequences, in
-  #     every schema); can't change its schema or the server. The backend's wait for the migrations
-  #     uses it too, so the backend pod holds no administrator password.
+  #     every schema; with database.history, only SELECT on the history tables); can't change its
+  #     schema, its history or the server. The backend's wait for the migrations uses it too, so the
+  #     backend pod holds no administrator password.
   #   monitoring: sql-exporter - SQL Server: VIEW SERVER STATE and VIEW ANY DEFINITION, can't open
   #     the database; PostgreSQL: pg_monitor, can't read the app's tables.
   #     Created only with sqlExporter.enabled (and unless sqlExporter.user is set).
@@ -431,6 +443,14 @@ postgres:
     # <major>/docker folder and refuses to start beside an older major's rather than begin an empty
     # one. Renovate updates the digest.
     tag: 18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    digest: ""
+    pullPolicy: IfNotPresent
+  # Run instead of image with database.history.enabled: the same PostgreSQL (built on image's digest)
+  # with the periods extension, from the app repository's docker/postgres-periods, published from its
+  # master. Either image opens the other's data. Pin a digest as for image.
+  historyImage:
+    repository: ghcr.io/playgrifball/postgres-periods
+    tag: 18-alpine
     digest: ""
     pullPolicy: IfNotPresent
   # The superuser's (postgres) password. Set when the data folder is first created: changing it in the

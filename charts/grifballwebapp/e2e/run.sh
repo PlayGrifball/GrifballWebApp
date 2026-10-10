@@ -7,7 +7,8 @@
 # this checks everything around it.
 #
 # bundled (the chart's SQL Server), external (one in another namespace) and postgres (the chart's
-# PostgreSQL, database.provider postgres), test images:
+# PostgreSQL, database.provider postgres, with row history: database.history and the image with
+# the periods extension, PERIODS_IMAGE), test images:
 #   1. install: the migration Job creates the database through the network policies; the backend
 #      waits for it, then starts; the frontend gets ready;
 #   2. sql-exporter reads the database through its policy; a pod without a role reaches the frontend
@@ -25,7 +26,11 @@
 #      deleted, anything else in the folder left alone;
 #   7. restore (migrations.restore): a marked database backed up, then a first deploy restores it -
 #      SQL Server: the same release with its database dropped, from its own backup folder;
-#      PostgreSQL: a second release in another namespace, from a volume holding the first's dump.
+#      PostgreSQL: a second release in another namespace, from a volume holding the first's dump,
+#      its row history included.
+# postgres also checks row history after each step that (re)creates the schema: every table has
+# SYSTEM VERSIONING; grif_app writes a table and reads its history, but can't change that history
+# or turn it off.
 # minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class and images aside:
 # the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
@@ -39,6 +44,8 @@ ext_ns=external-sql
 restore_ns=grif-e2e-restore
 backend_image=${BACKEND_IMAGE:-ghcr.io/playgrifball/grifballwebappserver:test}
 frontend_image=${FRONTEND_IMAGE:-ghcr.io/playgrifball/grifballwebappclient:test}
+# postgres: PostgreSQL with the periods extension (docker/postgres-periods), for row history.
+periods_image=${PERIODS_IMAGE:-ghcr.io/playgrifball/postgres-periods:18-alpine}
 # Every helm install and upgrade runs these images, whatever the values say.
 images=(--set "backend.image.repository=${backend_image%:*}" --set "backend.image.tag=${backend_image##*:}"
         --set "frontend.image.repository=${frontend_image%:*}" --set "frontend.image.tag=${frontend_image##*:}"
@@ -95,6 +102,16 @@ migration_count() {
   else
     sql "IF DB_ID(N'GrifballWebApp') IS NULL SELECT -1 ELSE SELECT COUNT(*) FROM GrifballWebApp.dbo.__EFMigrationsHistory" | tr -d '\r' | tail -1
   fi
+}
+# Row history: every table but EF's has SYSTEM VERSIONING (periods), and none of periods' history tables.
+expect_versioned() {
+  local tables versioned
+  tables=$(pg GrifballWebApp "SELECT count(*) FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE c.relkind = 'r' AND n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'periods')
+      AND c.relname <> '__EFMigrationsHistory' AND c.oid NOT IN (SELECT history_table_name FROM periods.system_versioning)")
+  versioned=$(pg GrifballWebApp 'SELECT count(*) FROM periods.system_versioning')
+  [ "$tables" -gt 0 ] && [ "$versioned" = "$tables" ] || fail "$versioned of the $tables tables have SYSTEM VERSIONING"
+  echo "Row history: all $tables tables have SYSTEM VERSIONING."
 }
 # The newest migration Job.
 latest_job() {
@@ -239,7 +256,9 @@ elif [ "$scenario" = postgres ]; then
 database:
   provider: postgres
   logins: { enabled: true }
+  history: { enabled: true }
 postgres:
+  historyImage: { repository: ${periods_image%:*}, tag: ${periods_image##*:}, pullPolicy: IfNotPresent }
   persistence: { size: 1Gi }
 migrations:
   backup: { volume: { size: 1Gi }, retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
@@ -299,6 +318,12 @@ expected=$(grep -c "^Applying migration" "$work/install.txt" || true)
 count=$(migration_count)
 [ "$count" -gt 0 ] && [ "$count" = "$expected" ] || fail "database has $count migrations, the Job applied $expected"
 echo "The migration Job created the database through the network policies: all $count."
+if [ "$scenario" = postgres ]; then
+  expect "Row history: " "$work/install.txt"
+  [ "$(kubectl -n "$ns" get deploy grif-postgres -o jsonpath='{.spec.template.spec.containers[0].image}')" = "$periods_image" ] \
+    || fail "PostgreSQL doesn't run $periods_image"
+  expect_versioned
+fi
 wait_for 300 backend_waited || fail "the backend didn't see the database up to date"
 echo "The backend waited, then started: $(wait_logs | tail -1)"
 wait_for 300 kubectl -n "$ns" wait --for=condition=Ready pod -l app=grif-frontend --timeout=5s || fail "frontend not ready"
@@ -338,10 +363,21 @@ if [ "$scenario" = postgres ]; then
   if as_login grif_app "$app_password" GrifballWebApp 'CREATE TABLE public.nope (id int)' 2>/dev/null; then fail "grif_app changed the schema"; fi
   if as_login grif_app "$app_password" GrifballWebApp 'CREATE SCHEMA nope' 2>/dev/null; then fail "grif_app created a schema"; fi
   if as_login grif_app "$app_password" postgres 'CREATE ROLE nope' 2>/dev/null; then fail "grif_app created a role"; fi
+  # Row history: each statement its own transaction, so the update keeps the inserted version.
+  as_login grif_app "$app_password" GrifballWebApp \
+    "INSERT INTO \"Other\".\"Regions\" (\"RegionName\", \"CreatedAt\", \"ModifiedAt\") VALUES ('e2e', now(), now())" >/dev/null
+  as_login grif_app "$app_password" GrifballWebApp "UPDATE \"Other\".\"Regions\" SET \"RegionName\" = 'e2e 2'" >/dev/null
+  [ "$(as_login grif_app "$app_password" GrifballWebApp 'SELECT "RegionName" FROM "Other"."Regions_history"')" = e2e ] \
+    || fail "grif_app's update kept no history, or grif_app can't read it"
+  if as_login grif_app "$app_password" GrifballWebApp 'DELETE FROM "Other"."Regions_history"' 2>/dev/null; then fail "grif_app deleted history"; fi
+  if as_login grif_app "$app_password" GrifballWebApp "SELECT periods.drop_system_versioning('\"Other\".\"Regions\"')" 2>/dev/null; then
+    fail "grif_app turned a table's history off"
+  fi
   as_login grif_monitor "$mon_password" postgres 'SELECT count(*) FROM pg_stat_activity' >/dev/null \
     || fail "grif_monitor can't read server statistics"
   if as_login grif_monitor "$mon_password" GrifballWebApp 'SELECT count(*) FROM "__EFMigrationsHistory"' 2>/dev/null; then fail "grif_monitor read the app's tables"; fi
   echo "The backend connects as grif_app, which reads and writes but can't change the schema or the server;"
+  echo "It reads the history its writes keep, and can't change that history or turn it off."
   echo "grif_monitor reads server statistics (sql-exporter's metrics) and can't read the app's tables."
 else
   # As each login, straight against SQL Server (its own sqlcmd; no shell, so the passwords pass as they are).
@@ -425,6 +461,7 @@ else
   kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "ls /var/opt/mssql/backup/$ns/GrifballWebApp_*.bak" || fail "backup file missing"
 fi
 wait_for 120 backend_waited || fail "the backend didn't start after the Job"
+if [ "$scenario" = postgres ]; then expect_versioned; fi
 echo "The Job backed up and applied $latest; the backend then started."
 
 step "Database dropped: the backend waits; the Job recreates it, nothing to back up"
@@ -443,6 +480,7 @@ expect "doesn't exist: the migration creates it." "$work/dropped.txt"
 expect "No database to back up." "$work/dropped.txt"
 [ "$(migration_count)" = "$count" ] || fail "the Job didn't recreate the database"
 wait_for 120 backend_waited || fail "the backend didn't start after the Job"
+if [ "$scenario" = postgres ]; then expect_versioned; fi
 echo "Database recreated with all $count migrations; the backend then started."
 
 # Run the scheduled backup CronJob now, as job/$1; prints the file it wrote.
@@ -488,6 +526,9 @@ if [ "$scenario" = postgres ]; then
 
   step "Restore: a second release, on its first deploy, restores the first's newest dump"
   pg GrifballWebApp "CREATE TABLE public.e2e_marker (v text); INSERT INTO public.e2e_marker VALUES ('restored')"
+  # And a row's earlier version, in its history (separate transactions).
+  pg GrifballWebApp "INSERT INTO \"Other\".\"Regions\" (\"RegionName\", \"CreatedAt\", \"ModifiedAt\") VALUES ('before', now(), now())"
+  pg GrifballWebApp "UPDATE \"Other\".\"Regions\" SET \"RegionName\" = 'after' WHERE \"RegionName\" = 'before'"
   marked=$(backup_now backup-marked)
   [ -n "$marked" ] || fail "no backup of the marked database"
   # The second release's restore folder: a volume of its own, holding the marked dump, a junk file
@@ -526,8 +567,10 @@ EOF
   kubectl -n "$restore_ns" exec fill -- sh -c "cd /source/grif-test && echo junk > GrifballWebApp_29991231_235959.dump && cp '${marked##*/}' GrifballWebApp_manual.dump"
   kubectl -n "$restore_ns" delete pod fill --wait=true
   helm install grif "$chart" -n "$restore_ns" "${images[@]}" -f - <<EOF
-database: { provider: postgres }
-postgres: { persistence: { size: 1Gi } }
+database: { provider: postgres, history: { enabled: true } }
+postgres:
+  persistence: { size: 1Gi }
+  historyImage: { repository: ${periods_image%:*}, tag: ${periods_image##*:}, pullPolicy: IfNotPresent }
 backend:
   config: { BaseUrl: "https://grifball.example", Discord: { DraftChannel: "1" } }
   secretConfig: { "Discord:ClientId": DiscordClientId, "Discord:ClientSecret": DiscordClientSecret, "Discord:Token": DiscordToken }
@@ -545,10 +588,13 @@ EOF
   expect "Restoring /restore/grif-test/${marked##*/}" "$work/restore.txt"
   expect "No database to back up." "$work/restore.txt"
   [ "$(pg GrifballWebApp 'SELECT v FROM public.e2e_marker')" = restored ] || fail "the marker didn't come back"
+  [ "$(pg GrifballWebApp "SELECT \"RegionName\" FROM \"Other\".\"Regions_history\" WHERE \"RegionName\" = 'before'")" = before ] \
+    || fail "the row history didn't come back"
+  expect_versioned
   [ "$(migration_count)" = "$count" ] || fail "the restored database doesn't have all $count migrations"
   wait_for 300 backend_waited || fail "the backend didn't see the restored database up to date"
   echo "The second release restored ${marked##*/} (not the newer junk or the hand-named file), marker"
-  echo "included, with all $count migrations; its backend then started."
+  echo "and row history included, with all $count migrations; its backend then started."
   ns=$first_ns
 else
   step "Scheduled backup: a verified copy-only backup, named like the Job's, in SQL Server's history"

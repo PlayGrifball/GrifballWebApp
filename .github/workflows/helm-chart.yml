@@ -2,18 +2,18 @@ name: Helm chart
 
 # The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), every
 # ci/*-values.yaml rendered and checked against the Kubernetes schemas, and an end-to-end run on k3s
-# with the chart's SQL Server, an external one, the chart's PostgreSQL, and the minimal install, on
-# Kubernetes 1.34 to 1.37.
+# with the chart's SQL Server, an external one, the chart's PostgreSQL (with row history), and the
+# minimal install, on Kubernetes 1.34 to 1.37.
 # master: the same, then, if the chart changed, publish it to
 # oci://ghcr.io/playgrifball/charts/grifballwebapp as <Chart.yaml's major.minor>.<run number>, signed
 # keyless with cosign.
 on:
   pull_request:
     branches: [ "master" ]
-    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile", "docker/postgres-periods/**" ]
   push:
     branches: [ "master" ]
-    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile", "docker/postgres-periods/**" ]
   workflow_dispatch:
 
 env:
@@ -76,6 +76,7 @@ jobs:
 
   # The app images from this checkout, built once for every end-to-end run: the chart's migration
   # steps need what the backend image carries (sqlcmd, the bundle), so the published ones may not do.
+  # PostgreSQL with the periods extension too: the published one comes only from master.
   images:
     runs-on: ubuntu-latest
     permissions:
@@ -101,6 +102,14 @@ jobs:
           tags: grif-frontend:e2e
           outputs: type=docker,dest=${{ runner.temp }}/grif-frontend.tar
           cache-from: type=gha
+
+      - name: PostgreSQL periods image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: docker/postgres-periods
+          tags: grif-postgres-periods:e2e
+          outputs: type=docker,dest=${{ runner.temp }}/grif-postgres-periods.tar
+          cache-from: type=gha,scope=postgres-periods
 
       - uses: actions/upload-artifact@v4
         with:
@@ -150,12 +159,13 @@ jobs:
           k3d cluster create e2e --image "rancher/k3s:${{ matrix.k3s }}" --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl version
           for image in "${{ runner.temp }}"/grif-*.tar; do docker load -i "$image"; done
-          k3d image import grif-backend:e2e grif-frontend:e2e -c e2e
+          k3d image import grif-backend:e2e grif-frontend:e2e grif-postgres-periods:e2e -c e2e
 
       - name: End-to-end (${{ matrix.database }})
         env:
           BACKEND_IMAGE: grif-backend:e2e
           FRONTEND_IMAGE: grif-frontend:e2e
+          PERIODS_IMAGE: grif-postgres-periods:e2e
         run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
 
   # Publishes the chart when it changed: version <Chart.yaml's major.minor>.<this workflow's run

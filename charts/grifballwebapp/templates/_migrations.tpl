@@ -285,6 +285,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- else }}
       if [ -s /work/pending.txt ]; then {{ include "grif.byProvider" (dict "root" . "sql" "/app/efbundle" "pg" "/app/postgres/efbundle") }}; else echo "Nothing to migrate."; fi
       {{- end }}
+      {{- if include "grif.history" . }}
+      {{- include "grif.pgHistoryScript" . | nindent 6 }}
+      {{- end }}
       {{- if .Values.database.logins.enabled }}
       {{- if include "grif.postgres" . }}
       {{- include "grif.pgLoginSyncScript" . | nindent 6 }}
@@ -294,8 +297,10 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- end }}
   env:
     {{- include "grif.migrationEnv" . | nindent 4 }}
-    {{- if .Values.database.logins.enabled }}
+    {{- if or .Values.database.logins.enabled (include "grif.history" .) }}
     {{- include "grif.dbEnv" . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.database.logins.enabled }}
     - name: APP_USER
       value: {{ .Values.database.logins.app.user | quote }}
     {{- include "grif.appPasswordEnv" (dict "root" . "name" "APP_PASSWORD") | nindent 4 }}
