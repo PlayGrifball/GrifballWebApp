@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 
 namespace GrifballWebApp.Database;
@@ -36,7 +37,9 @@ public static class DatabaseProviderExtensions
         return provider switch
         {
             DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly)),
-            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly)),
+            // Its migrations keep row history working (RowHistoryMigrationsSqlGenerator).
+            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly))
+                .ReplaceService<IMigrationsSqlGenerator, RowHistoryMigrationsSqlGenerator>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }

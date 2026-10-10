@@ -104,12 +104,46 @@ SQL
 {{- end }}
 
 {{/*
+database.history: row history, as the administrator (a superuser: periods isn't a trusted extension),
+after the migrations and before the logins, on every run. The periods extension; its functions closed
+to PUBLIC (they run as their owner and check nothing: any login could turn a table's history off, or
+purge it); and SYSTEM VERSIONING on every table that hasn't it yet - the tables of a database from
+before history was on. The app's own migrations version the tables they create, with the same period
+columns (RowHistory, RowHistoryMigrationsSqlGenerator). Never EF's migration history, nor anything an
+extension owns. One transaction: a failure leaves no table half versioned.
+*/}}
+{{- define "grif.pgHistoryScript" -}}
+# Row history (database.history).
+psql -X -q -v ON_ERROR_STOP=1 -d "$DB_NAME" <<'SQL'
+SET client_min_messages = warning;
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS periods CASCADE;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA periods FROM PUBLIC;
+-- Not printed: the calls' results, two per table.
+\o /dev/null
+SELECT format('SELECT periods.add_system_time_period(%L, %L, %L)', c.oid::regclass, 'PeriodStart', 'PeriodEnd'),
+       format('SELECT periods.add_system_versioning(%L)', c.oid::regclass)
+  FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace
+ WHERE c.relkind = 'r' AND n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'periods')
+   AND (n.nspname, c.relname) <> ('public', '__EFMigrationsHistory')
+   AND c.oid NOT IN (SELECT table_name FROM periods.system_versioning UNION ALL SELECT history_table_name FROM periods.system_versioning)
+   AND NOT EXISTS (SELECT FROM pg_depend AS d WHERE d.classid = 'pg_class'::regclass AND d.objid = c.oid AND d.deptype = 'e')
+ ORDER BY n.nspname, c.relname \gexec
+\o
+COMMIT;
+SELECT count(*) AS versioned FROM periods.system_versioning \gset
+\echo Row history: :versioned tables versioned in :DBNAME.
+SQL
+{{- end }}
+
+{{/*
 database.logins: create the roles or reset their passwords, and grant exactly their rights, as the
 administrator, after the migrations (the database and its tables exist by then; the next run grants
 on tables a later migration adds). psql reads the names and passwords from the environment itself
 (\getenv). The app: CONNECT, USAGE on every schema but PostgreSQL's own, read and write on every table,
 its sequences; no CREATE anywhere and owner of nothing, so it can't change the schema. Monitoring:
-pg_monitor (statistics and settings), no table.
+pg_monitor (statistics and settings), no table. With database.history, the app's go table by table, not to
+the history tables and views: periods refuses any grant on them, and gives SELECT with their table's.
 */}}
 {{- define "grif.pgLoginSyncScript" -}}
 # Logins (database.logins).
@@ -122,11 +156,25 @@ SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_passwor
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user') \gexec
 -- Before PostgreSQL 15 anyone could create tables in public.
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+{{- if include "grif.history" . }}
+-- Table by table, not ALL TABLES IN SCHEMA: periods refuses any grant on a history table or view,
+-- which get SELECT from their table's. Nothing in periods' own schema.
+SELECT format('GRANT USAGE ON SCHEMA %I TO %I', nspname, :'app_user'),
+       format('GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA %I TO %I', nspname, :'app_user')
+  FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname NOT IN ('information_schema', 'periods') ORDER BY nspname \gexec
+SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON %s TO %I', c.oid::regclass, :'app_user')
+  FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace
+ WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f') AND n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'periods')
+   AND c.oid NOT IN (SELECT history_table_name FROM periods.system_versioning UNION ALL SELECT view_name FROM periods.system_versioning)
+ ORDER BY n.nspname, c.relname \gexec
+\echo Login :app_user: reads and writes :DBNAME, and reads its history.
+{{- else }}
 SELECT format('GRANT USAGE ON SCHEMA %I TO %I', nspname, :'app_user'),
        format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I', nspname, :'app_user'),
        format('GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA %I TO %I', nspname, :'app_user')
   FROM pg_namespace WHERE nspname NOT LIKE 'pg\_%' AND nspname <> 'information_schema' ORDER BY nspname \gexec
 \echo Login :app_user: reads and writes :DBNAME.
+{{- end }}
 \getenv mon_user MON_USER
 \if :{?mon_user}
 \getenv mon_password MON_PASSWORD

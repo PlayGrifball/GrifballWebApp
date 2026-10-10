@@ -39,6 +39,12 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if eq .Values.database.provider "postgres" }}true{{ end -}}
 {{- end }}
 
+{{/* "true" with database.history.enabled on PostgreSQL (row history, the periods extension); empty
+   otherwise, and always with SQL Server, whose tables are temporal. */}}
+{{- define "grif.history" -}}
+{{- if and (include "grif.postgres" .) .Values.database.history.enabled }}true{{ end -}}
+{{- end }}
+
 {{/* The provider's value: .pg with PostgreSQL, .sql with SQL Server. Takes dict "root", "sql", "pg". */}}
 {{- define "grif.byProvider" -}}
 {{- if include "grif.postgres" .root }}{{ .pg }}{{ else }}{{ .sql }}{{ end -}}
