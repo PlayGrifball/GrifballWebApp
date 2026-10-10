@@ -1,0 +1,119 @@
+diff --git a/periods--1.2.sql b/periods--1.2.sql
+index 33f5f41..0263572 100644
+--- a/periods--1.2.sql
++++ b/periods--1.2.sql
+@@ -3072,7 +3072,14 @@ BEGIN
+     FOR sql IN
+         SELECT pg_catalog.format('UPDATE periods.periods SET start_column_name = %L, end_column_name = %L WHERE (table_name, period_name) = (%L::regclass, %L)',
+             sa.attname, ea.attname, p.table_name, p.period_name)
+-        FROM periods.periods AS p
++        FROM (
++            /* Only the periods whose constraint no longer names their columns */
++            SELECT p.*
++            FROM periods.periods AS p
++            JOIN pg_catalog.pg_constraint AS c ON (c.conrelid, c.conname) = (p.table_name, p.bounds_check_constraint)
++            WHERE pg_catalog.pg_get_constraintdef(c.oid) <> format('CHECK ((%I < %I))', p.start_column_name, p.end_column_name)
++            OFFSET 0
++        ) AS p
+         JOIN pg_catalog.pg_constraint AS c ON (c.conrelid, c.conname) = (p.table_name, p.bounds_check_constraint)
+         JOIN pg_catalog.pg_attribute AS sa ON sa.attrelid = p.table_name
+         JOIN pg_catalog.pg_attribute AS ea ON ea.attrelid = p.table_name
+@@ -3089,7 +3096,13 @@ BEGIN
+     FOR sql IN
+         SELECT pg_catalog.format('UPDATE periods.periods SET bounds_check_constraint = %L WHERE (table_name, period_name) = (%L::regclass, %L)',
+             c.conname, p.table_name, p.period_name)
+-        FROM periods.periods AS p
++        FROM (
++            /* Only the periods whose constraint is gone */
++            SELECT p.*
++            FROM periods.periods AS p
++            WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_constraint AS _c WHERE (_c.conrelid, _c.conname) = (p.table_name, p.bounds_check_constraint))
++            OFFSET 0
++        ) AS p
+         JOIN pg_catalog.pg_constraint AS c ON c.conrelid = p.table_name
+         JOIN pg_catalog.pg_attribute AS sa ON sa.attrelid = p.table_name
+         JOIN pg_catalog.pg_attribute AS ea ON ea.attrelid = p.table_name
+@@ -3109,7 +3122,13 @@ BEGIN
+         SELECT pg_catalog.format('UPDATE periods.system_time_periods SET infinity_check_constraint = %L WHERE table_name = %L::regclass',
+             c.conname, p.table_name)
+         FROM periods.periods AS p
+-        JOIN periods.system_time_periods AS stp ON (stp.table_name, stp.period_name) = (p.table_name, p.period_name)
++        JOIN (
++            /* Only the periods whose constraint is gone */
++            SELECT stp.*
++            FROM periods.system_time_periods AS stp
++            WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_constraint AS _c WHERE (_c.conrelid, _c.conname) = (stp.table_name, stp.infinity_check_constraint))
++            OFFSET 0
++        ) AS stp ON (stp.table_name, stp.period_name) = (p.table_name, p.period_name)
+         JOIN pg_catalog.pg_constraint AS c ON c.conrelid = p.table_name
+         JOIN pg_catalog.pg_attribute AS ea ON ea.attrelid = p.table_name
+         WHERE stp.infinity_check_constraint <> c.conname
+@@ -3347,10 +3366,7 @@ BEGIN
+         SELECT *
+         FROM periods.system_versioning AS sv
+         CROSS JOIN LATERAL UNNEST(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]) AS u (fn)
+-        WHERE NOT EXISTS (
+-            SELECT FROM pg_catalog.pg_proc AS p
+-            WHERE p.oid::regprocedure::text = u.fn
+-        )
++        WHERE pg_catalog.to_regprocedure(u.fn) IS NULL
+     LOOP
+         RAISE EXCEPTION 'cannot drop or rename function "%" because it is used in SYSTEM VERSIONING for table "%"',
+             r.fn, r.table_name;
+@@ -3383,7 +3399,7 @@ BEGIN
+         SELECT format('ALTER FUNCTION %s OWNER TO %I', p.oid::regprocedure, t.relowner::regrole)
+         FROM periods.system_versioning AS sv
+         JOIN pg_class AS t ON t.oid = sv.table_name
+-        JOIN pg_proc AS p ON p.oid = ANY (ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[])
++        CROSS JOIN LATERAL unnest(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[]) AS _fn (oid) JOIN pg_proc AS p ON p.oid = _fn.oid
+         WHERE t.relowner <> p.proowner
+     LOOP
+         EXECUTE cmd;
+@@ -3439,7 +3455,7 @@ BEGIN
+                        acl.grantee,
+                        'h'
+                 FROM periods.system_versioning AS sv
+-                JOIN pg_proc AS p ON p.oid = ANY (ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[])
++                CROSS JOIN LATERAL unnest(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[]) AS _fn (oid) JOIN pg_proc AS p ON p.oid = _fn.oid
+                 CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS acl
+             ) AS objects
+             ORDER BY object_name, object_type, privilege_type
+@@ -3498,7 +3514,7 @@ BEGIN
+                 FROM periods.system_versioning AS sv
+                 JOIN pg_class AS c ON c.oid = sv.table_name
+                 CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS acl
+-                JOIN pg_proc AS hp ON hp.oid = ANY (ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[])
++                CROSS JOIN LATERAL unnest(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[]) AS _fn (oid) JOIN pg_proc AS hp ON hp.oid = _fn.oid
+                 WHERE acl.privilege_type = 'SELECT'
+                   AND NOT has_function_privilege(acl.grantee, hp.oid, 'EXECUTE')
+             ) AS objects
+@@ -3555,7 +3571,7 @@ BEGIN
+             FROM periods.system_versioning AS sv
+             JOIN pg_class AS c ON c.oid = sv.table_name
+             CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS acl
+-            JOIN pg_proc AS hp ON hp.oid = ANY (ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[])
++            CROSS JOIN LATERAL unnest(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[]) AS _fn (oid) JOIN pg_proc AS hp ON hp.oid = _fn.oid
+             WHERE acl.privilege_type = 'SELECT'
+               AND NOT EXISTS (
+                 SELECT
+@@ -3605,7 +3621,7 @@ BEGIN
+                        'EXECUTE' AS privilege_type,
+                        hacl.grantee
+                 FROM periods.system_versioning AS sv
+-                JOIN pg_proc AS hp ON hp.oid = ANY (ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[])
++                CROSS JOIN LATERAL unnest(ARRAY[sv.func_as_of, sv.func_between, sv.func_between_symmetric, sv.func_from_to]::regprocedure[]) AS _fn (oid) JOIN pg_proc AS hp ON hp.oid = _fn.oid
+                 CROSS JOIN LATERAL aclexplode(COALESCE(hp.proacl, acldefault('f', hp.proowner))) AS hacl
+                 WHERE hacl.privilege_type = 'EXECUTE'
+                   AND NOT has_table_privilege(hacl.grantee, sv.table_name, 'SELECT')
+@@ -3695,3 +3711,11 @@ $function$
+     SELECT sv1 = ev2;
+ $function$;
+ 
++
++/*
++ * The event triggers' catalog queries are estimated far costlier than they
++ * are, enough for JIT, whose compiling alone takes longer than they run.
++ */
++ALTER FUNCTION periods.health_checks() SET jit = off;
++ALTER FUNCTION periods.rename_following() SET jit = off;
++ALTER FUNCTION periods.drop_protection() SET jit = off;
