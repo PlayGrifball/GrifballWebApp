@@ -18,7 +18,7 @@ defaultServiceAccount:
 
 imagePullSecrets: []
 
-# The database the backend and the deploy hook use: the chart's SQL Server (mssql.enabled) or any
+# The database the backend and its migrations use: the chart's SQL Server (mssql.enabled) or any
 # other one.
 database:
   # Empty: the chart's SQL Server Service (mssql.service.name). Required when mssql.enabled is false.
@@ -35,7 +35,7 @@ database:
   # The password goes in as is, so it must not contain ';'.
   options: "Encrypt=True;TrustServerCertificate=True"
   # Give the backend this whole connection string instead (ConnectionStrings:GrifballWebApp). The
-  # deploy hook still connects with host, port, user and password above.
+  # migrations still connect with host, port, user and password above.
   connectionString:
     secretName: ""
     key: ""
@@ -45,7 +45,7 @@ backend:
     repository: ghcr.io/playgrifball/grifballwebappserver
     # A tag, tag@sha256:... or sha256:... (Argo CD Image Updater can write either form).
     tag: latest
-    # sha256:...; when set, runs repository:tag@digest. The deploy hook uses the same image.
+    # sha256:...; when set, runs repository:tag@digest. The migrations use the same image.
     digest: ""
     pullPolicy: IfNotPresent
   replicas: 1
@@ -66,12 +66,10 @@ backend:
   # numbers as floating point and would round them, so the chart refuses them instead.
   # Every setting the app reads, with its default in the app:
   config:
-    # Apply EF Core migrations at startup (default false). The deploy hook applies them before an
-    # upgrade; this covers a first install, which has no hook run.
-    ApplyMigrations: true
-    # With ApplyMigrations, also create the database if it doesn't exist (default false): a first
-    # install starts from an empty SQL Server.
-    CreateDatabase: true
+    # Apply EF Core migrations at startup, and with CreateDatabase create a missing database (both
+    # default false). Off: the migrations Job (below) does it, with a backup first.
+    # ApplyMigrations: false
+    # CreateDatabase: false
     # The site's home page, used in links the app sends (required). Ex: https://grifball.example
     # BaseUrl: ""
     Discord:
@@ -327,7 +325,7 @@ mssql:
     storageClass: ""
     accessModes: [ReadWriteOnce]
     annotations: {}
-  # The backup volume, mounted at /var/opt/mssql/backup; the deploy hook writes its backups here.
+  # The backup volume, mounted at /var/opt/mssql/backup; migrations write their backups here.
   backup:
     enabled: true
     existingClaim: ""
@@ -410,70 +408,59 @@ sqlExporter:
   tolerations: []
   affinity: {}
 
-# Create the database and apply migrations before the backend starts: init containers in the backend
-# pod wait for the database, then run the image's migration bundle (/app/efbundle) with the
-# database credentials. A no-op when the database is up to date. Lets the app run with
-# backend.config.ApplyMigrations and CreateDatabase false, so a first install needn't rely on the
-# app migrating itself. (Not a Helm install hook: pre-install runs before the chart's SQL Server
-# exists, and post-install - like Argo CD's PostSync - waits for a backend that can't start without
-# its database.)
-databaseSetup:
-  enabled: false
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 512Mi
-
-# Before every upgrade (Helm pre-upgrade, Argo CD PreSync): back up the database, then apply EF
-# migrations with the bundle in the backend image being deployed (/app/efbundle). If the build has
-# migrations the database lacks, backend and frontend are first scaled to 0, so no old code runs
-# during the backup and migration or against the new schema; the upgrade then scales them back.
-# With nothing pending the app stays up. A failed step stops the upgrade.
-deployHook:
+# Database migrations: one Job is the only thing that changes the schema (backend.config's
+# ApplyMigrations and CreateDatabase stay off). It runs on every install and upgrade:
+#   1. waits for the database;
+#   2. compares the image's migrations (/app/migrations.txt) with the database's;
+#   3. if the database exists and lacks some, backs it up (backup);
+#   4. your own steps (extraInitContainers);
+#   5. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
+# With nothing pending, steps 3-5 do nothing. Backend pods only wait (init containers) until the
+# database has every migration in their image, then start; they never change it, so a deploy that
+# skips the Job leaves them waiting rather than migrating without a backup.
+# Under Argo CD the Job is sync wave -1, after SQL Server (-2) and before the app (0): the backend
+# changes only after the Job succeeds, and a failed Job stops the sync with the old backend running.
+# A Job can't be changed once created, so its name carries a hash of its spec and the release
+# revision; the old one goes with the release's previous manifest. Argo CD renders revision 1 every
+# time, so the same spec keeps the same Job there: delete it to run it again (after restoring a
+# backup, say).
+# Off: nothing migrates unless the app does (ApplyMigrations, CreateDatabase), without backups.
+migrations:
   enabled: true
   backup:
     enabled: true
-    # A folder on the SQL Server's side; created if missing. Empty:
-    # /var/opt/mssql/backup/<namespace> (mssql.backup's volume).
+    # A folder on the SQL Server's side (it writes the file), created if missing. Empty:
+    # /var/opt/mssql/backup/<namespace>, mssql.backup's volume.
     directory: ""
-  # Scale backend and frontend to 0 while pending migrations are applied.
-  scaleDown: true
-  serviceAccount:
-    # The hook's ServiceAccount, Role (scale backend and frontend, read SQL Server's Deployment) and
-    # RoleBinding, created as hooks themselves so they exist before the hook runs. false: bring
-    # your own with that access.
-    create: true
-    name: grif-deploy-hook
-  activeDeadlineSeconds: 1200
-  # Waits this long for SQL Server to accept connections (seconds).
-  databaseWaitSeconds: 120
-  images:
-    kubectl: docker.io/alpine/k8s:1.36.5
-    sqlcmd: mcr.microsoft.com/mssql-tools:latest
+  # How long the Job waits for the database to accept connections (seconds).
+  databaseWaitSeconds: 300
+  # A failed migration is usually deterministic; retries are off.
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  # sqlcmd, for the comparison and the backup (the Job) and the wait (backend pods).
+  sqlcmdImage: mcr.microsoft.com/mssql-tools:latest
   imagePullPolicy: IfNotPresent
-  # Replace a step's shell script (run with /bin/sh -c). Empty: the chart's. Steps share /work:
-  # check-pending writes pending.txt (one migration per line) and db-exists; the database
-  # connection is in DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, the backup folder in
-  # BACKUP_DIR. migrate runs in the backend image.
+  # Replace one of the Job's step scripts (run with /bin/sh -c). Empty: the chart's. Steps share
+  # /work: check-pending writes pending.txt (one migration per line) and db-exists; the connection is
+  # in DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, the backup folder in BACKUP_DIR. migrate runs
+  # in the backend image.
   scripts:
     checkPending: ""
-    scaleDown: ""
     backup: ""
     migrate: ""
-  # Your own steps, run after the backup and before the migration (init containers, as they are).
+  # Your own steps in the Job, after the backup and before the migration (init containers, as they
+  # are; templates allowed).
   extraInitContainers: []
-  # Added to every step.
+  # Added to every step, the backend's wait included.
   extraEnv: []
-  # On the Job, beside the hook annotations (which these can override).
+  # On the Job.
   annotations: {}
   podAnnotations: {}
   podLabels: {}
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
-  # Every step's container.
+  # Every step's container, the backend's wait included.
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
@@ -498,11 +485,6 @@ networkPolicy:
   #   podSelector: { matchLabels: { k8s-app: kube-dns } }
   dns:
     to: []
-  # The Kubernetes API, for the deploy hook's kubectl. Policies see the API server's own address and
-  # port (often a node on 6443), not the kubernetes Service's. Empty to: anywhere.
-  kubernetesApi:
-    to: []
-    ports: [443, 6443]
   # An external database (mssql.enabled false): where it is, ex. an ipBlock. Empty: anywhere, on
   # database.port. For a database behind a Service in the cluster, policies see the pod's port.
   database:
@@ -533,7 +515,7 @@ networkPolicy:
     loadBalancerFrom: []
     extraIngress: []
     extraEgress: []
-  deployHook:
+  migrations:
     extraEgress: []
   sqlExporter:
     # Who may scrape it (its port). Empty: anyone.

@@ -77,3 +77,11 @@ tests:
     asserts:
       - equal: { path: spec.accessModes, value: [ReadWriteOnce] }
         documentIndex: 1
+
+  - it: comes up before the migration Job under Argo CD (sync wave -2), on its objects only
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-2" }
+      - notExists: { path: "spec.template.metadata.annotations['argocd.argoproj.io/sync-wave']" }
+        documentIndex: 3

@@ -103,8 +103,8 @@ skipped. Takes dict "name" (prefix, "" at the top) and "value".
 {{- else -}}{{- $hc.ReadyPath | default "/health/ready" -}}{{- end -}}
 {{- end }}
 
-{{/* The deploy hook's connection, for sqlcmd. */}}
-{{- define "grif.hookDbEnv" -}}
+{{/* The database connection, for sqlcmd. */}}
+{{- define "grif.dbEnv" -}}
 - name: DB_HOST
   value: {{ include "grif.dbHost" . | quote }}
 - name: DB_PORT

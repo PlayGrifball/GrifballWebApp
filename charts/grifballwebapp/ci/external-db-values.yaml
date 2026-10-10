@@ -30,6 +30,6 @@ ingress:
   tls:
     - secretName: grifball-tls
       hosts: [grifball.example]
-deployHook:
+migrations:
   backup:
     directory: /var/opt/mssql/backup/grifball

@@ -32,8 +32,8 @@ https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF
 
 ## Deploying
 To Kubernetes with the Helm chart in [charts/grifballwebapp](charts/grifballwebapp/README.md), published to
-`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server, and a pre-upgrade
-hook that backs up the database and applies migrations.
+`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server, and a migration
+Job that backs the database up before applying new migrations.
 
 ## Backend Technologies
 - [.NET 10](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)

@@ -1,4 +1,5 @@
 {{- $m := .Values.mssql -}}
+{{- /* SQL Server is sync wave -2 under Argo CD: up before the migration Job (-1) and the app (0). */}}
 {{- if $m.enabled }}
 {{- if not $m.acceptEula }}
 {{- fail "mssql.acceptEula must be true to run SQL Server (you accept its EULA); or set mssql.enabled false and database.host" }}
@@ -11,10 +12,11 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
-  {{- with $m.persistence.annotations }}
   annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with $m.persistence.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   accessModes:
     {{- toYaml $m.persistence.accessModes | nindent 4 }}
@@ -37,10 +39,11 @@ metadata:
   labels:
     {{- include "grif.labels" $ | nindent 4 }}
     app.kubernetes.io/component: mssql
-  {{- with .annotations }}
   annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   capacity:
     storage: {{ .size }}
@@ -59,10 +62,11 @@ metadata:
   labels:
     {{- include "grif.labels" $ | nindent 4 }}
     app.kubernetes.io/component: mssql
-  {{- with .annotations }}
   annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   accessModes:
     {{- toYaml .accessModes | nindent 4 }}
@@ -85,6 +89,8 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   type: ClusterIP
   selector:
@@ -103,10 +109,11 @@ metadata:
   labels:
     {{- include "grif.labels" $ | nindent 4 }}
     app.kubernetes.io/component: mssql
-  {{- with .annotations }}
   annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   type: LoadBalancer
   selector:
@@ -125,6 +132,8 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   replicas: 1
   selector:

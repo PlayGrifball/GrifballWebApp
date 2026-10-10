@@ -18,6 +18,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   podSelector:
     matchLabels:
@@ -55,6 +58,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: backend
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   podSelector:
     matchLabels:
@@ -108,6 +114,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: mssql
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   podSelector:
     matchLabels:
@@ -118,9 +127,11 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-backend
+        {{- if .Values.migrations.enabled }}
         - podSelector:
             matchLabels:
-              app: grif-deploy-hook
+              app: grif-migrate
+        {{- end }}
         {{- if .Values.sqlExporter.enabled }}
         - podSelector:
             matchLabels:
@@ -149,33 +160,26 @@ spec:
     {{- end }}
 ---
 {{- end }}
-{{- if .Values.deployHook.enabled }}
+{{- if .Values.migrations.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: grif-deploy-hook
+  name: grif-migrate
   labels:
     {{- include "grif.labels" . | nindent 4 }}
-    app.kubernetes.io/component: deploy-hook
+    app.kubernetes.io/component: migrations
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   podSelector:
     matchLabels:
-      app: grif-deploy-hook
+      app: grif-migrate
   policyTypes: [Ingress, Egress]
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
     {{- toYaml (list $database) | nindent 4 }}
-    # kubectl: SQL Server's Deployment, scaling the app down.
-    - ports:
-        {{- range $np.kubernetesApi.ports }}
-        - protocol: TCP
-          port: {{ . }}
-        {{- end }}
-      {{- with $np.kubernetesApi.to }}
-      to:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- with $np.deployHook.extraEgress }}
+    {{- with $np.migrations.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---
@@ -188,6 +192,9 @@ metadata:
   labels:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: sql-exporter
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   podSelector:
     matchLabels:

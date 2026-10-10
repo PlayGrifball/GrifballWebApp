@@ -59,3 +59,11 @@ tests:
         documentIndex: 0
       - equal: { path: automountServiceAccountToken, value: false }
         documentIndex: 1
+
+  - it: creates the Secret before everything that reads it (sync wave -3)
+    template: templates/misc.yaml
+    documentIndex: 0
+    set:
+      secret: { create: true, stringData: { SA_PASSWORD: x } }
+    asserts:
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-3" }

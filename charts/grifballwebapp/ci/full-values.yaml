@@ -1,5 +1,5 @@
 # Most features on: the chart's SQL Server with an NFS backup volume, a Traefik IngressRoute,
-# OpenTelemetry, settings from Secrets, database setup, extra hook steps, network policies with
+# OpenTelemetry, settings from Secrets, extra migration steps, network policies with
 # extras, extra objects. Example values only. Rendered and schema-checked by the Helm chart workflow.
 defaultServiceAccount:
   manage: true
@@ -71,9 +71,7 @@ sqlExporter:
     enabled: true
     labels:
       scrape: "true"
-databaseSetup:
-  enabled: true
-deployHook:
+migrations:
   extraEnv:
     - name: TZ
       value: UTC
@@ -81,8 +79,6 @@ deployHook:
     - name: notify
       image: docker.io/library/busybox:1.38
       command: ["echo", "deploying to {{ .Release.Namespace }}"]
-  annotations:
-    example.com/owner: grif
 networkPolicy:
   dns:
     to:

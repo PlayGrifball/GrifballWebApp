@@ -7,18 +7,19 @@ release:
 set:
   mssql.acceptEula: true
 tests:
-  - it: gives the frontend, backend, SQL Server and the hook a policy each, by default
+  - it: gives the frontend, backend, SQL Server and the migration Job a policy each, by default, first
     template: templates/networkpolicy.yaml
     asserts:
       - hasDocuments: { count: 4 }
+      - equal: { path: metadata.name, value: grif-migrate }
+        documentIndex: 3
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-3" }
       - equal: { path: metadata.name, value: grif-frontend }
         documentIndex: 0
       - equal: { path: metadata.name, value: grif-backend }
         documentIndex: 1
       - equal: { path: metadata.name, value: grif-mssql }
         documentIndex: 2
-      - equal: { path: metadata.name, value: grif-deploy-hook }
-        documentIndex: 3
 
   - it: renders none when disabled
     template: templates/networkpolicy.yaml
@@ -89,7 +90,7 @@ tests:
           value: { to: [{ ipBlock: { cidr: 192.0.2.10/32 } }], ports: [{ protocol: TCP, port: 14330 }] }
         documentIndex: 2
 
-  - it: admits only the backend, the hook and sql-exporter to SQL Server, plus the LoadBalancer
+  - it: admits only the backend, the migration Job and sql-exporter to SQL Server, plus the LoadBalancer
     template: templates/networkpolicy.yaml
     documentIndex: 2
     set:
@@ -101,19 +102,18 @@ tests:
           path: "spec.ingress[0].from"
           value:
             - podSelector: { matchLabels: { app: grif-backend } }
-            - podSelector: { matchLabels: { app: grif-deploy-hook } }
+            - podSelector: { matchLabels: { app: grif-migrate } }
             - podSelector: { matchLabels: { app: sql-exporter } }
       - equal: { path: "spec.ingress[1]", value: { ports: [{ protocol: TCP, port: 1433 }], from: [{ ipBlock: { cidr: 192.0.2.0/24 } }] } }
       - equal: { path: spec.egress, value: [{ ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] }] }
 
-  - it: lets the hook reach the database and the Kubernetes API
+  - it: limits DNS to where it's told
     template: templates/networkpolicy.yaml
-    documentIndex: 3
+    documentIndex: 1
     set:
       networkPolicy.dns.to: [{ podSelector: { matchLabels: { k8s-app: kube-dns } } }]
     asserts:
       - equal: { path: "spec.egress[0].to", value: [{ podSelector: { matchLabels: { k8s-app: kube-dns } } }] }
-      - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }] }
 
   - it: adds extra rules, a policy for sql-exporter, and policies of your own
     template: templates/networkpolicy.yaml

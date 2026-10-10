@@ -5,6 +5,9 @@ metadata:
   name: {{ .Values.secret.name }}
   labels:
     {{- include "grif.labels" . | nindent 4 }}
+  annotations:
+    # Before SQL Server and the migration Job, which read it (Argo CD).
+    argocd.argoproj.io/sync-wave: "-3"
 type: Opaque
 stringData:
   {{- toYaml .Values.secret.stringData | nindent 2 }}

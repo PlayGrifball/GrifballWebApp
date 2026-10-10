@@ -1,8 +1,8 @@
 # grifballwebapp Helm chart
 
 Deploys GrifballWebApp: the frontend (nginx with the Angular build), the backend (ASP.NET Core) and,
-optionally, SQL Server. Before every upgrade a hook backs up the database and applies the EF Core
-migrations of the backend image being deployed.
+optionally, SQL Server. A migration Job backs up the database when it has migrations to apply, then
+applies them with the EF Core bundle of the backend image being deployed; the backend waits for it.
 
 Published to `oci://ghcr.io/playgrifball/charts/grifballwebapp` by the
 [Helm chart workflow](../../.github/workflows/helm-chart.yml) whenever `version` in `Chart.yaml` changes on
@@ -54,8 +54,8 @@ helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version 0.1
 ```
 
 That runs the frontend, the backend, SQL Server with data and backup volumes from the default storage
-class, a network policy per pod, and the pre-upgrade backup-and-migrate hook. On its first start the
-backend creates the database (`ApplyMigrations` and `CreateDatabase`, on by default). Halo Infinite
+class, a network policy per pod, and the migration Job, which creates the database on the first install
+and later backs it up before applying new migrations. Halo Infinite
 stat pulls also need `ClientConfiguration:ClientId`, `ClientSecret` and `RedirectUrl` in
 `secretConfig`; Google Sheets imports need `backend.googleCredentials` and `GoogleSheets:Sheets`.
 
@@ -103,38 +103,50 @@ which rounds anything above 2^53; the chart fails rather than deploy a rounded I
 - **The chart's SQL Server** (`mssql.enabled: true`, the default): data on `mssql.persistence`, backups on
   `mssql.backup` (a claim from a storage class, an NFS export, or an existing claim).
 - **Your own** (`mssql.enabled: false`): set `database.host`, `port`, `user` and `password`. The
-  deploy hook's backup is written by that server, to `deployHook.backup.directory` on its side.
+  migrations' backup is written by that server, to `migrations.backup.directory` on its side.
 
 The backend's connection string is built from `database` (password from its Secret), or read whole from
 `database.connectionString`.
 
-## The deploy hook
+## Migrations
 
-Runs as a Helm `pre-upgrade` hook and an Argo CD `PreSync` hook:
+One Job changes the schema; nothing else does (`migrations`, on by default; the app's own
+`ApplyMigrations` and `CreateDatabase` stay off). The same pattern as GitLab's chart: one migrator,
+and app pods that wait for it. On every install and upgrade the Job:
 
-1. waits for the database (on a first Argo CD sync, before SQL Server exists, it does nothing);
-2. compares the image's `/app/migrations.txt` with `__EFMigrationsHistory`;
-3. if migrations are pending, scales backend and frontend to 0 (`deployHook.scaleDown`);
-4. backs up the database (`deployHook.backup`), from the database server's side;
-5. runs your own steps (`deployHook.extraInitContainers`);
-6. runs `/app/efbundle`.
+1. waits for the database;
+2. compares the image's `/app/migrations.txt` with the database's `__EFMigrationsHistory`;
+3. if the database exists and lacks some, backs it up (`migrations.backup`) - SQL Server writes the
+   file, so the folder is on its side;
+4. runs your own steps (`migrations.extraInitContainers`);
+5. applies the pending migrations with the image's bundle (`/app/efbundle`), creating the database if
+   it's missing.
 
-A failure stops the upgrade. It works the same against an external database. Each step's script
-can be replaced (`deployHook.scripts`); `extraEnv`, annotations, labels, security contexts, images,
-pull policy, scheduling and resources are all values.
+With nothing pending, steps 3 to 5 do nothing. Backend pods have two init containers that only wait:
+they start the app as soon as the database has every migration in their image, and say what they're
+waiting for until then (`kubectl logs <pod> -c wait-for-migrations`). They never change the schema, so
+a deploy that skips the Job leaves the backend waiting rather than migrating without a backup.
 
-## Setting up a new database
+**Argo CD.** The Job is a normal resource, not a hook, in sync wave -1: after the chart's Secret and the
+network policies (-3) and SQL Server (-2), before the app (0). The backend changes only once the Job has
+succeeded; if it fails, the sync stops and the running backend is left as it was. The same holds on a
+first sync, where the Job creates the database once SQL Server is up.
 
-A first `helm install` runs no hook. Either the backend creates the database and applies migrations
-at startup (`backend.config.ApplyMigrations` and `CreateDatabase`, on by default), or, with
-`databaseSetup.enabled`, init containers in the backend pod do it before the app starts, with the
-migration bundle and the `database` credentials - so the app can run with both settings off and,
-through `database.connectionString`, with a login that can't change the schema. When the database is
-up to date that's a no-op.
+**Helm.** Waves don't apply: the Job and the new backend start together, and the backend waits.
 
-It isn't a Helm install hook because one can't work here: `pre-install` runs before the chart's SQL
-Server exists, and `post-install` (like Argo CD's `PostSync`) waits for a backend that can't start
-without its database.
+**Re-running.** A Job can't be changed once created, so its name carries a hash of its spec and the
+release revision: every `helm upgrade` makes a new Job and removes the previous one. Argo CD renders
+the same revision every time, so the same spec keeps the same Job; delete it and Argo recreates it
+(after restoring a backup, say). A failed Job isn't retried (`migrations.backoffLimit`): fix the cause,
+delete it, sync again.
+
+Each step's script can be replaced (`migrations.scripts`); `extraEnv`, the sqlcmd image, annotations,
+labels, security contexts, scheduling and resources are values. `migrations.enabled: false` leaves
+migrating to the app (`ApplyMigrations`, `CreateDatabase`), without backups.
+
+The backend runs one replica: the Discord bot's gateway connection, the background queue and events
+services, and Grunt's token file on a ReadWriteOnce volume all assume a single instance. The migrations
+don't: more backend pods would only be more waiters.
 
 ## Metrics
 
@@ -153,8 +165,8 @@ what it needs.
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
 | backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port |
-| SQL Server | backend, deploy hook, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
-| deploy hook | - | DNS, the database, the Kubernetes API (`kubernetesApi`) |
+| SQL Server | backend, migration Job, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
+| migration Job | - | DNS, the database |
 | sql-exporter | its metrics port from anyone (`sqlExporter.from`) | DNS, the database |
 
 An external database is allowed anywhere on `database.port` unless `networkPolicy.database.to` says
