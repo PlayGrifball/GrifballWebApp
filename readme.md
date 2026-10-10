@@ -30,6 +30,11 @@ Up until now stats have been compiled into excel sheets, see Winter League 2023 
 https://docs.google.com/spreadsheets/d/14tRPXLkjauRV-xfQiegUD6VMlqso7_EYe68E9HY45_c
 https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240
 
+## Deploying
+To Kubernetes with the Helm chart in [charts/grifballwebapp](charts/grifballwebapp/README.md), published to
+`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server, and a migration
+Job that backs the database up before applying new migrations.
+
 ## Backend Technologies
 - [.NET 10](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
 - [ASP.NET Core Web API](https://learn.microsoft.com/en-us/aspnet/core) - [source](https://github.com/dotnet/aspnetcore)

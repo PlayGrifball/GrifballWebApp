@@ -1,0 +1,234 @@
+name: Helm chart
+
+# The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), every
+# ci/*-values.yaml rendered and checked against the Kubernetes schemas, and an end-to-end run on k3s
+# with the chart's SQL Server, an external one, and the minimal install, on Kubernetes 1.34 to 1.37.
+# master: the same, then, if the chart changed, publish it to
+# oci://ghcr.io/playgrifball/charts/grifballwebapp as <Chart.yaml's major.minor>.<run number>, signed
+# keyless with cosign.
+on:
+  pull_request:
+    branches: [ "master" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
+  push:
+    branches: [ "master" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
+  workflow_dispatch:
+
+env:
+  CHART: charts/grifballwebapp
+  REGISTRY: ghcr.io
+  # Lowercase: OCI references are.
+  CHART_REPO: oci://ghcr.io/playgrifball/charts
+  # The Kubernetes versions supported (Chart.yaml kubeVersion): the oldest and the newest.
+  KUBERNETES_OLDEST: "1.34.0"
+  KUBERNETES_NEWEST: "1.37.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint
+        run: |
+          set -euo pipefail
+          for values in "$CHART"/ci/*-values.yaml; do
+            echo "::group::helm lint -f $values"
+            helm lint "$CHART" --strict -f "$values"
+            echo "::endgroup::"
+          done
+
+      - name: Unit tests
+        run: |
+          set -euo pipefail
+          # Helm 4 verifies plugin signatures by default; helm-unittest publishes none.
+          if helm version --short | grep -q '^v3'; then verify=; else verify=--verify=false; fi
+          helm plugin install https://github.com/helm-unittest/helm-unittest $verify
+          helm unittest "$CHART"
+
+      - name: Schema check
+        run: |
+          set -euo pipefail
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          # Older than the oldest supported must be refused (Chart.yaml kubeVersion).
+          if helm template ci "$CHART" -f "$CHART/ci/minimal-values.yaml" --kube-version 1.33.0 >/dev/null 2>&1; then
+            echo "::error::The chart renders for Kubernetes 1.33, older than its kubeVersion allows"; exit 1
+          fi
+          for k8s in "$KUBERNETES_OLDEST" "$KUBERNETES_NEWEST"; do
+          for values in "$CHART"/ci/*-values.yaml; do
+            echo "::group::$values, Kubernetes $k8s"
+            # Traefik's IngressRoute from the community CRD catalog.
+            helm template ci "$CHART" -n grif-ci -f "$values" --kube-version "$k8s" \
+              | ./kubeconform -strict -summary -kubernetes-version "$k8s" \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+            echo "::endgroup::"
+          done
+          done
+
+  # The app images from this checkout, built once for every end-to-end run: the chart's migration
+  # steps need what the backend image carries (sqlcmd, the bundle), so the published ones may not do.
+  images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      - name: Backend image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          tags: grif-backend:e2e
+          outputs: type=docker,dest=${{ runner.temp }}/grif-backend.tar
+          cache-from: type=gha
+
+      - name: Frontend image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: grifballwebapp.client
+          tags: grif-frontend:e2e
+          outputs: type=docker,dest=${{ runner.temp }}/grif-frontend.tar
+          cache-from: type=gha
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e2e-images
+          path: ${{ runner.temp }}/grif-*.tar
+          retention-days: 1
+
+  # The chart on a real cluster (k3s in Docker, which enforces NetworkPolicies): every scenario on the
+  # homelab's Kubernetes minor, and the broadest one (bundled) on the oldest and newest supported
+  # (Chart.yaml kubeVersion): charts/grifballwebapp/e2e/run.sh.
+  e2e:
+    needs: [test, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { database: bundled, k3s: v1.36.5-k3s1 }
+          - { database: external, k3s: v1.36.5-k3s1 }
+          # ci/minimal-values.yaml, the README's Quick start, with k3s's Traefik for its Ingress.
+          - { database: minimal, k3s: v1.36.5-k3s1 }
+          - { database: bundled, k3s: v1.34.12-k3s1 }
+          - { database: bundled, k3s: v1.37.1-k3s1 }
+    name: e2e (${{ matrix.database }}, ${{ matrix.k3s }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: e2e-images
+          path: ${{ runner.temp }}
+
+      - name: Cluster
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
+          chmod +x /usr/local/bin/k3d
+          traefik=(--k3s-arg '--disable=traefik@server:0')
+          if [ "${{ matrix.database }}" = minimal ]; then traefik=(); fi
+          k3d cluster create e2e --image "rancher/k3s:${{ matrix.k3s }}" --no-lb "${traefik[@]}" --wait --timeout 180s
+          kubectl version
+          for image in "${{ runner.temp }}"/grif-*.tar; do docker load -i "$image"; done
+          k3d image import grif-backend:e2e grif-frontend:e2e -c e2e
+
+      - name: End-to-end (${{ matrix.database }})
+        env:
+          BACKEND_IMAGE: grif-backend:e2e
+          FRONTEND_IMAGE: grif-frontend:e2e
+        run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
+
+  # Publishes the chart when it changed: version <Chart.yaml's major.minor>.<this workflow's run
+  # number>, so every change (a Renovate digest update included) gets a new version without anyone
+  # bumping it; a major or minor bump is a Chart.yaml edit. Then signs it keyless with cosign (Sigstore),
+  # as docker-publish.yml signs the images, and checks the signature.
+  publish:
+    needs: [test, e2e]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did the chart change?
+        id: changed
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          # A push that didn't touch the chart (only a Dockerfile, say) publishes nothing; a manual run
+          # or an unknown base always does.
+          if [ "${{ github.event_name }}" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             && git diff --quiet "$BEFORE" HEAD -- "$CHART"; then
+            echo "The chart didn't change: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: azure/setup-helm@v4
+        if: steps.changed.outputs.publish == 'true'
+
+      - uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+        if: steps.changed.outputs.publish == 'true'
+        with:
+          cosign-release: v2.2.4
+
+      - name: Log into ${{ env.REGISTRY }}
+        if: steps.changed.outputs.publish == 'true'
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish and sign
+        if: steps.changed.outputs.publish == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IDENTITY: ^https://github\.com/${{ github.repository }}/\.github/workflows/helm-chart\.yml@refs/heads/master$
+        run: |
+          set -euo pipefail
+          echo "$TOKEN" | helm registry login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+          base=$(sed -n 's/^version: *//p' "$CHART/Chart.yaml")
+          version="${base%.*}.${{ github.run_number }}"
+          # A re-run of this run would reuse its number: never overwrite a published version.
+          if helm show chart "$CHART_REPO/grifballwebapp" --version "$version" >/dev/null 2>&1; then
+            echo "grifballwebapp $version is already published; not overwriting it."
+            exit 0
+          fi
+          helm package "$CHART" --version "$version" -d dist
+          helm push "dist/grifballwebapp-$version.tgz" "$CHART_REPO" 2>&1 | tee push.txt
+          digest=$(sed -n 's/^Digest: *//p' push.txt)
+          test -n "$digest"
+          ref="${CHART_REPO#oci://}/grifballwebapp@$digest"
+          cosign sign --yes "$ref"
+          cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          {
+            echo "Published and signed $CHART_REPO/grifballwebapp:$version ($digest)."
+            echo
+            echo "Verify: cosign verify ${ref%@*}:$version --certificate-identity-regexp '$IDENTITY' --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+          } >> "$GITHUB_STEP_SUMMARY"

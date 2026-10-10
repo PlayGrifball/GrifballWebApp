@@ -1,0 +1,41 @@
+GrifballWebApp {{ .Chart.Version }} in namespace {{ .Release.Namespace }}.
+{{- if .Values.migrations.enabled }}
+
+Migrations: the Job checks the database, backs it up if it has migrations to apply, then applies them.
+The backend waits for it before starting.
+
+  kubectl -n {{ .Release.Namespace }} get jobs -l app.kubernetes.io/component=migrations
+  kubectl -n {{ .Release.Namespace }} logs job/<name> --all-containers --prefix
+  kubectl -n {{ .Release.Namespace }} logs deploy/grif-backend -c wait-for-migrations
+{{- if .Values.mssql.enabled }}
+{{- if not .Values.database.host }}
+
+SQL Server comes up first; on a first install the Job waits for it, then creates the database.
+{{- end }}
+{{- end }}
+{{- else }}
+
+Migrations are off: the backend migrates the database itself only if backend.config.ApplyMigrations
+(and, for a new database, CreateDatabase) is true, and takes no backup first.
+{{- end }}
+
+The site:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ . }}/
+{{- end }}
+{{- else if .Values.ingressRoute.enabled }}
+  https://{{ .Values.ingressRoute.host }}/
+{{- else }}
+  No ingress is enabled. Try it with:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Values.frontend.service.name }} 8080:{{ .Values.frontend.service.port }}
+  then http://localhost:8080/
+{{- end }}
+
+The backend only gets ready with valid Discord credentials (Discord:ClientId, ClientSecret, Token)
+and DraftChannel; its log says what's missing:
+  kubectl -n {{ .Release.Namespace }} logs deploy/grif-backend
+{{- if .Values.networkPolicy.enabled }}
+
+Network policies are on: each of the chart's pods only gets the traffic it needs (README, Network policies).
+{{- end }}

@@ -1,0 +1,76 @@
+suite: sql-exporter
+templates:
+  - templates/sql-exporter.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: reads the chart's SQL Server with the database login
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - hasDocuments: { count: 3 }
+      - isKind: { of: Deployment }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_HOST, value: sqlserver } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: sa } }
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+        documentIndex: 1
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
+        documentIndex: 1
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["mssql_standard"\]' }
+        documentIndex: 0
+      - matchRegex: { path: "data['mssql_standard.collector.yml']", pattern: "collector_name: mssql_standard" }
+        documentIndex: 0
+
+  - it: uses its own login against an external server, with extra collectors
+    set:
+      sqlExporter: { enabled: true, user: monitor, password: { secretName: monitor-login, key: pw }, collectors: [mssql_standard, mine], extraCollectorFiles: { mine.collector.yml: "collector_name: mine" } }
+      mssql.enabled: false
+      database: { host: sql.example, port: 14330 }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_HOST, value: sql.example } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_PORT, value: "14330" } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: monitor } }
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: monitor-login, key: pw } } }
+        documentIndex: 1
+      - equal: { path: "data['mine.collector.yml']", value: "collector_name: mine\n" }
+        documentIndex: 0
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["mssql_standard","mine"\]' }
+        documentIndex: 0
+
+  - it: adds a ServiceMonitor that names the instance after the namespace
+    set:
+      sqlExporter: { enabled: true, serviceMonitor: { enabled: true, labels: { scrape: "true" } } }
+    asserts:
+      - hasDocuments: { count: 4 }
+      - isKind: { of: ServiceMonitor }
+        documentIndex: 3
+      - equal: { path: metadata.labels.scrape, value: "true" }
+        documentIndex: 3
+      - equal: { path: "spec.endpoints[0].relabelings[0].targetLabel", value: instance }
+        documentIndex: 3
+      - equal: { path: spec.selector.matchLabels, value: { app.kubernetes.io/instance: RELEASE-NAME, app.kubernetes.io/component: sql-exporter } }
+        documentIndex: 3
+
+  - it: runs its pinned image
+    documentIndex: 1
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^docker\.io/burningalchemist/sql_exporter:0\.24\.9@sha256:[0-9a-f]{64}$' }
+      - equal: { path: "spec.template.spec.containers[0].imagePullPolicy", value: IfNotPresent }

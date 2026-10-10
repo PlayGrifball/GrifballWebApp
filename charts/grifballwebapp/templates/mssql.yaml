@@ -1,0 +1,253 @@
+{{- $m := .Values.mssql -}}
+{{- /* SQL Server is sync wave -2 under Argo CD: up before the migration Job (-1) and the app (0). */}}
+{{- if $m.enabled }}
+{{- if not $m.acceptEula }}
+{{- fail "mssql.acceptEula must be true to run SQL Server (you accept its EULA); or set mssql.enabled false and database.host" }}
+{{- end }}
+{{- if not $m.persistence.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $m.persistence.claimName }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with $m.persistence.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $m.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $m.persistence.size }}
+  {{- with $m.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+{{- with $m.backup }}
+{{- if and .enabled (not .existingClaim) }}
+{{- if .nfs.server }}
+# Not namespaced: named after the namespace, so each release's export is its own.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $.Release.Namespace }}-nfs-pv
+  labels:
+    {{- include "grif.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  capacity:
+    storage: {{ .size }}
+  accessModes:
+    {{- toYaml .accessModes | nindent 4 }}
+  storageClassName: ""
+  nfs:
+    server: {{ .nfs.server }}
+    path: {{ required "mssql.backup.nfs.path is required with nfs.server" .nfs.path }}
+---
+{{- end }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .claimName }}
+  labels:
+    {{- include "grif.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .size }}
+  {{- if .nfs.server }}
+  storageClassName: ""
+  volumeName: {{ $.Release.Namespace }}-nfs-pv
+  {{- else if .storageClass }}
+  storageClassName: {{ .storageClass }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $m.service.name }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  type: ClusterIP
+  selector:
+    app: grif-mssql
+  ports:
+    - name: sql
+      port: {{ $m.service.port }}
+      targetPort: sql
+---
+{{- with $m.loadBalancer }}
+{{- if .enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "grif.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: grif-mssql
+  ports:
+    - name: sql
+      port: {{ .port }}
+      targetPort: sql
+---
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-mssql
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-mssql
+  # Stop the old SQL Server before starting the new one: a ReadWriteOnce volume allows every pod on
+  # the same node, so a rolling update could run two instances on one set of database files.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grif-mssql
+        {{- include "grif.labels" . | nindent 8 }}
+        app.kubernetes.io/component: mssql
+        {{- with $m.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $m.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $m.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # SQL Server runs as 10001 and keeps what it writes outside data and backup (system files, its
+        # machine key, its error log) in mssql-state/ on the data volume; kubelet would create those
+        # subPath folders root-owned.
+        - name: fix-permissions-data
+          image: {{ include "grif.image" $m.initImage }}
+          imagePullPolicy: {{ $m.initImage.pullPolicy }}
+          command: ["sh", "-c", "mkdir -p /var/opt/mssql/data/mssql-state/.system /var/opt/mssql/data/mssql-state/secrets /var/opt/mssql/data/mssql-state/log && chown -R 10001:0 /var/opt/mssql/data"]
+          securityContext:
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: mssql-data
+              mountPath: /var/opt/mssql/data
+      containers:
+        - name: grif-mssql
+          image: {{ include "grif.image" $m.image }}
+          imagePullPolicy: {{ $m.image.pullPolicy }}
+          ports:
+            - name: sql
+              containerPort: 1433
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            {{- with $m.edition }}
+            - name: MSSQL_PID
+              value: {{ . | quote }}
+            {{- end }}
+            - name: SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "grif.secretName" (dict "secretName" $m.saPassword.secretName "root" .) }}
+                  key: {{ $m.saPassword.key }}
+            {{- with $m.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $m.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $m.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: mssql-data
+              mountPath: /var/opt/mssql/data
+            {{- if $m.backup.enabled }}
+            - name: backup
+              mountPath: /var/opt/mssql/backup
+            {{- end }}
+            - name: mssql-data
+              mountPath: /var/opt/mssql/.system
+              subPath: mssql-state/.system
+            - name: mssql-data
+              mountPath: /var/opt/mssql/secrets
+              subPath: mssql-state/secrets
+            - name: mssql-data
+              mountPath: /var/opt/mssql/log
+              subPath: mssql-state/log
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: mssql-data
+          persistentVolumeClaim:
+            claimName: {{ $m.persistence.existingClaim | default $m.persistence.claimName }}
+        {{- if $m.backup.enabled }}
+        - name: backup
+          persistentVolumeClaim:
+            claimName: {{ $m.backup.existingClaim | default $m.backup.claimName }}
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+      {{- with $m.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $m.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $m.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

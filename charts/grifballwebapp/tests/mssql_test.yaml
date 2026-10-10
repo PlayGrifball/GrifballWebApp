@@ -1,0 +1,96 @@
+suite: mssql
+templates:
+  - templates/mssql.yaml
+release:
+  namespace: grif-x
+tests:
+  - it: needs the EULA accepted
+    asserts:
+      - failedTemplate:
+          errorPattern: mssql.acceptEula must be true
+
+  - it: renders nothing with an external database
+    set:
+      mssql.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: creates data and backup claims, its Service and Deployment
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - hasDocuments: { count: 4 }
+      - equal: { path: metadata.name, value: mssql-data-pvc }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: mssql-backup-pvc }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: sqlserver }
+        documentIndex: 2
+      - isKind: { of: Deployment }
+        documentIndex: 3
+
+  - it: binds the backup claim to an NFS export
+    set:
+      mssql.acceptEula: true
+      mssql.backup.nfs: { server: 10.0.0.3, path: /backups }
+    asserts:
+      - isKind: { of: PersistentVolume }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: grif-x-nfs-pv }
+        documentIndex: 1
+      - equal: { path: spec.nfs, value: { server: 10.0.0.3, path: /backups } }
+        documentIndex: 1
+      - equal: { path: spec.volumeName, value: grif-x-nfs-pv }
+        documentIndex: 2
+
+  - it: uses existing claims, without a backup volume if disabled
+    set:
+      mssql.acceptEula: true
+      mssql.persistence.existingClaim: data
+      mssql.backup.enabled: false
+    asserts:
+      - hasDocuments: { count: 2 }
+      - contains: { path: spec.template.spec.volumes, content: { name: mssql-data, persistentVolumeClaim: { claimName: data } } }
+        documentIndex: 1
+      - notContains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: backup, mountPath: /var/opt/mssql/backup } }
+        documentIndex: 1
+
+  - it: adds a LoadBalancer, the edition and a pinned image
+    set:
+      mssql.acceptEula: true
+      mssql.loadBalancer: { enabled: true, port: 14330 }
+      mssql.edition: Express
+      mssql.image: { tag: 2025-latest, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+    asserts:
+      - equal: { path: spec.type, value: LoadBalancer }
+        documentIndex: 3
+      - equal: { path: "spec.ports[0].port", value: 14330 }
+        documentIndex: 3
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: MSSQL_PID, value: Express } }
+        documentIndex: 4
+      - equal: { path: "spec.template.spec.containers[0].image", value: "mcr.microsoft.com/mssql/server:2025-latest@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+        documentIndex: 4
+
+  - it: gives the backup claim ReadWriteOnce by default (only SQL Server mounts it)
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - equal: { path: spec.accessModes, value: [ReadWriteOnce] }
+        documentIndex: 1
+
+  - it: comes up before the migration Job under Argo CD (sync wave -2), on its objects only
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-2" }
+      - notExists: { path: "spec.template.metadata.annotations['argocd.argoproj.io/sync-wave']" }
+        documentIndex: 3
+
+  - it: runs only on amd64 nodes (SQL Server's image is amd64 only), its init container pinned
+    set:
+      mssql.acceptEula: true
+    documentIndex: 3
+    asserts:
+      - equal: { path: spec.template.spec.nodeSelector, value: { kubernetes.io/arch: amd64 } }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].image", pattern: '^docker\.io/library/busybox:1\.38@sha256:[0-9a-f]{64}$' }
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^mcr\.microsoft\.com/mssql/server:2025-latest@sha256:[0-9a-f]{64}$' }

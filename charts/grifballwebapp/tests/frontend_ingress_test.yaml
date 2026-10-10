@@ -1,0 +1,77 @@
+suite: frontend, ingress and the rest
+templates:
+  - templates/frontend.yaml
+  - templates/ingress.yaml
+  - templates/misc.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: runs the frontend without an API token, pinned by digest
+    template: templates/frontend.yaml
+    documentIndex: 0
+    set:
+      frontend.image: { tag: test, digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }
+    asserts:
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappclient:test@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: spec.selector.matchLabels, value: { app: grif-frontend } }
+
+  - it: renders no ingress by default
+    template: templates/ingress.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: routes a Traefik host to the frontend
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, middlewares: [{ name: security-headers, namespace: traefik }], tls: { secretName: cert } }
+    asserts:
+      - isKind: { of: IngressRoute }
+      - equal: { path: "spec.routes[0].match", value: "Host(`grif.example`)" }
+      - equal: { path: "spec.routes[0].services[0]", value: { name: grif-frontend, port: 80 } }
+      - equal: { path: spec.tls.secretName, value: cert }
+      - notExists: { path: spec.entryPoints }
+
+  - it: serves on the entrypoints it's given
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, entryPoints: [websecure] }
+    asserts:
+      - equal: { path: spec.entryPoints, value: [websecure] }
+
+  - it: or a Kubernetes Ingress
+    template: templates/ingress.yaml
+    set:
+      ingress: { enabled: true, className: nginx, hosts: [grif.example], tls: [{ secretName: cert, hosts: [grif.example] }] }
+    asserts:
+      - isKind: { of: Ingress }
+      - equal: { path: spec.ingressClassName, value: nginx }
+      - equal: { path: "spec.rules[0].host", value: grif.example }
+      - equal: { path: "spec.rules[0].http.paths[0].backend.service.name", value: grif-frontend }
+
+  - it: creates the Secret and default ServiceAccount only when asked
+    template: templates/misc.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: creates them when asked
+    template: templates/misc.yaml
+    set:
+      secret: { create: true, stringData: { SA_PASSWORD: x } }
+      defaultServiceAccount.manage: true
+    asserts:
+      - hasDocuments: { count: 2 }
+      - equal: { path: stringData.SA_PASSWORD, value: x }
+        documentIndex: 0
+      - equal: { path: automountServiceAccountToken, value: false }
+        documentIndex: 1
+
+  - it: creates the Secret before everything that reads it (sync wave -3)
+    template: templates/misc.yaml
+    documentIndex: 0
+    set:
+      secret: { create: true, stringData: { SA_PASSWORD: x } }
+    asserts:
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-3" }

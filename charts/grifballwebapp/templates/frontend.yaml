@@ -1,0 +1,127 @@
+{{- $f := .Values.frontend -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-frontend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ $f.replicas }}
+  selector:
+    matchLabels:
+      app: grif-frontend
+  {{- with $f.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        app: grif-frontend
+        {{- include "grif.labels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+        {{- with $f.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $f.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $f.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        # Static files, and /api proxied to the backend's Service.
+        - name: grif-frontend
+          image: {{ include "grif.image" $f.image }}
+          imagePullPolicy: {{ $f.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+          {{- with $f.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $f.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $f.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $f.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $f.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          # nginx's writable paths, with a read-only root filesystem.
+          volumeMounts:
+            - name: var-cache-nginx
+              mountPath: /var/cache/nginx
+            - name: var-run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+            {{- with $f.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: var-cache-nginx
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- with $f.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $f.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $f.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $f.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $f.service.name }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+  {{- with $f.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $f.service.type }}
+  selector:
+    app: grif-frontend
+  ports:
+    - name: http
+      port: {{ $f.service.port }}
+      targetPort: http

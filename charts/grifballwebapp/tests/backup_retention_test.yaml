@@ -1,0 +1,73 @@
+suite: backup retention
+templates:
+  - templates/backup-retention.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    template: templates/backup-retention.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: runs a nightly CronJob in the backend image, one at a time, as the app user
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+      backend.image: { tag: prod, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+    asserts:
+      - isKind: { of: CronJob }
+      - equal: { path: spec.schedule, value: "30 3 * * *" }
+      - equal: { path: spec.concurrencyPolicy, value: Forbid }
+      - equal: { path: "spec.jobTemplate.spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot, value: true }
+      - equal: { path: spec.jobTemplate.spec.template.metadata.labels.app, value: grif-backup-retention }
+      - notExists: { path: spec.jobTemplate.spec.template.spec.volumes }
+
+  - it: keeps the newest keepLast and anything newer than keepDays, from the backup folder
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup: { directory: /backups/grif, retention: { enabled: true, keepLast: 3, keepDays: 14, schedule: "0 5 * * 0" } }
+    asserts:
+      - equal: { path: spec.schedule, value: "0 5 * * 0" }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: BACKUP_DIR, value: /backups/grif } }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: KEEP_LAST, value: "3" } }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: KEEP_DAYS, value: "14" } }
+
+  - it: only considers backups SQL Server recorded writing, and deletes with xp_delete_file 0
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "msdb\\.dbo\\.backupmediafamily" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "xp_delete_file 0, @path" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "KEEP_LAST\\) AND last_write_time < DATEADD\\(day" }
+      - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: " -P " }
+
+  - it: needs backups to exist
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup: { enabled: false, retention: { enabled: true } }
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: gets a network policy, and SQL Server admits it
+    template: templates/networkpolicy.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - hasDocuments: { count: 5 }
+      - equal: { path: metadata.name, value: grif-backup-retention }
+        documentIndex: 4
+      - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-backup-retention } } } }
+        documentIndex: 2
+
+  - it: waits for the database first (a new pod's address reaches SQL Server only seconds after it starts)
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'until nc -w 2 "\$DB_HOST" "\$DB_PORT"(.|\n)*sqlcmd -S' }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: WAIT_SECONDS, value: "300" } }

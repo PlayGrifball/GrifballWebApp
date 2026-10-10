@@ -1,0 +1,156 @@
+suite: migrations
+templates:
+  - templates/migrations-job.yaml
+  - templates/backend.yaml
+release:
+  namespace: grif-x
+  revision: 3
+set:
+  mssql.acceptEula: true
+tests:
+  - it: runs one Job that waits, checks, backs up, then migrates
+    template: templates/migrations-job.yaml
+    asserts:
+      - isKind: { of: Job }
+      - matchRegex: { path: metadata.name, pattern: "^grif-migrate-[0-9a-f]{10}$" }
+      - equal: { path: spec.backoffLimit, value: 0 }
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-database }
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: check-pending }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: backup }
+      - equal: { path: "spec.template.spec.containers[0].name", value: migrate }
+      - equal: { path: spec.template.metadata.labels.app, value: grif-migrate }
+      - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
+
+  - it: runs every step in the backend image, with its migration list and sqlcmd
+    template: templates/migrations-job.yaml
+    set:
+      backend.image: { tag: prod, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: "spec.template.spec.initContainers[1].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: "spec.template.spec.initContainers[2].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '/app/migrations.txt' }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '^set -eu\nsqlcmd ' }
+
+  - it: keeps the password off the command line
+    template: templates/migrations-job.yaml
+    asserts:
+      - contains:
+          path: "spec.template.spec.initContainers[1].env"
+          content: { name: SQLCMDPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: ' -P ' }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: ' -P ' }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: '-v DB_NAME="\$DB_NAME"' }
+
+  - it: runs after SQL Server and before the app under Argo CD, without being a hook
+    template: templates/migrations-job.yaml
+    asserts:
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-1" }
+      - notExists: { path: "metadata.annotations['helm.sh/hook']" }
+      - notExists: { path: "metadata.annotations['argocd.argoproj.io/hook']" }
+
+  - it: gets a new name with a new image
+    template: templates/migrations-job.yaml
+    set:
+      backend.image.tag: v2
+    asserts:
+      - matchRegex: { path: metadata.name, pattern: "^grif-migrate-" }
+
+  - it: backs up only an existing database with pending migrations, then migrates only if something is pending
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \]; then echo "No database to back up."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -s /work/pending.txt \]; then echo "Nothing to migrate: no backup needed."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "BACKUP DATABASE" }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x } }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: 'if \[ -s /work/pending.txt \]; then /app/efbundle; else echo "Nothing to migrate."; fi' }
+
+  - it: migrates with the database credentials, not the app's
+    template: templates/migrations-job.yaml
+    set:
+      database.connectionString: { secretName: app-db, key: conn }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sqlserver,1433;Database=GrifballWebApp;User Id=sa;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+
+  - it: connects to an external database, backing up to a folder on its side
+    template: templates/migrations-job.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example, port: 14330, user: grif, password: { secretName: db, key: pw } }
+      migrations.backup.directory: /backups/grif
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: DB_HOST, value: sql.example } }
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: DB_PORT, value: "14330" } }
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: DB_USER, value: grif } }
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: SQLCMDPASSWORD, valueFrom: { secretKeyRef: { name: db, key: pw } } } }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /backups/grif } }
+
+  - it: skips the backup when disabled, and takes your own steps, env, scripts and settings
+    template: templates/migrations-job.yaml
+    set:
+      migrations:
+        backup: { enabled: false }
+        extraInitContainers:
+          - name: notify
+            image: busybox
+            command: [echo, "{{ .Release.Namespace }}"]
+        extraEnv: [{ name: TZ, value: UTC }]
+        scripts: { migrate: "echo custom migrate" }
+        securityContext: { runAsGroup: 1000 }
+        annotations: { team: grif }
+        podLabels: { c: d }
+        backoffLimit: 2
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: notify }
+      - equal: { path: "spec.template.spec.initContainers[2].command", value: [echo, grif-x] }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TZ, value: UTC } }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "echo custom migrate" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: efbundle }
+      - equal: { path: "spec.template.spec.initContainers[1].securityContext.runAsGroup", value: 1000 }
+      - equal: { path: "spec.template.spec.initContainers[1].securityContext.capabilities.drop", value: [ALL] }
+      - equal: { path: metadata.annotations.team, value: grif }
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-1" }
+      - equal: { path: spec.template.metadata.labels.c, value: d }
+      - equal: { path: spec.backoffLimit, value: 2 }
+
+  - it: makes the backend wait for the migrations without changing anything
+    template: templates/backend.yaml
+    documentIndex: 1
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 1 }
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-migrations }
+      - equal: { path: "spec.template.spec.initContainers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:latest" }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "Waiting for the migration Job to apply" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "efbundle|BACKUP" }
+      - contains: { path: spec.template.spec.volumes, content: { name: migrations-work, emptyDir: {} } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: ApplyMigrations, value: "true" } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: CreateDatabase, value: "true" } }
+
+  - it: can be left to the app instead
+    templates: [templates/migrations-job.yaml, templates/backend.yaml]
+    set:
+      migrations.enabled: false
+      backend.config: { ApplyMigrations: true, CreateDatabase: true }
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/migrations-job.yaml
+      - notExists: { path: spec.template.spec.initContainers }
+        template: templates/backend.yaml
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: ApplyMigrations, value: "true" } }
+        template: templates/backend.yaml
+        documentIndex: 1
+
+  - it: compares migrations with awk (BusyBox grep -f matches everything on an empty pattern file)
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "awk 'FILENAME == ARGV\\[1\\]" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "grep -vxF" }

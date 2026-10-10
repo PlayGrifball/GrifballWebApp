@@ -1,5 +1,7 @@
 # Stage 1
-FROM node:24.21.0-alpine AS build
+# Build on the build machine's own platform: the output is static files, served by nginx for each
+# image platform (linux/amd64, linux/arm64; docker-publish.yml).
+FROM --platform=$BUILDPLATFORM node:24.21.0-alpine AS build
 WORKDIR /usr/build
 COPY package.json ./
 COPY package-lock.json ./

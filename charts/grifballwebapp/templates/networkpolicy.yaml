@@ -1,0 +1,252 @@
+{{- $np := .Values.networkPolicy -}}
+{{- if $np.enabled }}
+{{- $bundled := and .Values.mssql.enabled (not .Values.database.host) }}
+{{- /* Egress rules shared by the pods: DNS, and the database (the chart's SQL Server or an external one). */}}
+{{- $dns := dict "ports" (list (dict "protocol" "UDP" "port" 53) (dict "protocol" "TCP" "port" 53)) }}
+{{- with $np.dns.to }}{{ $_ := set $dns "to" . }}{{ end }}
+{{- $database := dict }}
+{{- if $bundled }}
+{{- $database = dict "to" (list (dict "podSelector" (dict "matchLabels" (dict "app" "grif-mssql")))) "ports" (list (dict "protocol" "TCP" "port" 1433)) }}
+{{- else }}
+{{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (.Values.database.port | int))) }}
+{{- with $np.database.to }}{{ $_ := set $database "to" . }}{{ end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-frontend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-frontend
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
+      {{- with $np.frontend.from }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with $np.frontend.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    # /api, proxied to the backend.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+    {{- with $np.frontend.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-backend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-backend
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-frontend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+    {{- with $np.backend.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.backend.httpsTo }}
+    # Discord, Halo Infinite, Google Sheets, Cloudflare's ranges.
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: 443
+    {{- end }}
+    {{- with .Values.backend.telemetry }}
+    {{- if and .enabled .endpoint }}
+    {{- $u := urlParse .endpoint }}
+    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+    # OpenTelemetry collector.
+    - ports:
+        - protocol: TCP
+          port: {{ $port | int }}
+      {{- with $np.backend.telemetryTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- with $np.backend.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- if .Values.mssql.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-mssql
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-mssql
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.migrations.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-migrate
+        {{- end }}
+        {{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.retention.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-backup-retention
+        {{- end }}
+        {{- if .Values.sqlExporter.enabled }}
+        - podSelector:
+            matchLabels:
+              app: sql-exporter
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 1433
+    {{- if .Values.mssql.loadBalancer.enabled }}
+    # The LoadBalancer Service.
+    - ports:
+        - protocol: TCP
+          port: 1433
+      {{- with $np.mssql.loadBalancerFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- with $np.mssql.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- with $np.mssql.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.migrations.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-migrate
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-migrate
+  policyTypes: [Ingress, Egress]
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.migrations.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.retention.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-backup-retention
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup-retention
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-backup-retention
+  policyTypes: [Ingress, Egress]
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.backupRetention.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.sqlExporter.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sql-exporter
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sql-exporter
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: sql-exporter
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.sqlExporter.port }}
+      {{- with $np.sqlExporter.from }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.sqlExporter.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- end }}
+{{- range $np.extraPolicies }}
+{{ tpl (toYaml .) $ }}
+---
+{{- end }}

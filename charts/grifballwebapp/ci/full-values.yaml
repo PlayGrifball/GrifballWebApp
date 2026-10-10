@@ -1,0 +1,120 @@
+# Most features on: the chart's SQL Server with an NFS backup volume, a Traefik IngressRoute,
+# OpenTelemetry, settings from Secrets, extra migration steps, network policies with
+# extras, extra objects. Example values only. Rendered and schema-checked by the Helm chart workflow.
+defaultServiceAccount:
+  manage: true
+database:
+  logins:
+    enabled: true
+backend:
+  image:
+    tag: test
+    pullPolicy: Always
+  config:
+    Discord:
+      DisableGlobally: null
+    GoogleSheets:
+      Sheets:
+        - Name: Example
+          SpreadsheetID: example-spreadsheet-id
+          SheetName: Season Match History
+    ForwardedHeaders:
+      KnownIPNetworks: [10.0.0.0/16]
+      ForwardedForHeaderName: X-Real-IP
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+    Discord:DraftChannel: DiscordDraftChannel
+    Discord:DisableGlobally: DiscordDisableGlobally
+    Discord:QueueChannel: DiscordQueueChannel
+    Discord:EventsChannel: DiscordEventsChannel
+    ClientConfiguration:ClientId: InfiniteClientId
+    ClientConfiguration:ClientSecret: InfiniteClientSecret
+    ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
+    BaseUrl: BaseUrl
+  telemetry:
+    enabled: true
+    endpoint: http://otel-collector.example:4317
+    environment: test
+  googleCredentials:
+    secretName: google-credentials
+  persistence:
+    storageClass: standard
+frontend:
+  image:
+    tag: test
+    pullPolicy: Always
+ingressRoute:
+  enabled: true
+  host: grifball.example
+  middlewares:
+    - name: security-headers
+      namespace: traefik
+  tls:
+    secretName: grifball-tls
+mssql:
+  acceptEula: true
+  loadBalancer:
+    enabled: true
+    port: 14330
+  persistence:
+    storageClass: standard
+  backup:
+    nfs:
+      server: nfs.example
+      path: /exports/sql-backups
+sqlExporter:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      scrape: "true"
+migrations:
+  backup:
+    retention:
+      enabled: true
+      keepLast: 10
+      keepDays: 60
+  extraEnv:
+    - name: TZ
+      value: UTC
+  extraInitContainers:
+    - name: notify
+      image: docker.io/library/busybox:1.38
+      command: ["echo", "deploying to {{ .Release.Namespace }}"]
+networkPolicy:
+  dns:
+    to:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+        podSelector: { matchLabels: { k8s-app: kube-dns } }
+  frontend:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
+  backend:
+    telemetryTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } }
+  sqlExporter:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } }
+  mssql:
+    extraIngress:
+      - from:
+          - ipBlock: { cidr: 192.0.2.0/24 }
+        ports:
+          - { protocol: TCP, port: 1433 }
+  extraPolicies:
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: deny-other-pods
+      spec:
+        podSelector: { matchLabels: { app: something-else } }
+        policyTypes: [Ingress, Egress]
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: "{{ .Release.Name }}-notes"
+    data:
+      environment: test

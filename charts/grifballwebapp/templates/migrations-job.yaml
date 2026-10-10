@@ -1,0 +1,75 @@
+{{- $m := .Values.migrations -}}
+{{- if $m.enabled }}
+{{- $pod := include "grif.migrationJobPod" . }}
+# The one place the schema changes (values.yaml, migrations). A Job can't be changed once created, so
+# its name carries a hash of its pod and the release revision: any change - a new image, new settings,
+# a helm upgrade - makes a new Job, and the old one goes with the release's previous manifest. Under
+# Argo CD (revision always 1) the same spec keeps the same Job; delete it to run it again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "grif-migrate-%s" (printf "%s-%d" $pod .Release.Revision | sha256sum | trunc 10) }}
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+  annotations:
+    # After SQL Server, before everything else: a sync stops here if the migration fails, leaving
+    # the running backend as it was.
+    argocd.argoproj.io/sync-wave: "-1"
+    {{- with $m.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  backoffLimit: {{ $m.backoffLimit }}
+  activeDeadlineSeconds: {{ $m.activeDeadlineSeconds }}
+  template:
+    {{- $pod | nindent 4 }}
+{{- end }}
+
+{{- define "grif.migrationJobPod" -}}
+{{- $m := .Values.migrations -}}
+metadata:
+  labels:
+    app: grif-migrate
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrations
+    {{- with $m.podLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $m.podAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $m.podSecurityContext }}
+  securityContext:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  initContainers:
+    {{- include "grif.migrationJobSteps" . | nindent 4 }}
+  containers:
+    {{- include "grif.migrateContainer" . | nindent 4 }}
+  volumes:
+    - name: migrations-work
+      emptyDir: {}
+    - name: tmp
+      emptyDir: {}
+  {{- with $m.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $m.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $m.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,89 @@
+suite: least-privilege logins
+templates:
+  - templates/migrations-job.yaml
+  - templates/backend.yaml
+  - templates/sql-exporter.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: has everything connect as the administrator when off (the default)
+    template: templates/backend.yaml
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sqlserver,1433;Database=GrifballWebApp;User Id=sa;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+
+  - it: connects the backend, and its wait for the migrations, as the app login - no administrator password in the pod
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      database.logins.enabled: true
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sqlserver,1433;Database=GrifballWebApp;User Id=grif_app;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: APP_DB_PASSWORD } } }
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: DB_USER, value: grif_app } }
+      - contains:
+          path: "spec.template.spec.initContainers[0].env"
+          content: { name: SQLCMDPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: APP_DB_PASSWORD } } }
+      - notContains:
+          path: "spec.template.spec.initContainers[0].env"
+          content: { name: SQLCMDPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: SA_PASSWORD } } }
+
+  - it: has the migration Job create the app login with read and write only, from a file with -x
+    template: templates/migrations-job.yaml
+    set:
+      database.logins: { enabled: true, app: { user: web, password: { secretName: logins, key: web } } }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ALTER ROLE db_datareader ADD MEMBER" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ALTER ROLE db_datawriter ADD MEMBER" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "db_owner|db_ddladmin|sysadmin" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "sqlcmd -S \"\\$DB_HOST,\\$DB_PORT\" -U \"\\$DB_USER\" -N -C -b -x -i /work/logins.sql" }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: APP_USER, value: web } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: APP_PASSWORD, valueFrom: { secretKeyRef: { name: logins, key: web } } } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: sa } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: MON_USER, value: grif_monitor } }
+
+  - it: also creates the monitoring login for sql-exporter, which then uses it
+    templates: [templates/migrations-job.yaml, templates/sql-exporter.yaml]
+    set:
+      database.logins.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: MON_USER, value: grif_monitor } }
+        template: templates/migrations-job.yaml
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT VIEW SERVER STATE" }
+        template: templates/migrations-job.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: grif_monitor } }
+        template: templates/sql-exporter.yaml
+        documentIndex: 1
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: MONITOR_DB_PASSWORD } } }
+        template: templates/sql-exporter.yaml
+        documentIndex: 1
+
+  - it: leaves sql-exporter on its own login when one is set
+    templates: [templates/migrations-job.yaml, templates/sql-exporter.yaml]
+    set:
+      database.logins.enabled: true
+      sqlExporter: { enabled: true, user: mine, password: { secretName: m, key: k } }
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: MON_USER, value: grif_monitor } }
+        template: templates/migrations-job.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: mine } }
+        template: templates/sql-exporter.yaml
+        documentIndex: 1
+
+  - it: rejects a login name that isn't a plain identifier
+    set:
+      database.logins.app.user: "web]; DROP LOGIN sa; --"
+    asserts:
+      - failedTemplate:
+          errorPattern: "/database/logins/app/user"
