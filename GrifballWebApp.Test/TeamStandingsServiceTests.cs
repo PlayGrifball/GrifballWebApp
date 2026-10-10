@@ -265,8 +265,8 @@ public class TeamStandingsServiceTests
         cts.Cancel();
 
         // Act & Assert
-        // TaskCanceledException inherits from OperationCanceledException
-        Assert.ThrowsAsync<TaskCanceledException>(() => _service.GetTeamStandings(seasonId, cts.Token));
+        // SqlClient throws TaskCanceledException, Npgsql its base OperationCanceledException
+        Assert.CatchAsync<OperationCanceledException>(() => _service.GetTeamStandings(seasonId, cts.Token));
     }
 
     private async Task EnsureSeasonExists(int seasonId)

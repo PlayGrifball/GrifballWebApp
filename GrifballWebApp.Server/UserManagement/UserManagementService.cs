@@ -345,8 +345,11 @@ public class UserManagementService : IUserManagementService
 
     public async Task CleanupExpiredPasswordResetLinks(CancellationToken ct)
     {
+        // A parameter, not DateTime.UtcNow in the query: Postgres would compare its now(), which has a
+        // time zone, with a column that has none.
+        var now = DateTime.UtcNow;
         var expiredLinks = await _context.PasswordResetLinks
-            .Where(x => x.ExpiresAt <= DateTime.UtcNow || x.IsUsed)
+            .Where(x => x.ExpiresAt <= now || x.IsUsed)
             .ToListAsync(ct);
 
         if (expiredLinks.Any())

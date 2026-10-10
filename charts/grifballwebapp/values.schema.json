@@ -47,7 +47,43 @@
     "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "probe": { "type": ["object", "null"] },
     "peers": { "type": "array", "items": { "type": "object" } },
-    "rules": { "type": "array", "items": { "type": "object" } }
+    "rules": { "type": "array", "items": { "type": "object" } },
+    "optionalPort": { "oneOf": [{ "$ref": "#/definitions/port" }, { "const": "" }] },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingClaim": { "type": "string" },
+        "claimName": { "type": "string", "minLength": 1 },
+        "size": { "$ref": "#/definitions/storageSize" },
+        "storageClass": { "type": "string" },
+        "accessModes": { "$ref": "#/definitions/accessModes" },
+        "annotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "nfs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "server": { "type": "string" }, "path": { "type": "string" } }
+    },
+    "loadBalancer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string", "minLength": 1 },
+        "port": { "$ref": "#/definitions/port" },
+        "annotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "databaseService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "port": { "$ref": "#/definitions/port" }
+      }
+    }
   },
   "properties": {
     "secret": {
@@ -69,10 +105,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "provider": { "enum": ["sqlserver", "postgres"] },
         "host": { "type": "string" },
-        "port": { "$ref": "#/definitions/port" },
+        "port": { "$ref": "#/definitions/optionalPort" },
         "name": { "type": "string", "minLength": 1 },
-        "user": { "type": "string", "minLength": 1 },
+        "user": { "type": "string" },
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "options": { "type": "string" },
         "connectionString": { "$ref": "#/definitions/secretKeyRef" },
@@ -320,6 +357,33 @@
         "affinity": { "$ref": "#/definitions/k8sObject" }
       }
     },
+    "postgres": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "password": { "$ref": "#/definitions/secretKeyRef" },
+        "service": { "$ref": "#/definitions/databaseService" },
+        "loadBalancer": { "$ref": "#/definitions/loadBalancer" },
+        "persistence": { "$ref": "#/definitions/persistence" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "startupProbe": { "$ref": "#/definitions/probe" },
+        "livenessProbe": { "$ref": "#/definitions/probe" },
+        "readinessProbe": { "$ref": "#/definitions/probe" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "settings": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+        "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "extraVolumes": { "$ref": "#/definitions/k8sList" },
+        "extraVolumeMounts": { "$ref": "#/definitions/k8sList" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
     "sqlExporter": {
       "type": "object",
       "additionalProperties": false,
@@ -329,7 +393,7 @@
         "user": { "type": "string" },
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "dsnOptions": { "type": "string" },
-        "collectors": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "collectors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "extraCollectorFiles": { "type": "object", "additionalProperties": { "type": "string" } },
         "config": { "type": "string" },
         "port": { "$ref": "#/definitions/port" },
@@ -362,6 +426,19 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "directory": { "type": "string" },
+            "volume": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "existingClaim": { "type": "string" },
+                "claimName": { "type": "string", "minLength": 1 },
+                "size": { "$ref": "#/definitions/storageSize" },
+                "accessModes": { "$ref": "#/definitions/accessModes" },
+                "nfs": { "$ref": "#/definitions/nfs" },
+                "storageClass": { "type": "string" },
+                "annotations": { "$ref": "#/definitions/stringMap" }
+              }
+            },
             "retention": {
               "type": "object",
               "additionalProperties": false,
@@ -382,6 +459,15 @@
             }
           }
         },
+        "restore": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "directory": { "type": "string" },
+            "volume": { "description": "A pod volume source, without its name.", "type": "object" }
+          }
+        },
         "databaseWaitSeconds": { "type": "integer", "minimum": 1 },
         "backoffLimit": { "type": "integer", "minimum": 0 },
         "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
@@ -390,6 +476,7 @@
           "additionalProperties": false,
           "properties": {
             "checkPending": { "type": "string" },
+            "restore": { "type": "string" },
             "backup": { "type": "string" },
             "migrate": { "type": "string" }
           }
@@ -442,6 +529,15 @@
           }
         },
         "mssql": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "loadBalancerFrom": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "postgres": {
           "type": "object",
           "additionalProperties": false,
           "properties": {

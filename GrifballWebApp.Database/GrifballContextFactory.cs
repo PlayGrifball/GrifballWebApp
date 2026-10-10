@@ -15,8 +15,7 @@ public class GrifballContextFactory : IDbContextFactory<GrifballContext>
     public virtual GrifballContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<GrifballContext>()
-            .UseSqlServer(_serviceProvider.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
-            ?? throw new Exception("GrifballContext failed to configure"))
+            .UseGrifballDatabase(_serviceProvider.GetRequiredService<IConfiguration>())
             .Options;
         return new GrifballContext(options);
     }

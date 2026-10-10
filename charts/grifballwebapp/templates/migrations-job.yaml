@@ -13,8 +13,13 @@ metadata:
     {{- include "grif.labels" . | nindent 4 }}
     app.kubernetes.io/component: migrations
   annotations:
+    {{- if include "grif.postgres" . }}
+    # After PostgreSQL, before everything else: a sync stops here if the migration fails, leaving
+    # the running backend as it was.
+    {{- else }}
     # After SQL Server, before everything else: a sync stops here if the migration fails, leaving
     # the running backend as it was.
+    {{- end }}
     argocd.argoproj.io/sync-wave: "-1"
     {{- with $m.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -47,9 +52,9 @@ spec:
   imagePullSecrets:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with $m.podSecurityContext }}
+  {{- with include "grif.migrationPodSecurityContext" . }}
   securityContext:
-    {{- toYaml . | nindent 4 }}
+    {{- . | nindent 4 }}
   {{- end }}
   initContainers:
     {{- include "grif.migrationJobSteps" . | nindent 4 }}
@@ -60,6 +65,17 @@ spec:
       emptyDir: {}
     - name: tmp
       emptyDir: {}
+    {{- if include "grif.postgres" . }}
+    {{- if $m.backup.enabled }}
+    {{- include "grif.pgBackupVolume" . | nindent 4 }}
+    {{- end }}
+    {{- if $m.restore.enabled }}
+    # The folder backups are restored from (migrations.restore), mounted read-only by the restore step.
+    {{- if not $m.restore.volume }}{{ fail "migrations.restore.volume is required with PostgreSQL: the volume the backups are on" }}{{ end }}
+    - name: restore
+      {{- toYaml $m.restore.volume | nindent 6 }}
+    {{- end }}
+    {{- end }}
   {{- with $m.nodeSelector }}
   nodeSelector:
     {{- toYaml . | nindent 4 }}

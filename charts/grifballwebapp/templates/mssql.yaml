@@ -1,6 +1,7 @@
 {{- $m := .Values.mssql -}}
-{{- /* SQL Server is sync wave -2 under Argo CD: up before the migration Job (-1) and the app (0). */}}
-{{- if $m.enabled }}
+{{- /* SQL Server is sync wave -2 under Argo CD: up before the migration Job (-1) and the app (0). Only with
+   database.provider sqlserver. */}}
+{{- if and $m.enabled (not (include "grif.postgres" .)) }}
 {{- if not $m.acceptEula }}
 {{- fail "mssql.acceptEula must be true to run SQL Server (you accept its EULA); or set mssql.enabled false and database.host" }}
 {{- end }}

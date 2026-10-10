@@ -154,7 +154,7 @@ public class SeasonServiceTests
         cts.Cancel();
 
         // Act & Assert
-        Assert.ThrowsAsync<TaskCanceledException>(() => _service.GetCurrentSeasonID(cts.Token));
+        Assert.CatchAsync<OperationCanceledException>(() => _service.GetCurrentSeasonID(cts.Token));
     }
 
     [Test]
@@ -252,6 +252,6 @@ public class SeasonServiceTests
         cts.Cancel();
 
         // Act & Assert
-        Assert.ThrowsAsync<TaskCanceledException>(() => _service.GetSeasonName(1, cts.Token));
+        Assert.CatchAsync<OperationCanceledException>(() => _service.GetSeasonName(1, cts.Token));
     }
 }

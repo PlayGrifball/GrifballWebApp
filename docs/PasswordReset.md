@@ -151,5 +151,5 @@ dotnet test --filter "FullyQualifiedName~PasswordReset"
 
 To apply the database migration:
 ```bash
-dotnet ef database update --project GrifballWebApp.Database
+dotnet ef database update --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 ```

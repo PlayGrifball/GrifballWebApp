@@ -1,0 +1,93 @@
+suite: postgres sql-exporter and network policies
+templates:
+  - templates/sql-exporter.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  database.provider: postgres
+tests:
+  - it: reads PostgreSQL with the pg_standard collector, over pgx, in the postgres database
+    template: templates/sql-exporter.yaml
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["pg_standard"\]' }
+        documentIndex: 0
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: "data_source_name: 'pgx://placeholder" }
+        documentIndex: 0
+      - matchRegex: { path: "data['pg_standard.collector.yml']", pattern: "collector_name: pg_standard" }
+        documentIndex: 0
+      - notExists: { path: "data['mssql_standard.collector.yml']" }
+        documentIndex: 0
+      - matchRegex:
+          path: "spec.template.spec.containers[0].args[0]"
+          pattern: 'export SQLEXPORTER_TARGET_DSN="pgx://\$DB_USER:\$enc@\$DB_HOST:\$DB_PORT/postgres\?\$DSN_OPTIONS"'
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=prefer } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: postgres } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_PORT, value: "5432" } }
+        documentIndex: 1
+
+  - it: uses the monitoring login, and your collectors and options
+    template: templates/sql-exporter.yaml
+    set:
+      database.logins.enabled: true
+      sqlExporter: { enabled: true, collectors: [pg_standard, mine], dsnOptions: sslmode=require }
+    asserts:
+      - matchRegex: { path: "data['sql_exporter.yml']", pattern: 'collectors: \["pg_standard","mine"\]' }
+        documentIndex: 0
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: grif_monitor } }
+        documentIndex: 1
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=require } }
+        documentIndex: 1
+
+  - it: gives PostgreSQL a policy instead of SQL Server's, and the pods reach it on 5432
+    template: templates/networkpolicy.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+      migrations.backup.retention.enabled: true
+      sqlExporter.enabled: true
+      postgres.loadBalancer.enabled: true
+      networkPolicy.postgres.loadBalancerFrom: [{ ipBlock: { cidr: 192.0.2.0/24 } }]
+    asserts:
+      - hasDocuments: { count: 7 }
+      - equal: { path: metadata.name, value: grif-postgres }
+        documentIndex: 2
+      - equal:
+          path: "spec.ingress[0].from"
+          value:
+            - podSelector: { matchLabels: { app: grif-backend } }
+            - podSelector: { matchLabels: { app: grif-migrate } }
+            - podSelector: { matchLabels: { app: grif-backup } }
+            - podSelector: { matchLabels: { app: sql-exporter } }
+        documentIndex: 2
+      - equal: { path: "spec.ingress[0].ports", value: [{ protocol: TCP, port: 5432 }] }
+        documentIndex: 2
+      - equal: { path: "spec.ingress[1]", value: { ports: [{ protocol: TCP, port: 5432 }], from: [{ ipBlock: { cidr: 192.0.2.0/24 } }] } }
+        documentIndex: 2
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ podSelector: { matchLabels: { app: grif-postgres } } }], ports: [{ protocol: TCP, port: 5432 }] }
+        documentIndex: 1
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ podSelector: { matchLabels: { app: grif-postgres } } }], ports: [{ protocol: TCP, port: 5432 }] }
+        documentIndex: 3
+      # Retention only deletes files: DNS, nothing else.
+      - equal: { path: metadata.name, value: grif-backup-retention }
+        documentIndex: 4
+      - lengthEqual: { path: spec.egress, count: 1 }
+        documentIndex: 4
+
+  - it: allows an external PostgreSQL on its port
+    template: templates/networkpolicy.yaml
+    set:
+      postgres.enabled: false
+      database.host: pg.example
+    asserts:
+      - hasDocuments: { count: 3 }
+      - equal: { path: "spec.egress[1]", value: { ports: [{ protocol: TCP, port: 5432 }] } }
+        documentIndex: 1

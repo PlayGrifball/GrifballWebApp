@@ -7,10 +7,10 @@ The backend waits for it before starting.
   kubectl -n {{ .Release.Namespace }} get jobs -l app.kubernetes.io/component=migrations
   kubectl -n {{ .Release.Namespace }} logs job/<name> --all-containers --prefix
   kubectl -n {{ .Release.Namespace }} logs deploy/grif-backend -c wait-for-migrations
-{{- if .Values.mssql.enabled }}
+{{- if include "grif.bundled" . }}
 {{- if not .Values.database.host }}
 
-SQL Server comes up first; on a first install the Job waits for it, then creates the database.
+{{ include "grif.byProvider" (dict "root" . "sql" "SQL Server" "pg" "PostgreSQL") }} comes up first; on a first install the Job waits for it, then creates the database.
 {{- end }}
 {{- end }}
 {{- else }}

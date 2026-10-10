@@ -32,8 +32,8 @@ https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF
 
 ## Deploying
 To Kubernetes with the Helm chart in [charts/grifballwebapp](charts/grifballwebapp/README.md), published to
-`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server, and a migration
-Job that backs the database up before applying new migrations.
+`oci://ghcr.io/playgrifball/charts/grifballwebapp`: frontend, backend, optionally SQL Server or PostgreSQL, and a
+migration Job that backs the database up before applying new migrations.
 
 ## Backend Technologies
 - [.NET 10](https://learn.microsoft.com/en-us/dotnet/) - [source](https://github.com/dotnet)
@@ -134,6 +134,29 @@ Here is an example of what the user secrets file might look like:
   "ApplyMigrations": "True" // Whether to apply migrations on startup, set to false if you want to manage migrations manually.
 }
 ```
+
+### Database
+The app runs on SQL Server (the default) or PostgreSQL, picked by the `Database:Provider` setting (`SqlServer` or
+`Postgres`); `ConnectionStrings:GrifballWebApp` is in that database's own format. For Postgres, in user secrets:
+```json
+{
+  "Database:Provider": "Postgres",
+  "ConnectionStrings:GrifballWebApp": "Host=localhost;Port=5432;Database=GrifballWebApp;Username=postgres;Password=..."
+}
+```
+
+Each database has its own migrations project, both generated from the one model in `GrifballWebApp.Database`:
+`GrifballWebApp.Migrations.SqlServer` and `GrifballWebApp.Migrations.Postgres`. A model change needs a migration in
+both (a test fails for whichever is missing). Each project is its own startup project and reads the connection string
+from `GrifballWebApp.Database`'s user secrets or `ConnectionStrings__GrifballWebApp`; `migrations add` needs none
+that works, so any placeholder will do there:
+```sh
+dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
+dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
+```
+
+SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
+current rows. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
 
 ### Running the Application
 

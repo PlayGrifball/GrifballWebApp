@@ -54,6 +54,30 @@ public class GrifballContext :
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        // Postgres: DateTime as timestamp without time zone, like SQL Server's datetime2 - the value is
+        // stored as it is, whatever its Kind, and read back Unspecified. Npgsql's default (timestamptz)
+        // takes only UTC, and won't write a UTC value to timestamp without time zone, hence the converter.
+        // And text sorted as people read it (alpha, Bravo, charlie), as SQL Server's default collation
+        // does, rather than by the server's locale (on Alpine, byte order: Bravo, Charlie, alpha). ICU's
+        // root collation is in every PostgreSQL built with ICU (the official images are). Comparisons stay
+        // case-sensitive, unlike SQL Server's.
+        if (Database.IsNpgsql())
+        {
+            configurationBuilder.Properties<DateTime>()
+                .HaveColumnType("timestamp without time zone")
+                .HaveConversion<UnspecifiedKindConverter>();
+            configurationBuilder.Properties<string>().UseCollation("und-x-icu");
+        }
+    }
+
+    private sealed class UnspecifiedKindConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+        v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified),
+        v => v);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -105,6 +129,38 @@ public class GrifballContext :
         });
 
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
+
+        // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
+        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
+        if (!Database.IsSqlServer())
+        {
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+                entityType.RemoveAnnotation("SqlServer:IsTemporal");
+        }
+
+        if (Database.IsNpgsql())
+            QuoteCheckConstraintColumns(modelBuilder);
+    }
+
+    /// <summary>
+    /// Check constraints are written with bare column names, as SQL Server takes them. Postgres folds bare
+    /// names to lower case, and the columns are mixed case, so on Postgres each column name in them is
+    /// quoted.
+    /// </summary>
+    private static void QuoteCheckConstraintColumns(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var columns = entityType.GetProperties().Select(p => p.GetColumnName()).ToArray();
+            foreach (var check in entityType.GetCheckConstraints().ToList())
+            {
+                var sql = check.Sql;
+                foreach (var column in columns)
+                    sql = System.Text.RegularExpressions.Regex.Replace(sql, $@"(?<![""\w]){column}(?![""\w])", $@"""{column}""");
+                entityType.RemoveCheckConstraint(check.ModelName);
+                entityType.AddCheckConstraint(check.ModelName, sql).Name = check.Name;
+            }
+        }
     }
 
     private IDbContextTransaction? transaction;

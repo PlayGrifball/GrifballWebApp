@@ -78,7 +78,7 @@ public class OrderByAndPaginationSqlTests
     }
 
     [Test]
-    public async Task OrderByString_NullableColumn_SqlPutsNullsFirstAscending()
+    public async Task OrderByString_NullableColumn_SortsNullsAsTheDatabaseDoes()
     {
         await SeedSeasons();
         var season = await _context.Seasons.FirstAsync();
@@ -91,10 +91,12 @@ public class OrderByAndPaginationSqlTests
         var asc = await _context.SeasonMatches.OrderBy("ScheduledTime").Select(x => x.BestOf).ToListAsync();
         var desc = await _context.SeasonMatches.OrderBy("-ScheduledTime").Select(x => x.BestOf).ToListAsync();
 
+        // SQL Server sorts NULL lowest: first ascending, last descending. Postgres sorts it highest.
+        var nullsFirst = TestDatabase.Provider == DatabaseProvider.SqlServer;
         Assert.Multiple(() =>
         {
-            Assert.That(asc, Is.EqualTo(new[] { 3, 5, 1 }));
-            Assert.That(desc, Is.EqualTo(new[] { 1, 5, 3 }));
+            Assert.That(asc, Is.EqualTo(nullsFirst ? new[] { 3, 5, 1 } : new[] { 5, 1, 3 }));
+            Assert.That(desc, Is.EqualTo(nullsFirst ? new[] { 1, 5, 3 } : new[] { 3, 1, 5 }));
         });
     }
 
