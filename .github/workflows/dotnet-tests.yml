@@ -20,9 +20,18 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
+  # The whole suite once per database the app supports (Database:Provider): each test gets its own
+  # database on a Testcontainers server of that kind (GrifballWebApp.Test/TestDatabase.cs).
   test:
+    name: test (${{ matrix.database }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [SqlServer, Postgres]
+    env:
+      GRIF_TEST_DATABASE: ${{ matrix.database }}
     
     steps:
     - name: Checkout code
@@ -54,14 +63,14 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: test-results-${{ matrix.database }}
         path: TestResults/
         
     - name: Publish Test Results
       uses: dorny/test-reporter@v2
       if: always()
       with:
-        name: .NET Test Results
+        name: .NET Test Results (${{ matrix.database }})
         path: TestResults/*.trx
         reporter: dotnet-trx
         fail-on-error: true
@@ -74,7 +83,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/**/coverage.cobertura.xml
         flags: backend
-        name: backend-coverage
+        name: backend-coverage-${{ matrix.database }}
         fail_ci_if_error: true
 
     - name: Upload Test Results to Codecov (Test Analytics)

@@ -18,16 +18,12 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class HealthCheckExtensionsTests
 {
-    // Refused at once: no SQL Server listens on port 9.
-    private const string UnreachableDatabase = "Server=127.0.0.1,9;Database=nope;User Id=sa;Password=x;Connect Timeout=2;TrustServerCertificate=True";
+    // Refused at once: nothing listens on port 9.
+    private static readonly string UnreachableDatabase = TestDatabase.UnreachableConnectionString();
 
     private static string ReachableDatabase()
     {
-        var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(SetUpFixture.MsSqlContainer.GetConnectionString())
-        {
-            InitialCatalog = "master",
-        };
-        return builder.ConnectionString;
+        return TestDatabase.MaintenanceConnectionString(SetUpFixture.DatabaseContainer);
     }
 
     private static async Task<WebApplication> StartApp(string connectionString, bool discordConnected, int? maxAllocatedMegabytes = null,
@@ -40,7 +36,7 @@ public class HealthCheckExtensionsTests
         if (settings is not null)
             builder.Configuration.AddInMemoryCollection(settings);
 
-        builder.Services.AddDbContext<GrifballContext>(options => options.UseSqlServer(connectionString));
+        builder.Services.AddDbContext<GrifballContext>(options => options.UseGrifballDatabase(TestDatabase.Provider, connectionString));
         builder.Services.AddSingleton(new DiscordGatewayHealthCheck(discordConnected));
         builder.Services.AddSingleton(HaloInfiniteHealthCheckTests.Answering(haloStatusCode));
         builder.Services.AddAppHealthChecks(builder.Configuration);

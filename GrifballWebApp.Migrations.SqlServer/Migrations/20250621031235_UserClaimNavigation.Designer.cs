@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GrifballWebApp.Database.Migrations
+namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20250629014048_AddPublicAt")]
-    partial class AddPublicAt
+    [Migration("20250621031235_UserClaimNavigation")]
+    partial class UserClaimNavigation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1166,9 +1166,6 @@ namespace GrifballWebApp.Database.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("datetime2")
                         .HasColumnName("PeriodStart");
-
-                    b.Property<DateTime>("PublicAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("SeasonEnd")
                         .HasColumnType("datetime2");

@@ -19,7 +19,7 @@ Automatically runs unit tests on every pull request and push to the master branc
 ### Test Framework Stack
 - **Test Framework**: NUnit 4.x
 - **Mocking**: NSubstitute 5.x (never Moq per project standards)
-- **Database Testing**: Testcontainers with SQL Server 2022
+- **Database Testing**: Testcontainers with SQL Server 2022 or PostgreSQL 18 (a matrix job per database)
 - **Code Coverage**: XPlat Code Coverage collection
 
 ### Workflow Steps
@@ -39,13 +39,14 @@ Automatically runs unit tests on every pull request and push to the master branc
 - **Logging**: Normal verbosity for clear output
 
 ### Database Testing
-The tests use Testcontainers to provision isolated SQL Server instances:
-- **Image**: `mcr.microsoft.com/mssql/server:2022-latest`
+The tests use Testcontainers to provision an isolated database server, one per matrix job (`GRIF_TEST_DATABASE`):
+- **Images**: `mcr.microsoft.com/mssql/server:2022-latest` (`SqlServer`, the default), `postgres:18-alpine` (`Postgres`)
 - **Isolation**: Each test gets a unique database
 - **Cleanup**: Automatic container disposal after tests
 
 ### Environment Variables
 - `TESTCONTAINERS_REUSE_ENABLE=false`: Ensures clean test environments
+- `GRIF_TEST_DATABASE`: `SqlServer` or `Postgres`, from the matrix
 - `DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1`: Improves performance
 - `DOTNET_NOLOGO=true`: Reduces log noise
 

@@ -2,10 +2,10 @@
 
 #nullable disable
 
-namespace GrifballWebApp.Database.Migrations
+namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     /// <inheritdoc />
-    public partial class UserClaimNavigation : Migration
+    public partial class UserLoginNavigation : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

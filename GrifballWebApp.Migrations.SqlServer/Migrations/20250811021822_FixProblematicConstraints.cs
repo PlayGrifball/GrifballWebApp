@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace GrifballWebApp.Database.Migrations
+namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     /// <inheritdoc />
     public partial class FixProblematicConstraints : Migration

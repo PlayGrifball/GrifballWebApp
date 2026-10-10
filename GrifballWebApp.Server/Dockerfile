@@ -6,7 +6,10 @@
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 
-RUN apk add --no-cache icu-libs
+# The PostgreSQL client (psql, pg_dump, pg_restore): the Helm chart's migration Job and backups on
+# Postgres (charts/grifballwebapp), as sqlcmd is on SQL Server. Its major version is the newest
+# server's the chart supports: pg_dump can't dump a newer server.
+RUN apk add --no-cache icu-libs postgresql18-client
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app
@@ -30,11 +33,12 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD
 
-# EF Core migrations bundle: one executable that applies pending migrations. Shipping it inside the
-# backend image means the migrations a deploy runs always come from the same build as the backend
-# being deployed; the Helm chart's migration Job (charts/grifballwebapp) runs it with
-# ConnectionStrings__GrifballWebApp set in the environment. Framework-dependent: it uses the .NET
-# runtime already in the aspnet base image, built for the image's platform.
+# EF Core migrations bundles: one executable per database that applies pending migrations - SQL
+# Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, each from its own migrations project.
+# Shipping them inside the backend image means the migrations a deploy runs always come from the same
+# build as the backend being deployed; the Helm chart's migration Job (charts/grifballwebapp) runs the
+# database's with ConnectionStrings__GrifballWebApp set in the environment. Framework-dependent: they
+# use the .NET runtime already in the aspnet base image, built for the image's platform.
 FROM build AS migrations
 ARG TARGETARCH
 RUN dotnet tool install --global dotnet-ef --version 10.0.0
@@ -46,21 +50,29 @@ RUN case "$TARGETARCH" in \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
  && dotnet ef migrations bundle \
-      --project GrifballWebApp.Database --startup-project GrifballWebApp.Database \
-      --configuration Release --target-runtime "$rid" -o /app/efbundle
+      --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer \
+      --configuration Release --target-runtime "$rid" -o /app/efbundle \
+ && dotnet ef migrations bundle \
+      --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres \
+      --configuration Release --target-runtime "$rid" -o /app/postgres/efbundle
 
-# The build's migration IDs, one per line. The migration Job and the backend's wait compare them with
-# the database's __EFMigrationsHistory. --no-connect lists them without a database; the design-time
-# factory still wants a connection string, so it gets a dummy. The build fails if the list is empty
-# or not the YYYYMMDDHHMMSS_Name shape they rely on.
-RUN ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
-      dotnet ef migrations list --no-connect --prefix-output \
-        --project GrifballWebApp.Database --startup-project GrifballWebApp.Database \
-        --configuration Release \
-    | sed -n 's/^data:[[:space:]]*//p' > /app/migrations.txt \
- && test -s /app/migrations.txt \
- && ! grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' /app/migrations.txt \
- && echo "Migrations in this build:" && cat /app/migrations.txt
+# Each bundle's migration IDs, one per line, beside it: /app/migrations.txt (SQL Server) and
+# /app/postgres/migrations.txt. The migration Job and the backend's wait compare them with the
+# database's __EFMigrationsHistory. --no-connect lists them without a database; the design-time
+# factory still wants a connection string, so it gets a dummy. The build fails if a list is empty or
+# not the YYYYMMDDHHMMSS_Name shape they rely on.
+RUN list() { \
+      ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
+        dotnet ef migrations list --no-connect --prefix-output \
+          --project "$1" --startup-project "$1" --configuration Release \
+      | sed -n 's/^data:[[:space:]]*//p' > "$2" \
+      && test -s "$2" \
+      && ! grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' "$2" \
+      && echo "$1 migrations in this build:" && cat "$2"; \
+    } \
+ && list GrifballWebApp.Migrations.SqlServer /app/migrations.txt \
+ && mkdir -p /app/postgres \
+ && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt
 
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
@@ -83,5 +95,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
+COPY --from=migrations /app/postgres /app/postgres
 COPY --from=sqlcmd /usr/local/bin/sqlcmd /usr/local/bin/sqlcmd
 ENTRYPOINT ["dotnet", "GrifballWebApp.Server.dll"]

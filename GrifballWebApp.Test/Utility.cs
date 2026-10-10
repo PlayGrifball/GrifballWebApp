@@ -1,43 +1,17 @@
-﻿using GrifballWebApp.Database;
+﻿using DotNet.Testcontainers.Containers;
+using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Testcontainers.MsSql;
 
 namespace GrifballWebApp.Test;
 internal static class Utility
 {
-    internal static async Task<MsSqlContainer> NewSqlServer()
-    {
-        var server = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("yourStrong(!)Password")
-            .Build();
-        await server.StartAsync();
-        return server;
-    }
-    internal static async Task<GrifballContext> NewGrifballContext(MsSqlContainer server, params IInterceptor[] interceptors)
+    internal static async Task<GrifballContext> NewGrifballContext(IDatabaseContainer server, params IInterceptor[] interceptors)
     {
         // Create a unique database name per test
         var dbName = $"TestDb_{Guid.NewGuid():N}";
-        var masterConnectionString = server.GetConnectionString();
-        var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(masterConnectionString)
-        {
-            InitialCatalog = "master"
-        };
-        using (var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString))
-        {
-            await connection.OpenAsync();
-            using var command = connection.CreateCommand();
-            command.CommandText = $"CREATE DATABASE [{dbName}]";
-            await command.ExecuteNonQueryAsync();
-        }
-        // Use the new database in the connection string
-        var testDbConnectionString = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(masterConnectionString)
-        {
-            InitialCatalog = dbName
-        }.ConnectionString;
-        var options = new DbContextOptionsBuilder<GrifballContext>()
-            .UseSqlServer(testDbConnectionString)
+        await TestDatabase.CreateDatabase(server, dbName);
+        var options = TestDatabase.Options(TestDatabase.ConnectionString(server, dbName))
             .AddInterceptors(interceptors)
             .Options;
 
@@ -54,21 +28,8 @@ internal static class Utility
 
     internal static void DropDatabase(this GrifballContext context)
     {
-        var cs = context.Database.GetConnectionString();
-        var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(cs);
-        var dbName = builder.InitialCatalog;
-        builder.InitialCatalog = "master";
+        var cs = context.Database.GetConnectionString()!;
         // Run the drop in a separate task to avoid blocking the next test. It's not required for the db to be dropped immediately.
-        _ = Task.Run(async () =>
-        {
-            using var connection = new Microsoft.Data.SqlClient.SqlConnection(builder.ConnectionString);
-            await connection.OpenAsync();
-            using var command = connection.CreateCommand();
-            command.CommandText = $@"
-            ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-            DROP DATABASE [{dbName}];
-            ";
-            await command.ExecuteNonQueryAsync();
-        });
+        _ = Task.Run(() => TestDatabase.DropDatabase(cs));
     }
 }

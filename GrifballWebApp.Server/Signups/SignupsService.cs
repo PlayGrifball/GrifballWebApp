@@ -13,9 +13,13 @@ public class SignupsService
     }
     public Task<SignupDateInfoDto[]> GetSignupDateInfo(int personID, CancellationToken ct)
     {
-        var n = DateTime.UtcNow;
+        // Signups opening within 30 days (by date) and closed no more than 3 days ago. Day boundaries
+        // worked out here rather than with DATEDIFF, which only SQL Server has.
+        var today = DateTime.UtcNow.Date;
+        var opensBefore = today.AddDays(31);
+        var closesFrom = today.AddDays(-3);
         return _context.Seasons
-            .Where(s => EF.Functions.DateDiffDay(s.SignupsOpen, n) >= -30 && EF.Functions.DateDiffDay(n, s.SignupsClose) >= -3)
+            .Where(s => s.SignupsOpen < opensBefore && s.SignupsClose >= closesFrom)
             .Select(s => new SignupDateInfoDto()
             {
                 SeasonID = s.SeasonID,

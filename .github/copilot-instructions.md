@@ -8,7 +8,7 @@ GrifballWebApp is a full-stack web application for planning and organizing Grifb
 ### Backend (.NET 10)
 - **Framework**: .NET 10 with ASP.NET Core Web API
 - **Real-time**: SignalR for live updates
-- **Database**: Entity Framework Core with SQL Server
+- **Database**: Entity Framework Core with SQL Server (default) or PostgreSQL (`Database:Provider`)
 - **Authentication**: JWT Bearer tokens with Discord OAuth
 - **Logging**: Serilog with console, debug, and SQL Server sinks
 - **API Documentation**: Swagger/OpenAPI (Swashbuckle)
@@ -113,17 +113,19 @@ docker-compose up --build --force-recreate
 
 ### Entity Framework Migrations
 ```bash
-# Add new migration
-dotnet ef migrations add <MigrationName> --project GrifballWebApp.Database
+# One migrations project per database (Database:Provider), each its own startup project. A model
+# change needs a migration in both: add it to each.
+dotnet ef migrations add <MigrationName> --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
+dotnet ef migrations add <MigrationName> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
 
-# Update database
-dotnet ef database update --project GrifballWebApp.Database
+# Update database (SQL Server; likewise Postgres)
+dotnet ef database update --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 
 # Remove last migration
-dotnet ef migrations remove --project GrifballWebApp.Database
+dotnet ef migrations remove --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 
 # Generate SQL script
-dotnet ef migrations script --project GrifballWebApp.Database
+dotnet ef migrations script --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 ```
 
 ### Database Connection
@@ -273,9 +275,11 @@ GrifballWebApp.Server/           # Main API project
 ├── Extensions/                 # Extension methods
 └── Program.cs                  # Application entry point
 
-GrifballWebApp.Database/        # Entity Framework project
-├── Entities/                   # Database entity models
-└── Migrations/                 # EF Core migrations
+GrifballWebApp.Database/        # Entity Framework project (model, context)
+└── Entities/                   # Database entity models
+
+GrifballWebApp.Migrations.SqlServer/  # EF Core migrations for SQL Server
+GrifballWebApp.Migrations.Postgres/   # EF Core migrations for PostgreSQL
 
 DiscordInterfaces/              # Discord integration
 GrifballWebApp.Test/            # Unit tests
