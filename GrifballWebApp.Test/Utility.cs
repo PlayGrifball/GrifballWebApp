@@ -22,14 +22,10 @@ internal static class Utility
 
     internal static async Task DropDatabaseAndDispose(this GrifballContext context)
     {
-        context.DropDatabase();
-        await context.DisposeAsync();
-    }
-
-    internal static void DropDatabase(this GrifballContext context)
-    {
+        // Disposed first: Postgres's drop ends the database's connections, which the context may still be
+        // closing.
         var cs = context.Database.GetConnectionString()!;
-        // Run the drop in a separate task to avoid blocking the next test. It's not required for the db to be dropped immediately.
+        await context.DisposeAsync();
         _ = Task.Run(() => TestDatabase.DropDatabase(cs));
     }
 }

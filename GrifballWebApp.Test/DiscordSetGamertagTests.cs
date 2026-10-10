@@ -62,8 +62,9 @@ public class DiscordSetGamertagTests
     [TearDown]
     public void TearDown()
     {
-        _context.DropDatabase();
+        var connectionString = _context.Database.GetConnectionString()!;
         _scope.Dispose();
+        _ = Task.Run(() => TestDatabase.DropDatabase(connectionString));
     }
 
     // Test in different scenerios that may occur.

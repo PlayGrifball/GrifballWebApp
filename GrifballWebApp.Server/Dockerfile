@@ -39,6 +39,8 @@ RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /
 # build as the backend being deployed; the Helm chart's migration Job (charts/grifballwebapp) runs the
 # database's with ConnectionStrings__GrifballWebApp set in the environment. Framework-dependent: they
 # use the .NET runtime already in the aspnet base image, built for the image's platform.
+# They connect only when run, but building one still creates the design-time context, which wants a
+# connection string: a dummy.
 FROM build AS migrations
 ARG TARGETARCH
 RUN dotnet tool install --global dotnet-ef --version 10.0.0
@@ -49,6 +51,7 @@ RUN case "$TARGETARCH" in \
       arm64) rid=linux-musl-arm64 ;; \
       *) echo "Unsupported TARGETARCH '$TARGETARCH'" >&2; exit 1 ;; \
     esac \
+ && export ConnectionStrings__GrifballWebApp="Server=unused;Database=unused" \
  && dotnet ef migrations bundle \
       --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer \
       --configuration Release --target-runtime "$rid" -o /app/efbundle \
