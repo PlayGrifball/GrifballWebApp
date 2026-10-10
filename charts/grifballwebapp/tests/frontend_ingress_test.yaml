@@ -32,6 +32,14 @@ tests:
       - equal: { path: "spec.routes[0].match", value: "Host(`grif.example`)" }
       - equal: { path: "spec.routes[0].services[0]", value: { name: grif-frontend, port: 80 } }
       - equal: { path: spec.tls.secretName, value: cert }
+      - notExists: { path: spec.entryPoints }
+
+  - it: serves on the entrypoints it's given
+    template: templates/ingress.yaml
+    set:
+      ingressRoute: { enabled: true, host: grif.example, entryPoints: [websecure] }
+    asserts:
+      - equal: { path: spec.entryPoints, value: [websecure] }
 
   - it: or a Kubernetes Ingress
     template: templates/ingress.yaml

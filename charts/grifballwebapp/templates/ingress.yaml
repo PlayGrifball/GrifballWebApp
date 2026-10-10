@@ -48,8 +48,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- with .entryPoints }}
   entryPoints:
-    {{- toYaml .entryPoints | nindent 4 }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   routes:
     - match: Host(`{{ required "ingressRoute.host is required when ingressRoute.enabled" .host }}`)
       kind: Rule

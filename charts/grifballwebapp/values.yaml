@@ -281,7 +281,9 @@ ingress:
 ingressRoute:
   enabled: false
   name: grif-ingressroute
-  entryPoints: [websecure]
+  # Traefik entrypoints to serve on. Empty: Traefik's default ones (with tls set, only HTTPS is
+  # served). Traefik's Helm chart names its HTTPS entrypoint websecure.
+  entryPoints: []
   host: ""
   middlewares: []
   # - name: security-headers
