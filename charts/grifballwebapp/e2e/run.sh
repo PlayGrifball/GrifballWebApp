@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end test of the chart on a real cluster: ./run.sh bundled|external
+# End-to-end test of the chart on a real cluster: ./run.sh bundled|external|minimal
 #
 # Needs kubectl and helm pointed at an empty cluster that enforces NetworkPolicies (k3s/k3d do), and
 # pulls the published app images (BACKEND_TAG / FRONTEND_TAG, default test). The backend itself can't
@@ -12,10 +12,13 @@
 #   3. upgrade: the deploy hook finds nothing pending, keeps the app up and writes a backup;
 #   4. upgrade after the database is dropped: the hook finds everything pending, scales the app
 #      down, skips the backup and the migration recreates the database.
+# minimal installs ci/minimal-values.yaml (the README's Quick start) instead, ingress class aside: the
+# backend creates the database itself and gets as far as Discord, the site is served through the Ingress
+# (needs the cluster's Traefik, which k3s ships), an upgrade backs up.
 set -euo pipefail
 
-scenario=${1:?usage: $0 bundled|external}
-case "$scenario" in bundled|external) ;; *) echo "usage: $0 bundled|external" >&2; exit 2 ;; esac
+scenario=${1:?usage: $0 bundled|external|minimal}
+case "$scenario" in bundled|external|minimal) ;; *) echo "usage: $0 bundled|external|minimal" >&2; exit 2 ;; esac
 chart=$(cd "$(dirname "$0")/.." && pwd)
 ns=grif-e2e
 ext_ns=external-sql
@@ -52,7 +55,7 @@ wait_for() {
 
 # sqlcmd inside the SQL Server container, so the test itself doesn't need a network path. The chart
 # gives SQL Server SA_PASSWORD; the external one here uses MSSQL_SA_PASSWORD.
-if [ "$scenario" = bundled ]; then sql_ns=$ns sql_deploy=grif-mssql pw_var=SA_PASSWORD
+if [ "$scenario" != external ]; then sql_ns=$ns sql_deploy=grif-mssql pw_var=SA_PASSWORD
 else sql_ns=$ext_ns sql_deploy=mssql pw_var=MSSQL_SA_PASSWORD; fi
 sql() {
   kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- /bin/sh -c \
@@ -74,7 +77,55 @@ kubectl create namespace "$ns"
 kubectl -n "$ns" create secret generic grif-secrets \
   --from-literal=SA_PASSWORD="$password" \
   --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e \
-  --from-literal=DiscordToken=e2e.not.a.token --from-literal=DiscordDraftChannel=1
+  --from-literal=DiscordToken=MTIzNDU2Nzg5MDEyMzQ1Njc4.AAAAAA.e2e-not-a-real-token --from-literal=DiscordDraftChannel=1
+
+# minimal: ci/minimal-values.yaml exactly as the README's Quick start shows it, with the default
+# (latest) images. Only the ingress class changes, to the cluster's Traefik, so the site can be
+# fetched through it.
+if [ "$scenario" = minimal ]; then
+  step "Install ci/minimal-values.yaml"
+  helm install grif "$chart" -n "$ns" -f "$chart/ci/minimal-values.yaml" --set ingress.className=traefik
+  backend_logs() {
+    kubectl -n "$ns" logs deploy/grif-backend --previous 2>/dev/null || true
+    kubectl -n "$ns" logs deploy/grif-backend 2>/dev/null || true
+  }
+  migrated() { backend_logs | grep -q '"Migrations applied"'; }
+  wait_for 900 migrated || fail "the backend didn't create the database"
+  echo "The backend created the database itself (ApplyMigrations, CreateDatabase)."
+  kubectl -n "$ns" run migrations --image="$(kubectl -n "$ns" get deploy grif-backend -o jsonpath='{.spec.template.spec.containers[0].image}')" \
+    --restart=Never --command -- cat /app/migrations.txt
+  wait_for 300 sh -c "kubectl -n $ns get pod migrations -o jsonpath='{.status.phase}' | grep -q Succeeded" || fail "couldn't read the image's migrations"
+  expected=$(kubectl -n "$ns" logs migrations | grep -c .)
+  count=$(migration_count)
+  [ "$count" = "$expected" ] || fail "database has $count migrations, the image $expected"
+  echo "Database has all $count of the image's migrations."
+  reached_discord() { backend_logs | grep -q '401 (Unauthorized)'; }
+  wait_for 300 reached_discord || fail "the backend stopped before reaching Discord"
+  echo "The backend got through its settings and database to Discord, which refuses the test token (401)."
+
+  step "The site through the ingress"
+  wait_for 300 kubectl -n kube-system rollout status deploy/traefik --timeout=5s || fail "no Traefik"
+  wait_for 300 kubectl -n "$ns" wait --for=condition=Ready pod -l app=grif-frontend --timeout=5s || fail "frontend not ready"
+  kubectl -n "$ns" run curl --image=docker.io/curlimages/curl:8.16.0 --restart=Never --command -- sleep 600
+  kubectl -n "$ns" wait --for=condition=Ready pod/curl --timeout=120s
+  site() {
+    kubectl -n "$ns" exec curl -- curl -fsk -H 'Host: grifball.example.com' https://traefik.kube-system.svc.cluster.local/ \
+      | grep -q '<app-root'
+  }
+  wait_for 120 site || fail "the site isn't served through the ingress"
+  echo "https://grifball.example.com/ serves the Angular app through the Ingress."
+
+  step "Upgrade"
+  helm upgrade grif "$chart" -n "$ns" -f "$chart/ci/minimal-values.yaml" --set ingress.className=traefik --timeout 15m \
+    || { hook_logs; fail "upgrade failed"; }
+  hook_logs > "$work/hook.txt"; cat "$work/hook.txt"
+  grep -q "No pending migrations: the app stays up." "$work/hook.txt" || fail "hook found migrations pending"
+  grep -q "BACKUP DATABASE successfully processed" "$work/hook.txt" || fail "no backup"
+  kubectl -n "$ns" exec deploy/grif-mssql -- sh -c "ls /var/opt/mssql/backup/$ns/GrifballWebApp_*.bak" || fail "backup file missing"
+
+  step "PASS (minimal)"
+  exit 0
+fi
 
 cat > "$work/values.yaml" <<EOF
 backend:

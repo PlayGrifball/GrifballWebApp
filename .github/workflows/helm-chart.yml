@@ -80,8 +80,8 @@ jobs:
           fi
           echo "Chart version ${old:-(new chart)} -> $new"
 
-  # The chart on a real cluster (k3s in Docker, which enforces NetworkPolicies), with the chart's
-  # SQL Server and with an external one: charts/grifballwebapp/e2e/run.sh.
+  # The chart on a real cluster (k3s in Docker, which enforces NetworkPolicies): with the chart's SQL
+  # Server, with an external one, and the minimal install: charts/grifballwebapp/e2e/run.sh.
   e2e:
     needs: test
     runs-on: ubuntu-latest
@@ -91,7 +91,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [bundled, external]
+        # minimal: ci/minimal-values.yaml, the README's Quick start, with k3s's Traefik for its Ingress.
+        database: [bundled, external, minimal]
     steps:
       - uses: actions/checkout@v4
 
@@ -102,11 +103,12 @@ jobs:
           set -euo pipefail
           curl -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
           chmod +x /usr/local/bin/k3d
-          k3d cluster create e2e --image rancher/k3s:v1.33.5-k3s1 --no-lb \
-            --k3s-arg '--disable=traefik@server:0' --wait --timeout 180s
+          traefik=(--k3s-arg '--disable=traefik@server:0')
+          if [ "${{ matrix.database }}" = minimal ]; then traefik=(); fi
+          k3d cluster create e2e --image rancher/k3s:v1.33.5-k3s1 --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl get nodes
 
-      - name: End-to-end (${{ matrix.database }} SQL Server)
+      - name: End-to-end (${{ matrix.database }})
         run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
 
   publish:

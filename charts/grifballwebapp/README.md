@@ -8,10 +8,60 @@ Published to `oci://ghcr.io/playgrifball/charts/grifballwebapp` by the
 [Helm chart workflow](../../.github/workflows/helm-chart.yml) whenever `version` in `Chart.yaml` changes on
 master.
 
-```sh
-helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version 0.1.0 \
-  -n grif --create-namespace -f my-values.yaml
+## Quick start
+
+The smallest working install - the chart's SQL Server, a Kubernetes Ingress, defaults for the rest -
+is [ci/minimal-values.yaml](ci/minimal-values.yaml), which the end-to-end test installs as is:
+
+```yaml
+mssql:
+  acceptEula: true                # required to run the chart's SQL Server
+  backup:
+    # The default (ReadWriteMany) needs storage that can share a volume, such as NFS; most default
+    # storage classes can't.
+    accessModes: [ReadWriteOnce]
+
+backend:
+  config:
+    BaseUrl: https://grifball.example.com
+    Discord:
+      DisableGlobally: false
+      # Quote IDs. DraftChannel is required; the queue and events services stop without the others.
+      DraftChannel: "123456789012345678"
+      QueueChannel: "123456789012345679"
+      EventsChannel: "123456789012345680"
+  # Setting: key in the grif-secrets Secret.
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts: [grifball.example.com]
+  tls:
+    - secretName: grifball-tls
+      hosts: [grifball.example.com]
 ```
+
+with the Secret it reads:
+
+```sh
+kubectl create namespace grif
+kubectl -n grif create secret generic grif-secrets \
+  --from-literal=SA_PASSWORD='<a strong password>' \
+  --from-literal=DiscordClientId=... \
+  --from-literal=DiscordClientSecret=... \
+  --from-literal=DiscordToken=...
+helm install grif oci://ghcr.io/playgrifball/charts/grifballwebapp --version 0.1.0 -n grif -f values.yaml
+```
+
+That runs the frontend, the backend, SQL Server with data and backup volumes from the default storage
+class, a network policy per pod, and the pre-upgrade backup-and-migrate hook. On its first start the
+backend creates the database (`ApplyMigrations` and `CreateDatabase`, on by default). Halo Infinite
+stat pulls also need `ClientConfiguration:ClientId`, `ClientSecret` and `RedirectUrl` in
+`secretConfig`; Google Sheets imports need `backend.googleCredentials` and `GoogleSheets:Sheets`.
 
 Every value is described in [values.yaml](values.yaml).
 
