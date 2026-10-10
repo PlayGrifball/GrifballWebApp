@@ -329,7 +329,7 @@ mssql:
   backup:
     enabled: true
     existingClaim: ""
-    claimName: nfs-pvc
+    claimName: mssql-backup-pvc
     size: 30Gi
     # Only SQL Server mounts it, and its Recreate strategy never runs two at once. ReadWriteMany only
     # if something else on another node has to mount it while SQL Server runs.
