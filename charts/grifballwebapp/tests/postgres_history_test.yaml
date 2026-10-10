@@ -1,0 +1,210 @@
+suite: postgres row history (database.history)
+templates:
+  - templates/postgres.yaml
+  - templates/migrations-job.yaml
+release:
+  namespace: grif-x
+set:
+  database.provider: postgres
+  database.history.enabled: true
+tests:
+  - it: runs the image with the periods extension, in both of PostgreSQL's containers
+    template: templates/postgres.yaml
+    documentIndex: 3
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/postgres-periods:18-alpine" }
+      - equal: { path: "spec.template.spec.initContainers[0].image", value: "ghcr.io/playgrifball/postgres-periods:18-alpine" }
+
+  - it: takes a history image of your own, pinned and pulled as set
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      postgres.historyImage:
+        repository: registry.example/postgres-periods
+        tag: "18"
+        digest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+        pullPolicy: Always
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "registry.example/postgres-periods:18@sha256:1111111111111111111111111111111111111111111111111111111111111111" }
+      - equal: { path: "spec.template.spec.containers[0].imagePullPolicy", value: Always }
+      - equal: { path: "spec.template.spec.initContainers[0].imagePullPolicy", value: Always }
+
+  - it: serves TLS as without history, its settings beside the server's own
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      postgres.settings: { log_connections: authorization }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: tls }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].image", pattern: "^docker.io/alpine/openssl:.+@sha256:" }
+      - contains: { path: "spec.template.spec.containers[0].args", content: ssl=on }
+      - contains: { path: "spec.template.spec.containers[0].args", content: ssl_cert_file=/tls/tls.crt }
+      - contains: { path: "spec.template.spec.containers[0].args", content: log_connections=authorization }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /tls, readOnly: true } }
+
+  - it: copies a given certificate with the history image, nothing else to pull
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      postgres.tls.secretName: postgres-tls
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].image", value: "ghcr.io/playgrifball/postgres-periods:18-alpine" }
+
+  - it: keeps the official image with history off
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      database.history.enabled: false
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^docker\.io/library/postgres:18-alpine@sha256:[0-9a-f]{64}$' }
+
+  - it: has no history-off step with history on
+    template: templates/postgres.yaml
+    documentIndex: 3
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: history-off }, any: true }
+
+  # Off: the official image hasn't periods.so, which every write to a versioned table calls. So before it
+  # serves, a server of its own on a socket only takes periods out of every database that has it.
+  - it: with history off, removes periods before PostgreSQL serves, on its own image, as PostgreSQL's own container
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      database.history.enabled: false
+      postgres.extraEnv: [{ name: POSTGRES_USER, value: admin }]
+      postgres.extraVolumeMounts: [{ name: tablespace, mountPath: /tablespace }]
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: history-off }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].image", pattern: '^docker\.io/library/postgres:18-alpine@sha256:[0-9a-f]{64}$' }
+      - equal: { path: "spec.template.spec.initContainers[2].securityContext.runAsUser", value: 70 }
+      - equal: { path: "spec.template.spec.initContainers[2].securityContext.readOnlyRootFilesystem", value: true }
+      - equal: { path: "spec.template.spec.initContainers[2].env", value: [{ name: POSTGRES_USER, value: admin }] }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: postgres-data, mountPath: /var/lib/postgresql } }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: tmp, mountPath: /tmp } }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: tablespace, mountPath: /tablespace } }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -s "\$PGDATA/PG_VERSION" \]; then echo "No database yet: no row history to remove."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "-o \"-c listen_addresses='' -c unix_socket_directories=/tmp -c hba_file=/tmp/history-off-hba.conf\" start" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "trap 'pg_ctl -D \"\\$PGDATA\" -w -m fast stop" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'PGUSER="\$\{POSTGRES_USER:-postgres\}"' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "SELECT datname FROM pg_database WHERE datallowconn AND NOT datistemplate" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "while IFS= read -r db; do\n  PGDATABASE=\"\\$db\" psql -X -q -v ON_ERROR_STOP=1 <<'SQL'\nSET client_min_messages = warning;" }
+
+  - it: takes periods out in one transaction, if there, keeping the history tables aside
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      database.history.enabled: false
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "AS has_periods \\\\gset\n\\\\if :has_periods\nBEGIN;\nCREATE SCHEMA IF NOT EXISTS row_history_off;" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "format\\('SELECT periods.drop_system_versioning\\(%L\\)', sv.table_name\\),\n +format\\('SELECT periods.drop_period\\(%L, %L, purge => true\\)', sv.table_name, 'system_time'\\)," }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "format\\('ALTER TABLE %I.%I SET SCHEMA row_history_off', n.nspname, k.name\\)" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "\\\\o\nDROP EXTENSION periods;\nCOMMIT;\n" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "CASCADE" }
+
+  - it: with history off, the migration Job takes periods out too (an external server), after the migrations, before the logins
+    template: templates/migrations-job.yaml
+    set:
+      database.history.enabled: false
+      database.logins.enabled: true
+    asserts:
+      - matchRegex:
+          path: "spec.template.spec.containers[0].args[0]"
+          pattern: 'efbundle; else echo "Nothing to migrate."; fi\n# Row history off \(database.history.enabled false\): the periods extension out of the database, if it.s there.\npsql -X -q -v ON_ERROR_STOP=1 -d "\$DB_NAME" <<.SQL.\nSET client_min_messages = warning;(.|\n)*DROP EXTENSION periods;(.|\n)*# Logins \(database.logins\).'
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "CREATE EXTENSION" }
+
+  - it: with history off and no logins, still gives the Job the database's connection
+    template: templates/migrations-job.yaml
+    set:
+      database.history.enabled: false
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: PGUSER, value: postgres } }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "DROP EXTENSION periods;" }
+
+  - it: never takes back nor versions what history off kept aside, nor grants the app it
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.enabled: true
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "DROP EXTENSION" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "WHERE c.relkind = 'r' AND n.nspname NOT LIKE 'pg\\\\_%' AND n.nspname NOT IN \\('information_schema', 'periods', 'row_history_off'\\)" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "WHERE c.relkind IN \\('r', 'p', 'v', 'm', 'f'\\) AND n.nspname NOT LIKE 'pg\\\\_%' AND n.nspname NOT IN \\('information_schema', 'periods', 'row_history_off'\\)" }
+
+  - it: refuses to restore a dump with history where the server hasn't periods, saying how
+    template: templates/migrations-job.yaml
+    set:
+      migrations.restore: { enabled: true, volume: { emptyDir: {} } }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: restore }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "if pg_restore --list \"\\$file\" \\| grep -Eq ' EXTENSION - periods\\( \\|\\$\\)' \\\\\n   && \\[ \"\\$\\(psql -X -A -t -q -d postgres -c \"SELECT count\\(\\*\\) FROM pg_available_extensions WHERE name = 'periods'\"\\)\" != 1 \\]; then" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "Restore it with database.history.enabled(.|\n)*exit 1\nfi\necho \"Restoring \\$file\"" }
+
+  - it: ignores history on SQL Server, whose tables are temporal
+    template: templates/migrations-job.yaml
+    set:
+      database.provider: sqlserver
+      mssql.acceptEula: true
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "periods" }
+
+  - it: installs the extension, closes its functions and versions every table with the period's columns not yet versioned, after the migrations
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex:
+          path: "spec.template.spec.containers[0].args[0]"
+          pattern: 'efbundle; else echo "Nothing to migrate."; fi\n# Row history \(database.history\).\npsql -X -q -v ON_ERROR_STOP=1 -d "\$DB_NAME" <<.SQL.'
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "BEGIN;\nCREATE EXTENSION IF NOT EXISTS periods CASCADE;\nREVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA periods FROM PUBLIC;" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "SELECT periods.add_system_time_period\\(%L, %L, %L\\)', c.oid::regclass, 'PeriodStart', 'PeriodEnd'\\)" }
+      # Only the tables temporal on SQL Server have them: never MatchReschedules, nor a table of someone else's.
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "AND EXISTS \\(SELECT FROM pg_attribute AS a WHERE a.attrelid = c.oid AND a.attname = 'PeriodStart' AND NOT a.attisdropped\\)\n   AND EXISTS \\(SELECT FROM pg_attribute AS a WHERE a.attrelid = c.oid AND a.attname = 'PeriodEnd' AND NOT a.attisdropped\\)\n ORDER BY" }
+
+  - it: makes a restored database's history objects read-only again, before versioning anything
+    template: templates/migrations-job.yaml
+    asserts:
+      # pg_restore --no-privileges leaves them on their owner's defaults; periods then refuses every GRANT.
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "FROM PUBLIC;\n-- History tables and views: SELECT only.(.|\n)*\\\\o /dev/null\nSELECT format\\('SELECT periods.add_system_time_period" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "SELECT format\\('REVOKE %s ON TABLE %s FROM %s'(.|\n)*JOIN pg_class AS c ON c.oid IN \\(sv.history_table_name, sv.view_name\\)(.|\n)*WHERE acl.privilege_type <> 'SELECT'\n GROUP BY acl.grantee \\\\gexec" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "SELECT format\\('REVOKE EXECUTE ON FUNCTION %s FROM %s'(.|\n)*b.privilege_type = 'SELECT'\\)\n GROUP BY acl.grantee \\\\gexec" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "\\(n.nspname, c.relname\\) <> \\('public', '__EFMigrationsHistory'\\)" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "c.oid NOT IN \\(SELECT table_name FROM periods.system_versioning UNION ALL SELECT history_table_name FROM periods.system_versioning\\)" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "\\\\gexec\n\\\\o\nCOMMIT;" }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: PGUSER, value: postgres } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: PGPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+
+  - it: runs it with your own migrate script too, and before the logins
+    template: templates/migrations-job.yaml
+    set:
+      migrations.scripts.migrate: echo mine
+      database.logins.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "echo mine\n# Row history \\(database.history\\).(.|\n)*# Logins \\(database.logins\\)." }
+
+  - it: grants the app each table but the history tables and views, never ALL TABLES (periods refuses those grants)
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.enabled: true
+    asserts:
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ON ALL TABLES IN SCHEMA" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT, INSERT, UPDATE, DELETE ON %s TO %I', c.oid::regclass, :'app_user'\\)" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "c.oid NOT IN \\(SELECT history_table_name FROM periods.system_versioning UNION ALL SELECT view_name FROM periods.system_versioning\\)" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "nspname NOT IN \\('information_schema', 'periods', 'row_history_off'\\) ORDER BY nspname \\\\gexec" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA %I TO %I" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "Login :app_user: reads and writes :DBNAME, and reads its history." }
+
+  - it: grants ALL TABLES with history off, as before, but what history off kept aside
+    template: templates/migrations-job.yaml
+    set:
+      database.history.enabled: false
+      database.logins.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT USAGE ON SCHEMA %I TO %I(.|\n)*nspname NOT IN \\('information_schema', 'row_history_off'\\) ORDER BY nspname" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "add_system_versioning" }
+
+  - it: refuses an unknown key under history
+    template: templates/postgres.yaml
+    set:
+      database.history.on: true
+    asserts:
+      - failedTemplate: {}

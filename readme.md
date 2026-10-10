@@ -223,9 +223,17 @@ Later migrations need nothing special. On a versioned table, a plain `ALTER TABL
 out of the history; changing a column's type, dropping a column or the table fail; renaming a column succeeds, then
 every update fails), so Postgres's migrations SQL generator (`RowHistoryMigrationsSqlGenerator`) suspends versioning
 around each such change, makes it to the history table too and resumes it, keeping the history - if, as the migration
-runs, the table has versioning. A new table is versioned if the database has the extension. Raw `migrationBuilder.Sql`
-gets none of this. Mind that `TRUNCATE` empties a table's history too, and that a dump of such a database restores
-only where periods is installed, with `pg_restore --no-privileges` (as the chart's restore does).
+runs, the table has versioning. A new temporal table (with the period's columns) is versioned if the database has
+the extension. To make an existing table temporal, mark it `IsTemporal()` and scaffold the migration as usual: its
+`AddColumn`s of the two columns give the rows already there `-infinity` as their start (as periods does, and as SQL
+Server starts them at `DateTime.MinValue`), new rows their transaction's time, and version the table once it has
+both, if the database has the extension (without it, the columns alone; the chart's history step versions it later).
+Dropping either column (a table no longer temporal; `RowHistory`'s Down) removes the table's history and period first.
+Raw `migrationBuilder.Sql` gets none of this. Mind that `TRUNCATE` empties a table's history too,
+and that a dump of such a database restores only where periods is installed, with `pg_restore --no-privileges` (as
+the chart's restore does). That leaves the history tables, views and functions on their owner's default privileges,
+writes included, and periods then refuses every `GRANT` in the database. Make them read-only again before granting
+anything; the chart's history step (`grif.pgHistoryScript`) does it.
 
 To turn it off, take the extension out; never just run the database on a server without it. periods' row triggers
 are C functions in its library: where that's missing (the official image), reads, schema changes and `TRUNCATE` still

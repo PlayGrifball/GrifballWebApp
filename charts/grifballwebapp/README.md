@@ -172,7 +172,7 @@ the administrator - creates and keeps in sync, on every run, passwords from your
 
 | Login | Used by | Can |
 | --- | --- | --- |
-| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema; not change its schema (no `CREATE`, owns nothing) or the server |
+| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema (with row history, only `SELECT` on the history); not change its schema (no `CREATE`, owns nothing), its history or the server |
 | `grif_monitor` (`logins.monitoring`) | sql-exporter (with `sqlExporter.enabled`, unless `sqlExporter.user` is set) | SQL Server: `VIEW SERVER STATE`, `VIEW ANY DEFINITION`, not open the database; PostgreSQL: `pg_monitor`, not read the app's tables |
 
 The backend pod then holds no administrator password. Backup retention and the scheduled backup still
@@ -182,6 +182,78 @@ reads them from the environment itself (`\getenv`) and quotes them (`format('%L'
 sets one reaches the server in plain text, so keep `log_statement` below `ddl` on an external server.
 On PostgreSQL the grants are made again after every migration, so tables a new migration adds are
 covered.
+
+**Row history** (`database.history.enabled`, PostgreSQL; off by default). SQL Server keeps every row's
+earlier versions (temporal tables) whatever this says; PostgreSQL has no such thing built in, and
+with this on gets it from the [periods](https://github.com/xocolatl/periods) extension: the tables
+SQL Server keeps history of (every one but `MatchReschedules`) get `SYSTEM VERSIONING`, so each update and delete (cascades and the app's own included) keeps the old
+row in `<table>_history`, with the time it was current (`PeriodStart`, `PeriodEnd`). The app reads it
+with EF's temporal queries (`TemporalAsOf` and the rest, as on SQL Server); in psql,
+`<table>__as_of(time)`, `__between(from, to)` or the `<table>_with_history` view (the app's README,
+Database, has examples). Every run of the migration Job, after the migrations, as `database.user`:
+
+1. `CREATE EXTENSION periods` - which only a superuser can (it isn't a trusted extension);
+2. its functions closed to `PUBLIC`: they run as their owner and check nothing, so any login could
+   otherwise turn a table's history off, or purge it;
+3. the history tables, views and functions made read-only again where a restore left them writable
+   (below); a no-op otherwise;
+4. `SYSTEM VERSIONING` on every table with the period's columns (`PeriodStart`, `PeriodEnd`, which the app
+   gives the tables temporal on SQL Server) that hasn't it - those of a database from before history was on.
+   The app's migrations version the tables they create or make temporal, and keep history working through the column
+   and table changes later migrations make.
+
+With logins, `grif_app` gets its rights table by table - periods refuses any grant on a history table
+or view - and reads the history with its tables (`SELECT`, which periods gives it), but can't change it.
+The chart's PostgreSQL runs `postgres.historyImage` instead of `postgres.image`: the same PostgreSQL,
+built on its digest, with the extension (`docker/postgres-periods` in the app's repository, published
+from master as `ghcr.io/playgrifball/postgres-periods:18-alpine`); either image opens the other's data,
+so turning it on is a restart. An external PostgreSQL needs the extension installed on the server and
+`database.user` a superuser: managed services (RDS, Cloud SQL, Azure, Neon, Supabase) offer neither.
+
+**Turning it off** (`enabled: false` again) takes periods out, and keeps the history aside. It must:
+periods' row triggers call C functions in its library, which `postgres.image` hasn't got, so there a
+database that still has the extension refuses every `INSERT`, `UPDATE` and `DELETE` on a versioned table
+(`could not access file "periods"`) while reads, schema changes and `TRUNCATE` work. With history off, the
+chart's PostgreSQL pod first runs a `history-off` init container on `postgres.image`: a server of its own,
+on a socket nothing else reaches, takes periods out of every database that has it, then stops, and only
+then does PostgreSQL start serving. So however a `helm upgrade` (or Argo CD) orders the new pod and the
+migration Job, and even with `migrations.enabled: false`, the official image never serves a database
+whose writes would fail; removing needs nothing from the library. In one transaction per database:
+
+1. each table's versioning off and its period dropped (triggers, view, functions, constraints): its
+   columns and defaults are then as on a database that never had history;
+2. its history table moved to the schema `row_history_off`, named `<schema>.<table>_history <UTC time>`:
+   kept for the administrator (the app's login can't read it), never versioned or taken back, dropped by
+   hand when no longer wanted;
+3. `DROP EXTENSION periods` (`btree_gist`, which it brought, stays).
+
+On a database without periods it's a no-op, a second or two per start (with the app's 40 versioned
+tables, the removal itself takes about 5 s). The migration Job does the same after the migrations, for an
+external server (which keeps the library, so nothing breaks there in between). Turned on again, history
+starts afresh: what was kept stays in `row_history_off`, and the app's temporal queries read only what's
+recorded from then on. While history is off, those queries throw `InvalidOperationException` ("Row
+history isn't enabled on this PostgreSQL database...") rather than return anything.
+
+```yaml
+database:
+  provider: postgres
+  history:
+    enabled: true
+```
+
+Mind that:
+
+- `TRUNCATE` empties a table's history too.
+- A dump of such a database restores only where periods is installed (`pg_restore --no-privileges`, as
+  `migrations.restore` does; with privileges, periods' own grant checks refuse it). Without them, the
+  history objects come back on their owner's defaults, writes included, and periods refuses every
+  `GRANT` until they're read-only again: step 3 does that before anything is granted. Its backups need
+  nothing more.
+- Where periods isn't installed (`postgres.image`, history off), `pg_restore` of such a dump fails at
+  `CREATE EXTENSION periods` ("extension "periods" is not available"); without `--exit-on-error` it goes
+  on, leaving the tables without their triggers and the views reading a history nothing records. So
+  `migrations.restore` checks first, and refuses: it says the dump has row history, and to restore it
+  with `database.history.enabled` (then turn history off, if unwanted, as above).
 
 ## Migrations
 

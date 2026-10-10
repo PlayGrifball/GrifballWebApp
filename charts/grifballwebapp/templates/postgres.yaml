@@ -1,4 +1,6 @@
 {{- $p := .Values.postgres -}}
+{{- /* database.history: the image with the periods extension. */ -}}
+{{- $image := ternary $p.historyImage $p.image (eq (include "grif.history" .) "true") -}}
 {{- if include "grif.postgres" . }}
 {{- with .Values.migrations.backup }}
 {{- if .enabled }}
@@ -174,8 +176,8 @@ spec:
         # PostgreSQL runs as 70 and creates its data folder (<major>/docker) in the volume, whose root
         # kubelet may leave root-owned. PostgreSQL's own image, as root: nothing else to pull.
         - name: fix-permissions-data
-          image: {{ include "grif.image" $p.image }}
-          imagePullPolicy: {{ $p.image.pullPolicy }}
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
           command: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql"]
           securityContext:
             readOnlyRootFilesystem: true
@@ -188,8 +190,8 @@ spec:
         # Service's names, anew on each start as SQL Server does.
         - name: tls
           {{- if $p.tls.secretName }}
-          image: {{ include "grif.image" $p.image }}
-          imagePullPolicy: {{ $p.image.pullPolicy }}
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
           command: ["sh", "-c", "cp /certificate/tls.crt /certificate/tls.key /tls/ && chmod 600 /tls/tls.key"]
           {{- else }}
           image: {{ include "grif.image" $p.tls.image }}
@@ -226,10 +228,43 @@ spec:
               readOnly: true
             {{- end }}
         {{- end }}
+        {{- if not (include "grif.history" .) }}
+        # Row history off (database.history.enabled false): periods out of the databases before this image,
+        # which hasn't it, serves them (grif.pgHistoryOffStartScript); nothing if they never had it.
+        - name: history-off
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              {{- include "grif.pgHistoryOffStartScript" . | nindent 14 }}
+          {{- with $p.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $p.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $p.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql
+            - name: tmp
+              mountPath: /tmp
+            - name: shm
+              mountPath: /dev/shm
+            {{- with $p.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- end }}
       containers:
         - name: grif-postgres
-          image: {{ include "grif.image" $p.image }}
-          imagePullPolicy: {{ $p.image.pullPolicy }}
+          image: {{ include "grif.image" $image }}
+          imagePullPolicy: {{ $image.pullPolicy }}
           {{- $settings := $p.settings | default dict }}
           {{- if $p.tls.enabled }}
           {{- $settings = merge (dict "ssl" "on" "ssl_cert_file" "/tls/tls.crt" "ssl_key_file" "/tls/tls.key") $settings }}

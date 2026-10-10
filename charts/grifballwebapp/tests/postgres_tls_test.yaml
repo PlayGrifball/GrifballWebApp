@@ -61,7 +61,8 @@ tests:
       - notExists: { path: "spec.template.spec.containers[0].args" }
         template: templates/postgres.yaml
         documentIndex: 3
-      - lengthEqual: { path: spec.template.spec.initContainers, count: 1 }
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 2 }
+        # fix-permissions-data, history-off
         template: templates/postgres.yaml
         documentIndex: 3
       - contains:

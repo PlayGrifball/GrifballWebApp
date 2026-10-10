@@ -80,7 +80,7 @@ tests:
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "format\\('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password'\\) \\\\gexec" }
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I" }
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA %I TO %I" }
-      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "nspname NOT LIKE 'pg\\\\_%' AND nspname <> 'information_schema'" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "nspname NOT LIKE 'pg\\\\_%' AND nspname NOT IN \\('information_schema', 'row_history_off'\\)" }
       - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT pg_monitor TO %I" }
       - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT (ALL|CREATE)|OWNER TO|SUPERUSER|\\$APP_PASSWORD|sqlcmd" }
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: APP_USER, value: grif_app } }
