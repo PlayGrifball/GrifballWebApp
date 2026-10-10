@@ -482,6 +482,14 @@ migrations:
       schedule: "30 3 * * *"
       keepLast: 5
       keepDays: 30
+    # Back the database up on a schedule too (a CronJob, optional), not only before a migration: with
+    # nothing pending the Job writes none, so without this a database that rarely changes schema is
+    # rarely backed up. Same folder and file names as the pre-migration backups (so retention above
+    # covers both), copy-only and checksummed, then verified (RESTORE VERIFYONLY). The schedule is in
+    # the cluster's time zone (UTC unless set); keep it before retention's.
+    scheduled:
+      enabled: false
+      schedule: "0 3 * * *"
   # How long the Job waits for the database to accept connections (seconds).
   databaseWaitSeconds: 300
   # A failed migration is usually deterministic; retries are off.
@@ -569,6 +577,8 @@ networkPolicy:
   migrations:
     extraEgress: []
   backupRetention:
+    extraEgress: []
+  scheduledBackup:
     extraEgress: []
   sqlExporter:
     # Who may scrape it (its port). Empty: anyone.

@@ -196,7 +196,7 @@ mssql:
   persistence: { size: 2Gi }
   backup: { size: 1Gi }
 migrations:
-  backup: { retention: { enabled: true, keepLast: 1, keepDays: 0 } }
+  backup: { retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
 EOF
 else
   step "External SQL Server in $ext_ns"
@@ -239,7 +239,7 @@ database:
   password: { secretName: external-db, key: password }
   logins: { enabled: true }
 migrations:
-  backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, keepLast: 1, keepDays: 0 } }
+  backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
 EOF
 fi
 
@@ -351,6 +351,18 @@ expect "No database to back up." "$work/dropped.txt"
 [ "$(migration_count)" = "$count" ] || fail "the Job didn't recreate the database"
 wait_for 120 backend_waited || fail "the backend didn't start after the Job"
 echo "Database recreated with all $count migrations; the backend then started."
+
+step "Scheduled backup: a verified copy-only backup, named like the Job's, in SQL Server's history"
+kubectl -n "$ns" create job backup-now --from=cronjob/grif-backup
+wait_for 300 sh -c "kubectl -n $ns get job backup-now -o jsonpath='{.status.succeeded}' | grep -q 1" \
+  || { kubectl -n "$ns" logs job/backup-now >&2 || true; fail "the scheduled backup didn't succeed"; }
+kubectl -n "$ns" logs job/backup-now | tee "$work/scheduled.txt"
+expect "Database GrifballWebApp is ready." "$work/scheduled.txt"
+expect "Backed up and verified: /var/opt/mssql/backup/$ns/GrifballWebApp_" "$work/scheduled.txt"
+sched=$(sed -n "s#^Backed up and verified: ##p" "$work/scheduled.txt")
+[ "$(sql "SET NOCOUNT ON; SELECT COUNT(*) FROM msdb.dbo.backupset b JOIN msdb.dbo.backupmediafamily m ON m.media_set_id = b.media_set_id WHERE m.physical_device_name = N'$sched' AND b.is_copy_only = 1 AND b.has_backup_checksums = 1" | tr -d '[:space:]')" = 1 ] \
+  || fail "$sched isn't a copy-only, checksummed backup in msdb"
+echo "Scheduled backup written and verified: $sched"
 
 step "Backup retention: the newest backup kept, older ones deleted, anything else left alone"
 dir=/var/opt/mssql/backup/$ns

@@ -1,0 +1,67 @@
+suite: scheduled backup
+templates:
+  - templates/backup-scheduled.yaml
+  - templates/networkpolicy.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    template: templates/backup-scheduled.yaml
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: runs a nightly CronJob in the backend image, one at a time, before retention
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+      backend.image: { tag: prod, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+    asserts:
+      - isKind: { of: CronJob }
+      - equal: { path: metadata.name, value: grif-backup }
+      - equal: { path: spec.schedule, value: "0 3 * * *" }
+      - equal: { path: spec.concurrencyPolicy, value: Forbid }
+      - equal: { path: "spec.jobTemplate.spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+      - equal: { path: spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot, value: true }
+      - equal: { path: spec.jobTemplate.spec.template.metadata.labels.app, value: grif-backup }
+      - notExists: { path: spec.jobTemplate.spec.template.spec.volumes }
+
+  - it: waits for the database, then writes a verified copy-only backup named like the Job's
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: '\[ "\$state" = ONLINE \]'
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: 'file="\$BACKUP_DIR/\$\{DB_NAME\}_\$\(date \+%Y%m%d_%H%M%S\)\.bak"'
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: 'WITH COPY_ONLY, CHECKSUM, FORMAT, INIT'
+      - matchRegex:
+          path: spec.jobTemplate.spec.template.spec.containers[0].args[0]
+          pattern: 'RESTORE VERIFYONLY'
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x }
+
+  - it: needs the pre-migration backups on, as retention does
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup: { enabled: false, scheduled: { enabled: true } }
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: gets its own NetworkPolicy, and SQL Server admits it
+    template: templates/networkpolicy.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - hasDocuments: { count: 5 }
+      - equal: { path: metadata.name, value: grif-backup }
+        documentIndex: 4
+      - contains: { path: "spec.ingress[0].from", content: { podSelector: { matchLabels: { app: grif-backup } } } }
+        documentIndex: 2

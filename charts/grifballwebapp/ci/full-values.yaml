@@ -76,6 +76,9 @@ migrations:
       enabled: true
       keepLast: 10
       keepDays: 60
+    scheduled:
+      enabled: true
+      schedule: "0 2 * * *"
   extraEnv:
     - name: TZ
       value: UTC
