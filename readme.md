@@ -155,8 +155,38 @@ dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
 ```
 
-SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
-current rows. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+
+#### Row history
+Both databases keep every version of every row, of every table but `MatchReschedules`, in the same place: for each table
+`"Schema"."Table"`, the versions a row had before an update or delete are in `"Schema"."TableHistory"`, each with
+`PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
+values it has now. SQL Server does this with temporal tables. Postgres has none, so triggers do it
+(`GrifballWebApp.Database/PostgresHistory.cs`, functions from the `AddRowHistory` migration): every `UPDATE`,
+`DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table. The time is the
+transaction's start, so the changes of one transaction share it. The app's login can read the history but not
+change it. Nothing deletes old history: the tables grow with every change.
+
+On Postgres the history tables are in the EF model, generated from their tables, so `migrations add` changes both
+together: a column added to a table is added to its history table too (nullable there), and a new table gets a
+history table and its triggers (the migration calls `grif_enable_versioning`, added by the Postgres project's
+`HistoryMigrationsModelDiffer`). EF scaffolds a renamed table or column as a drop and an add, which would lose its
+data and its history: edit the migration into `RenameTable`/`RenameColumn` for the table and for its history table
+alike (`<Old>History` to `<New>History`), and take out the `grif_enable_versioning` call, as the triggers move with
+the table.
+
+By hand on Postgres, a row's versions, and the row as it was at a time (SQL Server: `FOR SYSTEM_TIME AS OF`):
+```sql
+SELECT * FROM "Event"."SeasonsHistory" WHERE "SeasonID" = 1 ORDER BY "PeriodEnd";
+
+SELECT "SeasonID", "SeasonName" FROM "Event"."Seasons"
+ WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00'
+UNION ALL
+SELECT "SeasonID", "SeasonName" FROM "Event"."SeasonsHistory"
+ WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00' AND "PeriodEnd" > '2026-10-01 12:00';
+```
+In code, a history table is a keyless entity of property bags:
+`context.Set<Dictionary<string, object>>("Event.SeasonsHistory")`.
 
 ### Running the Application
 

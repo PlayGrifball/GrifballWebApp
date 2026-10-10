@@ -132,6 +132,8 @@ public class GrifballContext :
 
         // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
         // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
+        // Triggers keep the same history there instead, of the same tables (PostgresHistory).
+        var temporal = modelBuilder.Model.GetEntityTypes().Where(e => e.IsTemporal()).ToList();
         if (!Database.IsSqlServer())
         {
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -139,7 +141,10 @@ public class GrifballContext :
         }
 
         if (Database.IsNpgsql())
+        {
             QuoteCheckConstraintColumns(modelBuilder);
+            modelBuilder.AddHistoryTables(temporal);
+        }
     }
 
     /// <summary>
