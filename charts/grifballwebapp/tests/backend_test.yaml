@@ -188,3 +188,10 @@ tests:
       backend.image: { tag: "sha256:fed", digest: "" }
     asserts:
       - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver@sha256:fed" }
+
+  - it: requires an endpoint when telemetry is enabled
+    set:
+      backend.telemetry.enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: backend.telemetry.endpoint is required when telemetry is enabled
