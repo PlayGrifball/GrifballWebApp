@@ -188,3 +188,27 @@ tests:
       backend.image: { tag: "sha256:fed", digest: "" }
     asserts:
       - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver@sha256:fed" }
+
+  - it: sets the database up before the app starts, with the database credentials
+    documentIndex: 1
+    set:
+      databaseSetup.enabled: true
+      database.connectionString: { secretName: app-db, key: conn }
+      backend.image: { tag: prod, digest: sha256:abc }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[0].name", value: wait-for-database }
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: DB_HOST, value: sqlserver } }
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: database-setup }
+      - equal: { path: "spec.template.spec.initContainers[1].command", value: [/app/efbundle] }
+      - equal: { path: "spec.template.spec.initContainers[1].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:abc" }
+      - contains:
+          path: "spec.template.spec.initContainers[1].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sqlserver,1433;Database=GrifballWebApp;User Id=sa;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, valueFrom: { secretKeyRef: { name: app-db, key: conn } } }
+
+  - it: has no init containers without databaseSetup
+    documentIndex: 1
+    asserts:
+      - notExists: { path: spec.template.spec.initContainers }

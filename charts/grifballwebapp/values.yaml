@@ -373,6 +373,22 @@ mssqlTools:
     limits:
       memory: 128Mi
 
+# Create the database and apply migrations before the backend starts: init containers in the backend
+# pod wait for the database, then run the image's migration bundle (/app/efbundle) with the
+# database credentials. A no-op when the database is up to date. Lets the app run with
+# backend.config.ApplyMigrations and CreateDatabase false, so a first install needn't rely on the
+# app migrating itself. (Not a Helm install hook: pre-install runs before the chart's SQL Server
+# exists, and post-install - like Argo CD's PostSync - waits for a backend that can't start without
+# its database.)
+databaseSetup:
+  enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
 # Before every upgrade (Helm pre-upgrade, Argo CD PreSync): back up the database, then apply EF
 # migrations with the bundle in the backend image being deployed (/app/efbundle). If the build has
 # migrations the database lacks, backend and frontend are first scaled to 0, so no old code runs
@@ -399,6 +415,34 @@ deployHook:
   images:
     kubectl: docker.io/alpine/k8s:1.36.5
     sqlcmd: mcr.microsoft.com/mssql-tools:latest
+  imagePullPolicy: IfNotPresent
+  # Replace a step's shell script (run with /bin/sh -c). Empty: the chart's. Steps share /work:
+  # check-pending writes pending.txt (one migration per line) and db-exists; the database
+  # connection is in DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, the backup folder in
+  # BACKUP_DIR. migrate runs in the backend image.
+  scripts:
+    checkPending: ""
+    scaleDown: ""
+    backup: ""
+    migrate: ""
+  # Your own steps, run after the backup and before the migration (init containers, as they are).
+  extraInitContainers: []
+  # Added to every step.
+  extraEnv: []
+  # On the Job, beside the hook annotations (which these can override).
+  annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # Every step's container.
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  # The migrate step; the others are small.
   resources:
     requests:
       cpu: 50m
@@ -407,3 +451,58 @@ deployHook:
       memory: 512Mi
   nodeSelector: {}
   tolerations: []
+  affinity: {}
+
+# NetworkPolicies for each of the chart's pods: only the traffic the app needs, in and out.
+networkPolicy:
+  enabled: true
+  # DNS (port 53, UDP and TCP) out of every pod. Empty: to anywhere. Ex: to kube-dns only
+  # - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+  #   podSelector: { matchLabels: { k8s-app: kube-dns } }
+  dns:
+    to: []
+  # The Kubernetes API, for the deploy hook's kubectl. Policies see the API server's own address and
+  # port (often a node on 6443), not the kubernetes Service's. Empty to: anywhere.
+  kubernetesApi:
+    to: []
+    ports: [443, 6443]
+  # An external database (mssql.enabled false): where it is, ex. an ipBlock. Empty: anywhere, on
+  # database.port. For a database behind a Service in the cluster, policies see the pod's port.
+  database:
+    to: []
+  frontend:
+    # Who may reach the frontend (its port 80). Empty: anyone - the ingress controller, wherever it
+    # runs.
+    from: []
+    extraIngress: []
+    extraEgress: []
+  backend:
+    # HTTPS out: Discord, Halo Infinite, Google Sheets, Cloudflare's ranges. Default: the internet,
+    # not private networks.
+    httpsTo:
+      - ipBlock:
+          cidr: 0.0.0.0/0
+          except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16]
+      - ipBlock:
+          cidr: ::/0
+          except: [fc00::/7, fe80::/10]
+    # OpenTelemetry (backend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
+    telemetryTo: []
+    # Ex: Prometheus scraping, other services calling the API.
+    extraIngress: []
+    extraEgress: []
+  mssql:
+    # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
+    loadBalancerFrom: []
+    # Ex: a metrics exporter.
+    extraIngress: []
+    extraEgress: []
+  deployHook:
+    extraEgress: []
+  mssqlTools:
+    extraEgress: []
+  # Whole NetworkPolicies of your own, rendered as they are (templates allowed).
+  extraPolicies: []
+
+# Any other objects to deploy with the release, as they are (templates allowed).
+extraObjects: []

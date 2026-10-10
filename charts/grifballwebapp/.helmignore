@@ -1,3 +1,4 @@
-# Not part of the packaged chart: unit tests and the CI values files.
+# Not part of the packaged chart: unit tests, CI values files, the end-to-end test.
 tests/
 ci/
+e2e/

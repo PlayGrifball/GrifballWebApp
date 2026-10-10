@@ -115,3 +115,23 @@ skipped. Takes dict "name" (prefix, "" at the top) and "value".
   value: {{ .Values.database.user | quote }}
 {{ include "grif.dbPasswordEnv" . }}
 {{- end }}
+
+{{/* DB_PASSWORD and the connection string the migration bundle reads, from database. */}}
+{{- define "grif.migrationEnv" -}}
+{{ include "grif.dbPasswordEnv" . }}
+# Read by DesignTimeContextFactory, which logs only server and database, never this.
+- name: ConnectionStrings__GrifballWebApp
+  value: {{ printf "Server=%s,%s;Database=%s;User Id=%s;Password=$(DB_PASSWORD);%s" (include "grif.dbHost" .) (include "grif.dbPort" .) .Values.database.name .Values.database.user .Values.database.options | quote }}
+{{- end }}
+
+{{/*
+Waits until host:port accepts connections: network policies may admit a new pod's IP only seconds after
+it starts. Needs DB_HOST, DB_PORT, WAIT_SECONDS.
+*/}}
+{{- define "grif.waitForDatabaseScript" -}}
+end=$(( $(date +%s) + WAIT_SECONDS ))
+until nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
+  if [ "$(date +%s)" -ge "$end" ]; then echo "$DB_HOST:$DB_PORT unreachable"; exit 1; fi
+  sleep 2
+done
+{{- end }}

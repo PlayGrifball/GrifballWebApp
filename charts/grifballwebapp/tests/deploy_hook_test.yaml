@@ -70,3 +70,54 @@ tests:
       deployHook.enabled: false
     asserts:
       - hasDocuments: { count: 0 }
+
+  - it: takes extra env, steps, annotations, labels and security settings
+    documentIndex: 3
+    set:
+      deployHook:
+        extraEnv: [{ name: TZ, value: UTC }]
+        extraInitContainers:
+          - name: notify
+            image: busybox
+            command: [echo, "{{ .Release.Namespace }}"]
+        annotations: { argocd.argoproj.io/hook-delete-policy: HookSucceeded, team: grif }
+        podAnnotations: { a: b }
+        podLabels: { c: d }
+        imagePullPolicy: Always
+        securityContext: { readOnlyRootFilesystem: true, runAsGroup: 1000 }
+        podSecurityContext: { fsGroup: 2000 }
+        affinity: { nodeAffinity: {} }
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: TZ, value: UTC } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TZ, value: UTC } }
+      - equal: { path: "spec.template.spec.initContainers[5].name", value: notify }
+      - equal: { path: "spec.template.spec.initContainers[5].command", value: [echo, grif-x] }
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/hook-delete-policy']", value: HookSucceeded }
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/hook']", value: PreSync }
+      - equal: { path: metadata.annotations.team, value: grif }
+      - equal: { path: spec.template.metadata.annotations.a, value: b }
+      - equal: { path: spec.template.metadata.labels.c, value: d }
+      - equal: { path: spec.template.metadata.labels.app, value: grif-deploy-hook }
+      - equal: { path: "spec.template.spec.initContainers[0].imagePullPolicy", value: Always }
+      - equal: { path: "spec.template.spec.initContainers[2].securityContext.runAsGroup", value: 1000 }
+      - equal: { path: "spec.template.spec.initContainers[0].securityContext.runAsUser", value: 65534 }
+      - equal: { path: spec.template.spec.securityContext.fsGroup, value: 2000 }
+      - exists: { path: spec.template.spec.affinity.nodeAffinity }
+
+  - it: runs a replacement script in place of a step's own
+    documentIndex: 3
+    set:
+      deployHook.scripts: { backup: "echo custom backup", migrate: "echo custom migrate" }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "echo custom backup" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "BACKUP DATABASE" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "Nothing to migrate.*\\n.*echo custom migrate" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "efbundle" }
+
+  - it: runs both kubectl steps as the same non-root user (they share kubectl's cache in /tmp)
+    documentIndex: 3
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[0].securityContext.runAsUser", value: 65534 }
+      - equal: { path: "spec.template.spec.initContainers[3].name", value: scale-down }
+      - equal: { path: "spec.template.spec.initContainers[3].securityContext.runAsUser", value: 65534 }
+      - equal: { path: "spec.template.spec.initContainers[3].securityContext.capabilities.drop", value: [ALL] }

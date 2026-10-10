@@ -1,0 +1,206 @@
+{{- $np := .Values.networkPolicy -}}
+{{- if $np.enabled }}
+{{- $bundled := and .Values.mssql.enabled (not .Values.database.host) }}
+{{- /* Egress rules shared by the pods: DNS, and the database (the chart's SQL Server or an external one). */}}
+{{- $dns := dict "ports" (list (dict "protocol" "UDP" "port" 53) (dict "protocol" "TCP" "port" 53)) }}
+{{- with $np.dns.to }}{{ $_ := set $dns "to" . }}{{ end }}
+{{- $database := dict }}
+{{- if $bundled }}
+{{- $database = dict "to" (list (dict "podSelector" (dict "matchLabels" (dict "app" "grif-mssql")))) "ports" (list (dict "protocol" "TCP" "port" 1433)) }}
+{{- else }}
+{{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (.Values.database.port | int))) }}
+{{- with $np.database.to }}{{ $_ := set $database "to" . }}{{ end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-frontend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-frontend
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
+      {{- with $np.frontend.from }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with $np.frontend.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    # /api, proxied to the backend.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+    {{- with $np.frontend.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-backend
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-backend
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-frontend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.backend.port }}
+    {{- with $np.backend.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.backend.httpsTo }}
+    # Discord, Halo Infinite, Google Sheets, Cloudflare's ranges.
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: 443
+    {{- end }}
+    {{- with .Values.backend.telemetry }}
+    {{- if and .enabled .endpoint }}
+    {{- $u := urlParse .endpoint }}
+    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+    # OpenTelemetry collector.
+    - ports:
+        - protocol: TCP
+          port: {{ $port | int }}
+      {{- with $np.backend.telemetryTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- with $np.backend.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- if .Values.mssql.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-mssql
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-mssql
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        - podSelector:
+            matchLabels:
+              app: grif-deploy-hook
+        - podSelector:
+            matchLabels:
+              app: mssql-tools
+      ports:
+        - protocol: TCP
+          port: 1433
+    {{- if .Values.mssql.loadBalancer.enabled }}
+    # The LoadBalancer Service.
+    - ports:
+        - protocol: TCP
+          port: 1433
+      {{- with $np.mssql.loadBalancerFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- with $np.mssql.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- with $np.mssql.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.deployHook.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-deploy-hook
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: deploy-hook
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-deploy-hook
+  policyTypes: [Ingress, Egress]
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    # kubectl: SQL Server's Deployment, scaling the app down.
+    - ports:
+        {{- range $np.kubernetesApi.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+      {{- with $np.kubernetesApi.to }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with $np.deployHook.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.mssqlTools.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mssql-tools
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mssql-tools
+spec:
+  podSelector:
+    matchLabels:
+      app: mssql-tools
+  policyTypes: [Ingress, Egress]
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- toYaml (list $database) | nindent 4 }}
+    {{- with $np.mssqlTools.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- end }}
+{{- range $np.extraPolicies }}
+{{ tpl (toYaml .) $ }}
+---
+{{- end }}

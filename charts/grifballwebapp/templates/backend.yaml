@@ -63,6 +63,52 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.databaseSetup.enabled }}
+      # databaseSetup: create the database and apply migrations before the app starts.
+      initContainers:
+        - name: wait-for-database
+          image: {{ include "grif.backendImage" . }}
+          imagePullPolicy: {{ $b.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              {{- include "grif.waitForDatabaseScript" . | nindent 14 }}
+          env:
+            - name: DB_HOST
+              value: {{ include "grif.dbHost" . | quote }}
+            - name: DB_PORT
+              value: {{ include "grif.dbPort" . | quote }}
+            - name: WAIT_SECONDS
+              value: {{ .Values.deployHook.databaseWaitSeconds | quote }}
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              memory: 32Mi
+          {{- with $b.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        - name: database-setup
+          image: {{ include "grif.backendImage" . }}
+          imagePullPolicy: {{ $b.image.pullPolicy }}
+          command: ["/app/efbundle"]
+          env:
+            {{- include "grif.migrationEnv" . | nindent 12 }}
+          {{- with .Values.databaseSetup.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $b.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      {{- end }}
       containers:
         - name: grif-backend
           image: {{ include "grif.backendImage" . }}

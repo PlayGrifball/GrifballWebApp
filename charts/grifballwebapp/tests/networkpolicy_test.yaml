@@ -1,0 +1,146 @@
+suite: network policies and extra objects
+templates:
+  - templates/networkpolicy.yaml
+  - templates/extra-objects.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: gives the frontend, backend, SQL Server and the hook a policy each, by default
+    template: templates/networkpolicy.yaml
+    asserts:
+      - hasDocuments: { count: 4 }
+      - equal: { path: metadata.name, value: grif-frontend }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: grif-backend }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: grif-mssql }
+        documentIndex: 2
+      - equal: { path: metadata.name, value: grif-deploy-hook }
+        documentIndex: 3
+
+  - it: renders none when disabled
+    template: templates/networkpolicy.yaml
+    set:
+      networkPolicy.enabled: false
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: lets anyone reach the frontend, and the frontend only the backend and DNS
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    asserts:
+      - equal: { path: "spec.ingress[0]", value: { ports: [{ protocol: TCP, port: 80 }] } }
+      - equal: { path: "spec.egress[0]", value: { ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] } }
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ podSelector: { matchLabels: { app: grif-backend } } }], ports: [{ protocol: TCP, port: 5295 }] }
+
+  - it: limits who reaches the frontend when asked
+    template: templates/networkpolicy.yaml
+    documentIndex: 0
+    set:
+      networkPolicy.frontend.from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } } }]
+    asserts:
+      - equal: { path: "spec.ingress[0].from[0].namespaceSelector.matchLabels", value: { kubernetes.io/metadata.name: traefik } }
+
+  - it: lets the backend reach SQL Server, HTTPS on the internet and the collector's port
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "http://otel.example:4318" }
+      networkPolicy.backend.telemetryTo: [{ namespaceSelector: { matchLabels: { team: otel } } }]
+    asserts:
+      - equal:
+          path: "spec.ingress[0]"
+          value: { from: [{ podSelector: { matchLabels: { app: grif-frontend } } }], ports: [{ protocol: TCP, port: 5295 }] }
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ podSelector: { matchLabels: { app: grif-mssql } } }], ports: [{ protocol: TCP, port: 1433 }] }
+      - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }] }
+      - equal: { path: "spec.egress[2].to[0].ipBlock.cidr", value: 0.0.0.0/0 }
+      - contains: { path: "spec.egress[2].to[0].ipBlock.except", content: 10.0.0.0/8 }
+      - equal: { path: "spec.egress[3].ports", value: [{ protocol: TCP, port: 4318 }] }
+      - equal: { path: "spec.egress[3].to[0].namespaceSelector.matchLabels", value: { team: otel } }
+
+  - it: takes the collector's port from the scheme when the endpoint has none
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.telemetry: { enabled: true, endpoint: "https://otel.example" }
+    asserts:
+      - equal: { path: "spec.egress[3].ports", value: [{ protocol: TCP, port: 443 }] }
+
+  - it: allows an external database on its port, anywhere or where told
+    template: templates/networkpolicy.yaml
+    set:
+      mssql.enabled: false
+      database: { host: sql.example, port: 14330 }
+      networkPolicy.database.to: [{ ipBlock: { cidr: 192.0.2.10/32 } }]
+    asserts:
+      - hasDocuments: { count: 3 }
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ ipBlock: { cidr: 192.0.2.10/32 } }], ports: [{ protocol: TCP, port: 14330 }] }
+        documentIndex: 1
+      - equal:
+          path: "spec.egress[1]"
+          value: { to: [{ ipBlock: { cidr: 192.0.2.10/32 } }], ports: [{ protocol: TCP, port: 14330 }] }
+        documentIndex: 2
+
+  - it: admits only the backend, the hook and mssql-tools to SQL Server, plus the LoadBalancer
+    template: templates/networkpolicy.yaml
+    documentIndex: 2
+    set:
+      mssql.loadBalancer.enabled: true
+      networkPolicy.mssql.loadBalancerFrom: [{ ipBlock: { cidr: 192.0.2.0/24 } }]
+    asserts:
+      - equal:
+          path: "spec.ingress[0].from"
+          value:
+            - podSelector: { matchLabels: { app: grif-backend } }
+            - podSelector: { matchLabels: { app: grif-deploy-hook } }
+            - podSelector: { matchLabels: { app: mssql-tools } }
+      - equal: { path: "spec.ingress[1]", value: { ports: [{ protocol: TCP, port: 1433 }], from: [{ ipBlock: { cidr: 192.0.2.0/24 } }] } }
+      - equal: { path: spec.egress, value: [{ ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }] }] }
+
+  - it: lets the hook reach the database and the Kubernetes API
+    template: templates/networkpolicy.yaml
+    documentIndex: 3
+    set:
+      networkPolicy.dns.to: [{ podSelector: { matchLabels: { k8s-app: kube-dns } } }]
+    asserts:
+      - equal: { path: "spec.egress[0].to", value: [{ podSelector: { matchLabels: { k8s-app: kube-dns } } }] }
+      - equal: { path: "spec.egress[2].ports", value: [{ protocol: TCP, port: 443 }, { protocol: TCP, port: 6443 }] }
+
+  - it: adds extra rules, a policy for mssql-tools, and policies of your own
+    template: templates/networkpolicy.yaml
+    set:
+      mssqlTools.enabled: true
+      networkPolicy.backend.extraIngress: [{ from: [{ namespaceSelector: { matchLabels: { team: monitoring } } }] }]
+      networkPolicy.extraPolicies:
+        - apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata: { name: "{{ .Release.Name }}-mine" }
+          spec: { podSelector: {}, policyTypes: [Ingress] }
+    asserts:
+      - hasDocuments: { count: 6 }
+      - equal: { path: "spec.ingress[1].from[0].namespaceSelector.matchLabels", value: { team: monitoring } }
+        documentIndex: 1
+      - equal: { path: metadata.name, value: mssql-tools }
+        documentIndex: 4
+      - equal: { path: metadata.name, value: RELEASE-NAME-mine }
+        documentIndex: 5
+
+  - it: renders extra objects with templates
+    template: templates/extra-objects.yaml
+    set:
+      extraObjects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata: { name: "{{ .Release.Namespace }}-extra" }
+          data: { a: b }
+    asserts:
+      - isKind: { of: ConfigMap }
+      - equal: { path: metadata.name, value: grif-x-extra }

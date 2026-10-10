@@ -1,7 +1,8 @@
 name: Helm chart
 
-# The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), and
-# every ci/*-values.yaml rendered and checked against the Kubernetes schemas. master: publish the
+# The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), every
+# ci/*-values.yaml rendered and checked against the Kubernetes schemas, and an end-to-end run on k3s
+# with the chart's SQL Server and an external one. master: the same, then publish the
 # chart's version to oci://ghcr.io/playgrifball/charts/grifballwebapp, once - a version already
 # published is never overwritten, so a chart change has to bump Chart.yaml's version (checked here
 # on pull requests).
@@ -79,8 +80,37 @@ jobs:
           fi
           echo "Chart version ${old:-(new chart)} -> $new"
 
-  publish:
+  # The chart on a real cluster (k3s in Docker, which enforces NetworkPolicies), with the chart's
+  # SQL Server and with an external one: charts/grifballwebapp/e2e/run.sh.
+  e2e:
     needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [bundled, external]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Cluster
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /usr/local/bin/k3d https://github.com/k3d-io/k3d/releases/download/v5.8.3/k3d-linux-amd64
+          chmod +x /usr/local/bin/k3d
+          k3d cluster create e2e --image rancher/k3s:v1.33.5-k3s1 --no-lb \
+            --k3s-arg '--disable=traefik@server:0' --wait --timeout 180s
+          kubectl get nodes
+
+      - name: End-to-end (${{ matrix.database }} SQL Server)
+        run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
+
+  publish:
+    needs: [test, e2e]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

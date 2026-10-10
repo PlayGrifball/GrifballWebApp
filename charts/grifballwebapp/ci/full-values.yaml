@@ -1,6 +1,6 @@
 # Most features on: the chart's SQL Server with an NFS backup volume, a Traefik IngressRoute,
-# OpenTelemetry, settings from Secrets. Example values only. Rendered and schema-checked by the Helm
-# chart workflow.
+# OpenTelemetry, settings from Secrets, database setup, extra hook steps, network policies with
+# extras, extra objects. Example values only. Rendered and schema-checked by the Helm chart workflow.
 defaultServiceAccount:
   manage: true
 database:
@@ -67,3 +67,52 @@ mssql:
       path: /exports/sql-backups
 mssqlTools:
   enabled: true
+databaseSetup:
+  enabled: true
+deployHook:
+  extraEnv:
+    - name: TZ
+      value: UTC
+  extraInitContainers:
+    - name: notify
+      image: docker.io/library/busybox:1.38
+      command: ["echo", "deploying to {{ .Release.Namespace }}"]
+  annotations:
+    example.com/owner: grif
+networkPolicy:
+  dns:
+    to:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+        podSelector: { matchLabels: { k8s-app: kube-dns } }
+  frontend:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
+  backend:
+    telemetryTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: opentelemetry } }
+  mssql:
+    extraIngress:
+      - from:
+          - podSelector: { matchLabels: { app: sql-exporter } }
+        ports:
+          - { protocol: TCP, port: 1433 }
+  extraPolicies:
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: sql-exporter
+      spec:
+        podSelector: { matchLabels: { app: sql-exporter } }
+        policyTypes: [Egress]
+        egress:
+          - to:
+              - podSelector: { matchLabels: { app: grif-mssql } }
+            ports:
+              - { protocol: TCP, port: 1433 }
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: "{{ .Release.Name }}-notes"
+    data:
+      environment: test

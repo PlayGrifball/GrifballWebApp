@@ -69,11 +69,43 @@ Runs as a Helm `pre-upgrade` hook and an Argo CD `PreSync` hook:
 1. waits for the database (on a first Argo CD sync, before SQL Server exists, it does nothing);
 2. compares the image's `/app/migrations.txt` with `__EFMigrationsHistory`;
 3. if migrations are pending, scales backend and frontend to 0 (`deployHook.scaleDown`);
-4. backs up the database (`deployHook.backup`);
-5. runs `/app/efbundle`.
+4. backs up the database (`deployHook.backup`), from the database server's side;
+5. runs your own steps (`deployHook.extraInitContainers`);
+6. runs `/app/efbundle`.
 
-A failure stops the upgrade. A first `helm install` runs no hook: the backend applies migrations at
-startup (`backend.config.ApplyMigrations`, `CreateDatabase`).
+A failure stops the upgrade. It works the same against an external database. Each step's script
+can be replaced (`deployHook.scripts`); `extraEnv`, annotations, labels, security contexts, images,
+pull policy, scheduling and resources are all values.
+
+## Setting up a new database
+
+A first `helm install` runs no hook. Either the backend creates the database and applies migrations
+at startup (`backend.config.ApplyMigrations` and `CreateDatabase`, on by default), or, with
+`databaseSetup.enabled`, init containers in the backend pod do it before the app starts, with the
+migration bundle and the `database` credentials - so the app can run with both settings off and,
+through `database.connectionString`, with a login that can't change the schema. When the database is
+up to date that's a no-op.
+
+It isn't a Helm install hook because one can't work here: `pre-install` runs before the chart's SQL
+Server exists, and `post-install` (like Argo CD's `PostSync`) waits for a backend that can't start
+without its database.
+
+## Network policies
+
+On by default (`networkPolicy.enabled`): each of the chart's pods gets a NetworkPolicy allowing only
+what it needs.
+
+| Pod | In | Out |
+| --- | --- | --- |
+| frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
+| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port |
+| SQL Server | backend, deploy hook, mssql-tools; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
+| deploy hook | - | DNS, the database, the Kubernetes API (`kubernetesApi`) |
+| mssql-tools | - | DNS, the database |
+
+An external database is allowed anywhere on `database.port` unless `networkPolicy.database.to` says
+where. Every policy takes `extraIngress` / `extraEgress` rules; `networkPolicy.extraPolicies` adds
+whole policies of your own, and `extraObjects` any other objects.
 
 ## Argo CD and Image Updater
 
@@ -102,3 +134,7 @@ helm unittest charts/grifballwebapp
 
 Bump `version` in Chart.yaml with every change; the workflow fails a pull request that changes the chart
 without it.
+
+`e2e/run.sh bundled|external` runs the chart on a real cluster (the workflow uses k3s in Docker):
+install, the network policies, an upgrade with nothing pending, and one after the database is
+dropped.
