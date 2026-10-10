@@ -6,6 +6,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{/* Labels on pod templates: grif.labels without the chart's version, so a new chart version alone
+   restarts nothing (nor makes a new migration Job). */}}
+{{- define "grif.podLabels" -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
 {{/* repository:tag, repository:tag@digest, or repository@digest. tag may itself carry a digest (tag@sha256:...
    or sha256:..., what Image Updater writes); digest, when set, replaces it. Takes an image values block. */}}
 {{- define "grif.image" -}}

@@ -39,7 +39,7 @@ spec:
     metadata:
       labels:
         app: sql-exporter
-        {{- include "grif.labels" . | nindent 8 }}
+        {{- include "grif.podLabels" . | nindent 8 }}
         app.kubernetes.io/component: sql-exporter
         {{- with $x.podLabels }}
         {{- toYaml . | nindent 8 }}

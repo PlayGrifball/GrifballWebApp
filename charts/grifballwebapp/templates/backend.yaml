@@ -43,7 +43,7 @@ spec:
     metadata:
       labels:
         app: grif-backend
-        {{- include "grif.labels" . | nindent 8 }}
+        {{- include "grif.podLabels" . | nindent 8 }}
         app.kubernetes.io/component: backend
         {{- with $b.podLabels }}
         {{- toYaml . | nindent 8 }}

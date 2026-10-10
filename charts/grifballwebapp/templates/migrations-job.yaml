@@ -31,7 +31,7 @@ spec:
 metadata:
   labels:
     app: grif-migrate
-    {{- include "grif.labels" . | nindent 4 }}
+    {{- include "grif.podLabels" . | nindent 4 }}
     app.kubernetes.io/component: migrations
     {{- with $m.podLabels }}
     {{- toYaml . | nindent 4 }}

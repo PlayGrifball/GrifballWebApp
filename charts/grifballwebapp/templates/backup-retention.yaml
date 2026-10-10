@@ -25,7 +25,7 @@ spec:
         metadata:
           labels:
             app: grif-backup-retention
-            {{- include "grif.labels" . | nindent 12 }}
+            {{- include "grif.podLabels" . | nindent 12 }}
             app.kubernetes.io/component: backup-retention
             {{- with $m.podLabels }}
             {{- toYaml . | nindent 12 }}

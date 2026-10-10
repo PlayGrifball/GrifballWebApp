@@ -147,7 +147,7 @@ spec:
     metadata:
       labels:
         app: grif-mssql
-        {{- include "grif.labels" . | nindent 8 }}
+        {{- include "grif.podLabels" . | nindent 8 }}
         app.kubernetes.io/component: mssql
         {{- with $m.podLabels }}
         {{- toYaml . | nindent 8 }}
