@@ -131,11 +131,16 @@ public class GrifballContext :
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
 
         // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
-        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
+        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it,
+        // and the app keeps the history of the same tables itself (RowHistory).
         if (!Database.IsSqlServer())
         {
+            var temporal = modelBuilder.Model.GetEntityTypes().Where(e => e.IsTemporal()).ToList();
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
                 entityType.RemoveAnnotation("SqlServer:IsTemporal");
+
+            if (Database.IsNpgsql())
+                RowHistory.Configure(modelBuilder, temporal);
         }
 
         if (Database.IsNpgsql())

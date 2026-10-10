@@ -30,13 +30,20 @@ public static class DatabaseProviderExtensions
         throw new InvalidOperationException($"Database:Provider '{value}' is not one of: {string.Join(", ", Enum.GetNames<DatabaseProvider>())}");
     }
 
-    /// <summary>The provider, with its own migrations assembly, on <paramref name="connectionString"/>.</summary>
+    /// <summary>
+    /// The provider, with its own migrations assembly, on <paramref name="connectionString"/>. Postgres
+    /// keeps row history here (<see cref="RowHistory"/>), so every context does: the app's, its factory's,
+    /// the seeder's, the tests'. Its interceptor runs before those added after it (AuditInterceptor); the
+    /// order changes nothing, as it records original values, which they don't touch.
+    /// </summary>
     public static DbContextOptionsBuilder UseGrifballDatabase(this DbContextOptionsBuilder options, DatabaseProvider provider, string connectionString)
     {
         return provider switch
         {
             DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly)),
-            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly)),
+            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly))
+                .ReplaceService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsSqlGenerator, PostgresMigrationsSqlGenerator>()
+                .AddInterceptors(Interceptors.RowHistoryInterceptor.Instance),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }
