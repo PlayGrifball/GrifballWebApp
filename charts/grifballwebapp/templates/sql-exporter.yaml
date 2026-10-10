@@ -1,7 +1,7 @@
 {{- $x := .Values.sqlExporter -}}
 {{- if $x.enabled }}
 {{- /* Its login: sqlExporter.user, else the monitoring login (database.logins), else the administrator. */}}
-{{- $login := dict "user" .Values.database.user "password" .Values.database.password }}
+{{- $login := dict "user" (include "grif.dbUser" .) "password" (include "grif.dbPassword" . | fromJson) }}
 {{- if include "grif.monitoringLogin" . }}{{ $login = .Values.database.logins.monitoring }}{{ end }}
 {{- $user := $x.user | default $login.user }}
 {{- $passwordSecret := $x.password.secretName | default (include "grif.secretName" (dict "secretName" $login.password.secretName "root" .)) }}
@@ -16,8 +16,13 @@ metadata:
 data:
   sql_exporter.yml: |
     {{- $x.config | default (tpl (.Files.Get "files/sql_exporter.yml") .) | nindent 4 }}
+  {{- if include "grif.postgres" . }}
+  pg_standard.collector.yml: |
+    {{- .Files.Get "files/pg_standard.collector.yml" | nindent 4 }}
+  {{- else }}
   mssql_standard.collector.yml: |
     {{- .Files.Get "files/mssql_standard.collector.yml" | nindent 4 }}
+  {{- end }}
   {{- range $name, $content := $x.extraCollectorFiles }}
   {{ $name }}: |
     {{- $content | nindent 4 }}
@@ -72,7 +77,13 @@ spec:
               enc=$(printf '%s' "$DB_PASSWORD" | awk 'BEGIN{for(i=0;i<256;i++)o[sprintf("%c",i)]=i}
                 {n=split($0,a,"");for(i=1;i<=n;i++){c=a[i];
                  if(c~/[A-Za-z0-9._~-]/)printf "%s",c;else printf "%%%02X",o[c]}}')
+              {{- if include "grif.postgres" . }}
+              # pgx (the pgx:// scheme): lib/pq (postgres://) mangles a password with a space or a backslash.
+              # The postgres database: the queries read the server's views, from any database.
+              export SQLEXPORTER_TARGET_DSN="pgx://$DB_USER:$enc@$DB_HOST:$DB_PORT/postgres?$DSN_OPTIONS"
+              {{- else }}
               export SQLEXPORTER_TARGET_DSN="sqlserver://$DB_USER:$enc@$DB_HOST:$DB_PORT?$DSN_OPTIONS"
+              {{- end }}
               exec /bin/sql_exporter -config.file=/config/sql_exporter.yml -web.listen-address=:{{ $x.port }}
           env:
             # Its cache directory ($HOME/.cache) goes on the writable /tmp.
@@ -90,7 +101,7 @@ spec:
                   name: {{ $passwordSecret }}
                   key: {{ $passwordKey }}
             - name: DSN_OPTIONS
-              value: {{ $x.dsnOptions | quote }}
+              value: {{ $x.dsnOptions | default (include "grif.byProvider" (dict "root" . "sql" "encrypt=true&TrustServerCertificate=true" "pg" "sslmode=prefer")) | quote }}
           ports:
             - name: metrics
               containerPort: {{ $x.port }}

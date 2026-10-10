@@ -1,8 +1,8 @@
 apiVersion: v2
 name: grifballwebapp
 description: >-
-  GrifballWebApp: the Angular frontend, the ASP.NET Core backend, and optionally SQL Server, with a
-  migration Job that backs up the database before applying EF Core migrations.
+  GrifballWebApp: the Angular frontend, the ASP.NET Core backend, and optionally SQL Server or
+  PostgreSQL, with a migration Job that backs up the database before applying EF Core migrations.
 type: application
 # The major and minor: the Helm chart workflow publishes each change as <major>.<minor>.<run number>
 # (oci://ghcr.io/playgrifball/charts, signed with cosign), so only a major or minor bump is an edit here.

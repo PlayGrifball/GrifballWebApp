@@ -1,0 +1,183 @@
+suite: postgres
+templates:
+  - templates/postgres.yaml
+  - templates/mssql.yaml
+  - templates/backend.yaml
+  - templates/migrations-job.yaml
+release:
+  namespace: grif-x
+set:
+  database.provider: postgres
+tests:
+  - it: runs PostgreSQL instead of SQL Server with the provider alone (mssql.enabled and its EULA ignored)
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/mssql.yaml
+      - hasDocuments: { count: 4 }
+        template: templates/postgres.yaml
+      - equal: { path: metadata.name, value: postgres-backup-pvc }
+        template: templates/postgres.yaml
+        documentIndex: 0
+      - equal: { path: metadata.name, value: postgres-data-pvc }
+        template: templates/postgres.yaml
+        documentIndex: 1
+      - equal: { path: metadata.name, value: postgres }
+        template: templates/postgres.yaml
+        documentIndex: 2
+      - equal: { path: "spec.ports[0]", value: { name: postgres, port: 5432, targetPort: postgres } }
+        template: templates/postgres.yaml
+        documentIndex: 2
+      - isKind: { of: Deployment }
+        template: templates/postgres.yaml
+        documentIndex: 3
+
+  - it: renders no PostgreSQL with SQL Server, the default
+    set:
+      database.provider: sqlserver
+      mssql.acceptEula: true
+    asserts:
+      - hasDocuments: { count: 0 }
+        template: templates/postgres.yaml
+      - hasDocuments: { count: 4 }
+        template: templates/mssql.yaml
+
+  - it: runs the pinned image as postgres (70) on a read-only root, probed with pg_isready, data in the volume
+    template: templates/postgres.yaml
+    documentIndex: 3
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^docker\.io/library/postgres:18-alpine@sha256:[0-9a-f]{64}$' }
+      - equal: { path: "spec.template.spec.initContainers[0].image", value: "docker.io/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873" }
+      - equal: { path: "spec.template.spec.initContainers[0].command", value: ["sh", "-c", "chown -R 70:70 /var/lib/postgresql"] }
+      - equal: { path: spec.strategy.type, value: Recreate }
+      - equal: { path: "spec.template.spec.containers[0].securityContext.runAsUser", value: 70 }
+      - equal: { path: "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", value: true }
+      - equal: { path: "spec.template.spec.containers[0].securityContext.capabilities.drop", value: [ALL] }
+      - equal: { path: "spec.template.spec.containers[0].readinessProbe.exec.command", value: ["pg_isready", "-q", "-h", "127.0.0.1", "-p", "5432"] }
+      - equal: { path: "spec.template.spec.containers[0].startupProbe.failureThreshold", value: 120 }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: postgres-data, mountPath: /var/lib/postgresql } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: run, mountPath: /var/run/postgresql } }
+      - contains: { path: spec.template.spec.volumes, content: { name: shm, emptyDir: { medium: Memory } } }
+      - notExists: { path: "spec.template.spec.containers[0].args" }
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-2" }
+      - notExists: { path: spec.template.spec.nodeSelector }
+
+  - it: passes settings, extra env and volumes, and a LoadBalancer
+    template: templates/postgres.yaml
+    set:
+      postgres:
+        settings: { shared_buffers: 256MB, max_connections: 50 }
+        extraEnv: [{ name: TZ, value: UTC }]
+        extraVolumes: [{ name: conf, configMap: { name: pg-conf } }]
+        extraVolumeMounts: [{ name: conf, mountPath: /etc/pg }]
+        loadBalancer: { enabled: true, port: 15432 }
+        persistence: { existingClaim: pg-data }
+    asserts:
+      - hasDocuments: { count: 4 }
+      - equal: { path: spec.type, value: LoadBalancer }
+        documentIndex: 2
+      - equal: { path: "spec.ports[0].port", value: 15432 }
+        documentIndex: 2
+      - equal: { path: "spec.template.spec.containers[0].args", value: [postgres, -c, max_connections=50, -c, shared_buffers=256MB] }
+        documentIndex: 3
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: TZ, value: UTC } }
+        documentIndex: 3
+      - contains: { path: spec.template.spec.volumes, content: { name: conf, configMap: { name: pg-conf } } }
+        documentIndex: 3
+      - contains: { path: spec.template.spec.volumes, content: { name: postgres-data, persistentVolumeClaim: { claimName: pg-data } } }
+        documentIndex: 3
+
+  - it: binds the backup claim to an NFS export, apart from SQL Server's PV
+    template: templates/postgres.yaml
+    set:
+      migrations.backup.volume.nfs: { server: 10.0.0.3, path: /pgbackups }
+    asserts:
+      - isKind: { of: PersistentVolume }
+        documentIndex: 0
+      - equal: { path: metadata.name, value: grif-x-pg-nfs-pv }
+        documentIndex: 0
+      - equal: { path: spec.nfs, value: { server: 10.0.0.3, path: /pgbackups } }
+        documentIndex: 0
+      - equal: { path: spec.volumeName, value: grif-x-pg-nfs-pv }
+        documentIndex: 1
+
+  - it: keeps the backup volume for an external PostgreSQL, and none with backups off
+    template: templates/postgres.yaml
+    set:
+      postgres.enabled: false
+      database.host: pg.example
+    asserts:
+      - hasDocuments: { count: 1 }
+      - equal: { path: metadata.name, value: postgres-backup-pvc }
+
+  - it: needs a host when the chart's PostgreSQL is off
+    template: templates/migrations-job.yaml
+    set:
+      postgres.enabled: false
+    asserts:
+      - failedTemplate:
+          errorPattern: database.host is required when postgres.enabled is false
+
+  - it: gives the backend PostgreSQL's provider and Npgsql connection string
+    template: templates/backend.yaml
+    documentIndex: 1
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Postgres } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD)" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+
+  - it: takes an external server's port, user, password and options, with PostgreSQL's defaults otherwise
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      postgres.enabled: false
+      database: { host: pg.example, user: grif, options: "SSL Mode=Require" }
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=pg.example;Port=5432;Database=GrifballWebApp;Username=grif;Password=$(DB_PASSWORD);SSL Mode=Require" }
+
+  - it: keeps SQL Server's defaults for SQL Server, and sets no provider for it
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      database.provider: sqlserver
+      mssql.enabled: false
+      database.host: sql.example
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Server=sql.example,1433;Database=GrifballWebApp;User Id=sa;Password=$(DB_PASSWORD);Encrypt=True;TrustServerCertificate=True" }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Postgres } }
+
+  - it: waits for the migrations with psql, as the app login, its password in PGPASSWORD
+    template: templates/backend.yaml
+    documentIndex: 1
+    set:
+      database.logins.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "applied_migrations\\(\\) \\{\n  psql -X -A -t -q -v ON_ERROR_STOP=1 -d postgres" }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "if applied_migrations > /work/applied.txt 2>/work/error.txt; then" }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "/app/postgres/migrations.txt" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "sqlcmd" }
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: PGUSER, value: grif_app } }
+      - contains:
+          path: "spec.template.spec.initContainers[0].env"
+          content: { name: PGPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: APP_DB_PASSWORD } } }
+      - notContains:
+          path: "spec.template.spec.initContainers[0].env"
+          content: { name: PGPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+
+  - it: rejects a provider it doesn't know
+    template: templates/postgres.yaml
+    set:
+      database.provider: mysql
+    asserts:
+      - failedTemplate:
+          errorPattern: "/database/provider"

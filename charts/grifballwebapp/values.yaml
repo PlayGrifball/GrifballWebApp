@@ -2,8 +2,9 @@
 # grifballwebapp-server:5295 (grifballwebapp.client/default.conf), so object names are fixed, not
 # prefixed with the release name. Each name can still be overridden below.
 
-# The Secret secrets are read from by default: SQL Server's password (mssql.saPassword,
-# database.password) and backend.secretConfig entries that name no Secret of their own.
+# The Secret secrets are read from by default: the database's password (mssql.saPassword,
+# postgres.password, database.password) and backend.secretConfig entries that name no Secret of their
+# own.
 secret:
   name: grif-secrets
   # Create it from stringData below. For trying the chart out: real secrets belong outside the
@@ -18,24 +19,36 @@ defaultServiceAccount:
 
 imagePullSecrets: []
 
-# The database the backend and its migrations use: the chart's SQL Server (mssql.enabled) or any
-# other one.
+# The database the backend and its migrations use: SQL Server or PostgreSQL (provider), the chart's
+# own (mssql.enabled, postgres.enabled) or any other one.
 database:
-  # Empty: the chart's SQL Server Service (mssql.service.name). Required when mssql.enabled is false.
+  # sqlserver or postgres. The app's provider (Database:Provider), its connection string, the
+  # migration Job's tools and bundle, backups and sql-exporter's queries all follow it, and only that
+  # provider's server can run in the release: mssql with sqlserver, postgres with postgres (the other
+  # one's enabled is ignored). Switching an existing release doesn't move its data.
+  provider: sqlserver
+  # Empty: the chart's server's Service (mssql.service.name, postgres.service.name). Required when the
+  # provider's server is off (mssql.enabled or postgres.enabled false).
   host: ""
-  port: 1433
+  # Empty: the provider's, 1433 or 5432 (with the chart's server, its Service's port).
+  port: ""
   name: GrifballWebApp
-  # The administrator login the migration Job (and backup retention) connects as. With logins off,
-  # everything connects as it.
-  user: sa
-  # The user's password. secretName empty: secret.name.
+  # The administrator the migration Job (and the backup CronJobs) connect as. With logins off,
+  # everything connects as it. Empty: the provider's, sa or postgres.
+  user: ""
+  # The user's password. secretName empty: secret.name. key empty: SA_PASSWORD (SQL Server) or
+  # POSTGRES_PASSWORD (PostgreSQL), the keys mssql.saPassword and postgres.password read.
   password:
     secretName: ""
-    key: SA_PASSWORD
+    key: ""
   # Appended to the connection string the chart builds:
-  # Server=<host>,<port>;Database=<name>;User Id=<user>;Password=<password>;<options>
-  # The password goes in as is, so it must not contain ';'.
-  options: "Encrypt=True;TrustServerCertificate=True"
+  #   SQL Server: Server=<host>,<port>;Database=<name>;User Id=<user>;Password=<password>;<options>
+  #   PostgreSQL: Host=<host>;Port=<port>;Database=<name>;Username=<user>;Password=<password>;<options>
+  # The password goes in as is, so it must not contain ';'. Empty: the provider's,
+  # "Encrypt=True;TrustServerCertificate=True" for SQL Server, none for PostgreSQL (Npgsql's defaults;
+  # the migration steps' psql uses TLS when the server offers it - PGSSLMODE in migrations.extraEnv to
+  # require it).
+  options: ""
   # Give the backend this whole connection string instead (ConnectionStrings:GrifballWebApp). The
   # migrations still connect with host, port, user and password above.
   connectionString:
@@ -43,10 +56,12 @@ database:
     key: ""
   # Separate least-privilege logins, created and kept in sync (passwords included) by the migration
   # Job on every run, as the administrator above:
-  #   app: the backend - reads and writes the database's data (db_datareader, db_datawriter); can't
-  #     change its schema or the server. The backend's wait for the migrations uses it too, so the
-  #     backend pod holds no administrator password.
-  #   monitoring: sql-exporter - VIEW SERVER STATE and VIEW ANY DEFINITION; can't open the database.
+  #   app: the backend - reads and writes the database's data (SQL Server: db_datareader,
+  #     db_datawriter; PostgreSQL: SELECT, INSERT, UPDATE, DELETE on every table and its sequences, in
+  #     every schema); can't change its schema or the server. The backend's wait for the migrations
+  #     uses it too, so the backend pod holds no administrator password.
+  #   monitoring: sql-exporter - SQL Server: VIEW SERVER STATE and VIEW ANY DEFINITION, can't open
+  #     the database; PostgreSQL: pg_monitor, can't read the app's tables.
   #     Created only with sqlExporter.enabled (and unless sqlExporter.user is set).
   # Passwords from Secrets (secretName empty: secret.name); SQL Server's password policy applies.
   logins:
@@ -317,7 +332,8 @@ ingressRoute:
     secretName: ""
   annotations: {}
 
-# SQL Server in the release. Disabled: set database.host to your own.
+# SQL Server in the release, with database.provider sqlserver (the default). Disabled: set
+# database.host to your own.
 mssql:
   enabled: true
   # Required with enabled: you accept the SQL Server EULA (ACCEPT_EULA=Y).
@@ -393,7 +409,7 @@ mssql:
     runAsGroup: 10001
   extraEnv: []
   # More volumes on SQL Server's container - e.g. a folder of backups to restore from, mounted
-  # read-only (RESTORE ... FROM DISK reads it on SQL Server's side).
+  # read-only (RESTORE ... FROM DISK reads it on SQL Server's side; migrations.restore).
   extraVolumes: []
   extraVolumeMounts: []
   podAnnotations: {}
@@ -404,26 +420,116 @@ mssql:
   tolerations: []
   affinity: {}
 
-# Prometheus metrics for SQL Server, which publishes none itself (burningalchemist/sql_exporter):
-# connections, deadlocks, errors, page life expectancy, batch requests, IO stalls, memory
-# (files/mssql_standard.collector.yml). Works against the chart's SQL Server or an external one.
+# PostgreSQL in the release, with database.provider postgres; ignored with sqlserver, as mssql is with
+# postgres, so switching provider is the one value. Disabled: set database.host to your own.
+postgres:
+  enabled: true
+  image:
+    repository: docker.io/library/postgres
+    # A major version's channel, pinned by digest so a restart can't change PostgreSQL under its data.
+    # A new major can't read an older one's files without pg_upgrade: the image keeps them in a
+    # <major>/docker folder and refuses to start beside an older major's rather than begin an empty
+    # one. Renovate updates the digest.
+    tag: 18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    digest: ""
+    pullPolicy: IfNotPresent
+  # The superuser's (postgres) password. Set when the data folder is first created: changing it in the
+  # Secret later doesn't change it in PostgreSQL (ALTER ROLE does). secretName empty: secret.name.
+  password:
+    secretName: ""
+    key: POSTGRES_PASSWORD
+  # The ClusterIP Service the app connects to.
+  service:
+    name: postgres
+    port: 5432
+  # Also expose PostgreSQL outside the cluster.
+  loadBalancer:
+    enabled: false
+    name: postgres-lb
+    port: 5432
+    annotations: {}
+  # Mounted at /var/lib/postgresql; the data is in its <major>/docker folder (the image's PGDATA), so
+  # the volume's own root (lost+found, its permissions) is never the data folder.
+  persistence:
+    existingClaim: ""
+    claimName: postgres-data-pvc
+    size: 10Gi
+    storageClass: ""
+    accessModes: [ReadWriteOnce]
+    annotations: {}
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: "1"
+  # pg_isready on the pod's own address: ready once it accepts connections. Startup allows 10 minutes
+  # for the first start's initdb or crash recovery after an unclean stop.
+  startupProbe:
+    periodSeconds: 5
+    failureThreshold: 120
+  livenessProbe:
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6
+  readinessProbe:
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # PostgreSQL's own container, as the image's postgres user (70); its init container runs as root to
+  # chown the data volume. Writable: the data volume, /var/run/postgresql (the socket), /tmp and
+  # /dev/shm (emptyDirs).
+  securityContext:
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  # PostgreSQL settings, passed as postgres -c name=value (Ex: shared_buffers: 256MB).
+  settings: {}
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+  podAnnotations: {}
+  podLabels: {}
+  # The image is multi-platform.
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Prometheus metrics for the database, which publishes none itself (burningalchemist/sql_exporter).
+# SQL Server: connections, deadlocks, errors, page life expectancy, batch requests, IO stalls, memory
+# (files/mssql_standard.collector.yml). PostgreSQL: connections by state, database size, commits and
+# rollbacks, cache hits, deadlocks, conflicts, temporary bytes, locks, the oldest transaction
+# (files/pg_standard.collector.yml). Works against the chart's server or an external one.
 sqlExporter:
   enabled: false
   image:
     repository: docker.io/burningalchemist/sql_exporter
     tag: 0.24.9@sha256:6c554722faccd4b54342ccd765f87b26e8e65fba2a8cddc60bec6de336ecf2e0
     pullPolicy: IfNotPresent
-  # The login. Empty: database.user and database.password. It needs VIEW SERVER STATE and VIEW ANY
-  # DEFINITION, nothing more. The password is percent-encoded into the connection URL at start.
+  # The login. Empty: the monitoring login (database.logins), else database.user and
+  # database.password. It needs VIEW SERVER STATE and VIEW ANY DEFINITION (SQL Server) or pg_monitor
+  # (PostgreSQL), nothing more. The password is percent-encoded into the connection URL at start.
   user: ""
   password:
     secretName: ""
     key: ""
-  # Query string of the connection URL.
-  dsnOptions: "encrypt=true&TrustServerCertificate=true"
-  # Collectors the target runs, from the files below.
-  collectors: [mssql_standard]
-  # More collector files (name.collector.yml: content), beside the chart's mssql_standard.
+  # Query string of the connection URL. Empty: the provider's, "encrypt=true&TrustServerCertificate=true"
+  # (SQL Server) or "sslmode=prefer" (PostgreSQL: TLS when the server offers it). With PostgreSQL the
+  # exporter connects (pgx) to the postgres database: its queries read the server's views, and it
+  # works before the app's database exists.
+  dsnOptions: ""
+  # Collectors the target runs, from the files below. Empty: the provider's, mssql_standard or
+  # pg_standard.
+  collectors: []
+  # More collector files (name.collector.yml: content), beside the provider's.
   extraCollectorFiles: {}
   # Replace sql_exporter.yml (files/sql_exporter.yml). The target's address comes from the
   # environment either way.
@@ -455,16 +561,20 @@ sqlExporter:
 # ApplyMigrations and CreateDatabase stay off). It runs on every install and upgrade:
 #   1. waits for the database;
 #   2. compares the image's migrations (/app/migrations.txt) with the database's;
-#   3. if the database exists and lacks some, backs it up (backup);
-#   4. your own steps (extraInitContainers);
-#   5. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
-# Every step runs in the backend image being deployed, which carries the bundle, its migration list
-# and sqlcmd - nothing else to pull, and the same platforms as the app.
-# With nothing pending, steps 3-5 do nothing. Backend pods only wait (init containers) until the
+#   3. on a first deploy (no database yet), restores the newest backup from a folder (restore, off by
+#      default);
+#   4. if the database exists and lacks some, backs it up (backup);
+#   5. your own steps (extraInitContainers);
+#   6. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
+# PostgreSQL (database.provider) uses the image's /app/postgres/efbundle and migrations.txt instead.
+# Every step runs in the backend image being deployed, which carries the bundles, their migration lists,
+# sqlcmd and PostgreSQL's client tools - nothing else to pull, and the same platforms as the app.
+# With nothing pending, steps 4-6 do nothing. Backend pods only wait (init containers) until the
 # database has every migration in their image, then start; they never change it, so a deploy that
 # skips the Job leaves them waiting rather than migrating without a backup.
-# Under Argo CD the Job is sync wave -1, after SQL Server (-2) and before the app (0): the backend
-# changes only after the Job succeeds, and a failed Job stops the sync with the old backend running.
+# Under Argo CD the Job is sync wave -1, after the database server (-2) and before the app (0): the
+# backend changes only after the Job succeeds, and a failed Job stops the sync with the old backend
+# running.
 # A Job can't be changed once created, so its name carries a hash of its spec and the release
 # revision; the old one goes with the release's previous manifest. Argo CD renders revision 1 every
 # time, so the same spec keeps the same Job there: delete it to run it again (after restoring a
@@ -474,13 +584,36 @@ migrations:
   enabled: true
   backup:
     enabled: true
-    # A folder on the SQL Server's side (it writes the file), created if missing. Empty:
+    # SQL Server: a folder on its side (it writes the file), created if missing. Empty:
     # /var/opt/mssql/backup/<namespace>, mssql.backup's volume.
+    # PostgreSQL: a folder in the volume below, which the chart's pods mount at /backup (pg_dump writes
+    # the file there), created if missing. Empty: /backup/<namespace>.
     directory: ""
-    # Delete old backups on a schedule (a CronJob, optional). SQL Server lists and deletes its own files,
-    # so it works for an external one too and mounts no volume. Only backups this SQL Server wrote
-    # (in its msdb history) named <database>_*.bak in the folder above are considered; anything else
-    # there is never touched. One goes once it's older than keepDays and isn't among the newest keepLast.
+    # PostgreSQL only: the backup volume. pg_dump runs in the chart's pods (the Job's backup step, the
+    # CronJobs below), so they mount it, as the backend image's user (1654): their fsGroup makes a
+    # provisioned volume writable by it; an NFS export has to allow it. SQL Server writes its own
+    # backups (mssql.backup), so it's unused there.
+    volume:
+      existingClaim: ""
+      claimName: postgres-backup-pvc
+      size: 30Gi
+      # The Job and the CronJobs mount it one after the other. ReadWriteMany if they may run at once on
+      # different nodes.
+      accessModes: [ReadWriteOnce]
+      # With nfs.server: a PersistentVolume for this NFS export (named <namespace>-pg-nfs-pv, apart
+      # from mssql.backup's), bound to the claim. Otherwise the claim is provisioned from storageClass.
+      nfs:
+        server: ""
+        path: ""
+      storageClass: ""
+      annotations: {}
+    # Delete old backups on a schedule (a CronJob, optional). One goes once it's older than keepDays
+    # and isn't among the newest keepLast; anything else in the folder is never touched.
+    # SQL Server lists and deletes its own files, so it works for an external one too and mounts no
+    # volume. Only backups this SQL Server wrote (in its msdb history) named <database>_*.bak in the
+    # folder above are considered.
+    # PostgreSQL: the CronJob mounts the backup volume and considers only pg_dump archives named
+    # <database>_YYYYMMDD_HHMMSS.dump, ranked and aged by the date and time in their name.
     retention:
       enabled: false
       schedule: "30 3 * * *"
@@ -489,22 +622,43 @@ migrations:
     # Back the database up on a schedule too (a CronJob, optional), not only before a migration: with
     # nothing pending the Job writes none, so without this a database that rarely changes schema is
     # rarely backed up. Same folder and file names as the pre-migration backups (so retention above
-    # covers both), copy-only and checksummed, then verified (RESTORE VERIFYONLY). The schedule is in
-    # the cluster's time zone (UTC unless set); keep it before retention's.
+    # covers both), then verified: SQL Server's copy-only and checksummed (RESTORE VERIFYONLY);
+    # PostgreSQL's pg_dump -Fc (pg_restore --list). The schedule is in the cluster's time zone (UTC
+    # unless set); keep it before retention's.
     scheduled:
       enabled: false
       schedule: "0 3 * * *"
+  # On a release's first deploy - its database doesn't exist yet - restore the newest backup from a
+  # folder (another environment's, say), then migrate applies whatever the image has that it lacks.
+  # Later deploys find the database and keep its data. Only the chart's own backup names count,
+  # <database>_YYYYMMDD_HHMMSS.bak (SQL Server) or .dump (PostgreSQL), newest by name; anything else in
+  # the folder is ignored, and finding none fails the Job. The restored database isn't backed up.
+  restore:
+    enabled: false
+    # SQL Server: a folder on its side (it reads the file): mount one with mssql.extraVolumes and
+    # extraVolumeMounts. Empty: /var/opt/mssql/restore.
+    # PostgreSQL: a folder in volume below, which the restore step mounts read-only at /restore.
+    # Empty: /restore.
+    directory: ""
+    # PostgreSQL only: the volume the backups are on, any pod volume source (without a name). Ex:
+    #   nfs: { server: nas.example, path: /backups/grif-test, readOnly: true }
+    #   persistentVolumeClaim: { claimName: grif-test-backups, readOnly: true }
+    volume: {}
   # How long the Job waits for the database to accept connections (seconds).
   databaseWaitSeconds: 300
   # A failed migration is usually deterministic; retries are off.
   backoffLimit: 0
   activeDeadlineSeconds: 1800
   # Replace one of the Job's step scripts (run with /bin/sh -c). Empty: the chart's. Steps share
-  # /work: check-pending writes pending.txt (one migration per line) and db-exists; the connection is
-  # in DB_HOST, DB_PORT, DB_NAME, DB_USER and SQLCMDPASSWORD (migrate: ConnectionStrings__GrifballWebApp),
-  # the backup folder in BACKUP_DIR. Every step runs in the backend image, with sqlcmd (go-sqlcmd).
+  # /work: check-pending writes pending.txt (one migration per line) and db-exists (restore leaves it
+  # out, and writes restored); the connection is in DB_HOST, DB_PORT, DB_NAME, DB_USER and
+  # SQLCMDPASSWORD - PostgreSQL: PGHOST, PGPORT, PGUSER and PGPASSWORD too, which psql, pg_dump and
+  # pg_restore read (migrate: ConnectionStrings__GrifballWebApp) - the backup folder in BACKUP_DIR and
+  # the restore folder in RESTORE_DIR. Every step runs in the backend image, with sqlcmd (go-sqlcmd)
+  # and PostgreSQL's client tools.
   scripts:
     checkPending: ""
+    restore: ""
     backup: ""
     migrate: ""
   # Your own steps in the Job, after the backup and before the migration (init containers, as they
@@ -519,7 +673,8 @@ migrations:
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
-    # The backend image's app user.
+    # The backend image's app user. With PostgreSQL, the pods that mount the backup volume
+    # (migrations.backup.volume) also get fsGroup runAsGroup, unless it's set here.
     runAsNonRoot: true
     runAsUser: 1654
     runAsGroup: 1654
@@ -548,8 +703,9 @@ networkPolicy:
   #   podSelector: { matchLabels: { k8s-app: kube-dns } }
   dns:
     to: []
-  # An external database (mssql.enabled false): where it is, ex. an ipBlock. Empty: anywhere, on
-  # database.port. For a database behind a Service in the cluster, policies see the pod's port.
+  # An external database (mssql.enabled or postgres.enabled false): where it is, ex. an ipBlock.
+  # Empty: anywhere, on database.port. For a database behind a Service in the cluster, policies see
+  # the pod's port.
   database:
     to: []
   frontend:
@@ -575,6 +731,11 @@ networkPolicy:
     extraEgress: []
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
+    loadBalancerFrom: []
+    extraIngress: []
+    extraEgress: []
+  postgres:
+    # Who may reach the LoadBalancer (postgres.loadBalancer). Empty: anyone.
     loadBalancerFrom: []
     extraIngress: []
     extraEgress: []

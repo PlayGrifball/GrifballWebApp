@@ -1,14 +1,15 @@
 {{- $np := .Values.networkPolicy -}}
 {{- if $np.enabled }}
-{{- $bundled := and .Values.mssql.enabled (not .Values.database.host) }}
+{{- $pg := include "grif.postgres" . }}
+{{- $bundled := and (include "grif.bundled" .) (not .Values.database.host) }}
 {{- /* Egress rules shared by the pods: DNS, and the database (the chart's SQL Server or an external one). */}}
 {{- $dns := dict "ports" (list (dict "protocol" "UDP" "port" 53) (dict "protocol" "TCP" "port" 53)) }}
 {{- with $np.dns.to }}{{ $_ := set $dns "to" . }}{{ end }}
 {{- $database := dict }}
 {{- if $bundled }}
-{{- $database = dict "to" (list (dict "podSelector" (dict "matchLabels" (dict "app" "grif-mssql")))) "ports" (list (dict "protocol" "TCP" "port" 1433)) }}
+{{- $database = dict "to" (list (dict "podSelector" (dict "matchLabels" (dict "app" (ternary "grif-postgres" "grif-mssql" (eq $pg "true")))))) "ports" (list (dict "protocol" "TCP" "port" (ternary 5432 1433 (eq $pg "true")))) }}
 {{- else }}
-{{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (.Values.database.port | int))) }}
+{{- $database = dict "ports" (list (dict "protocol" "TCP" "port" (include "grif.dbPort" . | int))) }}
 {{- with $np.database.to }}{{ $_ := set $database "to" . }}{{ end }}
 {{- end }}
 apiVersion: networking.k8s.io/v1
@@ -106,7 +107,7 @@ spec:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---
-{{- if .Values.mssql.enabled }}
+{{- if and .Values.mssql.enabled (not $pg) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -170,6 +171,66 @@ spec:
     {{- end }}
 ---
 {{- end }}
+{{- if and $pg .Values.postgres.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-postgres
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-postgres
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Backup retention isn't here: it only deletes files on the backup volume.
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.migrations.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-migrate
+        {{- end }}
+        {{- if and .Values.migrations.enabled .Values.migrations.backup.enabled .Values.migrations.backup.scheduled.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-backup
+        {{- end }}
+        {{- if .Values.sqlExporter.enabled }}
+        - podSelector:
+            matchLabels:
+              app: sql-exporter
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- if .Values.postgres.loadBalancer.enabled }}
+    # The LoadBalancer Service.
+    - ports:
+        - protocol: TCP
+          port: 5432
+      {{- with $np.postgres.loadBalancerFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- with $np.postgres.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- toYaml (list $dns) | nindent 4 }}
+    {{- with $np.postgres.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
 {{- if .Values.migrations.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -212,7 +273,9 @@ spec:
   policyTypes: [Ingress, Egress]
   egress:
     {{- toYaml (list $dns) | nindent 4 }}
+    {{- if not $pg }}
     {{- toYaml (list $database) | nindent 4 }}
+    {{- end }}
     {{- with $np.backupRetention.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

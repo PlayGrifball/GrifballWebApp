@@ -1,0 +1,121 @@
+suite: postgres migrations, backups and logins
+templates:
+  - templates/migrations-job.yaml
+  - templates/backup-scheduled.yaml
+  - templates/backup-retention.yaml
+release:
+  namespace: grif-x
+  revision: 3
+set:
+  database.provider: postgres
+tests:
+  - it: runs the same steps with psql, PostgreSQL's bundle and its migration list
+    template: templates/migrations-job.yaml
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: backup }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "until nc -w 2(.|\n)*psql -X -A -t -q -d postgres -c 'SELECT 1'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "SELECT NOT EXISTS \\(SELECT FROM pg_database WHERE datname = :'db'\\) AS missing \\\\gset" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "to_regclass\\('public.\"__EFMigrationsHistory\"'\\)" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "/work/applied.txt /app/postgres/migrations.txt > /work/pending.txt" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: 'if \[ -s /work/pending.txt \]; then /app/postgres/efbundle; else echo "Nothing to migrate."; fi' }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Postgres } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD)" }
+      - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-1" }
+
+  - it: connects through libpq's environment, the password never on a command line
+    template: templates/migrations-job.yaml
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: PGHOST, value: postgres } }
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: PGPORT, value: "5432" } }
+      - contains: { path: "spec.template.spec.initContainers[1].env", content: { name: PGUSER, value: postgres } }
+      - contains:
+          path: "spec.template.spec.initContainers[1].env"
+          content: { name: PGPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+      - notContains:
+          path: "spec.template.spec.initContainers[1].env"
+          content: { name: SQLCMDPASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "PGPASSWORD|sqlcmd" }
+
+  - it: backs up with pg_dump to the backup volume, verified, the pod's fsGroup making it writable
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \]; then echo "No database to back up."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'file="\$BACKUP_DIR/\$\{DB_NAME\}_\$\(date \+%Y%m%d_%H%M%S\)\.dump"' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_dump -Fc -d "\$DB_NAME" -f "\$file.partial"\n  pg_restore --list "\$file.partial" > /dev/null\n  mv "\$file.partial" "\$file"' }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /backup/grif-x } }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: backup, mountPath: /backup } }
+      - contains: { path: spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
+      - equal: { path: spec.template.spec.securityContext.fsGroup, value: 1654 }
+      - equal: { path: spec.template.spec.securityContext.fsGroupChangePolicy, value: OnRootMismatch }
+
+  - it: mounts no backup volume with backups off, and keeps an fsGroup that's set
+    template: templates/migrations-job.yaml
+    set:
+      migrations.backup.enabled: false
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 2 }
+      - notExists: { path: spec.template.spec.securityContext.fsGroup }
+      - notContains: { path: spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
+
+  - it: takes an existing claim and an fsGroup of your own
+    template: templates/migrations-job.yaml
+    set:
+      migrations.backup.volume.existingClaim: my-backups
+      migrations.podSecurityContext.fsGroup: 2000
+    asserts:
+      - contains: { path: spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: my-backups } } }
+      - equal: { path: spec.template.spec.securityContext.fsGroup, value: 2000 }
+
+  - it: syncs the logins with psql, values from the environment (\getenv) and quoted by format
+    template: templates/migrations-job.yaml
+    set:
+      database.logins.enabled: true
+      sqlExporter.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "psql -X -q -v ON_ERROR_STOP=1 -d \"\\$DB_NAME\" <<'SQL'" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "\\\\getenv app_password APP_PASSWORD" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "format\\('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_password'\\) \\\\gexec" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA %I TO %I" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA %I TO %I" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "nspname NOT LIKE 'pg\\\\_%' AND nspname <> 'information_schema'" }
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT pg_monitor TO %I" }
+      - notMatchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "GRANT (ALL|CREATE)|OWNER TO|SUPERUSER|\\$APP_PASSWORD|sqlcmd" }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: APP_USER, value: grif_app } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: MON_USER, value: grif_monitor } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: APP_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: APP_DB_PASSWORD } } }
+
+  - it: backs up on a schedule with pg_dump, to the backup volume
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - equal: { path: metadata.name, value: grif-backup }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "SELECT count\\(\\*\\) FROM pg_database WHERE datname = :'db';" }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "\nbackup_database\n?$" }
+      - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "sqlcmd" }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", content: { name: backup, mountPath: /backup } }
+      - contains: { path: spec.jobTemplate.spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
+      - equal: { path: spec.jobTemplate.spec.template.spec.securityContext.fsGroup, value: 1654 }
+      - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: BACKUP_DIR, value: /backup/grif-x } }
+
+  - it: deletes old dumps on the backup volume without connecting to the database
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup: { directory: /backup/mine, retention: { enabled: true, keepLast: 3, keepDays: 14 } }
+    asserts:
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: '\[ "\$\(head -c 5 "\$1/\$name"\)" = PGDMP \]' }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "NR > keep && substr\\(\\$0, length\\(\\$0\\) - 19, 15\\) < cutoff" }
+      - notMatchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: "psql|sqlcmd|nc -w" }
+      - equal:
+          path: "spec.jobTemplate.spec.template.spec.containers[0].env"
+          value:
+            - { name: DB_NAME, value: GrifballWebApp }
+            - { name: BACKUP_DIR, value: /backup/mine }
+            - { name: KEEP_LAST, value: "3" }
+            - { name: KEEP_DAYS, value: "14" }
+      - contains: { path: spec.jobTemplate.spec.template.spec.volumes, content: { name: backup, persistentVolumeClaim: { claimName: postgres-backup-pvc } } }
