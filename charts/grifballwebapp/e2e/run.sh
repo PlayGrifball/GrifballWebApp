@@ -156,8 +156,7 @@ mssql:
   image: { tag: 2025-latest }
   resources: { requests: { memory: 1Gi, cpu: 100m }, limits: { memory: 2Gi } }
   persistence: { size: 2Gi }
-  # local-path (k3s) provisions ReadWriteOnce only.
-  backup: { accessModes: [ReadWriteOnce], size: 1Gi }
+  backup: { size: 1Gi }
 EOF
 else
   step "External SQL Server in $ext_ns"

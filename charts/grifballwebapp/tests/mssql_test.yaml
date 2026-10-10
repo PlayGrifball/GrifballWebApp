@@ -70,3 +70,10 @@ tests:
         documentIndex: 4
       - equal: { path: "spec.template.spec.containers[0].image", value: "mcr.microsoft.com/mssql/server:2025-latest@sha256:abc" }
         documentIndex: 4
+
+  - it: gives the backup claim ReadWriteOnce by default (only SQL Server mounts it)
+    set:
+      mssql.acceptEula: true
+    asserts:
+      - equal: { path: spec.accessModes, value: [ReadWriteOnce] }
+        documentIndex: 1

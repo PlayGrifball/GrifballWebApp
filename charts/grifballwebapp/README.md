@@ -16,10 +16,6 @@ is [ci/minimal-values.yaml](ci/minimal-values.yaml), which the end-to-end test i
 ```yaml
 mssql:
   acceptEula: true                # required to run the chart's SQL Server
-  backup:
-    # The default (ReadWriteMany) needs storage that can share a volume, such as NFS; most default
-    # storage classes can't.
-    accessModes: [ReadWriteOnce]
 
 backend:
   config:

@@ -333,7 +333,9 @@ mssql:
     existingClaim: ""
     claimName: nfs-pvc
     size: 30Gi
-    accessModes: [ReadWriteMany]
+    # Only SQL Server mounts it, and its Recreate strategy never runs two at once. ReadWriteMany only
+    # if something else on another node has to mount it while SQL Server runs.
+    accessModes: [ReadWriteOnce]
     # With nfs.server: a PersistentVolume for this NFS export (named <namespace>-nfs-pv), bound to
     # the claim. Otherwise the claim is provisioned from storageClass.
     nfs:
