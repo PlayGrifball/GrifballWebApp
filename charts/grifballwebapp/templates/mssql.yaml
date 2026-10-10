@@ -227,6 +227,9 @@ spec:
               subPath: mssql-state/log
             - name: tmp
               mountPath: /tmp
+            {{- with $m.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: mssql-data
           persistentVolumeClaim:
@@ -238,6 +241,9 @@ spec:
         {{- end }}
         - name: tmp
           emptyDir: {}
+        {{- with $m.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with $m.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

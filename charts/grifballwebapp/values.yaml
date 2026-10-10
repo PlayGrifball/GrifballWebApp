@@ -392,6 +392,10 @@ mssql:
     runAsUser: 10001
     runAsGroup: 10001
   extraEnv: []
+  # More volumes on SQL Server's container - e.g. a folder of backups to restore from, mounted
+  # read-only (RESTORE ... FROM DISK reads it on SQL Server's side).
+  extraVolumes: []
+  extraVolumeMounts: []
   podAnnotations: {}
   podLabels: {}
   # SQL Server's image is amd64 only.
