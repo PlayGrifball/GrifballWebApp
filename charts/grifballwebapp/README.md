@@ -155,7 +155,7 @@ the administrator - creates and keeps in sync, on every run, passwords from your
 
 | Login | Used by | Can |
 | --- | --- | --- |
-| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema; not change its schema (no `CREATE`, owns nothing) or the server |
+| `grif_app` (`logins.app`) | the backend and its wait for the migrations | read and write the database's data - SQL Server: `db_datareader`, `db_datawriter`; PostgreSQL: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on every table and use of its sequences, in every schema (the row history tables only read: a trigger refuses writes by anyone but their owner); not change its schema (no `CREATE`, owns nothing) or the server |
 | `grif_monitor` (`logins.monitoring`) | sql-exporter (with `sqlExporter.enabled`, unless `sqlExporter.user` is set) | SQL Server: `VIEW SERVER STATE`, `VIEW ANY DEFINITION`, not open the database; PostgreSQL: `pg_monitor`, not read the app's tables |
 
 The backend pod then holds no administrator password. Backup retention and the scheduled backup still
@@ -250,7 +250,9 @@ in the folder are ignored, and finding none fails the Job. The restored database
 - PostgreSQL's folder is on `migrations.restore.volume` (any pod volume source: an NFS export, another
   claim), which the restore step mounts read-only at `/restore` (`directory`, default `/restore`). The
   dump is restored with `pg_restore --no-owner --no-privileges` into a new database under a temporary
-  name, renamed once complete; the login sync grants the app's rights afterwards.
+  name, renamed once complete; the login sync grants the app's rights afterwards. The row history comes
+  with it, and its triggers after the data, so restoring adds none; they then run as this administrator,
+  who owns everything restored.
 
 ```yaml
 migrations:
