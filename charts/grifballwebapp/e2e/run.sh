@@ -2,7 +2,8 @@
 # End-to-end test of the chart on a real cluster: ./run.sh bundled|external|minimal
 #
 # Needs kubectl and helm pointed at an empty cluster that enforces NetworkPolicies (k3s/k3d do), and
-# pulls the published app images. The backend itself can't get ready without a real Discord bot, so
+# runs the app images BACKEND_IMAGE and FRONTEND_IMAGE (repository:tag; default the published :test
+# ones - the workflow builds them from the checkout and imports them). The backend itself can't get ready without a real Discord bot, so
 # this checks everything around it.
 #
 # bundled (the chart's SQL Server) and external (one in another namespace), test images:
@@ -17,8 +18,8 @@
 #      backend starts;
 #   5. database dropped, backend restarted: it waits for the database; the Job recreates it with
 #      nothing to back up.
-# minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class aside, default
-# images: the Job creates the database (not the app), the backend gets as far as Discord, the site is
+# minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class and images aside:
+# the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
 set -euo pipefail
 
@@ -27,8 +28,12 @@ case "$scenario" in bundled|external|minimal) ;; *) echo "usage: $0 bundled|exte
 chart=$(cd "$(dirname "$0")/.." && pwd)
 ns=grif-e2e
 ext_ns=external-sql
-backend_tag=${BACKEND_TAG:-test}
-frontend_tag=${FRONTEND_TAG:-test}
+backend_image=${BACKEND_IMAGE:-ghcr.io/playgrifball/grifballwebappserver:test}
+frontend_image=${FRONTEND_IMAGE:-ghcr.io/playgrifball/grifballwebappclient:test}
+# Every helm install and upgrade runs these images, whatever the values say.
+images=(--set "backend.image.repository=${backend_image%:*}" --set "backend.image.tag=${backend_image##*:}"
+        --set "frontend.image.repository=${frontend_image%:*}" --set "frontend.image.tag=${frontend_image##*:}"
+        --set backend.image.pullPolicy=IfNotPresent --set frontend.image.pullPolicy=IfNotPresent)
 sql_image=mcr.microsoft.com/mssql/server:2025-latest
 password="E2e!$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')Aa1"
 work=$(mktemp -d)
@@ -127,7 +132,7 @@ kubectl -n "$ns" create secret generic grif-secrets \
 
 if [ "$scenario" = minimal ]; then
   step "Install ci/minimal-values.yaml"
-  helm install grif "$chart" -n "$ns" -f "$chart/ci/minimal-values.yaml" --set ingress.className=traefik
+  helm install grif "$chart" -n "$ns" -f "$chart/ci/minimal-values.yaml" --set ingress.className=traefik "${images[@]}"
   job=$(wait_job)
   job_logs "$job" > "$work/install.txt"; cat "$work/install.txt"
   expect "doesn't exist: the migration creates it." "$work/install.txt"
@@ -164,7 +169,6 @@ fi
 
 cat > "$work/values.yaml" <<EOF
 backend:
-  image: { tag: "$backend_tag" }
   config:
     BaseUrl: https://grifball.example
     Discord:
@@ -173,8 +177,6 @@ backend:
     Discord:ClientId: DiscordClientId
     Discord:ClientSecret: DiscordClientSecret
     Discord:Token: DiscordToken
-frontend:
-  image: { tag: "$frontend_tag" }
 sqlExporter:
   enabled: true
 EOF
@@ -231,7 +233,7 @@ EOF
 fi
 
 step "Install"
-helm install grif "$chart" -n "$ns" -f "$work/values.yaml"
+helm install grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
 job=$(wait_job)
 job_logs "$job" > "$work/install.txt"; cat "$work/install.txt"
 expect "doesn't exist: the migration creates it." "$work/install.txt"
@@ -261,7 +263,7 @@ fi
 kubectl -n "$ns" delete pod intruder --wait=false
 
 step "Upgrade, nothing pending"
-helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml"
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
 job=$(wait_job "$job")
 job_logs "$job" > "$work/upgrade.txt"; cat "$work/upgrade.txt"
 expect "Up to date." "$work/upgrade.txt"
@@ -294,7 +296,7 @@ kubectl -n "$ns" delete pod rollback --wait=true >/dev/null
 [ "$(migration_count)" = $(( count - 1 )) ] || fail "rollback didn't remove $latest"
 restart_backend
 expect_waiting "Waiting for the migration Job to apply: $latest"
-helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml"
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
 job=$(wait_job "$job")
 job_logs "$job" > "$work/pending.txt"; cat "$work/pending.txt"
 expect "Pending migrations:" "$work/pending.txt"
@@ -311,7 +313,7 @@ sql "ALTER DATABASE GrifballWebApp SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP
 [ "$(migration_count)" = -1 ] || fail "database not dropped"
 restart_backend
 expect_waiting "Waiting for the migration Job to create database GrifballWebApp."
-helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml"
+helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}"
 job=$(wait_job "$job")
 job_logs "$job" > "$work/dropped.txt"; cat "$work/dropped.txt"
 expect "doesn't exist: the migration creates it." "$work/dropped.txt"

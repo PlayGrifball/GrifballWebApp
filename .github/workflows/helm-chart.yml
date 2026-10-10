@@ -9,10 +9,10 @@ name: Helm chart
 on:
   pull_request:
     branches: [ "master" ]
-    paths: [ "charts/**", ".github/workflows/helm-chart.yml" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
   push:
     branches: [ "master" ]
-    paths: [ "charts/**", ".github/workflows/helm-chart.yml" ]
+    paths: [ "charts/**", ".github/workflows/helm-chart.yml", "GrifballWebApp.Server/Dockerfile", "grifballwebapp.client/Dockerfile" ]
   workflow_dispatch:
 
 env:
@@ -98,6 +98,27 @@ jobs:
 
       - uses: azure/setup-helm@v4
 
+      # The app images from this checkout: the chart's migration steps need what the backend image
+      # carries (sqlcmd, the bundle), so the published ones may not do.
+      - uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      - name: Backend image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          load: true
+          tags: grif-backend:e2e
+          cache-from: type=gha
+
+      - name: Frontend image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: grifballwebapp.client
+          load: true
+          tags: grif-frontend:e2e
+          cache-from: type=gha
+
       - name: Cluster
         run: |
           set -euo pipefail
@@ -107,8 +128,12 @@ jobs:
           if [ "${{ matrix.database }}" = minimal ]; then traefik=(); fi
           k3d cluster create e2e --image rancher/k3s:v1.33.5-k3s1 --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl get nodes
+          k3d image import grif-backend:e2e grif-frontend:e2e -c e2e
 
       - name: End-to-end (${{ matrix.database }})
+        env:
+          BACKEND_IMAGE: grif-backend:e2e
+          FRONTEND_IMAGE: grif-frontend:e2e
         run: ${{ env.CHART }}/e2e/run.sh ${{ matrix.database }}
 
   publish:

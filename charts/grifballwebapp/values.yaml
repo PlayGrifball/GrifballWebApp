@@ -72,10 +72,10 @@ backend:
     # CreateDatabase: false
     # The site's home page, used in links the app sends (required). Ex: https://grifball.example
     # BaseUrl: ""
-    Discord:
-      # Don't send Discord messages (default false). The bot still connects: ClientId, ClientSecret,
-      # Token and DraftChannel are always required.
-      DisableGlobally: true
+    # Discord:
+    #   # Don't send Discord messages (default false). The bot still connects: ClientId,
+    #   # ClientSecret, Token and DraftChannel are always required.
+    #   DisableGlobally: false
       # ClientId / ClientSecret (Discord OAuth login) and Token (the bot) are secrets: set them
       # through secretConfig.
       # Channel IDs. DraftChannel is required; the queue and events services also stop without
@@ -299,9 +299,10 @@ mssql:
   acceptEula: false
   image:
     repository: mcr.microsoft.com/mssql/server
-    # A major version's channel; pin a digest so a restart can't upgrade SQL Server. Databases are
-    # upgraded in place on a newer version's first start and can't go back.
-    tag: 2025-latest
+    # A major version's channel, pinned by digest so a restart can't upgrade SQL Server: databases
+    # are upgraded in place on a newer version's first start and can't go back. Renovate updates the
+    # digest.
+    tag: 2025-latest@sha256:2b5b581621126574f3d1f75e78d3eebe8d05aedb59ad0cfdf9aa42cb0634d726
     digest: ""
     pullPolicy: IfNotPresent
   # MSSQL_PID: the edition (Developer, Express, Standard, ... or a product key). Empty: Developer.
@@ -352,7 +353,10 @@ mssql:
       cpu: "1"
   # Creates the folders SQL Server writes outside data and backup on the data volume, owned by its
   # user (10001); with a read-only root filesystem they live there.
-  initImage: docker.io/library/busybox:1.38
+  initImage:
+    repository: docker.io/library/busybox
+    tag: 1.38@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e
+    pullPolicy: IfNotPresent
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault
@@ -361,7 +365,9 @@ mssql:
   extraEnv: []
   podAnnotations: {}
   podLabels: {}
-  nodeSelector: {}
+  # SQL Server's image is amd64 only.
+  nodeSelector:
+    kubernetes.io/arch: amd64
   tolerations: []
   affinity: {}
 
@@ -370,8 +376,10 @@ mssql:
 # (files/mssql_standard.collector.yml). Works against the chart's SQL Server or an external one.
 sqlExporter:
   enabled: false
-  image: docker.io/burningalchemist/sql_exporter:0.24.9
-  imagePullPolicy: IfNotPresent
+  image:
+    repository: docker.io/burningalchemist/sql_exporter
+    tag: 0.24.9@sha256:6c554722faccd4b54342ccd765f87b26e8e65fba2a8cddc60bec6de336ecf2e0
+    pullPolicy: IfNotPresent
   # The login. Empty: database.user and database.password. It needs VIEW SERVER STATE and VIEW ANY
   # DEFINITION, nothing more. The password is percent-encoded into the connection URL at start.
   user: ""
@@ -417,6 +425,8 @@ sqlExporter:
 #   3. if the database exists and lacks some, backs it up (backup);
 #   4. your own steps (extraInitContainers);
 #   5. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
+# Every step runs in the backend image being deployed, which carries the bundle, its migration list
+# and sqlcmd - nothing else to pull, and the same platforms as the app.
 # With nothing pending, steps 3-5 do nothing. Backend pods only wait (init containers) until the
 # database has every migration in their image, then start; they never change it, so a deploy that
 # skips the Job leaves them waiting rather than migrating without a backup.
@@ -439,13 +449,10 @@ migrations:
   # A failed migration is usually deterministic; retries are off.
   backoffLimit: 0
   activeDeadlineSeconds: 1800
-  # sqlcmd, for the comparison and the backup (the Job) and the wait (backend pods).
-  sqlcmdImage: mcr.microsoft.com/mssql-tools:latest
-  imagePullPolicy: IfNotPresent
   # Replace one of the Job's step scripts (run with /bin/sh -c). Empty: the chart's. Steps share
   # /work: check-pending writes pending.txt (one migration per line) and db-exists; the connection is
-  # in DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, the backup folder in BACKUP_DIR. migrate runs
-  # in the backend image.
+  # in DB_HOST, DB_PORT, DB_NAME, DB_USER and SQLCMDPASSWORD (migrate: ConnectionStrings__GrifballWebApp),
+  # the backup folder in BACKUP_DIR. Every step runs in the backend image, with sqlcmd (go-sqlcmd).
   scripts:
     checkPending: ""
     backup: ""

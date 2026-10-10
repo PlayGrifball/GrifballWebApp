@@ -171,7 +171,8 @@ spec:
         # machine key, its error log) in mssql-state/ on the data volume; kubelet would create those
         # subPath folders root-owned.
         - name: fix-permissions-data
-          image: {{ $m.initImage }}
+          image: {{ include "grif.image" $m.initImage }}
+          imagePullPolicy: {{ $m.initImage.pullPolicy }}
           command: ["sh", "-c", "mkdir -p /var/opt/mssql/data/mssql-state/.system /var/opt/mssql/data/mssql-state/secrets /var/opt/mssql/data/mssql-state/log && chown -R 10001:0 /var/opt/mssql/data"]
           securityContext:
             readOnlyRootFilesystem: true

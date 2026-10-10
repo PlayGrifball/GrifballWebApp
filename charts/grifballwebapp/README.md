@@ -21,7 +21,6 @@ backend:
   config:
     BaseUrl: https://grifball.example.com
     Discord:
-      DisableGlobally: false
       # Quote IDs. DraftChannel is required; the queue and events services stop without the others.
       DraftChannel: "123456789012345678"
       QueueChannel: "123456789012345679"
@@ -59,7 +58,14 @@ and later backs it up before applying new migrations. Halo Infinite
 stat pulls also need `ClientConfiguration:ClientId`, `ClientSecret` and `RedirectUrl` in
 `secretConfig`; Google Sheets imports need `backend.googleCredentials` and `GoogleSheets:Sheets`.
 
-Every value is described in [values.yaml](values.yaml).
+Every value is described in [values.yaml](values.yaml); [values.schema.json](values.schema.json) checks them, so
+a misspelled or unknown key, or a value of the wrong type, fails the install instead of being ignored.
+
+## Platforms
+
+The app images are built for linux/amd64 and linux/arm64. SQL Server's image is amd64 only, so the
+chart's SQL Server runs on amd64 nodes (`mssql.nodeSelector`); everything else runs on either. The
+third-party images the chart uses by default (SQL Server, busybox, sql_exporter) are pinned by digest.
 
 ## One release per namespace
 
@@ -140,7 +146,12 @@ the same revision every time, so the same spec keeps the same Job; delete it and
 (after restoring a backup, say). A failed Job isn't retried (`migrations.backoffLimit`): fix the cause,
 delete it, sync again.
 
-Each step's script can be replaced (`migrations.scripts`); `extraEnv`, the sqlcmd image, annotations,
+Every step runs in the backend image being deployed, which carries the bundle, its migration list and
+sqlcmd (Microsoft's go-sqlcmd), so there is no other image to pull; the password reaches sqlcmd as
+`SQLCMDPASSWORD`, never on a command line. The chart needs a backend image built with sqlcmd (from
+this chart's first version on).
+
+Each step's script can be replaced (`migrations.scripts`); `extraEnv`, annotations,
 labels, security contexts, scheduling and resources are values. `migrations.enabled: false` leaves
 migrating to the app (`ApplyMigrations`, `CreateDatabase`), without backups.
 

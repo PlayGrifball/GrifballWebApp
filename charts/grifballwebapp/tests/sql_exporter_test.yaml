@@ -66,3 +66,11 @@ tests:
         documentIndex: 3
       - equal: { path: spec.selector.matchLabels, value: { app.kubernetes.io/instance: RELEASE-NAME, app.kubernetes.io/component: sql-exporter } }
         documentIndex: 3
+
+  - it: runs its pinned image
+    documentIndex: 1
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^docker\.io/burningalchemist/sql_exporter:0\.24\.9@sha256:[0-9a-f]{64}$' }
+      - equal: { path: "spec.template.spec.containers[0].imagePullPolicy", value: IfNotPresent }

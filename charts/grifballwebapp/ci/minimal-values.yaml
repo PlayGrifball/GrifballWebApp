@@ -7,7 +7,6 @@ backend:
   config:
     BaseUrl: https://grifball.example.com
     Discord:
-      DisableGlobally: false
       # Quote IDs. DraftChannel is required; the queue and events services stop without the others.
       DraftChannel: "123456789012345678"
       QueueChannel: "123456789012345679"

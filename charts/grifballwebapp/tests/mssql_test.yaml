@@ -60,7 +60,7 @@ tests:
       mssql.acceptEula: true
       mssql.loadBalancer: { enabled: true, port: 14330 }
       mssql.edition: Express
-      mssql.image.digest: sha256:abc
+      mssql.image: { tag: 2025-latest, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
     asserts:
       - equal: { path: spec.type, value: LoadBalancer }
         documentIndex: 3
@@ -68,7 +68,7 @@ tests:
         documentIndex: 3
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: MSSQL_PID, value: Express } }
         documentIndex: 4
-      - equal: { path: "spec.template.spec.containers[0].image", value: "mcr.microsoft.com/mssql/server:2025-latest@sha256:abc" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "mcr.microsoft.com/mssql/server:2025-latest@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
         documentIndex: 4
 
   - it: gives the backup claim ReadWriteOnce by default (only SQL Server mounts it)
@@ -85,3 +85,12 @@ tests:
       - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-2" }
       - notExists: { path: "spec.template.metadata.annotations['argocd.argoproj.io/sync-wave']" }
         documentIndex: 3
+
+  - it: runs only on amd64 nodes (SQL Server's image is amd64 only), its init container pinned
+    set:
+      mssql.acceptEula: true
+    documentIndex: 3
+    asserts:
+      - equal: { path: spec.template.spec.nodeSelector, value: { kubernetes.io/arch: amd64 } }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].image", pattern: '^docker\.io/library/busybox:1\.38@sha256:[0-9a-f]{64}$' }
+      - matchRegex: { path: "spec.template.spec.containers[0].image", pattern: '^mcr\.microsoft\.com/mssql/server:2025-latest@sha256:[0-9a-f]{64}$' }

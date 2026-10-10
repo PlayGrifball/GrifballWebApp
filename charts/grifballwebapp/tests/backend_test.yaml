@@ -115,16 +115,23 @@ tests:
   - it: pins the image by digest
     documentIndex: 1
     set:
-      backend.image: { tag: prod, digest: "sha256:abc" }
+      backend.image: { tag: prod, digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
     asserts:
-      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:abc" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
 
   - it: takes tag@digest as Image Updater writes it
     documentIndex: 1
     set:
-      backend.image: { tag: "prod@sha256:def", digest: "sha256:abc" }
+      backend.image: { tag: "prod@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
     asserts:
-      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:def" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+
+  - it: lets digest replace a digest in the tag
+    documentIndex: 1
+    set:
+      backend.image: { tag: "prod@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+    asserts:
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
 
   - it: sets OpenTelemetry, service name defaulting to the namespace
     documentIndex: 1
@@ -185,9 +192,9 @@ tests:
   - it: takes a bare digest in tag
     documentIndex: 1
     set:
-      backend.image: { tag: "sha256:fed", digest: "" }
+      backend.image: { tag: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", digest: "" }
     asserts:
-      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver@sha256:fed" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" }
 
   - it: requires an endpoint when telemetry is enabled
     set:
@@ -195,3 +202,22 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: backend.telemetry.endpoint is required when telemetry is enabled
+
+  - it: leaves Discord notifications to the app's default (on)
+    documentIndex: 1
+    asserts:
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: Discord__DisableGlobally, value: "true" } }
+
+  - it: rejects values the chart doesn't have (values.schema.json)
+    set:
+      networkPolicy.kubernetesApi: { ports: [6443] }
+    asserts:
+      - failedTemplate:
+          errorPattern: "additional properties 'kubernetesApi' not allowed"
+
+  - it: rejects a malformed digest
+    set:
+      backend.image.digest: sha256:abc
+    asserts:
+      - failedTemplate:
+          errorPattern: "/backend/image/digest"

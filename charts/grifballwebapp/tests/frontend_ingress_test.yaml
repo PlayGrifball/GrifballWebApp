@@ -12,10 +12,10 @@ tests:
     template: templates/frontend.yaml
     documentIndex: 0
     set:
-      frontend.image: { tag: test, digest: sha256:abc }
+      frontend.image: { tag: test, digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa }
     asserts:
       - equal: { path: spec.template.spec.automountServiceAccountToken, value: false }
-      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappclient:test@sha256:abc" }
+      - equal: { path: "spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappclient:test@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
       - equal: { path: spec.selector.matchLabels, value: { app: grif-frontend } }
 
   - it: renders no ingress by default

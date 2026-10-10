@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "grifballwebapp values",
+  "description": "Strict where the chart defines the structure (unknown keys and wrong types fail the render); free-form where values pass through to Kubernetes or to the app. values.yaml describes each value.",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": ["string", "number"] },
+        "digest": { "type": "string", "pattern": "^(sha256:[0-9a-f]{64})?$" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "secretKeyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secretName": { "type": "string" },
+        "key": { "type": "string" }
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] }
+    },
+    "k8sObject": { "type": "object" },
+    "k8sList": { "type": "array" },
+    "storageSize": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?(Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$" },
+    "accessModes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany", "ReadWriteOncePod"] }
+    },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "probe": { "type": ["object", "null"] },
+    "peers": { "type": "array", "items": { "type": "object" } },
+    "rules": { "type": "array", "items": { "type": "object" } }
+  },
+  "properties": {
+    "secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "create": { "type": "boolean" },
+        "stringData": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "defaultServiceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "manage": { "type": "boolean" } }
+    },
+    "imagePullSecrets": { "$ref": "#/definitions/k8sList" },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string" },
+        "port": { "$ref": "#/definitions/port" },
+        "name": { "type": "string", "minLength": 1 },
+        "user": { "type": "string", "minLength": 1 },
+        "password": { "$ref": "#/definitions/secretKeyRef" },
+        "options": { "type": "string" },
+        "connectionString": { "$ref": "#/definitions/secretKeyRef" }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "strategy": { "$ref": "#/definitions/k8sObject" },
+        "port": { "$ref": "#/definitions/port" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+            "annotations": { "$ref": "#/definitions/stringMap" }
+          }
+        },
+        "config": {
+          "description": "appsettings.json settings, nested the same way; any setting the app reads.",
+          "type": "object"
+        },
+        "secretConfig": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["key"],
+                "properties": {
+                  "secretName": { "type": "string" },
+                  "key": { "type": "string", "minLength": 1 },
+                  "optional": { "type": "boolean" }
+                }
+              }
+            ]
+          }
+        },
+        "telemetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "endpoint": { "type": "string" },
+            "protocol": { "enum": ["grpc", "http/protobuf"] },
+            "serviceName": { "type": "string" },
+            "environment": { "type": "string" },
+            "resourceAttributes": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } },
+            "metricExportInterval": { "type": ["string", "integer"] },
+            "consoleExporter": { "type": "boolean" }
+          }
+        },
+        "googleCredentials": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secretName": { "type": "string" },
+            "key": { "type": "string", "minLength": 1 },
+            "mountPath": { "type": "string", "minLength": 1 },
+            "optional": { "type": "boolean" }
+          }
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "existingClaim": { "type": "string" },
+            "claimName": { "type": "string", "minLength": 1 },
+            "size": { "$ref": "#/definitions/storageSize" },
+            "storageClass": { "type": "string" },
+            "accessModes": { "$ref": "#/definitions/accessModes" },
+            "annotations": { "$ref": "#/definitions/stringMap" },
+            "mountPath": { "type": "string", "minLength": 1 }
+          }
+        },
+        "startupProbe": { "$ref": "#/definitions/probe" },
+        "livenessProbe": { "$ref": "#/definitions/probe" },
+        "readinessProbe": { "$ref": "#/definitions/probe" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "extraEnvFrom": { "$ref": "#/definitions/k8sList" },
+        "extraVolumes": { "$ref": "#/definitions/k8sList" },
+        "extraVolumeMounts": { "$ref": "#/definitions/k8sList" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "image": { "$ref": "#/definitions/image" },
+        "replicas": { "type": "integer", "minimum": 0 },
+        "strategy": { "$ref": "#/definitions/k8sObject" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "type": { "enum": ["ClusterIP", "NodePort", "LoadBalancer"] },
+            "port": { "$ref": "#/definitions/port" },
+            "annotations": { "$ref": "#/definitions/stringMap" }
+          }
+        },
+        "readinessProbe": { "$ref": "#/definitions/probe" },
+        "livenessProbe": { "$ref": "#/definitions/probe" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "extraVolumes": { "$ref": "#/definitions/k8sList" },
+        "extraVolumeMounts": { "$ref": "#/definitions/k8sList" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "className": { "type": "string" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "hosts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "tls": { "$ref": "#/definitions/k8sList" }
+      }
+    },
+    "ingressRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "name": { "type": "string", "minLength": 1 },
+        "entryPoints": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "host": { "type": "string" },
+        "middlewares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": { "name": { "type": "string" }, "namespace": { "type": "string" } }
+          }
+        },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "secretName": { "type": "string" } }
+        },
+        "annotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "mssql": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "acceptEula": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "edition": { "type": "string" },
+        "saPassword": { "$ref": "#/definitions/secretKeyRef" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "port": { "$ref": "#/definitions/port" }
+          }
+        },
+        "loadBalancer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "name": { "type": "string", "minLength": 1 },
+            "port": { "$ref": "#/definitions/port" },
+            "annotations": { "$ref": "#/definitions/stringMap" }
+          }
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingClaim": { "type": "string" },
+            "claimName": { "type": "string", "minLength": 1 },
+            "size": { "$ref": "#/definitions/storageSize" },
+            "storageClass": { "type": "string" },
+            "accessModes": { "$ref": "#/definitions/accessModes" },
+            "annotations": { "$ref": "#/definitions/stringMap" }
+          }
+        },
+        "backup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "existingClaim": { "type": "string" },
+            "claimName": { "type": "string", "minLength": 1 },
+            "size": { "$ref": "#/definitions/storageSize" },
+            "accessModes": { "$ref": "#/definitions/accessModes" },
+            "nfs": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "server": { "type": "string" }, "path": { "type": "string" } }
+            },
+            "storageClass": { "type": "string" },
+            "annotations": { "$ref": "#/definitions/stringMap" }
+          }
+        },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "initImage": { "$ref": "#/definitions/image" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "sqlExporter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "user": { "type": "string" },
+        "password": { "$ref": "#/definitions/secretKeyRef" },
+        "dsnOptions": { "type": "string" },
+        "collectors": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "extraCollectorFiles": { "type": "object", "additionalProperties": { "type": "string" } },
+        "config": { "type": "string" },
+        "port": { "$ref": "#/definitions/port" },
+        "serviceMonitor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "interval": { "type": "string" },
+            "labels": { "$ref": "#/definitions/stringMap" },
+            "relabelings": { "$ref": "#/definitions/k8sList" }
+          }
+        },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "migrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "backup": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "enabled": { "type": "boolean" }, "directory": { "type": "string" } }
+        },
+        "databaseWaitSeconds": { "type": "integer", "minimum": 1 },
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+        "scripts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "checkPending": { "type": "string" },
+            "backup": { "type": "string" },
+            "migrate": { "type": "string" }
+          }
+        },
+        "extraInitContainers": { "$ref": "#/definitions/k8sList" },
+        "extraEnv": { "$ref": "#/definitions/k8sList" },
+        "annotations": { "$ref": "#/definitions/stringMap" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "dns": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "to": { "$ref": "#/definitions/peers" } }
+        },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "to": { "$ref": "#/definitions/peers" } }
+        },
+        "frontend": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "backend": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "httpsTo": { "$ref": "#/definitions/peers" },
+            "telemetryTo": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "mssql": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "loadBalancerFrom": { "$ref": "#/definitions/peers" },
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "migrations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "extraEgress": { "$ref": "#/definitions/rules" } }
+        },
+        "sqlExporter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": { "$ref": "#/definitions/peers" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "extraPolicies": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "extraObjects": { "type": "array", "items": { "type": "object" } },
+    "global": { "type": "object" }
+  }
+}

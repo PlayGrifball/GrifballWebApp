@@ -6,11 +6,12 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/* repository:tag, repository:tag@digest, or repository@digest; tag may itself be tag@sha256:... or
-   sha256:... (what Image Updater may write). Takes an image values block. */}}
+{{/* repository:tag, repository:tag@digest, or repository@digest. tag may itself carry a digest (tag@sha256:...
+   or sha256:..., what Image Updater writes); digest, when set, replaces it. Takes an image values block. */}}
 {{- define "grif.image" -}}
 {{- $ref := .repository -}}
 {{- $tag := toString (.tag | default "") -}}
+{{- if .digest }}{{ $tag = regexReplaceAll "@.*$" $tag "" }}{{ if hasPrefix "sha256:" $tag }}{{ $tag = "" }}{{ end }}{{ end -}}
 {{- if hasPrefix "sha256:" $tag }}{{ $ref = printf "%s@%s" $ref $tag }}
 {{- else if $tag }}{{ $ref = printf "%s:%s" $ref $tag }}{{ end -}}
 {{- if and .digest (not (contains "@" $ref)) }}{{ $ref = printf "%s@%s" $ref .digest }}{{ end -}}
@@ -113,7 +114,12 @@ skipped. Takes dict "name" (prefix, "" at the top) and "value".
   value: {{ .Values.database.name | quote }}
 - name: DB_USER
   value: {{ .Values.database.user | quote }}
-{{ include "grif.dbPasswordEnv" . }}
+# sqlcmd reads the password from here, so it is never on a command line.
+- name: SQLCMDPASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "grif.secretName" (dict "secretName" .Values.database.password.secretName "root" .) }}
+      key: {{ .Values.database.password.key }}
 {{- end }}
 
 {{/* DB_PASSWORD and the connection string the migration bundle reads, from database. */}}
