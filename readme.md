@@ -155,8 +155,50 @@ dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
 ```
 
-SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
-current rows. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both. Postgres's server is built
+from `docker/postgres-periods` (below) at the start of the run, about 15 seconds.
+
+#### Row history
+SQL Server keeps every row's earlier versions: each table is temporal, with a `<Table>History` table beside it.
+Postgres does the same when the database has the [periods](https://github.com/xocolatl/periods) extension
+(SQL-standard `SYSTEM VERSIONING`); without it, only the current rows. The extension is the switch: the `RowHistory`
+migration gives every table a `SYSTEM_TIME` period (`PeriodStart`, `PeriodEnd`, as on SQL Server) and versioning if
+the database has it when the migration runs, and does nothing if not. Every update and delete - cascades included -
+then keeps the old row in `<table>_history`, with the time it was current. Inserting, updating and deleting are as
+they were; the period columns aren't in the model, and the database fills them.
+
+Reading it, on the database's clock (`timestamptz`):
+```sql
+SELECT * FROM "Event"."Seasons__as_of"('2026-06-01 12:00+00');          -- the rows as they were then
+SELECT * FROM "Event"."Seasons__between"('2026-06-01', '2026-07-01');    -- every version current in between
+SELECT * FROM "Event"."Seasons_with_history" WHERE "SeasonID" = 4 ORDER BY "PeriodStart";  -- one row's versions
+```
+or into the entities, which ignore the period columns:
+```csharp
+var then = await context.Seasons.FromSql($"SELECT * FROM \"Event\".\"Seasons__as_of\"({time})").AsNoTracking().ToListAsync();
+```
+
+To have it:
+- **The server**: periods isn't in the official images or Alpine's packages. `docker/postgres-periods` builds it from
+  source on the Helm chart's `postgres:18-alpine` (with two fixes to periods, explained there); master publishes it as
+  `ghcr.io/playgrifball/postgres-periods:18-alpine`. Managed services (RDS, Cloud SQL, Azure, Neon, Supabase) don't
+  offer the extension.
+- **The database**: `CREATE EXTENSION periods CASCADE;` as a superuser (it isn't a trusted extension), before the
+  migrations, then `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA periods FROM PUBLIC;`: its functions run as their owner
+  and check nothing, so any login could otherwise turn a table's history off, or purge it. The Helm chart does both
+  with `database.history.enabled` (its README, Row history), after the migrations, and versions the tables of a
+  database migrated before it had the extension: its `grif.pgHistoryScript` (`templates/_postgres.tpl`) does that
+  for any database.
+- **The app's login**, if not the owner: privileges on each table but the history tables and views (periods refuses
+  `GRANT ... ON ALL TABLES IN SCHEMA` once they exist); it can then read the history, never change it.
+
+Later migrations need nothing special. On a versioned table, a plain `ALTER TABLE` goes wrong (an added column is left
+out of the history; changing a column's type, dropping a column or the table fail; renaming a column succeeds, then
+every update fails), so Postgres's migrations SQL generator (`RowHistoryMigrationsSqlGenerator`) suspends versioning
+around each such change, makes it to the history table too and resumes it, keeping the history - if, as the migration
+runs, the table has versioning. A new table is versioned if the database has the extension. Raw `migrationBuilder.Sql`
+gets none of this. Mind that `TRUNCATE` empties a table's history too, and that a dump of such a database restores
+only where periods is installed, with `pg_restore --no-privileges` (as the chart's restore does).
 
 ### Running the Application
 

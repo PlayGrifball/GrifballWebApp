@@ -40,7 +40,7 @@ Automatically runs unit tests on every pull request and push to the master branc
 
 ### Database Testing
 The tests use Testcontainers to provision an isolated database server, one per matrix job (`GRIF_TEST_DATABASE`):
-- **Images**: `mcr.microsoft.com/mssql/server:2022-latest` (`SqlServer`, the default), `postgres:18-alpine` (`Postgres`)
+- **Images**: `mcr.microsoft.com/mssql/server:2022-latest` (`SqlServer`, the default); for `Postgres`, `docker/postgres-periods` (PostgreSQL 18 on `postgres:18-alpine` with the periods extension, for the row history tests), built at the start of the run
 - **Isolation**: Each test gets a unique database
 - **Cleanup**: Automatic container disposal after tests
 
