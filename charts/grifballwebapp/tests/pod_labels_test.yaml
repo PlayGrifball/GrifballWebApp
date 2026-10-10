@@ -1,0 +1,28 @@
+suite: pod labels
+templates:
+  - templates/backend.yaml
+  - templates/frontend.yaml
+  - templates/mssql.yaml
+  - templates/sql-exporter.yaml
+  - templates/migrations-job.yaml
+set:
+  mssql.acceptEula: true
+  sqlExporter.enabled: true
+chart:
+  version: 9.9.9
+tests:
+  - it: keeps the chart's version out of pod templates, so a new chart version alone restarts nothing
+    documentSelector:
+      path: kind
+      value: Deployment
+      matchMany: true
+      skipEmptyTemplates: true
+    asserts:
+      - notExists: { path: 'spec.template.metadata.labels["helm.sh/chart"]' }
+      - equal: { path: 'spec.template.metadata.labels["app.kubernetes.io/instance"]', value: RELEASE-NAME }
+      - equal: { path: 'metadata.labels["helm.sh/chart"]', value: grifballwebapp-9.9.9 }
+
+  - it: names the migration Job the same whatever the chart's version
+    template: templates/migrations-job.yaml
+    asserts:
+      - notExists: { path: 'spec.template.metadata.labels["helm.sh/chart"]' }
