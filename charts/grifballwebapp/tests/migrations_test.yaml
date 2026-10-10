@@ -148,3 +148,9 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: ApplyMigrations, value: "true" } }
         template: templates/backend.yaml
         documentIndex: 1
+
+  - it: compares migrations with awk (BusyBox grep -f matches everything on an empty pattern file)
+    template: templates/migrations-job.yaml
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "awk 'FILENAME == ARGV\\[1\\]" }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "grep -vxF" }

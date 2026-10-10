@@ -16,6 +16,15 @@ sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NA
   > /work/applied.txt
 {{- end }}
 
+{{/*
+The image's migrations the database lacks (/work/applied.txt), one per line. awk, not grep -vxF -f: BusyBox
+grep (Alpine, the backend image) matches every line against an empty pattern file, so a database with
+no migrations would look up to date.
+*/}}
+{{- define "grif.pendingMigrations" -}}
+awk 'FILENAME == ARGV[1] { if ($0 != "") applied[$0]; next } !($0 in applied)' /work/applied.txt /app/migrations.txt
+{{- end }}
+
 {{- define "grif.migrationSmallResources" -}}
 requests:
   cpu: 10m
@@ -53,7 +62,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
           if grep -qxF NO_DATABASE /work/applied.txt; then
             state="Waiting for the migration Job to create database $DB_NAME."
           else
-            grep -vxF -f /work/applied.txt /app/migrations.txt > /work/pending.txt || true
+            {{ include "grif.pendingMigrations" . }} > /work/pending.txt
             if [ ! -s /work/pending.txt ]; then echo "Database $DB_NAME is up to date."; exit 0; fi
             state="Waiting for the migration Job to apply: $(tr '\n' ' ' < /work/pending.txt)"
           fi
@@ -116,7 +125,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       else
         touch /work/db-exists
       fi
-      grep -vxF -f /work/applied.txt /app/migrations.txt > /work/pending.txt || true
+      {{ include "grif.pendingMigrations" . }} > /work/pending.txt
       if [ -s /work/pending.txt ]; then
         echo "Pending migrations:"; cat /work/pending.txt
       else
