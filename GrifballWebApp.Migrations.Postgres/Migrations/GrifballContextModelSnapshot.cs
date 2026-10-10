@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
@@ -21,7 +22,185 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gist");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("AvailabilityOptionsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("integer")
+                        .HasColumnName("DayOfWeek");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<TimeOnly?>("Time")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("Time");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("AvailabilityOptionID", "Valid")
+                        .HasDatabaseName("AK_AvailabilityOptionsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("AvailabilityOptionID", "Valid"), "gist");
+
+                    b.ToTable("AvailabilityOptionsHistory", "Event");
+                });
+
+            modelBuilder.Entity("DataProtectionKeysHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text")
+                        .HasColumnName("FriendlyName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text")
+                        .HasColumnName("Xml")
+                        .UseCollation("case_insensitive");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_DataProtectionKeysHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("DataProtectionKeysHistory", "Auth");
+                });
+
+            modelBuilder.Entity("DiscordHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long>("DiscordUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<string>("DiscordUsername")
+                        .HasColumnType("text")
+                        .HasColumnName("DiscordUsername")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("DiscordUserID", "Valid")
+                        .HasDatabaseName("AK_DiscordHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("DiscordUserID", "Valid"), "gist");
+
+                    b.ToTable("DiscordHistory", "User");
+                });
+
+            modelBuilder.Entity("GameVersionsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("GameVersionName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("GameVersionName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("GameVesionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("GameVesionID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("GameVesionID", "Valid")
+                        .HasDatabaseName("AK_GameVersionsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("GameVesionID", "Valid"), "gist");
+
+                    b.ToTable("GameVersionsHistory", "Other");
+                });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption", b =>
                 {
@@ -45,6 +224,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<TimeOnly>("Time")
                         .HasColumnType("time without time zone");
@@ -81,6 +265,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
@@ -119,6 +308,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User");
@@ -149,6 +343,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("GameVesionID");
 
@@ -225,6 +424,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -274,6 +478,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoundNumber")
                         .HasColumnType("integer");
 
@@ -322,6 +531,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("SeasonMatchID")
                         .HasColumnType("integer");
@@ -407,6 +621,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
@@ -560,6 +779,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("Outcome")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("Score")
                         .HasColumnType("integer");
 
@@ -590,6 +814,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("MatchId", "VoterMatchedPlayerId");
 
@@ -631,6 +860,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -681,6 +915,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserID")
                         .HasColumnType("integer");
 
@@ -713,6 +952,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MatchedTeamId");
 
                     b.ToTable("MatchedTeams", "Matchmaking");
@@ -737,6 +981,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("WinnerVote")
                         .HasColumnType("integer");
@@ -779,6 +1028,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
 
@@ -818,6 +1072,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MedalDifficultyID");
 
                     b.ToTable("MedalDifficulties", "Infinite");
@@ -849,6 +1108,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("TotalPersonalScoreAwarded")
                         .HasColumnType("integer");
 
@@ -879,6 +1143,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("MedalTypeID");
 
@@ -912,6 +1181,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -953,6 +1227,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("UserID");
 
@@ -1001,6 +1280,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("Id");
 
                     b.ToTable("Ranks", "Matchmaking");
@@ -1025,6 +1309,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("RegionName")
                         .IsRequired()
@@ -1119,6 +1408,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(256)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
@@ -1183,6 +1477,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime>("PublicAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1231,6 +1530,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("SeasonID", "AvailabilityOptionID");
 
@@ -1283,6 +1587,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -1328,6 +1637,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<bool>("RequiresAssistanceDrafting")
                         .HasColumnType("boolean");
@@ -1378,6 +1692,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("SeasonSignupID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
@@ -1407,6 +1726,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
@@ -1449,6 +1773,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("TeamID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
@@ -1484,6 +1813,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("TeamID")
                         .HasColumnType("integer");
@@ -1577,6 +1911,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1656,6 +1995,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
@@ -1686,6 +2030,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserID", "GameVersionID");
 
                     b.HasIndex("GameVersionID");
@@ -1714,6 +2063,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text")
@@ -1749,6 +2103,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserId", "RoleId");
 
                     b.HasIndex("RoleId");
@@ -1778,9 +2137,962 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("XboxUserID");
 
                     b.ToTable("XboxUsers", "Xbox");
+                });
+
+            modelBuilder.Entity("MatchBracketInfoHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int?>("AwayTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamPreviousMatchBracketInfoID");
+
+                    b.Property<int?>("AwayTeamSeedNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamSeedNumber");
+
+                    b.Property<int?>("Bracket")
+                        .HasColumnType("integer")
+                        .HasColumnName("Bracket");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamPreviousMatchBracketInfoID");
+
+                    b.Property<int?>("HomeTeamSeedNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamSeedNumber");
+
+                    b.Property<int>("MatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchBracketInfoID");
+
+                    b.Property<int?>("MatchNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchNumber");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("RoundNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundNumber");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchBracketInfoID", "Valid")
+                        .HasDatabaseName("AK_MatchBracketInfoHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchBracketInfoID", "Valid"), "gist");
+
+                    b.ToTable("MatchBracketInfoHistory", "Event");
+                });
+
+            modelBuilder.Entity("MatchLinksHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<int>("MatchLinkID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchLinkID");
+
+                    b.Property<int?>("MatchNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchNumber");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchLinkID", "Valid")
+                        .HasDatabaseName("AK_MatchLinksHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchLinkID", "Valid"), "gist");
+
+                    b.ToTable("MatchLinksHistory", "Event");
+                });
+
+            modelBuilder.Entity("MatchParticipantsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<float?>("Accuracy")
+                        .HasColumnType("real")
+                        .HasColumnName("Accuracy");
+
+                    b.Property<int?>("Assists")
+                        .HasColumnType("integer")
+                        .HasColumnName("Assists");
+
+                    b.Property<TimeSpan?>("AverageLife")
+                        .HasColumnType("interval")
+                        .HasColumnName("AverageLife");
+
+                    b.Property<int?>("Betrayals")
+                        .HasColumnType("integer")
+                        .HasColumnName("Betrayals");
+
+                    b.Property<int?>("CalloutAssists")
+                        .HasColumnType("integer")
+                        .HasColumnName("CalloutAssists");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DamageDealt")
+                        .HasColumnType("integer")
+                        .HasColumnName("DamageDealt");
+
+                    b.Property<int?>("DamageTaken")
+                        .HasColumnType("integer")
+                        .HasColumnName("DamageTaken");
+
+                    b.Property<int?>("Deaths")
+                        .HasColumnType("integer")
+                        .HasColumnName("Deaths");
+
+                    b.Property<DateTime?>("FirstJoinedTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FirstJoinedTime");
+
+                    b.Property<bool?>("JoinedInProgress")
+                        .HasColumnType("boolean")
+                        .HasColumnName("JoinedInProgress");
+
+                    b.Property<float?>("Kda")
+                        .HasColumnType("real")
+                        .HasColumnName("Kda");
+
+                    b.Property<int?>("Kills")
+                        .HasColumnType("integer")
+                        .HasColumnName("Kills");
+
+                    b.Property<DateTime?>("LastLeaveTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LastLeaveTime");
+
+                    b.Property<bool?>("LeftInProgress")
+                        .HasColumnType("boolean")
+                        .HasColumnName("LeftInProgress");
+
+                    b.Property<Guid>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<int?>("MaxKillingSpree")
+                        .HasColumnType("integer")
+                        .HasColumnName("MaxKillingSpree");
+
+                    b.Property<int?>("MeleeKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("MeleeKills");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("ObjectivesCompleted")
+                        .HasColumnType("integer")
+                        .HasColumnName("ObjectivesCompleted");
+
+                    b.Property<int?>("PersonalScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("PowerWeaponKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("PowerWeaponKills");
+
+                    b.Property<bool?>("PresentAtBeginning")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PresentAtBeginning");
+
+                    b.Property<bool?>("PresentAtCompletion")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PresentAtCompletion");
+
+                    b.Property<int?>("Rank")
+                        .HasColumnType("integer")
+                        .HasColumnName("Rank");
+
+                    b.Property<int?>("RoundsLost")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsLost");
+
+                    b.Property<int?>("RoundsTied")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsTied");
+
+                    b.Property<int?>("RoundsWon")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsWon");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("Score");
+
+                    b.Property<int?>("ShotsFired")
+                        .HasColumnType("integer")
+                        .HasColumnName("ShotsFired");
+
+                    b.Property<int?>("ShotsHit")
+                        .HasColumnType("integer")
+                        .HasColumnName("ShotsHit");
+
+                    b.Property<int?>("Spawns")
+                        .HasColumnType("integer")
+                        .HasColumnName("Spawns");
+
+                    b.Property<int?>("Suicides")
+                        .HasColumnType("integer")
+                        .HasColumnName("Suicides");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<TimeSpan?>("TimePlayed")
+                        .HasColumnType("interval")
+                        .HasColumnName("TimePlayed");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchID", "XboxUserID", "Valid")
+                        .HasDatabaseName("AK_MatchParticipantsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchID", "XboxUserID", "Valid"), "gist");
+
+                    b.ToTable("MatchParticipantsHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MatchTeamsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("Outcome")
+                        .HasColumnType("integer")
+                        .HasColumnName("Outcome");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("Score");
+
+                    b.Property<int>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchID", "TeamID", "Valid")
+                        .HasDatabaseName("AK_MatchTeamsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchID", "TeamID", "Valid"), "gist");
+
+                    b.ToTable("MatchTeamsHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MatchedKickVotesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("KickMatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("KickMatchedPlayerId");
+
+                    b.Property<int>("MatchId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<int>("VoterMatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("VoterMatchedPlayerId");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchId", "VoterMatchedPlayerId", "Valid")
+                        .HasDatabaseName("AK_MatchedKickVotesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchId", "VoterMatchedPlayerId", "Valid"), "gist");
+
+                    b.ToTable("MatchedKickVotesHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("MatchedMatchesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<bool?>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Active");
+
+                    b.Property<int?>("AwayTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamId");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamId");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StartedAt");
+
+                    b.Property<decimal?>("ThreadID")
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("ThreadID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<decimal?>("VoteMessageID")
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("VoteMessageID");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_MatchedMatchesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("MatchedMatchesHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("MatchedPlayersHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("Kicked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Kicked");
+
+                    b.Property<int?>("MatchedTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedTeamID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_MatchedPlayersHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("MatchedPlayersHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("MatchedTeamsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("MatchedTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedTeamId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchedTeamId", "Valid")
+                        .HasDatabaseName("AK_MatchedTeamsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchedTeamId", "Valid"), "gist");
+
+                    b.ToTable("MatchedTeamsHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("MatchedWinnerVotesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("MatchId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchId");
+
+                    b.Property<int>("MatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedPlayerId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<int?>("WinnerVote")
+                        .HasColumnType("integer")
+                        .HasColumnName("WinnerVote");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchId", "MatchedPlayerId", "Valid")
+                        .HasDatabaseName("AK_MatchedWinnerVotesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchId", "MatchedPlayerId", "Valid"), "gist");
+
+                    b.ToTable("MatchedWinnerVotesHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("MatchesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("Duration");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("EndTime");
+
+                    b.Property<Guid>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StartTime");
+
+                    b.Property<DateTime?>("StatsPullDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StatsPullDate");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MatchID", "Valid")
+                        .HasDatabaseName("AK_MatchesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MatchID", "Valid"), "gist");
+
+                    b.ToTable("MatchesHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MedalDifficultiesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("MedalDifficultyID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalDifficultyID");
+
+                    b.Property<string>("MedalDifficultyName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalDifficultyName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MedalDifficultyID", "Valid")
+                        .HasDatabaseName("AK_MedalDifficultiesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MedalDifficultyID", "Valid"), "gist");
+
+                    b.ToTable("MedalDifficultiesHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MedalEarnedHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int?>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("Count");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<long>("MedalID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MedalID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("TotalPersonalScoreAwarded")
+                        .HasColumnType("integer")
+                        .HasColumnName("TotalPersonalScoreAwarded");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MedalID", "MatchID", "XboxUserID", "Valid")
+                        .HasDatabaseName("AK_MedalEarnedHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MedalID", "MatchID", "XboxUserID", "Valid"), "gist");
+
+                    b.ToTable("MedalEarnedHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MedalTypesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("MedalTypeID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalTypeID");
+
+                    b.Property<string>("MedalTypeName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalTypeName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MedalTypeID", "Valid")
+                        .HasDatabaseName("AK_MedalTypesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MedalTypeID", "Valid"), "gist");
+
+                    b.ToTable("MedalTypesHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MedalsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("MedalDifficultyID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalDifficultyID");
+
+                    b.Property<long>("MedalID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MedalID");
+
+                    b.Property<string>("MedalName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("MedalTypeID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalTypeID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("PersonalScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("SortingWeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("SortingWeight");
+
+                    b.Property<int?>("SpriteIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("SpriteIndex");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("MedalID", "Valid")
+                        .HasDatabaseName("AK_MedalsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("MedalID", "Valid"), "gist");
+
+                    b.ToTable("MedalsHistory", "Infinite");
+                });
+
+            modelBuilder.Entity("MessagesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text")
+                        .HasColumnName("Content")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long?>("FromDiscordUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("FromDiscordUserId");
+
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("Timestamp");
+
+                    b.Property<long?>("ToDiscordUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ToDiscordUserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_MessagesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("MessagesHistory", "Discord");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -1794,6 +3106,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("FriendlyName")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("Xml")
                         .HasColumnType("text")
@@ -1820,6 +3137,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
 
@@ -1843,6 +3165,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("Value")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1850,6 +3177,1237 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("UserTokens", "Auth");
+                });
+
+            modelBuilder.Entity("PasswordResetLinksHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ExpiresAt");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("IsUsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsUsed");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Token")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("Token")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_PasswordResetLinksHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("PasswordResetLinksHistory", "Auth");
+                });
+
+            modelBuilder.Entity("QueuedPlayersHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("JoinedAt");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("UserID", "Valid")
+                        .HasDatabaseName("AK_QueuedPlayersHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("UserID", "Valid"), "gist");
+
+                    b.ToTable("QueuedPlayersHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("RanksHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("Color")
+                        .HasColumnType("text")
+                        .HasColumnName("Color")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<byte[]>("Icon")
+                        .HasColumnType("bytea")
+                        .HasColumnName("Icon");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<int?>("MmrThreshold")
+                        .HasColumnType("integer")
+                        .HasColumnName("MmrThreshold");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_RanksHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("RanksHistory", "Matchmaking");
+                });
+
+            modelBuilder.Entity("RegionsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("RegionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("RegionID");
+
+                    b.Property<string>("RegionName")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("RegionName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("RegionID", "Valid")
+                        .HasDatabaseName("AK_RegionsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("RegionID", "Valid"), "gist");
+
+                    b.ToTable("RegionsHistory", "Other");
+                });
+
+            modelBuilder.Entity("RoleClaimsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimType")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimValue")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<int?>("RoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoleId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_RoleClaimsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("RoleClaimsHistory", "Auth");
+                });
+
+            modelBuilder.Entity("RolesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("ConcurrencyStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_RolesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("RolesHistory", "Auth");
+                });
+
+            modelBuilder.Entity("SeasonAvailabilityHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("SeasonID", "AvailabilityOptionID", "Valid")
+                        .HasDatabaseName("AK_SeasonAvailabilityHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SeasonID", "AvailabilityOptionID", "Valid"), "gist");
+
+                    b.ToTable("SeasonAvailabilityHistory", "Event");
+                });
+
+            modelBuilder.Entity("SeasonMatchesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int?>("ActiveRescheduleRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("ActiveRescheduleRequestId");
+
+                    b.Property<int?>("AwayTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamID");
+
+                    b.Property<int?>("AwayTeamResult")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamResult");
+
+                    b.Property<int?>("AwayTeamScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamScore");
+
+                    b.Property<int?>("BestOf")
+                        .HasColumnType("integer")
+                        .HasColumnName("BestOf");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamID");
+
+                    b.Property<int?>("HomeTeamResult")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamResult");
+
+                    b.Property<int?>("HomeTeamScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamScore");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("ScheduledTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ScheduledTime");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("SeasonMatchID", "Valid")
+                        .HasDatabaseName("AK_SeasonMatchesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SeasonMatchID", "Valid"), "gist");
+
+                    b.ToTable("SeasonMatchesHistory", "Event");
+                });
+
+            modelBuilder.Entity("SeasonSignupsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<bool?>("Approved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Approved");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<bool?>("RequiresAssistanceDrafting")
+                        .HasColumnType("boolean")
+                        .HasColumnName("RequiresAssistanceDrafting");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int>("SeasonSignupID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonSignupID");
+
+                    b.Property<string>("TeamName")
+                        .HasColumnType("text")
+                        .HasColumnName("TeamName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("Timestamp");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<bool?>("WillCaptain")
+                        .HasColumnType("boolean")
+                        .HasColumnName("WillCaptain");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("SeasonSignupID", "Valid")
+                        .HasDatabaseName("AK_SeasonSignupsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SeasonSignupID", "Valid"), "gist");
+
+                    b.ToTable("SeasonSignupsHistory", "Event");
+                });
+
+            modelBuilder.Entity("SeasonsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<bool?>("CaptainsLocked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("CaptainsLocked");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("DraftStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("DraftStart");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime?>("PublicAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PublicAt");
+
+                    b.Property<DateTime?>("SeasonEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SeasonEnd");
+
+                    b.Property<int>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<string>("SeasonName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("SeasonName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("SeasonStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SeasonStart");
+
+                    b.Property<DateTime?>("SignupsClose")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SignupsClose");
+
+                    b.Property<DateTime?>("SignupsOpen")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SignupsOpen");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("SeasonID", "Valid")
+                        .HasDatabaseName("AK_SeasonsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SeasonID", "Valid"), "gist");
+
+                    b.ToTable("SeasonsHistory", "Event");
+                });
+
+            modelBuilder.Entity("SignupAvailabilityHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("SeasonSignupID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonSignupID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("SeasonSignupID", "AvailabilityOptionID", "Valid")
+                        .HasDatabaseName("AK_SignupAvailabilityHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SeasonSignupID", "AvailabilityOptionID", "Valid"), "gist");
+
+                    b.ToTable("SignupAvailabilityHistory", "Event");
+                });
+
+            modelBuilder.Entity("TeamAvailabilityHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("TeamID", "AvailabilityOptionID", "Valid")
+                        .HasDatabaseName("AK_TeamAvailabilityHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("TeamID", "AvailabilityOptionID", "Valid"), "gist");
+
+                    b.ToTable("TeamAvailabilityHistory", "Event");
+                });
+
+            modelBuilder.Entity("TeamPlayersHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DraftCaptainOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftCaptainOrder");
+
+                    b.Property<int?>("DraftPick")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftPick");
+
+                    b.Property<int?>("DraftRound")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftRound");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<int>("TeamPlayerID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamPlayerID");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("TeamPlayerID", "Valid")
+                        .HasDatabaseName("AK_TeamPlayersHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("TeamPlayerID", "Valid"), "gist");
+
+                    b.ToTable("TeamPlayersHistory", "Event");
+                });
+
+            modelBuilder.Entity("TeamsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int?>("CaptainID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CaptainID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("TeamName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("TeamID", "Valid")
+                        .HasDatabaseName("AK_TeamsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("TeamID", "Valid"), "gist");
+
+                    b.ToTable("TeamsHistory", "Event");
+                });
+
+            modelBuilder.Entity("UserClaimsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimType")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimValue")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_UserClaimsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("UserClaimsHistory", "Auth");
+                });
+
+            modelBuilder.Entity("UserExperiencesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int>("GameVersionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("GameVersionID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("UserID", "GameVersionID", "Valid")
+                        .HasDatabaseName("AK_UserExperiencesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("UserID", "GameVersionID", "Valid"), "gist");
+
+                    b.ToTable("UserExperiencesHistory", "Other");
+                });
+
+            modelBuilder.Entity("UserLoginsHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("LoginProvider")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("LoginProvider")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text")
+                        .HasColumnName("ProviderDisplayName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ProviderKey")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("LoginProvider", "ProviderKey", "Valid")
+                        .HasDatabaseName("AK_UserLoginsHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("LoginProvider", "ProviderKey", "Valid"), "gist");
+
+                    b.ToTable("UserLoginsHistory", "Auth");
+                });
+
+            modelBuilder.Entity("UserRolesHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoleId");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("UserId", "RoleId", "Valid")
+                        .HasDatabaseName("AK_UserRolesHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("UserId", "RoleId", "Valid"), "gist");
+
+                    b.ToTable("UserRolesHistory", "Auth");
+                });
+
+            modelBuilder.Entity("UserTokensHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<string>("LoginProvider")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("LoginProvider")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text")
+                        .HasColumnName("Value")
+                        .UseCollation("case_insensitive");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("UserId", "LoginProvider", "Name", "Valid")
+                        .HasDatabaseName("AK_UserTokensHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("UserId", "LoginProvider", "Name", "Valid"), "gist");
+
+                    b.ToTable("UserTokensHistory", "Auth");
+                });
+
+            modelBuilder.Entity("UsersHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<int?>("AccessFailedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("AccessFailedCount");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("ConcurrencyStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("DisplayName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("Email")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("EmailConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("EmailConfirmed");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("IsDummyUser")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsDummyUser");
+
+                    b.Property<bool?>("LockoutEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("LockoutEnabled");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LockoutEnd");
+
+                    b.Property<int?>("LossStreak")
+                        .HasColumnType("integer")
+                        .HasColumnName("LossStreak");
+
+                    b.Property<int?>("Losses")
+                        .HasColumnType("integer")
+                        .HasColumnName("Losses");
+
+                    b.Property<int?>("MMR")
+                        .HasColumnType("integer")
+                        .HasColumnName("MMR");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedEmail")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedUserName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordHash")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("PhoneNumber")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PhoneNumberConfirmed");
+
+                    b.Property<int?>("RegionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("RegionID");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("SecurityStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("TwoFactorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("TwoFactorEnabled");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("UserName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<int?>("WinStreak")
+                        .HasColumnType("integer")
+                        .HasColumnName("WinStreak");
+
+                    b.Property<int?>("Wins")
+                        .HasColumnType("integer")
+                        .HasColumnName("Wins");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("Id", "Valid")
+                        .HasDatabaseName("AK_UsersHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Id", "Valid"), "gist");
+
+                    b.ToTable("UsersHistory", "Auth");
+                });
+
+            modelBuilder.Entity("XboxUsersHistory", b =>
+                {
+                    b.Property<long>("HistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("HistoryID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Gamertag")
+                        .HasColumnType("text")
+                        .HasColumnName("Gamertag")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<NpgsqlRange<DateTime>>("Valid")
+                        .HasColumnType("tstzrange");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasKey("HistoryID");
+
+                    b.HasIndex("XboxUserID", "Valid")
+                        .HasDatabaseName("AK_XboxUsersHistory_Valid");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("XboxUserID", "Valid"), "gist");
+
+                    b.ToTable("XboxUsersHistory", "Xbox");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordMessage", b =>

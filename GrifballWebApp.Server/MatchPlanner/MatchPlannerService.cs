@@ -19,7 +19,7 @@ public class MatchPlannerService
         using var t = await _grifballContext.Database.BeginTransactionAsync(ct);
         var deletedCount = await _grifballContext.SeasonMatches
             .Where(x => x.SeasonID == seasonID && x.BracketMatch == null)
-            .ExecuteDeleteAsync(ct);
+            .ExecuteDeleteWithHistoryAsync(_grifballContext, ct);
 
         if (deletedCount > 0)
         {
