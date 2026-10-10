@@ -95,11 +95,9 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
     - |
       set -eu
       {{- include "grif.waitForDatabaseScript" . | nindent 6 }}
+      {{- include "grif.waitForDatabaseOnlineScript" . | nindent 6 }}
   env:
-    - name: DB_HOST
-      value: {{ include "grif.dbHost" . | quote }}
-    - name: DB_PORT
-      value: {{ include "grif.dbPort" . | quote }}
+    {{- include "grif.dbEnv" . | nindent 4 }}
     - name: WAIT_SECONDS
       value: {{ $m.databaseWaitSeconds | quote }}
     {{- with $m.extraEnv }}
@@ -118,7 +116,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- if $m.scripts.checkPending }}
       {{- $m.scripts.checkPending | nindent 6 }}
       {{- else }}
-      {{- include "grif.appliedMigrationsQuery" . | nindent 6 }}
+      {{- include "grif.appliedMigrationsQuery" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
       if grep -qxF NO_DATABASE /work/applied.txt; then
         echo "Database $DB_NAME doesn't exist: the migration creates it."
         : > /work/applied.txt
