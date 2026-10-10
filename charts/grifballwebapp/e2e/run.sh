@@ -518,7 +518,11 @@ spec:
       persistentVolumeClaim: { claimName: restore-source }
 EOF
   kubectl -n "$restore_ns" wait --for=condition=Ready pod/fill --timeout=120s
-  backups "cat '$marked'" | kubectl -n "$restore_ns" exec -i fill -- sh -c "mkdir -p /source/grif-test && cat > '/source/grif-test/${marked##*/}'"
+  # Through a local file, not a pipe from one kubectl exec to another, which can end early (SIGPIPE).
+  backups "cat '$marked'" > "$work/marked.dump"
+  kubectl -n "$restore_ns" exec -i fill -- sh -c "mkdir -p /source/grif-test && cat > '/source/grif-test/${marked##*/}'" < "$work/marked.dump"
+  [ "$(kubectl -n "$restore_ns" exec fill -- wc -c "/source/grif-test/${marked##*/}" | awk '{print $1}')" = "$(wc -c < "$work/marked.dump" | tr -d ' ')" ] \
+    || fail "${marked##*/} wasn't copied whole"
   kubectl -n "$restore_ns" exec fill -- sh -c "cd /source/grif-test && echo junk > GrifballWebApp_29991231_235959.dump && cp '${marked##*/}' GrifballWebApp_manual.dump"
   kubectl -n "$restore_ns" delete pod fill --wait=true
   helm install grif "$chart" -n "$restore_ns" "${images[@]}" -f - <<EOF
