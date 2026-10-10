@@ -1,4 +1,6 @@
+using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Images;
 using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -27,7 +29,7 @@ internal static class TestDatabase
         IDatabaseContainer server = Provider switch
         {
             DatabaseProvider.Postgres => new PostgreSqlBuilder()
-                .WithImage("postgres:18-alpine")
+                .WithImage(await BuildPostgresImage())
                 // Every test's database keeps a connection pool until it's dropped.
                 .WithCommand("-c", "max_connections=500")
                 .Build(),
@@ -38,6 +40,21 @@ internal static class TestDatabase
         };
         await server.StartAsync();
         return server;
+    }
+
+    /// <summary>
+    /// PostgreSQL with the periods extension, as the Helm chart runs it for row history (RowHistoryTests):
+    /// built from the repository's docker/postgres-periods, once per run - about 15 seconds, the
+    /// extension compiled from source. A database has history only once it has the extension, so every
+    /// other test runs without, as a default deploy does.
+    /// </summary>
+    private static async Task<IImage> BuildPostgresImage()
+    {
+        var image = new ImageFromDockerfileBuilder()
+            .WithDockerfileDirectory(CommonDirectoryPath.GetSolutionDirectory(), "docker/postgres-periods")
+            .Build();
+        await image.CreateAsync();
+        return image;
     }
 
     /// <summary>The server's connection string on <paramref name="database"/>.</summary>
@@ -71,14 +88,17 @@ internal static class TestDatabase
         return new DbContextOptionsBuilder<GrifballContext>().UseGrifballDatabase(Provider, connectionString);
     }
 
-    public static async Task CreateDatabase(IDatabaseContainer server, string name)
+    /// <summary>A new database; on Postgres, a copy of <paramref name="template"/> if given.</summary>
+    public static async Task CreateDatabase(IDatabaseContainer server, string name, string? template = null)
     {
         await using var connection = Provider == DatabaseProvider.Postgres
             ? (System.Data.Common.DbConnection)new NpgsqlConnection(MaintenanceConnectionString(server))
             : new Microsoft.Data.SqlClient.SqlConnection(MaintenanceConnectionString(server));
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = Provider == DatabaseProvider.Postgres ? $"CREATE DATABASE \"{name}\"" : $"CREATE DATABASE [{name}]";
+        command.CommandText = Provider == DatabaseProvider.Postgres
+            ? $"CREATE DATABASE \"{name}\"" + (template is null ? "" : $" TEMPLATE \"{template}\"")
+            : $"CREATE DATABASE [{name}]";
         await command.ExecuteNonQueryAsync();
     }
 

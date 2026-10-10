@@ -155,10 +155,86 @@ dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.SqlServer --
 dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --startup-project GrifballWebApp.Migrations.Postgres
 ```
 
-SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
-current rows. Otherwise the two behave alike: every DateTime is UTC (read back with Kind Utc, Local refused), and
-text compares case-insensitively and accent-sensitively on both ("Noah" = "noah"; on Postgres an ICU collation
-mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+The two behave alike: every DateTime is UTC (read back with Kind Utc, Local refused), and text compares
+case-insensitively and accent-sensitively on both ("Noah" = "noah"; on Postgres an ICU collation mirrors SQL Server's
+default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless
+`GRIF_TEST_DATABASE=Postgres`; CI runs them on both. Postgres's server is built from `docker/postgres-periods` (below)
+at the start of the run, about 15 seconds.
+
+#### Row history
+SQL Server keeps every row's earlier versions: each table but `MatchReschedules` is temporal (`IsTemporal()` in its
+configuration), with a `<Table>History` table beside it. Postgres does the same, for the same tables, when the
+database has the [periods](https://github.com/xocolatl/periods) extension (SQL-standard `SYSTEM VERSIONING`); without
+it, only the current rows. Those tables have SQL Server's period columns, `PeriodStart` and `PeriodEnd`, either way:
+shadow properties of the model the database fills and EF never writes (`GrifballWebApp.Database/RowHistory.cs`); a
+current row's `PeriodEnd` is `infinity`, which Npgsql reads as `DateTime.MaxValue`, SQL Server's end of time. Having
+the two columns is what versions a table. The extension is the switch: the `RowHistory` migration, plain `dotnet ef
+migrations add` output, adds the columns (the rows already there current since `-infinity`, until `infinity`), and
+each table that has both then gets, if the database has the extension as the migration runs, a `SYSTEM_TIME` period
+over them and versioning; so does a table a later migration creates temporal or makes temporal. Every update and
+delete - cascades included - then keeps the old row in `<table>_history`, with the time it was current, the
+transaction's start. Without it the columns stay as inserted.
+
+In code, query the history with EF's temporal queries, the same code on both databases:
+```csharp
+var then = await context.Seasons.TemporalAsOf(time).Include(s => s.SeasonMatches).SingleAsync(s => s.SeasonID == id);
+var versions = await context.Seasons.TemporalAll()
+    .Where(s => s.SeasonID == id)
+    .OrderBy(s => EF.Property<DateTime>(s, "PeriodStart"))
+    .Select(s => new { s.SeasonName, From = EF.Property<DateTime>(s, "PeriodStart"), To = EF.Property<DateTime>(s, "PeriodEnd") })
+    .ToListAsync();
+// Also TemporalFromTo(a, b), TemporalBetween(a, b) and TemporalContainedIn(a, b).
+```
+SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
+(`GrifballWebApp.Database/PostgresTemporalQueries.cs`) that reads periods' `<table>_with_history` view (the table
+`UNION ALL` its history) with SQL Server's rules, so they return the same rows: `AS OF` carries to `Include`s and
+navigations, other operations refuse them, and a version that lasted no time is never there (periods keeps none;
+`FOR SYSTEM_TIME` shows none). Times are UTC (`Kind` `Local` is refused on Postgres; SQL Server would read its
+local clock time as UTC). Postgres keeps microseconds, so a time between two is rounded the way that gives each
+comparison SQL Server's answer. A table without history (`MatchReschedules`) has no temporal queries on either, and
+a Postgres database without the extension has no history at all: a temporal query there throws
+`InvalidOperationException` ("Row history isn't enabled on this PostgreSQL database: the periods extension isn't
+installed...", the database's `42P01` on the missing view as its `InnerException`), sync or async, never an empty
+result. EF runs every query with a command it rents from the connection; on Postgres that command
+(`PostgresTemporalRelationalCommand`) catches only an undefined table at a `_with_history` name, so other queries cost
+nothing more and keep their own errors.
+
+By hand in psql, periods' view and functions, on the database's clock (`timestamptz`):
+```sql
+SELECT * FROM "Event"."Seasons_with_history" WHERE "SeasonID" = 4 ORDER BY "PeriodStart";  -- one row's versions
+SELECT * FROM "Event"."Seasons__as_of"('2026-06-01 12:00+00');          -- the rows as they were then
+```
+
+To have it:
+- **The server**: periods isn't in the official images or Alpine's packages. `docker/postgres-periods` builds it from
+  source on the Helm chart's `postgres:18-alpine` (with two fixes to periods, explained there); master publishes it as
+  `ghcr.io/playgrifball/postgres-periods:18-alpine`. Managed services (RDS, Cloud SQL, Azure, Neon, Supabase) don't
+  offer the extension.
+- **The database**: `CREATE EXTENSION periods CASCADE;` as a superuser (it isn't a trusted extension), before the
+  migrations, then `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA periods FROM PUBLIC;`: its functions run as their owner
+  and check nothing, so any login could otherwise turn a table's history off, or purge it. The Helm chart does both
+  with `database.history.enabled` (its README, Row history), after the migrations, and versions the tables of a
+  database migrated before it had the extension: its `grif.pgHistoryScript` (`templates/_postgres.tpl`) does that
+  for any database.
+- **The app's login**, if not the owner: privileges on each table but the history tables and views (periods refuses
+  `GRANT ... ON ALL TABLES IN SCHEMA` once they exist); it can then read the history, never change it.
+
+Later migrations need nothing special. On a versioned table, a plain `ALTER TABLE` goes wrong (an added column is left
+out of the history; changing a column's type, dropping a column or the table fail; renaming a column succeeds, then
+every update fails), so Postgres's migrations SQL generator (`RowHistoryMigrationsSqlGenerator`) suspends versioning
+around each such change, makes it to the history table too and resumes it, keeping the history - if, as the migration
+runs, the table has versioning. A new table is versioned if the database has the extension. Raw `migrationBuilder.Sql`
+gets none of this. Mind that `TRUNCATE` empties a table's history too, and that a dump of such a database restores
+only where periods is installed, with `pg_restore --no-privileges` (as the chart's restore does).
+
+To turn it off, take the extension out; never just run the database on a server without it. periods' row triggers
+are C functions in its library: where that's missing (the official image), reads, schema changes and `TRUNCATE` still
+work but every `INSERT`, `UPDATE` and `DELETE` on a versioned table fails (`could not access file "periods"`), and
+`pg_restore` of such a dump stops at `CREATE EXTENSION periods`. Removing needs nothing from the library, so it works
+on either server: on each versioned table `periods.drop_system_versioning` and `periods.drop_period(..., 'system_time',
+purge => true)`, then `DROP EXTENSION periods`; the history tables stay, as plain tables. The Helm chart does it with
+`database.history.enabled` false, before its PostgreSQL serves on the official image, keeping the history tables aside
+(`grif.pgHistoryOffSql`; its README, Row history).
 
 ### Running the Application
 

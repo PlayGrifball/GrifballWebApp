@@ -133,8 +133,12 @@ public class GrifballContext :
 
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
 
-        // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
-        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
+        // Every table but MatchReschedules is temporal (SQL Server keeps a history of each change). Postgres
+        // has no temporal tables: its provider ignores the setting, which is dropped here so its migrations
+        // don't carry it. Its history comes from the periods extension instead (RowHistory), for the same
+        // tables: the model gives those the period columns, as on SQL Server; periods' history tables, views
+        // and functions are outside it.
+        var temporal = modelBuilder.Model.GetEntityTypes().Where(e => e.IsTemporal()).ToList();
         if (!Database.IsSqlServer())
         {
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -142,7 +146,10 @@ public class GrifballContext :
         }
 
         if (Database.IsNpgsql())
+        {
             QuoteCheckConstraintColumns(modelBuilder);
+            modelBuilder.AddSystemTimePeriods(temporal);
+        }
     }
 
     /// <summary>

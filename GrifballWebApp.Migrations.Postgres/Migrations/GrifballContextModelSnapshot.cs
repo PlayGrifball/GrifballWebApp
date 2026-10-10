@@ -46,6 +46,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<TimeOnly>("Time")
                         .HasColumnType("time without time zone");
 
@@ -81,6 +91,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
@@ -119,6 +139,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User");
@@ -149,6 +179,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("GameVesionID");
 
@@ -225,6 +265,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -274,6 +324,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoundNumber")
                         .HasColumnType("integer");
 
@@ -322,6 +382,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("SeasonMatchID")
                         .HasColumnType("integer");
@@ -407,6 +477,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
@@ -560,6 +640,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("Outcome")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("Score")
                         .HasColumnType("integer");
 
@@ -590,6 +680,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("MatchId", "VoterMatchedPlayerId");
 
@@ -631,6 +731,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -681,6 +791,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserID")
                         .HasColumnType("integer");
 
@@ -713,6 +833,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MatchedTeamId");
 
                     b.ToTable("MatchedTeams", "Matchmaking");
@@ -737,6 +867,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("WinnerVote")
                         .HasColumnType("integer");
@@ -779,6 +919,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
 
@@ -818,6 +968,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MedalDifficultyID");
 
                     b.ToTable("MedalDifficulties", "Infinite");
@@ -849,6 +1009,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("TotalPersonalScoreAwarded")
                         .HasColumnType("integer");
 
@@ -879,6 +1049,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("MedalTypeID");
 
@@ -912,6 +1092,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -953,6 +1143,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("UserID");
 
@@ -1001,6 +1201,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("Id");
 
                     b.ToTable("Ranks", "Matchmaking");
@@ -1025,6 +1235,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("RegionName")
                         .IsRequired()
@@ -1119,6 +1339,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("character varying(256)")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
@@ -1183,6 +1413,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime>("PublicAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1231,6 +1471,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("SeasonID", "AvailabilityOptionID");
 
@@ -1283,6 +1533,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -1328,6 +1588,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<bool>("RequiresAssistanceDrafting")
                         .HasColumnType("boolean");
@@ -1378,6 +1648,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("SeasonSignupID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
@@ -1407,6 +1687,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
@@ -1449,6 +1739,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("TeamID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
@@ -1484,6 +1784,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<int>("TeamID")
                         .HasColumnType("integer");
@@ -1577,6 +1887,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1656,6 +1976,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
@@ -1686,6 +2016,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserID", "GameVersionID");
 
                     b.HasIndex("GameVersionID");
@@ -1714,6 +2054,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text")
@@ -1749,6 +2099,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserId", "RoleId");
 
                     b.HasIndex("RoleId");
@@ -1778,6 +2138,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("XboxUserID");
 
                     b.ToTable("XboxUsers", "Xbox");
@@ -1794,6 +2164,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("FriendlyName")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("Xml")
                         .HasColumnType("text")
@@ -1820,6 +2200,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
 
@@ -1842,6 +2232,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Name")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("'infinity'::timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("Value")
                         .HasColumnType("text")
