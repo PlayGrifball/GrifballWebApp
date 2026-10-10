@@ -10,6 +10,7 @@ using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
+using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
@@ -74,10 +75,14 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        var previewMode = PreviewMode.IsEnabled(builder.Configuration);
+        if (previewMode)
+            Log.Logger.ForContext<Program>().Warning(PreviewMode.StartupMessage);
+
         var telemetry = TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment, GitInfo.CommitShortHash);
         builder.AddSerilogLogging(telemetry);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
-        builder.Services.AddAppHealthChecks(builder.Configuration);
+        builder.Services.AddAppHealthChecks(builder.Configuration, externalServices: !previewMode);
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -176,47 +181,59 @@ public class Program
             };
         });
 
-        builder.Services.AddOptions<DiscordOptions>()
-            .Bind(builder.Configuration.GetSection("Discord"))
-            .Validate(options =>
-            {
-                var errors = new List<string>();
-                if (string.IsNullOrWhiteSpace(options.ClientId))
-                    errors.Add("ClientId is required");
-                if (string.IsNullOrWhiteSpace(options.ClientSecret))
-                    errors.Add("ClientSecret is required");
+        if (previewMode)
+        {
+            builder.Services.AddPreviewDiscord(builder.Configuration);
+        }
+        else
+        {
+            builder.Services.AddOptions<DiscordOptions>()
+                .Bind(builder.Configuration.GetSection("Discord"))
+                .Validate(options =>
+                {
+                    var errors = new List<string>();
+                    if (string.IsNullOrWhiteSpace(options.ClientId))
+                        errors.Add("ClientId is required");
+                    if (string.IsNullOrWhiteSpace(options.ClientSecret))
+                        errors.Add("ClientSecret is required");
 
-                if (string.IsNullOrWhiteSpace(options.Token))
-                    errors.Add("Token is required");
-                if (options.DraftChannel is 0)
-                    errors.Add("DraftChannel is required");
+                    if (string.IsNullOrWhiteSpace(options.Token))
+                        errors.Add("Token is required");
+                    if (options.DraftChannel is 0)
+                        errors.Add("DraftChannel is required");
 
-                if (errors.Count > 0)
-                    throw new ArgumentException(string.Join(", ", errors));
+                    if (errors.Count > 0)
+                        throw new ArgumentException(string.Join(", ", errors));
 
-                return true;
-            })
-            .ValidateOnStart();
+                    return true;
+                })
+                .ValidateOnStart();
+        }
 
         builder.Services.AddTransient<DiscordOnDeckMessages>();
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
-        builder.Services.AddHostedService<QueueBackgroundService>();
+        if (!previewMode)
+            builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
-        builder.Services.AddHostedService<EventsBackgroundService>();
+        if (!previewMode)
+            builder.Services.AddHostedService<EventsBackgroundService>();
 
-        builder.Services.AddDiscordGateway(options =>
+        if (!previewMode)
         {
-            options.Intents = NetCord.Gateway.GatewayIntents.MessageContent |
-                              NetCord.Gateway.GatewayIntents.GuildMessages |
-                              NetCord.Gateway.GatewayIntents.DirectMessages;
-        })
-        .AddGatewayEventHandlers(typeof(Program).Assembly)
-        .AddApplicationCommands()
-        .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
-        .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
-        .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
+            builder.Services.AddDiscordGateway(options =>
+            {
+                options.Intents = NetCord.Gateway.GatewayIntents.MessageContent |
+                                  NetCord.Gateway.GatewayIntents.GuildMessages |
+                                  NetCord.Gateway.GatewayIntents.DirectMessages;
+            })
+            .AddGatewayEventHandlers(typeof(Program).Assembly)
+            .AddApplicationCommands()
+            .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
+            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
+            .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
+        }
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
 
@@ -245,7 +262,7 @@ public class Program
 
         builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
 
-        builder.Services.AddAuthentication(options =>
+        var authentication = builder.Services.AddAuthentication(options =>
         {
             options.DefaultScheme = IdentityConstants.BearerScheme;
             options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
@@ -267,13 +284,17 @@ public class Program
                     return Task.CompletedTask;
                 }
             };
-        })
-        .AddDiscord(options =>
-        {
-            options.ClientId = builder.Configuration.GetValue<string>("Discord:ClientId") ?? throw new Exception("Discord:ClientId is missing");
-            options.ClientSecret = builder.Configuration.GetValue<string>("Discord:ClientSecret") ?? throw new Exception("Discord:ClientSecret is missing");
-            options.SignInScheme = IdentityConstants.ExternalScheme;
         });
+
+        if (!previewMode)
+        {
+            authentication.AddDiscord(options =>
+            {
+                options.ClientId = builder.Configuration.GetValue<string>("Discord:ClientId") ?? throw new Exception("Discord:ClientId is missing");
+                options.ClientSecret = builder.Configuration.GetValue<string>("Discord:ClientSecret") ?? throw new Exception("Discord:ClientSecret is missing");
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+            });
+        }
 
         builder.RegisterHaloInfiniteClientFactory();
 
@@ -369,8 +390,11 @@ public class Program
         app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
         app.MapGet("CommitDate", () => GitInfo.CommitDate);
 
-        app.AddModules(typeof(Program).Assembly);
-        app.UseGatewayEventHandlers();
+        if (!previewMode)
+        {
+            app.AddModules(typeof(Program).Assembly);
+            app.UseGatewayEventHandlers();
+        }
 
         app.Run();
     }

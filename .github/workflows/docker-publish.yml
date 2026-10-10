@@ -14,6 +14,8 @@ on:
     #tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "master" ]
+    # labeled: adding the preview label publishes the PR's images straight away, without waiting for a push.
+    types: [ opened, synchronize, reopened, labeled ]
   workflow_dispatch:
 
 env:
@@ -27,8 +29,16 @@ env:
 
 jobs:
   build:
-
+    # Other labels don't change the build, so don't rebuild for them.
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
+    env:
+      # PR preview environments (https://pr-<N>.grifball.xyz): a PR from a branch of this repo with the preview label
+      # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
+      # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
+      PUBLISH: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
+      # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
+      DOCKER_METADATA_PR_HEAD_SHA: true
     # Digests of this run's images, for the release job.
     outputs:
       frontend-digest: ${{ steps.build-and-push-frontend.outputs.digest }}
@@ -42,9 +52,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
             fetch-depth: 0
+            # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
+            ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -65,10 +77,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
 
-      # Login against a Docker registry except on PR
+      # Login against a Docker registry except on PRs that are not previews
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
+        if: env.PUBLISH == 'true'
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -82,12 +94,13 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-          # Only the immutable sha- tag here. :latest moves in the release job, once every image
+          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
           # in this run has built and pushed - never a partial set.
           tags: |
             type=sha
+            type=ref,event=pr
 
-      # Build and push Docker image with Buildx (don't push on PR)
+      # Build and push Docker image with Buildx (on PRs, push only previews)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image for frontend
         id: build-and-push-frontend
@@ -95,7 +108,7 @@ jobs:
         with:
           context: grifballwebapp.client
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
@@ -123,12 +136,13 @@ jobs:
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-          # Only the immutable sha- tag here. :latest moves in the release job, once every image
+          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
           # in this run has built and pushed - never a partial set.
           tags: |
             type=sha
+            type=ref,event=pr
 
-      # Build and push Docker image with Buildx (don't push on PR)
+      # Build and push Docker image with Buildx (on PRs, push only previews)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image for backend
         id: build-and-push-backend
@@ -137,7 +151,7 @@ jobs:
           context: .
           file: GrifballWebApp.Server/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha

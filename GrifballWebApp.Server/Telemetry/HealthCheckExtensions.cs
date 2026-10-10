@@ -27,23 +27,33 @@ public static class HealthCheckExtensions
     /// Halo outage must not take the website out of service.</item>
     /// </list>
     /// Every result is also published as <c>dotnet.health_check.*</c> metrics every 30 s.
+    /// With <paramref name="externalServices"/> false (preview mode, which runs without Discord or Halo
+    /// Infinite: no gateway client to watch, no credentials to probe with), the Discord and Halo checks
+    /// aren't registered at all.
     /// </summary>
-    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration, bool externalServices = true)
     {
         var maxAllocated = configuration.GetValue("HealthChecks:MaxAllocatedMegabytes", DefaultMaxAllocatedMegabytes);
         services.TryAddSingleton(HealthCheckPaths.FromConfiguration(configuration));
 
-        services.TryAddSingleton<DiscordGatewayHealthCheck>();
-        services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
-        // A singleton, so the cached probe result outlives each run.
-        services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
-
         var checks = services.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck(ReadyTag)
-            .AddDbContextCheck<GrifballContext>("database", HealthStatus.Unhealthy, [ReadyTag])
-            .AddCheck<DiscordGatewayHealthCheck>("discord", HealthStatus.Degraded)
-            .AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded)
-            .AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
+            .AddDbContextCheck<GrifballContext>("database", HealthStatus.Unhealthy, [ReadyTag]);
+
+        if (externalServices)
+        {
+            // Needs the Discord gateway client, which preview mode doesn't register.
+            services.TryAddSingleton<DiscordGatewayHealthCheck>();
+            services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
+            // A singleton, so the cached probe result outlives each run.
+            services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
+
+            checks
+                .AddCheck<DiscordGatewayHealthCheck>("discord", HealthStatus.Degraded)
+                .AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded);
+        }
+
+        checks.AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
 
         services.AddTelemetryHealthCheckPublisher(options => options.LogOnlyUnhealthy = true);
         return checks;
