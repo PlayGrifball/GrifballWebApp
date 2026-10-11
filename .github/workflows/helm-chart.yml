@@ -150,7 +150,23 @@ jobs:
           k3d cluster create e2e --image "rancher/k3s:${{ matrix.k3s }}" --no-lb "${traefik[@]}" --wait --timeout 180s
           kubectl version
           for image in "${{ runner.temp }}"/grif-*.tar; do docker load -i "$image"; done
-          k3d image import grif-backend:e2e grif-frontend:e2e -c e2e
+          # k3d can say it imported the images when it didn't: its tools container writes them to a
+          # tarball on a shared volume and the node imports it, and the node has looked before the
+          # tarball was there ("ctr: open /k3d/images/...tar: no such file or directory", then
+          # "Successfully imported"). The scenario then waits out its timeout in ImagePullBackOff. So the
+          # node's own image list is checked, and the import repeated if they're missing.
+          imported() {
+            local have
+            have=$(docker exec k3d-e2e-server-0 ctr -n k8s.io images ls -q)
+            grep -qx docker.io/library/grif-backend:e2e <<<"$have" && grep -qx docker.io/library/grif-frontend:e2e <<<"$have"
+          }
+          for attempt in 1 2 3; do
+            k3d image import grif-backend:e2e grif-frontend:e2e -c e2e || true
+            if imported; then echo "The e2e images are in the cluster (import $attempt)."; break; fi
+            [ "$attempt" -lt 3 ] || { echo "::error::The e2e images aren't in the cluster after 3 imports"; exit 1; }
+            echo "::warning::k3d's import $attempt left the e2e images out of the cluster; importing again"
+            sleep 5
+          done
 
       - name: End-to-end (${{ matrix.database }})
         env:
