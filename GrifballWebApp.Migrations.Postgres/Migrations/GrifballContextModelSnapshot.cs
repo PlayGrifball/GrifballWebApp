@@ -17,6 +17,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasAnnotation("Npgsql:CollationDefinition:case_insensitive", "und-u-ks-level2,und-u-ks-level2,icu,False")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -64,7 +65,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -110,7 +111,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("DiscordUsername")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -141,7 +142,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -475,7 +476,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("CommissionerNotes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -505,7 +506,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("timestamp with time zone");
@@ -760,14 +761,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("MedalDifficultyID")
                         .HasColumnType("integer");
 
                     b.Property<string>("MedalName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("MedalTypeID")
                         .HasColumnType("integer");
@@ -809,7 +810,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("MedalDifficultyName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -871,7 +872,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("MedalTypeName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -916,7 +917,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -969,7 +970,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -980,7 +981,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<byte[]>("Icon")
                         .IsRequired()
@@ -998,7 +999,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("Id");
 
@@ -1029,7 +1030,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("RegionID");
 
@@ -1094,7 +1095,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1111,12 +1112,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Name")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("NormalizedName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("Id");
 
@@ -1192,7 +1193,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("SeasonStart")
                         .HasColumnType("timestamp with time zone");
@@ -1336,7 +1337,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("TeamName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
@@ -1413,7 +1414,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("TeamName")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("TeamID");
 
@@ -1514,7 +1515,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1528,12 +1529,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("DisplayName")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
@@ -1565,20 +1566,20 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("NormalizedUserName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
@@ -1588,7 +1589,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
@@ -1596,7 +1597,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("WinStreak")
                         .HasColumnType("integer");
@@ -1637,11 +1638,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("ClaimValue")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1696,11 +1697,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     b.Property<string>("LoginProvider")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("ProviderKey")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1716,7 +1717,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -1769,7 +1770,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<string>("Gamertag")
                         .IsRequired()
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1792,11 +1793,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("FriendlyName")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("Xml")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("Id");
 
@@ -1813,11 +1814,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("ClaimValue")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
@@ -1836,15 +1837,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<string>("LoginProvider")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("Name")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.Property<string>("Value")
                         .HasColumnType("text")
-                        .UseCollation("und-x-icu");
+                        .UseCollation("case_insensitive");
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 

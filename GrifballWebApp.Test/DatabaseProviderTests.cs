@@ -132,6 +132,19 @@ public class DatabaseProviderTests
 
         Assert.That(withoutConverter, Is.Empty);
     }
+
+    [Test]
+    public void Postgres_EveryTextColumn_IsCaseInsensitive()
+    {
+        using var context = Context(DatabaseProvider.Postgres);
+
+        var otherCollation = context.GetService<Microsoft.EntityFrameworkCore.Metadata.IDesignTimeModel>().Model.GetEntityTypes().SelectMany(e => e.GetProperties())
+            .Where(p => p.ClrType == typeof(string))
+            .Where(p => p.GetCollation() != GrifballContext.CaseInsensitiveCollation)
+            .Select(p => $"{p.DeclaringType.DisplayName()}.{p.Name}");
+
+        Assert.That(otherCollation, Is.Empty);
+    }
 }
 
 // Console output is process-wide: nothing else may write while it's captured.

@@ -47,6 +47,24 @@ public class GetsertXboxUserServiceTests
         });
     }
 
+    // Gamertags match whatever their case, on both databases (Postgres's case-insensitive collation): a
+    // different case finds the same user, without asking Halo again or adding a second one.
+    [Test]
+    public async Task GetsertXboxUserByGamertag_DifferentCase_ReturnsExistingUser()
+    {
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 123, Gamertag = "TestUser" });
+        await _context.SaveChangesAsync();
+
+        var (result, error) = await _service.GetsertXboxUserByGamertag("tESTuSER");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result?.XboxUserID, Is.EqualTo(123));
+            Assert.That(error, Is.Null);
+        });
+        await _haloInfiniteClientFactory.DidNotReceiveWithAnyArgs().UserByGamertag(default!);
+    }
+
     [Test]
     public async Task GetsertXboxUserByGamertag_ShouldCreateUser_WhenNotExistsAndApiReturnsValid()
     {

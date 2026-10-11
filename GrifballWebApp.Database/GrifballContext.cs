@@ -54,6 +54,8 @@ public class GrifballContext :
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
+    public const string CaseInsensitiveCollation = "case_insensitive";
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
@@ -62,19 +64,26 @@ public class GrifballContext :
         // DateTime, which holds an instant rather than a bare date and time.
         configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
 
-        // Postgres: text sorted as people read it (alpha, Bravo, charlie), as SQL Server's default collation
-        // does, rather than by the server's locale (on Alpine, byte order: Bravo, Charlie, alpha). ICU's
-        // root collation is in every PostgreSQL built with ICU (the official images are). Comparisons stay
-        // case-sensitive, unlike SQL Server's.
+        // Postgres: text compared and sorted as SQL Server's default collation (SQL_Latin1_General_CP1_CI_AS)
+        // does: case-insensitive, accent-sensitive ("Noah" = "noah", "Noé" <> "noe"), sorted as people read it
+        // (alpha, Bravo, charlie) rather than by the server's locale (on Alpine, byte order). The app relies
+        // on it: gamertags, team names and searches match whatever the case. Nothing secret depends on case
+        // in a query: passwords and tokens are checked in .NET, and reset links are hex. The collation is
+        // created in OnModelCreating.
         if (Database.IsNpgsql())
         {
-            configurationBuilder.Properties<string>().UseCollation("und-x-icu");
+            configurationBuilder.Properties<string>().UseCollation(CaseInsensitiveCollation);
         }
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // ICU's root locale, ignoring case only (strength level 2). Nondeterministic: strings that differ only
+        // in case compare equal. PostgreSQL 18 allows LIKE and strpos (EF's Contains) on such a collation.
+        if (Database.IsNpgsql())
+            modelBuilder.HasCollation(CaseInsensitiveCollation, locale: "und-u-ks-level2", provider: "icu", deterministic: false);
 
         modelBuilder.ApplyConfiguration(new Configuration.DiscordUserConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.DiscordMessageConfiguration());

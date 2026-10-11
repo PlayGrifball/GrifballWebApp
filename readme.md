@@ -156,7 +156,9 @@ dotnet ef migrations add <Name> --project GrifballWebApp.Migrations.Postgres --s
 ```
 
 SQL Server keeps a history of every row change (temporal tables); Postgres has no equivalent, so it keeps only the
-current rows. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
+current rows. Otherwise the two behave alike: every DateTime is UTC (read back with Kind Utc, Local refused), and
+text compares case-insensitively and accent-sensitively on both ("Noah" = "noah"; on Postgres an ICU collation
+mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Server to 100ns. The tests run on SQL Server unless `GRIF_TEST_DATABASE=Postgres`; CI runs them on both.
 
 ### Running the Application
 

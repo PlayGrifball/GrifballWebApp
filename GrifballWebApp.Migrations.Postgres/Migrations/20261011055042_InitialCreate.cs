@@ -38,6 +38,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.EnsureSchema(
                 name: "Xbox");
 
+            migrationBuilder.AlterDatabase()
+                .Annotation("Npgsql:CollationDefinition:case_insensitive", "und-u-ks-level2,und-u-ks-level2,icu,False");
+
             migrationBuilder.CreateTable(
                 name: "AvailabilityOptions",
                 schema: "Event",
@@ -64,8 +67,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    FriendlyName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    Xml = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
+                    FriendlyName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    Xml = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive")
                 },
                 constraints: table =>
                 {
@@ -78,7 +81,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     DiscordUserID = table.Column<long>(type: "bigint", nullable: false),
-                    DiscordUsername = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    DiscordUsername = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -96,7 +99,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     GameVesionID = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    GameVersionName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "und-x-icu"),
+                    GameVersionName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -150,7 +153,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     MedalDifficultyID = table.Column<int>(type: "integer", nullable: false),
-                    MedalDifficultyName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    MedalDifficultyName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -167,7 +170,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     MedalTypeID = table.Column<int>(type: "integer", nullable: false),
-                    MedalTypeName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    MedalTypeName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -185,10 +188,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    Name = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     MmrThreshold = table.Column<int>(type: "integer", nullable: false),
-                    Color = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
-                    Description = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    Color = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
+                    Description = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     Icon = table.Column<byte[]>(type: "bytea", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
@@ -207,7 +210,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     RegionID = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    RegionName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "und-x-icu"),
+                    RegionName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -229,9 +232,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
-                    NormalizedName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
-                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
+                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
+                    NormalizedName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
+                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive")
                 },
                 constraints: table =>
                 {
@@ -245,7 +248,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 {
                     SeasonID = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    SeasonName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "und-x-icu"),
+                    SeasonName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "case_insensitive"),
                     CaptainsLocked = table.Column<bool>(type: "boolean", nullable: false),
                     PublicAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     SignupsOpen = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -269,7 +272,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     XboxUserID = table.Column<long>(type: "bigint", nullable: false),
-                    Gamertag = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    Gamertag = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -288,7 +291,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false),
                     FromDiscordUserId = table.Column<long>(type: "bigint", nullable: false),
                     ToDiscordUserId = table.Column<long>(type: "bigint", nullable: false),
-                    Content = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    Content = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
@@ -388,8 +391,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     MedalID = table.Column<long>(type: "bigint", nullable: false),
-                    MedalName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    Description = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    MedalName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    Description = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     SpriteIndex = table.Column<int>(type: "integer", nullable: false),
                     SortingWeight = table.Column<int>(type: "integer", nullable: false),
                     MedalDifficultyID = table.Column<int>(type: "integer", nullable: false),
@@ -427,8 +430,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RoleId = table.Column<int>(type: "integer", nullable: false),
-                    ClaimType = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    ClaimValue = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
+                    ClaimType = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    ClaimValue = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive")
                 },
                 constraints: table =>
                 {
@@ -481,7 +484,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     RegionID = table.Column<int>(type: "integer", nullable: true),
-                    DisplayName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "und-x-icu"),
+                    DisplayName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "case_insensitive"),
                     IsDummyUser = table.Column<bool>(type: "boolean", nullable: false),
                     XboxUserID = table.Column<long>(type: "bigint", nullable: true),
                     DiscordUserID = table.Column<long>(type: "bigint", nullable: true),
@@ -494,15 +497,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
-                    NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
-                    Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
-                    NormalizedEmail = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
+                    UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
+                    NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
+                    Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
+                    NormalizedEmail = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "case_insensitive"),
                     EmailConfirmed = table.Column<bool>(type: "boolean", nullable: false),
-                    PasswordHash = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    SecurityStamp = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    PhoneNumber = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    PasswordHash = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    SecurityStamp = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    PhoneNumber = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     PhoneNumberConfirmed = table.Column<bool>(type: "boolean", nullable: false),
                     TwoFactorEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     LockoutEnd = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -637,7 +640,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<int>(type: "integer", nullable: false),
-                    Token = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false, collation: "und-x-icu"),
+                    Token = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false, collation: "case_insensitive"),
                     ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsUsed = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
@@ -690,7 +693,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     UserID = table.Column<int>(type: "integer", nullable: false),
                     SeasonID = table.Column<int>(type: "integer", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    TeamName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    TeamName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     WillCaptain = table.Column<bool>(type: "boolean", nullable: false),
                     RequiresAssistanceDrafting = table.Column<bool>(type: "boolean", nullable: false),
                     Approved = table.Column<bool>(type: "boolean", nullable: false),
@@ -730,8 +733,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UserId = table.Column<int>(type: "integer", nullable: false),
-                    ClaimType = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
-                    ClaimValue = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
+                    ClaimType = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    ClaimValue = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive")
                 },
                 constraints: table =>
                 {
@@ -781,13 +784,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Auth",
                 columns: table => new
                 {
-                    LoginProvider = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
-                    ProviderKey = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
+                    LoginProvider = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
+                    ProviderKey = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ProviderDisplayName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
+                    ProviderDisplayName = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
                     UserId = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
@@ -839,9 +842,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     UserId = table.Column<int>(type: "integer", nullable: false),
-                    LoginProvider = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
-                    Name = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
-                    Value = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
+                    LoginProvider = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
+                    Name = table.Column<string>(type: "text", nullable: false, collation: "case_insensitive"),
+                    Value = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive")
                 },
                 constraints: table =>
                 {
@@ -1065,14 +1068,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     SeasonMatchID = table.Column<int>(type: "integer", nullable: false),
                     OriginalScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     NewScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Reason = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false, collation: "und-x-icu"),
+                    Reason = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false, collation: "case_insensitive"),
                     RequestedByUserID = table.Column<int>(type: "integer", nullable: false),
                     RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     ApprovedByUserID = table.Column<int>(type: "integer", nullable: true),
                     ProcessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DiscordThreadID = table.Column<decimal>(type: "numeric(20,0)", nullable: true),
-                    CommissionerNotes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "und-x-icu"),
+                    CommissionerNotes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "case_insensitive"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -1199,7 +1202,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     TeamID = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     SeasonID = table.Column<int>(type: "integer", nullable: false),
-                    TeamName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "und-x-icu"),
+                    TeamName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true, collation: "case_insensitive"),
                     CaptainID = table.Column<int>(type: "integer", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
