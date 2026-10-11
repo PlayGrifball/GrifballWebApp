@@ -24,7 +24,7 @@ tests:
           path: "spec.template.spec.containers[0].args[0]"
           pattern: 'export SQLEXPORTER_TARGET_DSN="pgx://\$DB_USER:\$enc@\$DB_HOST:\$DB_PORT/postgres\?\$DSN_OPTIONS"'
         documentIndex: 1
-      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=prefer } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=require } }
         documentIndex: 1
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: DB_USER, value: postgres } }
         documentIndex: 1

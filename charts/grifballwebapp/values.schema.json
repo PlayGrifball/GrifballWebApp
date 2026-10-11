@@ -366,6 +366,15 @@
         "password": { "$ref": "#/definitions/secretKeyRef" },
         "service": { "$ref": "#/definitions/databaseService" },
         "loadBalancer": { "$ref": "#/definitions/loadBalancer" },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "secretName": { "type": "string" },
+            "image": { "$ref": "#/definitions/image" }
+          }
+        },
         "persistence": { "$ref": "#/definitions/persistence" },
         "resources": { "$ref": "#/definitions/k8sObject" },
         "startupProbe": { "$ref": "#/definitions/probe" },

@@ -182,11 +182,59 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql
+        {{- if $p.tls.enabled }}
+        # The server's certificate and key, in memory, owned by PostgreSQL with the key private to it (it
+        # refuses one others can read). Copied from postgres.tls.secretName, or self-signed for the
+        # Service's names, anew on each start as SQL Server does.
+        - name: tls
+          {{- if $p.tls.secretName }}
+          image: {{ include "grif.image" $p.image }}
+          imagePullPolicy: {{ $p.image.pullPolicy }}
+          command: ["sh", "-c", "cp /certificate/tls.crt /certificate/tls.key /tls/ && chmod 600 /tls/tls.key"]
+          {{- else }}
+          image: {{ include "grif.image" $p.tls.image }}
+          imagePullPolicy: {{ $p.tls.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
+                -subj "/CN={{ $p.service.name }}" \
+                -addext "subjectAltName=DNS:{{ $p.service.name }},DNS:{{ $p.service.name }}.{{ .Release.Namespace }},DNS:{{ $p.service.name }}.{{ .Release.Namespace }}.svc" \
+                -keyout /tls/tls.key -out /tls/tls.crt 2>/dev/null
+              chmod 600 /tls/tls.key
+              echo "Self-signed certificate for {{ $p.service.name }}.{{ .Release.Namespace }}.svc"
+          {{- end }}
+          ports:
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+            {{- if $p.tls.secretName }}
+            - name: certificate
+              mountPath: /certificate
+              readOnly: true
+            {{- end }}
+        {{- end }}
       containers:
         - name: grif-postgres
           image: {{ include "grif.image" $p.image }}
           imagePullPolicy: {{ $p.image.pullPolicy }}
-          {{- with $p.settings }}
+          {{- $settings := $p.settings | default dict }}
+          {{- if $p.tls.enabled }}
+          {{- $settings = merge (dict "ssl" "on" "ssl_cert_file" "/tls/tls.crt" "ssl_key_file" "/tls/tls.key") $settings }}
+          {{- end }}
+          {{- with $settings }}
           args:
             - postgres
             {{- range $name, $value := . }}
@@ -239,6 +287,11 @@ spec:
             # Shared memory for parallel queries: the container runtime's default /dev/shm is 64Mi.
             - name: shm
               mountPath: /dev/shm
+            {{- if $p.tls.enabled }}
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+            {{- end }}
             {{- with $p.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -253,6 +306,16 @@ spec:
         - name: shm
           emptyDir:
             medium: Memory
+        {{- if $p.tls.enabled }}
+        - name: tls
+          emptyDir:
+            medium: Memory
+        {{- if $p.tls.secretName }}
+        - name: certificate
+          secret:
+            secretName: {{ $p.tls.secretName }}
+        {{- end }}
+        {{- end }}
         {{- with $p.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

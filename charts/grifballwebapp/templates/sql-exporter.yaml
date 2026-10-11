@@ -101,7 +101,7 @@ spec:
                   name: {{ $passwordSecret }}
                   key: {{ $passwordKey }}
             - name: DSN_OPTIONS
-              value: {{ $x.dsnOptions | default (include "grif.byProvider" (dict "root" . "sql" "encrypt=true&TrustServerCertificate=true" "pg" "sslmode=prefer")) | quote }}
+              value: {{ $x.dsnOptions | default (include "grif.byProvider" (dict "root" . "sql" "encrypt=true&TrustServerCertificate=true" "pg" (ternary "sslmode=require" "sslmode=prefer" (eq (include "grif.pgTls" .) "true")))) | quote }}
           ports:
             - name: metrics
               containerPort: {{ $x.port }}

@@ -60,7 +60,8 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: postgres-data, mountPath: /var/lib/postgresql } }
       - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: run, mountPath: /var/run/postgresql } }
       - contains: { path: spec.template.spec.volumes, content: { name: shm, emptyDir: { medium: Memory } } }
-      - notExists: { path: "spec.template.spec.containers[0].args" }
+      # TLS by default (postgres_tls_test.yaml): no other settings.
+      - equal: { path: "spec.template.spec.containers[0].args", value: [postgres, -c, ssl=on, -c, ssl_cert_file=/tls/tls.crt, -c, ssl_key_file=/tls/tls.key] }
       - equal: { path: "metadata.annotations['argocd.argoproj.io/sync-wave']", value: "-2" }
       - notExists: { path: spec.template.spec.nodeSelector }
 
@@ -80,7 +81,7 @@ tests:
         documentIndex: 2
       - equal: { path: "spec.ports[0].port", value: 15432 }
         documentIndex: 2
-      - equal: { path: "spec.template.spec.containers[0].args", value: [postgres, -c, max_connections=50, -c, shared_buffers=256MB] }
+      - equal: { path: "spec.template.spec.containers[0].args", value: [postgres, -c, max_connections=50, -c, shared_buffers=256MB, -c, ssl=on, -c, ssl_cert_file=/tls/tls.crt, -c, ssl_key_file=/tls/tls.key] }
         documentIndex: 3
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: TZ, value: UTC } }
         documentIndex: 3
@@ -127,7 +128,7 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Postgres } }
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);GSS Encryption Mode=Disable" }
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);SSL Mode=Require;GSS Encryption Mode=Disable" }
       - contains:
           path: "spec.template.spec.containers[0].env"
           content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }

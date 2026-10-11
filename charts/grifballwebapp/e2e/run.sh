@@ -343,6 +343,15 @@ if [ "$scenario" = postgres ]; then
   if as_login grif_monitor "$mon_password" GrifballWebApp 'SELECT count(*) FROM "__EFMigrationsHistory"' 2>/dev/null; then fail "grif_monitor read the app's tables"; fi
   echo "The backend connects as grif_app, which reads and writes but can't change the schema or the server;"
   echo "grif_monitor reads server statistics (sql-exporter's metrics) and can't read the app's tables."
+
+  step "TLS: PostgreSQL serves it with its self-signed certificate; the backend's connections use it"
+  [ "$(pg postgres 'SHOW ssl')" = on ] || fail "PostgreSQL isn't serving TLS"
+  # The backend's pooled connections (grif_app), once it has some: none without TLS.
+  backend_tls() {
+    [ "$(pg postgres "SELECT count(*) > 0 AND bool_and(s.ssl) FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")" = t ]
+  }
+  wait_for 120 backend_tls || fail "the backend's connections aren't all over TLS: $(pg postgres "SELECT string_agg(s.ssl::text, ',') FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")"
+  echo "PostgreSQL serves TLS ($(pg postgres "SELECT DISTINCT s.version FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")); the backend's connections use it."
 else
   # As each login, straight against SQL Server (its own sqlcmd; no shell, so the passwords pass as they are).
   as_login() {

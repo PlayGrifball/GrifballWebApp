@@ -81,9 +81,14 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- dict "secretName" .Values.database.password.secretName "key" (.Values.database.password.key | default (include "grif.byProvider" (dict "root" . "sql" "SA_PASSWORD" "pg" "POSTGRES_PASSWORD"))) | toJson -}}
 {{- end }}
 
+{{/* "true" when PostgreSQL's clients require TLS (postgres.tls.enabled). */}}
+{{- define "grif.pgTls" -}}
+{{- if and (include "grif.postgres" .) .Values.postgres.tls.enabled }}true{{ end -}}
+{{- end }}
+
 {{/* Connection string options: database.options, else the provider's default. */}}
 {{- define "grif.dbOptions" -}}
-{{- .Values.database.options | default (include "grif.byProvider" (dict "root" . "sql" "Encrypt=True;TrustServerCertificate=True" "pg" "GSS Encryption Mode=Disable")) -}}
+{{- .Values.database.options | default (include "grif.byProvider" (dict "root" . "sql" "Encrypt=True;TrustServerCertificate=True" "pg" (printf "%sGSS Encryption Mode=Disable" (ternary "SSL Mode=Require;" "" (eq (include "grif.pgTls" .) "true"))))) -}}
 {{- end }}
 
 {{/*
@@ -191,6 +196,11 @@ PGHOST, PGPORT and PGUSER. Takes dict "root", "user" and "password" (a Secret re
   value: {{ .user | quote }}
 - name: PGCONNECT_TIMEOUT
   value: "10"
+{{- if include "grif.pgTls" $r }}
+# TLS, without checking the certificate (postgres.tls).
+- name: PGSSLMODE
+  value: require
+{{- end }}
 {{ include "grif.secretEnv" (dict "root" $r "name" "PGPASSWORD" "ref" .password) }}
 {{- else }}
 # sqlcmd reads the password from here, so it is never on a command line.
