@@ -116,7 +116,11 @@ spec:
             {{- else }}
             {{- include "grif.appPasswordEnv" (dict "root" . "name" "DB_PASSWORD") | nindent 12 }}
             - name: ConnectionStrings__GrifballWebApp
-              value: {{ printf "Server=%s,%s;Database=%s;User Id=%s;Password=$(DB_PASSWORD);%s" (include "grif.dbHost" .) (include "grif.dbPort" . ) .Values.database.name (include "grif.appUser" .) .Values.database.options | quote }}
+              value: {{ include "grif.connectionString" (dict "root" . "user" (include "grif.appUser" .)) | quote }}
+            {{- end }}
+            {{- if include "grif.postgres" . }}
+            - name: Database__Provider
+              value: Postgres
             {{- end }}
             {{- $sheets := $b.config.GoogleSheets | default dict }}
             {{- if and $b.googleCredentials.secretName (not (hasKey $sheets "Key")) }}

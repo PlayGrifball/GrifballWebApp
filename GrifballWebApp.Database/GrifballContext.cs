@@ -54,9 +54,36 @@ public class GrifballContext :
     public virtual DbSet<PasswordResetLink> PasswordResetLinks { get; set; }
     public virtual DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
+    public const string CaseInsensitiveCollation = "case_insensitive";
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        // DateTimes are UTC (UtcDateTimeConverter). On Postgres they are timestamptz, Npgsql's default for
+        // DateTime, which holds an instant rather than a bare date and time.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+
+        // Postgres: text compared and sorted as SQL Server's default collation (SQL_Latin1_General_CP1_CI_AS)
+        // does: case-insensitive, accent-sensitive ("Noah" = "noah", "Noé" <> "noe"), sorted as people read it
+        // (alpha, Bravo, charlie) rather than by the server's locale (on Alpine, byte order). The app relies
+        // on it: gamertags, team names and searches match whatever the case. Nothing secret depends on case
+        // in a query: passwords and tokens are checked in .NET, and reset links are hex. The collation is
+        // created in OnModelCreating.
+        if (Database.IsNpgsql())
+        {
+            configurationBuilder.Properties<string>().UseCollation(CaseInsensitiveCollation);
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // ICU's root locale, ignoring case only (strength level 2). Nondeterministic: strings that differ only
+        // in case compare equal. PostgreSQL 18 allows LIKE and strpos (EF's Contains) on such a collation.
+        if (Database.IsNpgsql())
+            modelBuilder.HasCollation(CaseInsensitiveCollation, locale: "und-u-ks-level2", provider: "icu", deterministic: false);
 
         modelBuilder.ApplyConfiguration(new Configuration.DiscordUserConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.DiscordMessageConfiguration());
@@ -105,6 +132,38 @@ public class GrifballContext :
         });
 
         modelBuilder.Entity<DataProtectionKey>(b => b.ToTable("DataProtectionKeys", "Auth", tb => tb.IsTemporal()));
+
+        // Every table is temporal (SQL Server keeps a history of each change). Postgres has no temporal
+        // tables: its provider ignores the setting, which is dropped here so its migrations don't carry it.
+        if (!Database.IsSqlServer())
+        {
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+                entityType.RemoveAnnotation("SqlServer:IsTemporal");
+        }
+
+        if (Database.IsNpgsql())
+            QuoteCheckConstraintColumns(modelBuilder);
+    }
+
+    /// <summary>
+    /// Check constraints are written with bare column names, as SQL Server takes them. Postgres folds bare
+    /// names to lower case, and the columns are mixed case, so on Postgres each column name in them is
+    /// quoted.
+    /// </summary>
+    private static void QuoteCheckConstraintColumns(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var columns = entityType.GetProperties().Select(p => p.GetColumnName()).ToArray();
+            foreach (var check in entityType.GetCheckConstraints().ToList())
+            {
+                var sql = check.Sql;
+                foreach (var column in columns)
+                    sql = System.Text.RegularExpressions.Regex.Replace(sql, $@"(?<![""\w]){column}(?![""\w])", $@"""{column}""");
+                entityType.RemoveCheckConstraint(check.ModelName);
+                entityType.AddCheckConstraint(check.ModelName, sql).Name = check.Name;
+            }
+        }
     }
 
     private IDbContextTransaction? transaction;

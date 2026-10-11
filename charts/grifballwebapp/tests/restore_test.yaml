@@ -1,0 +1,75 @@
+suite: restore on a first deploy
+templates:
+  - templates/migrations-job.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: restore }, any: true }
+
+  - it: restores SQL Server's newest backup after check-pending, before the backup and your own steps
+    set:
+      migrations.restore.enabled: true
+      migrations.extraInitContainers: [{ name: notify, image: busybox }]
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: check-pending }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: restore }
+      - equal: { path: "spec.template.spec.initContainers[3].name", value: backup }
+      - equal: { path: "spec.template.spec.initContainers[4].name", value: notify }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: RESTORE_DIR, value: /var/opt/mssql/restore } }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \]; then echo "Database \$DB_NAME exists: nothing to restore."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "sys.dm_os_enumerate_filesystem\\(N'\\\\\\$\\$\\(RESTORE_DIR\\)'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "LIKE N'\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[_\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\].bak'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "sqlcmd -S \"\\$DB_HOST,\\$DB_PORT\" -U \"\\$DB_USER\" -N -C -b -x -i /work/restore.sql" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "/work/applied.txt /app/migrations.txt > /work/pending.txt\necho \"\\$file\" > /work/restored" }
+      # sqlcmd variables inline in $(...) were mis-parsed by BusyBox sh: queries go through functions.
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: '\$\(sqlcmd' }
+      - notExists: { path: "spec.template.spec.initContainers[2].volumeMounts[1]" }
+
+  - it: maps a restored database's user to this server's login (an orphan otherwise)
+    set:
+      migrations.restore.enabled: true
+      database.logins.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.containers[0].args[0]", pattern: "ELSE ALTER USER \\[\\$\\(ident \"\\$APP_USER\"\\)\\] WITH LOGIN = " }
+
+  - it: takes a folder and a script of your own
+    set:
+      migrations.restore: { enabled: true, directory: /var/opt/mssql/backup/grif-test }
+      migrations.scripts.restore: "echo mine"
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: RESTORE_DIR, value: /var/opt/mssql/backup/grif-test } }
+      - equal: { path: "spec.template.spec.initContainers[2].args[0]", value: "set -eu\necho mine\n" }
+
+  - it: runs with backups off (a preview)
+    set:
+      migrations.restore.enabled: true
+      migrations.backup.enabled: false
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: restore }
+
+  - it: restores PostgreSQL's newest dump from its volume, mounted read-only
+    set:
+      database.provider: postgres
+      migrations.restore: { enabled: true, volume: { nfs: { server: nas.example, path: /pg/grif-test, readOnly: true } } }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: restore }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: RESTORE_DIR, value: /restore } }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: restore, mountPath: /restore, readOnly: true } }
+      - contains: { path: spec.template.spec.volumes, content: { name: restore, nfs: { server: nas.example, path: /pg/grif-test, readOnly: true } } }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "\\^\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]_\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\\\.dump\\$" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_restore --no-owner --no-privileges --exit-on-error -d "\$tmp" "\$file"' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "ALTER DATABASE %I RENAME TO %I" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "/app/postgres/migrations.txt > /work/pending.txt" }
+
+  - it: needs PostgreSQL's restore volume
+    set:
+      database.provider: postgres
+      migrations.restore.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: migrations.restore.volume is required with PostgreSQL

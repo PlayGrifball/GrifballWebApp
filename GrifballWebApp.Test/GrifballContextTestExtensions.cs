@@ -10,7 +10,7 @@ internal static class GrifballContextTestExtensions
     public static GrifballContext NewContextLike(this GrifballContext context)
     {
         return new GrifballContext(new DbContextOptionsBuilder<GrifballContext>()
-            .UseSqlServer(context.Database.GetConnectionString()).Options);
+            .UseGrifballDatabase(TestDatabase.Provider, context.Database.GetConnectionString()!).Options);
     }
 
     /// <summary>An <see cref="IDbContextFactory{TContext}"/> that hands out new contexts on the same database as <paramref name="context"/>.</summary>

@@ -1,0 +1,95 @@
+suite: postgres TLS
+templates:
+  - templates/postgres.yaml
+  - templates/backend.yaml
+  - templates/migrations-job.yaml
+  - templates/sql-exporter.yaml
+release:
+  namespace: grif-x
+set:
+  database.provider: postgres
+tests:
+  - it: makes a self-signed certificate on each start, for the Service's names, private to PostgreSQL
+    template: templates/postgres.yaml
+    documentIndex: 3
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: tls }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].image", pattern: "^docker.io/alpine/openssl:.+@sha256:" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "subjectAltName=DNS:postgres,DNS:postgres.grif-x,DNS:postgres.grif-x.svc" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "chmod 600 /tls/tls.key" }
+      - equal: { path: "spec.template.spec.initContainers[1].securityContext.runAsUser", value: 70 }
+      - contains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /tls, readOnly: true } }
+      - contains: { path: "spec.template.spec.containers[0].args", content: ssl=on }
+
+  - it: copies a given certificate instead of making one
+    template: templates/postgres.yaml
+    documentIndex: 3
+    set:
+      postgres.tls.secretName: postgres-tls
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[1].image", pattern: "^docker.io/library/postgres:" }
+      - equal: { path: "spec.template.spec.initContainers[1].command[2]", value: "cp /certificate/tls.crt /certificate/tls.key /tls/ && chmod 600 /tls/tls.key" }
+      - contains: { path: spec.template.spec.volumes, content: { name: certificate, secret: { secretName: postgres-tls } } }
+      - contains: { path: "spec.template.spec.initContainers[1].volumeMounts", content: { name: certificate, mountPath: /certificate, readOnly: true } }
+
+  - it: has the app, the migrations and the backend's wait require TLS
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);SSL Mode=Require;GSS Encryption Mode=Disable" }
+        template: templates/migrations-job.yaml
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: PGSSLMODE, value: require } }
+        template: templates/migrations-job.yaml
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: PGSSLMODE, value: require } }
+        template: templates/backend.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: has sql-exporter require TLS
+    template: templates/sql-exporter.yaml
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      sqlExporter.enabled: true
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=require } }
+
+  - it: without TLS, the server has none and the clients ask for none
+    set:
+      postgres.tls.enabled: false
+      sqlExporter.enabled: true
+    asserts:
+      - notExists: { path: "spec.template.spec.containers[0].args" }
+        template: templates/postgres.yaml
+        documentIndex: 3
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 1 }
+        template: templates/postgres.yaml
+        documentIndex: 3
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);GSS Encryption Mode=Disable" }
+        template: templates/migrations-job.yaml
+      - notContains: { path: "spec.template.spec.initContainers[0].env", content: { name: PGSSLMODE, value: require } }
+        template: templates/migrations-job.yaml
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: DSN_OPTIONS, value: sslmode=prefer } }
+        template: templates/sql-exporter.yaml
+        documentSelector: { path: kind, value: Deployment }
+
+  - it: requires TLS of an external PostgreSQL too
+    template: templates/migrations-job.yaml
+    set:
+      postgres.enabled: false
+      database.host: pg.example
+    asserts:
+      - contains: { path: "spec.template.spec.initContainers[0].env", content: { name: PGSSLMODE, value: require } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=pg.example;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);SSL Mode=Require;GSS Encryption Mode=Disable" }
+
+  - it: takes database.options instead of the default
+    template: templates/migrations-job.yaml
+    set:
+      database.options: SSL Mode=VerifyFull
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);SSL Mode=VerifyFull" }

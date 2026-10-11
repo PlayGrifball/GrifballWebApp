@@ -4,7 +4,7 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <ExcludeByFile>
-            <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Database/Migrations/*.cs</File>
+            <File>**/DiscordInterfaces/*.cs,**/DiscordInterfaceSourceGen/*.cs,**/GrifballWebApp.Migrations.*/Migrations/*.cs</File>
           </ExcludeByFile>
         </Configuration>
       </DataCollector>

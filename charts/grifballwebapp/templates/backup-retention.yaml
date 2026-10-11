@@ -1,10 +1,18 @@
 {{- $m := .Values.migrations -}}
 {{- $r := $m.backup.retention -}}
 {{- if and $m.enabled $m.backup.enabled $r.enabled }}
+{{- $pg := include "grif.postgres" . }}
+{{- if $pg }}
+# Deletes old backups (values.yaml, migrations.backup.retention) from PostgreSQL's backup volume: only
+# pg_dump archives named <database>_YYYYMMDD_HHMMSS.dump in the backup folder, ranked and aged by the
+# date and time in their name. One goes once it's older than keepDays and isn't among the newest
+# keepLast. It doesn't connect to the database.
+{{- else }}
 # Deletes old pre-migration backups (values.yaml, migrations.backup.retention). SQL Server lists and
 # deletes its own files: only backups it recorded writing (msdb) named <database>_*.bak in the backup
 # folder, and xp_delete_file 0 only deletes SQL Server backups. One goes once it's older than keepDays
 # and isn't among the newest keepLast.
+{{- end }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -41,9 +49,9 @@ spec:
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with $m.podSecurityContext }}
+          {{- with include "grif.migrationPodSecurityContext" . }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
+            {{- . | nindent 12 }}
           {{- end }}
           containers:
             - name: retention
@@ -52,6 +60,24 @@ spec:
               args:
                 - |
                   set -eu
+                  {{- if $pg }}
+                  {{- include "grif.pgRetentionScript" . | nindent 18 }}
+              env:
+                - name: DB_NAME
+                  value: {{ .Values.database.name | quote }}
+                - name: BACKUP_DIR
+                  value: {{ include "grif.backupDir" . | quote }}
+                - name: KEEP_LAST
+                  value: {{ $r.keepLast | quote }}
+                - name: KEEP_DAYS
+                  value: {{ $r.keepDays | quote }}
+                {{- with $m.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                  {{- else }}
                   # A new pod's address may reach SQL Server only seconds after it starts (network policy
                   # controllers admit it late), so wait for it as the migration Job does.
                   {{- include "grif.waitForDatabaseScript" . | nindent 18 }}
@@ -91,8 +117,13 @@ spec:
                 {{- with $m.extraEnv }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
+              {{- end }}
               resources:
                 {{- include "grif.migrationSmallResources" . | nindent 16 }}
+          {{- if $pg }}
+          volumes:
+            {{- include "grif.pgBackupVolume" . | nindent 12 }}
+          {{- end }}
           {{- with $m.nodeSelector }}
           nodeSelector:
             {{- toYaml . | nindent 12 }}

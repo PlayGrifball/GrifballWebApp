@@ -51,9 +51,10 @@ public class DiscordSetGamertagBranchTests
     [TearDown]
     public async Task TearDown()
     {
-        _context.DropDatabase();
+        var connectionString = _context.Database.GetConnectionString()!;
         _scope.Dispose();
         await _provider.DisposeAsync();
+        _ = Task.Run(() => TestDatabase.DropDatabase(connectionString));
     }
 
     /// <summary>Replays the ModifyResponseAsync callback on a substitute and returns the content it set.</summary>

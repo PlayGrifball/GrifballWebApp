@@ -1,0 +1,51 @@
+# PostgreSQL instead of SQL Server: the chart's PostgreSQL with settings, least-privilege logins,
+# sql-exporter, scheduled backups and retention on an NFS backup volume, and a first deploy restored
+# from another environment's backups. Example values only. Rendered and schema-checked by the Helm
+# chart workflow.
+database:
+  provider: postgres
+  logins:
+    enabled: true
+backend:
+  config:
+    BaseUrl: https://grifball.example
+    Discord:
+      DraftChannel: "1234567890123456789"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+ingress:
+  enabled: true
+  className: nginx
+  hosts: [grifball.example]
+postgres:
+  settings:
+    shared_buffers: 256MB
+  persistence:
+    storageClass: standard
+    annotations:
+      argocd.argoproj.io/sync-options: Prune=false,Delete=false
+sqlExporter:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+migrations:
+  backup:
+    volume:
+      nfs:
+        server: nfs.example
+        path: /exports/pg-backups
+    retention:
+      enabled: true
+    scheduled:
+      enabled: true
+  restore:
+    enabled: true
+    directory: /restore/grif-test
+    volume:
+      nfs: { server: nfs.example, path: /exports/pg-backups, readOnly: true }
+networkPolicy:
+  sqlExporter:
+    from:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } }

@@ -1,28 +1,29 @@
-﻿using GrifballWebApp.Database;
+﻿using DotNet.Testcontainers.Containers;
+using GrifballWebApp.Database;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Testcontainers.MsSql;
 
 namespace GrifballWebApp.Test;
 
 [SetUpFixture]
 public class SetUpFixture
 {
-    public static MsSqlContainer MsSqlContainer { get; private set; }
+    /// <summary>SQL Server or Postgres (<see cref="TestDatabase.Provider"/>).</summary>
+    public static IDatabaseContainer DatabaseContainer { get; private set; }
 
     [OneTimeSetUp]
     public async Task RunBeforeAnyTests()
     {
-        MsSqlContainer = await Utility.NewSqlServer();
+        DatabaseContainer = await TestDatabase.StartServer();
     }
 
     [OneTimeTearDown]
     public async Task RunAfterAnyTests()
     {
-        await MsSqlContainer.DisposeAsync();
+        await DatabaseContainer.DisposeAsync();
     }
 
     public static async Task<GrifballContext> NewGrifballContext(params IInterceptor[] interceptors)
     {
-        return await Utility.NewGrifballContext(SetUpFixture.MsSqlContainer, interceptors);
+        return await Utility.NewGrifballContext(SetUpFixture.DatabaseContainer, interceptors);
     }
 }

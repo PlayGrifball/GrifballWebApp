@@ -127,8 +127,7 @@ public class Program
 
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
-            options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("GrifballWebApp")
-                    ?? throw new Exception("GrifballContext failed to configure"))
+            options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
                 .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
         });
 

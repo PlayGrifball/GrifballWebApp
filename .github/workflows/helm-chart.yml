@@ -2,7 +2,8 @@ name: Helm chart
 
 # The deployment chart (charts/grifballwebapp). Pull requests: lint, unit tests (helm-unittest), every
 # ci/*-values.yaml rendered and checked against the Kubernetes schemas, and an end-to-end run on k3s
-# with the chart's SQL Server, an external one, and the minimal install, on Kubernetes 1.34 to 1.37.
+# with the chart's SQL Server, an external one, the chart's PostgreSQL, and the minimal install, on
+# Kubernetes 1.34 to 1.37.
 # master: the same, then, if the chart changed, publish it to
 # oci://ghcr.io/playgrifball/charts/grifballwebapp as <Chart.yaml's major.minor>.<run number>, signed
 # keyless with cosign.
@@ -122,6 +123,8 @@ jobs:
         include:
           - { database: bundled, k3s: v1.36.5-k3s1 }
           - { database: external, k3s: v1.36.5-k3s1 }
+          # database.provider postgres, the chart's PostgreSQL.
+          - { database: postgres, k3s: v1.36.5-k3s1 }
           # ci/minimal-values.yaml, the README's Quick start, with k3s's Traefik for its Ingress.
           - { database: minimal, k3s: v1.36.5-k3s1 }
           - { database: bundled, k3s: v1.34.12-k3s1 }

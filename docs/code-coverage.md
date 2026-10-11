@@ -17,8 +17,7 @@ dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --collect:"XPlat Code
 ## Coverage Configuration
 
 The code coverage is configured in `coverlet.runsettings` with the following exclusions:
-- Database migrations (module `[GrifballWebApp.Database.Migrations]*`)
-- Migration files (file pattern `**/GrifballWebApp.Database/Migrations/*.cs`)
+- Database migrations, generated, for both databases (file pattern `**/GrifballWebApp.Migrations.*/Migrations/*.cs`)
 
 ## Coverage Output
 

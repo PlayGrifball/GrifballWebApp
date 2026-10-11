@@ -18,10 +18,10 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class GrifballContextFactoryTests
 {
-    private static IServiceProvider Provider(string? connectionString)
+    private static IServiceProvider Provider(string? connectionString, string? provider = null)
     {
         var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString }).Build();
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString, ["Database:Provider"] = provider }).Build();
         return new ServiceCollection().AddSingleton<IConfiguration>(config).BuildServiceProvider();
     }
 
@@ -37,6 +37,22 @@ public class GrifballContextFactoryTests
         {
             Assert.That(actual.DataSource, Is.EqualTo("example"));
             Assert.That(actual.InitialCatalog, Is.EqualTo("Grif"));
+        });
+    }
+
+    [Test]
+    public void CreateDbContext_Postgres_UsesNpgsql()
+    {
+        const string cs = "Host=example;Database=Grif;Username=grif;Password=x;";
+
+        using var context = new GrifballContextFactory(Provider(cs, "Postgres")).CreateDbContext();
+
+        var actual = new Npgsql.NpgsqlConnectionStringBuilder(context.Database.GetConnectionString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(context.Database.IsNpgsql(), Is.True);
+            Assert.That(actual.Host, Is.EqualTo("example"));
+            Assert.That(actual.Database, Is.EqualTo("Grif"));
         });
     }
 

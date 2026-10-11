@@ -10,6 +10,9 @@ namespace GrifballWebApp.Test;
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class HomeControllerTests
 {
+    // Postgres keeps times to the microsecond, SQL Server's datetime2 to 100ns.
+    private static readonly TimeSpan DatabasePrecision = TimeSpan.FromMicroseconds(1);
+
     private GrifballContext _context;
     private HomeController _controller;
 
@@ -63,8 +66,8 @@ public class HomeControllerTests
         var signupEvents = result.Where(e => e.EventType == EventType.Signup).ToArray();
         Assert.That(signupEvents, Has.Length.EqualTo(1));
         Assert.That(signupEvents[0].Name, Is.EqualTo("Test Season"));
-        Assert.That(signupEvents[0].Start, Is.EqualTo(season.SignupsOpen));
-        Assert.That(signupEvents[0].End, Is.EqualTo(season.SignupsClose));
+        Assert.That(signupEvents[0].Start, Is.EqualTo(season.SignupsOpen).Within(DatabasePrecision));
+        Assert.That(signupEvents[0].End, Is.EqualTo(season.SignupsClose).Within(DatabasePrecision));
     }
 
     [Test]
@@ -92,8 +95,8 @@ public class HomeControllerTests
         var draftEvents = result.Where(e => e.EventType == EventType.Draft).ToArray();
         Assert.That(draftEvents, Has.Length.EqualTo(1));
         Assert.That(draftEvents[0].Name, Is.EqualTo("Test Season"));
-        Assert.That(draftEvents[0].Start, Is.EqualTo(season.DraftStart));
-        Assert.That(draftEvents[0].End, Is.EqualTo(season.SeasonStart));
+        Assert.That(draftEvents[0].Start, Is.EqualTo(season.DraftStart).Within(DatabasePrecision));
+        Assert.That(draftEvents[0].End, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
     }
 
     [Test]
@@ -121,8 +124,8 @@ public class HomeControllerTests
         var seasonEvents = result.Where(e => e.EventType == EventType.Season).ToArray();
         Assert.That(seasonEvents, Has.Length.EqualTo(1));
         Assert.That(seasonEvents[0].Name, Is.EqualTo("Active Season"));
-        Assert.That(seasonEvents[0].Start, Is.EqualTo(season.SeasonStart));
-        Assert.That(seasonEvents[0].End, Is.EqualTo(season.SeasonEnd));
+        Assert.That(seasonEvents[0].Start, Is.EqualTo(season.SeasonStart).Within(DatabasePrecision));
+        Assert.That(seasonEvents[0].End, Is.EqualTo(season.SeasonEnd).Within(DatabasePrecision));
     }
 
     [Test]
