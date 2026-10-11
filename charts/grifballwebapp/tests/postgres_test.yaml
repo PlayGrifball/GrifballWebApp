@@ -127,7 +127,7 @@ tests:
       - contains: { path: "spec.template.spec.containers[0].env", content: { name: Database__Provider, value: Postgres } }
       - contains:
           path: "spec.template.spec.containers[0].env"
-          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD)" }
+          content: { name: ConnectionStrings__GrifballWebApp, value: "Host=postgres;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$(DB_PASSWORD);GSS Encryption Mode=Disable" }
       - contains:
           path: "spec.template.spec.containers[0].env"
           content: { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: grif-secrets, key: POSTGRES_PASSWORD } } }

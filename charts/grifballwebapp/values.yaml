@@ -45,9 +45,10 @@ database:
   #   SQL Server: Server=<host>,<port>;Database=<name>;User Id=<user>;Password=<password>;<options>
   #   PostgreSQL: Host=<host>;Port=<port>;Database=<name>;Username=<user>;Password=<password>;<options>
   # The password goes in as is, so it must not contain ';'. Empty: the provider's,
-  # "Encrypt=True;TrustServerCertificate=True" for SQL Server, none for PostgreSQL (Npgsql's defaults;
-  # the migration steps' psql uses TLS when the server offers it - PGSSLMODE in migrations.extraEnv to
-  # require it).
+  # "Encrypt=True;TrustServerCertificate=True" for SQL Server, "GSS Encryption Mode=Disable" for
+  # PostgreSQL (the image has no Kerberos library, which Npgsql otherwise tries to load when it connects,
+  # logging an error; TLS stays Npgsql's default, and the migration steps' psql uses it when
+  # the server offers it - PGSSLMODE in migrations.extraEnv to require it).
   options: ""
   # Give the backend this whole connection string instead (ConnectionStrings:GrifballWebApp). The
   # migrations still connect with host, port, user and password above.

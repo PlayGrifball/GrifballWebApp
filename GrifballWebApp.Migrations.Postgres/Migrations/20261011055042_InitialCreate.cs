@@ -1880,6 +1880,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.DropTable(
                 name: "TeamPlayers",
                 schema: "Event");
+
+            // Added by hand: EF doesn't undo a database annotation in an initial migration's Down, so rolling
+            // back to before it left the collation behind and the next Up failed creating it again.
+            migrationBuilder.AlterDatabase()
+                .OldAnnotation("Npgsql:CollationDefinition:case_insensitive", "und-u-ks-level2,und-u-ks-level2,icu,False");
         }
     }
 }

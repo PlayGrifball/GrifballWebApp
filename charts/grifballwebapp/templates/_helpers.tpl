@@ -83,7 +83,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 {{/* Connection string options: database.options, else the provider's default. */}}
 {{- define "grif.dbOptions" -}}
-{{- .Values.database.options | default (include "grif.byProvider" (dict "root" . "sql" "Encrypt=True;TrustServerCertificate=True" "pg" "")) -}}
+{{- .Values.database.options | default (include "grif.byProvider" (dict "root" . "sql" "Encrypt=True;TrustServerCertificate=True" "pg" "GSS Encryption Mode=Disable")) -}}
 {{- end }}
 
 {{/*
