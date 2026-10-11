@@ -241,6 +241,8 @@ database:
   logins: { enabled: true }
 postgres:
   persistence: { size: 1Gi }
+  # Each connection logged as it's authorized, with its TLS (the TLS step reads them).
+  settings: { log_connections: authorization }
 migrations:
   backup: { volume: { size: 1Gi }, retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
 EOF
@@ -346,12 +348,17 @@ if [ "$scenario" = postgres ]; then
 
   step "TLS: PostgreSQL serves it with its self-signed certificate; the backend's connections use it"
   [ "$(pg postgres 'SHOW ssl')" = on ] || fail "PostgreSQL isn't serving TLS"
-  # The backend's pooled connections (grif_app), once it has some: none without TLS.
-  backend_tls() {
-    [ "$(pg postgres "SELECT count(*) > 0 AND bool_and(s.ssl) FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")" = t ]
+  # From PostgreSQL's log (log_connections), not its live connections: the backend here can't stay up
+  # (Discord refuses the test credentials), so it holds a connection only for a moment each start.
+  # Every grif_app connection - the app's own (Npgsql, no application_name) and psql's - over TLS.
+  grif_app_connections() {
+    kubectl -n "$ns" logs deploy/grif-postgres -c grif-postgres | grep 'connection authorized: user=grif_app ' || true
   }
-  wait_for 120 backend_tls || fail "the backend's connections aren't all over TLS: $(pg postgres "SELECT string_agg(s.ssl::text, ',') FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")"
-  echo "PostgreSQL serves TLS ($(pg postgres "SELECT DISTINCT s.version FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid) WHERE a.usename = 'grif_app'")); the backend's connections use it."
+  app_connected() { grif_app_connections | grep -qv 'application_name=psql'; }
+  wait_for 120 app_connected || fail "the backend never connected as grif_app: $(grif_app_connections | tail -3)"
+  if grif_app_connections | grep -v 'SSL enabled'; then fail "grif_app connected without TLS (above)"; fi
+  echo "PostgreSQL serves TLS; grif_app's connections, the app's included, use it:"
+  grif_app_connections | grep -v 'application_name=psql' | tail -1 | sed 's/.*SSL enabled/  SSL enabled/'
 else
   # As each login, straight against SQL Server (its own sqlcmd; no shell, so the passwords pass as they are).
   as_login() {
