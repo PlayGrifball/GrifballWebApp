@@ -99,5 +99,8 @@ COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
 COPY --from=migrations /app/postgres /app/postgres
+# The bundles are single-file apps that unpack themselves before they run, into $HOME by default,
+# which a read-only root filesystem doesn't allow. The chart's migrate container has /tmp writable.
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp
 COPY --from=sqlcmd /usr/local/bin/sqlcmd /usr/local/bin/sqlcmd
 ENTRYPOINT ["dotnet", "GrifballWebApp.Server.dll"]
