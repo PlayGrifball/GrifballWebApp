@@ -534,21 +534,21 @@ spec:
       persistentVolumeClaim: { claimName: restore-source }
 EOF
   kubectl -n "$restore_ns" wait --for=condition=Ready pod/fill --timeout=120s
-  # Through a local file, not a pipe from one kubectl exec to another, which can end early (SIGPIPE).
-  # Either exec stream can still come up short (a truncated copy, 2026-10-11), so each end's size is
-  # compared with the original's, and the copy repeated if they differ.
-  size=$(backups "wc -c < '$marked'" | tr -d ' \r')
-  copied() {
-    backups "cat '$marked'" > "$work/marked.dump"
-    [ "$(wc -c < "$work/marked.dump" | tr -d ' ')" = "$size" ] || return 1
-    kubectl -n "$restore_ns" exec -i fill -- sh -c "mkdir -p /source/grif-test && cat > '/source/grif-test/${marked##*/}'" < "$work/marked.dump"
-    [ "$(kubectl -n "$restore_ns" exec fill -- wc -c "/source/grif-test/${marked##*/}" | awk '{print $1}')" = "$size" ]
-  }
-  for attempt in 1 2 3; do
-    copied && break
-    [ "$attempt" -lt 3 ] || fail "${marked##*/} ($size bytes) wasn't copied whole in 3 tries"
-    echo "${marked##*/} came through short (try $attempt); copying again"
+  # Out through a local file (not a pipe from one kubectl exec to another, which can end early on
+  # SIGPIPE), and in as base64 in the exec's arguments: stdin into an exec loses data past a few
+  # 32 KiB frames (a 291 KB dump arrived as 64-196 KB, every try, 2026-10-11), while arguments
+  # travel in the request itself. Both ends' checksums are compared with the original's.
+  sum=$(backups "md5sum '$marked'" | awk '{print $1}')
+  backups "cat '$marked'" > "$work/marked.dump"
+  [ "$(md5sum < "$work/marked.dump" | awk '{print $1}')" = "$sum" ] || fail "${marked##*/} came out of the backup volume damaged"
+  target="/source/grif-test/${marked##*/}"
+  kubectl -n "$restore_ns" exec fill -- sh -c "mkdir -p /source/grif-test && rm -f '$target.b64'"
+  base64 -w0 "$work/marked.dump" | fold -w 100000 | while read -r chunk || [ -n "$chunk" ]; do
+    kubectl -n "$restore_ns" exec fill -- sh -c 'printf %s "$2" >> "$1"' _ "$target.b64" "$chunk" </dev/null
   done
+  kubectl -n "$restore_ns" exec fill -- sh -c "base64 -d '$target.b64' > '$target' && rm '$target.b64'"
+  [ "$(kubectl -n "$restore_ns" exec fill -- md5sum "$target" | awk '{print $1}')" = "$sum" ] \
+    || fail "${marked##*/} didn't reach the restore volume whole"
   kubectl -n "$restore_ns" exec fill -- sh -c "cd /source/grif-test && echo junk > GrifballWebApp_29991231_235959.dump && cp '${marked##*/}' GrifballWebApp_manual.dump"
   kubectl -n "$restore_ns" delete pod fill --wait=true
   helm install grif "$chart" -n "$restore_ns" "${images[@]}" -f - <<EOF
