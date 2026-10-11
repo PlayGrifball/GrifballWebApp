@@ -535,10 +535,20 @@ spec:
 EOF
   kubectl -n "$restore_ns" wait --for=condition=Ready pod/fill --timeout=120s
   # Through a local file, not a pipe from one kubectl exec to another, which can end early (SIGPIPE).
-  backups "cat '$marked'" > "$work/marked.dump"
-  kubectl -n "$restore_ns" exec -i fill -- sh -c "mkdir -p /source/grif-test && cat > '/source/grif-test/${marked##*/}'" < "$work/marked.dump"
-  [ "$(kubectl -n "$restore_ns" exec fill -- wc -c "/source/grif-test/${marked##*/}" | awk '{print $1}')" = "$(wc -c < "$work/marked.dump" | tr -d ' ')" ] \
-    || fail "${marked##*/} wasn't copied whole"
+  # Either exec stream can still come up short (a truncated copy, 2026-10-11), so each end's size is
+  # compared with the original's, and the copy repeated if they differ.
+  size=$(backups "wc -c < '$marked'" | tr -d ' \r')
+  copied() {
+    backups "cat '$marked'" > "$work/marked.dump"
+    [ "$(wc -c < "$work/marked.dump" | tr -d ' ')" = "$size" ] || return 1
+    kubectl -n "$restore_ns" exec -i fill -- sh -c "mkdir -p /source/grif-test && cat > '/source/grif-test/${marked##*/}'" < "$work/marked.dump"
+    [ "$(kubectl -n "$restore_ns" exec fill -- wc -c "/source/grif-test/${marked##*/}" | awk '{print $1}')" = "$size" ]
+  }
+  for attempt in 1 2 3; do
+    copied && break
+    [ "$attempt" -lt 3 ] || fail "${marked##*/} ($size bytes) wasn't copied whole in 3 tries"
+    echo "${marked##*/} came through short (try $attempt); copying again"
+  done
   kubectl -n "$restore_ns" exec fill -- sh -c "cd /source/grif-test && echo junk > GrifballWebApp_29991231_235959.dump && cp '${marked##*/}' GrifballWebApp_manual.dump"
   kubectl -n "$restore_ns" delete pod fill --wait=true
   helm install grif "$chart" -n "$restore_ns" "${images[@]}" -f - <<EOF
