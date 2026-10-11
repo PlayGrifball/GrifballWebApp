@@ -362,6 +362,13 @@ mssql:
     name: mssql-lb
     port: 1433
     annotations: {}
+  # TLS: SQL Server encrypts the connections its clients ask it to (the chart's do: Encrypt=True), with a
+  # self-signed certificate it makes itself on each start. Its own instead: a kubernetes.io/tls Secret
+  # (tls.crt, tls.key; RSA or ECDSA), from cert-manager say, copied in on each start and named in
+  # SQL Server's mssql.conf. Clients still don't check it unless database.options says so
+  # (Encrypt=True;TrustServerCertificate=False, with its CA trusted).
+  tls:
+    secretName: ""
   persistence:
     existingClaim: ""
     claimName: mssql-data-pvc

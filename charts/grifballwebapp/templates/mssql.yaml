@@ -180,6 +180,30 @@ spec:
           volumeMounts:
             - name: mssql-data
               mountPath: /var/opt/mssql/data
+        {{- if $m.tls.secretName }}
+        # mssql.tls.secretName's certificate and key, in memory, readable by SQL Server alone, and the
+        # mssql.conf that names them.
+        - name: tls
+          image: {{ include "grif.image" $m.initImage }}
+          imagePullPolicy: {{ $m.initImage.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              cp /certificate/tls.crt /tls/mssql.pem
+              cp /certificate/tls.key /tls/mssql.key
+              printf '%s\n' '[network]' 'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key' > /tls/mssql.conf
+              chown 10001:10001 /tls/mssql.pem /tls/mssql.key /tls/mssql.conf
+              chmod 400 /tls/mssql.pem /tls/mssql.key
+          securityContext:
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+            - name: certificate
+              mountPath: /certificate
+              readOnly: true
+        {{- end }}
       containers:
         - name: grif-mssql
           image: {{ include "grif.image" $m.image }}
@@ -228,6 +252,15 @@ spec:
               subPath: mssql-state/log
             - name: tmp
               mountPath: /tmp
+            {{- if $m.tls.secretName }}
+            - name: tls
+              mountPath: /var/opt/mssql/tls
+              readOnly: true
+            - name: tls
+              mountPath: /var/opt/mssql/mssql.conf
+              subPath: mssql.conf
+              readOnly: true
+            {{- end }}
             {{- with $m.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -242,6 +275,14 @@ spec:
         {{- end }}
         - name: tmp
           emptyDir: {}
+        {{- if $m.tls.secretName }}
+        - name: tls
+          emptyDir:
+            medium: Memory
+        - name: certificate
+          secret:
+            secretName: {{ $m.tls.secretName }}
+        {{- end }}
         {{- with $m.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

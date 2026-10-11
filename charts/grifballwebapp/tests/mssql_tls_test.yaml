@@ -1,0 +1,26 @@
+suite: SQL Server TLS
+templates:
+  - templates/mssql.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: uses SQL Server's own certificate by default (no mssql.conf, nothing mounted)
+    documentSelector: { path: kind, value: Deployment }
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 1 }
+      - notContains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
+
+  - it: copies a Secret's certificate in, readable by SQL Server alone, named in mssql.conf
+    documentSelector: { path: kind, value: Deployment }
+    set:
+      mssql.tls.secretName: mssql-tls
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: tls }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "'tlscert = /var/opt/mssql/tls/mssql.pem' 'tlskey = /var/opt/mssql/tls/mssql.key'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "chown 10001:10001 /tls/mssql.pem /tls/mssql.key /tls/mssql.conf\nchmod 400 /tls/mssql.pem /tls/mssql.key" }
+      - contains: { path: spec.template.spec.volumes, content: { name: certificate, secret: { secretName: mssql-tls } } }
+      - contains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /var/opt/mssql/tls, readOnly: true } }
+      - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /var/opt/mssql/mssql.conf, subPath: mssql.conf, readOnly: true } }

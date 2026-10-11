@@ -295,6 +295,11 @@
         "image": { "$ref": "#/definitions/image" },
         "edition": { "type": "string" },
         "saPassword": { "$ref": "#/definitions/secretKeyRef" },
+        "tls": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "secretName": { "type": "string" } }
+        },
         "service": {
           "type": "object",
           "additionalProperties": false,
