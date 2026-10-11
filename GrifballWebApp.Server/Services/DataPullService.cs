@@ -181,8 +181,8 @@ public class DataPullService : IDataPullService
         var match = new Match()
         {
             MatchID = matchID,
-            StartTime = matchStats.MatchInfo.StartTime.ToUniversalTime().DateTime,
-            EndTime = matchStats.MatchInfo.EndTime.ToUniversalTime().DateTime,
+            StartTime = matchStats.MatchInfo.StartTime.UtcDateTime,
+            EndTime = matchStats.MatchInfo.EndTime.UtcDateTime,
             Duration = matchStats.MatchInfo.Duration,
             StatsPullDate = DateTime.UtcNow,
         };
@@ -259,9 +259,9 @@ public class DataPullService : IDataPullService
                 DamageTaken = stats.DamageTaken,
                 CalloutAssists = stats.CalloutAssists,
                 MaxKillingSpree = stats.MaxKillingSpree,
-                FirstJoinedTime = x.ParticipationInfo.FirstJoinedTime.ToUniversalTime().DateTime,
+                FirstJoinedTime = x.ParticipationInfo.FirstJoinedTime.UtcDateTime,
                 JoinedInProgress = x.ParticipationInfo.JoinedInProgress,
-                LastLeaveTime = x.ParticipationInfo.LastLeaveTime.HasValue ? x.ParticipationInfo.LastLeaveTime.Value.ToUniversalTime().DateTime : null,
+                LastLeaveTime = x.ParticipationInfo.LastLeaveTime.HasValue ? x.ParticipationInfo.LastLeaveTime.Value.UtcDateTime : null,
                 LeftInProgress = x.ParticipationInfo.LeftInProgress,
                 PresentAtBeginning = x.ParticipationInfo.PresentAtBeginning,
                 PresentAtCompletion = x.ParticipationInfo.PresentAtCompletion,

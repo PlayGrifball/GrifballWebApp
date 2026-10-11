@@ -58,25 +58,19 @@ public class GrifballContext :
     {
         base.ConfigureConventions(configurationBuilder);
 
-        // Postgres: DateTime as timestamp without time zone, like SQL Server's datetime2 - the value is
-        // stored as it is, whatever its Kind, and read back Unspecified. Npgsql's default (timestamptz)
-        // takes only UTC, and won't write a UTC value to timestamp without time zone, hence the converter.
-        // And text sorted as people read it (alpha, Bravo, charlie), as SQL Server's default collation
+        // DateTimes are UTC (UtcDateTimeConverter). On Postgres they are timestamptz, Npgsql's default for
+        // DateTime, which holds an instant rather than a bare date and time.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+
+        // Postgres: text sorted as people read it (alpha, Bravo, charlie), as SQL Server's default collation
         // does, rather than by the server's locale (on Alpine, byte order: Bravo, Charlie, alpha). ICU's
         // root collation is in every PostgreSQL built with ICU (the official images are). Comparisons stay
         // case-sensitive, unlike SQL Server's.
         if (Database.IsNpgsql())
         {
-            configurationBuilder.Properties<DateTime>()
-                .HaveColumnType("timestamp without time zone")
-                .HaveConversion<UnspecifiedKindConverter>();
             configurationBuilder.Properties<string>().UseCollation("und-x-icu");
         }
     }
-
-    private sealed class UnspecifiedKindConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
-        v => DateTime.SpecifyKind(v, DateTimeKind.Unspecified),
-        v => v);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

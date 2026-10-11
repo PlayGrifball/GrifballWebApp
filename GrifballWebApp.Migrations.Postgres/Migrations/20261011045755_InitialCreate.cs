@@ -49,8 +49,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Time = table.Column<TimeOnly>(type: "time without time zone", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -81,8 +81,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     DiscordUsername = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -99,8 +99,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     GameVersionName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -116,8 +116,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -130,14 +130,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     MatchID = table.Column<Guid>(type: "uuid", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
-                    EndTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Duration = table.Column<TimeSpan>(type: "interval", nullable: false),
-                    StatsPullDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    StatsPullDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -153,8 +153,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MedalDifficultyName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -170,8 +170,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MedalTypeName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -192,8 +192,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Icon = table.Column<byte[]>(type: "bytea", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -210,8 +210,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     RegionName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -227,8 +227,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
                     NormalizedName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
                     ConcurrencyStamp = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
@@ -247,16 +247,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     SeasonName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false, collation: "und-x-icu"),
                     CaptainsLocked = table.Column<bool>(type: "boolean", nullable: false),
-                    PublicAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    SignupsOpen = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    SignupsClose = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    DraftStart = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    SeasonStart = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    SeasonEnd = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    PublicAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SignupsOpen = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SignupsClose = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DraftStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SeasonStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SeasonEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -272,8 +272,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Gamertag = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -289,11 +289,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     FromDiscordUserId = table.Column<long>(type: "bigint", nullable: false),
                     ToDiscordUserId = table.Column<long>(type: "bigint", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
-                    Timestamp = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -323,15 +323,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     HomeTeamId = table.Column<int>(type: "integer", nullable: false),
                     AwayTeamId = table.Column<int>(type: "integer", nullable: false),
-                    StartedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Active = table.Column<bool>(type: "boolean", nullable: false),
                     MatchID = table.Column<Guid>(type: "uuid", nullable: true),
                     ThreadID = table.Column<decimal>(type: "numeric(20,0)", nullable: true),
                     VoteMessageID = table.Column<decimal>(type: "numeric(20,0)", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -367,8 +367,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Outcome = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -397,8 +397,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     PersonalScore = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -451,8 +451,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     AvailabilityOptionID = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -492,8 +492,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Losses = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
                     NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
                     Email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true, collation: "und-x-icu"),
@@ -558,8 +558,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     CalloutAssists = table.Column<int>(type: "integer", nullable: false),
                     MaxKillingSpree = table.Column<int>(type: "integer", nullable: false),
                     DamageTaken = table.Column<int>(type: "integer", nullable: false),
-                    FirstJoinedTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    LastLeaveTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    FirstJoinedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastLeaveTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     JoinedInProgress = table.Column<bool>(type: "boolean", nullable: false),
                     LeftInProgress = table.Column<bool>(type: "boolean", nullable: false),
                     PresentAtBeginning = table.Column<bool>(type: "boolean", nullable: false),
@@ -573,8 +573,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     ObjectivesCompleted = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -607,8 +607,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MatchedTeamID = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -638,12 +638,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<int>(type: "integer", nullable: false),
                     Token = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false, collation: "und-x-icu"),
-                    ExpiresAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsUsed = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -663,11 +663,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: table => new
                 {
                     UserID = table.Column<int>(type: "integer", nullable: false),
-                    JoinedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -689,15 +689,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserID = table.Column<int>(type: "integer", nullable: false),
                     SeasonID = table.Column<int>(type: "integer", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     TeamName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
                     WillCaptain = table.Column<bool>(type: "boolean", nullable: false),
                     RequiresAssistanceDrafting = table.Column<bool>(type: "boolean", nullable: false),
                     Approved = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -727,8 +727,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UserId = table.Column<int>(type: "integer", nullable: false),
                     ClaimType = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
                     ClaimValue = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu")
@@ -754,8 +754,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     GameVersionID = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -785,8 +785,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     ProviderKey = table.Column<string>(type: "text", nullable: false, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ProviderDisplayName = table.Column<string>(type: "text", nullable: true, collation: "und-x-icu"),
                     UserId = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -811,8 +811,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     RoleId = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -867,8 +867,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     TotalPersonalScoreAwarded = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -899,8 +899,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     KickMatchedPlayerId = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -938,8 +938,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     WinnerVote = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -969,8 +969,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     AvailabilityOptionID = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1008,8 +1008,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     Bracket = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1042,8 +1042,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MatchNumber = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1063,20 +1063,20 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     MatchRescheduleID = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     SeasonMatchID = table.Column<int>(type: "integer", nullable: false),
-                    OriginalScheduledTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
-                    NewScheduledTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    OriginalScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    NewScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Reason = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false, collation: "und-x-icu"),
                     RequestedByUserID = table.Column<int>(type: "integer", nullable: false),
-                    RequestedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     ApprovedByUserID = table.Column<int>(type: "integer", nullable: true),
-                    ProcessedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    ProcessedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     DiscordThreadID = table.Column<decimal>(type: "numeric(20,0)", nullable: true),
                     CommissionerNotes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true, collation: "und-x-icu"),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1111,13 +1111,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     AwayTeamID = table.Column<int>(type: "integer", nullable: true),
                     AwayTeamScore = table.Column<int>(type: "integer", nullable: true),
                     AwayTeamResult = table.Column<int>(type: "integer", nullable: true),
-                    ScheduledTime = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    ScheduledTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     BestOf = table.Column<int>(type: "integer", nullable: false),
                     ActiveRescheduleRequestId = table.Column<int>(type: "integer", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1147,8 +1147,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     AvailabilityOptionID = table.Column<int>(type: "integer", nullable: false),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1176,8 +1176,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     DraftPick = table.Column<int>(type: "integer", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1203,8 +1203,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     CaptainID = table.Column<int>(type: "integer", nullable: true),
                     CreatedByID = table.Column<int>(type: "integer", nullable: true),
                     ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1230,12 +1230,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "GameVesionID", "CreatedAt", "CreatedByID", "GameVersionName", "ModifiedAt", "ModifiedByID" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo 3", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
-                    { 2, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo Reach", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
-                    { 3, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo Reach Dash", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
-                    { 4, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo 4", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
-                    { 5, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo 5", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null },
-                    { 6, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Halo Infinite", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null }
+                    { 1, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo 3", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null },
+                    { 2, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo Reach", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null },
+                    { 3, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo Reach Dash", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null },
+                    { 4, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo 4", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null },
+                    { 5, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo 5", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null },
+                    { 6, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Halo Infinite", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null }
                 });
 
             migrationBuilder.InsertData(
@@ -1244,12 +1244,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "RegionID", "CreatedAt", "CreatedByID", "ModifiedAt", "ModifiedByID", "RegionName" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "West North America" },
-                    { 2, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Central North America" },
-                    { 3, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "East North America" },
-                    { 4, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "North Europe" },
-                    { 5, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "South Europe" },
-                    { 6, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Australia" }
+                    { 1, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "West North America" },
+                    { 2, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Central North America" },
+                    { 3, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "East North America" },
+                    { 4, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "North Europe" },
+                    { 5, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "South Europe" },
+                    { 6, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Australia" }
                 });
 
             migrationBuilder.InsertData(
@@ -1258,9 +1258,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "Id", "ConcurrencyStamp", "CreatedAt", "CreatedByID", "ModifiedAt", "ModifiedByID", "Name", "NormalizedName" },
                 values: new object[,]
                 {
-                    { 1, "cda78946-53d4-4154-b723-2b33b95341cc", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Sysadmin", "SYSADMIN" },
-                    { 2, "37ff5fdf-5cb8-403c-bb9e-81db05a5fcdd", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Commissioner", "COMMISSIONER" },
-                    { 3, "0be992c7-f824-40c7-8975-964068c7fbfe", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "Player", "PLAYER" }
+                    { 1, "cda78946-53d4-4154-b723-2b33b95341cc", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Sysadmin", "SYSADMIN" },
+                    { 2, "37ff5fdf-5cb8-403c-bb9e-81db05a5fcdd", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Commissioner", "COMMISSIONER" },
+                    { 3, "0be992c7-f824-40c7-8975-964068c7fbfe", new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, "Player", "PLAYER" }
                 });
 
             migrationBuilder.CreateIndex(

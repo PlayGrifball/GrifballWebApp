@@ -12,7 +12,7 @@ public class DateTimeJsonConverter : JsonConverter<DateTime>
     {
         if (reader.TryGetDateTimeOffset(out var dateTimeOffset))
         {
-            return dateTimeOffset.ToUniversalTime().DateTime;
+            return dateTimeOffset.UtcDateTime;
         }
         else
         {

@@ -109,14 +109,28 @@ public class DatabaseProviderTests
     }
 
     [Test]
-    public void Postgres_StoresDateTimeWithoutTimeZone()
+    public void Postgres_StoresDateTimeAsTimestamptz()
     {
         using var context = Context(DatabaseProvider.Postgres);
 
         var column = context.Model.FindEntityType(typeof(GrifballWebApp.Database.Models.Season))!
             .FindProperty(nameof(GrifballWebApp.Database.Models.Season.SignupsOpen))!.GetColumnType();
 
-        Assert.That(column, Is.EqualTo("timestamp without time zone"));
+        Assert.That(column, Is.EqualTo("timestamp with time zone"));
+    }
+
+    [TestCase(DatabaseProvider.SqlServer)]
+    [TestCase(DatabaseProvider.Postgres)]
+    public void DateTimes_UseTheUtcConverter(DatabaseProvider provider)
+    {
+        using var context = Context(provider);
+
+        var withoutConverter = context.Model.GetEntityTypes().SelectMany(e => e.GetProperties())
+            .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?))
+            .Where(p => p.GetValueConverter() is not UtcDateTimeConverter)
+            .Select(p => $"{p.DeclaringType.DisplayName()}.{p.Name}");
+
+        Assert.That(withoutConverter, Is.Empty);
     }
 }
 

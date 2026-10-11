@@ -43,7 +43,7 @@ RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /
 # connection string: a dummy.
 FROM build AS migrations
 ARG TARGETARCH
-RUN dotnet tool install --global dotnet-ef --version 10.0.0
+RUN dotnet tool install --global dotnet-ef --version 10.0.12
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
 RUN case "$TARGETARCH" in \

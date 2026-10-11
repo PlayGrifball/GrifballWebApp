@@ -17,7 +17,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -31,7 +31,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AvailabilityOptionID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -40,7 +40,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -67,7 +67,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -76,13 +76,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("ToDiscordUserId")
                         .HasColumnType("bigint");
@@ -102,7 +102,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -113,7 +113,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -132,7 +132,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("GameVesionID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -144,7 +144,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -160,44 +160,44 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         new
                         {
                             GameVesionID = 1,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo 3",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             GameVesionID = 2,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo Reach",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             GameVesionID = 3,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo Reach Dash",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             GameVesionID = 4,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo 4",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             GameVesionID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo 5",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             GameVesionID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             GameVersionName = "Halo Infinite",
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified)
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -207,7 +207,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -216,19 +216,19 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("interval");
 
                     b.Property<DateTime?>("EndTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("StartTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("StatsPullDate")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("MatchID");
 
@@ -253,7 +253,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -268,7 +268,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -305,7 +305,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("MatchLinkID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -317,7 +317,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -360,7 +360,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -375,7 +375,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("FirstJoinedTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("JoinedInProgress")
                         .HasColumnType("boolean");
@@ -387,7 +387,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("LastLeaveTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("LeftInProgress")
                         .HasColumnType("boolean");
@@ -399,7 +399,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -478,7 +478,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -487,19 +487,19 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("numeric(20,0)");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("NewScheduledTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("OriginalScheduledTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -508,7 +508,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("RequestedByUserID")
                         .HasColumnType("integer");
@@ -545,13 +545,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -576,7 +576,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -585,7 +585,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -614,7 +614,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -626,13 +626,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal?>("ThreadID")
                         .HasColumnType("numeric(20,0)");
@@ -663,7 +663,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -675,7 +675,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -701,13 +701,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("MatchedTeamId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -726,13 +726,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -753,7 +753,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -773,7 +773,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -802,7 +802,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -812,7 +812,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -837,13 +837,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -864,7 +864,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -874,7 +874,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -893,13 +893,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsUsed")
                         .ValueGeneratedOnAdd()
@@ -907,7 +907,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasDefaultValue(false);
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -939,16 +939,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -972,7 +972,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -990,7 +990,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1014,13 +1014,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RegionID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1042,43 +1042,43 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         new
                         {
                             RegionID = 1,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "West North America"
                         },
                         new
                         {
                             RegionID = 2,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "Central North America"
                         },
                         new
                         {
                             RegionID = 3,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "East North America"
                         },
                         new
                         {
                             RegionID = 4,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "North Europe"
                         },
                         new
                         {
                             RegionID = 5,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "South Europe"
                         },
                         new
                         {
                             RegionID = 6,
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             RegionName = "Australia"
                         });
                 });
@@ -1097,13 +1097,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1131,8 +1131,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         {
                             Id = 1,
                             ConcurrencyStamp = "cda78946-53d4-4154-b723-2b33b95341cc",
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Name = "Sysadmin",
                             NormalizedName = "SYSADMIN"
                         },
@@ -1140,8 +1140,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         {
                             Id = 2,
                             ConcurrencyStamp = "37ff5fdf-5cb8-403c-bb9e-81db05a5fcdd",
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Name = "Commissioner",
                             NormalizedName = "COMMISSIONER"
                         },
@@ -1149,8 +1149,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         {
                             Id = 3,
                             ConcurrencyStamp = "0be992c7-f824-40c7-8975-964068c7fbfe",
-                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Name = "Player",
                             NormalizedName = "PLAYER"
                         });
@@ -1168,25 +1168,25 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("DraftStart")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("PublicAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("SeasonEnd")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("SeasonName")
                         .IsRequired()
@@ -1195,13 +1195,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("SeasonStart")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("SignupsClose")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("SignupsOpen")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("SeasonID");
 
@@ -1220,13 +1220,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1262,7 +1262,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -1277,13 +1277,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("ScheduledTime")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
@@ -1317,13 +1317,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1339,7 +1339,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserID")
                         .HasColumnType("integer");
@@ -1366,13 +1366,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1396,13 +1396,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1437,13 +1437,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1464,7 +1464,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TeamPlayerID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -1479,7 +1479,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1517,7 +1517,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -1557,7 +1557,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1644,13 +1644,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1674,13 +1674,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1703,13 +1703,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1737,13 +1737,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
@@ -1761,7 +1761,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedByID")
                         .HasColumnType("integer");
@@ -1772,7 +1772,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .UseCollation("und-x-icu");
 
                     b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
