@@ -150,15 +150,21 @@ appended, by default SQL Server's `Encrypt=True;TrustServerCertificate=True` and
 `SSL Mode=Require;GSS Encryption Mode=Disable`), or read whole from `database.connectionString`.
 
 **TLS.** Connections to either database are encrypted, without checking the server's certificate.
-SQL Server makes its own certificate on each start, or uses yours: `mssql.tls.secretName`, a
-`kubernetes.io/tls` Secret (RSA or ECDSA), copied in on each start and named in its `mssql.conf`. The
-chart's PostgreSQL gets one in an init container on each start:
-self-signed for its Service's names (`postgres.tls.image`, as PostgreSQL's image has no `openssl`), or
-copied from your `kubernetes.io/tls` Secret (`postgres.tls.secretName`, from cert-manager, say). Every
-PostgreSQL client requires TLS: the backend (`SSL Mode=Require`), the migration steps' and backups'
-psql, pg_dump and pg_restore (`PGSSLMODE=require`) and sql-exporter (`sslmode=require`) - of your own
-server too. `postgres.tls.enabled: false` turns it off on both sides, for a server without TLS. To have
-the app check the certificate, set `database.options` (`SSL Mode=VerifyFull;Root Certificate=...`).
+Each server has a certificate, its own or yours (a `kubernetes.io/tls` Secret, from cert-manager say,
+RSA or ECDSA):
+
+- **SQL Server** makes a self-signed one itself on each start. `mssql.tls.secretName` gives it yours
+  instead: copied in on each start and named in its `mssql.conf`.
+- **The chart's PostgreSQL** gets one in an init container on each start: self-signed for its Service's
+  names (`postgres.tls.image`, as PostgreSQL's image has no `openssl`), or yours from
+  `postgres.tls.secretName`. Every PostgreSQL client requires TLS: the backend (`SSL Mode=Require`), the
+  migration steps' and backups' psql, pg_dump and pg_restore (`PGSSLMODE=require`) and sql-exporter
+  (`sslmode=require`) - of your own server too. `postgres.tls.enabled: false` turns it off on both sides,
+  for a server without TLS.
+
+To have the app check the certificate (with your own, whose CA it trusts), set `database.options`:
+`Encrypt=True;TrustServerCertificate=False` for SQL Server, `SSL Mode=VerifyFull;Root Certificate=...`
+for PostgreSQL.
 
 **Least-privilege logins** (`database.logins.enabled`, off by default). By default everything connects
 as `database.user` (`sa` or `postgres`), the administrator. With logins on, the migration Job - still
