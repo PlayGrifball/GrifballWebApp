@@ -11,17 +11,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Row history's triggers (GrifballWebApp.Database/PostgresHistory.cs), written by hand. A later
-            // migration that creates a history table calls grif_enable_versioning, and one that drops it but
-            // keeps its table grif_disable_versioning: scaffolded (HistoryMigrationsModelDiffer). Timestamps
-            // are instants (timestamptz), read back UTC like SQL Server's period columns. Below, also
-            // scaffolded: the rows each table has get PeriodStart -infinity (DateTime.MinValue, SQL Server's
-            // 0001-01-01), current as far back as a temporal query asks, as SQL Server's would be; then the
-            // column's default is the model's, the transaction's time.
             migrationBuilder.Sql("""
                 -- BEFORE INSERT OR UPDATE, each row: when the row took its values. Set here, so anything the
                 -- app writes there is replaced.
-                CREATE FUNCTION public.grif_period_start() RETURNS trigger
+                CREATE OR REPLACE FUNCTION public.grif_period_start() RETURNS trigger
                 LANGUAGE plpgsql AS $$
                 BEGIN
                   NEW."PeriodStart" := transaction_timestamp();
@@ -34,7 +27,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 -- infinity), so a column only one of them has never fails the app's write. SECURITY
                 -- DEFINER: runs as its owner, the administrator that ran the migrations, whom the history
                 -- tables' guard lets write.
-                CREATE FUNCTION public.grif_versioning() RETURNS trigger
+                CREATE OR REPLACE FUNCTION public.grif_versioning() RETURNS trigger
                 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
                 DECLARE
                   main regclass := TG_RELID;
@@ -61,7 +54,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 -- BEFORE any write to a history table, each statement: only its owner (or a member of the
                 -- owner's role) may. The Helm chart grants the app's login writes on every table, history
                 -- tables included; this takes them back. In grif_versioning, current_user is the owner.
-                CREATE FUNCTION public.grif_history_guard() RETURNS trigger
+                CREATE OR REPLACE FUNCTION public.grif_history_guard() RETURNS trigger
                 LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
                 BEGIN
                   IF NOT pg_has_role(current_user, (SELECT relowner FROM pg_class WHERE oid = TG_RELID), 'USAGE') THEN
@@ -73,7 +66,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                 -- Versioning on, for a table with a PeriodStart column and a "<Table>History" beside it.
                 -- UPDATE and DELETE have a trigger each: a trigger with a transition table takes one event.
-                CREATE PROCEDURE public.grif_enable_versioning(tbl regclass)
+                CREATE OR REPLACE PROCEDURE public.grif_enable_versioning(tbl regclass)
                 LANGUAGE plpgsql AS $$
                 DECLARE
                   s text;
@@ -88,7 +81,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 END $$;
 
                 -- Versioning off, before a history table is dropped and its table kept.
-                CREATE PROCEDURE public.grif_disable_versioning(tbl regclass)
+                CREATE OR REPLACE PROCEDURE public.grif_disable_versioning(tbl regclass)
                 LANGUAGE plpgsql AS $$
                 BEGIN
                   EXECUTE format('DROP TRIGGER IF EXISTS period_start ON %s', tbl);

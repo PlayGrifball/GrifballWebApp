@@ -165,7 +165,7 @@ Both databases keep every version of every row, of every table but `MatchResched
 `PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
 values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's
 `9999-12-31 23:59:59.9999999`, Postgres's `infinity`). SQL Server does this with temporal tables. Postgres has none, so triggers do it
-(`GrifballWebApp.Database/PostgresHistory.cs`, functions from the `AddRowHistory` migration): every `UPDATE`,
+(`GrifballWebApp.Database/PostgresHistory.cs`, functions in `PostgresHistoryFunctions.cs`): every `UPDATE`,
 `DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table. The time is the
 transaction's start, so the changes of one transaction share it. The app's login can read the history but not
 change it. Nothing deletes old history: the tables grow with every change.
@@ -182,11 +182,21 @@ renamed column is renamed in both (`RenameColumn` twice), and a new table gets a
 migration calls `grif_enable_versioning`, added by the Postgres project's `HistoryMigrationsModelDiffer`). An existing table
 made temporal gets them the same way, and the differ scaffolds its `PeriodStart` as added with the default
 `'-infinity'`, for the rows it has, then altered to the model's default, `transaction_timestamp()`: both change only
-the catalog, rewriting no rows. A renamed table is the one change to edit by hand: EF scaffolds `RenameTable` for
-the table, but drops and recreates its history table, which would lose the history, and calls
-`grif_enable_versioning` again. Edit the history table's drop and create (and its index's) into `RenameTable`
-(`<Old>History` to `<New>History`) and `RenameIndex`, in `Up` and `Down`, and take out the `grif_enable_versioning`
-calls, as the triggers move with the table.
+the catalog, rewriting no rows. A table renamed or moved to another schema takes its history table with it
+(`RenameTable` and `RenameIndex` for both, as SQL Server alters its `HISTORY_TABLE`), keeping the history and the
+triggers, which are on the tables and find a table's history table by its name.
+
+The triggers' functions are scaffolded too, from `PostgresHistoryFunctions.cs`: the migration that gives the first
+table history creates them, and one that takes away the last drops them. They are versioned: the model records the
+version (`Grif:HistoryFunctions`, in the snapshot), so to change a function, add a version there with the whole of
+its SQL, and `migrations add` scaffolds a migration that creates it over the old one (its `Down` puts the old one
+back); `has-pending-model-changes` reports the new version until then. Keep the old versions: those migrations need
+them. A version that changes a function's signature or drops one must drop the old one first itself, as `CREATE OR
+REPLACE` can't.
+
+One change still loses history, on both databases: renaming an entity class and its table in the same migration.
+EF can't tell that is the same table, so it drops it, with its history table, and creates both anew. Rename the
+class and the table in separate migrations.
 
 In code, query the history with EF's temporal queries, the same code on both databases:
 ```csharp
