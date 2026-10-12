@@ -10,7 +10,9 @@ namespace GrifballWebApp.Migrations.Postgres;
 /// table turns its table's versioning on once both exist, and one that drops a history table but keeps
 /// its table turns it off first, before the triggers can write to a table that's gone. Each scaffolds
 /// as a migrationBuilder.Sql(...) call, there to read in the migration like the rest of it. A table
-/// dropped with its history table takes its triggers with it.
+/// dropped with its history table takes its triggers with it. A table that gets history once it has
+/// rows gives them SQL Server's PeriodStart, the beginning of time: its PeriodStart column scaffolds as
+/// added with that default, then altered to the model's.
 /// </summary>
 public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner) : IMigrationsModelDiffer
 {
@@ -32,7 +34,46 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner) : IMigra
                 operations.Add(Call("grif_enable_versioning", create.Schema, table));
         }
 
+        // A table that gets history and already has rows: they get PeriodStart -infinity, which Npgsql reads
+        // as DateTime.MinValue, as SQL Server gives them 0001-01-01. Then the column default goes back to
+        // the model's, for rows written after. Both are changes to the catalog only: no row is rewritten.
+        // A table created with its history has no rows: its CREATE TABLE has the model's default.
+        foreach (var add in operations.OfType<AddColumnOperation>().ToList())
+        {
+            if (add.Name != PostgresHistory.PeriodStart || add.DefaultValueSql is not { } modelDefault
+                || !HasHistory(target, add.Table, add.Schema))
+                continue;
+
+            add.DefaultValueSql = PostgresHistory.BeginningOfTime;
+            operations.Insert(operations.IndexOf(add) + 1, new AlterColumnOperation
+            {
+                Name = add.Name,
+                Schema = add.Schema,
+                Table = add.Table,
+                ClrType = add.ClrType,
+                ColumnType = add.ColumnType,
+                IsNullable = add.IsNullable,
+                DefaultValueSql = modelDefault,
+                OldColumn = new AddColumnOperation
+                {
+                    Name = add.Name,
+                    Schema = add.Schema,
+                    Table = add.Table,
+                    ClrType = add.ClrType,
+                    ColumnType = add.ColumnType,
+                    IsNullable = add.IsNullable,
+                    DefaultValueSql = PostgresHistory.BeginningOfTime,
+                },
+            });
+        }
+
         return operations;
+    }
+
+    /// <summary>Whether <paramref name="table"/> has a history table in <paramref name="model"/>.</summary>
+    private static bool HasHistory(IRelationalModel? model, string table, string? schema)
+    {
+        return model?.Tables.Any(t => t.Schema == schema && HistoryOf(model, t.Name, t.Schema) == table) ?? false;
     }
 
     /// <summary>The table <paramref name="name"/> keeps the history of, if it's a history table.</summary>

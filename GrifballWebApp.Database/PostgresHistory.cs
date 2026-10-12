@@ -36,6 +36,16 @@ public static class PostgresHistory
     public const string EndOfTime = "'infinity'::timestamp with time zone";
 
     /// <summary>
+    /// PeriodStart of the rows a table already has when it gets history. Npgsql reads '-infinity' as
+    /// DateTime.MinValue, SQL Server's 0001-01-01, which EF gives a table's rows when it makes the table
+    /// temporal: as there, they're current as far back as a temporal query asks.
+    /// </summary>
+    public const string BeginningOfTime = "'-infinity'::timestamp with time zone";
+
+    /// <summary>PeriodStart's default: when the transaction that writes the row began.</summary>
+    public const string PeriodStartDefault = "transaction_timestamp()";
+
+    /// <summary>
     /// Adds PeriodStart, PeriodEnd and a history table to the tables of <paramref name="entityTypes"/>. Called last
     /// in OnModelCreating, when every column is configured: the history table copies them as they are.
     /// </summary>
@@ -52,8 +62,9 @@ public static class PostgresHistory
             var root = table.First(e => e.BaseType is null);
             Builder(modelBuilder, root).Property<DateTime>(PeriodStart)
                 .HasColumnType(Timestamp)
-                // For the rows a table has when it gets the column; the trigger stamps every write after.
-                .HasDefaultValueSql("transaction_timestamp()")
+                // The trigger stamps every write. A table that has rows when it gets the column gives them
+                // BeginningOfTime instead (HistoryMigrationsModelDiffer).
+                .HasDefaultValueSql(PeriodStartDefault)
                 .ValueGeneratedOnAddOrUpdate();
             // Generated: the app can't write it, and EF reads it back after each insert and update.
             Builder(modelBuilder, root).Property<DateTime>(PeriodEnd)

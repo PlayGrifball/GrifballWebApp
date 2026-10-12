@@ -14,7 +14,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             // Row history's triggers (GrifballWebApp.Database/PostgresHistory.cs), written by hand. A later
             // migration that creates a history table calls grif_enable_versioning, and one that drops it but
             // keeps its table grif_disable_versioning: scaffolded (HistoryMigrationsModelDiffer). Timestamps
-            // are instants (timestamptz), read back UTC like SQL Server's period columns.
+            // are instants (timestamptz), read back UTC like SQL Server's period columns. Below, also
+            // scaffolded: the rows each table has get PeriodStart -infinity (DateTime.MinValue, SQL Server's
+            // 0001-01-01), current as far back as a temporal query asks, as SQL Server's would be; then the
+            // column's default is the model's, the transaction's time.
             migrationBuilder.Sql("""
                 -- BEFORE INSERT OR UPDATE, each row: when the row took its values. Set here, so anything the
                 -- app writes there is replaced.
@@ -101,7 +104,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "XboxUsers",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Xbox",
+                table: "XboxUsers",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -109,7 +123,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserTokens",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "UserTokens",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -117,7 +142,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Users",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "Users",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -125,7 +161,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserRoles",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "UserRoles",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -133,7 +180,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserLogins",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "UserLogins",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -141,7 +199,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserExperiences",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Other",
+                table: "UserExperiences",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -149,7 +218,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "UserClaims",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "UserClaims",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -157,7 +237,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Teams",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "Teams",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -165,7 +256,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "TeamPlayers",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "TeamPlayers",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -173,7 +275,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "TeamAvailability",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "TeamAvailability",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -181,7 +294,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SignupAvailability",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "SignupAvailability",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -189,7 +313,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonSignups",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "SeasonSignups",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -197,7 +332,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Seasons",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "Seasons",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -205,7 +351,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonMatches",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "SeasonMatches",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -213,7 +370,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonAvailability",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "SeasonAvailability",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -221,7 +389,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Roles",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "Roles",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -229,7 +408,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "RoleClaims",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "RoleClaims",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -237,7 +427,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Regions",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Other",
+                table: "Regions",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -245,7 +446,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Ranks",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "Ranks",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -253,7 +465,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "QueuedPlayers",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "QueuedPlayers",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -261,7 +484,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "PasswordResetLinks",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "PasswordResetLinks",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -269,7 +503,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Messages",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Discord",
+                table: "Messages",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -277,7 +522,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MedalTypes",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "MedalTypes",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -285,7 +541,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Medals",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "Medals",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -293,7 +560,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MedalEarned",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "MedalEarned",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -301,7 +579,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MedalDifficulties",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "MedalDifficulties",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -309,7 +598,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchTeams",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "MatchTeams",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -317,7 +617,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchParticipants",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "MatchParticipants",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -325,7 +636,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchLinks",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "MatchLinks",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -333,7 +655,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Matches",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Infinite",
+                table: "Matches",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -341,7 +674,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchedWinnerVotes",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "MatchedWinnerVotes",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -349,7 +693,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchedTeams",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "MatchedTeams",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -357,7 +712,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchedPlayers",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "MatchedPlayers",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -365,7 +731,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchedMatches",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "MatchedMatches",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -373,7 +750,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchedKickVotes",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Matchmaking",
+                table: "MatchedKickVotes",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -381,7 +769,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "MatchBracketInfo",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "MatchBracketInfo",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -389,7 +788,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "GameVersions",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Other",
+                table: "GameVersions",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -397,7 +807,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Discord",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "User",
+                table: "Discord",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -405,7 +826,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "DataProtectionKeys",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Auth",
+                table: "DataProtectionKeys",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodStart",
@@ -413,7 +845,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "AvailabilityOptions",
                 type: "timestamp with time zone",
                 nullable: false,
-                defaultValueSql: "transaction_timestamp()");
+                defaultValueSql: "'-infinity'::timestamp with time zone");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "PeriodStart",
+                schema: "Event",
+                table: "AvailabilityOptions",
+                type: "timestamp with time zone",
+                nullable: false,
+                defaultValueSql: "transaction_timestamp()",
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldDefaultValueSql: "'-infinity'::timestamp with time zone");
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PeriodEnd",

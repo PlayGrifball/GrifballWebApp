@@ -183,6 +183,50 @@ public class PostgresHistoryModelTests
     }
 
     [Test]
+    public void Differ_TablesGettingHistory_GiveTheirRowsTheBeginningOfTime_ThenTheModelsDefault()
+    {
+        using var before = new WithoutHistory();
+        using var after = new WithHistory();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var operations = differ.GetDifferences(Relational(before), Relational(after)).ToList();
+
+        var adds = operations.OfType<AddColumnOperation>().Where(o => o.Name == PostgresHistory.PeriodStart).ToList();
+        Assert.That(adds.Select(a => a.Table), Is.EquivalentTo(new[] { "Things", "Animals", "Tags", "Logs" }));
+        Assert.Multiple(() =>
+        {
+            foreach (var add in adds)
+            {
+                Assert.That(add.DefaultValueSql, Is.EqualTo(PostgresHistory.BeginningOfTime), add.Table);
+                var alter = operations[operations.IndexOf(add) + 1] as AlterColumnOperation;
+                Assert.That(alter, Is.Not.Null, $"{add.Table}: altered right after");
+                Assert.That((alter!.Schema, alter.Table, alter.Name), Is.EqualTo((add.Schema, add.Table, add.Name)));
+                Assert.That(alter.DefaultValueSql, Is.EqualTo(PostgresHistory.PeriodStartDefault));
+                Assert.That((alter.ClrType, alter.ColumnType, alter.IsNullable), Is.EqualTo((typeof(DateTime), "timestamp with time zone", false)));
+                Assert.That(alter.OldColumn.DefaultValueSql, Is.EqualTo(PostgresHistory.BeginningOfTime));
+                Assert.That((alter.OldColumn.ClrType, alter.OldColumn.ColumnType, alter.OldColumn.IsNullable), Is.EqualTo((typeof(DateTime), "timestamp with time zone", false)));
+            }
+            Assert.That(operations.OfType<AlterColumnOperation>().Count(), Is.EqualTo(4));
+        });
+    }
+
+    [Test]
+    public void Differ_LeavesOtherAddedColumnsAlone_EvenOnesNamedPeriodStart()
+    {
+        using var before = new WithoutHistory();
+        using var after = new WithPeriodStartColumn();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var operations = differ.GetDifferences(Relational(before), Relational(after));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(operations.OfType<AddColumnOperation>().Single().DefaultValueSql, Is.EqualTo("now()"), "a table without history");
+            Assert.That(operations.OfType<AlterColumnOperation>(), Is.Empty);
+        });
+    }
+
+    [Test]
     public void Differ_DroppingHistoryTables_TurnsVersioningOffFirst()
     {
         using var before = new WithHistory();
@@ -230,6 +274,11 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<CreateTableOperation>().Count(), Is.EqualTo(8));
             Assert.That(operations.TakeLast(4).All(o => o is SqlOperation), Is.True);
             Assert.That(operations.OfType<SqlOperation>().Count(), Is.EqualTo(4));
+            // New tables have no rows: the model's default, and nothing to alter.
+            Assert.That(operations.OfType<CreateTableOperation>().Single(o => o.Name == "Things").Columns.Single(c => c.Name == PostgresHistory.PeriodStart).DefaultValueSql,
+                Is.EqualTo(PostgresHistory.PeriodStartDefault));
+            Assert.That(operations.OfType<AddColumnOperation>(), Is.Empty);
+            Assert.That(operations.OfType<AlterColumnOperation>(), Is.Empty);
         });
     }
 
@@ -287,7 +336,7 @@ public class PostgresHistoryModelTests
     }
 
     /// <summary>A model with each kind of entity: one context type per model, as EF caches a model per type.</summary>
-    private abstract class HistoryTestContext(bool history) : DbContext
+    private abstract class HistoryTestContext(bool history, bool periodStartColumn = false) : DbContext
     {
         protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseNpgsql("Host=unused;Database=unused");
 
@@ -319,10 +368,15 @@ public class PostgresHistoryModelTests
 
             if (history)
                 modelBuilder.AddHistoryTables(modelBuilder.Model.GetEntityTypes().ToList());
+            else if (periodStartColumn)
+                modelBuilder.Entity<Log>().Property<DateTime>(PostgresHistory.PeriodStart).HasDefaultValueSql("now()");
         }
     }
 
     private sealed class WithHistory() : HistoryTestContext(true);
 
     private sealed class WithoutHistory() : HistoryTestContext(false);
+
+    /// <summary>No history, but a column of its own called PeriodStart.</summary>
+    private sealed class WithPeriodStartColumn() : HistoryTestContext(false, periodStartColumn: true);
 }

@@ -170,13 +170,23 @@ values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxV
 transaction's start, so the changes of one transaction share it. The app's login can read the history but not
 change it. Nothing deletes old history: the tables grow with every change.
 
+Rows a table already has when it becomes temporal have been current since the beginning of time: their `PeriodStart`
+is `DateTime.MinValue` (SQL Server's `0001-01-01`, Postgres's `-infinity`), so `TemporalAsOf` a time before then
+finds them as they are now, and their first change keeps that version from `DateTime.MinValue`. On Postgres that
+includes the rows every table had when `AddRowHistory` added history to them. Rows written after get the
+transaction's time.
+
 On Postgres the history tables are in the EF model, generated from their tables, so `migrations add` changes both
-together: a column added to a table is added to its history table too (nullable there), and a new table gets a
-history table and its triggers (the migration calls `grif_enable_versioning`, added by the Postgres project's
-`HistoryMigrationsModelDiffer`). EF scaffolds a renamed table or column as a drop and an add, which would lose its
-data and its history: edit the migration into `RenameTable`/`RenameColumn` for the table and for its history table
-alike (`<Old>History` to `<New>History`), and take out the `grif_enable_versioning` call, as the triggers move with
-the table.
+together, with no hand edits: a column added to a table is added to its history table too (nullable there), a
+renamed column is renamed in both (`RenameColumn` twice), and a new table gets a history table and its triggers (the
+migration calls `grif_enable_versioning`, added by the Postgres project's `HistoryMigrationsModelDiffer`). An existing table
+made temporal gets them the same way, and the differ scaffolds its `PeriodStart` as added with the default
+`'-infinity'`, for the rows it has, then altered to the model's default, `transaction_timestamp()`: both change only
+the catalog, rewriting no rows. A renamed table is the one change to edit by hand: EF scaffolds `RenameTable` for
+the table, but drops and recreates its history table, which would lose the history, and calls
+`grif_enable_versioning` again. Edit the history table's drop and create (and its index's) into `RenameTable`
+(`<Old>History` to `<New>History`) and `RenameIndex`, in `Up` and `Down`, and take out the `grif_enable_versioning`
+calls, as the triggers move with the table.
 
 In code, query the history with EF's temporal queries, the same code on both databases:
 ```csharp

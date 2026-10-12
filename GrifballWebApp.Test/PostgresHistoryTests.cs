@@ -319,6 +319,50 @@ public class PostgresHistoryTests
         }
     }
 
+    // As SQL Server's would be, had its tables become temporal with rows in them (TemporalConversionTests).
+    [Test]
+    public async Task AddRowHistory_GivesTheRowsItFinds_TheBeginningOfTime()
+    {
+        var migrator = _context.GetService<IMigrator>();
+        var migrations = _context.Database.GetMigrations().ToList();
+        var addRowHistory = migrations.IndexOf(migrations.Single(m => m.EndsWith("_AddRowHistory")));
+        await migrator.MigrateAsync(migrations[addRowHistory - 1]);
+        await _context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO "Event"."Seasons" ("SeasonName", "CaptainsLocked", "PublicAt", "SignupsOpen", "SignupsClose", "DraftStart", "SeasonStart", "SeasonEnd", "CreatedAt", "ModifiedAt")
+            VALUES ('Old', false, now(), now(), now(), now(), now(), now(), now(), now())
+            """);
+        var beforeMigration = await Scalar<DateTime>("""SELECT clock_timestamp() AS "Value" """);
+
+        await migrator.MigrateAsync();
+
+        var asOfBefore = await _context.Seasons.TemporalAsOf(beforeMigration).Select(s => s.SeasonName).ToListAsync();
+        var old = await _context.Seasons.SingleAsync(s => s.SeasonName == "Old");
+        var oldStart = PeriodStart(old);
+        var defaults = await _context.Database.SqlQueryRaw<string>("""
+            SELECT DISTINCT column_default AS "Value" FROM information_schema.columns
+             WHERE column_name = 'PeriodStart' AND table_name NOT LIKE '%History'
+            """).ToListAsync();
+
+        var season = NewSeason("New");
+        _context.Seasons.Add(season);
+        old.SeasonName = "Old, renamed";
+        var beforeSave = await Scalar<DateTime>("""SELECT clock_timestamp() AS "Value" """);
+        await _context.SaveChangesAsync();
+        var history = await History("Event", "Seasons", "SeasonID", old.SeasonID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(asOfBefore, Is.EqualTo(new[] { "Old" }));
+            Assert.That(oldStart, Is.EqualTo(DateTime.MinValue));
+            Assert.That(defaults, Is.EqualTo(new[] { PostgresHistory.PeriodStartDefault }), "the default for rows written after");
+            Assert.That(PeriodStart(season), Is.GreaterThan(beforeSave));
+            Assert.That(PeriodStart(old), Is.EqualTo(PeriodStart(season)), "the transaction's time");
+            Assert.That(history.Single()["SeasonName"], Is.EqualTo("Old"));
+            Assert.That(history.Single()[PostgresHistory.PeriodStart], Is.EqualTo(DateTime.MinValue));
+            Assert.That(history.Single()[PostgresHistory.PeriodEnd], Is.EqualTo(PeriodStart(season)));
+        });
+    }
+
     [Test]
     public async Task Migration_DownAndUpAgain()
     {
