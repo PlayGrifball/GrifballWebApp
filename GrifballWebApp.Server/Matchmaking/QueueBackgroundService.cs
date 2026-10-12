@@ -16,19 +16,8 @@ public class QueueBackgroundService : BackgroundService
     {
         _queueTask = Task.Run(async () =>
         {
-            try
-            {
-                await Go(ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                // Stopping, not an error.
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while executing the DisplayQueueService");
-            }
-            while (await _timer.WaitForNextTickAsync(ct))
+            // Once straight away, then on each tick.
+            do
             {
                 try
                 {
@@ -43,7 +32,7 @@ public class QueueBackgroundService : BackgroundService
                     _logger.LogError(ex, "An error occurred while executing the DisplayQueueService");
                 }
             }
-            ;
+            while (await _timer.WaitForNextTickAsync(ct));
         }, ct);
         return Task.CompletedTask;
     }

@@ -94,8 +94,16 @@ public class BackgroundServiceTests
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var release = new ManualResetEventSlim();
+        var finished = false;
         var logger = new RecordingLogger<T>();
-        var service = create(logger, ScopeFactoryReturning(serviceType, null, () => { entered.TrySetResult(); release.Wait(); }));
+        // The iteration runs until released, then ends the way work does when its token is cancelled.
+        var service = create(logger, ScopeFactoryReturning(serviceType, null, () =>
+        {
+            entered.TrySetResult();
+            release.Wait();
+            Volatile.Write(ref finished, true);
+            throw new OperationCanceledException();
+        }));
 
         await service.StartAsync(CancellationToken.None);
         await entered.Task.WaitAsync(Timeout);
@@ -108,7 +116,8 @@ public class BackgroundServiceTests
         Assert.Multiple(() =>
         {
             Assert.That(stoppedEarly, Is.False, "StopAsync returned while an iteration was still running");
-            Assert.That(logger.Entries, Has.Count.EqualTo(1), "The iteration finished before StopAsync returned");
+            Assert.That(Volatile.Read(ref finished), Is.True, "The iteration finished before StopAsync returned");
+            Assert.That(logger.Entries, Is.Empty, "A cancellation from stopping isn't logged as an error");
         });
     }
 
