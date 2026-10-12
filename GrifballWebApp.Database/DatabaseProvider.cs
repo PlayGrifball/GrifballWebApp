@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
 
@@ -38,10 +39,12 @@ public static class DatabaseProviderExtensions
         {
             DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly)),
             // EF's temporal queries (TemporalAsOf and the rest), which only SQL Server translates, on row
-            // history (PostgresTemporalQueries).
+            // history (PostgresTemporalQueries). And the version of row history's functions, a change to the
+            // database for the migrations (PostgresHistoryFunctions).
             DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly))
                 .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
-                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>(),
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
+                .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }

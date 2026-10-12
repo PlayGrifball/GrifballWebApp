@@ -3,6 +3,10 @@ using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
+using GrifballWebApp.Migrations.Postgres;
 using Npgsql;
 
 namespace GrifballWebApp.Test;
@@ -50,7 +54,8 @@ public class PostgresHistoryTests
     /// <summary>The history table's rows, read through EF as the property bags they are.</summary>
     private Task<List<Dictionary<string, object>>> History(string schema, string table, string key, int id)
     {
-        return _context.Set<Dictionary<string, object>>($"{schema}.{table}{PostgresHistory.Suffix}")
+        var history = _context.Model.GetEntityTypes().Single(e => e.GetSchema() == schema && e.GetTableName() == table && e.BaseType is null).FindHistoryEntityType()!;
+        return _context.Set<Dictionary<string, object>>(history.Name)
             .Where(r => EF.Property<int?>(r, key) == id)
             .OrderBy(r => EF.Property<DateTime>(r, PostgresHistory.PeriodEnd))
             .ToListAsync();
@@ -389,5 +394,64 @@ public class PostgresHistoryTests
             Assert.That(down, Is.True, "Down() takes away everything Up() adds");
             Assert.That(history, Has.Count.EqualTo(1));
         });
+    }
+
+    // A table renamed by a migration as migrations add scaffolds it (HistoryMigrationsModelDiffer): its
+    // history table is renamed with it, and its history reads under the new name, the triggers still on.
+    [Test]
+    public async Task RenamingATable_KeepsItsHistory_UnderTheNewName()
+    {
+        var season = NewSeason("First");
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        season.SeasonName = "Second";
+        await _context.SaveChangesAsync();
+
+        await using var renamed = new SeasonListContext(TestDatabase.Options(_context.Database.GetConnectionString()!).Options);
+        var source = _context.GetService<IDesignTimeModel>().Model;
+        var target = renamed.GetService<IDesignTimeModel>().Model;
+        var operations = new HistoryMigrationsModelDiffer(renamed.GetService<IMigrationsModelDiffer>())
+            .GetDifferences(source.GetRelationalModel(), target.GetRelationalModel());
+        var commands = renamed.GetService<IMigrationsSqlGenerator>().Generate(operations, target);
+        await renamed.GetService<IMigrationCommandExecutor>().ExecuteNonQueryAsync(commands, renamed.GetService<IRelationalConnection>());
+
+        var moved = await renamed.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
+        moved.SeasonName = "Third";
+        await renamed.SaveChangesAsync();
+        var all = await renamed.Seasons.TemporalAll().Where(s => s.SeasonID == season.SeasonID)
+            .OrderBy(s => EF.Property<DateTime>(s, PostgresHistory.PeriodStart)).Select(s => s.SeasonName).ToListAsync();
+        var triggers = await _context.Database.SqlQueryRaw<string>("""
+            SELECT c.relname || '.' || t.tgname AS "Value" FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+             WHERE NOT t.tgisinternal AND c.relname IN ('SeasonList', 'SeasonListHistory') ORDER BY 1
+            """).ToListAsync();
+        var gone = await Scalar<bool>("""SELECT to_regclass('"Event"."Seasons"') IS NULL AND to_regclass('"Event"."SeasonsHistory"') IS NULL AS "Value" """);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(operations.OfType<RenameTableOperation>().Select(o => (o.Name, o.NewName)),
+                Is.EquivalentTo(new[] { ("Seasons", "SeasonList"), ("SeasonsHistory", "SeasonListHistory") }));
+            Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
+            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }), "the history from before the rename, and after");
+            Assert.That(triggers, Is.EqualTo(new[]
+            {
+                "SeasonList.period_start", "SeasonList.versioning_delete", "SeasonList.versioning_truncate", "SeasonList.versioning_update",
+                "SeasonListHistory.read_only",
+            }));
+            Assert.That(gone, Is.True);
+        });
+    }
+
+    /// <summary>GrifballContext, with Seasons renamed SeasonList: its history as AddHistoryTables makes it.</summary>
+    private sealed class SeasonListContext(DbContextOptions<GrifballContext> options) : GrifballContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            var season = modelBuilder.Model.FindEntityType(typeof(Season))!;
+            modelBuilder.Model.RemoveEntityType((IMutableEntityType)season.FindHistoryEntityType()!);
+            modelBuilder.Entity<Season>().ToTable("SeasonList", "Event");
+            modelBuilder.AddHistoryTables([season]);
+        }
     }
 }

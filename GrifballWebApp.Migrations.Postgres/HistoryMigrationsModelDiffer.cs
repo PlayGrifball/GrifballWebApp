@@ -1,4 +1,6 @@
+using System.Collections;
 using GrifballWebApp.Database;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -6,21 +8,43 @@ using Microsoft.EntityFrameworkCore.Migrations.Operations;
 namespace GrifballWebApp.Migrations.Postgres;
 
 /// <summary>
-/// EF's own differ, plus row history's triggers (PostgresHistory): a migration that creates a history
-/// table turns its table's versioning on once both exist, and one that drops a history table but keeps
-/// its table turns it off first, before the triggers can write to a table that's gone. Each scaffolds
-/// as a migrationBuilder.Sql(...) call, there to read in the migration like the rest of it. A table
-/// dropped with its history table takes its triggers with it. A table that gets history once it has
-/// rows gives them SQL Server's PeriodStart, the beginning of time: its PeriodStart column scaffolds as
-/// added with that default, then altered to the model's.
+/// EF's own differ, plus row history's triggers (PostgresHistory), so migrations add scaffolds all of it:
+/// <list type="bullet">
+/// <item>The functions (PostgresHistoryFunctions): created first by the migration that gives the first
+/// table history, created again over the old ones by one that changes their version, and dropped last by
+/// one that takes away the last history table.</item>
+/// <item>A migration that creates a history table turns its table's versioning on once both exist, and
+/// one that drops a history table but keeps its table turns it off first, before the triggers can write
+/// to a table that's gone. A table dropped with its history table takes its triggers with it.</item>
+/// <item>A table renamed or moved to another schema: EF renames or moves its history table with it
+/// (PostgresHistory.HistoryEntityName), and the triggers, on both tables, go with them.</item>
+/// <item>A table that gets history once it has rows gives them SQL Server's PeriodStart, the beginning of
+/// time: its PeriodStart column scaffolds as added with that default, then altered to the model's.</item>
+/// </list>
+/// Each scaffolds as a migrationBuilder.Sql(...) call, there to read in the migration like the rest of it.
 /// </summary>
-public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner) : IMigrationsModelDiffer
+public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnlyList<HistoryFunctionsVersion>? functions = null) : IMigrationsModelDiffer
 {
-    public bool HasDifferences(IRelationalModel? source, IRelationalModel? target) => inner.HasDifferences(source, target);
+    private readonly IReadOnlyList<HistoryFunctionsVersion> _functions = functions ?? PostgresHistoryFunctions.Versions;
+
+    public bool HasDifferences(IRelationalModel? source, IRelationalModel? target)
+    {
+        return inner.HasDifferences(source, target) || FunctionsVersion(source) != FunctionsVersion(target);
+    }
 
     public IReadOnlyList<MigrationOperation> GetDifferences(IRelationalModel? source, IRelationalModel? target)
     {
         var operations = inner.GetDifferences(source, target).ToList();
+
+        // EF sees a new version of the functions as an AlterDatabase (PostgresHistoryAnnotationProvider),
+        // which does nothing on Postgres: the SQL below does it instead.
+        foreach (var alter in operations.OfType<AlterDatabaseOperation>().ToList())
+        {
+            alter.RemoveAnnotation(PostgresHistoryFunctions.Annotation);
+            alter.OldDatabase.RemoveAnnotation(PostgresHistoryFunctions.Annotation);
+            if (alter.Collation == alter.OldDatabase.Collation && SameAnnotations(alter, alter.OldDatabase))
+                operations.Remove(alter);
+        }
 
         foreach (var drop in operations.OfType<DropTableOperation>().ToList())
         {
@@ -67,7 +91,35 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner) : IMigra
             });
         }
 
+        // The functions: there before anything calls them, and gone once nothing does. Each version's
+        // Create replaces any other, and a migration's Down goes back to the version before.
+        var from = FunctionsVersion(source);
+        var to = FunctionsVersion(target);
+        if (to is { } version && version != from)
+            operations.Insert(0, new SqlOperation { Sql = Functions(version).Create });
+        else if (to is null && from is { } old)
+            operations.Add(new SqlOperation { Sql = Functions(old).Drop });
+
         return operations;
+    }
+
+    /// <summary>The version of row history's functions <paramref name="model"/> has, if it has history.</summary>
+    private static int? FunctionsVersion(IRelationalModel? model)
+    {
+        return model?.Model.FindAnnotation(PostgresHistoryFunctions.Annotation)?.Value as int?;
+    }
+
+    private HistoryFunctionsVersion Functions(int number)
+    {
+        return _functions.SingleOrDefault(v => v.Number == number)
+            ?? throw new InvalidOperationException($"Row history's functions have no version {number}: PostgresHistoryFunctions.Versions has {string.Join(", ", _functions.Select(v => v.Number))}.");
+    }
+
+    private static bool SameAnnotations(IReadOnlyAnnotatable a, IReadOnlyAnnotatable b)
+    {
+        var bs = b.GetAnnotations().ToDictionary(x => x.Name, x => x.Value);
+        return a.GetAnnotations().Count() == bs.Count
+            && a.GetAnnotations().All(x => bs.TryGetValue(x.Name, out var value) && StructuralComparisons.StructuralEqualityComparer.Equals(x.Value, value));
     }
 
     /// <summary>Whether <paramref name="table"/> has a history table in <paramref name="model"/>.</summary>

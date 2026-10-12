@@ -11,9 +11,9 @@ namespace GrifballWebApp.Database;
 /// generated 'infinity', which Npgsql reads as DateTime.MaxValue, SQL Server's 9999-12-31
 /// 23:59:59.9999999). Its history table, which EF creates and alters with it, is a keyless
 /// property-bag entity cloned from the table's columns, with PeriodEnd the time a row stopped having
-/// them. Triggers (the AddRowHistory migration's functions) stamp PeriodStart and copy each row an
-/// UPDATE, DELETE or TRUNCATE replaces into the history table; GrifballWebApp.Migrations.Postgres adds
-/// the call that turns them on to the migration that creates a history table. EF's temporal queries
+/// them. Triggers (PostgresHistoryFunctions) stamp PeriodStart and copy each row an UPDATE, DELETE or
+/// TRUNCATE replaces into the history table. GrifballWebApp.Migrations.Postgres scaffolds the functions,
+/// and the call that turns them on for a table, into the migrations. EF's temporal queries
 /// (TemporalAsOf and the rest) read both tables: PostgresTemporalQueries.
 /// </summary>
 public static class PostgresHistory
@@ -82,8 +82,7 @@ public static class PostgresHistory
 
             var keyColumns = root.FindPrimaryKey()?.Properties.Select(p => p.GetColumnName(store)!).ToArray() ?? [];
 
-            var name = table.Key.Schema is null ? table.Key.Table + Suffix : $"{table.Key.Schema}.{table.Key.Table}{Suffix}";
-            modelBuilder.SharedTypeEntity<Dictionary<string, object>>(name, b =>
+            modelBuilder.SharedTypeEntity<Dictionary<string, object>>(HistoryEntityName(root), b =>
             {
                 b.ToTable(table.Key.Table + Suffix, table.Key.Schema);
                 b.HasNoKey();
@@ -95,7 +94,20 @@ public static class PostgresHistory
                 b.HasIndex([.. keyColumns, PeriodEnd]);
             });
         }
+
+        // The triggers' functions, which the migrations create with the first history table.
+        if (tables.Count > 0)
+            modelBuilder.HasAnnotation(PostgresHistoryFunctions.Annotation, PostgresHistoryFunctions.Current);
     }
+
+    /// <summary>
+    /// The name of the entity type of the history table of <paramref name="root"/>'s table: from the
+    /// entity's name, not its table's. EF's differ pairs a table's old and new versions by the entity
+    /// types they hold, so when a table is renamed or moves schema, its history table is renamed or
+    /// moved with it (RenameTable, RenameIndex), keeping its rows and triggers, rather than dropped and
+    /// created again.
+    /// </summary>
+    public static string HistoryEntityName(IReadOnlyEntityType root) => $"{root.Name}.{Suffix}";
 
     /// <summary>
     /// The entity type of the history table of <paramref name="entityType"/>'s table, if it has one. The
