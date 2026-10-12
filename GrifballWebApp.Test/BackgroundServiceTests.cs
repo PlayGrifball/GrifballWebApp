@@ -7,6 +7,7 @@ using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -88,6 +89,36 @@ public class BackgroundServiceTests
 
         Assert.That(created, Is.EqualTo(1), "Only the immediate iteration ran; the 10s timer never ticked");
     }
+
+    private static async Task AssertStopAsyncWaitsForTheRunningIteration<T>(Func<RecordingLogger<T>, IServiceScopeFactory, BackgroundService> create, Type serviceType)
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var logger = new RecordingLogger<T>();
+        var service = create(logger, ScopeFactoryReturning(serviceType, null, () => { entered.TrySetResult(); release.Wait(); }));
+
+        await service.StartAsync(CancellationToken.None);
+        await entered.Task.WaitAsync(Timeout);
+        var stop = service.StopAsync(CancellationToken.None);
+        await Task.Delay(100);
+        var stoppedEarly = stop.IsCompleted;
+        release.Set();
+        await stop.WaitAsync(Timeout);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stoppedEarly, Is.False, "StopAsync returned while an iteration was still running");
+            Assert.That(logger.Entries, Has.Count.EqualTo(1), "The iteration finished before StopAsync returned");
+        });
+    }
+
+    [Test]
+    public Task QueueBackgroundService_StopAsync_WaitsForTheRunningIteration() =>
+        AssertStopAsyncWaitsForTheRunningIteration<QueueBackgroundService>((logger, scopes) => new QueueBackgroundService(logger, scopes), typeof(QueueService));
+
+    [Test]
+    public Task EventsBackgroundService_StopAsync_WaitsForTheRunningIteration() =>
+        AssertStopAsyncWaitsForTheRunningIteration<EventsBackgroundService>((logger, scopes) => new EventsBackgroundService(logger, scopes), typeof(EventsService));
 }
 
 /// <summary>

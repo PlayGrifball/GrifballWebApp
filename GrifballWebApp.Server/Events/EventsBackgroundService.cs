@@ -22,6 +22,10 @@ public class EventsBackgroundService : BackgroundService
             {
                 await Go(ct);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Stopping, not an error.
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while executing the EventsService");
@@ -32,6 +36,10 @@ public class EventsBackgroundService : BackgroundService
                 {
                     await Go(ct);
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // Stopping, not an error.
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "An error occurred while executing the EventsService");
@@ -40,6 +48,15 @@ public class EventsBackgroundService : BackgroundService
             ;
         }, ct);
         return Task.CompletedTask;
+    }
+
+    // ExecuteAsync hands the loop to Task.Run and returns, so the base StopAsync only cancels it: wait
+    // for an iteration still running too, so it doesn't outlive the host's (or a test's) services.
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await base.StopAsync(cancellationToken);
+        if (_queueTask is not null)
+            await _queueTask.WaitAsync(cancellationToken).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
     }
 
     public async Task Go(CancellationToken ct)
