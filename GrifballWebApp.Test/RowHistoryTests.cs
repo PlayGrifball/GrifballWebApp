@@ -48,15 +48,21 @@ public class RowHistoryTests
 
     private DateTime PeriodStart(object entity) => (DateTime)Context.Entry(entity).Property(RowHistory.PeriodStart).CurrentValue!;
 
-    /// <summary>The history of <typeparamref name="TEntity"/>, oldest first, read afresh.</summary>
-    private async Task<List<Dictionary<string, object>>> History<TEntity>() where TEntity : class
+    private record Version<TEntity>(TEntity Row, DateTime Start, DateTime End);
+
+    /// <summary>
+    /// The history of <typeparamref name="TEntity"/>, oldest first, read afresh with EF's temporal
+    /// queries: the versions that ended, the history table's rows, with Valid's bounds as the periods.
+    /// </summary>
+    private async Task<List<Version<TEntity>>> History<TEntity>() where TEntity : class
     {
         await using var read = Context.NewContextLike();
-        var rows = await read.HistoryOf<TEntity>().ToListAsync();
-        return rows.OrderBy(r => Valid(r).LowerBound).ToList();
+        return await read.Set<TEntity>().TemporalAll()
+            .Where(e => EF.Property<DateTime>(e, RowHistory.PeriodEnd) < DateTime.MaxValue)
+            .OrderBy(e => EF.Property<DateTime>(e, RowHistory.PeriodStart))
+            .Select(e => new Version<TEntity>(e, EF.Property<DateTime>(e, RowHistory.PeriodStart), EF.Property<DateTime>(e, RowHistory.PeriodEnd)))
+            .ToListAsync();
     }
-
-    private static NpgsqlRange<DateTime> Valid(Dictionary<string, object> row) => (NpgsqlRange<DateTime>)row[RowHistory.Valid];
 
     private static NpgsqlRange<DateTime> Range(DateTime from, DateTime to) => new(from, true, false, to, false, false);
 
@@ -98,11 +104,11 @@ public class RowHistoryTests
             Assert.That(updated, Is.GreaterThan(created));
             Assert.That(stored, Is.EqualTo(updated));
             Assert.That(history, Has.Count.EqualTo(1));
-            Assert.That(history[0]["TeamName"], Is.EqualTo("Alpha"));
-            Assert.That(history[0]["TeamID"], Is.EqualTo(team.TeamID));
-            Assert.That(history[0]["SeasonID"], Is.EqualTo(team.SeasonID));
-            Assert.That(Valid(history[0]), Is.EqualTo(Range(created, updated)));
-            Assert.That(Valid(history[0]).LowerBound.Kind, Is.EqualTo(DateTimeKind.Utc));
+            Assert.That(history[0].Row.TeamName, Is.EqualTo("Alpha"));
+            Assert.That(history[0].Row.TeamID, Is.EqualTo(team.TeamID));
+            Assert.That(history[0].Row.SeasonID, Is.EqualTo(team.SeasonID));
+            Assert.That((history[0].Start, history[0].End), Is.EqualTo((created, updated)));
+            Assert.That(history[0].Start.Kind, Is.EqualTo(DateTimeKind.Utc));
         });
     }
 
@@ -118,9 +124,9 @@ public class RowHistoryTests
         var history = await History<Team>();
         Assert.Multiple(() =>
         {
-            Assert.That(history.Single()["TeamName"], Is.EqualTo("Alpha"));
-            Assert.That(Valid(history.Single()).LowerBound, Is.EqualTo(created));
-            Assert.That(Valid(history.Single()).UpperBound, Is.GreaterThan(created).And.LessThanOrEqualTo(DateTime.UtcNow));
+            Assert.That(history.Single().Row.TeamName, Is.EqualTo("Alpha"));
+            Assert.That(history.Single().Start, Is.EqualTo(created));
+            Assert.That(history.Single().End, Is.GreaterThan(created).And.LessThanOrEqualTo(DateTime.UtcNow));
         });
     }
 
@@ -141,11 +147,11 @@ public class RowHistoryTests
         var history = await History<Team>();
         Assert.Multiple(() =>
         {
-            Assert.That(history.Select(h => h["TeamName"]), Is.EqualTo(new[] { "Alpha", "Bravo", "Charlie" }));
-            Assert.That(Valid(history[0]).LowerBound, Is.EqualTo(created));
-            Assert.That(Valid(history[1]).LowerBound, Is.EqualTo(Valid(history[0]).UpperBound));
-            Assert.That(Valid(history[2]).LowerBound, Is.EqualTo(Valid(history[1]).UpperBound));
-            Assert.That(Valid(history[2]).UpperBound, Is.EqualTo(PeriodStart(team)));
+            Assert.That(history.Select(h => h.Row.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo", "Charlie" }));
+            Assert.That(history[0].Start, Is.EqualTo(created));
+            Assert.That(history[1].Start, Is.EqualTo(history[0].End));
+            Assert.That(history[2].Start, Is.EqualTo(history[1].End));
+            Assert.That(history[2].End, Is.EqualTo(PeriodStart(team)));
         });
     }
 
@@ -189,7 +195,7 @@ public class RowHistoryTests
         var history = await History<Team>();
         Assert.Multiple(() =>
         {
-            Assert.That(Valid(history.Single()), Is.EqualTo(Range(future, future.AddTicks(10))));
+            Assert.That((history.Single().Start, history.Single().End), Is.EqualTo((future, future.AddTicks(10))));
             Assert.That(other.Entry(loaded).Property<DateTime>(RowHistory.PeriodStart).CurrentValue, Is.EqualTo(future.AddTicks(10)));
         });
     }
@@ -210,8 +216,8 @@ public class RowHistoryTests
         {
             Assert.That(await other.TeamPlayers.CountAsync(), Is.Zero);
             Assert.That(teams, Has.Count.EqualTo(1));
-            Assert.That(players.Select(p => (int)p["UserID"]).Order(), Is.EqualTo(userIDs));
-            Assert.That(players.Select(p => Valid(p).UpperBound), Has.All.EqualTo(Valid(teams[0]).UpperBound));
+            Assert.That(players.Select(p => p.Row.UserID).Order(), Is.EqualTo(userIDs));
+            Assert.That(players.Select(p => p.End), Has.All.EqualTo(teams[0].End));
             Assert.That(await History<User>(), Is.Empty);
         });
     }
@@ -228,7 +234,7 @@ public class RowHistoryTests
         Assert.Multiple(async () =>
         {
             Assert.That(await History<Season>(), Has.Count.EqualTo(1));
-            Assert.That((await History<Team>()).Single()["TeamName"], Is.EqualTo("Alpha"));
+            Assert.That((await History<Team>()).Single().Row.TeamName, Is.EqualTo("Alpha"));
             Assert.That(await History<TeamPlayer>(), Has.Count.EqualTo(2));
         });
     }
@@ -278,9 +284,9 @@ public class RowHistoryTests
         var history = (await History<Team>()).Single();
         Assert.Multiple(async () =>
         {
-            Assert.That(history["TeamName"], Is.EqualTo("Alpha"));
-            Assert.That(history["SeasonID"], Is.EqualTo(team.SeasonID));
-            Assert.That(Valid(history).LowerBound, Is.EqualTo(created));
+            Assert.That(history.Row.TeamName, Is.EqualTo("Alpha"));
+            Assert.That(history.Row.SeasonID, Is.EqualTo(team.SeasonID));
+            Assert.That(history.Start, Is.EqualTo(created));
             Assert.That(await History<TeamPlayer>(), Has.Count.EqualTo(1));
         });
     }
@@ -320,9 +326,9 @@ public class RowHistoryTests
         Assert.Multiple(async () =>
         {
             Assert.That(result.Succeeded, Is.True);
-            Assert.That(history["DisplayName"], Is.EqualTo("Old"));
-            Assert.That(history["ConcurrencyStamp"], Is.EqualTo(user.ConcurrencyStamp));
-            Assert.That(Valid(history).LowerBound, Is.EqualTo(created));
+            Assert.That(history.Row.DisplayName, Is.EqualTo("Old"));
+            Assert.That(history.Row.ConcurrencyStamp, Is.EqualTo(user.ConcurrencyStamp));
+            Assert.That(history.Start, Is.EqualTo(created));
             Assert.That(await other.Users.Select(u => u.DisplayName).SingleAsync(), Is.EqualTo("New"));
         });
     }
@@ -340,7 +346,7 @@ public class RowHistoryTests
         loaded.DisplayName = "New";
         await manager.UpdateAsync(loaded);
 
-        Assert.That((await History<User>()).Single()["DisplayName"], Is.EqualTo("Old"));
+        Assert.That((await History<User>()).Single().Row.DisplayName, Is.EqualTo("Old"));
     }
 
     // Two saves of the same version: the second would record it again, overlapping the first's
@@ -364,7 +370,7 @@ public class RowHistoryTests
         Assert.Multiple(async () =>
         {
             Assert.That(await read.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo("First"));
-            Assert.That((await History<Team>()).Single()["TeamName"], Is.EqualTo("Alpha"));
+            Assert.That((await History<Team>()).Single().Row.TeamName, Is.EqualTo("Alpha"));
         });
     }
 
@@ -412,13 +418,55 @@ public class RowHistoryTests
         Assert.That(constraints.Order(), Is.EqualTo(expected));
     }
 
+    // A version that lasted no time: Postgres's WITHOUT OVERLAPS takes no empty range, so history has
+    // none (SQL Server keeps them, and FOR SYSTEM_TIME leaves them out; TemporalQueryTests).
     [Test]
-    public void AsOfAndHistoryOf_ATableWithNoHistory_Throw()
+    public async Task HistoryTable_RejectsEmptyVersions()
     {
+        var team = await NewTeam("Alpha");
+        var created = PeriodStart(team);
+
+        await using var other = Context.NewContextLike();
+        other.Set<Dictionary<string, object>>(RowHistory.HistoryName("Teams")).Add(new Dictionary<string, object>
+        {
+            ["TeamID"] = team.TeamID,
+            ["TeamName"] = "Empty",
+            [RowHistory.Valid] = Range(created.AddDays(-1), created.AddDays(-1)),
+        });
+        var ex = Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync());
+
+        Assert.That(ex!.InnerException, Is.InstanceOf<PostgresException>());
+        Assert.That(ex.InnerException!.Message, Does.Contain("empty WITHOUT OVERLAPS value"));
+    }
+
+    [Test]
+    public void TemporalQueries_OfATableWithNoHistory_Throw()
+    {
+        var all = Assert.ThrowsAsync<InvalidOperationException>(() => Context.MatchReschedules.TemporalAll().ToListAsync());
+        var asOf = Assert.ThrowsAsync<InvalidOperationException>(() => Context.MatchReschedules.TemporalAsOf(DateTime.UtcNow).ToListAsync());
+
         Assert.Multiple(() =>
         {
-            Assert.Throws<InvalidOperationException>(() => Context.AsOf<MatchReschedule>(DateTime.UtcNow));
-            Assert.Throws<InvalidOperationException>(() => Context.HistoryOf<MatchReschedule>());
+            Assert.That(all!.Message, Does.StartWith("'MatchReschedule' has no history"));
+            Assert.That(asOf!.Message, Does.StartWith("'MatchReschedule' has no history"));
+        });
+    }
+
+    // Generated by the database: what the app sets is ignored, and EF reads back the end of time.
+    [Test]
+    public async Task PeriodEnd_IsTheEndOfTime_WhateverTheAppSets()
+    {
+        var team = await NewTeam("Alpha");
+        Context.Entry(team).Property<DateTime>(RowHistory.PeriodEnd).CurrentValue = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        team.TeamName = "Bravo";
+        await Context.SaveChangesAsync();
+
+        await using var read = Context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(Context.Entry(team).Property<DateTime>(RowHistory.PeriodEnd).CurrentValue, Is.EqualTo(DateTime.MaxValue));
+            Assert.That(await read.Teams.Select(t => EF.Property<DateTime>(t, RowHistory.PeriodEnd)).SingleAsync(), Is.EqualTo(DateTime.MaxValue));
+            Assert.That((await History<Team>()).Single().Row.TeamName, Is.EqualTo("Alpha"));
         });
     }
 }

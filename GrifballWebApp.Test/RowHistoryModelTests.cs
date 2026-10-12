@@ -30,6 +30,10 @@ public class RowHistoryModelTests
 
         Assert.That(temporal, Has.Count.EqualTo(40));
         Assert.That(withHistory, Is.EqualTo(temporal));
+        // The period columns have the names SQL Server's temporal tables give them.
+        var periods = sqlServer.GetService<IDesignTimeModel>().Model.GetEntityTypes().Where(e => e.IsTemporal())
+            .Select(e => (e.GetPeriodStartPropertyName(), e.GetPeriodEndPropertyName())).Distinct();
+        Assert.That(periods, Is.EqualTo(new[] { (RowHistory.PeriodStart, RowHistory.PeriodEnd) }));
     }
 
     [Test]
@@ -60,10 +64,20 @@ public class RowHistoryModelTests
                 Assert.That(history.GetTableName(), Is.EqualTo(historyTable));
                 Assert.That(history.GetSchema(), Is.EqualTo(entityType.GetSchema()));
                 Assert.That(entityType.FindProperty(RowHistory.PeriodStart)!.GetColumnType(), Is.EqualTo("timestamp with time zone"));
+                var periodEnd = entityType.FindProperty(RowHistory.PeriodEnd)!;
+                Assert.That(periodEnd.IsShadowProperty(), Is.True);
+                Assert.That(periodEnd.GetColumnType(), Is.EqualTo("timestamp with time zone"));
+                Assert.That(periodEnd.GetComputedColumnSql(), Is.EqualTo(RowHistory.EndOfTime));
+                Assert.That(periodEnd.GetIsStored(), Is.True);
+                Assert.That(periodEnd.ValueGenerated, Is.EqualTo(ValueGenerated.OnAddOrUpdate));
+                Assert.That(periodEnd.GetAfterSaveBehavior(), Is.EqualTo(PropertySaveBehavior.Ignore), "the app can't write it");
                 Assert.That(history.FindProperty(RowHistory.Valid)!.GetColumnType(), Is.EqualTo("tstzrange"));
                 Assert.That(history.FindPrimaryKey()!.Properties.Select(p => p.Name), Is.EqualTo(new[] { RowHistory.HistoryID }));
 
-                foreach (var property in entityType.GetProperties().Where(p => p.Name != RowHistory.PeriodStart))
+                // The periods are Valid's bounds in history.
+                Assert.That(history.FindProperty(RowHistory.PeriodStart), Is.Null);
+                Assert.That(history.FindProperty(RowHistory.PeriodEnd), Is.Null);
+                foreach (var property in entityType.GetProperties().Where(p => p.Name is not (RowHistory.PeriodStart or RowHistory.PeriodEnd)))
                 {
                     var column = history.FindProperty(property.Name);
                     Assert.That(column, Is.Not.Null, $"{historyTable} has no {property.Name}");
@@ -108,6 +122,13 @@ public class RowHistoryModelTests
         {
             Assert.That(interceptors.Contains(RowHistoryInterceptor.Instance), Is.EqualTo(records));
             Assert.That(context.GetService<IMigrationsSqlGenerator>() is PostgresMigrationsSqlGenerator, Is.EqualTo(records));
+            // EF's temporal queries, which SQL Server translates itself (PostgresTemporalQueries).
+            Assert.That(context.GetService<Microsoft.EntityFrameworkCore.Query.IQueryableMethodTranslatingExpressionVisitorFactory>()
+                is PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory, Is.EqualTo(records));
+#pragma warning disable EF1001 // EF's navigation expansion helper, which PostgresTemporalQueries replaces.
+            Assert.That(context.GetService<Microsoft.EntityFrameworkCore.Query.INavigationExpansionExtensibilityHelper>()
+                is PostgresTemporalNavigationExpansionExtensibilityHelper, Is.EqualTo(records));
+#pragma warning restore EF1001
         });
     }
 

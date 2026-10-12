@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
 
-/// <summary>Row history's helpers, which work on either database: SQL Server's temporal tables, Postgres's history tables.</summary>
+/// <summary>
+/// Row history through EF's temporal queries and ExecuteDeleteWithHistoryAsync, the same code on either
+/// database: SQL Server's temporal tables, Postgres's history tables. TemporalQueryTests has the rest.
+/// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 public class RowHistoryQueryTests
@@ -26,12 +29,11 @@ public class RowHistoryQueryTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private static bool KeepsHistoryInTheApp => TestDatabase.Provider == DatabaseProvider.Postgres;
-
+    /// <summary>The versions of <typeparamref name="TEntity"/> rows that ended: its history.</summary>
     private async Task<int> HistoryCount<TEntity>() where TEntity : class
     {
         await using var read = _context.NewContextLike();
-        return await read.HistoryOf<TEntity>().CountAsync();
+        return await read.Set<TEntity>().TemporalAll().CountAsync(e => EF.Property<DateTime>(e, "PeriodEnd") < DateTime.MaxValue);
     }
 
     /// <summary>A moment between two saves, on either database's clock.</summary>
@@ -59,7 +61,7 @@ public class RowHistoryQueryTests
         var afterDelete = await Moment();
 
         async Task<List<string>> NamesAsOf(DateTime moment) =>
-            await _context.AsOf<Team>(moment).Where(t => t.TeamID == team.TeamID).Select(t => t.TeamName).ToListAsync();
+            await _context.Teams.TemporalAsOf(moment).Where(t => t.TeamID == team.TeamID).Select(t => t.TeamName).ToListAsync();
 
         Assert.Multiple(async () =>
         {
@@ -67,7 +69,7 @@ public class RowHistoryQueryTests
             Assert.That(await NamesAsOf(asAlpha), Is.EqualTo(new[] { "Alpha" }));
             Assert.That(await NamesAsOf(asBravo), Is.EqualTo(new[] { "Bravo" }));
             Assert.That(await NamesAsOf(afterDelete), Is.Empty);
-            Assert.That(_context.AsOf<Team>(asAlpha).Single().SeasonID, Is.EqualTo(team.SeasonID));
+            Assert.That(_context.Teams.TemporalAsOf(asAlpha).Single().SeasonID, Is.EqualTo(team.SeasonID));
         });
     }
 
@@ -101,11 +103,8 @@ public class RowHistoryQueryTests
             Assert.That(deleted, Is.EqualTo(3));
             Assert.That(await _context.SeasonMatches.CountAsync(), Is.Zero);
             Assert.That(await _context.MatchBracketInfo.CountAsync(), Is.Zero);
-            if (KeepsHistoryInTheApp)
-            {
-                Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(3));
-                Assert.That(await HistoryCount<MatchBracketInfo>(), Is.EqualTo(3));
-            }
+            Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(3));
+            Assert.That(await HistoryCount<MatchBracketInfo>(), Is.EqualTo(3));
         });
     }
 
@@ -126,8 +125,7 @@ public class RowHistoryQueryTests
         Assert.Multiple(async () =>
         {
             Assert.That(await _context.SeasonMatches.Select(m => m.BestOf).ToListAsync(), Is.EqualTo(new[] { 5, 5 }));
-            if (KeepsHistoryInTheApp)
-                Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(2));
+            Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(2));
         });
     }
 
@@ -146,11 +144,8 @@ public class RowHistoryQueryTests
         Assert.Multiple(async () =>
         {
             Assert.That(await _context.SeasonMatches.Select(m => m.BestOf).ToListAsync(), Has.Count.EqualTo(3).And.All.EqualTo(5));
-            if (KeepsHistoryInTheApp)
-            {
-                Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(3));
-                Assert.That(await HistoryCount<MatchBracketInfo>(), Is.EqualTo(3));
-            }
+            Assert.That(await HistoryCount<SeasonMatch>(), Is.EqualTo(3));
+            Assert.That(await HistoryCount<MatchBracketInfo>(), Is.EqualTo(3));
         });
     }
 }

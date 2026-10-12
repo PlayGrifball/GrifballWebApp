@@ -162,9 +162,11 @@ mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Serv
 #### Row history
 SQL Server keeps a history of every row change in its temporal tables. Postgres has none, so the app keeps the same
 history itself, for the same tables (`RowHistory`, `RowHistoryInterceptor`):
-- Each of those tables has a `PeriodStart` column, when its row's current version began, and a history table beside
-  it, `<Table>History` in the same schema (as SQL Server names them): the table's columns, nullable but for the key,
-  and `Valid`, the `tstzrange` (UTC, like every time here) in which a version was current.
+- Each of those tables has SQL Server's period columns: `PeriodStart`, when its row's current version began, and
+  `PeriodEnd`, always the end of time (a generated `infinity`, which reads as `DateTime.MaxValue`, SQL Server's
+  `9999-12-31 23:59:59.9999999`). Beside it is a history table, `<Table>History` in the same schema (as SQL Server
+  names them): the table's other columns, nullable but for the key, and `Valid`, the `tstzrange` (UTC, like every
+  time here) in which a version was current.
 - On every `SaveChanges` that updates or deletes such a row, the interceptor adds its old version to the history,
   `Valid` from its `PeriodStart` to now, in the same transaction: the change and its history are saved together or
   not at all. For an entity attached rather than loaded (`Update`, `Remove` of an entity from elsewhere, as
@@ -174,13 +176,37 @@ history itself, for the same tables (`RowHistory`, `RowHistoryInterceptor`):
   current at once. It also rejects the second of two saves of the same version (both loaded it, both changed it),
   which on SQL Server would silently overwrite the first; the second save fails, with no change.
 
-The tables hold only current rows, so they're queried as before, with no filter; history is asked for:
-`context.AsOf<Team>(utcTime)` (either database) reads a table as it was, `context.HistoryOf<Team>()` (Postgres) its
-history rows. In SQL, as of a time:
+The tables hold only current rows, so they're queried as before, with no filter. Query the history with EF's
+temporal queries, the same code on both databases:
+```csharp
+var then = await context.Seasons.TemporalAsOf(utcTime).Include(s => s.SeasonMatches).SingleAsync(s => s.SeasonID == id);
+var versions = await context.Seasons.TemporalAll()
+    .Where(s => s.SeasonID == id)
+    .OrderBy(s => EF.Property<DateTime>(s, "PeriodStart"))
+    .Select(s => new { s.SeasonName, From = EF.Property<DateTime>(s, "PeriodStart"), To = EF.Property<DateTime>(s, "PeriodEnd") })
+    .ToListAsync();
+// Also TemporalFromTo(a, b), TemporalBetween(a, b) and TemporalContainedIn(a, b).
+```
+SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
+(`GrifballWebApp.Database/PostgresTemporalQueries.cs`) that reads the table and its history table, a history row's
+periods being `Valid`'s bounds, with SQL Server's rules, so they return the same rows: `AS OF` carries to `Include`s
+and navigations, other operations refuse them. Times are UTC (`Kind` `Local` is refused on Postgres; SQL Server would
+read its local clock time as UTC). Postgres keeps microseconds, so a time between two is rounded the way that gives
+each comparison SQL Server's answer. One difference comes from how the history is written: SQL Server stamps every
+change in a transaction with the transaction's start, so a row changed twice in one has a version that lasted no time,
+which `FOR SYSTEM_TIME` leaves out; the interceptor stamps each `SaveChanges` with its own time, so on Postgres that
+version is kept, and lasted from one `SaveChanges` to the next.
+
+By hand in psql, a row's old versions, and the row as it was at a time:
 ```sql
-SELECT "TeamID", "TeamName", ... FROM "Event"."Teams" WHERE "PeriodStart" <= @asOf
+SELECT *, lower("Valid") AS "PeriodStart", upper("Valid") AS "PeriodEnd"
+  FROM "Event"."SeasonsHistory" WHERE "SeasonID" = 1 ORDER BY "Valid";
+
+SELECT "SeasonID", "SeasonName" FROM "Event"."Seasons"
+ WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00'
 UNION ALL
-SELECT "TeamID", "TeamName", ... FROM "Event"."TeamsHistory" WHERE "Valid" @> @asOf;
+SELECT "SeasonID", "SeasonName" FROM "Event"."SeasonsHistory"
+ WHERE "SeasonID" = 1 AND "Valid" @> '2026-10-01 12:00+00'::timestamptz;
 ```
 
 Not recorded, as it bypasses `SaveChanges`: `ExecuteUpdate`, `ExecuteDelete` and raw SQL. To delete in bulk with

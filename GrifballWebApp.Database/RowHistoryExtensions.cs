@@ -1,60 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
-using Npgsql;
-using NpgsqlTypes;
 
 namespace GrifballWebApp.Database;
 
 public static class RowHistoryExtensions
 {
-    /// <summary>
-    /// <typeparamref name="TEntity"/>'s rows as they were at <paramref name="asOf"/> (UTC, like every
-    /// time here), untracked. SQL Server: its temporal table. Postgres: the current rows that began by
-    /// then and the history rows that were current then:
-    /// <code>
-    /// SELECT ... FROM "Event"."Teams" WHERE "PeriodStart" &lt;= @asOf
-    /// UNION ALL
-    /// SELECT ..., lower("Valid") FROM "Event"."TeamsHistory" WHERE "Valid" @> @asOf
-    /// </code>
-    /// Only this table: navigations (Include, joins) read the current rows. Postgres has no history from
-    /// before it began keeping it (AddRowHistory): rows already there began then.
-    /// </summary>
-    public static IQueryable<TEntity> AsOf<TEntity>(this DbContext context, DateTime asOf) where TEntity : class
-    {
-        if (!context.Database.IsNpgsql())
-            return context.Set<TEntity>().TemporalAsOf(asOf).AsNoTracking();
-
-        var entityType = context.Model.FindEntityType(typeof(TEntity))!;
-        var history = entityType.FindHistory()
-            ?? throw new InvalidOperationException($"{entityType.DisplayName()} has no history");
-        var sql = context.GetService<ISqlGenerationHelper>();
-        var columns = entityType.GetProperties().Select(p => sql.DelimitIdentifier(p.GetColumnName())).ToList();
-        var pastColumns = columns.Select(c => c == sql.DelimitIdentifier(RowHistory.PeriodStart) ? $"lower({sql.DelimitIdentifier(RowHistory.Valid)})" : c);
-
-        var query =
-            $"SELECT {string.Join(", ", columns)} FROM {sql.DelimitIdentifier(entityType.GetTableName()!, entityType.GetSchema())} " +
-            $"WHERE {sql.DelimitIdentifier(RowHistory.PeriodStart)} <= @asOf " +
-            $"UNION ALL " +
-            $"SELECT {string.Join(", ", pastColumns)} FROM {sql.DelimitIdentifier(history.GetTableName()!, history.GetSchema())} " +
-            $"WHERE {sql.DelimitIdentifier(RowHistory.Valid)} @> @asOf";
-        var parameter = new NpgsqlParameter("asOf", NpgsqlDbType.TimestampTz) { Value = UtcDateTimeConverter.ToUtc(asOf) };
-        return context.Set<TEntity>().FromSqlRaw(query, parameter).AsNoTracking();
-    }
-
-    /// <summary>
-    /// Postgres: <typeparamref name="TEntity"/>'s history rows: its columns (by property name, as in
-    /// <c>EF.Property&lt;string&gt;(h, "TeamName")</c>) and Valid, the <see cref="NpgsqlRange{T}"/> of
-    /// time each version was current.
-    /// </summary>
-    public static IQueryable<Dictionary<string, object>> HistoryOf<TEntity>(this DbContext context) where TEntity : class
-    {
-        var entityType = context.Model.FindEntityType(typeof(TEntity))!;
-        var history = entityType.FindHistory()
-            ?? throw new InvalidOperationException($"{entityType.DisplayName()} has no history");
-        return context.Set<Dictionary<string, object>>(history.Name).AsNoTracking();
-    }
-
     /// <summary>
     /// ExecuteDeleteAsync, on Postgres with history: the rows, and what deleting them cascades to, are
     /// read and their history saved (SaveChanges, which saves the context's other changes too), then

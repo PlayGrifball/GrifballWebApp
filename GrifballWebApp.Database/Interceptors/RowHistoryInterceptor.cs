@@ -137,8 +137,9 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
         var start = UtcDateTimeConverter.ToUtc((DateTime)value(entityType.FindProperty(RowHistory.PeriodStart)!)!);
         var end = now > start ? now : start.AddTicks(10);
 
+        // The periods are Valid's bounds (the table's PeriodEnd is a generated end of time).
         var row = new Dictionary<string, object>();
-        foreach (var property in entityType.GetProperties().Where(p => p.Name != RowHistory.PeriodStart))
+        foreach (var property in entityType.GetProperties().Where(p => p.Name is not (RowHistory.PeriodStart or RowHistory.PeriodEnd)))
             row[property.Name] = value(property)!;
         row[RowHistory.Valid] = new NpgsqlRange<DateTime>(start, true, false, end, false, false);
 
