@@ -206,10 +206,7 @@ public class TemporalQueryTests
         _context.Seasons.Add(season);
         await Save(season);
 
-        // Two changes in one transaction. SQL Server stamps both with the transaction's start, so the
-        // version between them lasted no time. Postgres's history is stamped by the app at each
-        // SaveChanges (RowHistoryInterceptor), and its WITHOUT OVERLAPS constraint takes no empty
-        // range, so every version it keeps lasted some time: that one too.
+        // Two changes in one transaction: the version between them lasted no time.
         await _context.StartTransactionAsync();
         season.SeasonName = "Between";
         await _context.SaveChangesAsync();
@@ -218,9 +215,7 @@ public class TemporalQueryTests
         await _context.CommitTransactionAsync();
 
         var all = Names(await Versions(_context.Seasons.TemporalAll(), season.SeasonID));
-        Assert.That(all, Is.EqualTo(TestDatabase.Provider == DatabaseProvider.Postgres
-            ? new[] { "Before", "Between", "After" }
-            : new[] { "Before", "After" }));
+        Assert.That(all, Is.EqualTo(new[] { "Before", "After" }));
     }
 
     [Test]

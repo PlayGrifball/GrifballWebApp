@@ -168,10 +168,15 @@ history itself, for the same tables (`RowHistory`, `RowHistoryInterceptor`):
   names them): the table's other columns, nullable but for the key, and `Valid`, the `tstzrange` (UTC, like every
   time here) in which a version was current.
 - On every `SaveChanges` that updates or deletes such a row, the interceptor adds its old version to the history,
-  `Valid` from its `PeriodStart` to now, in the same transaction: the change and its history are saved together or
-  not at all. For an entity attached rather than loaded (`Update`, `Remove` of an entity from elsewhere, as
-  Identity's `UserStore.UpdateAsync` does), the old version is read from the database. A delete records what the
-  database's `ON DELETE CASCADE` deletes with it: the interceptor reads those rows first.
+  `Valid` from its `PeriodStart` to the transaction's time, in the same transaction: the change and its history are
+  saved together or not at all. For an entity attached rather than loaded (`Update`, `Remove` of an entity from
+  elsewhere, as Identity's `UserStore.UpdateAsync` does), the old version is read from the database. A delete records
+  what the database's `ON DELETE CASCADE` deletes with it: the interceptor reads those rows first.
+- Times are SQL Server's: every change in a transaction has the transaction's time, the database's
+  `transaction_timestamp()` (read once per transaction; an insert's `PeriodStart` is its default). So a version that
+  began in the same transaction (a row changed by two `SaveChanges` of one transaction) lasted no time, and isn't
+  recorded, as `FOR SYSTEM_TIME` hides it on SQL Server. A version that began after the transaction's time, because
+  a later transaction changed the row first, can't be replaced: the save fails, as SQL Server's does.
 - Each history table has `UNIQUE (<key>, "Valid" WITHOUT OVERLAPS)` (PostgreSQL 18): no two versions of a row
   current at once. It also rejects the second of two saves of the same version (both loaded it, both changed it),
   which on SQL Server would silently overwrite the first; the second save fails, with no change.
@@ -192,10 +197,7 @@ SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabas
 periods being `Valid`'s bounds, with SQL Server's rules, so they return the same rows: `AS OF` carries to `Include`s
 and navigations, other operations refuse them. Times are UTC (`Kind` `Local` is refused on Postgres; SQL Server would
 read its local clock time as UTC). Postgres keeps microseconds, so a time between two is rounded the way that gives
-each comparison SQL Server's answer. One difference comes from how the history is written: SQL Server stamps every
-change in a transaction with the transaction's start, so a row changed twice in one has a version that lasted no time,
-which `FOR SYSTEM_TIME` leaves out; the interceptor stamps each `SaveChanges` with its own time, so on Postgres that
-version is kept, and lasted from one `SaveChanges` to the next.
+each comparison SQL Server's answer.
 
 By hand in psql, a row's old versions, and the row as it was at a time:
 ```sql

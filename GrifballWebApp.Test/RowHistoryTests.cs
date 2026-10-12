@@ -131,11 +131,13 @@ public class RowHistoryTests
     }
 
     [Test]
-    public async Task SeveralUpdates_InOneTransaction_RecordEachVersion_EndToEnd()
+    public async Task SeveralUpdates_InOneTransaction_RecordOnlyTheVersionFromBefore()
     {
         var team = await NewTeam("Alpha");
         var created = PeriodStart(team);
 
+        // As on SQL Server: every change of a transaction has its time, so Bravo and Charlie lasted no
+        // time, and aren't history.
         await Context.StartTransactionAsync();
         foreach (var name in new[] { "Bravo", "Charlie", "Delta" })
         {
@@ -147,11 +149,58 @@ public class RowHistoryTests
         var history = await History<Team>();
         Assert.Multiple(() =>
         {
-            Assert.That(history.Select(h => h.Row.TeamName), Is.EqualTo(new[] { "Alpha", "Bravo", "Charlie" }));
-            Assert.That(history[0].Start, Is.EqualTo(created));
-            Assert.That(history[1].Start, Is.EqualTo(history[0].End));
-            Assert.That(history[2].Start, Is.EqualTo(history[1].End));
-            Assert.That(history[2].End, Is.EqualTo(PeriodStart(team)));
+            Assert.That(history.Select(h => h.Row.TeamName), Is.EqualTo(new[] { "Alpha" }));
+            Assert.That((history[0].Start, history[0].End), Is.EqualTo((created, PeriodStart(team))));
+            Assert.That(team.TeamName, Is.EqualTo("Delta"));
+        });
+    }
+
+    // Npgsql reuses its transaction object on a pooled connection: each transaction still has its own time.
+    [Test]
+    public async Task ConsecutiveTransactions_HaveTheirOwnTimes()
+    {
+        var team = await NewTeam("Alpha");
+        var created = PeriodStart(team);
+
+        var ends = new List<DateTime>();
+        foreach (var name in new[] { "Bravo", "Charlie" })
+        {
+            await Context.StartTransactionAsync();
+            await Context.Teams.CountAsync();
+            await Task.Delay(20);
+            team.TeamName = name;
+            await Context.SaveChangesAsync();
+            await Context.CommitTransactionAsync();
+            ends.Add(PeriodStart(team));
+        }
+
+        var history = await History<Team>();
+        Assert.Multiple(() =>
+        {
+            Assert.That(history.Select(h => (h.Row.TeamName, h.Start, h.End)), Is.EqualTo(new[] { ("Alpha", created, ends[0]), ("Bravo", ends[0], ends[1]) }));
+            Assert.That(ends[1], Is.GreaterThan(ends[0]));
+        });
+    }
+
+    [Test]
+    public async Task InsertUpdateAndDelete_InOneTransaction_RecordNothing()
+    {
+        await Context.StartTransactionAsync();
+        var team = await NewTeam("Alpha", players: 1);
+        var inserted = PeriodStart(team);
+        team.TeamName = "Bravo";
+        await Context.SaveChangesAsync();
+        var updated = PeriodStart(team);
+        Context.Teams.Remove(team);
+        await Context.SaveChangesAsync();
+        await Context.CommitTransactionAsync();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(updated, Is.EqualTo(inserted), "the transaction's time");
+            Assert.That(await History<Team>(), Is.Empty);
+            Assert.That(await History<TeamPlayer>(), Is.Empty);
+            Assert.That(await Context.Teams.CountAsync(), Is.Zero);
         });
     }
 
@@ -163,9 +212,16 @@ public class RowHistoryTests
         await Context.StartTransactionAsync();
         team.TeamName = "Bravo";
         await Context.SaveChangesAsync();
+        team.TeamName = "Charlie";
+        await Context.SaveChangesAsync();
         await Context.RollbackTransactionAsync();
 
-        Assert.That(await History<Team>(), Is.Empty);
+        await using var read = Context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await History<Team>(), Is.Empty);
+            Assert.That(await read.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo("Alpha"));
+        });
     }
 
     [Test]
@@ -179,24 +235,32 @@ public class RowHistoryTests
         Assert.That(await History<Team>(), Is.Empty);
     }
 
-    // A version that began after now, by a clock ahead of this one, still ends after it began.
+    // A transaction whose time is before a version began (a later transaction saved it first) can't
+    // replace it: its history would end before it began. SQL Server refuses it too (error 13535).
     [Test]
-    public async Task Update_OfAVersionFromTheFuture_RecordsAMicrosecond()
+    public async Task Update_OfAVersionNewerThanTheTransaction_Fails()
     {
-        var team = await NewTeam("Alpha");
-        var future = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        await Context.Teams.Where(t => t.TeamID == team.TeamID).ExecuteUpdateAsync(s => s.SetProperty(t => EF.Property<DateTime>(t, RowHistory.PeriodStart), future));
+        await NewTeam("Alpha");
+        await using var first = Context.NewContextLike();
+        await using var transaction = await first.Database.BeginTransactionAsync();
+        await first.Teams.CountAsync(); // the transaction, and its time, begin
+        await Task.Delay(20);
 
-        await using var other = Context.NewContextLike();
-        var loaded = await other.Teams.SingleAsync();
-        loaded.TeamName = "Bravo";
-        await other.SaveChangesAsync();
+        await using var second = Context.NewContextLike();
+        (await second.Teams.SingleAsync()).TeamName = "Bravo";
+        await second.SaveChangesAsync();
 
-        var history = await History<Team>();
-        Assert.Multiple(() =>
+        var team = await first.Teams.SingleAsync();
+        team.TeamName = "Charlie";
+        var ex = Assert.ThrowsAsync<DbUpdateException>(() => first.SaveChangesAsync());
+        await transaction.RollbackAsync();
+
+        await using var read = Context.NewContextLike();
+        Assert.Multiple(async () =>
         {
-            Assert.That((history.Single().Start, history.Single().End), Is.EqualTo((future, future.AddTicks(10))));
-            Assert.That(other.Entry(loaded).Property<DateTime>(RowHistory.PeriodStart).CurrentValue, Is.EqualTo(future.AddTicks(10)));
+            Assert.That(ex!.Message, Does.Contain("a later transaction changed it"));
+            Assert.That(await read.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo("Bravo"));
+            Assert.That((await History<Team>()).Single().Row.TeamName, Is.EqualTo("Alpha"));
         });
     }
 
@@ -371,6 +435,41 @@ public class RowHistoryTests
         {
             Assert.That(await read.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo("First"));
             Assert.That((await History<Team>()).Single().Row.TeamName, Is.EqualTo("Alpha"));
+        });
+    }
+
+    // Two updates in one transaction record one version (the one from before), which still overlaps
+    // what a concurrent save of that version records: that save waits for the transaction, then is
+    // rejected once it commits.
+    [Test]
+    public async Task ConcurrentUpdate_OfAVersionATransactionUpdatedTwice_IsRejected()
+    {
+        await NewTeam("Alpha");
+        await using var first = Context.NewContextLike();
+        await using var second = Context.NewContextLike();
+        var firstTeam = await first.Teams.SingleAsync();
+        var secondTeam = await second.Teams.SingleAsync();
+
+        await using var transaction = await first.Database.BeginTransactionAsync();
+        firstTeam.TeamName = "Bravo";
+        await first.SaveChangesAsync();
+        firstTeam.TeamName = "Charlie";
+        await first.SaveChangesAsync();
+
+        secondTeam.TeamName = "Second";
+        var secondSave = second.SaveChangesAsync();
+        await Task.Delay(500);
+        var waited = !secondSave.IsCompleted;
+        await transaction.CommitAsync();
+        var ex = Assert.ThrowsAsync<DbUpdateException>(() => secondSave);
+
+        AssertExclusionViolation(ex!);
+        await using var read = Context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(waited, Is.True, "the second save waits for the transaction");
+            Assert.That(await read.Teams.Select(t => t.TeamName).SingleAsync(), Is.EqualTo("Charlie"));
+            Assert.That((await History<Team>()).Select(h => h.Row.TeamName), Is.EqualTo(new[] { "Alpha" }));
         });
     }
 

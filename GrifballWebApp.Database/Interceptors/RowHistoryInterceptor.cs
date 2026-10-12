@@ -5,15 +5,23 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using NpgsqlTypes;
 
 namespace GrifballWebApp.Database.Interceptors;
 
 /// <summary>
 /// Postgres: for each row with history (<see cref="RowHistory"/>) that a SaveChanges updates or deletes,
-/// adds its old version to the history table, Valid from its PeriodStart to now, and moves PeriodStart
-/// to now. The history rows are saved with the change, in its transaction: both or neither. Every
-/// Postgres context has it (<see cref="DatabaseProviderExtensions.UseGrifballDatabase(Microsoft.EntityFrameworkCore.DbContextOptionsBuilder, DatabaseProvider, string)"/>).
+/// adds its old version to the history table, Valid from its PeriodStart to the transaction's time, and
+/// moves PeriodStart to that time. The history rows are saved with the change, in its transaction: both
+/// or neither. Every Postgres context has it (<see cref="DatabaseProviderExtensions.UseGrifballDatabase(Microsoft.EntityFrameworkCore.DbContextOptionsBuilder, DatabaseProvider, string)"/>).
+/// <para>
+/// Times are SQL Server's: every change in a transaction has the transaction's time, the database's
+/// transaction_timestamp() (an insert's PeriodStart is its default). So a version that began in the same
+/// transaction lasted no time, and isn't recorded: FOR SYSTEM_TIME leaves such versions out, and the
+/// history's WITHOUT OVERLAPS refuses empty ranges. A version that began after the transaction's time (a
+/// later transaction replaced it first) can't be replaced: the save fails, as SQL Server's does.
+/// </para>
 /// <para>
 /// What a SaveChanges doesn't do, it doesn't see: ExecuteUpdate, ExecuteDelete (see
 /// <see cref="RowHistoryExtensions.ExecuteDeleteWithHistoryAsync"/>) and raw SQL change rows with no
@@ -48,13 +56,17 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
 
     private static async Task RecordAsync(DbContext context, bool async, CancellationToken cancellationToken)
     {
-        var now = Now();
-
         // What SaveChanges would cascade to tracked entities, now, so they're among the entries.
         context.ChangeTracker.CascadeChanges();
         var entries = context.ChangeTracker.Entries()
             .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
             .ToList();
+
+        // Inserts take the database's default, which is the transaction's time: only updates and deletes
+        // (which may cascade to rows with history) need it here.
+        var now = entries.Any(e => e.State == EntityState.Deleted || (e.State == EntityState.Modified && e.Metadata.FindHistory() is not null))
+            ? await TransactionTimeAsync(context, async, cancellationToken)
+            : default;
 
         // Rows recorded or to be: each once, though two deletes may cascade to it.
         var recorded = new HashSet<string>(context.ChangeTracker.Entries()
@@ -65,8 +77,9 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
             var history = entry.Metadata.FindHistory();
             if (entry.State == EntityState.Added)
             {
+                // Whatever the app set: the database's default, transaction_timestamp(), read back by EF.
                 if (history is not null)
-                    entry.Property(RowHistory.PeriodStart).CurrentValue = now;
+                    entry.Property(RowHistory.PeriodStart).CurrentValue = default(DateTime);
                 continue;
             }
 
@@ -86,9 +99,9 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
 
             if (history is not null)
             {
-                var end = Record(context, entry.Metadata, history, p => values[p], now);
+                Record(context, entry.Metadata, history, p => values[p], now);
                 if (entry.State == EntityState.Modified)
-                    entry.Property(RowHistory.PeriodStart).CurrentValue = end;
+                    entry.Property(RowHistory.PeriodStart).CurrentValue = now;
             }
 
             if (entry.State == EntityState.Deleted)
@@ -103,7 +116,7 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
     internal static async Task RecordDeletesAsync<TEntity>(DbContext context, IQueryable<TEntity> query, CancellationToken cancellationToken)
         where TEntity : class
     {
-        var now = Now();
+        var now = await TransactionTimeAsync(context, async: true, cancellationToken);
         var entityType = context.Model.FindEntityType(typeof(TEntity))!;
         var history = entityType.FindHistory();
         var properties = entityType.GetProperties().ToList();
@@ -119,32 +132,56 @@ public sealed class RowHistoryInterceptor : SaveChangesInterceptor
         }
     }
 
+    // Each transaction's time, read once: a weak table, so it goes with its transaction. By EF's
+    // transaction, new for each one, not the DbTransaction, which Npgsql reuses on a pooled connection.
+    private static readonly ConditionalWeakTable<IDbContextTransaction, StrongBox<DateTime>> TransactionTimes = new();
+
     /// <summary>
-    /// Now (UTC, as timestamptz and its ranges take it), to the microsecond, as Postgres keeps it. The
-    /// app's clock, never the database's, so a version's start and end come from the same clock.
+    /// The time of the transaction the changes are saved in: the database's transaction_timestamp(), as
+    /// PeriodStart's default, and as SQL Server stamps every change of a transaction with its start. In
+    /// a transaction (the caller's, or ExecuteDeleteWithHistoryAsync's), read once and kept for each of
+    /// its SaveChanges. Without one, a SaveChanges is its own transaction, which EF begins after this:
+    /// the time is read just before it.
     /// </summary>
-    private static DateTime Now()
+    private static async Task<DateTime> TransactionTimeAsync(DbContext context, bool async, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
-        return now.AddTicks(-(now.Ticks % 10));
+        var transaction = context.Database.CurrentTransaction;
+        if (transaction is not null && TransactionTimes.TryGetValue(transaction, out var known))
+            return known.Value;
+
+        var query = context.Database.SqlQueryRaw<DateTime>("SELECT transaction_timestamp() AS \"Value\"");
+        var time = UtcDateTimeConverter.ToUtc(async ? await query.SingleAsync(cancellationToken) : query.Single());
+        if (transaction is not null)
+            TransactionTimes.AddOrUpdate(transaction, new StrongBox<DateTime>(time));
+        return time;
     }
 
-    /// <summary>Adds the version <paramref name="value"/> gives to the history; returns when it ends.</summary>
-    private static DateTime Record(DbContext context, IEntityType entityType, IEntityType history, Func<IProperty, object?> value, DateTime now)
+    /// <summary>
+    /// Adds the version <paramref name="value"/> gives to the history, from its PeriodStart to
+    /// <paramref name="now"/>, the transaction's time. One that began in this transaction lasted no time
+    /// and isn't recorded. One that began after it was replaced by a later transaction: the save fails,
+    /// as SQL Server's does (error 13535), rather than record a version ending before it began.
+    /// </summary>
+    private static void Record(DbContext context, IEntityType entityType, IEntityType history, Func<IProperty, object?> value, DateTime now)
     {
-        // Never empty: a version saved in the same microsecond as the one before it (or by a clock
-        // behind this one) still gets one. The range has no converter, so its bounds are made UTC here.
+        // The range has no converter, so its bounds are made UTC here.
         var start = UtcDateTimeConverter.ToUtc((DateTime)value(entityType.FindProperty(RowHistory.PeriodStart)!)!);
-        var end = now > start ? now : start.AddTicks(10);
+        if (start > now)
+        {
+            throw new DbUpdateException(
+                $"Data modification failed on '{entityType.GetSchemaQualifiedTableName()}': the row's current version began at {start:O}, " +
+                $"after this transaction's time, {now:O}, so a later transaction changed it. Retry in a new transaction.");
+        }
+        if (start == now)
+            return;
 
         // The periods are Valid's bounds (the table's PeriodEnd is a generated end of time).
         var row = new Dictionary<string, object>();
         foreach (var property in entityType.GetProperties().Where(p => p.Name is not (RowHistory.PeriodStart or RowHistory.PeriodEnd)))
             row[property.Name] = value(property)!;
-        row[RowHistory.Valid] = new NpgsqlRange<DateTime>(start, true, false, end, false, false);
+        row[RowHistory.Valid] = new NpgsqlRange<DateTime>(start, true, false, now, false, false);
 
         context.Set<Dictionary<string, object>>(history.Name).Add(row);
-        return end;
     }
 
     /// <summary>
