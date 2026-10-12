@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 
 namespace GrifballWebApp.Test;
@@ -353,5 +355,70 @@ public class TemporalQueryTests
             Assert.That(all, Is.EqualTo(new[] { "First", "Third" }));
             Assert.That(range, Is.EqualTo(new[] { "First", "Second" }));
         });
+    }
+
+    // EF compiles a query once and caches it, the values it captures its parameters. On Postgres the
+    // times of temporal queries are parameters too (PostgresTemporalQueries): an AsOf is the same query at
+    // any time. SQL Server's FOR SYSTEM_TIME has its time as a literal, a query of its own for each.
+    [Test]
+    public async Task AsOf_AtAnyTime_IsCompiledOnce_OnPostgres()
+    {
+        var (season, first, second, third) = await ThreeVersions();
+        var compiled = 0;
+        var options = TestDatabase.Options(_context.Database.GetConnectionString()!)
+            .LogTo(_ => Interlocked.Increment(ref compiled), [CoreEventId.QueryCompilationStarting]).Options;
+
+        var names = new List<string>();
+        foreach (var time in new[] { first, Between(first, second), second, Between(second, third), third })
+        {
+            await using var context = new GrifballContext(options);
+            names.Add(await context.Seasons.TemporalAsOf(time).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync());
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(names, Is.EqualTo(new[] { "First", "First", "Second", "Second", "Third" }));
+            Assert.That(compiled, Is.EqualTo(TestDatabase.Provider == DatabaseProvider.Postgres ? 1 : 5));
+        });
+    }
+
+    // Each execution of a cached query has its own parameters: AsOf queries at different times, at once,
+    // each find their own time's version.
+    [Test]
+    public async Task AsOf_AtDifferentTimesAtOnce_EachFindsItsOwnTimesVersion()
+    {
+        var (season, first, second, third) = await ThreeVersions();
+        (DateTime Time, string Name)[] cases = [(Between(first, second), "First"), (Between(second, third), "Second"), (third, "Third")];
+        var options = TestDatabase.Options(_context.Database.GetConnectionString()!).Options;
+
+        var wrong = new ConcurrentBag<string>();
+        var queries = 0;
+        await Task.WhenAll(Enumerable.Range(0, 12).Select(worker => Task.Run(async () =>
+        {
+            for (var i = 0; i < 20; i++)
+            {
+                var (time, expected) = cases[(worker + i) % cases.Length];
+                await using var context = new GrifballContext(options);
+                var name = await context.Seasons.TemporalAsOf(time).Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).SingleAsync();
+                Interlocked.Increment(ref queries);
+                if (name != expected)
+                    wrong.Add($"{time:O}: {name}, not {expected}");
+            }
+        })));
+
+        Assert.That(queries, Is.EqualTo(240));
+        Assert.That(wrong, Is.Empty);
+    }
+
+    // EF.CompileQuery's parameters are its arguments alone: there the root keeps its time.
+    [Test]
+    public async Task AsOf_InACompiledQuery()
+    {
+        var (season, first, second, _) = await ThreeVersions();
+        var at = Between(first, second);
+        var query = EF.CompileAsyncQuery((GrifballContext context, int id) =>
+            context.Seasons.TemporalAsOf(at).Where(s => s.SeasonID == id).Select(s => s.SeasonName).Single());
+
+        Assert.That(await query(_context, season.SeasonID), Is.EqualTo("First"));
     }
 }
