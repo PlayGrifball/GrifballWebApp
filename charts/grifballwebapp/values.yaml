@@ -639,6 +639,8 @@ migrations:
     retention:
       enabled: false
       schedule: "30 3 * * *"
+      # Paused: the CronJob stays, but runs only when started by hand (kubectl create job --from=cronjob/...).
+      suspend: false
       keepLast: 5
       keepDays: 30
     # Back the database up on a schedule too (a CronJob, optional), not only before a migration: with
@@ -650,6 +652,8 @@ migrations:
     scheduled:
       enabled: false
       schedule: "0 3 * * *"
+      # Paused, as for retention above.
+      suspend: false
   # On a release's first deploy - its database doesn't exist yet - restore the newest backup from a
   # folder (another environment's, say), then migrate applies whatever the image has that it lacks.
   # Later deploys find the database and keep its data. Only the chart's own backup names count,

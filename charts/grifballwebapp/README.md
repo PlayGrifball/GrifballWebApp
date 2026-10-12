@@ -242,7 +242,9 @@ rarely changes is rarely backed up. `migrations.backup.scheduled.enabled` adds a
 (`schedule`, default `0 3 * * *`) that writes a backup to the same folder under the same
 `<database>_<date>_<time>` names, then verifies it - SQL Server's copy-only and checksummed
 (`RESTORE VERIFYONLY`), PostgreSQL's with `pg_restore --list`; retention below covers these too. A
-database that doesn't exist yet is skipped. With SQL Server, like retention, it mounts nothing.
+database that doesn't exist yet is skipped. With SQL Server, like retention, it mounts nothing. Either CronJob
+can be paused with `suspend: true` (`migrations.backup.scheduled.suspend`, `migrations.backup.retention.suspend`):
+it stays, runnable by hand with `kubectl create job --from=cronjob/grif-backup` (or `grif-backup-retention`).
 
 **Old backups.** Each migration leaves a backup, and nothing deletes them unless
 `migrations.backup.retention.enabled`: a nightly CronJob that deletes old ones, keeping the newest

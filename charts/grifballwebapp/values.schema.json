@@ -459,6 +459,7 @@
               "properties": {
                 "enabled": { "type": "boolean" },
                 "schedule": { "type": "string", "minLength": 9 },
+                "suspend": { "type": "boolean" },
                 "keepLast": { "type": "integer", "minimum": 1 },
                 "keepDays": { "type": "integer", "minimum": 0 }
               }
@@ -468,7 +469,8 @@
               "additionalProperties": false,
               "properties": {
                 "enabled": { "type": "boolean" },
-                "schedule": { "type": "string", "minLength": 9 }
+                "schedule": { "type": "string", "minLength": 9 },
+                "suspend": { "type": "boolean" }
               }
             }
           }
