@@ -22,6 +22,7 @@ metadata:
     app.kubernetes.io/component: backup-retention
 spec:
   schedule: {{ $r.schedule | quote }}
+  suspend: {{ $r.suspend | default false }}
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3

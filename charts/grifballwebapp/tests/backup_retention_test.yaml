@@ -20,6 +20,7 @@ tests:
     asserts:
       - isKind: { of: CronJob }
       - equal: { path: spec.schedule, value: "30 3 * * *" }
+      - equal: { path: spec.suspend, value: false }
       - equal: { path: spec.concurrencyPolicy, value: Forbid }
       - equal: { path: "spec.jobTemplate.spec.template.spec.containers[0].image", value: "ghcr.io/playgrifball/grifballwebappserver:prod@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
       - equal: { path: spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot, value: true }
@@ -35,6 +36,13 @@ tests:
       - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: BACKUP_DIR, value: /backups/grif } }
       - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: KEEP_LAST, value: "3" } }
       - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: KEEP_DAYS, value: "14" } }
+
+  - it: can be paused, staying runnable by hand
+    template: templates/backup-retention.yaml
+    set:
+      migrations.backup.retention: { enabled: true, suspend: true }
+    asserts:
+      - equal: { path: spec.suspend, value: true }
 
   - it: only considers backups SQL Server recorded writing, and deletes with xp_delete_file 0
     template: templates/backup-retention.yaml

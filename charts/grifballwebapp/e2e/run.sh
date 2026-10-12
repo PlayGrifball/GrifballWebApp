@@ -22,7 +22,8 @@
 #   5. database dropped, backend restarted: it waits for the database; the Job recreates it with
 #      nothing to back up;
 #   6. the scheduled backup CronJob run by hand, then backup retention: the newest kept, older ones
-#      deleted, anything else in the folder left alone;
+#      deleted, anything else in the folder left alone. Both CronJobs are installed suspended, so their
+#      own schedule (03:00 and 03:30 UTC) can't run beside the test's (two failures, 2026-10-12);
 #   7. restore (migrations.restore): a marked database backed up, then a first deploy restores it -
 #      SQL Server: the same release with its database dropped, from its own backup folder;
 #      PostgreSQL: a second release in another namespace, from a volume holding the first's dump.
@@ -232,7 +233,7 @@ mssql:
   persistence: { size: 2Gi }
   backup: { size: 1Gi }
 migrations:
-  backup: { retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
+  backup: { retention: { enabled: true, suspend: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true, suspend: true } }
 EOF
 elif [ "$scenario" = postgres ]; then
   cat >> "$work/values.yaml" <<EOF
@@ -244,7 +245,7 @@ postgres:
   # Each connection logged as it's authorized, with its TLS (the TLS step reads them).
   settings: { log_connections: authorization }
 migrations:
-  backup: { volume: { size: 1Gi }, retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
+  backup: { volume: { size: 1Gi }, retention: { enabled: true, suspend: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true, suspend: true } }
 EOF
 else
   step "External SQL Server in $ext_ns"
@@ -287,7 +288,7 @@ database:
   password: { secretName: external-db, key: password }
   logins: { enabled: true }
 migrations:
-  backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true } }
+  backup: { directory: /var/opt/mssql/backup/$ns, retention: { enabled: true, suspend: true, keepLast: 1, keepDays: 0 }, scheduled: { enabled: true, suspend: true } }
 EOF
 fi
 
