@@ -229,6 +229,10 @@ the extension. To make an existing table temporal, mark it `IsTemporal()` and sc
 Server starts them at `DateTime.MinValue`), new rows their transaction's time, and version the table once it has
 both, if the database has the extension (without it, the columns alone; the chart's history step versions it later).
 Dropping either column (a table no longer temporal; `RowHistory`'s Down) removes the table's history and period first.
+One change loses data, on both databases (EF's doing, not the history's): renaming an entity class and its table in
+the same migration. EF can't tell that is the same table, so it scaffolds `DropTable` and `CreateTable` (and warns
+that the operation may result in the loss of data): the table's rows go, and its history with them. Rename the class
+first (an empty migration), then the table in a second one: both keep the rows and the history.
 Raw `migrationBuilder.Sql` gets none of this. Mind that `TRUNCATE` empties a table's history too,
 and that a dump of such a database restores only where periods is installed, with `pg_restore --no-privileges` (as
 the chart's restore does). That leaves the history tables, views and functions on their owner's default privileges,
