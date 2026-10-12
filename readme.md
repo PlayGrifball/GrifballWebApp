@@ -166,7 +166,10 @@ Both databases keep every version of every row, of every table but `MatchResched
 values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's
 `9999-12-31 23:59:59.9999999`, Postgres's `infinity`). SQL Server does this with temporal tables. Postgres has none, so triggers do it
 (`GrifballWebApp.Database/PostgresHistory.cs`, functions in `PostgresHistoryFunctions.cs`): every `UPDATE`,
-`DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table. The time is the
+`DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table, one `INSERT` a
+statement. Each table has its own versioning function, `"Schema"."Table_versioning"`, written for it by
+`grif_refresh_versioning`: plain SQL naming its history table and their columns, which Postgres parses once a session
+rather than building the SQL from the catalog on every write. The time is the
 transaction's start, so the changes of one transaction share it. The app's login can read the history but not
 change it. Nothing deletes old history: the tables grow with every change.
 
@@ -184,7 +187,19 @@ made temporal gets them the same way, and the differ scaffolds its `PeriodStart`
 `'-infinity'`, for the rows it has, then altered to the model's default, `transaction_timestamp()`: both change only
 the catalog, rewriting no rows. A table renamed or moved to another schema takes its history table with it
 (`RenameTable` and `RenameIndex` for both, as SQL Server alters its `HISTORY_TABLE`), keeping the history and the
-triggers, which are on the tables and find a table's history table by its name.
+triggers, which are on the tables.
+
+As the versioning function names the tables and columns, a migration that renames or moves a table with history, or
+adds, drops or renames a column of one, writes it again once those are done: the differ scaffolds
+`CALL public.grif_refresh_versioning('"Schema"."Table"')` after them (and `grif_disable_versioning`, which drops the
+function, before a history table is dropped). A change to such a table made with hand-written SQL in a migration
+(`migrationBuilder.Sql`) needs that call too, or the next `UPDATE` or `DELETE` of the table fails (a renamed or
+dropped column) or leaves a new column out of the history. A column's type can change without it.
+
+Besides its index on the key and `PeriodEnd` (a row's versions, and the one current at a time), a history table has
+one on each foreign key's columns and `PeriodEnd`, like the table's own foreign key indexes, so `TemporalAsOf` with
+`Include` or a navigation finds the related rows' versions by index, not by reading the whole history table. They
+come from the model too: a foreign key added to a table gets its history table's index in the same migration.
 
 The triggers' functions are scaffolded too, from `PostgresHistoryFunctions.cs`: the migration that gives the first
 table history creates them, and one that takes away the last drops them. They are versioned: the model records the
@@ -192,7 +207,8 @@ version (`Grif:HistoryFunctions`, in the snapshot), so to change a function, add
 its SQL, and `migrations add` scaffolds a migration that creates it over the old one (its `Down` puts the old one
 back); `has-pending-model-changes` reports the new version until then. Keep the old versions: those migrations need
 them. A version that changes a function's signature or drops one must drop the old one first itself, as `CREATE OR
-REPLACE` can't.
+REPLACE` can't, and one that changes what `grif_refresh_versioning` writes must call it for each table with history
+(and its `Down`'s version again).
 
 One change loses data, on both databases (EF's doing, not the history's): renaming an entity class and its table in
 the same migration. EF can't tell that is the same table, so it scaffolds `DropTable` and `CreateTable` (and warns
@@ -212,7 +228,10 @@ var versions = await context.Seasons.TemporalAll()
 SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
 (`GrifballWebApp.Database/PostgresTemporalQueries.cs`) that reads the table and its history table with SQL Server's
 rules, so they return the same rows: `AS OF` carries to `Include`s and navigations, other operations refuse them, and
-versions that lasted no time (a row changed twice in one transaction) are left out, as `FOR SYSTEM_TIME` does. Times
+versions that lasted no time (a row changed twice in one transaction) are left out, as `FOR SYSTEM_TIME` does. Their
+times are query parameters on Postgres, so EF compiles a temporal query once and caches it whatever its times (SQL
+Server's `FOR SYSTEM_TIME` has the time in its SQL, so there each time is a query of its own; in `EF.CompileQuery`,
+on both, the time is fixed when the query is compiled). Times
 are UTC (`Kind` `Local` is refused on Postgres; SQL Server would read its local clock time as UTC). Postgres
 keeps microseconds, so a time between two is rounded the way that gives each comparison SQL Server's answer.
 
