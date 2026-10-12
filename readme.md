@@ -194,9 +194,10 @@ back); `has-pending-model-changes` reports the new version until then. Keep the 
 them. A version that changes a function's signature or drops one must drop the old one first itself, as `CREATE OR
 REPLACE` can't.
 
-One change still loses history, on both databases: renaming an entity class and its table in the same migration.
-EF can't tell that is the same table, so it drops it, with its history table, and creates both anew. Rename the
-class and the table in separate migrations.
+One change loses data, on both databases (EF's doing, not the history's): renaming an entity class and its table in
+the same migration. EF can't tell that is the same table, so it scaffolds `DropTable` and `CreateTable` (and warns
+that the operation may result in the loss of data): the table's rows go, and its history with them. Rename the class
+first (an empty migration), then the table in a second one: both keep the rows and the history.
 
 In code, query the history with EF's temporal queries, the same code on both databases:
 ```csharp
