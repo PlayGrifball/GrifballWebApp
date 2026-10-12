@@ -163,7 +163,8 @@ mirrors SQL Server's default). Postgres keeps times to the microsecond, SQL Serv
 Both databases keep every version of every row, of every table but `MatchReschedules`, in the same place: for each table
 `"Schema"."Table"`, the versions a row had before an update or delete are in `"Schema"."TableHistory"`, each with
 `PeriodStart` and `PeriodEnd`, the UTC times it was current. The table's own `PeriodStart` is when the row got the
-values it has now. SQL Server does this with temporal tables. Postgres has none, so triggers do it
+values it has now, and its `PeriodEnd` is always the end of time, `DateTime.MaxValue` (SQL Server's
+`9999-12-31 23:59:59.9999999`, Postgres's `infinity`). SQL Server does this with temporal tables. Postgres has none, so triggers do it
 (`GrifballWebApp.Database/PostgresHistory.cs`, functions from the `AddRowHistory` migration): every `UPDATE`,
 `DELETE` (cascades included) and `TRUNCATE` copies the rows it replaces into the history table. The time is the
 transaction's start, so the changes of one transaction share it. The app's login can read the history but not
@@ -177,18 +178,33 @@ data and its history: edit the migration into `RenameTable`/`RenameColumn` for t
 alike (`<Old>History` to `<New>History`), and take out the `grif_enable_versioning` call, as the triggers move with
 the table.
 
-By hand on Postgres, a row's versions, and the row as it was at a time (SQL Server: `FOR SYSTEM_TIME AS OF`):
+In code, query the history with EF's temporal queries, the same code on both databases:
+```csharp
+var then = await context.Seasons.TemporalAsOf(time).Include(s => s.SeasonMatches).SingleAsync(s => s.SeasonID == id);
+var versions = await context.Seasons.TemporalAll()
+    .Where(s => s.SeasonID == id)
+    .OrderBy(s => EF.Property<DateTime>(s, "PeriodStart"))
+    .Select(s => new { s.SeasonName, From = EF.Property<DateTime>(s, "PeriodStart"), To = EF.Property<DateTime>(s, "PeriodEnd") })
+    .ToListAsync();
+// Also TemporalFromTo(a, b), TemporalBetween(a, b) and TemporalContainedIn(a, b).
+```
+SQL Server translates them to `FOR SYSTEM_TIME`. On Postgres `UseGrifballDatabase` adds a translator
+(`GrifballWebApp.Database/PostgresTemporalQueries.cs`) that reads the table and its history table with SQL Server's
+rules, so they return the same rows: `AS OF` carries to `Include`s and navigations, other operations refuse them, and
+versions that lasted no time (a row changed twice in one transaction) are left out, as `FOR SYSTEM_TIME` does. Times
+are UTC (`Kind` `Local` is refused on Postgres; SQL Server would read its local clock time as UTC). Postgres
+keeps microseconds, so a time between two is rounded the way that gives each comparison SQL Server's answer.
+
+By hand in psql, a row's old versions, and the row as it was at a time:
 ```sql
 SELECT * FROM "Event"."SeasonsHistory" WHERE "SeasonID" = 1 ORDER BY "PeriodEnd";
 
-SELECT "SeasonID", "SeasonName" FROM "Event"."Seasons"
- WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00'
-UNION ALL
-SELECT "SeasonID", "SeasonName" FROM "Event"."SeasonsHistory"
- WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00' AND "PeriodEnd" > '2026-10-01 12:00+00';
+SELECT * FROM (
+  SELECT "SeasonID", "SeasonName", "PeriodStart", "PeriodEnd" FROM "Event"."Seasons"
+  UNION ALL
+  SELECT "SeasonID", "SeasonName", "PeriodStart", "PeriodEnd" FROM "Event"."SeasonsHistory"
+) v WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00' AND "PeriodEnd" > '2026-10-01 12:00+00';
 ```
-In code, a history table is a keyless entity of property bags:
-`context.Set<Dictionary<string, object>>("Event.SeasonsHistory")`.
 
 ### Running the Application
 

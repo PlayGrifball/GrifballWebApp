@@ -80,11 +80,12 @@ public class PostgresHistoryTests
 
             Assert.Multiple(() =>
             {
-                // Same names, types and collations; the history table has PeriodEnd besides.
-                Assert.That(copy.Where(c => c.Name != PostgresHistory.PeriodEnd).Select(c => (c.Name, c.Type, c.Collation)),
+                // Same names, types and collations; PeriodEnd is generated on the table, a time in its history.
+                Assert.That(copy.Select(c => (c.Name, c.Type, c.Collation)),
                     Is.EquivalentTo(main.Select(c => (c.Name, c.Type, c.Collation))), $"{schema}.{history}");
-                Assert.That(copy.SingleOrDefault(c => c.Name == PostgresHistory.PeriodEnd)?.Type, Is.EqualTo("timestamp with time zone"), $"{schema}.{history}");
+                Assert.That(copy.Single(c => c.Name == PostgresHistory.PeriodEnd).Type, Is.EqualTo("timestamp with time zone"), $"{schema}.{history}");
                 Assert.That(main.Single(c => c.Name == PostgresHistory.PeriodStart).Type, Is.EqualTo("timestamp with time zone"), $"{schema}.{table}");
+                Assert.That(main.Where(c => c.Generated).Select(c => (c.Name, c.Type)), Is.EqualTo(new[] { (PostgresHistory.PeriodEnd, "timestamp with time zone") }), $"{schema}.{table}");
                 // No identity, default or NOT NULL but the periods'.
                 Assert.That(copy.Where(c => c.Identity || c.Default), Is.Empty, $"{schema}.{history}");
                 Assert.That(copy.Where(c => c.NotNull).Select(c => c.Name), Is.EquivalentTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }), $"{schema}.{history}");
@@ -93,13 +94,13 @@ public class PostgresHistoryTests
         }
     }
 
-    private record Column(string Name, string Type, string Collation, bool NotNull, bool Identity, bool Default);
+    private record Column(string Name, string Type, string Collation, bool NotNull, bool Identity, bool Default, bool Generated);
 
     private Task<List<Column>> Columns(string schema, string table)
     {
         return _context.Database.SqlQueryRaw<Column>("""
             SELECT a.attname AS "Name", format_type(a.atttypid, a.atttypmod) AS "Type", coalesce(co.collname, '') AS "Collation",
-                   a.attnotnull AS "NotNull", a.attidentity <> '' AS "Identity", a.atthasdef AS "Default"
+                   a.attnotnull AS "NotNull", a.attidentity <> '' AS "Identity", a.atthasdef AS "Default", a.attgenerated <> '' AS "Generated"
               FROM pg_attribute a LEFT JOIN pg_collation co ON co.oid = a.attcollation
              WHERE a.attrelid = format('%I.%I', {0}, {1})::regclass AND a.attnum > 0 AND NOT a.attisdropped
             """, schema, table).ToListAsync();
@@ -221,15 +222,8 @@ public class PostgresHistoryTests
         });
     }
 
-    // The query the README shows: the row as it was at a time.
-    private const string AsOf = """
-        SELECT "SeasonName" AS "Value" FROM "Event"."Seasons"
-         WHERE "SeasonID" = @id AND "PeriodStart" <= @at
-        UNION ALL
-        SELECT "SeasonName" FROM "Event"."SeasonsHistory"
-         WHERE "SeasonID" = @id AND "PeriodStart" <= @at AND "PeriodEnd" > @at
-        """;
-
+    // EF's TemporalAsOf (PostgresTemporalQueries), at the times SaveChanges reads back: TemporalQueryTests
+    // has the rest of the temporal queries, on both databases.
     [Test]
     public async Task AsOf_FindsTheVersionInEffectThen()
     {
@@ -244,8 +238,8 @@ public class PostgresHistoryTests
         await _context.SaveChangesAsync();
         var third = PeriodStart(season);
 
-        async Task<string[]> At(DateTime time) => [.. await _context.Database.SqlQueryRaw<string>(AsOf,
-            new NpgsqlParameter("id", season.SeasonID), new NpgsqlParameter("at", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = time }).ToListAsync()];
+        async Task<string[]> At(DateTime time) => [.. await _context.Seasons.TemporalAsOf(time)
+            .Where(s => s.SeasonID == season.SeasonID).Select(s => s.SeasonName).ToListAsync()];
 
         var before = await At(first.AddTicks(-10));
         var atFirst = await At(first);

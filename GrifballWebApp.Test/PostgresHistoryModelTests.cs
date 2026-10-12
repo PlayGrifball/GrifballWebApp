@@ -52,11 +52,15 @@ public class PostgresHistoryModelTests
     }
 
     [Test]
-    public void Postgres_TablesWithHistory_HaveAStampedPeriodStart()
+    public void Postgres_TablesWithHistory_HaveSqlServersPeriodColumns()
     {
         using var postgres = Context(DatabaseProvider.Postgres);
+        using var sqlServer = Context(DatabaseProvider.SqlServer);
 
-        var periodStart = postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.Season))!.FindProperty(PostgresHistory.PeriodStart)!;
+        var season = postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.Season))!;
+        var periodStart = season.FindProperty(PostgresHistory.PeriodStart)!;
+        var periodEnd = season.FindProperty(PostgresHistory.PeriodEnd)!;
+        var sqlServerSeason = sqlServer.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.Season))!;
 
         Assert.Multiple(() =>
         {
@@ -64,8 +68,32 @@ public class PostgresHistoryModelTests
             Assert.That(periodStart.ValueGenerated, Is.EqualTo(ValueGenerated.OnAddOrUpdate));
             Assert.That(periodStart.GetColumnType(), Is.EqualTo("timestamp with time zone"));
             Assert.That(periodStart.GetDefaultValueSql(), Is.EqualTo("transaction_timestamp()"));
+            Assert.That(periodEnd.IsShadowProperty(), Is.True);
+            Assert.That(periodEnd.ValueGenerated, Is.EqualTo(ValueGenerated.OnAddOrUpdate));
+            Assert.That(periodEnd.GetColumnType(), Is.EqualTo("timestamp with time zone"));
+            Assert.That(periodEnd.GetComputedColumnSql(), Is.EqualTo(PostgresHistory.EndOfTime));
+            Assert.That(periodEnd.GetIsStored(), Is.True);
+            // The names SQL Server's temporal tables give them.
+            Assert.That(new[] { sqlServerSeason.GetPeriodStartPropertyName(), sqlServerSeason.GetPeriodEndPropertyName() },
+                Is.EqualTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }));
             Assert.That(postgres.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Database.Models.MatchReschedule))!.FindProperty(PostgresHistory.PeriodStart), Is.Null,
                 "MatchReschedules isn't temporal on SQL Server either");
+        });
+    }
+
+    [Test]
+    public void FindHistoryEntityType_IsTheHistoryTableOfTheTable()
+    {
+        using var postgres = Context(DatabaseProvider.Postgres);
+        using var withHistory = new WithHistory();
+        var model = postgres.Model;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(model.FindEntityType(typeof(Database.Models.Season))!.FindHistoryEntityType()?.Name, Is.EqualTo("Event.SeasonsHistory"));
+            Assert.That(model.FindEntityType(typeof(Database.Models.MatchReschedule))!.FindHistoryEntityType(), Is.Null);
+            Assert.That(withHistory.Model.FindEntityType(typeof(Dog))!.FindHistoryEntityType()?.Name, Is.EqualTo("Test.AnimalsHistory"));
+            Assert.That(withHistory.Model.FindEntityType(typeof(Report))!.FindHistoryEntityType(), Is.Null, "a view");
         });
     }
 

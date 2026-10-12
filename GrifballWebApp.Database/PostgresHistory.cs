@@ -6,12 +6,15 @@ namespace GrifballWebApp.Database;
 
 /// <summary>
 /// Postgres's stand-in for SQL Server's temporal tables: the same tables keep a history of each row
-/// change, in the same place ("Schema"."TableHistory"). Each table gets a PeriodStart column, when its
-/// row took its current values, and a history table that EF creates and alters with it: a keyless
-/// property-bag entity cloned from the table's columns, plus PeriodEnd, when the row stopped having
+/// change, in the same place ("Schema"."TableHistory"). Each table gets SQL Server's period columns:
+/// PeriodStart, when its row took its current values, and PeriodEnd, always the end of time (a
+/// generated 'infinity', which Npgsql reads as DateTime.MaxValue, SQL Server's 9999-12-31
+/// 23:59:59.9999999). Its history table, which EF creates and alters with it, is a keyless
+/// property-bag entity cloned from the table's columns, with PeriodEnd the time a row stopped having
 /// them. Triggers (the AddRowHistory migration's functions) stamp PeriodStart and copy each row an
 /// UPDATE, DELETE or TRUNCATE replaces into the history table; GrifballWebApp.Migrations.Postgres adds
-/// the call that turns them on to the migration that creates a history table.
+/// the call that turns them on to the migration that creates a history table. EF's temporal queries
+/// (TemporalAsOf and the rest) read both tables: PostgresTemporalQueries.
 /// </summary>
 public static class PostgresHistory
 {
@@ -27,7 +30,13 @@ public static class PostgresHistory
     private const string Timestamp = "timestamp with time zone";
 
     /// <summary>
-    /// Adds PeriodStart and a history table to the tables of <paramref name="entityTypes"/>. Called last
+    /// A current row's PeriodEnd. Npgsql reads 'infinity' as DateTime.MaxValue and writes
+    /// DateTime.MaxValue as it, so it is SQL Server's end of time exactly, in values and comparisons.
+    /// </summary>
+    public const string EndOfTime = "'infinity'::timestamp with time zone";
+
+    /// <summary>
+    /// Adds PeriodStart, PeriodEnd and a history table to the tables of <paramref name="entityTypes"/>. Called last
     /// in OnModelCreating, when every column is configured: the history table copies them as they are.
     /// </summary>
     public static void AddHistoryTables(this ModelBuilder modelBuilder, IEnumerable<IMutableEntityType> entityTypes)
@@ -46,12 +55,18 @@ public static class PostgresHistory
                 // For the rows a table has when it gets the column; the trigger stamps every write after.
                 .HasDefaultValueSql("transaction_timestamp()")
                 .ValueGeneratedOnAddOrUpdate();
+            // Generated: the app can't write it, and EF reads it back after each insert and update.
+            Builder(modelBuilder, root).Property<DateTime>(PeriodEnd)
+                .HasColumnType(Timestamp)
+                .HasComputedColumnSql(EndOfTime, stored: true)
+                .ValueGeneratedOnAddOrUpdate();
 
             var store = StoreObjectIdentifier.Table(table.Key.Table, table.Key.Schema);
             var columns = new Dictionary<string, IMutableProperty>();
             foreach (var entityType in table)
                 foreach (var property in entityType.GetProperties())
-                    if (property.GetColumnName(store) is { } column)
+                    // PeriodEnd: the history table's own, below.
+                    if (property.GetColumnName(store) is { } column && column != PeriodEnd)
                         columns.TryAdd(column, property);
 
             var keyColumns = root.FindPrimaryKey()?.Properties.Select(p => p.GetColumnName(store)!).ToArray() ?? [];
@@ -69,6 +84,19 @@ public static class PostgresHistory
                 b.HasIndex([.. keyColumns, PeriodEnd]);
             });
         }
+    }
+
+    /// <summary>
+    /// The entity type of the history table of <paramref name="entityType"/>'s table, if it has one. The
+    /// temporal queries go by this, as SQL Server's IsTemporal annotations are taken off on Postgres.
+    /// </summary>
+    public static IReadOnlyEntityType? FindHistoryEntityType(this IReadOnlyEntityType entityType)
+    {
+        if (entityType.GetTableName() is not { } table)
+            return null;
+        var schema = entityType.GetSchema();
+        return entityType.Model.GetEntityTypes().FirstOrDefault(e =>
+            e.FindAnnotation(HistoryOfAnnotation)?.Value as string == table && e.GetSchema() == schema);
     }
 
     /// <summary>
