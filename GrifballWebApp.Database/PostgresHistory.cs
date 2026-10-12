@@ -92,12 +92,41 @@ public static class PostgresHistory
                 b.IndexerProperty<DateTime>(PeriodEnd).HasColumnType(Timestamp);
                 // A row's versions, and the one in effect at a time.
                 b.HasIndex([.. keyColumns, PeriodEnd]);
+                foreach (var foreignKey in ForeignKeyColumns(table, store, keyColumns))
+                    b.HasIndex([.. foreignKey, PeriodEnd]);
             });
         }
 
         // The triggers' functions, which the migrations create with the first history table.
         if (tables.Count > 0)
             modelBuilder.HasAnnotation(PostgresHistoryFunctions.Annotation, PostgresHistoryFunctions.Current);
+    }
+
+    /// <summary>
+    /// The columns of each foreign key of the table, for the history table's indexes on them and
+    /// PeriodEnd: a temporal query's join from the principal (an AsOf's Include or navigation) finds the
+    /// versions of the dependents by them, as the table's own foreign key indexes find its rows. Bar those
+    /// another index already starts with (the key's, or a longer foreign key's), and each set once.
+    /// </summary>
+    private static List<string[]> ForeignKeyColumns(IEnumerable<IMutableEntityType> entityTypes, StoreObjectIdentifier store, string[] keyColumns)
+    {
+        var indexed = new List<string[]> { keyColumns };
+        var foreignKeys = entityTypes
+            .SelectMany(e => e.GetDeclaredForeignKeys())
+            .Select(fk => fk.Properties.Select(p => p.GetColumnName(store)).ToArray())
+            .Where(columns => columns.All(c => c is not null))
+            .Select(columns => columns.Select(c => c!).ToArray())
+            .OrderByDescending(columns => columns.Length)
+            .ThenBy(columns => string.Join(",", columns), StringComparer.Ordinal);
+        var result = new List<string[]>();
+        foreach (var columns in foreignKeys)
+        {
+            if (indexed.Any(i => i.Length >= columns.Length && i.Take(columns.Length).SequenceEqual(columns)))
+                continue;
+            indexed.Add(columns);
+            result.Add(columns);
+        }
+        return result;
     }
 
     /// <summary>

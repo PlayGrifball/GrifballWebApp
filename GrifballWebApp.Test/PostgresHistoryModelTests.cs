@@ -270,16 +270,28 @@ public class PostgresHistoryModelTests
         });
     }
 
+    // The triggers go with the tables, but the versioning functions are their own: turned off first.
     [Test]
-    public void Differ_DroppingTablesWithTheirHistory_LeavesTheTriggersToGoWithThem()
+    public void Differ_DroppingTablesWithTheirHistory_TurnsVersioningOffFirst_TakingTheTablesFunctions()
     {
         using var before = new WithHistory();
         var differ = new HistoryMigrationsModelDiffer(before.GetService<IMigrationsModelDiffer>());
 
         var operations = differ.GetDifferences(Relational(before), null);
 
-        Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { PostgresHistoryFunctions.Versions[^1].Drop }), "only the functions");
-        Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(8));
+        Assert.Multiple(() =>
+        {
+            Assert.That(operations.Take(4).Select(o => ((SqlOperation)o).Sql), Is.EquivalentTo(new[]
+            {
+                """CALL public.grif_disable_versioning('"Test"."Things"');""",
+                """CALL public.grif_disable_versioning('"Test"."Animals"');""",
+                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
+                """CALL public.grif_disable_versioning('"Logs"');""",
+            }));
+            Assert.That(operations.Skip(4).OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { PostgresHistoryFunctions.Versions[^1].Drop }), "then only the functions, last");
+            Assert.That(operations[^1], Is.InstanceOf<SqlOperation>());
+            Assert.That(operations.OfType<DropTableOperation>().Count(), Is.EqualTo(8));
+        });
     }
 
     [Test]
@@ -307,8 +319,8 @@ public class PostgresHistoryModelTests
     private static RenameTableOperation Renamed(IEnumerable<MigrationOperation> operations, string name) =>
         operations.OfType<RenameTableOperation>().Single(o => o.Name == name);
 
-    // A table renamed: its history table too, with its index, keeping its rows and triggers. Nothing to
-    // turn on: the triggers are on the tables, and the functions find a table's history by its name.
+    // A table renamed: its history table too, with its index, keeping its rows and triggers. Its versioning
+    // function, which names both tables, is written again after both renames.
     [Test]
     public void Differ_RenamingATable_RenamesItsHistoryTable_BothWays()
     {
@@ -316,8 +328,8 @@ public class PostgresHistoryModelTests
         using var after = new WithHistoryRenamed();
         var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
 
-        var up = differ.GetDifferences(Relational(before), Relational(after));
-        var down = differ.GetDifferences(Relational(after), Relational(before));
+        var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
+        var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
 
         Assert.Multiple(() =>
         {
@@ -331,7 +343,9 @@ public class PostgresHistoryModelTests
                 Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
                 Assert.That(operations.OfType<DropTableOperation>(), Is.Empty);
                 Assert.That(operations.OfType<CreateIndexOperation>(), Is.Empty);
-                Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+                Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { $"""CALL public.grif_refresh_versioning('"Test"."{to}"');""" }));
+                Assert.That(operations.IndexOf(operations.OfType<SqlOperation>().Single()),
+                    Is.EqualTo(Math.Max(operations.IndexOf(Renamed(operations, from)), operations.IndexOf(history)) + 1), "right after the second rename");
             }
         });
     }
@@ -353,7 +367,7 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<RenameIndexOperation>(), Is.Empty, "the index's name has no schema");
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
             Assert.That(operations.OfType<DropTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Moved"."Things"');""" }));
         });
     }
 
@@ -375,7 +389,9 @@ public class PostgresHistoryModelTests
             Assert.That(adds.Min(operations.IndexOf), Is.GreaterThan(operations.IndexOf(Renamed(operations, "ThingsHistory"))), "added to the renamed table");
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
             Assert.That(operations.OfType<DropTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+            var refresh = operations.OfType<SqlOperation>().Single();
+            Assert.That(refresh.Sql, Is.EqualTo("""CALL public.grif_refresh_versioning('"Test"."Stuff"');"""));
+            Assert.That(operations.IndexOf(refresh), Is.EqualTo(adds.Max(operations.IndexOf) + 1), "once, after the last change");
         });
     }
 
@@ -395,7 +411,152 @@ public class PostgresHistoryModelTests
             Assert.That(operations.OfType<DropTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Tags", "TagsHistory" }));
             Assert.That(operations.OfType<CreateTableOperation>().Select(o => o.Name), Is.EquivalentTo(new[] { "Labels", "LabelsHistory" }));
             Assert.That(operations.OfType<RenameTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_enable_versioning('"Test"."Labels"');""" }));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[]
+            {
+                """CALL public.grif_disable_versioning('"Test"."Tags"');""",
+                """CALL public.grif_enable_versioning('"Test"."Labels"');""",
+            }));
+            Assert.That(operations[0], Is.InstanceOf<SqlOperation>(), "off first");
+        });
+    }
+
+    private static string Refresh(string table) => $"""CALL public.grif_refresh_versioning('{table}');""";
+
+    // A table's versioning function names the columns its table and history table share: each migration
+    // that adds, drops or renames one writes it again, once, right after the last change to either table.
+    [Test]
+    public void Differ_AddingOrDroppingAColumn_WritesTheVersioningFunctionAgain()
+    {
+        using var before = new WithHistory();
+        using var after = new WithHistoryAndNote();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
+        var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(up.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(up.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
+            Assert.That(up[^1], Is.InstanceOf<SqlOperation>(), "after both columns");
+            Assert.That(down.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+            Assert.That(down.Select(o => (o as SqlOperation)?.Sql).Where(s => s is not null), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
+            Assert.That(down[^1], Is.InstanceOf<SqlOperation>());
+        });
+    }
+
+    [Test]
+    public void Differ_RenamingAColumn_WritesTheVersioningFunctionAgain()
+    {
+        using var before = new WithHistory();
+        using var after = new WithHistoryRecoded();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var operations = differ.GetDifferences(Relational(before), Relational(after)).ToList();
+
+        var renames = operations.OfType<RenameColumnOperation>().ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(renames.Select(o => (o.Table, o.Name, o.NewName)), Is.EquivalentTo(new[] { ("Things", "Code", "Kode"), ("ThingsHistory", "Code", "Kode") }));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
+            Assert.That(operations.IndexOf(operations.OfType<SqlOperation>().Single()), Is.EqualTo(renames.Max(operations.IndexOf) + 1));
+        });
+    }
+
+    // A column's type: the function's INSERT names it alone, and Postgres plans it again for the new type.
+    [Test]
+    public void Differ_AlteringAColumn_LeavesTheVersioningFunction()
+    {
+        using var before = new WithHistory();
+        using var after = new WithHistoryLongerCode();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var operations = differ.GetDifferences(Relational(before), Relational(after));
+
+        Assert.That(operations.OfType<AlterColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Things", "ThingsHistory" }));
+        Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+    }
+
+    [Test]
+    public void Differ_ChangingTheColumnsOfATableWithoutHistory_WritesNothing()
+    {
+        using var before = new WithoutHistory();
+        using var after = new WithoutHistoryWithNote();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var operations = differ.GetDifferences(Relational(before), Relational(after));
+
+        Assert.That(operations.OfType<AddColumnOperation>().Single().Table, Is.EqualTo("Things"));
+        Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+    }
+
+    // A foreign key's index on the history table too, with PeriodEnd: an AsOf join from the principal
+    // finds the dependents' versions by it.
+    [Test]
+    public void HistoryTable_IndexesEachForeignKey_WithPeriodEnd()
+    {
+        using var context = new WithHistoryAndOwner();
+        var model = context.GetService<IDesignTimeModel>().Model;
+
+        var indexes = model.FindEntityType(typeof(Thing))!.FindHistoryEntityType()!.GetIndexes().Select(i => i.Properties.Select(p => p.Name).ToArray());
+
+        Assert.That(indexes, Is.EquivalentTo(new[] { new[] { "A", "B", "PeriodEnd" }, new[] { "OwnerID", "PeriodEnd" } }));
+    }
+
+    [Test]
+    public void Differ_AddingAForeignKey_IndexesItInTheHistoryTableToo()
+    {
+        using var before = new WithHistory();
+        using var after = new WithHistoryAndOwner();
+        var differ = new HistoryMigrationsModelDiffer(after.GetService<IMigrationsModelDiffer>());
+
+        var up = differ.GetDifferences(Relational(before), Relational(after)).ToList();
+        var down = differ.GetDifferences(Relational(after), Relational(before)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(up.OfType<CreateIndexOperation>().Select(o => (o.Table, o.Name, string.Join(",", o.Columns))), Is.EquivalentTo(new[]
+            {
+                ("Things", "IX_Things_OwnerID", "OwnerID"),
+                ("ThingsHistory", "IX_ThingsHistory_OwnerID_PeriodEnd", "OwnerID,PeriodEnd"),
+            }));
+            Assert.That(up.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { Refresh("\"Test\".\"Things\"") }));
+            Assert.That(down.OfType<DropIndexOperation>().Select(o => (o.Table, o.Name)), Is.EquivalentTo(new[]
+            {
+                ("Things", "IX_Things_OwnerID"),
+                ("ThingsHistory", "IX_ThingsHistory_OwnerID_PeriodEnd"),
+            }));
+        });
+    }
+
+    // Every table's foreign keys, in the app's model: each has its history table's index, bar those another
+    // index already starts with (MatchTeams' MatchID, the first column of its key).
+    [Test]
+    public void Postgres_HistoryTables_IndexTheirTablesForeignKeys()
+    {
+        using var postgres = Context(DatabaseProvider.Postgres);
+        var model = postgres.GetService<IDesignTimeModel>().Model;
+        string[] Columns(IEnumerable<IReadOnlyProperty> properties) => [.. properties.Select(p => p.Name)];
+        string[][] HistoryIndexes(Type type) => [.. model.FindEntityType(type)!.FindHistoryEntityType()!.GetIndexes().Select(i => Columns(i.Properties))];
+
+        Assert.Multiple(() =>
+        {
+            foreach (var entityType in model.GetEntityTypes().Where(e => e.BaseType is null && e.FindHistoryEntityType() is not null))
+            {
+                var store = StoreObjectIdentifier.Table(entityType.GetTableName()!, entityType.GetSchema());
+                var indexes = entityType.FindHistoryEntityType()!.GetIndexes().Select(i => Columns(i.Properties)).ToList();
+                foreach (var foreignKey in entityType.GetDerivedTypesInclusive().SelectMany(e => e.GetDeclaredForeignKeys()))
+                {
+                    var columns = foreignKey.Properties.Select(p => p.GetColumnName(store)).ToArray();
+                    Assert.That(indexes.Any(i => i.Take(columns.Length).SequenceEqual(columns!)), Is.True, $"{entityType.DisplayName()}: {string.Join(", ", columns)}");
+                }
+                Assert.That(indexes.All(i => i[^1] == PostgresHistory.PeriodEnd), Is.True, entityType.DisplayName());
+            }
+            Assert.That(HistoryIndexes(typeof(Database.Models.Team)), Is.EquivalentTo(new[]
+            {
+                new[] { "TeamID", "PeriodEnd" }, new[] { "CaptainID", "PeriodEnd" }, new[] { "SeasonID", "PeriodEnd" },
+            }));
+            Assert.That(HistoryIndexes(typeof(Database.Models.MatchTeam)), Is.EquivalentTo(new[] { new[] { "MatchID", "TeamID", "PeriodEnd" } }));
         });
     }
 
@@ -560,7 +721,8 @@ public class PostgresHistoryModelTests
     /// type.
     /// </summary>
     private abstract class HistoryTestContext(bool history, bool periodStartColumn = false, string things = "Things", string schema = "Test",
-        bool note = false, int? functions = null, bool collation = false, string tag = "Tag", string tags = "Tags") : DbContext
+        bool note = false, int? functions = null, bool collation = false, string tag = "Tag", string tags = "Tags",
+        string code = "Code", int codeLength = 4, bool owner = false) : DbContext
     {
         protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseNpgsql("Host=unused;Database=unused")
             .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>();
@@ -574,12 +736,14 @@ public class PostgresHistoryModelTests
                 b.Property(e => e.A).ValueGeneratedOnAdd();
                 b.Property(e => e.Price).HasPrecision(9, 2);
                 b.Property(e => e.Rate).HasPrecision(5);
-                b.Property(e => e.Code).HasMaxLength(4).IsFixedLength().IsUnicode(false).UseCollation("C");
+                b.Property(e => e.Code).HasColumnName(code).HasMaxLength(codeLength).IsFixedLength().IsUnicode(false).UseCollation("C");
                 b.Property(e => e.Kind).HasConversion<string>().HasMaxLength(8);
                 b.Property(e => e.When).HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
                 b.Property(e => e.Flag).HasDefaultValue(true);
                 if (note)
                     b.Property<string>("Note").IsRequired();
+                if (owner)
+                    b.HasOne<Animal>().WithMany().HasForeignKey("OwnerID");
             });
             modelBuilder.Entity<Animal>(b => b.ToTable("Animals", "Test"));
             modelBuilder.Entity<Dog>();
@@ -624,4 +788,16 @@ public class PostgresHistoryModelTests
     private sealed class WithHistoryAndCollation() : HistoryTestContext(true, collation: true);
 
     private sealed class WithHistoryRelabelled() : HistoryTestContext(true, tag: "Label", tags: "Labels");
+
+    private sealed class WithHistoryAndNote() : HistoryTestContext(true, note: true);
+
+    private sealed class WithoutHistoryWithNote() : HistoryTestContext(false, note: true);
+
+    /// <summary>Things' Code column called Kode.</summary>
+    private sealed class WithHistoryRecoded() : HistoryTestContext(true, code: "Kode");
+
+    private sealed class WithHistoryLongerCode() : HistoryTestContext(true, codeLength: 6);
+
+    /// <summary>Things with an owner, an Animal: a foreign key, OwnerID.</summary>
+    private sealed class WithHistoryAndOwner() : HistoryTestContext(true, owner: true);
 }

@@ -21,39 +21,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                   RETURN NEW;
                 END $$;
 
-                -- AFTER UPDATE and AFTER DELETE, each statement (old_rows: the rows as they were), and BEFORE
-                -- TRUNCATE: the rows' old versions into the history table, ending when the transaction
-                -- began. Copies the columns both tables have, by name, bar PeriodEnd (the table's is always
-                -- infinity), so a column only one of them has never fails the app's write. SECURITY
-                -- DEFINER: runs as its owner, the administrator that ran the migrations, whom the history
-                -- tables' guard lets write.
-                CREATE OR REPLACE FUNCTION public.grif_versioning() RETURNS trigger
-                LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
-                DECLARE
-                  main regclass := TG_RELID;
-                  hist regclass := format('%I.%I', TG_TABLE_SCHEMA, TG_TABLE_NAME || 'History')::regclass;
-                  cols text;
-                  src text := CASE WHEN TG_OP = 'TRUNCATE' THEN main::text ELSE 'old_rows' END;
-                BEGIN
-                  -- Statement triggers fire for no rows too: a cascade from a parent with no children.
-                  IF TG_OP <> 'TRUNCATE' THEN
-                    IF NOT EXISTS (SELECT FROM old_rows) THEN
-                      RETURN NULL;
-                    END IF;
-                  END IF;
-                  SELECT string_agg(quote_ident(h.attname), ', ' ORDER BY h.attnum) INTO cols
-                    FROM pg_attribute h
-                    JOIN pg_attribute m ON m.attrelid = main AND m.attname = h.attname AND m.attnum > 0 AND NOT m.attisdropped
-                   WHERE h.attrelid = hist AND h.attnum > 0 AND NOT h.attisdropped AND h.attname <> 'PeriodEnd';
-                  EXECUTE format('INSERT INTO %s (%s, "PeriodEnd") SELECT %s, $1 FROM %s', hist, cols, cols, src)
-                    USING transaction_timestamp();
-                  RETURN NULL;
-                END $$;
-                REVOKE ALL ON FUNCTION public.grif_versioning() FROM PUBLIC;
-
                 -- BEFORE any write to a history table, each statement: only its owner (or a member of the
                 -- owner's role) may. The Helm chart grants the app's login writes on every table, history
-                -- tables included; this takes them back. In grif_versioning, current_user is the owner.
+                -- tables included; this takes them back. In a table's versioning function, current_user is
+                -- the owner.
                 CREATE OR REPLACE FUNCTION public.grif_history_guard() RETURNS trigger
                 LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
                 BEGIN
@@ -64,8 +35,83 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                   RETURN NULL;
                 END $$;
 
+                -- Writes a table's versioning function: its triggers' function, or a new one beside it,
+                -- "<Table>_versioning", with its triggers. AFTER UPDATE and AFTER DELETE, each statement
+                -- (old_rows: the rows as they were), and BEFORE TRUNCATE, it copies the rows' old versions
+                -- into the history table, ending when the transaction began. Its INSERT names the tables, and
+                -- the columns both have (by name, bar PeriodEnd: the table's is always infinity), as they are
+                -- now: plain SQL, which Postgres parses once a session, not SQL built from the catalog on
+                -- every write. So a migration that renames a table, or adds, drops or renames a column, calls
+                -- this again once it has (HistoryMigrationsModelDiffer scaffolds the call). SECURITY DEFINER:
+                -- the function runs as its owner, the administrator that ran the migrations, whom the history
+                -- tables' guard lets write.
+                CREATE OR REPLACE PROCEDURE public.grif_refresh_versioning(tbl regclass)
+                LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+                DECLARE
+                  s name;
+                  t name;
+                  hist regclass;
+                  cols text;
+                  fn regprocedure;
+                  fn_schema name;
+                  fn_name name;
+                  own name;
+                  i int := 0;
+                BEGIN
+                  SELECT ns.nspname, c.relname INTO s, t FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace WHERE c.oid = tbl;
+                  hist := format('%I.%I', s, t || 'History')::regclass;
+                  SELECT string_agg(quote_ident(h.attname), ', ' ORDER BY h.attnum) INTO cols
+                    FROM pg_attribute h
+                    JOIN pg_attribute m ON m.attrelid = tbl AND m.attname = h.attname AND m.attnum > 0 AND NOT m.attisdropped
+                   WHERE h.attrelid = hist AND h.attnum > 0 AND NOT h.attisdropped AND h.attname <> 'PeriodEnd';
+
+                  -- The function takes its table's schema and name where they're free: a renamed table's too.
+                  own := t || '_versioning';
+                  SELECT tgfoid INTO fn FROM pg_trigger WHERE tgrelid = tbl AND tgname = 'versioning_update';
+                  IF fn IS NOT NULL THEN
+                    SELECT ns.nspname, p.proname INTO fn_schema, fn_name FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace WHERE p.oid = fn;
+                    IF fn_schema <> s AND to_regprocedure(format('%I.%I()', s, fn_name)) IS NULL THEN
+                      EXECUTE format('ALTER FUNCTION %s SET SCHEMA %I', fn, s);
+                      fn_schema := s;
+                    END IF;
+                    IF fn_name <> own AND to_regprocedure(format('%I.%I()', fn_schema, own)) IS NULL THEN
+                      EXECUTE format('ALTER FUNCTION %s RENAME TO %I', fn, own);
+                      fn_name := own;
+                    END IF;
+                  ELSE
+                    fn_schema := s;
+                    fn_name := own;
+                    WHILE to_regprocedure(format('%I.%I()', fn_schema, fn_name)) IS NOT NULL LOOP
+                      i := i + 1;
+                      fn_name := own || i;
+                    END LOOP;
+                  END IF;
+
+                  -- Statement triggers fire for no rows too (a cascade from a parent with no children): no
+                  -- INSERT then, which would fire the history table's guard for nothing.
+                  EXECUTE format($f$
+                    CREATE OR REPLACE FUNCTION %I.%I() RETURNS trigger
+                    LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $body$
+                    BEGIN
+                      IF TG_OP = 'TRUNCATE' THEN
+                        INSERT INTO %s (%s, "PeriodEnd") SELECT %s, transaction_timestamp() FROM %s;
+                      ELSIF EXISTS (SELECT FROM old_rows) THEN
+                        INSERT INTO %s (%s, "PeriodEnd") SELECT %s, transaction_timestamp() FROM old_rows;
+                      END IF;
+                      RETURN NULL;
+                    END $body$
+                    $f$, fn_schema, fn_name, hist, cols, cols, tbl, hist, cols, cols);
+                  EXECUTE format('REVOKE ALL ON FUNCTION %I.%I() FROM PUBLIC', fn_schema, fn_name);
+
+                  -- UPDATE and DELETE have a trigger each: a trigger with a transition table takes one event.
+                  IF fn IS NULL THEN
+                    EXECUTE format('CREATE TRIGGER versioning_update AFTER UPDATE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+                    EXECUTE format('CREATE TRIGGER versioning_delete AFTER DELETE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+                    EXECUTE format('CREATE TRIGGER versioning_truncate BEFORE TRUNCATE ON %s FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+                  END IF;
+                END $$;
+
                 -- Versioning on, for a table with a PeriodStart column and a "<Table>History" beside it.
-                -- UPDATE and DELETE have a trigger each: a trigger with a transition table takes one event.
                 CREATE OR REPLACE PROCEDURE public.grif_enable_versioning(tbl regclass)
                 LANGUAGE plpgsql AS $$
                 DECLARE
@@ -74,20 +120,24 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 BEGIN
                   SELECT n.nspname, c.relname INTO s, t FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = tbl;
                   EXECUTE format('CREATE TRIGGER period_start BEFORE INSERT OR UPDATE ON %s FOR EACH ROW EXECUTE FUNCTION public.grif_period_start()', tbl);
-                  EXECUTE format('CREATE TRIGGER versioning_update AFTER UPDATE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
-                  EXECUTE format('CREATE TRIGGER versioning_delete AFTER DELETE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
-                  EXECUTE format('CREATE TRIGGER versioning_truncate BEFORE TRUNCATE ON %s FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
+                  CALL public.grif_refresh_versioning(tbl);
                   EXECUTE format('CREATE TRIGGER read_only BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON %I.%I FOR EACH STATEMENT EXECUTE FUNCTION public.grif_history_guard()', s, t || 'History');
                 END $$;
 
-                -- Versioning off, before a history table is dropped and its table kept.
+                -- Versioning off, before a history table is dropped: the table's triggers, and its function.
                 CREATE OR REPLACE PROCEDURE public.grif_disable_versioning(tbl regclass)
                 LANGUAGE plpgsql AS $$
+                DECLARE
+                  fn regprocedure;
                 BEGIN
+                  SELECT tgfoid INTO fn FROM pg_trigger WHERE tgrelid = tbl AND tgname = 'versioning_update';
                   EXECUTE format('DROP TRIGGER IF EXISTS period_start ON %s', tbl);
                   EXECUTE format('DROP TRIGGER IF EXISTS versioning_update ON %s', tbl);
                   EXECUTE format('DROP TRIGGER IF EXISTS versioning_delete ON %s', tbl);
                   EXECUTE format('DROP TRIGGER IF EXISTS versioning_truncate ON %s', tbl);
+                  IF fn IS NOT NULL AND NOT EXISTS (SELECT FROM pg_trigger WHERE tgfoid = fn) THEN
+                    EXECUTE format('DROP FUNCTION %s', fn);
+                  END IF;
                 END $$;
                 """);
 
@@ -2081,10 +2131,34 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "GameVesionID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchBracketInfoHistory_AwayTeamPreviousMatchBracketInfoID_~",
+                schema: "Event",
+                table: "MatchBracketInfoHistory",
+                columns: new[] { "AwayTeamPreviousMatchBracketInfoID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchBracketInfoHistory_HomeTeamPreviousMatchBracketInfoID_~",
+                schema: "Event",
+                table: "MatchBracketInfoHistory",
+                columns: new[] { "HomeTeamPreviousMatchBracketInfoID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchBracketInfoHistory_MatchBracketInfoID_PeriodEnd",
                 schema: "Event",
                 table: "MatchBracketInfoHistory",
                 columns: new[] { "MatchBracketInfoID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchBracketInfoHistory_SeasonMatchID_PeriodEnd",
+                schema: "Event",
+                table: "MatchBracketInfoHistory",
+                columns: new[] { "SeasonMatchID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedKickVotesHistory_KickMatchedPlayerId_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedKickVotesHistory",
+                columns: new[] { "KickMatchedPlayerId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchedKickVotesHistory_MatchId_VoterMatchedPlayerId_Period~",
@@ -2093,10 +2167,34 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "MatchId", "VoterMatchedPlayerId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchedKickVotesHistory_VoterMatchedPlayerId_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedKickVotesHistory",
+                columns: new[] { "VoterMatchedPlayerId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedMatchesHistory_AwayTeamId_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedMatchesHistory",
+                columns: new[] { "AwayTeamId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedMatchesHistory_HomeTeamId_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedMatchesHistory",
+                columns: new[] { "HomeTeamId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchedMatchesHistory_Id_PeriodEnd",
                 schema: "Matchmaking",
                 table: "MatchedMatchesHistory",
                 columns: new[] { "Id", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedMatchesHistory_MatchID_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedMatchesHistory",
+                columns: new[] { "MatchID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchedPlayersHistory_Id_PeriodEnd",
@@ -2105,10 +2203,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "Id", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchedPlayersHistory_MatchedTeamID_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedPlayersHistory",
+                columns: new[] { "MatchedTeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedPlayersHistory_UserID_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedPlayersHistory",
+                columns: new[] { "UserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchedTeamsHistory_MatchedTeamId_PeriodEnd",
                 schema: "Matchmaking",
                 table: "MatchedTeamsHistory",
                 columns: new[] { "MatchedTeamId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchedWinnerVotesHistory_MatchedPlayerId_PeriodEnd",
+                schema: "Matchmaking",
+                table: "MatchedWinnerVotesHistory",
+                columns: new[] { "MatchedPlayerId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchedWinnerVotesHistory_MatchId_MatchedPlayerId_PeriodEnd",
@@ -2123,16 +2239,40 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "MatchID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchLinksHistory_MatchID_PeriodEnd",
+                schema: "Event",
+                table: "MatchLinksHistory",
+                columns: new[] { "MatchID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchLinksHistory_MatchLinkID_PeriodEnd",
                 schema: "Event",
                 table: "MatchLinksHistory",
                 columns: new[] { "MatchLinkID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MatchLinksHistory_SeasonMatchID_PeriodEnd",
+                schema: "Event",
+                table: "MatchLinksHistory",
+                columns: new[] { "SeasonMatchID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchParticipantsHistory_MatchID_TeamID_PeriodEnd",
+                schema: "Infinite",
+                table: "MatchParticipantsHistory",
+                columns: new[] { "MatchID", "TeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MatchParticipantsHistory_MatchID_XboxUserID_PeriodEnd",
                 schema: "Infinite",
                 table: "MatchParticipantsHistory",
                 columns: new[] { "MatchID", "XboxUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MatchParticipantsHistory_XboxUserID_PeriodEnd",
+                schema: "Infinite",
+                table: "MatchParticipantsHistory",
+                columns: new[] { "XboxUserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MatchTeamsHistory_MatchID_TeamID_PeriodEnd",
@@ -2147,10 +2287,22 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "MedalDifficultyID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MedalEarnedHistory_MatchID_XboxUserID_PeriodEnd",
+                schema: "Infinite",
+                table: "MedalEarnedHistory",
+                columns: new[] { "MatchID", "XboxUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MedalEarnedHistory_MedalID_MatchID_XboxUserID_PeriodEnd",
                 schema: "Infinite",
                 table: "MedalEarnedHistory",
                 columns: new[] { "MedalID", "MatchID", "XboxUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MedalsHistory_MedalDifficultyID_PeriodEnd",
+                schema: "Infinite",
+                table: "MedalsHistory",
+                columns: new[] { "MedalDifficultyID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MedalsHistory_MedalID_PeriodEnd",
@@ -2159,10 +2311,22 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "MedalID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MedalsHistory_MedalTypeID_PeriodEnd",
+                schema: "Infinite",
+                table: "MedalsHistory",
+                columns: new[] { "MedalTypeID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MedalTypesHistory_MedalTypeID_PeriodEnd",
                 schema: "Infinite",
                 table: "MedalTypesHistory",
                 columns: new[] { "MedalTypeID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MessagesHistory_FromDiscordUserId_PeriodEnd",
+                schema: "Discord",
+                table: "MessagesHistory",
+                columns: new[] { "FromDiscordUserId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_MessagesHistory_Id_PeriodEnd",
@@ -2171,10 +2335,22 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "Id", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_MessagesHistory_ToDiscordUserId_PeriodEnd",
+                schema: "Discord",
+                table: "MessagesHistory",
+                columns: new[] { "ToDiscordUserId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PasswordResetLinksHistory_Id_PeriodEnd",
                 schema: "Auth",
                 table: "PasswordResetLinksHistory",
                 columns: new[] { "Id", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PasswordResetLinksHistory_UserId_PeriodEnd",
+                schema: "Auth",
+                table: "PasswordResetLinksHistory",
+                columns: new[] { "UserId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_QueuedPlayersHistory_UserID_PeriodEnd",
@@ -2201,16 +2377,52 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "Id", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_RoleClaimsHistory_RoleId_PeriodEnd",
+                schema: "Auth",
+                table: "RoleClaimsHistory",
+                columns: new[] { "RoleId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RolesHistory_Id_PeriodEnd",
                 schema: "Auth",
                 table: "RolesHistory",
                 columns: new[] { "Id", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_SeasonAvailabilityHistory_AvailabilityOptionID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonAvailabilityHistory",
+                columns: new[] { "AvailabilityOptionID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SeasonAvailabilityHistory_SeasonID_AvailabilityOptionID_Per~",
                 schema: "Event",
                 table: "SeasonAvailabilityHistory",
                 columns: new[] { "SeasonID", "AvailabilityOptionID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonMatchesHistory_ActiveRescheduleRequestId_PeriodEnd",
+                schema: "Event",
+                table: "SeasonMatchesHistory",
+                columns: new[] { "ActiveRescheduleRequestId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonMatchesHistory_AwayTeamID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonMatchesHistory",
+                columns: new[] { "AwayTeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonMatchesHistory_HomeTeamID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonMatchesHistory",
+                columns: new[] { "HomeTeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonMatchesHistory_SeasonID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonMatchesHistory",
+                columns: new[] { "SeasonID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SeasonMatchesHistory_SeasonMatchID_PeriodEnd",
@@ -2225,10 +2437,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "SeasonID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_SeasonSignupsHistory_SeasonID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonSignupsHistory",
+                columns: new[] { "SeasonID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SeasonSignupsHistory_SeasonSignupID_PeriodEnd",
                 schema: "Event",
                 table: "SeasonSignupsHistory",
                 columns: new[] { "SeasonSignupID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SeasonSignupsHistory_UserID_PeriodEnd",
+                schema: "Event",
+                table: "SeasonSignupsHistory",
+                columns: new[] { "UserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SignupAvailabilityHistory_AvailabilityOptionID_PeriodEnd",
+                schema: "Event",
+                table: "SignupAvailabilityHistory",
+                columns: new[] { "AvailabilityOptionID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SignupAvailabilityHistory_SeasonSignupID_AvailabilityOption~",
@@ -2237,16 +2467,46 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "SeasonSignupID", "AvailabilityOptionID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_TeamAvailabilityHistory_AvailabilityOptionID_PeriodEnd",
+                schema: "Event",
+                table: "TeamAvailabilityHistory",
+                columns: new[] { "AvailabilityOptionID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TeamAvailabilityHistory_TeamID_AvailabilityOptionID_PeriodE~",
                 schema: "Event",
                 table: "TeamAvailabilityHistory",
                 columns: new[] { "TeamID", "AvailabilityOptionID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_TeamPlayersHistory_TeamID_PeriodEnd",
+                schema: "Event",
+                table: "TeamPlayersHistory",
+                columns: new[] { "TeamID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TeamPlayersHistory_TeamPlayerID_PeriodEnd",
                 schema: "Event",
                 table: "TeamPlayersHistory",
                 columns: new[] { "TeamPlayerID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamPlayersHistory_UserID_PeriodEnd",
+                schema: "Event",
+                table: "TeamPlayersHistory",
+                columns: new[] { "UserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamsHistory_CaptainID_PeriodEnd",
+                schema: "Event",
+                table: "TeamsHistory",
+                columns: new[] { "CaptainID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamsHistory_SeasonID_PeriodEnd",
+                schema: "Event",
+                table: "TeamsHistory",
+                columns: new[] { "SeasonID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_TeamsHistory_TeamID_PeriodEnd",
@@ -2261,6 +2521,18 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "Id", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserClaimsHistory_UserId_PeriodEnd",
+                schema: "Auth",
+                table: "UserClaimsHistory",
+                columns: new[] { "UserId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserExperiencesHistory_GameVersionID_PeriodEnd",
+                schema: "Other",
+                table: "UserExperiencesHistory",
+                columns: new[] { "GameVersionID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserExperiencesHistory_UserID_GameVersionID_PeriodEnd",
                 schema: "Other",
                 table: "UserExperiencesHistory",
@@ -2273,16 +2545,46 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "LoginProvider", "ProviderKey", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserLoginsHistory_UserId_PeriodEnd",
+                schema: "Auth",
+                table: "UserLoginsHistory",
+                columns: new[] { "UserId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserRolesHistory_RoleId_PeriodEnd",
+                schema: "Auth",
+                table: "UserRolesHistory",
+                columns: new[] { "RoleId", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UserRolesHistory_UserId_RoleId_PeriodEnd",
                 schema: "Auth",
                 table: "UserRolesHistory",
                 columns: new[] { "UserId", "RoleId", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_UsersHistory_DiscordUserID_PeriodEnd",
+                schema: "Auth",
+                table: "UsersHistory",
+                columns: new[] { "DiscordUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_UsersHistory_Id_PeriodEnd",
                 schema: "Auth",
                 table: "UsersHistory",
                 columns: new[] { "Id", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UsersHistory_RegionID_PeriodEnd",
+                schema: "Auth",
+                table: "UsersHistory",
+                columns: new[] { "RegionID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UsersHistory_XboxUserID_PeriodEnd",
+                schema: "Auth",
+                table: "UsersHistory",
+                columns: new[] { "XboxUserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserTokensHistory_UserId_LoginProvider_Name_PeriodEnd",
@@ -3023,8 +3325,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.Sql("""
                 DROP PROCEDURE public.grif_disable_versioning(regclass);
                 DROP PROCEDURE public.grif_enable_versioning(regclass);
+                DROP PROCEDURE public.grif_refresh_versioning(regclass);
                 DROP FUNCTION public.grif_history_guard();
-                DROP FUNCTION public.grif_versioning();
                 DROP FUNCTION public.grif_period_start();
                 """);
         }

@@ -14,10 +14,13 @@ namespace GrifballWebApp.Migrations.Postgres;
 /// table history, created again over the old ones by one that changes their version, and dropped last by
 /// one that takes away the last history table.</item>
 /// <item>A migration that creates a history table turns its table's versioning on once both exist, and
-/// one that drops a history table but keeps its table turns it off first, before the triggers can write
-/// to a table that's gone. A table dropped with its history table takes its triggers with it.</item>
-/// <item>A table renamed or moved to another schema: EF renames or moves its history table with it
-/// (PostgresHistory.HistoryEntityName), and the triggers, on both tables, go with them.</item>
+/// one that drops a history table turns it off first, before the triggers can write to a table that's
+/// gone: the triggers, and the table's versioning function with them.</item>
+/// <item>A table's versioning function names its tables and their columns (grif_refresh_versioning). A
+/// migration that renames or moves a table with history or its history table, or adds, drops or renames
+/// a column of either, writes it again, right after the last of those, before anything else can write
+/// to the table. EF renames or moves a history table with its table (PostgresHistory.HistoryEntityName),
+/// and the triggers, on both tables, go with them.</item>
 /// <item>A table that gets history once it has rows gives them SQL Server's PeriodStart, the beginning of
 /// time: its PeriodStart column scaffolds as added with that default, then altered to the model's.</item>
 /// </list>
@@ -46,17 +49,41 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
                 operations.Remove(alter);
         }
 
+        // First, while the tables are as the source has them.
         foreach (var drop in operations.OfType<DropTableOperation>().ToList())
         {
-            if (HistoryOf(source, drop.Name, drop.Schema) is { } table && target?.FindTable(table, drop.Schema) is not null)
+            if (HistoryOf(source, drop.Name, drop.Schema) is { } table)
                 operations.Insert(0, Call("grif_disable_versioning", drop.Schema, table));
         }
 
+        var enabled = new HashSet<(string?, string)>();
         foreach (var create in operations.OfType<CreateTableOperation>().ToList())
         {
             if (HistoryOf(target, create.Name, create.Schema) is { } table)
+            {
                 operations.Add(Call("grif_enable_versioning", create.Schema, table));
+                enabled.Add((create.Schema, table));
+            }
         }
+
+        // A table with history whose columns or name change (or its history table's): its versioning
+        // function written again after the last change, unless versioning only starts in this migration.
+        var lastChange = new Dictionary<(string? Schema, string Table), int>();
+        for (var i = 0; i < operations.Count; i++)
+        {
+            var (schema, name) = operations[i] switch
+            {
+                AddColumnOperation o => (o.Schema, o.Table),
+                DropColumnOperation o => (o.Schema, o.Table),
+                RenameColumnOperation o => (o.Schema, o.Table),
+                RenameTableOperation o => (o.NewSchema, o.NewName ?? o.Name),
+                _ => (null, null),
+            };
+            if (name is not null && Versioned(target, name, schema) is { } table && !enabled.Contains((schema, table)))
+                lastChange[(schema, table)] = i;
+        }
+        foreach (var ((schema, table), index) in lastChange.OrderByDescending(c => c.Value))
+            operations.Insert(index + 1, Call("grif_refresh_versioning", schema, table));
 
         // A table that gets history and already has rows: they get PeriodStart -infinity, which Npgsql reads
         // as DateTime.MinValue, as SQL Server gives them 0001-01-01. Then the column default goes back to
@@ -126,6 +153,12 @@ public class HistoryMigrationsModelDiffer(IMigrationsModelDiffer inner, IReadOnl
     private static bool HasHistory(IRelationalModel? model, string table, string? schema)
     {
         return model?.Tables.Any(t => t.Schema == schema && HistoryOf(model, t.Name, t.Schema) == table) ?? false;
+    }
+
+    /// <summary>The table with history that <paramref name="name"/> is, or keeps the history of.</summary>
+    private static string? Versioned(IRelationalModel? model, string name, string? schema)
+    {
+        return HasHistory(model, name, schema) ? name : HistoryOf(model, name, schema);
     }
 
     /// <summary>The table <paramref name="name"/> keeps the history of, if it's a history table.</summary>

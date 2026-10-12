@@ -29,7 +29,8 @@ public static class PostgresHistoryFunctions
 
     // Each statement replaces what it creates, so a version's Create installs it over any other version
     // (one that changes a signature or drops a function says so first: CREATE OR REPLACE can't change a
-    // signature). Replaced, a function keeps its triggers, owner and grants.
+    // signature). Replaced, a function keeps its triggers, owner and grants. A version that changes what
+    // grif_refresh_versioning writes calls it again for each table with history.
     private const string V1 = """
         -- BEFORE INSERT OR UPDATE, each row: when the row took its values. Set here, so anything the
         -- app writes there is replaced.
@@ -40,39 +41,10 @@ public static class PostgresHistoryFunctions
           RETURN NEW;
         END $$;
 
-        -- AFTER UPDATE and AFTER DELETE, each statement (old_rows: the rows as they were), and BEFORE
-        -- TRUNCATE: the rows' old versions into the history table, ending when the transaction
-        -- began. Copies the columns both tables have, by name, bar PeriodEnd (the table's is always
-        -- infinity), so a column only one of them has never fails the app's write. SECURITY
-        -- DEFINER: runs as its owner, the administrator that ran the migrations, whom the history
-        -- tables' guard lets write.
-        CREATE OR REPLACE FUNCTION public.grif_versioning() RETURNS trigger
-        LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
-        DECLARE
-          main regclass := TG_RELID;
-          hist regclass := format('%I.%I', TG_TABLE_SCHEMA, TG_TABLE_NAME || 'History')::regclass;
-          cols text;
-          src text := CASE WHEN TG_OP = 'TRUNCATE' THEN main::text ELSE 'old_rows' END;
-        BEGIN
-          -- Statement triggers fire for no rows too: a cascade from a parent with no children.
-          IF TG_OP <> 'TRUNCATE' THEN
-            IF NOT EXISTS (SELECT FROM old_rows) THEN
-              RETURN NULL;
-            END IF;
-          END IF;
-          SELECT string_agg(quote_ident(h.attname), ', ' ORDER BY h.attnum) INTO cols
-            FROM pg_attribute h
-            JOIN pg_attribute m ON m.attrelid = main AND m.attname = h.attname AND m.attnum > 0 AND NOT m.attisdropped
-           WHERE h.attrelid = hist AND h.attnum > 0 AND NOT h.attisdropped AND h.attname <> 'PeriodEnd';
-          EXECUTE format('INSERT INTO %s (%s, "PeriodEnd") SELECT %s, $1 FROM %s', hist, cols, cols, src)
-            USING transaction_timestamp();
-          RETURN NULL;
-        END $$;
-        REVOKE ALL ON FUNCTION public.grif_versioning() FROM PUBLIC;
-
         -- BEFORE any write to a history table, each statement: only its owner (or a member of the
         -- owner's role) may. The Helm chart grants the app's login writes on every table, history
-        -- tables included; this takes them back. In grif_versioning, current_user is the owner.
+        -- tables included; this takes them back. In a table's versioning function, current_user is
+        -- the owner.
         CREATE OR REPLACE FUNCTION public.grif_history_guard() RETURNS trigger
         LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
         BEGIN
@@ -83,8 +55,83 @@ public static class PostgresHistoryFunctions
           RETURN NULL;
         END $$;
 
+        -- Writes a table's versioning function: its triggers' function, or a new one beside it,
+        -- "<Table>_versioning", with its triggers. AFTER UPDATE and AFTER DELETE, each statement
+        -- (old_rows: the rows as they were), and BEFORE TRUNCATE, it copies the rows' old versions
+        -- into the history table, ending when the transaction began. Its INSERT names the tables, and
+        -- the columns both have (by name, bar PeriodEnd: the table's is always infinity), as they are
+        -- now: plain SQL, which Postgres parses once a session, not SQL built from the catalog on
+        -- every write. So a migration that renames a table, or adds, drops or renames a column, calls
+        -- this again once it has (HistoryMigrationsModelDiffer scaffolds the call). SECURITY DEFINER:
+        -- the function runs as its owner, the administrator that ran the migrations, whom the history
+        -- tables' guard lets write.
+        CREATE OR REPLACE PROCEDURE public.grif_refresh_versioning(tbl regclass)
+        LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
+        DECLARE
+          s name;
+          t name;
+          hist regclass;
+          cols text;
+          fn regprocedure;
+          fn_schema name;
+          fn_name name;
+          own name;
+          i int := 0;
+        BEGIN
+          SELECT ns.nspname, c.relname INTO s, t FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace WHERE c.oid = tbl;
+          hist := format('%I.%I', s, t || 'History')::regclass;
+          SELECT string_agg(quote_ident(h.attname), ', ' ORDER BY h.attnum) INTO cols
+            FROM pg_attribute h
+            JOIN pg_attribute m ON m.attrelid = tbl AND m.attname = h.attname AND m.attnum > 0 AND NOT m.attisdropped
+           WHERE h.attrelid = hist AND h.attnum > 0 AND NOT h.attisdropped AND h.attname <> 'PeriodEnd';
+
+          -- The function takes its table's schema and name where they're free: a renamed table's too.
+          own := t || '_versioning';
+          SELECT tgfoid INTO fn FROM pg_trigger WHERE tgrelid = tbl AND tgname = 'versioning_update';
+          IF fn IS NOT NULL THEN
+            SELECT ns.nspname, p.proname INTO fn_schema, fn_name FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace WHERE p.oid = fn;
+            IF fn_schema <> s AND to_regprocedure(format('%I.%I()', s, fn_name)) IS NULL THEN
+              EXECUTE format('ALTER FUNCTION %s SET SCHEMA %I', fn, s);
+              fn_schema := s;
+            END IF;
+            IF fn_name <> own AND to_regprocedure(format('%I.%I()', fn_schema, own)) IS NULL THEN
+              EXECUTE format('ALTER FUNCTION %s RENAME TO %I', fn, own);
+              fn_name := own;
+            END IF;
+          ELSE
+            fn_schema := s;
+            fn_name := own;
+            WHILE to_regprocedure(format('%I.%I()', fn_schema, fn_name)) IS NOT NULL LOOP
+              i := i + 1;
+              fn_name := own || i;
+            END LOOP;
+          END IF;
+
+          -- Statement triggers fire for no rows too (a cascade from a parent with no children): no
+          -- INSERT then, which would fire the history table's guard for nothing.
+          EXECUTE format($f$
+            CREATE OR REPLACE FUNCTION %I.%I() RETURNS trigger
+            LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $body$
+            BEGIN
+              IF TG_OP = 'TRUNCATE' THEN
+                INSERT INTO %s (%s, "PeriodEnd") SELECT %s, transaction_timestamp() FROM %s;
+              ELSIF EXISTS (SELECT FROM old_rows) THEN
+                INSERT INTO %s (%s, "PeriodEnd") SELECT %s, transaction_timestamp() FROM old_rows;
+              END IF;
+              RETURN NULL;
+            END $body$
+            $f$, fn_schema, fn_name, hist, cols, cols, tbl, hist, cols, cols);
+          EXECUTE format('REVOKE ALL ON FUNCTION %I.%I() FROM PUBLIC', fn_schema, fn_name);
+
+          -- UPDATE and DELETE have a trigger each: a trigger with a transition table takes one event.
+          IF fn IS NULL THEN
+            EXECUTE format('CREATE TRIGGER versioning_update AFTER UPDATE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+            EXECUTE format('CREATE TRIGGER versioning_delete AFTER DELETE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+            EXECUTE format('CREATE TRIGGER versioning_truncate BEFORE TRUNCATE ON %s FOR EACH STATEMENT EXECUTE FUNCTION %I.%I()', tbl, fn_schema, fn_name);
+          END IF;
+        END $$;
+
         -- Versioning on, for a table with a PeriodStart column and a "<Table>History" beside it.
-        -- UPDATE and DELETE have a trigger each: a trigger with a transition table takes one event.
         CREATE OR REPLACE PROCEDURE public.grif_enable_versioning(tbl regclass)
         LANGUAGE plpgsql AS $$
         DECLARE
@@ -93,28 +140,32 @@ public static class PostgresHistoryFunctions
         BEGIN
           SELECT n.nspname, c.relname INTO s, t FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = tbl;
           EXECUTE format('CREATE TRIGGER period_start BEFORE INSERT OR UPDATE ON %s FOR EACH ROW EXECUTE FUNCTION public.grif_period_start()', tbl);
-          EXECUTE format('CREATE TRIGGER versioning_update AFTER UPDATE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
-          EXECUTE format('CREATE TRIGGER versioning_delete AFTER DELETE ON %s REFERENCING OLD TABLE AS old_rows FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
-          EXECUTE format('CREATE TRIGGER versioning_truncate BEFORE TRUNCATE ON %s FOR EACH STATEMENT EXECUTE FUNCTION public.grif_versioning()', tbl);
+          CALL public.grif_refresh_versioning(tbl);
           EXECUTE format('CREATE TRIGGER read_only BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON %I.%I FOR EACH STATEMENT EXECUTE FUNCTION public.grif_history_guard()', s, t || 'History');
         END $$;
 
-        -- Versioning off, before a history table is dropped and its table kept.
+        -- Versioning off, before a history table is dropped: the table's triggers, and its function.
         CREATE OR REPLACE PROCEDURE public.grif_disable_versioning(tbl regclass)
         LANGUAGE plpgsql AS $$
+        DECLARE
+          fn regprocedure;
         BEGIN
+          SELECT tgfoid INTO fn FROM pg_trigger WHERE tgrelid = tbl AND tgname = 'versioning_update';
           EXECUTE format('DROP TRIGGER IF EXISTS period_start ON %s', tbl);
           EXECUTE format('DROP TRIGGER IF EXISTS versioning_update ON %s', tbl);
           EXECUTE format('DROP TRIGGER IF EXISTS versioning_delete ON %s', tbl);
           EXECUTE format('DROP TRIGGER IF EXISTS versioning_truncate ON %s', tbl);
+          IF fn IS NOT NULL AND NOT EXISTS (SELECT FROM pg_trigger WHERE tgfoid = fn) THEN
+            EXECUTE format('DROP FUNCTION %s', fn);
+          END IF;
         END $$;
         """;
 
     private const string DropV1 = """
         DROP PROCEDURE public.grif_disable_versioning(regclass);
         DROP PROCEDURE public.grif_enable_versioning(regclass);
+        DROP PROCEDURE public.grif_refresh_versioning(regclass);
         DROP FUNCTION public.grif_history_guard();
-        DROP FUNCTION public.grif_versioning();
         DROP FUNCTION public.grif_period_start();
         """;
 }

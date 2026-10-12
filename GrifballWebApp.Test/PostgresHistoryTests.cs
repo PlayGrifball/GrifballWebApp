@@ -82,6 +82,11 @@ public class PostgresHistoryTests
             var triggers = await _context.Database.SqlQueryRaw<string>(
                 "SELECT tgname AS \"Value\" FROM pg_trigger WHERE NOT tgisinternal AND tgrelid IN (format('%I.%I', {0}, {1})::regclass, format('%I.%I', {0}, {2})::regclass)",
                 schema, table, history).ToListAsync();
+            // The table's own versioning function, "<Table>_versioning" beside it, for all three.
+            var ownFunction = await Scalar<bool>("""
+                SELECT count(DISTINCT tgfoid) = 1 AND bool_and(tgfoid = to_regprocedure(format('%I.%I()', {0}, {1} || '_versioning'))) AS "Value"
+                  FROM pg_trigger WHERE tgrelid = format('%I.%I', {0}, {1})::regclass AND tgname LIKE 'versioning%'
+                """, schema, table);
 
             Assert.Multiple(() =>
             {
@@ -95,6 +100,7 @@ public class PostgresHistoryTests
                 Assert.That(copy.Where(c => c.Identity || c.Default), Is.Empty, $"{schema}.{history}");
                 Assert.That(copy.Where(c => c.NotNull).Select(c => c.Name), Is.EquivalentTo(new[] { PostgresHistory.PeriodStart, PostgresHistory.PeriodEnd }), $"{schema}.{history}");
                 Assert.That(triggers, Is.EquivalentTo(new[] { "period_start", "versioning_update", "versioning_delete", "versioning_truncate", "read_only" }), $"{schema}.{table}");
+                Assert.That(ownFunction, Is.True, $"{schema}.{table}: its own versioning function");
             });
         }
     }
@@ -377,7 +383,8 @@ public class PostgresHistoryTests
 
         await migrator.MigrateAsync(migrations[addRowHistory - 1]);
         var down = await Scalar<bool>("""
-            SELECT to_regclass('"Event"."SeasonsHistory"') IS NULL AND to_regproc('public.grif_versioning') IS NULL
+            SELECT to_regclass('"Event"."SeasonsHistory"') IS NULL AND to_regproc('public.grif_refresh_versioning') IS NULL
+               AND NOT EXISTS (SELECT FROM pg_proc WHERE proname LIKE '%\_versioning')
                AND NOT EXISTS (SELECT FROM information_schema.columns WHERE column_name = 'PeriodStart') AS "Value"
             """);
         await migrator.MigrateAsync();
@@ -396,8 +403,117 @@ public class PostgresHistoryTests
         });
     }
 
+    /// <summary>Applies the migration migrations add would scaffold from this context's model to <paramref name="target"/>'s.</summary>
+    private async Task<IReadOnlyList<MigrationOperation>> Migrate(GrifballContext target)
+    {
+        var source = _context.GetService<IDesignTimeModel>().Model;
+        var operations = new HistoryMigrationsModelDiffer(target.GetService<IMigrationsModelDiffer>())
+            .GetDifferences(source.GetRelationalModel(), target.GetService<IDesignTimeModel>().Model.GetRelationalModel());
+        var commands = target.GetService<IMigrationsSqlGenerator>().Generate(operations, target.GetService<IDesignTimeModel>().Model);
+        await target.GetService<IMigrationCommandExecutor>().ExecuteNonQueryAsync(commands, target.GetService<IRelationalConnection>());
+        return operations;
+    }
+
+    private record NamedNote(string Name, string? Note);
+
+    // A migration that renames a column, adds one and drops one, as migrations add scaffolds it: the
+    // table's versioning function, which names the columns, is written again, so each write after keeps
+    // every column the history table has, the new one too, under their new names.
+    [Test]
+    public async Task ChangingATablesColumns_KeepsItsHistoryComplete()
+    {
+        var season = NewSeason("First");
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        season.SeasonName = "Second";
+        await _context.SaveChangesAsync();
+
+        await using var reworked = new SeasonReworkedContext(TestDatabase.Options(_context.Database.GetConnectionString()!).Options);
+        var operations = await Migrate(reworked);
+
+        var row = await reworked.Seasons.SingleAsync(s => s.SeasonID == season.SeasonID);
+        row.SeasonName = "Third";
+        reworked.Entry(row).Property("Note").CurrentValue = "noted";
+        await reworked.SaveChangesAsync();
+        reworked.Entry(row).Property("Note").CurrentValue = "noted again";
+        await reworked.SaveChangesAsync();
+        reworked.Seasons.Remove(row);
+        await reworked.SaveChangesAsync();
+
+        var history = await reworked.Database.SqlQueryRaw<NamedNote>(
+            "SELECT \"Name\", \"Note\" FROM \"Event\".\"SeasonsHistory\" WHERE \"SeasonID\" = {0} ORDER BY \"PeriodEnd\"", season.SeasonID).ToListAsync();
+        var all = await reworked.Seasons.TemporalAll().Where(s => s.SeasonID == season.SeasonID)
+            .OrderBy(s => EF.Property<DateTime>(s, PostgresHistory.PeriodStart)).Select(s => s.SeasonName).ToListAsync();
+        var columns = (await Columns("Event", "SeasonsHistory")).Select(c => c.Name).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(operations.OfType<RenameColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
+            Assert.That(operations.OfType<AddColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
+            Assert.That(operations.OfType<DropColumnOperation>().Select(o => o.Table), Is.EquivalentTo(new[] { "Seasons", "SeasonsHistory" }));
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Event"."Seasons"');""" }));
+            Assert.That(history, Is.EqualTo(new[]
+            {
+                new NamedNote("First", null), new NamedNote("Second", null), new NamedNote("Third", "noted"), new NamedNote("Third", "noted again"),
+            }), "every version, the renamed and the new column in each");
+            Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third", "Third" }));
+            Assert.That(columns, Does.Contain("Name").And.Contain("Note").And.No.Contain("SeasonName").And.No.Contain("CaptainsLocked"));
+        });
+    }
+
+    /// <summary>GrifballContext, with Seasons' SeasonName column called Name, a new column Note, and no CaptainsLocked.</summary>
+    private sealed class SeasonReworkedContext(DbContextOptions<GrifballContext> options) : GrifballContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            var season = modelBuilder.Model.FindEntityType(typeof(Season))!;
+            modelBuilder.Model.RemoveEntityType((IMutableEntityType)season.FindHistoryEntityType()!);
+            modelBuilder.Entity<Season>(b =>
+            {
+                b.Property(s => s.SeasonName).HasColumnName("Name");
+                b.Property<string?>("Note");
+                b.Ignore(s => s.CaptainsLocked);
+            });
+            modelBuilder.AddHistoryTables([season]);
+        }
+    }
+
+    // A temporal query's join from a principal (an AsOf's Include) finds the dependents' versions by the
+    // foreign key: every foreign key of a table with history has an index on its history table that starts
+    // with its columns (PostgresHistory), as the migrations created them.
+    [Test]
+    public async Task HistoryTables_HaveAnIndexForEachForeignKey()
+    {
+        var foreignKeys = await _context.Database.SqlQueryRaw<string>("""
+            WITH fk AS (
+              SELECT n.nspname, r.relname, h.oid AS hist, array_agg(a.attname ORDER BY k.ord) AS cols
+                FROM pg_constraint c
+                JOIN pg_class r ON r.oid = c.conrelid
+                JOIN pg_namespace n ON n.oid = r.relnamespace
+                JOIN pg_class h ON h.relnamespace = r.relnamespace AND h.relname = r.relname || 'History'
+                CROSS JOIN LATERAL unnest(c.conkey) WITH ORDINALITY k(attnum, ord)
+                JOIN pg_attribute a ON a.attrelid = r.oid AND a.attnum = k.attnum
+               WHERE c.contype = 'f'
+               GROUP BY c.oid, n.nspname, r.relname, h.oid),
+            ix AS (
+              SELECT i.indrelid, array_agg(a.attname ORDER BY k.ord) AS cols
+                FROM pg_index i
+                CROSS JOIN LATERAL unnest(i.indkey::int2[]) WITH ORDINALITY k(attnum, ord)
+                JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+               GROUP BY i.indexrelid, i.indrelid)
+            SELECT fk.nspname || '.' || fk.relname || '(' || array_to_string(fk.cols, ', ') || ')'
+                   || CASE WHEN EXISTS (SELECT FROM ix WHERE ix.indrelid = fk.hist AND ix.cols[1:cardinality(fk.cols)] = fk.cols) THEN '' ELSE ': none' END AS "Value"
+              FROM fk
+            """).ToListAsync();
+
+        Assert.That(foreignKeys, Has.Count.GreaterThan(40));
+        Assert.That(foreignKeys.Where(f => f.EndsWith(": none")), Is.Empty);
+    }
+
     // A table renamed by a migration as migrations add scaffolds it (HistoryMigrationsModelDiffer): its
-    // history table is renamed with it, and its history reads under the new name, the triggers still on.
+    // history table is renamed with it, and its history reads under the new name, the triggers still on,
+    // their function written again for the new names.
     [Test]
     public async Task RenamingATable_KeepsItsHistory_UnderTheNewName()
     {
@@ -425,14 +541,16 @@ public class PostgresHistoryTests
              WHERE NOT t.tgisinternal AND c.relname IN ('SeasonList', 'SeasonListHistory') ORDER BY 1
             """).ToListAsync();
         var gone = await Scalar<bool>("""SELECT to_regclass('"Event"."Seasons"') IS NULL AND to_regclass('"Event"."SeasonsHistory"') IS NULL AS "Value" """);
+        var function = await Scalar<bool>("""SELECT to_regprocedure('"Event"."SeasonList_versioning"()') IS NOT NULL AND to_regprocedure('"Event"."Seasons_versioning"()') IS NULL AS "Value" """);
 
         Assert.Multiple(() =>
         {
             Assert.That(operations.OfType<RenameTableOperation>().Select(o => (o.Name, o.NewName)),
                 Is.EquivalentTo(new[] { ("Seasons", "SeasonList"), ("SeasonsHistory", "SeasonListHistory") }));
             Assert.That(operations.OfType<CreateTableOperation>(), Is.Empty);
-            Assert.That(operations.OfType<SqlOperation>(), Is.Empty);
+            Assert.That(operations.OfType<SqlOperation>().Select(o => o.Sql), Is.EqualTo(new[] { """CALL public.grif_refresh_versioning('"Event"."SeasonList"');""" }));
             Assert.That(all, Is.EqualTo(new[] { "First", "Second", "Third" }), "the history from before the rename, and after");
+            Assert.That(function, Is.True, "the versioning function renamed with its table");
             Assert.That(triggers, Is.EqualTo(new[]
             {
                 "SeasonList.period_start", "SeasonList.versioning_delete", "SeasonList.versioning_truncate", "SeasonList.versioning_update",

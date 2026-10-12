@@ -211,7 +211,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("ToDiscordUserId");
 
+                    b.HasIndex("FromDiscordUserId", "PeriodEnd");
+
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("ToDiscordUserId", "PeriodEnd");
 
                     b.ToTable("MessagesHistory", "Discord");
 
@@ -654,7 +658,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SeasonMatchID");
 
+                    b.HasIndex("AwayTeamPreviousMatchBracketInfoID", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamPreviousMatchBracketInfoID", "PeriodEnd");
+
                     b.HasIndex("MatchBracketInfoID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
 
                     b.ToTable("MatchBracketInfoHistory", "Event");
 
@@ -752,7 +762,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SeasonMatchID");
 
+                    b.HasIndex("MatchID", "PeriodEnd");
+
                     b.HasIndex("MatchLinkID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
 
                     b.ToTable("MatchLinksHistory", "Event");
 
@@ -1055,6 +1069,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("XboxUserID");
 
+                    b.HasIndex("XboxUserID", "PeriodEnd");
+
+                    b.HasIndex("MatchID", "TeamID", "PeriodEnd");
+
                     b.HasIndex("MatchID", "XboxUserID", "PeriodEnd");
 
                     b.ToTable("MatchParticipantsHistory", "Infinite");
@@ -1305,6 +1323,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("VoterMatchedPlayerId");
 
+                    b.HasIndex("KickMatchedPlayerId", "PeriodEnd");
+
+                    b.HasIndex("VoterMatchedPlayerId", "PeriodEnd");
+
                     b.HasIndex("MatchId", "VoterMatchedPlayerId", "PeriodEnd");
 
                     b.ToTable("MatchedKickVotesHistory", "Matchmaking");
@@ -1434,7 +1456,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("numeric(20,0)")
                         .HasColumnName("VoteMessageID");
 
+                    b.HasIndex("AwayTeamId", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamId", "PeriodEnd");
+
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("MatchID", "PeriodEnd");
 
                     b.ToTable("MatchedMatchesHistory", "Matchmaking");
 
@@ -1531,6 +1559,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnName("UserID");
 
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("MatchedTeamID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
 
                     b.ToTable("MatchedPlayersHistory", "Matchmaking");
 
@@ -1685,6 +1717,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("WinnerVote");
 
+                    b.HasIndex("MatchedPlayerId", "PeriodEnd");
+
                     b.HasIndex("MatchId", "MatchedPlayerId", "PeriodEnd");
 
                     b.ToTable("MatchedWinnerVotesHistory", "Matchmaking");
@@ -1810,7 +1844,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SpriteIndex");
 
+                    b.HasIndex("MedalDifficultyID", "PeriodEnd");
+
                     b.HasIndex("MedalID", "PeriodEnd");
+
+                    b.HasIndex("MedalTypeID", "PeriodEnd");
 
                     b.ToTable("MedalsHistory", "Infinite");
 
@@ -1984,6 +2022,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<long?>("XboxUserID")
                         .HasColumnType("bigint")
                         .HasColumnName("XboxUserID");
+
+                    b.HasIndex("MatchID", "XboxUserID", "PeriodEnd");
 
                     b.HasIndex("MedalID", "MatchID", "XboxUserID", "PeriodEnd");
 
@@ -2176,6 +2216,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnName("UserId");
 
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("UserId", "PeriodEnd");
 
                     b.ToTable("PasswordResetLinksHistory", "Auth");
 
@@ -2844,6 +2886,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SeasonID");
 
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
+
                     b.HasIndex("SeasonID", "AvailabilityOptionID", "PeriodEnd");
 
                     b.ToTable("SeasonAvailabilityHistory", "Event");
@@ -2997,6 +3041,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("SeasonMatchID");
 
+                    b.HasIndex("ActiveRescheduleRequestId", "PeriodEnd");
+
+                    b.HasIndex("AwayTeamID", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
                     b.HasIndex("SeasonMatchID", "PeriodEnd");
 
                     b.ToTable("SeasonMatchesHistory", "Event");
@@ -3124,7 +3176,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("WillCaptain");
 
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
                     b.HasIndex("SeasonSignupID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
 
                     b.ToTable("SeasonSignupsHistory", "Event");
 
@@ -3200,6 +3256,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("SeasonSignupID")
                         .HasColumnType("integer")
                         .HasColumnName("SeasonSignupID");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
 
                     b.HasIndex("SeasonSignupID", "AvailabilityOptionID", "PeriodEnd");
 
@@ -3305,6 +3363,10 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnName("TeamName")
                         .UseCollation("case_insensitive");
 
+                    b.HasIndex("CaptainID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
                     b.HasIndex("TeamID", "PeriodEnd");
 
                     b.ToTable("TeamsHistory", "Event");
@@ -3381,6 +3443,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("TeamID")
                         .HasColumnType("integer")
                         .HasColumnName("TeamID");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
 
                     b.HasIndex("TeamID", "AvailabilityOptionID", "PeriodEnd");
 
@@ -3493,7 +3557,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("UserID");
 
+                    b.HasIndex("TeamID", "PeriodEnd");
+
                     b.HasIndex("TeamPlayerID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
 
                     b.ToTable("TeamPlayersHistory", "Event");
 
@@ -3776,7 +3844,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("XboxUserID");
 
+                    b.HasIndex("DiscordUserID", "PeriodEnd");
+
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("RegionID", "PeriodEnd");
+
+                    b.HasIndex("XboxUserID", "PeriodEnd");
 
                     b.ToTable("UsersHistory", "Auth");
 
@@ -3876,6 +3950,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.HasIndex("Id", "PeriodEnd");
 
+                    b.HasIndex("UserId", "PeriodEnd");
+
                     b.ToTable("UserClaimsHistory", "Auth");
 
                     b.HasAnnotation("Grif:HistoryOf", "UserClaims");
@@ -3950,6 +4026,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("UserID")
                         .HasColumnType("integer")
                         .HasColumnName("UserID");
+
+                    b.HasIndex("GameVersionID", "PeriodEnd");
 
                     b.HasIndex("UserID", "GameVersionID", "PeriodEnd");
 
@@ -4048,6 +4126,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("UserId");
 
+                    b.HasIndex("UserId", "PeriodEnd");
+
                     b.HasIndex("LoginProvider", "ProviderKey", "PeriodEnd");
 
                     b.ToTable("UserLoginsHistory", "Auth");
@@ -4124,6 +4204,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("integer")
                         .HasColumnName("UserId");
+
+                    b.HasIndex("RoleId", "PeriodEnd");
 
                     b.HasIndex("UserId", "RoleId", "PeriodEnd");
 
@@ -4335,6 +4417,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnName("RoleId");
 
                     b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("RoleId", "PeriodEnd");
 
                     b.ToTable("RoleClaimsHistory", "Auth");
 
