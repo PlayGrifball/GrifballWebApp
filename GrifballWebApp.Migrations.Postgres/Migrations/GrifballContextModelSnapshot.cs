@@ -17,6 +17,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasAnnotation("Grif:HistoryFunctions", 1)
                 .HasAnnotation("Npgsql:CollationDefinition:case_insensitive", "und-u-ks-level2,und-u-ks-level2,icu,False")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
@@ -46,6 +47,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<TimeOnly>("Time")
                         .HasColumnType("time without time zone");
 
@@ -55,6 +66,50 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique();
 
                     b.ToTable("AvailabilityOptions", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.AvailabilityOption.History", b =>
+                {
+                    b.Property<int?>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DayOfWeek")
+                        .HasColumnType("integer")
+                        .HasColumnName("DayOfWeek");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<TimeOnly?>("Time")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("Time");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
+
+                    b.ToTable("AvailabilityOptionsHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "AvailabilityOptions");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordMessage", b =>
@@ -82,6 +137,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
@@ -95,6 +160,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("ToDiscordUserId");
 
                     b.ToTable("Messages", "Discord");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordMessage.History", b =>
+                {
+                    b.Property<string>("Content")
+                        .HasColumnType("text")
+                        .HasColumnName("Content")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long?>("FromDiscordUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("FromDiscordUserId");
+
+                    b.Property<long?>("Id")
+                        .HasColumnType("bigint")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("Timestamp");
+
+                    b.Property<long?>("ToDiscordUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ToDiscordUserId");
+
+                    b.HasIndex("FromDiscordUserId", "PeriodEnd");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("ToDiscordUserId", "PeriodEnd");
+
+                    b.ToTable("MessagesHistory", "Discord");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Messages");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser", b =>
@@ -119,9 +241,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("DiscordUserID");
 
                     b.ToTable("Discord", "User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordUser.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<string>("DiscordUsername")
+                        .HasColumnType("text")
+                        .HasColumnName("DiscordUsername")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("DiscordUserID", "PeriodEnd");
+
+                    b.ToTable("DiscordHistory", "User");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Discord");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion", b =>
@@ -149,6 +322,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("GameVesionID");
 
@@ -202,6 +385,48 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.GameVersion.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("GameVersionName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("GameVersionName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("GameVesionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("GameVesionID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("GameVesionID", "PeriodEnd");
+
+                    b.ToTable("GameVersionsHistory", "Other");
+
+                    b.HasAnnotation("Grif:HistoryOf", "GameVersions");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
                 {
                     b.Property<Guid>("MatchID")
@@ -225,6 +450,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -234,6 +469,58 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasKey("MatchID");
 
                     b.ToTable("Matches", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Match.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("Duration");
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("EndTime");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StartTime");
+
+                    b.Property<DateTime?>("StatsPullDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StatsPullDate");
+
+                    b.HasIndex("MatchID", "PeriodEnd");
+
+                    b.ToTable("MatchesHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Matches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
@@ -274,6 +561,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoundNumber")
                         .HasColumnType("integer");
 
@@ -295,6 +592,80 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                             t.HasCheckConstraint("CK_Event_MatchBracketInfo_RequireHomeSeedOrPreviousMatch", "(\"HomeTeamSeedNumber\" IS NOT NULL AND \"HomeTeamPreviousMatchBracketInfoID\" IS NULL) OR (\"HomeTeamPreviousMatchBracketInfoID\" IS NOT NULL AND \"HomeTeamSeedNumber\" IS NULL)");
                         });
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo.History", b =>
+                {
+                    b.Property<int?>("AwayTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamPreviousMatchBracketInfoID");
+
+                    b.Property<int?>("AwayTeamSeedNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamSeedNumber");
+
+                    b.Property<int?>("Bracket")
+                        .HasColumnType("integer")
+                        .HasColumnName("Bracket");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamPreviousMatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamPreviousMatchBracketInfoID");
+
+                    b.Property<int?>("HomeTeamSeedNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamSeedNumber");
+
+                    b.Property<int?>("MatchBracketInfoID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchBracketInfoID");
+
+                    b.Property<int?>("MatchNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchNumber");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("RoundNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundNumber");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.HasIndex("AwayTeamPreviousMatchBracketInfoID", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamPreviousMatchBracketInfoID", "PeriodEnd");
+
+                    b.HasIndex("MatchBracketInfoID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
+
+                    b.ToTable("MatchBracketInfoHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchBracketInfo");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchLink", b =>
@@ -323,6 +694,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("SeasonMatchID")
                         .HasColumnType("integer");
 
@@ -335,6 +716,58 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique();
 
                     b.ToTable("MatchLinks", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchLink.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<int?>("MatchLinkID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchLinkID");
+
+                    b.Property<int?>("MatchNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchNumber");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.HasIndex("MatchID", "PeriodEnd");
+
+                    b.HasIndex("MatchLinkID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
+
+                    b.ToTable("MatchLinksHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchLinks");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant", b =>
@@ -408,6 +841,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("ObjectivesCompleted")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
 
@@ -460,6 +903,178 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("MatchID", "TeamID");
 
                     b.ToTable("MatchParticipants", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchParticipant.History", b =>
+                {
+                    b.Property<float?>("Accuracy")
+                        .HasColumnType("real")
+                        .HasColumnName("Accuracy");
+
+                    b.Property<int?>("Assists")
+                        .HasColumnType("integer")
+                        .HasColumnName("Assists");
+
+                    b.Property<TimeSpan?>("AverageLife")
+                        .HasColumnType("interval")
+                        .HasColumnName("AverageLife");
+
+                    b.Property<int?>("Betrayals")
+                        .HasColumnType("integer")
+                        .HasColumnName("Betrayals");
+
+                    b.Property<int?>("CalloutAssists")
+                        .HasColumnType("integer")
+                        .HasColumnName("CalloutAssists");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DamageDealt")
+                        .HasColumnType("integer")
+                        .HasColumnName("DamageDealt");
+
+                    b.Property<int?>("DamageTaken")
+                        .HasColumnType("integer")
+                        .HasColumnName("DamageTaken");
+
+                    b.Property<int?>("Deaths")
+                        .HasColumnType("integer")
+                        .HasColumnName("Deaths");
+
+                    b.Property<DateTime?>("FirstJoinedTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("FirstJoinedTime");
+
+                    b.Property<bool?>("JoinedInProgress")
+                        .HasColumnType("boolean")
+                        .HasColumnName("JoinedInProgress");
+
+                    b.Property<float?>("Kda")
+                        .HasColumnType("real")
+                        .HasColumnName("Kda");
+
+                    b.Property<int?>("Kills")
+                        .HasColumnType("integer")
+                        .HasColumnName("Kills");
+
+                    b.Property<DateTime?>("LastLeaveTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LastLeaveTime");
+
+                    b.Property<bool?>("LeftInProgress")
+                        .HasColumnType("boolean")
+                        .HasColumnName("LeftInProgress");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<int?>("MaxKillingSpree")
+                        .HasColumnType("integer")
+                        .HasColumnName("MaxKillingSpree");
+
+                    b.Property<int?>("MeleeKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("MeleeKills");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("ObjectivesCompleted")
+                        .HasColumnType("integer")
+                        .HasColumnName("ObjectivesCompleted");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("PersonalScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("PowerWeaponKills")
+                        .HasColumnType("integer")
+                        .HasColumnName("PowerWeaponKills");
+
+                    b.Property<bool?>("PresentAtBeginning")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PresentAtBeginning");
+
+                    b.Property<bool?>("PresentAtCompletion")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PresentAtCompletion");
+
+                    b.Property<int?>("Rank")
+                        .HasColumnType("integer")
+                        .HasColumnName("Rank");
+
+                    b.Property<int?>("RoundsLost")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsLost");
+
+                    b.Property<int?>("RoundsTied")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsTied");
+
+                    b.Property<int?>("RoundsWon")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoundsWon");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("Score");
+
+                    b.Property<int?>("ShotsFired")
+                        .HasColumnType("integer")
+                        .HasColumnName("ShotsFired");
+
+                    b.Property<int?>("ShotsHit")
+                        .HasColumnType("integer")
+                        .HasColumnName("ShotsHit");
+
+                    b.Property<int?>("Spawns")
+                        .HasColumnType("integer")
+                        .HasColumnName("Spawns");
+
+                    b.Property<int?>("Suicides")
+                        .HasColumnType("integer")
+                        .HasColumnName("Suicides");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<TimeSpan?>("TimePlayed")
+                        .HasColumnType("interval")
+                        .HasColumnName("TimePlayed");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasIndex("XboxUserID", "PeriodEnd");
+
+                    b.HasIndex("MatchID", "TeamID", "PeriodEnd");
+
+                    b.HasIndex("MatchID", "XboxUserID", "PeriodEnd");
+
+                    b.ToTable("MatchParticipantsHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchParticipants");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchReschedule", b =>
@@ -560,12 +1175,70 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int>("Outcome")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("Score")
                         .HasColumnType("integer");
 
                     b.HasKey("MatchID", "TeamID");
 
                     b.ToTable("MatchTeams", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchTeam.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<int?>("Outcome")
+                        .HasColumnType("integer")
+                        .HasColumnName("Outcome");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("Score");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.HasIndex("MatchID", "TeamID", "PeriodEnd");
+
+                    b.ToTable("MatchTeamsHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchTeams");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedKickVote", b =>
@@ -591,6 +1264,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MatchId", "VoterMatchedPlayerId");
 
                     b.HasIndex("KickMatchedPlayerId");
@@ -598,6 +1281,54 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("VoterMatchedPlayerId");
 
                     b.ToTable("MatchedKickVotes", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedKickVote.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("KickMatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("KickMatchedPlayerId");
+
+                    b.Property<int?>("MatchId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("VoterMatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("VoterMatchedPlayerId");
+
+                    b.HasIndex("KickMatchedPlayerId", "PeriodEnd");
+
+                    b.HasIndex("VoterMatchedPlayerId", "PeriodEnd");
+
+                    b.HasIndex("MatchId", "VoterMatchedPlayerId", "PeriodEnd");
+
+                    b.ToTable("MatchedKickVotesHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchedKickVotes");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch", b =>
@@ -632,6 +1363,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -653,6 +1394,76 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique();
 
                     b.ToTable("MatchedMatches", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedMatch.History", b =>
+                {
+                    b.Property<bool?>("Active")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Active");
+
+                    b.Property<int?>("AwayTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamId");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamId");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("StartedAt");
+
+                    b.Property<decimal?>("ThreadID")
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("ThreadID");
+
+                    b.Property<decimal?>("VoteMessageID")
+                        .HasColumnType("numeric(20,0)")
+                        .HasColumnName("VoteMessageID");
+
+                    b.HasIndex("AwayTeamId", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamId", "PeriodEnd");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("MatchID", "PeriodEnd");
+
+                    b.ToTable("MatchedMatchesHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchedMatches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer", b =>
@@ -681,6 +1492,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserID")
                         .HasColumnType("integer");
 
@@ -691,6 +1512,58 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserID");
 
                     b.ToTable("MatchedPlayers", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedPlayer.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("Kicked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Kicked");
+
+                    b.Property<int?>("MatchedTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedTeamID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("MatchedTeamID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("MatchedPlayersHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchedPlayers");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam", b =>
@@ -713,9 +1586,55 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MatchedTeamId");
 
                     b.ToTable("MatchedTeams", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedTeam.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("MatchedTeamId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedTeamId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("MatchedTeamId", "PeriodEnd");
+
+                    b.ToTable("MatchedTeamsHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchedTeams");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedWinnerVote", b =>
@@ -738,6 +1657,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("WinnerVote")
                         .HasColumnType("integer");
 
@@ -746,6 +1675,52 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("MatchedPlayerId");
 
                     b.ToTable("MatchedWinnerVotes", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MatchedWinnerVote.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("MatchId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchId");
+
+                    b.Property<int?>("MatchedPlayerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("MatchedPlayerId");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("WinnerVote")
+                        .HasColumnType("integer")
+                        .HasColumnName("WinnerVote");
+
+                    b.HasIndex("MatchedPlayerId", "PeriodEnd");
+
+                    b.HasIndex("MatchId", "MatchedPlayerId", "PeriodEnd");
+
+                    b.ToTable("MatchedWinnerVotesHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MatchedWinnerVotes");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Medal", b =>
@@ -779,6 +1754,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("PersonalScore")
                         .HasColumnType("integer");
 
@@ -795,6 +1780,76 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("MedalTypeID");
 
                     b.ToTable("Medals", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Medal.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("MedalDifficultyID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalDifficultyID");
+
+                    b.Property<long?>("MedalID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MedalID");
+
+                    b.Property<string>("MedalName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("MedalTypeID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalTypeID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("PersonalScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("PersonalScore");
+
+                    b.Property<int?>("SortingWeight")
+                        .HasColumnType("integer")
+                        .HasColumnName("SortingWeight");
+
+                    b.Property<int?>("SpriteIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("SpriteIndex");
+
+                    b.HasIndex("MedalDifficultyID", "PeriodEnd");
+
+                    b.HasIndex("MedalID", "PeriodEnd");
+
+                    b.HasIndex("MedalTypeID", "PeriodEnd");
+
+                    b.ToTable("MedalsHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Medals");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalDifficulty", b =>
@@ -818,9 +1873,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MedalDifficultyID");
 
                     b.ToTable("MedalDifficulties", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MedalDifficulty.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("MedalDifficultyID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalDifficultyID");
+
+                    b.Property<string>("MedalDifficultyName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalDifficultyName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("MedalDifficultyID", "PeriodEnd");
+
+                    b.ToTable("MedalDifficultiesHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MedalDifficulties");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalEarned", b =>
@@ -849,6 +1955,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("TotalPersonalScoreAwarded")
                         .HasColumnType("integer");
 
@@ -857,6 +1973,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("MatchID", "XboxUserID");
 
                     b.ToTable("MedalEarned", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MedalEarned.History", b =>
+                {
+                    b.Property<int?>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("Count");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<Guid?>("MatchID")
+                        .HasColumnType("uuid")
+                        .HasColumnName("MatchID");
+
+                    b.Property<long?>("MedalID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MedalID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("TotalPersonalScoreAwarded")
+                        .HasColumnType("integer")
+                        .HasColumnName("TotalPersonalScoreAwarded");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasIndex("MatchID", "XboxUserID", "PeriodEnd");
+
+                    b.HasIndex("MedalID", "MatchID", "XboxUserID", "PeriodEnd");
+
+                    b.ToTable("MedalEarnedHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MedalEarned");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MedalType", b =>
@@ -880,9 +2050,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("MedalTypeID");
 
                     b.ToTable("MedalTypes", "Infinite");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.MedalType.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("MedalTypeID")
+                        .HasColumnType("integer")
+                        .HasColumnName("MedalTypeID");
+
+                    b.Property<string>("MedalTypeName")
+                        .HasColumnType("text")
+                        .HasColumnName("MedalTypeName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("MedalTypeID", "PeriodEnd");
+
+                    b.ToTable("MedalTypesHistory", "Infinite");
+
+                    b.HasAnnotation("Grif:HistoryOf", "MedalTypes");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.PasswordResetLink", b =>
@@ -913,6 +2134,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -932,6 +2163,62 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("PasswordResetLinks", "Auth");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.PasswordResetLink.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ExpiresAt");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("IsUsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsUsed");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("Token")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("Token")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("UserId", "PeriodEnd");
+
+                    b.ToTable("PasswordResetLinksHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "PasswordResetLinks");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.QueuedPlayer", b =>
@@ -954,9 +2241,59 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserID");
 
                     b.ToTable("QueuedPlayers", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.QueuedPlayer.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("JoinedAt");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("QueuedPlayersHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "QueuedPlayers");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Rank", b =>
@@ -1001,9 +2338,78 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("Id");
 
                     b.ToTable("Ranks", "Matchmaking");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Rank.History", b =>
+                {
+                    b.Property<string>("Color")
+                        .HasColumnType("text")
+                        .HasColumnName("Color")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("Description")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<byte[]>("Icon")
+                        .HasColumnType("bytea")
+                        .HasColumnName("Icon");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<int?>("MmrThreshold")
+                        .HasColumnType("integer")
+                        .HasColumnName("MmrThreshold");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.ToTable("RanksHistory", "Matchmaking");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Ranks");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Region", b =>
@@ -1025,6 +2431,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<string>("RegionName")
                         .IsRequired()
@@ -1084,6 +2500,48 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Region.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("RegionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("RegionID");
+
+                    b.Property<string>("RegionName")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("RegionName")
+                        .UseCollation("case_insensitive");
+
+                    b.HasIndex("RegionID", "PeriodEnd");
+
+                    b.ToTable("RegionsHistory", "Other");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Regions");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Role", b =>
                 {
                     b.Property<int>("Id")
@@ -1118,6 +2576,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.HasKey("Id");
 
@@ -1157,6 +2625,59 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Role.History", b =>
+                {
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("ConcurrencyStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.ToTable("RolesHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Roles");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Season", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -1182,6 +2703,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<DateTime>("PublicAt")
                         .HasColumnType("timestamp with time zone");
@@ -1212,6 +2743,76 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("Seasons", "Event");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Season.History", b =>
+                {
+                    b.Property<bool?>("CaptainsLocked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("CaptainsLocked");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("DraftStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("DraftStart");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("PublicAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PublicAt");
+
+                    b.Property<DateTime?>("SeasonEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SeasonEnd");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<string>("SeasonName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("SeasonName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("SeasonStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SeasonStart");
+
+                    b.Property<DateTime?>("SignupsClose")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SignupsClose");
+
+                    b.Property<DateTime?>("SignupsOpen")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("SignupsOpen");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.ToTable("SeasonsHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Seasons");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability", b =>
                 {
                     b.Property<int>("SeasonID")
@@ -1232,11 +2833,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("SeasonID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
 
                     b.ToTable("SeasonAvailability", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonAvailability.History", b =>
+                {
+                    b.Property<int?>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "AvailabilityOptionID", "PeriodEnd");
+
+                    b.ToTable("SeasonAvailabilityHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SeasonAvailability");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch", b =>
@@ -1283,6 +2936,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<DateTime?>("ScheduledTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -1304,6 +2967,90 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         {
                             t.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "(\"HomeTeamID\" IS NULL) OR (\"AwayTeamID\" IS NULL) OR (\"HomeTeamID\" != \"AwayTeamID\")");
                         });
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonMatch.History", b =>
+                {
+                    b.Property<int?>("ActiveRescheduleRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("ActiveRescheduleRequestId");
+
+                    b.Property<int?>("AwayTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamID");
+
+                    b.Property<int?>("AwayTeamResult")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamResult");
+
+                    b.Property<int?>("AwayTeamScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("AwayTeamScore");
+
+                    b.Property<int?>("BestOf")
+                        .HasColumnType("integer")
+                        .HasColumnName("BestOf");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("HomeTeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamID");
+
+                    b.Property<int?>("HomeTeamResult")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamResult");
+
+                    b.Property<int?>("HomeTeamScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("HomeTeamScore");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<DateTime?>("ScheduledTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ScheduledTime");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int?>("SeasonMatchID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonMatchID");
+
+                    b.HasIndex("ActiveRescheduleRequestId", "PeriodEnd");
+
+                    b.HasIndex("AwayTeamID", "PeriodEnd");
+
+                    b.HasIndex("HomeTeamID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("SeasonMatchID", "PeriodEnd");
+
+                    b.ToTable("SeasonMatchesHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SeasonMatches");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup", b =>
@@ -1328,6 +3075,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
 
                     b.Property<bool>("RequiresAssistanceDrafting")
                         .HasColumnType("boolean");
@@ -1358,6 +3115,75 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("SeasonSignups", "Event");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SeasonSignup.History", b =>
+                {
+                    b.Property<bool?>("Approved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("Approved");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<bool?>("RequiresAssistanceDrafting")
+                        .HasColumnType("boolean")
+                        .HasColumnName("RequiresAssistanceDrafting");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int?>("SeasonSignupID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonSignupID");
+
+                    b.Property<string>("TeamName")
+                        .HasColumnType("text")
+                        .HasColumnName("TeamName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("Timestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("Timestamp");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.Property<bool?>("WillCaptain")
+                        .HasColumnType("boolean")
+                        .HasColumnName("WillCaptain");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("SeasonSignupID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("SeasonSignupsHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SeasonSignups");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability", b =>
                 {
                     b.Property<int>("SeasonSignupID")
@@ -1378,11 +3204,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("SeasonSignupID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
 
                     b.ToTable("SignupAvailability", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.SignupAvailability.History", b =>
+                {
+                    b.Property<int?>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("SeasonSignupID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonSignupID");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
+
+                    b.HasIndex("SeasonSignupID", "AvailabilityOptionID", "PeriodEnd");
+
+                    b.ToTable("SignupAvailabilityHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "SignupAvailability");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.Team", b =>
@@ -1408,6 +3286,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("SeasonID")
                         .HasColumnType("integer");
 
@@ -1427,6 +3315,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique();
 
                     b.ToTable("Teams", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.Team.History", b =>
+                {
+                    b.Property<int?>("CaptainID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CaptainID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("integer")
+                        .HasColumnName("SeasonID");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("TeamName")
+                        .UseCollation("case_insensitive");
+
+                    b.HasIndex("CaptainID", "PeriodEnd");
+
+                    b.HasIndex("SeasonID", "PeriodEnd");
+
+                    b.HasIndex("TeamID", "PeriodEnd");
+
+                    b.ToTable("TeamsHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Teams");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability", b =>
@@ -1449,11 +3391,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("TeamID", "AvailabilityOptionID");
 
                     b.HasIndex("AvailabilityOptionID");
 
                     b.ToTable("TeamAvailability", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamAvailability.History", b =>
+                {
+                    b.Property<int?>("AvailabilityOptionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("AvailabilityOptionID");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.HasIndex("AvailabilityOptionID", "PeriodEnd");
+
+                    b.HasIndex("TeamID", "AvailabilityOptionID", "PeriodEnd");
+
+                    b.ToTable("TeamAvailabilityHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "TeamAvailability");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer", b =>
@@ -1485,6 +3479,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("TeamID")
                         .HasColumnType("integer");
 
@@ -1499,6 +3503,66 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .IsUnique();
 
                     b.ToTable("TeamPlayers", "Event");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.TeamPlayer.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("DraftCaptainOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftCaptainOrder");
+
+                    b.Property<int?>("DraftPick")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftPick");
+
+                    b.Property<int?>("DraftRound")
+                        .HasColumnType("integer")
+                        .HasColumnName("DraftRound");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamID");
+
+                    b.Property<int?>("TeamPlayerID")
+                        .HasColumnType("integer")
+                        .HasColumnName("TeamPlayerID");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.HasIndex("TeamID", "PeriodEnd");
+
+                    b.HasIndex("TeamPlayerID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "PeriodEnd");
+
+                    b.ToTable("TeamPlayersHistory", "Event");
+
+                    b.HasAnnotation("Grif:HistoryOf", "TeamPlayers");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.User", b =>
@@ -1577,6 +3641,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1628,6 +3702,158 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.ToTable("Users", "Auth");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.User.History", b =>
+                {
+                    b.Property<int?>("AccessFailedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("AccessFailedCount");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("ConcurrencyStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<long?>("DiscordUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("DiscordUserID");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("DisplayName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("Email")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("EmailConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("EmailConfirmed");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<bool?>("IsDummyUser")
+                        .HasColumnType("boolean")
+                        .HasColumnName("IsDummyUser");
+
+                    b.Property<bool?>("LockoutEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("LockoutEnabled");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("LockoutEnd");
+
+                    b.Property<int?>("LossStreak")
+                        .HasColumnType("integer")
+                        .HasColumnName("LossStreak");
+
+                    b.Property<int?>("Losses")
+                        .HasColumnType("integer")
+                        .HasColumnName("Losses");
+
+                    b.Property<int?>("MMR")
+                        .HasColumnType("integer")
+                        .HasColumnName("MMR");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedEmail")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("NormalizedUserName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text")
+                        .HasColumnName("PasswordHash")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("PhoneNumber")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("PhoneNumberConfirmed");
+
+                    b.Property<int?>("RegionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("RegionID");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("SecurityStamp")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<bool?>("TwoFactorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("TwoFactorEnabled");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("UserName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("WinStreak")
+                        .HasColumnType("integer")
+                        .HasColumnName("WinStreak");
+
+                    b.Property<int?>("Wins")
+                        .HasColumnType("integer")
+                        .HasColumnName("Wins");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasIndex("DiscordUserID", "PeriodEnd");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("RegionID", "PeriodEnd");
+
+                    b.HasIndex("XboxUserID", "PeriodEnd");
+
+                    b.ToTable("UsersHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "Users");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserClaim", b =>
                 {
                     b.Property<int>("Id")
@@ -1656,6 +3882,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
@@ -1664,6 +3900,58 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserClaims", "Auth");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserClaim.History", b =>
+                {
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimType")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimValue")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("UserId", "PeriodEnd");
+
+                    b.ToTable("UserClaimsHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserClaims");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserExperience", b =>
@@ -1686,11 +3974,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserID", "GameVersionID");
 
                     b.HasIndex("GameVersionID");
 
                     b.ToTable("UserExperiences", "Other");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserExperience.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<int?>("GameVersionID")
+                        .HasColumnType("integer")
+                        .HasColumnName("GameVersionID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserID")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserID");
+
+                    b.HasIndex("GameVersionID", "PeriodEnd");
+
+                    b.HasIndex("UserID", "GameVersionID", "PeriodEnd");
+
+                    b.ToTable("UserExperiencesHistory", "Other");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserExperiences");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserLogin", b =>
@@ -1715,6 +4055,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1727,6 +4077,59 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserLogins", "Auth");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserLogin.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text")
+                        .HasColumnName("LoginProvider")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text")
+                        .HasColumnName("ProviderDisplayName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("text")
+                        .HasColumnName("ProviderKey")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.HasIndex("UserId", "PeriodEnd");
+
+                    b.HasIndex("LoginProvider", "ProviderKey", "PeriodEnd");
+
+                    b.ToTable("UserLoginsHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserLogins");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole", b =>
@@ -1749,11 +4152,63 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("UserId", "RoleId");
 
                     b.HasIndex("RoleId");
 
                     b.ToTable("UserRoles", "Auth");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.UserRole.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("RoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoleId");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.HasIndex("RoleId", "PeriodEnd");
+
+                    b.HasIndex("UserId", "RoleId", "PeriodEnd");
+
+                    b.ToTable("UserRolesHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserRoles");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
@@ -1778,9 +4233,60 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.Property<int?>("ModifiedByID")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.HasKey("XboxUserID");
 
                     b.ToTable("XboxUsers", "Xbox");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser.History", b =>
+                {
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("CreatedByID");
+
+                    b.Property<string>("Gamertag")
+                        .HasColumnType("text")
+                        .HasColumnName("Gamertag")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ModifiedAt");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("integer")
+                        .HasColumnName("ModifiedByID");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<long?>("XboxUserID")
+                        .HasColumnType("bigint")
+                        .HasColumnName("XboxUserID");
+
+                    b.HasIndex("XboxUserID", "PeriodEnd");
+
+                    b.ToTable("XboxUsersHistory", "Xbox");
+
+                    b.HasAnnotation("Grif:HistoryOf", "XboxUsers");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
@@ -1795,6 +4301,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("Xml")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1802,6 +4318,36 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DataProtectionKeys", "Auth");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey.History", b =>
+                {
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text")
+                        .HasColumnName("FriendlyName")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text")
+                        .HasColumnName("Xml")
+                        .UseCollation("case_insensitive");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.ToTable("DataProtectionKeysHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "DataProtectionKeys");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -1820,6 +4366,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<int>("RoleId")
                         .HasColumnType("integer");
 
@@ -1828,6 +4384,42 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("RoleClaims", "Auth");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>.History", b =>
+                {
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimType")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text")
+                        .HasColumnName("ClaimValue")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<int?>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("Id");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("RoleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("RoleId");
+
+                    b.HasIndex("Id", "PeriodEnd");
+
+                    b.HasIndex("RoleId", "PeriodEnd");
+
+                    b.ToTable("RoleClaimsHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "RoleClaims");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
@@ -1843,6 +4435,16 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
 
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasComputedColumnSql("'infinity'::timestamp with time zone", true);
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("transaction_timestamp()");
+
                     b.Property<string>("Value")
                         .HasColumnType("text")
                         .UseCollation("case_insensitive");
@@ -1850,6 +4452,41 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("UserTokens", "Auth");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>.History", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text")
+                        .HasColumnName("LoginProvider")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("Name")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("UserId");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text")
+                        .HasColumnName("Value")
+                        .UseCollation("case_insensitive");
+
+                    b.HasIndex("UserId", "LoginProvider", "Name", "PeriodEnd");
+
+                    b.ToTable("UserTokensHistory", "Auth");
+
+                    b.HasAnnotation("Grif:HistoryOf", "UserTokens");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.DiscordMessage", b =>

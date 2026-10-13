@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Configuration;
 
 namespace GrifballWebApp.Database;
@@ -36,7 +39,14 @@ public static class DatabaseProviderExtensions
         return provider switch
         {
             DatabaseProvider.SqlServer => options.UseSqlServer(connectionString, o => o.MigrationsAssembly(SqlServerMigrationsAssembly)),
-            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly)),
+            // EF's temporal queries (TemporalAsOf and the rest), which only SQL Server translates, on row
+            // history, their times query parameters (PostgresTemporalQueries). And the version of row
+            // history's functions, a change to the database for the migrations (PostgresHistoryFunctions).
+            DatabaseProvider.Postgres => options.UseNpgsql(connectionString, o => o.MigrationsAssembly(PostgresMigrationsAssembly))
+                .ReplaceService<IQueryCompiler, PostgresTemporalQueryCompiler>()
+                .ReplaceService<IQueryableMethodTranslatingExpressionVisitorFactory, PostgresTemporalQueryableMethodTranslatingExpressionVisitorFactory>()
+                .ReplaceService<INavigationExpansionExtensibilityHelper, PostgresTemporalNavigationExpansionExtensibilityHelper>()
+                .ReplaceService<IRelationalAnnotationProvider, PostgresHistoryAnnotationProvider>(),
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null),
         };
     }
