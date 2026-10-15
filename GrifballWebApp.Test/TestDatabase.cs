@@ -96,15 +96,29 @@ internal static class TestDatabase
     /// Makes the template once per run (SetUpFixture): a database with every migration. Migrating each
     /// test's database took most of the suite's time (1.5s of SQL Server's, 0.9s of Postgres's, at the
     /// least, for each of some 550 tests); a copy is made in a fraction of that. Postgres copies it
-    /// itself (CREATE DATABASE ... TEMPLATE), with no connection to it left open; SQL Server, which has
-    /// no templates, restores a backup of it.
+    /// itself (CREATE DATABASE ... TEMPLATE, its default WAL_LOG strategy: 69ms a copy, FILE_COPY's
+    /// 101ms), with no connection to it left open; SQL Server, which has no templates, restores a
+    /// backup of it, its files shrunk first (each restore makes files the size the backup's were:
+    /// 520ms against 590ms). SQL Server makes its databases one at a time, even an empty CREATE
+    /// DATABASE taking 620ms: that, not the copy, is the floor of its suite (2026-10-15).
     /// </summary>
     public static async Task CreateTemplate(IDatabaseContainer server)
     {
         await CreateDatabase(server, TemplateName);
         var template = ConnectionString(server, TemplateName);
         await using (var context = new GrifballContext(Options(template).Options))
+        {
             await context.Database.MigrateAsync();
+            if (Provider == DatabaseProvider.SqlServer)
+                await context.Database.ExecuteSqlRawAsync($"""
+                    ALTER DATABASE [{TemplateName}] SET RECOVERY SIMPLE;
+                    CHECKPOINT;
+                    DECLARE @log sysname = (SELECT name FROM sys.database_files WHERE type = 1);
+                    DECLARE @data sysname = (SELECT name FROM sys.database_files WHERE type = 0);
+                    DBCC SHRINKFILE (@log, 1) WITH NO_INFOMSGS;
+                    DBCC SHRINKFILE (@data, 1) WITH NO_INFOMSGS;
+                    """);
+        }
 
         if (Provider == DatabaseProvider.Postgres)
         {
