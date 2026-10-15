@@ -180,7 +180,8 @@ jobs:
   # as docker-publish.yml signs the images, and checks the signature.
   publish:
     needs: [test, e2e]
-    if: github.event_name != 'pull_request'
+    # Only from master: a run started by hand on another branch (workflow_dispatch) tests, never publishes.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read
