@@ -8,16 +8,14 @@ internal static class Utility
 {
     internal static async Task<GrifballContext> NewGrifballContext(IDatabaseContainer server, params IInterceptor[] interceptors)
     {
-        // Create a unique database name per test
+        // Each test its own database, a copy of the migrated template (TestDatabase.CreateTemplate).
         var dbName = $"TestDb_{Guid.NewGuid():N}";
-        await TestDatabase.CreateDatabase(server, dbName);
+        await TestDatabase.CreateMigratedDatabase(server, dbName);
         var options = TestDatabase.Options(TestDatabase.ConnectionString(server, dbName))
             .AddInterceptors(interceptors)
             .Options;
 
-        var context = new GrifballContext(options);
-        await context.Database.MigrateAsync();
-        return context;
+        return new GrifballContext(options);
     }
 
     internal static async Task DropDatabaseAndDispose(this GrifballContext context)

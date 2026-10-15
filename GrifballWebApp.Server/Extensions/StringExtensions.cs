@@ -8,6 +8,12 @@ namespace GrifballWebApp.Server.Extensions;
 
 public static class StringExtensions
 {
+    /// <summary>
+    /// How long a temporary response (TempResponse, ModifyTempResponse) stays before it's deleted. The
+    /// tests set it to nothing (SetUpFixture): each one that reached a temporary response waited it out.
+    /// </summary>
+    public static TimeSpan TempResponseLifetime { get; set; } = TimeSpan.FromSeconds(5);
+
     public static string RemoveXUIDWrapper(this string s)
     {
         return s.Replace("xuid(", "").Replace(")", "");
@@ -57,7 +63,7 @@ public static class StringExtensions
             Content = message,
             Flags = NetCord.MessageFlags.Ephemeral,
         }));
-        await Task.Delay(5000);
+        await Task.Delay(TempResponseLifetime);
         await context.Interaction.DeleteResponseAsync();
     }
 
@@ -65,7 +71,7 @@ public static class StringExtensions
     public static async Task ModifyTempResponse(this IInteractionContext context, string message)
     {
         await context.Interaction.ModifyResponseAsync(x => x.WithContent(message).WithFlags(NetCord.MessageFlags.Ephemeral));
-        await Task.Delay(5000);
+        await Task.Delay(TempResponseLifetime);
         await context.Interaction.DeleteResponseAsync();
     }
 
@@ -85,7 +91,7 @@ public static class StringExtensions
             Content = message,
             Flags = NetCord.MessageFlags.Ephemeral,
         }));
-        await Task.Delay(5000);
+        await Task.Delay(TempResponseLifetime);
         await context.Interaction.DeleteResponseAsync();
     }
 
@@ -93,7 +99,7 @@ public static class StringExtensions
     public static async Task ModifyTempResponse(this IDiscordInteractionContext context, string message)
     {
         await context.Interaction.ModifyResponseAsync(x => x.WithContent(message).WithFlags(NetCord.MessageFlags.Ephemeral));
-        await Task.Delay(5000);
+        await Task.Delay(TempResponseLifetime);
         await context.Interaction.DeleteResponseAsync();
     }
 }

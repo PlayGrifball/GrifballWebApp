@@ -8,6 +8,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class BracketServiceCreateBracketTests
 {
     private GrifballContext _context;

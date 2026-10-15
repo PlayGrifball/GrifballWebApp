@@ -14,6 +14,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class SeasonAndAvailabilityControllerTests
 {
     private GrifballContext _context;

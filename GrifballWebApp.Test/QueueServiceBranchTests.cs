@@ -22,6 +22,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class QueueServiceBranchTests
 {
     private const ulong QueueChannel = 111;

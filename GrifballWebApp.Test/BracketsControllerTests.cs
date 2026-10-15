@@ -8,6 +8,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class BracketsControllerTests
 {
     private ILogger<BracketsController> _logger;

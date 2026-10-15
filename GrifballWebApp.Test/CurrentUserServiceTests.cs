@@ -15,6 +15,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class CurrentUserServiceTests
 {
     private IHttpContextAccessor _accessor;

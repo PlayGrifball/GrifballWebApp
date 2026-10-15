@@ -20,6 +20,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class GetsertXboxUserServiceErrorTests
 {
     private GrifballContext _context;

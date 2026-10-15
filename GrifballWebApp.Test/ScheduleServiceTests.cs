@@ -10,6 +10,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class ScheduleServiceTests
 {
     private const int SeasonID = 4; // ScheduleService is hardcoded to season 4

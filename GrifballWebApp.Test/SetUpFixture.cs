@@ -13,7 +13,10 @@ public class SetUpFixture
     [OneTimeSetUp]
     public async Task RunBeforeAnyTests()
     {
+        // Temporary Discord responses are deleted at once, not after the app's 5 seconds.
+        GrifballWebApp.Server.Extensions.StringExtensions.TempResponseLifetime = TimeSpan.Zero;
         DatabaseContainer = await TestDatabase.StartServer();
+        await TestDatabase.CreateTemplate(DatabaseContainer);
     }
 
     [OneTimeTearDown]

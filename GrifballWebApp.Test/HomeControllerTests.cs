@@ -8,6 +8,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class HomeControllerTests
 {
     // Postgres keeps times to the microsecond, SQL Server's datetime2 to 100ns.

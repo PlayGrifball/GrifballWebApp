@@ -19,6 +19,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class RescheduleServiceWorkflowTests
 {
     private const ulong Channel = 123UL;

@@ -21,6 +21,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class BackgroundServiceTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
@@ -135,6 +136,7 @@ public class BackgroundServiceTests
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class BackgroundServiceDbTests
 {
     private GrifballContext _context;

@@ -15,6 +15,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class TemporalQueryTests
 {
     private GrifballContext _context;

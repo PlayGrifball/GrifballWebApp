@@ -21,25 +21,29 @@ namespace GrifballWebApp.Test;
 /// converts its own server's database into the other's and back (and onto its own kind).
 /// </summary>
 [TestFixture]
-[NonParallelizable]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class DatabaseConversionTests
 {
-    private IDatabaseContainer _other = null!;
+    // The other server, one for the fixture; each test its own databases on both.
+    private static IDatabaseContainer _other = null!;
     private readonly List<DatabaseEndpoint> _databases = [];
 
     [OneTimeSetUp]
-    public async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
 
     [OneTimeTearDown]
-    public async Task StopOtherServer() => await _other.DisposeAsync();
+    public static async Task StopOtherServer() => await _other.DisposeAsync();
 
     [TearDown]
     public async Task DropDatabases()
     {
-        NpgsqlConnection.ClearAllPools();
-        SqlConnection.ClearAllPools();
         foreach (var database in _databases)
         {
+            if (database.Provider == DatabaseProvider.Postgres)
+                NpgsqlConnection.ClearPool(new NpgsqlConnection(database.ConnectionString));
+            else
+                SqlConnection.ClearPool(new SqlConnection(database.ConnectionString));
             await using var context = DatabaseConverter.NewContext(database);
             await context.Database.EnsureDeletedAsync();
         }
@@ -127,6 +131,9 @@ public class DatabaseConversionTests
         var traded = new TeamPlayer { Team = team, UserID = locked.Id };
         db.TeamPlayers.AddRange(captain, traded);
         await db.SaveChangesAsync();
+        // Apart, as the seasons' versions: two saves in the same tick of SQL Server's clock give the
+        // traded player a version that ends as it starts, which temporal queries leave out.
+        await Task.Delay(30);
         team.CaptainID = captain.TeamPlayerID;
         db.TeamPlayers.Remove(traded);
         await db.SaveChangesAsync();

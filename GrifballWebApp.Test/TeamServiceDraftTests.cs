@@ -10,6 +10,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class TeamServiceDraftTests
 {
     private GrifballContext _context = null!;

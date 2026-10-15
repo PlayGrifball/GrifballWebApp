@@ -15,6 +15,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class InteractionResponseExtensionsTests
 {
     private readonly List<InteractionCallback> _callbacks = [];
@@ -61,7 +62,7 @@ public class InteractionResponseExtensionsTests
     [Test]
     public async Task TempResponse_NetCordContext_SendsThenDeletesOriginal()
     {
-        await _ctx.TempResponse("temp"); // waits 5s in app code
+        await _ctx.TempResponse("temp");
 
         Assert.That(SentMessage().Content, Is.EqualTo("temp"));
         Assert.That(_rest.Requests.Single().Method, Is.EqualTo(HttpMethod.Delete));
@@ -71,7 +72,7 @@ public class InteractionResponseExtensionsTests
     [Test]
     public async Task ModifyTempResponse_NetCordContext_PatchesThenDeletesOriginal()
     {
-        await _ctx.ModifyTempResponse("modified"); // waits 5s in app code
+        await _ctx.ModifyTempResponse("modified");
 
         Assert.That(_callbacks, Is.Empty);
         Assert.That(_rest.Requests.Select(r => r.Method), Is.EqualTo(new[] { HttpMethod.Patch, HttpMethod.Delete }));
