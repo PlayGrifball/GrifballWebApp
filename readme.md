@@ -275,7 +275,8 @@ deploy with `migrations.convert`.
   as the same instant.
 - **Before it commits**, every table is read back from the target and compared with what was read from the source
   (the row count and a hash of every row's values, to the microsecond); any difference fails the conversion. If
-  anything fails, the target database is dropped when the conversion created it.
+  anything fails, the target is put back: dropped when the conversion created it, or, if it was there already (an
+  empty database made beforehand), its migrations undone, so it has no tables again.
 
 ### Running the Application
 

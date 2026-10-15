@@ -13,7 +13,7 @@ namespace GrifballWebApp.Convert;
 ///   the app's own, Database:Provider and ConnectionStrings:GrifballWebApp, as the migration bundles
 ///   take them.
 /// Exit code 0 once the copy is committed and checked, 1 if it refused or failed (the target is then
-/// dropped if the conversion created it), 2 for missing or wrong settings.
+/// dropped if the conversion created it, or emptied again if it was there), 2 for missing or wrong settings.
 /// </summary>
 public static class ConvertCommand
 {

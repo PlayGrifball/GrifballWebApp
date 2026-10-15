@@ -418,6 +418,55 @@ public class DatabaseConversionTests
         Assert.That(await ExistsAsync(target), Is.False);
     }
 
+    /// <summary>A database with no tables, as a managed server's is often made beforehand.</summary>
+    private static async Task CreateEmpty(DatabaseEndpoint database)
+    {
+        await using var db = DatabaseConverter.NewContext(database);
+        await db.GetService<IRelationalDatabaseCreator>().CreateAsync();
+    }
+
+    private static async Task<bool> HasTablesAsync(DatabaseEndpoint database)
+    {
+        await using var db = DatabaseConverter.NewContext(database);
+        return await db.GetService<IRelationalDatabaseCreator>().HasTablesAsync();
+    }
+
+    [Test]
+    public async Task Converts_IntoAnEmptyDatabaseMadeBeforehand()
+    {
+        var source = Database(TestDatabase.Provider);
+        await Fill(source);
+        var target = Database(TestDatabase.Other);
+        await CreateEmpty(target);
+
+        await Converter().ConvertAsync(source, target);
+
+        Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
+    }
+
+    [Test]
+    public async Task LeavesAnEmptyDatabaseMadeBeforehandEmpty_WhenTheCopyFails_SoTheNextTryTakesIt()
+    {
+        var source = Database(TestDatabase.Provider);
+        await Fill(source);
+        var target = Database(TestDatabase.Other);
+        await CreateEmpty(target);
+        using var cancellation = new CancellationTokenSource();
+
+        Assert.CatchAsync<OperationCanceledException>(() => new DatabaseConverter(new CancelAfterFirstTable(cancellation)).ConvertAsync(source, target, cancellation.Token));
+
+        var exists = await ExistsAsync(target);
+        var hasTables = await HasTablesAsync(target);
+        Assert.Multiple(() =>
+        {
+            Assert.That(exists, Is.True, "a database made beforehand stays");
+            Assert.That(hasTables, Is.False, "with no tables, not the migrations' empty ones");
+        });
+
+        await Converter().ConvertAsync(source, target);
+        Assert.That(await Fingerprints(target), Is.EquivalentTo(await Fingerprints(source)));
+    }
+
     [Test]
     public async Task Command_ConvertsIntoTheAppsOwnDatabase_ByDefault()
     {

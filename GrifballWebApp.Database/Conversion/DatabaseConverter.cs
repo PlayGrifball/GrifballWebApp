@@ -3,7 +3,7 @@ using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -30,7 +30,9 @@ public sealed class ConversionException(string message) : Exception(message);
 /// tables and columns), and unless the target has no tables yet. All of the copy is one transaction on
 /// the target, checked before it commits: every table's rows, read back from the target, must be the
 /// rows read from the source (Postgres keeps microseconds, SQL Server 100ns: times are compared to the
-/// microsecond). If anything fails, the target database is dropped when the conversion created it.
+/// microsecond). If anything fails, the target is put back as it was: dropped when the conversion created
+/// it, or, when it was there already (an empty database made beforehand), its migrations undone, so it
+/// has no tables again and the next conversion takes it.
 ///
 /// The source is only read. On Postgres, and on SQL Server with snapshot isolation allowed, it's read in
 /// one snapshot; otherwise nothing should write to it while this runs (a change part way through can
@@ -59,7 +61,8 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         }
         catch (Exception e)
         {
-            logger.LogError("The conversion failed ({Message}); the target database was there before it, so it's left with the migrations' tables and no data: drop it before trying again", e.Message);
+            logger.LogError("The conversion failed ({Message}); the target database was there before it: undoing its migrations", e.Message);
+            await UndoMigrationsAsync(targetContext);
             throw;
         }
     }
@@ -106,7 +109,34 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
             await target.Database.EnsureDeletedAsync(CancellationToken.None);
             throw;
         }
+        catch
+        {
+            await UndoMigrationsAsync(target);
+            throw;
+        }
         return !exists;
+    }
+
+    /// <summary>
+    /// Back to no tables: a database that was there before the conversion, empty, gets its migrations undone
+    /// (their Down, to migration 0) rather than left with the migrations' tables and no data, which would
+    /// look like a converted database.
+    /// </summary>
+    private async Task UndoMigrationsAsync(GrifballContext target)
+    {
+        try
+        {
+            await target.GetService<IMigrator>().MigrateAsync(Migration.InitialDatabase, CancellationToken.None);
+            // EF keeps its history table, empty, after the last Down.
+            await target.Database.ExecuteSqlRawAsync(target.Database.IsNpgsql()
+                ? "DROP TABLE IF EXISTS public.\"__EFMigrationsHistory\""
+                : "DROP TABLE IF EXISTS dbo.__EFMigrationsHistory", CancellationToken.None);
+            logger.LogInformation("Undid the target's migrations: it has no tables again");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Undoing the target's migrations failed: it has tables and no data, so drop it, or empty it, before trying again");
+        }
     }
 
     private async Task<IReadOnlyList<ConvertedTable>> CopyAsync(DatabaseEndpoint source, DatabaseEndpoint target, ConversionTables tables, CancellationToken cancellationToken)
