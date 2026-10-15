@@ -484,6 +484,29 @@
             "volume": { "description": "A pod volume source, without its name.", "type": "object" }
           }
         },
+        "convert": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "provider": { "enum": ["", "SqlServer", "Postgres", "sqlserver", "postgres"] },
+                "connectionString": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "secretName": { "type": "string" },
+                    "key": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "resources": { "$ref": "#/definitions/k8sObject" }
+          }
+        },
         "databaseWaitSeconds": { "type": "integer", "minimum": 1 },
         "backoffLimit": { "type": "integer", "minimum": 0 },
         "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },

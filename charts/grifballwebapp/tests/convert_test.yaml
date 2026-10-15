@@ -1,0 +1,85 @@
+suite: convert another database on a first deploy
+templates:
+  - templates/migrations-job.yaml
+release:
+  namespace: grif-x
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: convert }, any: true }
+
+  - it: converts PostgreSQL into SQL Server after check-pending, before the backup and your own steps
+    set:
+      migrations.convert:
+        enabled: true
+        source: { provider: Postgres, connectionString: { secretName: old-db, key: connection } }
+      migrations.extraInitContainers: [{ name: notify, image: busybox }]
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: check-pending }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: convert }
+      - equal: { path: "spec.template.spec.initContainers[3].name", value: backup }
+      - equal: { path: "spec.template.spec.initContainers[4].name", value: notify }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \] && \[ ! -e /work/db-empty \]; then echo "Database \$DB_NAME exists: nothing to convert."; exit 0; fi\ndotnet /app/convert/GrifballWebApp.Convert.dll\n' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "/work/applied.txt /app/migrations.txt > /work/pending.txt\necho \"\\$Source__Provider\" > /work/converted" }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Target__Provider, value: SqlServer } }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Source__Provider, value: Postgres } }
+      - contains:
+          path: "spec.template.spec.initContainers[2].env"
+          content: { name: Source__ConnectionString, valueFrom: { secretKeyRef: { name: old-db, key: connection } } }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: ConnectionStrings__GrifballWebApp }, any: true }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: tmp, mountPath: /tmp } }
+      - equal: { path: "spec.template.spec.initContainers[2].resources.limits.memory", value: 1Gi }
+      - equal: { path: "spec.template.spec.initContainers[2].securityContext.readOnlyRootFilesystem", value: true }
+
+  - it: converts SQL Server into PostgreSQL
+    set:
+      database.provider: postgres
+      migrations.convert:
+        enabled: true
+        source: { provider: SqlServer, connectionString: { secretName: old-db, key: connection } }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: convert }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Target__Provider, value: Postgres } }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Database__Provider, value: Postgres } }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: PGHOST }, any: true }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "/app/postgres/migrations.txt > /work/pending.txt" }
+
+  - it: runs with backups off
+    set:
+      migrations.backup.enabled: false
+      migrations.convert:
+        enabled: true
+        source: { provider: Postgres, connectionString: { secretName: old-db, key: connection } }
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: convert }
+
+  - it: is not for a release that also restores
+    set:
+      migrations.restore.enabled: true
+      migrations.convert:
+        enabled: true
+        source: { provider: Postgres, connectionString: { secretName: old-db, key: connection } }
+    asserts:
+      - failedTemplate:
+          errorPattern: migrations.convert and migrations.restore can't both be on
+
+  - it: needs the source's server
+    set:
+      migrations.convert:
+        enabled: true
+        source: { connectionString: { secretName: old-db, key: connection } }
+    asserts:
+      - failedTemplate:
+          errorPattern: migrations.convert.source.provider is required
+
+  - it: needs the source's connection string
+    set:
+      migrations.convert:
+        enabled: true
+        source: { provider: SqlServer, connectionString: { secretName: old-db } }
+    asserts:
+      - failedTemplate:
+          errorPattern: migrations.convert.source.connectionString.secretName and key are required

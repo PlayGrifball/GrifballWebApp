@@ -77,5 +77,5 @@ tests:
     set:
       migrations.backup.retention.enabled: true
     asserts:
-      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'until nc -w 2 "\$DB_HOST" "\$DB_PORT"(.|\n)*sqlcmd -S' }
+      - matchRegex: { path: "spec.jobTemplate.spec.template.spec.containers[0].args[0]", pattern: 'until timeout 3 nc -w 2 "\$DB_HOST" "\$DB_PORT"(.|\n)*sqlcmd -S' }
       - contains: { path: "spec.jobTemplate.spec.template.spec.containers[0].env", content: { name: WAIT_SECONDS, value: "300" } }

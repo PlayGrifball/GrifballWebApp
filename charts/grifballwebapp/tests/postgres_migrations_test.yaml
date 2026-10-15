@@ -14,7 +14,7 @@ tests:
     asserts:
       - lengthEqual: { path: spec.template.spec.initContainers, count: 3 }
       - equal: { path: "spec.template.spec.initContainers[2].name", value: backup }
-      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "until nc -w 2(.|\n)*psql -X -A -t -q -d postgres -c 'SELECT 1'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[0].args[0]", pattern: "until timeout 3 nc -w 2(.|\n)*psql -X -A -t -q -d postgres -c 'SELECT 1'" }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "SELECT NOT EXISTS \\(SELECT FROM pg_database WHERE datname = :'db'\\) AS missing \\\\gset" }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "to_regclass\\('public.\"__EFMigrationsHistory\"'\\)" }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "/work/applied.txt /app/postgres/migrations.txt > /work/pending.txt" }
@@ -42,7 +42,7 @@ tests:
   - it: backs up with pg_dump to the backup volume, verified, the pod's fsGroup making it writable
     template: templates/migrations-job.yaml
     asserts:
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \]; then echo "No database to back up."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \] \|\| \[ -e /work/db-empty \]; then echo "No database to back up."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'file="\$BACKUP_DIR/\$\{DB_NAME\}_\$\(date \+%Y%m%d_%H%M%S\)\.dump"' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_dump -Fc -d "\$DB_NAME" -f "\$file.partial"\n  pg_restore --list "\$file.partial" > /dev/null\n  mv "\$file.partial" "\$file"' }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /backup/grif-x } }

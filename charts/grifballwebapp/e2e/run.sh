@@ -25,8 +25,14 @@
 #      deleted, anything else in the folder left alone. Both CronJobs are installed suspended, so their
 #      own schedule (03:00 and 03:30 UTC) can't run beside the test's (two failures, 2026-10-12);
 #   7. restore (migrations.restore): a marked database backed up, then a first deploy restores it -
-#      SQL Server: the same release with its database dropped, from its own backup folder;
-#      PostgreSQL: a second release in another namespace, from a volume holding the first's dump.
+#      SQL Server: the same release with its database dropped (external: and made again, empty, as a
+#      managed server's often is), from its own backup folder;
+#      PostgreSQL: a second release in another namespace, from a volume holding the first's dump;
+#      then again into an empty database made beforehand;
+#   8. convert (migrations.convert): a release in another namespace copies the first release's
+#      database on its first deploy - bundled into PostgreSQL, postgres into SQL Server, external into
+#      another database on the external server made beforehand with no tables; a changed row and its
+#      history come across, and its backend starts.
 # minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class and images aside:
 # the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
@@ -576,6 +582,19 @@ EOF
   wait_for 300 backend_waited || fail "the backend didn't see the restored database up to date"
   echo "The second release restored ${marked##*/} (not the newer junk or the hand-named file), marker"
   echo "included, with all $count migrations; its backend then started."
+
+  step "Restore into a database made beforehand with no tables: the dump goes into it, in one transaction"
+  pg postgres 'DROP DATABASE "GrifballWebApp" WITH (FORCE)'
+  pg postgres 'CREATE DATABASE "GrifballWebApp"'
+  helm upgrade grif "$chart" -n "$restore_ns" "${images[@]}" --reuse-values
+  job=$(wait_job "$job")
+  job_logs "$job" > "$work/restore-empty.txt"; cat "$work/restore-empty.txt"
+  expect "Database GrifballWebApp exists with no tables: a new database all the same." "$work/restore-empty.txt"
+  expect "Into the existing, empty GrifballWebApp, in one transaction." "$work/restore-empty.txt"
+  expect "No database to back up." "$work/restore-empty.txt"
+  [ "$(pg GrifballWebApp 'SELECT v FROM public.e2e_marker')" = restored ] || fail "the marker didn't come back into the empty database"
+  [ "$(migration_count)" = "$count" ] || fail "the database restored into doesn't have all $count migrations"
+  echo "The empty database made beforehand took the dump, marker included, with all $count migrations."
   ns=$first_ns
 else
   step "Scheduled backup: a verified copy-only backup, named like the Job's, in SQL Server's history"
@@ -616,11 +635,15 @@ else
   # A hand-named file that sorts above it.
   kubectl -n "$sql_ns" exec "deploy/$sql_deploy" -- sh -c "cp '$marked' $dir/GrifballWebApp_zz_manual.bak"
   sql "ALTER DATABASE GrifballWebApp SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE GrifballWebApp;"
+  # The external server's database made again beforehand, empty, as a managed server's often is: a
+  # first deploy all the same.
+  if [ "$scenario" = external ]; then sql "CREATE DATABASE GrifballWebApp;"; fi
   # The backup folder is the restore folder: on SQL Server's side already.
   helm upgrade grif "$chart" -n "$ns" -f "$work/values.yaml" "${images[@]}" \
     --set migrations.restore.enabled=true --set "migrations.restore.directory=$dir"
   job=$(wait_job "$job")
   job_logs "$job" > "$work/restore.txt"; cat "$work/restore.txt"
+  if [ "$scenario" = external ]; then expect "Database GrifballWebApp exists with no tables: a new database all the same." "$work/restore.txt"; fi
   grep "^Restoring " "$work/restore.txt" | grep -qF "${marked##*/}" || fail "didn't restore ${marked##*/}"
   expect "No database to back up." "$work/restore.txt"
   [ "$(sql "SELECT V FROM GrifballWebApp.dbo.E2eMarker" | tr -d '\r' | tail -1)" = restored ] || fail "the marker didn't come back"
@@ -629,6 +652,116 @@ else
     || fail "grif_app can't read the restored database"
   echo "Restored ${marked##*/} (not the hand-named file), marker included, with all $count migrations;"
   echo "grif_app reads it."
+fi
+
+if [ "$scenario" != minimal ]; then
+  # The first release's database, where the converted one goes, and what it's checked with:
+  #   bundled:  the chart's SQL Server into a release on the chart's PostgreSQL;
+  #   postgres: the chart's PostgreSQL into a release on the chart's SQL Server;
+  #   external: the external SQL Server into another database on it, made beforehand with no tables
+  #             (as a managed server's often is), for a release with database.host.
+  case "$scenario" in
+    bundled)
+      from=SqlServer to=postgres from_pod=grif-mssql from_port=1433 target_db=GrifballWebApp
+      source_cs="Server=sqlserver.$ns.svc.cluster.local,1433;Database=GrifballWebApp;User Id=sa;Password=$password;Encrypt=True;TrustServerCertificate=True" ;;
+    postgres)
+      from=Postgres to=sqlserver from_pod=grif-postgres from_port=5432 target_db=GrifballWebApp
+      source_cs="Host=postgres.$ns.svc.cluster.local;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$password;SSL Mode=Prefer;GSS Encryption Mode=Disable" ;;
+    external)
+      from=SqlServer to=sqlserver target_db=GrifballWebAppConverted
+      source_cs="Server=mssql.$ext_ns.svc.cluster.local,1433;Database=GrifballWebApp;User Id=sa;Password=$password;Encrypt=True;TrustServerCertificate=True" ;;
+  esac
+  step "Convert: a release on $to ($scenario), on its first deploy, copies the first's database"
+  # The marker table isn't the app's: the conversion copies only the app's tables, and refuses a
+  # source with others. A seeded row changed instead, which gives it history too.
+  if [ "$scenario" = postgres ]; then
+    pg GrifballWebApp "DROP TABLE IF EXISTS public.e2e_marker; UPDATE \"Other\".\"Regions\" SET \"RegionName\" = 'Converted É' WHERE \"RegionID\" = (SELECT min(\"RegionID\") FROM \"Other\".\"Regions\")"
+    history=$(pg GrifballWebApp 'SELECT count(*) FROM "Other"."RegionsHistory"')
+  else
+    sql "DROP TABLE IF EXISTS GrifballWebApp.dbo.E2eMarker; UPDATE GrifballWebApp.Other.Regions SET RegionName = N'Converted É' WHERE RegionID = (SELECT MIN(RegionID) FROM GrifballWebApp.Other.Regions);"
+    history=$(sql "SELECT COUNT(*) FROM GrifballWebApp.Other.RegionsHistory" | tr -d '\r' | tail -1)
+  fi
+  [ "$history" -ge 1 ] || fail "the changed region left no history in the source"
+  convert_ns=grif-e2e-convert
+  kubectl create namespace "$convert_ns"
+  kubectl -n "$convert_ns" create secret generic grif-secrets \
+    --from-literal=SA_PASSWORD="$password" --from-literal=POSTGRES_PASSWORD="$password" \
+    --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e --from-literal=DiscordToken=e2e \
+    --from-literal=SOURCE_DATABASE="$source_cs"
+  if [ "$scenario" = external ]; then
+    sql "CREATE DATABASE $target_db;"
+    # The external server has no policies; the release reaches it as database.host.
+    target_values="mssql: { enabled: false }
+database: { host: mssql.$ext_ns.svc.cluster.local, port: 1433, user: sa, name: $target_db, password: { secretName: grif-secrets, key: SA_PASSWORD } }
+migrations:
+  backup: { directory: /var/opt/mssql/backup/$convert_ns }"
+  else
+    # The first release's server admits the new release's migration Job (policies add up).
+    kubectl -n "$ns" apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: e2e-convert-source }
+spec:
+  podSelector: { matchLabels: { app: $from_pod } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: $convert_ns } }
+          podSelector: { matchLabels: { app: grif-migrate } }
+      ports: [{ protocol: TCP, port: $from_port }]
+EOF
+    target_values="database: { provider: $to }
+mssql:
+  acceptEula: true
+  resources: { requests: { memory: 1Gi, cpu: 100m }, limits: { memory: 2Gi } }
+  persistence: { size: 2Gi }
+  backup: { size: 1Gi }
+postgres: { persistence: { size: 1Gi } }
+migrations:
+  backup: { volume: { size: 1Gi } }
+networkPolicy:
+  migrations:
+    extraEgress:
+      - to:
+          - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: $ns } }
+            podSelector: { matchLabels: { app: $from_pod } }
+        ports: [{ protocol: TCP, port: $from_port }]"
+  fi
+  printf '%s\n' "$target_values" > "$work/convert-values.yaml"
+  helm install grif "$chart" -n "$convert_ns" "${images[@]}" -f "$work/convert-values.yaml" -f - <<EOF
+backend:
+  config: { BaseUrl: "https://grifball.example", Discord: { DraftChannel: "1" } }
+  secretConfig: { "Discord:ClientId": DiscordClientId, "Discord:ClientSecret": DiscordClientSecret, "Discord:Token": DiscordToken }
+migrations:
+  convert:
+    enabled: true
+    source: { provider: $from, connectionString: { secretName: grif-secrets, key: SOURCE_DATABASE } }
+EOF
+  first_ns=$ns ns=$convert_ns
+  job=$(wait_job)
+  job_logs "$job" > "$work/convert.txt"; cat "$work/convert.txt"
+  if [ "$scenario" = external ]; then expect "Database $target_db exists with no tables: a new database all the same." "$work/convert.txt"; fi
+  expect "Converting a $from database into a new" "$work/convert.txt"
+  expect "and checked them" "$work/convert.txt"
+  expect "Converted. Up to date." "$work/convert.txt"
+  expect "No database to back up." "$work/convert.txt"
+  expect "Nothing to migrate." "$work/convert.txt"
+  case "$scenario" in
+    bundled)
+      region=$(pg "$target_db" "SELECT \"RegionName\" FROM \"Other\".\"Regions\" WHERE \"RegionName\" = 'converted é'")
+      converted_history=$(pg "$target_db" 'SELECT count(*) FROM "Other"."RegionsHistory"') ;;
+    *)
+      # The converted database's SQL Server: the release's own, or the external one.
+      if [ "$scenario" = postgres ]; then sql_ns=$convert_ns sql_deploy=grif-mssql pw_var=SA_PASSWORD; fi
+      region=$(sql "SELECT RegionName FROM $target_db.Other.Regions WHERE RegionName = N'converted é'" | tr -d '\r' | tail -1)
+      converted_history=$(sql "SELECT COUNT(*) FROM $target_db.Other.RegionsHistory" | tr -d '\r' | tail -1) ;;
+  esac
+  [ "$region" = "Converted É" ] || fail "the changed region didn't come across (got '$region')"
+  [ "$converted_history" = "$history" ] || fail "the converted database has $converted_history region history rows, the source $history"
+  wait_for 300 backend_waited || fail "the backend didn't see the converted database up to date"
+  echo "The $to release converted the $from database on its first deploy, into $target_db: the changed"
+  echo "region, found case-insensitively, and its $history history row(s); its backend then started."
+  ns=$first_ns
 fi
 
 step "PASS ($scenario)"

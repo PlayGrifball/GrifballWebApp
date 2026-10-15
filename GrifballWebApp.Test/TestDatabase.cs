@@ -22,9 +22,12 @@ internal static class TestDatabase
             : Enum.Parse<DatabaseProvider>(value, ignoreCase: true);
     }
 
-    public static async Task<IDatabaseContainer> StartServer()
+    /// <summary>The other server, for what runs on both at once (the conversion between them).</summary>
+    public static DatabaseProvider Other => Provider == DatabaseProvider.Postgres ? DatabaseProvider.SqlServer : DatabaseProvider.Postgres;
+
+    public static async Task<IDatabaseContainer> StartServer(DatabaseProvider? provider = null)
     {
-        IDatabaseContainer server = Provider switch
+        IDatabaseContainer server = (provider ?? Provider) switch
         {
             DatabaseProvider.Postgres => new PostgreSqlBuilder()
                 .WithImage("postgres:18-alpine")
@@ -41,9 +44,9 @@ internal static class TestDatabase
     }
 
     /// <summary>The server's connection string on <paramref name="database"/>.</summary>
-    public static string ConnectionString(IDatabaseContainer server, string database)
+    public static string ConnectionString(IDatabaseContainer server, string database, DatabaseProvider? provider = null)
     {
-        return Provider switch
+        return (provider ?? Provider) switch
         {
             DatabaseProvider.Postgres => new NpgsqlConnectionStringBuilder(server.GetConnectionString()) { Database = database }.ConnectionString,
             _ => new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(server.GetConnectionString()) { InitialCatalog = database }.ConnectionString,

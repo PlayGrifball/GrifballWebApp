@@ -584,7 +584,7 @@ sqlExporter:
 #   1. waits for the database;
 #   2. compares the image's migrations (/app/migrations.txt) with the database's;
 #   3. on a first deploy (no database yet), restores the newest backup from a folder (restore, off by
-#      default);
+#      default), or copies another database into it, either server (convert, off by default);
 #   4. if the database exists and lacks some, backs it up (backup);
 #   5. your own steps (extraInitContainers);
 #   6. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
@@ -654,8 +654,10 @@ migrations:
       schedule: "0 3 * * *"
       # Paused, as for retention above.
       suspend: false
-  # On a release's first deploy - its database doesn't exist yet - restore the newest backup from a
-  # folder (another environment's, say), then migrate applies whatever the image has that it lacks.
+  # On a release's first deploy - its database doesn't exist yet, or exists with no tables (made
+  # beforehand, as a managed server's often is) - restore the newest backup from a folder (another
+  # environment's, say), then migrate applies whatever the image has that it lacks. SQL Server restores
+  # over the empty database (REPLACE); PostgreSQL restores into it in one transaction.
   # Later deploys find the database and keep its data. Only the chart's own backup names count,
   # <database>_YYYYMMDD_HHMMSS.bak (SQL Server) or .dump (PostgreSQL), newest by name; anything else in
   # the folder is ignored, and finding none fails the Job. The restored database isn't backed up.
@@ -670,17 +672,49 @@ migrations:
     #   nfs: { server: nas.example, path: /backups/grif-test, readOnly: true }
     #   persistentVolumeClaim: { claimName: grif-test-backups, readOnly: true }
     volume: {}
+  # On a release's first deploy - its database doesn't exist yet, or exists with no tables - copy
+  # another GrifballWebApp database into it, SQL Server or PostgreSQL either way round: how an
+  # environment moves from one server to the other. The image's converter (/app/convert) creates the
+  # database (or takes the empty one) with the image's migrations, copies every table's rows into it
+  # in one transaction, row history included (each version's times; SQL Server's temporal tables,
+  # PostgreSQL's history tables), checks every table against the source before it commits, and if
+  # anything fails, drops the database again (or, if it was there already, undoes its migrations,
+  # leaving it with no tables). The source is only read, and must have exactly the image's
+  # migrations: deploy this image to it first. On PostgreSQL it's read in one snapshot; on SQL Server
+  # too if it allows snapshot isolation, otherwise keep it from being written to while this runs.
+  # Later deploys find the database and keep its data.
+  # Not with restore. The converted database isn't backed up; the source is still there.
+  # The Job reaches the source on the network: add it to networkPolicy.migrations.extraEgress.
+  convert:
+    enabled: false
+    # The database to copy.
+    source:
+      # SqlServer or Postgres.
+      provider: ""
+      # Its connection string (ADO.NET, as ConnectionStrings:GrifballWebApp takes it), from a Secret,
+      # as a login that can read every table (its administrator, say).
+      connectionString:
+        secretName: ""
+        key: ""
+    # The convert step: it holds a table's rows in memory while it copies them.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
   # How long the Job waits for the database to accept connections (seconds).
   databaseWaitSeconds: 300
   # A failed migration is usually deterministic; retries are off.
   backoffLimit: 0
   activeDeadlineSeconds: 1800
   # Replace one of the Job's step scripts (run with /bin/sh -c). Empty: the chart's. Steps share
-  # /work: check-pending writes pending.txt (one migration per line) and db-exists (restore leaves it
-  # out, and writes restored); the connection is in DB_HOST, DB_PORT, DB_NAME, DB_USER and
-  # SQLCMDPASSWORD - PostgreSQL: PGHOST, PGPORT, PGUSER and PGPASSWORD too, which psql, pg_dump and
-  # pg_restore read (migrate: ConnectionStrings__GrifballWebApp) - the backup folder in BACKUP_DIR and
-  # the restore folder in RESTORE_DIR. Every step runs in the backend image, with sqlcmd (go-sqlcmd)
+  # /work: check-pending writes pending.txt (one migration per line), db-exists if the database exists
+  # and db-empty if it has no tables (restore and convert fill those, writing restored or
+  # converted); the connection is in DB_HOST, DB_PORT, DB_NAME, DB_USER and SQLCMDPASSWORD -
+  # PostgreSQL: PGHOST, PGPORT, PGUSER and PGPASSWORD too, which psql, pg_dump and pg_restore read
+  # (migrate: ConnectionStrings__GrifballWebApp) - the backup folder in BACKUP_DIR and the restore
+  # folder in RESTORE_DIR. Every step runs in the backend image, with sqlcmd (go-sqlcmd)
   # and PostgreSQL's client tools.
   scripts:
     checkPending: ""

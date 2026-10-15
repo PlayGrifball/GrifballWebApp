@@ -1,0 +1,21 @@
+# A PostgreSQL release whose first deploy converts a SQL Server database (migrations.convert), reached
+# through the Job's extra egress. Example values only. Rendered and schema-checked by the Helm chart
+# workflow.
+database:
+  provider: postgres
+backend:
+  config:
+    BaseUrl: https://grifball.example
+migrations:
+  convert:
+    enabled: true
+    source:
+      provider: SqlServer
+      connectionString: { secretName: grif-old-database, key: connection-string }
+networkPolicy:
+  migrations:
+    extraEgress:
+      - to:
+          - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: grif-test } }
+            podSelector: { matchLabels: { app: grif-mssql } }
+        ports: [{ protocol: TCP, port: 1433 }]

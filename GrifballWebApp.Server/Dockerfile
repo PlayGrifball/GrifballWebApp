@@ -33,6 +33,14 @@ FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./GrifballWebApp.Server.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false /p:DefineConstants=DOCKER_BUILD
 
+# The converter between SQL Server and PostgreSQL (GrifballWebApp.Convert): copies a database into a
+# new one on either server, row history included. The Helm chart's migration Job runs it on a first
+# deploy (migrations.convert) as dotnet /app/convert/GrifballWebApp.Convert.dll. Its own folder: its
+# dependencies are its own publish's.
+FROM build AS convert
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -c $BUILD_CONFIGURATION -o /app/convert /p:UseAppHost=false
+
 # EF Core migrations bundles: one executable per database that applies pending migrations - SQL
 # Server's at /app/efbundle, Postgres's at /app/postgres/efbundle, each from its own migrations project.
 # Shipping them inside the backend image means the migrations a deploy runs always come from the same
@@ -99,6 +107,7 @@ COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
 COPY --from=migrations /app/postgres /app/postgres
+COPY --from=convert /app/convert /app/convert
 # The bundles are single-file apps that unpack themselves before they run, into $HOME by default,
 # which a read-only root filesystem doesn't allow. The chart's migrate container has /tmp writable.
 ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp

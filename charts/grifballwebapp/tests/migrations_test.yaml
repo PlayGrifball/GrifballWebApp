@@ -39,7 +39,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
-          pattern: 'until nc -w 2'
+          pattern: 'until timeout 3 nc -w 2'
       - matchRegex:
           path: spec.template.spec.initContainers[0].args[0]
           pattern: 'DATABASEPROPERTYEX\(N.\\\$\$\(DB_NAME\)., .Status.\)'
@@ -88,7 +88,7 @@ tests:
   - it: backs up only an existing database with pending migrations, then migrates only if something is pending
     template: templates/migrations-job.yaml
     asserts:
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \]; then echo "No database to back up."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \] \|\| \[ -e /work/db-empty \]; then echo "No database to back up."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -s /work/pending.txt \]; then echo "Nothing to migrate: no backup needed."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "BACKUP DATABASE" }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /var/opt/mssql/backup/grif-x } }

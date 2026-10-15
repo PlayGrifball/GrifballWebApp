@@ -20,7 +20,7 @@ tests:
       - equal: { path: "spec.template.spec.initContainers[3].name", value: backup }
       - equal: { path: "spec.template.spec.initContainers[4].name", value: notify }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: RESTORE_DIR, value: /var/opt/mssql/restore } }
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \]; then echo "Database \$DB_NAME exists: nothing to restore."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \] && \[ ! -e /work/db-empty \]; then echo "Database \$DB_NAME exists: nothing to restore."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "sys.dm_os_enumerate_filesystem\\(N'\\\\\\$\\$\\(RESTORE_DIR\\)'" }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "LIKE N'\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[_\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\]\\[0-9\\].bak'" }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "sqlcmd -S \"\\$DB_HOST,\\$DB_PORT\" -U \"\\$DB_USER\" -N -C -b -x -i /work/restore.sql" }
@@ -73,3 +73,24 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: migrations.restore.volume is required with PostgreSQL
+
+  - it: takes a database that exists with no tables as a new one (SQL Server)
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "EXEC\\(N'SELECT COUNT\\(\\*\\) FROM \\[\\\\\\$\\$\\(DB_NAME\\)\\]\\.sys\\.tables WHERE is_ms_shipped = 0'\\)" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "tables=\\$\\(table_count\\) \\|\\| \\{ echo \"Counting \\$DB_NAME's tables failed: \\$tables\"; exit 1; \\}" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "= 0 \\]; then\n  *touch /work/db-empty\n" }
+
+  - it: takes a database that exists with no tables as a new one (PostgreSQL)
+    set:
+      database.provider: postgres
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "psql -X -A -t -q -v ON_ERROR_STOP=1 -d \"\\$DB_NAME\" -c \"SELECT count\\(\\*\\) FROM information_schema.tables WHERE table_type = 'BASE TABLE'" }
+      - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "touch /work/db-empty" }
+
+  - it: restores PostgreSQL's dump into a database made beforehand with no tables, in one transaction
+    set:
+      database.provider: postgres
+      migrations.restore: { enabled: true, volume: { nfs: { server: nas.example, path: /pg/grif-test, readOnly: true } } }
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "if \\[ -e /work/db-empty \\]; then\n  echo \"Into the existing, empty \\$DB_NAME, in one transaction.\"\n  pg_restore --no-owner --no-privileges --exit-on-error --single-transaction -d \"\\$DB_NAME\" \"\\$file\"\nelse\n" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "SQL\nfi\napplied_migrations\\(\\) \\{" }

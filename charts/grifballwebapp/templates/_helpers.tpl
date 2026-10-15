@@ -230,12 +230,15 @@ PGHOST, PGPORT and PGUSER. Takes dict "root", "user" and "password" (a Secret re
 {{- end }}
 
 {{/*
-Waits until host:port accepts connections: network policies may admit a new pod's IP only seconds after
-it starts. Needs DB_HOST, DB_PORT, WAIT_SECONDS.
+Waits until host:port accepts connections: network policies may admit a new pod's IP only some time
+after it starts, and until then its packets are dropped, name lookups included. Each try is cut off
+after 3 seconds, lookup and all (nc -w covers only the connection): an untimed try hung for
+61-110 seconds on every Job but a release's first (k3s, 2026-10-15).
+Needs DB_HOST, DB_PORT, WAIT_SECONDS.
 */}}
 {{- define "grif.waitForDatabaseScript" -}}
 end=$(( $(date +%s) + WAIT_SECONDS ))
-until nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
+until timeout 3 nc -w 2 "$DB_HOST" "$DB_PORT" </dev/null; do
   if [ "$(date +%s)" -ge "$end" ]; then echo "$DB_HOST:$DB_PORT unreachable"; exit 1; fi
   sleep 2
 done
