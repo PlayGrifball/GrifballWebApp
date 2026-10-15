@@ -42,6 +42,14 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
+    # NuGet's packages, kept between runs: the same csproj files restore from the cache, not nuget.org.
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+        restore-keys: nuget-${{ runner.os }}-
+
     - name: Restore dependencies
       run: dotnet restore GrifballWebApp.sln
       
