@@ -12,6 +12,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class DiscordOnDeckMessagesTests
 {
     private const ulong DraftChannel = 555_000_111;

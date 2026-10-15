@@ -17,6 +17,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class PostgresHistoryTests
 {
     private GrifballContext _context;

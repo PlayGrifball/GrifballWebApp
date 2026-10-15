@@ -14,6 +14,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class TransferLegacyDiscordServiceTests
 {
     private GrifballContext _context;

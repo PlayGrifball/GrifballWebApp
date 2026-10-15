@@ -6,6 +6,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class RetryDelayCalculatorTests
 {
     private const int MaxWaitSeconds = 30;

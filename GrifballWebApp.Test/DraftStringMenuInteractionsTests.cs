@@ -19,6 +19,7 @@ namespace GrifballWebApp.Test;
 /// <summary>Tests for the draft-pick string menu (GrifballWebApp.Server.Teams.StringMenuInteractions).</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class DraftStringMenuInteractionsTests
 {
     private const ulong DiscordId = 4242;

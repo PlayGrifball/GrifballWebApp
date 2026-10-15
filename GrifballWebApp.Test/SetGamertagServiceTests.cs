@@ -9,6 +9,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class SetGamertagServiceTests
 {
     private GrifballContext _context;

@@ -18,6 +18,7 @@ namespace GrifballWebApp.Test;
 /// </summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class DiscordSetGamertagBranchTests
 {
     private const ulong DiscordId = 987654321;

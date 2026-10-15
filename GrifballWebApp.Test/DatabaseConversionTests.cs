@@ -21,25 +21,29 @@ namespace GrifballWebApp.Test;
 /// converts its own server's database into the other's and back (and onto its own kind).
 /// </summary>
 [TestFixture]
-[NonParallelizable]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class DatabaseConversionTests
 {
-    private IDatabaseContainer _other = null!;
+    // The other server, one for the fixture; each test its own databases on both.
+    private static IDatabaseContainer _other = null!;
     private readonly List<DatabaseEndpoint> _databases = [];
 
     [OneTimeSetUp]
-    public async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
+    public static async Task StartOtherServer() => _other = await TestDatabase.StartServer(TestDatabase.Other);
 
     [OneTimeTearDown]
-    public async Task StopOtherServer() => await _other.DisposeAsync();
+    public static async Task StopOtherServer() => await _other.DisposeAsync();
 
     [TearDown]
     public async Task DropDatabases()
     {
-        NpgsqlConnection.ClearAllPools();
-        SqlConnection.ClearAllPools();
         foreach (var database in _databases)
         {
+            if (database.Provider == DatabaseProvider.Postgres)
+                NpgsqlConnection.ClearPool(new NpgsqlConnection(database.ConnectionString));
+            else
+                SqlConnection.ClearPool(new SqlConnection(database.ConnectionString));
             await using var context = DatabaseConverter.NewContext(database);
             await context.Database.EnsureDeletedAsync();
         }

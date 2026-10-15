@@ -209,12 +209,13 @@ public sealed class DatabaseConverter(ILogger<DatabaseConverter> logger)
         _ => throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Provider, null),
     };
 
+    /// <summary>Closes the pooled connections to the target, which dropping it would otherwise wait on.</summary>
     private static void ClearPools(DatabaseEndpoint endpoint)
     {
         if (endpoint.Provider == DatabaseProvider.Postgres)
-            NpgsqlConnection.ClearAllPools();
+            NpgsqlConnection.ClearPool(new NpgsqlConnection(endpoint.ConnectionString));
         else
-            SqlConnection.ClearAllPools();
+            SqlConnection.ClearPool(new SqlConnection(endpoint.ConnectionString));
     }
 
     /// <summary>

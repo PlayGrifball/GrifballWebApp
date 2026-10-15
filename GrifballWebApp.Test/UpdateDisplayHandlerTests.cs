@@ -17,6 +17,7 @@ namespace GrifballWebApp.Test;
 
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[Parallelizable(ParallelScope.All)]
 public class UpdateDisplayHandlerTests
 {
     private GrifballContext _context;
