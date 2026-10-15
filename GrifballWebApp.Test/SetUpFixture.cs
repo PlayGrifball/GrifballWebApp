@@ -14,6 +14,7 @@ public class SetUpFixture
     public async Task RunBeforeAnyTests()
     {
         DatabaseContainer = await TestDatabase.StartServer();
+        await TestDatabase.CreateTemplate(DatabaseContainer);
     }
 
     [OneTimeTearDown]
