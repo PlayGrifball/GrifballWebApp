@@ -192,7 +192,8 @@ and app pods that wait for it. On every install and upgrade the Job:
 1. waits for the database;
 2. compares the image's `/app/migrations.txt` with the database's `__EFMigrationsHistory`;
 3. on a first deploy (no database yet), restores the newest backup from a folder if
-   `migrations.restore` is on (below);
+   `migrations.restore` is on, or copies another database into it, from either server, if
+   `migrations.convert` is (below);
 4. if the database exists and lacks some, backs it up (`migrations.backup`) - SQL Server writes the
    file, so the folder is on its side; PostgreSQL's is written by `pg_dump` in the step;
 5. runs your own steps (`migrations.extraInitContainers`);
@@ -281,6 +282,39 @@ migrations:
     volume:
       nfs: { server: nas.example, path: /pg-backups, readOnly: true }
 ```
+
+**Convert** (`migrations.convert.enabled`, off by default; not with restore). On a release's first
+deploy, the Job copies another GrifballWebApp database into the new one instead: how an environment
+moves between SQL Server and PostgreSQL (either way round, or the same kind). The image's converter
+(`/app/convert`) creates the database with the image's migrations and copies every table's rows in one
+transaction, row history included with each version's times, then reads every table back and compares
+it with the source before it commits; if anything fails, the database is dropped again, and the Job
+fails. The source is only read and must have exactly the image's migrations (deploy the image to it
+first). On PostgreSQL it's read in one snapshot, on SQL Server too if it allows snapshot isolation;
+otherwise keep it from being written to while the Job runs. Its connection string (ADO.NET, as the app
+takes it) comes from a Secret; the Job reaches it through `networkPolicy.migrations.extraEgress`, and
+the source has to admit the Job's pods (`app: grif-migrate`) in return.
+
+```yaml
+database:
+  provider: postgres
+migrations:
+  convert:
+    enabled: true
+    source:
+      provider: SqlServer
+      connectionString: { secretName: grif-old-database, key: connection-string }
+networkPolicy:
+  migrations:
+    extraEgress:
+      - to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: grif-test } },
+               podSelector: { matchLabels: { app: grif-mssql } } }]
+        ports: [{ protocol: TCP, port: 1433 }]
+```
+
+To move an environment: deploy a release on the new server with convert on (in another namespace),
+check it, point the hosts at it, then remove the old one. The converted database isn't backed up by
+the Job; the source is still there.
 
 The Job, the CronJobs and the backend run as the backend image's non-root user (1654), checked by
 Kubernetes (`runAsNonRoot`); SQL Server runs as its own (10001), PostgreSQL as its own (70). Only the

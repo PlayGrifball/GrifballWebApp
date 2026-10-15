@@ -27,6 +27,9 @@
 #   7. restore (migrations.restore): a marked database backed up, then a first deploy restores it -
 #      SQL Server: the same release with its database dropped, from its own backup folder;
 #      PostgreSQL: a second release in another namespace, from a volume holding the first's dump.
+#   8. convert (migrations.convert; bundled and postgres): a release on the other server, in another
+#      namespace, copies the first release's database on its first deploy - a changed row and its
+#      history come across, and its backend starts.
 # minimal: ci/minimal-values.yaml (the README's Quick start) as is, ingress class and images aside:
 # the Job creates the database (not the app), the backend gets as far as Discord, the site is
 # served through the Ingress (the cluster's Traefik, which k3s ships).
@@ -629,6 +632,94 @@ else
     || fail "grif_app can't read the restored database"
   echo "Restored ${marked##*/} (not the hand-named file), marker included, with all $count migrations;"
   echo "grif_app reads it."
+fi
+
+if [ "$scenario" = bundled ] || [ "$scenario" = postgres ]; then
+  # The first release's server, the converted database's, and what each's helper takes.
+  if [ "$scenario" = bundled ]; then
+    from=SqlServer to=postgres from_pod=grif-mssql from_port=1433
+    source_cs="Server=sqlserver.$ns.svc.cluster.local,1433;Database=GrifballWebApp;User Id=sa;Password=$password;Encrypt=True;TrustServerCertificate=True"
+  else
+    from=Postgres to=sqlserver from_pod=grif-postgres from_port=5432
+    source_cs="Host=postgres.$ns.svc.cluster.local;Port=5432;Database=GrifballWebApp;Username=postgres;Password=$password;SSL Mode=Prefer;GSS Encryption Mode=Disable"
+  fi
+  step "Convert: a release on the other server ($to), on its first deploy, copies the first's database"
+  # The marker table isn't the app's: the conversion copies only the app's tables, and refuses a
+  # source with others. A seeded row changed instead, which gives it history too.
+  if [ "$scenario" = bundled ]; then
+    sql "DROP TABLE IF EXISTS GrifballWebApp.dbo.E2eMarker; UPDATE GrifballWebApp.Other.Regions SET RegionName = N'Converted É' WHERE RegionID = (SELECT MIN(RegionID) FROM GrifballWebApp.Other.Regions);"
+    history=$(sql "SELECT COUNT(*) FROM GrifballWebApp.Other.RegionsHistory" | tr -d '\r' | tail -1)
+  else
+    pg GrifballWebApp "DROP TABLE IF EXISTS public.e2e_marker; UPDATE \"Other\".\"Regions\" SET \"RegionName\" = 'Converted É' WHERE \"RegionID\" = (SELECT min(\"RegionID\") FROM \"Other\".\"Regions\")"
+    history=$(pg GrifballWebApp 'SELECT count(*) FROM "Other"."RegionsHistory"')
+  fi
+  [ "$history" -ge 1 ] || fail "the changed region left no history in the source"
+  convert_ns=grif-e2e-convert
+  kubectl create namespace "$convert_ns"
+  kubectl -n "$convert_ns" create secret generic grif-secrets \
+    --from-literal=SA_PASSWORD="$password" --from-literal=POSTGRES_PASSWORD="$password" \
+    --from-literal=DiscordClientId=0 --from-literal=DiscordClientSecret=e2e --from-literal=DiscordToken=e2e \
+    --from-literal=SOURCE_DATABASE="$source_cs"
+  # The first release's server admits the new release's migration Job (policies add up).
+  kubectl -n "$ns" apply -f - <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: e2e-convert-source }
+spec:
+  podSelector: { matchLabels: { app: $from_pod } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: $convert_ns } }
+          podSelector: { matchLabels: { app: grif-migrate } }
+      ports: [{ protocol: TCP, port: $from_port }]
+EOF
+  helm install grif "$chart" -n "$convert_ns" "${images[@]}" -f - <<EOF
+database: { provider: $to }
+mssql:
+  acceptEula: true
+  resources: { requests: { memory: 1Gi, cpu: 100m }, limits: { memory: 2Gi } }
+  persistence: { size: 2Gi }
+  backup: { size: 1Gi }
+postgres: { persistence: { size: 1Gi } }
+backend:
+  config: { BaseUrl: "https://grifball.example", Discord: { DraftChannel: "1" } }
+  secretConfig: { "Discord:ClientId": DiscordClientId, "Discord:ClientSecret": DiscordClientSecret, "Discord:Token": DiscordToken }
+migrations:
+  backup: { volume: { size: 1Gi } }
+  convert:
+    enabled: true
+    source: { provider: $from, connectionString: { secretName: grif-secrets, key: SOURCE_DATABASE } }
+networkPolicy:
+  migrations:
+    extraEgress:
+      - to:
+          - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: $ns } }
+            podSelector: { matchLabels: { app: $from_pod } }
+        ports: [{ protocol: TCP, port: $from_port }]
+EOF
+  first_ns=$ns ns=$convert_ns
+  job=$(wait_job)
+  job_logs "$job" > "$work/convert.txt"; cat "$work/convert.txt"
+  expect "Converting a $from database into a new" "$work/convert.txt"
+  expect "and checked them" "$work/convert.txt"
+  expect "Converted. Up to date." "$work/convert.txt"
+  expect "No database to back up." "$work/convert.txt"
+  expect "Nothing to migrate." "$work/convert.txt"
+  if [ "$scenario" = bundled ]; then
+    region=$(pg GrifballWebApp "SELECT \"RegionName\" FROM \"Other\".\"Regions\" WHERE \"RegionName\" = 'converted é'")
+    converted_history=$(pg GrifballWebApp 'SELECT count(*) FROM "Other"."RegionsHistory"')
+  else
+    sql_ns=$convert_ns sql_deploy=grif-mssql pw_var=SA_PASSWORD
+    region=$(sql "SELECT RegionName FROM GrifballWebApp.Other.Regions WHERE RegionName = N'converted é'" | tr -d '\r' | tail -1)
+    converted_history=$(sql "SELECT COUNT(*) FROM GrifballWebApp.Other.RegionsHistory" | tr -d '\r' | tail -1)
+  fi
+  [ "$region" = "Converted É" ] || fail "the changed region didn't come across (got '$region')"
+  [ "$converted_history" = "$history" ] || fail "the converted database has $converted_history region history rows, the source $history"
+  wait_for 300 backend_waited || fail "the backend didn't see the converted database up to date"
+  echo "The $to release converted the $from database on its first deploy: the changed region, found"
+  echo "case-insensitively, and its $history history row(s); its backend then started."
+  ns=$first_ns
 fi
 
 step "PASS ($scenario)"

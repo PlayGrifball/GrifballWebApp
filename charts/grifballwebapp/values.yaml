@@ -584,7 +584,7 @@ sqlExporter:
 #   1. waits for the database;
 #   2. compares the image's migrations (/app/migrations.txt) with the database's;
 #   3. on a first deploy (no database yet), restores the newest backup from a folder (restore, off by
-#      default);
+#      default), or copies another database into it, either server (convert, off by default);
 #   4. if the database exists and lacks some, backs it up (backup);
 #   5. your own steps (extraInitContainers);
 #   6. applies them with the image's bundle (/app/efbundle), creating the database if it's missing.
@@ -670,6 +670,35 @@ migrations:
     #   nfs: { server: nas.example, path: /backups/grif-test, readOnly: true }
     #   persistentVolumeClaim: { claimName: grif-test-backups, readOnly: true }
     volume: {}
+  # On a release's first deploy - its database doesn't exist yet - copy another GrifballWebApp
+  # database into it, SQL Server or PostgreSQL either way round: how an environment moves from one
+  # server to the other. The image's converter (/app/convert) creates the database with the image's
+  # migrations, copies every table's rows into it in one transaction, row history included (each
+  # version's times; SQL Server's temporal tables, PostgreSQL's history tables), checks every table
+  # against the source before it commits, and drops the database again if anything fails. The source
+  # is only read, and must have exactly the image's migrations: deploy this image to it first. On
+  # PostgreSQL it's read in one snapshot; on SQL Server too if it allows snapshot isolation, otherwise
+  # keep it from being written to while this runs. Later deploys find the database and keep its data.
+  # Not with restore. The converted database isn't backed up; the source is still there.
+  # The Job reaches the source on the network: add it to networkPolicy.migrations.extraEgress.
+  convert:
+    enabled: false
+    # The database to copy.
+    source:
+      # SqlServer or Postgres.
+      provider: ""
+      # Its connection string (ADO.NET, as ConnectionStrings:GrifballWebApp takes it), from a Secret,
+      # as a login that can read every table (its administrator, say).
+      connectionString:
+        secretName: ""
+        key: ""
+    # The convert step: it holds a table's rows in memory while it copies them.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
   # How long the Job waits for the database to accept connections (seconds).
   databaseWaitSeconds: 300
   # A failed migration is usually deterministic; retries are off.

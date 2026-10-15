@@ -220,6 +220,58 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- include "grif.migrationSmallResources" . | nindent 4 }}
 {{- end }}
+{{- if $m.convert.enabled }}
+{{- if $m.restore.enabled }}{{ fail "migrations.convert and migrations.restore can't both be on: a first deploy either restores a backup or converts another database" }}{{ end }}
+{{- if not $m.convert.source.provider }}{{ fail "migrations.convert.source.provider is required: SqlServer or Postgres" }}{{ end }}
+{{- if not (and $m.convert.source.connectionString.secretName $m.convert.source.connectionString.key) }}{{ fail "migrations.convert.source.connectionString.secretName and key are required" }}{{ end }}
+# Only a database that doesn't exist yet (a first deploy): the image's converter creates it with the
+# image's migrations and copies the source database into it (migrations.convert), then which
+# migrations it lacks (none), so migrate has nothing to do. db-exists stays absent, so the backup step
+# doesn't back up what was just copied; /work/converted names the source's server.
+- name: convert
+  {{- include "grif.migrationStepImage" . | nindent 2 }}
+  command: ["/bin/sh", "-c"]
+  args:
+    - |
+      set -eu
+      if [ -e /work/db-exists ]; then echo "Database $DB_NAME exists: nothing to convert."; exit 0; fi
+      dotnet /app/convert/GrifballWebApp.Convert.dll
+      {{- with include "grif.migrationQueryFunctions" . }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      {{ include "grif.pendingMigrations" . }} > /work/pending.txt
+      echo "$Source__Provider" > /work/converted
+      if [ -s /work/pending.txt ]; then
+        echo "Converted. Pending migrations:"; cat /work/pending.txt
+      else
+        echo "Converted. Up to date."
+      fi
+  env:
+    {{- include "grif.migrationEnv" . | nindent 4 }}
+    {{- include "grif.dbEnv" . | nindent 4 }}
+    - name: Target__Provider
+      value: {{ include "grif.byProvider" (dict "root" . "sql" "SqlServer" "pg" "Postgres") }}
+    - name: Source__Provider
+      value: {{ $m.convert.source.provider | quote }}
+    - name: Source__ConnectionString
+      valueFrom:
+        secretKeyRef:
+          name: {{ $m.convert.source.connectionString.secretName }}
+          key: {{ $m.convert.source.connectionString.key }}
+    {{- with $m.extraEnv }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  volumeMounts:
+    - name: migrations-work
+      mountPath: /work
+    - name: tmp
+      mountPath: /tmp
+  {{- with $m.convert.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
 {{- if $m.backup.enabled }}
 {{- if $pg }}
 # Only an existing database with pending migrations. pg_dump writes the file, to the backup volume.
