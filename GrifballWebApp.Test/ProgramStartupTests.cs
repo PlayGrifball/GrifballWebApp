@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -21,7 +20,7 @@ namespace GrifballWebApp.Test;
 
 /// <summary>
 /// Runs the real <see cref="ServerProgram"/> startup (service registration, migrations, middleware, endpoint mapping)
-/// against the shared SQL Server test container, once in preview mode and once in normal mode.
+/// against the shared test database server (SQL Server or PostgreSQL, <see cref="TestDatabase.Provider"/>), once in preview mode and once in normal mode.
 /// Non-parallelizable because Program.Main swaps the static Serilog logger.
 /// </summary>
 [TestFixture]
@@ -31,35 +30,20 @@ public class ProgramStartupTests
     // Shaped like a bot token (base64 snowflake . timestamp . hmac) so NetCord can parse it; never sent anywhere.
     private const string DummyBotToken = "MTIzNDU2Nzg5MDEyMzQ1Njc4.GAAAAA.dummy-token-that-is-never-sent-anywhere";
 
-    private string _databaseName = null!;
     private string _connectionString = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _databaseName = $"StartupDb_{Guid.NewGuid():N}";
-        _connectionString = new SqlConnectionStringBuilder(SetUpFixture.MsSqlContainer.GetConnectionString())
-        {
-            InitialCatalog = _databaseName,
-        }.ConnectionString;
+        // Program.cs creates it (CreateDatabase).
+        _connectionString = TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, $"StartupDb_{Guid.NewGuid():N}");
     }
 
     [TearDown]
     public async Task TearDown()
     {
-        SqlConnection.ClearAllPools();
-        var builder = new SqlConnectionStringBuilder(_connectionString) { InitialCatalog = "master" };
-        await using var connection = new SqlConnection(builder.ConnectionString);
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = $"""
-            IF DB_ID('{_databaseName}') IS NOT NULL
-            BEGIN
-                ALTER DATABASE [{_databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                DROP DATABASE [{_databaseName}];
-            END
-            """;
-        await command.ExecuteNonQueryAsync();
+        // The startup that fails stops before creating it.
+        await TestDatabase.DropDatabase(_connectionString, ifExists: true);
     }
 
     private sealed class StartupFactory(Dictionary<string, string?> settings, bool removeDiscordHostedServices)
@@ -109,6 +93,7 @@ public class ProgramStartupTests
 
     private Dictionary<string, string?> CommonSettings() => new()
     {
+        ["Database:Provider"] = TestDatabase.Provider.ToString(),
         ["ConnectionStrings:GrifballWebApp"] = _connectionString,
         ["ApplyMigrations"] = "true",
         ["CreateDatabase"] = "true",
