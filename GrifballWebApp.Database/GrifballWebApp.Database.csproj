@@ -7,6 +7,11 @@
     <UserSecretsId>06e01ca1-8eef-4f23-97c9-ea34879857e2</UserSecretsId>
   </PropertyGroup>
 
+  <!-- The conversion's internals (Conversion), tested directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrifballWebApp.Test" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />

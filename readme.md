@@ -246,6 +246,37 @@ SELECT * FROM (
 ) v WHERE "SeasonID" = 1 AND "PeriodStart" <= '2026-10-01 12:00+00' AND "PeriodEnd" > '2026-10-01 12:00+00';
 ```
 
+#### Converting between SQL Server and PostgreSQL
+`GrifballWebApp.Convert` copies a database into a new one on either server, or the same kind:
+```sh
+dotnet run --project GrifballWebApp.Convert -- \
+  --Source:Provider=SqlServer --Source:ConnectionString="Server=...;Database=GrifballWebApp;..." \
+  --Target:Provider=Postgres --Target:ConnectionString="Host=...;Database=GrifballWebApp;..."
+```
+(or `Source__Provider` and the rest in the environment; the target defaults to the app's own `Database:Provider` and
+`ConnectionStrings:GrifballWebApp`). The backend image has it at `/app/convert`, and the Helm chart runs it on a first
+deploy with `migrations.convert`.
+
+- **The target** must be new: missing, or without tables. It's created with this build's migrations, so it has the
+  schema the app expects on its server: the collation, row history's triggers (Postgres) or system versioning (SQL
+  Server), the same keys and indexes.
+- **The source** is only read. It must have exactly this build's migrations, so both have the same tables and
+  columns. On Postgres it's read in one snapshot, and on SQL Server too if the database allows snapshot isolation;
+  otherwise nothing should write to it during the copy.
+- **Every row** of every table is copied in one transaction, keys as they are; identity columns carry on after the
+  highest. Rows go in parents first. Where two tables refer to each other (a team and its captain, a match and its
+  active reschedule request), the nullable side is set once both are in; a table's references to itself (a bracket's
+  previous matches) are met by the order of its rows.
+- **Row history** comes too, each version with its times: Postgres's triggers are off while its history tables load,
+  and SQL Server's period columns, which take no values, are made plain columns for the load and its period and
+  system versioning put back after, checking the history against the current rows.
+- **Values** go across as what both hold: times UTC and to the microsecond (Postgres's precision), the end of time
+  (SQL Server's 9999-12-31, Postgres's `infinity`) and the beginning (`-infinity`) as each other, `datetimeoffset`
+  as the same instant.
+- **Before it commits**, every table is read back from the target and compared with what was read from the source
+  (the row count and a hash of every row's values, to the microsecond); any difference fails the conversion. If
+  anything fails, the target database is dropped when the conversion created it.
+
 ### Running the Application
 
 0. Optionally, open the `grifballwebapp.client` folder in Visual Studio Code to work on the frontend. In the terminal, run `npm start` to start the Angular development server. The Angular frontend will be available at [https://localhost:4200](https://localhost:4200).

@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GrifballWebApp.Seeder\GrifballWebApp.Seeder.csproj" />
+    <ProjectReference Include="..\GrifballWebApp.Convert\GrifballWebApp.Convert.csproj" />
     <ProjectReference Include="..\GrifballWebApp.Server\GrifballWebApp.Server.csproj" />
   </ItemGroup>
 
