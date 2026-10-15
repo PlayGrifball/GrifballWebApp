@@ -25,6 +25,9 @@ env:
   IMAGE_NAME_BACKEND: PlayGrifball/grifballwebappserver
 
 
+# Images are pushed, signed and released only from master (a push to it, or a run started by hand on
+# it): github.ref is refs/heads/master for nothing else. Pull requests, and runs started by hand on
+# another branch, build without logging in or pushing.
 jobs:
   build:
 
@@ -46,10 +49,10 @@ jobs:
         with:
             fetch-depth: 0
 
-      # Install the cosign tool except on PR
+      # Install the cosign tool, only from master
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/master'
         uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
         with:
           cosign-release: 'v2.2.4'
@@ -65,10 +68,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
 
-      # Login against a Docker registry except on PR
+      # Login against a Docker registry, only from master
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/master'
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -95,19 +98,19 @@ jobs:
         with:
           context: grifballwebapp.client
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.ref == 'refs/heads/master' }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Sign the resulting Docker image digest except on PRs.
+      # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
       # repository is public to avoid leaking data.  If you would like to publish
       # transparency data even for private images, pass --force to cosign below.
       # https://github.com/sigstore/cosign
       - name: Sign the published Docker image for frontend
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.ref == 'refs/heads/master' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta-frontend.outputs.tags }}
@@ -137,7 +140,7 @@ jobs:
           context: .
           file: GrifballWebApp.Server/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.ref == 'refs/heads/master' }}
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
@@ -162,13 +165,13 @@ jobs:
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
 
-      # Sign the resulting Docker image digest except on PRs.
+      # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
       # repository is public to avoid leaking data.  If you would like to publish
       # transparency data even for private images, pass --force to cosign below.
       # https://github.com/sigstore/cosign
       - name: Sign the published Docker image for backend
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.ref == 'refs/heads/master' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta-backend.outputs.tags }}
@@ -184,7 +187,7 @@ jobs:
   # has to stay API-compatible for the seconds between the two.
   release:
     needs: build
-    if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
