@@ -178,8 +178,11 @@ internal static class TestDatabase
         await command.ExecuteNonQueryAsync();
     }
 
-    /// <summary>Drops the database behind <paramref name="connectionString"/>, closing its connections.</summary>
-    public static async Task DropDatabase(string connectionString)
+    /// <summary>
+    /// Drops the database behind <paramref name="connectionString"/>, closing its connections; with
+    /// <paramref name="ifExists"/>, nothing when there is none.
+    /// </summary>
+    public static async Task DropDatabase(string connectionString, bool ifExists = false)
     {
         if (Provider == DatabaseProvider.Postgres)
         {
@@ -190,7 +193,7 @@ internal static class TestDatabase
             await using var connection = new NpgsqlConnection(builder.ConnectionString);
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
-            command.CommandText = $"DROP DATABASE \"{name}\" WITH (FORCE)";
+            command.CommandText = $"DROP DATABASE {(ifExists ? "IF EXISTS " : "")}\"{name}\" WITH (FORCE)";
             await command.ExecuteNonQueryAsync();
         }
         else
@@ -202,6 +205,7 @@ internal static class TestDatabase
             await connection.OpenAsync();
             await using var command = connection.CreateCommand();
             command.CommandText = $@"
+            {(ifExists ? $"IF DB_ID('{name}') IS NULL RETURN;" : "")}
             ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
             DROP DATABASE [{name}];
             ";

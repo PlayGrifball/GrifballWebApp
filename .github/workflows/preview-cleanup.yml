@@ -1,0 +1,82 @@
+name: Preview cleanup
+
+# Deletes a PR's preview images from GHCR when the PR closes or loses the `preview` label (see preview-label.yml):
+# the versions tagged pr-<N>, and those tagged sha-<short> for commits built for this PR.
+#
+# Deliberately conservative: a version is deleted only if every one of its tags is one of this PR's tags. Anything
+# else on it - test, staging, prod, latest, a cosign signature, another build's sha- tag - keeps it. A PR commit that
+# a master push also built (and so may also be a master sha- tag) is never treated as the PR's. Untagged versions
+# (per-platform manifests and attestations under each image) are left alone.
+#
+# The homelab tears the environment itself down from the same label/close; this only reclaims the images.
+on:
+  pull_request:
+    branches: [ "master" ]
+    types: [ closed, unlabeled ]
+
+permissions: {}
+
+jobs:
+  delete-images:
+    # Fork PRs never push images, and their token can't delete any.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action == 'closed' || github.event.label.name == 'preview')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write  # list and delete package versions
+      pull-requests: read  # the PR's commits
+      actions: read  # which commits were built, for this PR and for master
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      ORG: ${{ github.repository_owner }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      PACKAGES: grifballwebappserver grifballwebappclient
+    steps:
+      - name: Delete this PR's image versions
+        run: |
+          set -euo pipefail
+
+          # Commits built for this PR: its current commits, plus the head of every docker-publish run for it
+          # (which includes commits since force-pushed away).
+          {
+            gh api "repos/$REPO/pulls/$PR/commits?per_page=100" --paginate --jq '.[].sha'
+            gh api -X GET "repos/$REPO/actions/workflows/docker-publish.yml/runs" --paginate \
+              -f event=pull_request -f branch="$HEAD_REF" -f per_page=100 \
+              --jq ".workflow_runs[] | select(any(.pull_requests[]; .number == $PR)) | .head_sha"
+          } | sort -u > shas.txt
+
+          declare -A ours=(["pr-$PR"]=1)
+          while read -r sha; do
+            [ -n "$sha" ] || continue
+            master_builds=$(gh api -X GET "repos/$REPO/actions/runs" \
+              -f event=push -f branch=master -f head_sha="$sha" -f per_page=1 --jq '.total_count')
+            if [ "$master_builds" != 0 ]; then
+              echo "Keeping sha-${sha:0:7}: master also built $sha"
+              continue
+            fi
+            ours["sha-${sha:0:7}"]=1
+          done < shas.txt
+          echo "This PR's tags: ${!ours[*]}"
+
+          for pkg in $PACKAGES; do
+            gh api "orgs/$ORG/packages/container/$pkg/versions?per_page=100" --paginate \
+              --jq '.[] | select(.metadata.container.tags | length > 0) | "\(.id) \(.metadata.container.tags | join(" "))"' \
+              > "versions-$pkg.txt"
+
+            while read -r id tags; do
+              delete=yes
+              for tag in $tags; do
+                case "$tag" in
+                  test|staging|prod|latest) delete=no ;;
+                esac
+                [ -n "${ours[$tag]:-}" ] || delete=no
+              done
+              if [ "$delete" = yes ]; then
+                echo "Deleting $pkg version $id ($tags)"
+                gh api -X DELETE "orgs/$ORG/packages/container/$pkg/versions/$id"
+              fi
+            done < "versions-$pkg.txt"
+          done
