@@ -32,6 +32,32 @@ applied_migrations > /work/applied.txt
 {{- end -}}
 {{- end }}
 
+{{/*
+table_count: how many tables the existing database DB_NAME has (an empty one, made beforehand as a
+managed server's often is, has none).
+*/}}
+{{- define "grif.tableCountFunction" -}}
+{{- if include "grif.postgres" . -}}
+table_count() {
+  psql -X -A -t -q -v ON_ERROR_STOP=1 -d "$DB_NAME" -c "SELECT count(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')"
+}
+{{- else -}}
+table_count() {
+  sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -h -1 -W -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+    EXEC(N'SELECT COUNT(*) FROM [\$$(DB_NAME)].sys.tables WHERE is_ms_shipped = 0');"
+}
+{{- end -}}
+{{- end }}
+
+{{/*
+Where a step that fills a new database (restore, convert) starts: it does so on a first deploy - the
+database doesn't exist, or exists with no tables (/work/db-empty, check-pending) - and otherwise
+leaves it alone. $1 is what it would do.
+*/}}
+{{- define "grif.onlyNewDatabase" -}}
+if [ -e /work/db-exists ] && [ ! -e /work/db-empty ]; then echo "Database $DB_NAME exists: nothing to {{ . }}."; exit 0; fi
+{{- end }}
+
 {{/* The image's migration list, the provider's bundle's. */}}
 {{- define "grif.migrationList" -}}
 {{- include "grif.byProvider" (dict "root" . "sql" "/app/migrations.txt" "pg" "/app/postgres/migrations.txt") -}}
@@ -135,7 +161,8 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- include "grif.migrationSmallResources" . | nindent 4 }}
 # Which of the image's migrations the database lacks (/work/pending.txt: all of them if it doesn't
-# exist); /work/db-exists if it does.
+# exist); /work/db-exists if it does, and /work/db-empty too if it has no tables (made beforehand,
+# as a managed server's often is), which restore and convert fill as a new one.
 - name: check-pending
   {{- include "grif.migrationStepImage" . | nindent 2 }}
   command: ["/bin/sh", "-c"]
@@ -154,6 +181,12 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
         : > /work/applied.txt
       else
         touch /work/db-exists
+        {{- include "grif.tableCountFunction" . | nindent 8 }}
+        tables=$(table_count) || { echo "Counting $DB_NAME's tables failed: $tables"; exit 1; }
+        if [ "$(printf %s "$tables" | tr -d '[:space:]')" = 0 ]; then
+          touch /work/db-empty
+          echo "Database $DB_NAME exists with no tables: a new database all the same."
+        fi
       fi
       {{ include "grif.pendingMigrations" . }} > /work/pending.txt
       if [ -s /work/pending.txt ]; then
@@ -173,9 +206,10 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- include "grif.migrationSmallResources" . | nindent 4 }}
 {{- if $m.restore.enabled }}
-# Only a database that doesn't exist yet (a first deploy): the newest backup in the restore folder,
-# then which migrations it lacks, so migrate applies only those. db-exists stays absent, so the backup
-# step doesn't back up what was just restored; /work/restored names the file.
+# Only a database that doesn't exist yet, or has no tables (a first deploy): the newest backup in the
+# restore folder, then which migrations it lacks, so migrate applies only those. The backup step
+# doesn't back up what was just restored (db-exists is absent, or db-empty there); /work/restored
+# names the file.
 - name: restore
   {{- include "grif.migrationStepImage" . | nindent 2 }}
   command: ["/bin/sh", "-c"]
@@ -224,17 +258,18 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
 {{- if $m.restore.enabled }}{{ fail "migrations.convert and migrations.restore can't both be on: a first deploy either restores a backup or converts another database" }}{{ end }}
 {{- if not $m.convert.source.provider }}{{ fail "migrations.convert.source.provider is required: SqlServer or Postgres" }}{{ end }}
 {{- if not (and $m.convert.source.connectionString.secretName $m.convert.source.connectionString.key) }}{{ fail "migrations.convert.source.connectionString.secretName and key are required" }}{{ end }}
-# Only a database that doesn't exist yet (a first deploy): the image's converter creates it with the
-# image's migrations and copies the source database into it (migrations.convert), then which
-# migrations it lacks (none), so migrate has nothing to do. db-exists stays absent, so the backup step
-# doesn't back up what was just copied; /work/converted names the source's server.
+# Only a database that doesn't exist yet, or has no tables (a first deploy): the image's converter
+# creates it (or takes the empty one) with the image's migrations and copies the source database into
+# it (migrations.convert), then which migrations it lacks (none), so migrate has nothing to do. The
+# backup step doesn't back up what was just copied (db-exists is absent, or db-empty there);
+# /work/converted names the source's server.
 - name: convert
   {{- include "grif.migrationStepImage" . | nindent 2 }}
   command: ["/bin/sh", "-c"]
   args:
     - |
       set -eu
-      if [ -e /work/db-exists ]; then echo "Database $DB_NAME exists: nothing to convert."; exit 0; fi
+      {{- include "grif.onlyNewDatabase" "convert" | nindent 6 }}
       dotnet /app/convert/GrifballWebApp.Convert.dll
       {{- with include "grif.migrationQueryFunctions" . }}
       {{- . | nindent 6 }}
@@ -288,7 +323,7 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       {{- if $m.scripts.backup }}
       {{- $m.scripts.backup | nindent 6 }}
       {{- else }}
-      if [ ! -e /work/db-exists ]; then echo "No database to back up."; exit 0; fi
+      if [ ! -e /work/db-exists ] || [ -e /work/db-empty ]; then echo "No database to back up."; exit 0; fi
       if [ ! -s /work/pending.txt ]; then echo "Nothing to migrate: no backup needed."; exit 0; fi
       {{- if $pg }}
       {{- include "grif.pgBackupFunction" . | nindent 6 }}
@@ -418,11 +453,12 @@ sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -x -i /work/logins.sql
 SQL Server's restore step (migrations.restore): on a first deploy, the newest of the chart's backups in
 RESTORE_DIR, a folder on SQL Server's side (it reads the file), each of the backup's files moved into
 this server's default data or log folder under its own name. A restore that fails part way leaves the
-database RESTORING; it's dropped, so the next run restores again. The statement goes through a file
-with its quotes escaped, run with -x, as the logins' do.
+database RESTORING; it's dropped, so the next run restores again. A database that's there already
+with no tables (made beforehand) is restored over: RESTORE ... REPLACE. The statement goes through a
+file with its quotes escaped, run with -x, as the logins' do.
 */}}
 {{- define "grif.mssqlRestoreScript" -}}
-if [ -e /work/db-exists ]; then echo "Database $DB_NAME exists: nothing to restore."; exit 0; fi
+{{ include "grif.onlyNewDatabase" "restore" }}
 # Functions, not sqlcmd inline in $(...) (grif.waitForDatabaseOnlineScript says why).
 # The chart's own names only (<database>_YYYYMMDD_HHMMSS.bak), which sort by time; hand-named ones in
 # the folder are ignored.

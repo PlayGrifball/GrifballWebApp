@@ -21,7 +21,7 @@ tests:
       - equal: { path: "spec.template.spec.initContainers[2].name", value: convert }
       - equal: { path: "spec.template.spec.initContainers[3].name", value: backup }
       - equal: { path: "spec.template.spec.initContainers[4].name", value: notify }
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \]; then echo "Database \$DB_NAME exists: nothing to convert."; exit 0; fi\ndotnet /app/convert/GrifballWebApp.Convert.dll\n' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ -e /work/db-exists \] && \[ ! -e /work/db-empty \]; then echo "Database \$DB_NAME exists: nothing to convert."; exit 0; fi\ndotnet /app/convert/GrifballWebApp.Convert.dll\n' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "/work/applied.txt /app/migrations.txt > /work/pending.txt\necho \"\\$Source__Provider\" > /work/converted" }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Target__Provider, value: SqlServer } }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: Source__Provider, value: Postgres } }

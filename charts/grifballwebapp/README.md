@@ -191,8 +191,8 @@ and app pods that wait for it. On every install and upgrade the Job:
 
 1. waits for the database;
 2. compares the image's `/app/migrations.txt` with the database's `__EFMigrationsHistory`;
-3. on a first deploy (no database yet), restores the newest backup from a folder if
-   `migrations.restore` is on, or copies another database into it, from either server, if
+3. on a first deploy (no database yet, or one with no tables), restores the newest backup from a
+   folder if `migrations.restore` is on, or copies another database into it, from either server, if
    `migrations.convert` is (below);
 4. if the database exists and lacks some, backs it up (`migrations.backup`) - SQL Server writes the
    file, so the folder is on its side; PostgreSQL's is written by `pg_dump` in the step;
@@ -257,10 +257,13 @@ works the same against an external SQL Server. PostgreSQL's mounts the backup vo
 their name; it doesn't connect to the database.
 
 **Restore** (`migrations.restore.enabled`, off by default). On a release's first deploy - its database
-doesn't exist yet - the Job restores the newest backup from a folder, then migrates it: a preview or a
-test environment starting from another's data. Later deploys find the database and keep it. Only the
-chart's own names count (`<database>_YYYYMMDD_HHMMSS.bak` or `.dump`, newest by name); hand-named files
-in the folder are ignored, and finding none fails the Job. The restored database isn't backed up again.
+doesn't exist yet, or exists with no tables (made beforehand, as a managed server's often is) - the Job
+restores the newest backup from a folder, then migrates it: a preview or a test environment starting
+from another's data. Later deploys find the database and keep it. Only the chart's own names count
+(`<database>_YYYYMMDD_HHMMSS.bak` or `.dump`, newest by name); hand-named files in the folder are
+ignored, and finding none fails the Job. The restored database isn't backed up again. An empty database
+made beforehand is restored over (SQL Server, `REPLACE`) or into, in one transaction (PostgreSQL), so
+a failure leaves it empty for the next run.
 
 - SQL Server reads the file itself, so the folder (`directory`, default `/var/opt/mssql/restore`) is on
   its side: mount one with `mssql.extraVolumes` and `extraVolumeMounts`, or point at its own backup
@@ -286,14 +289,16 @@ migrations:
 **Convert** (`migrations.convert.enabled`, off by default; not with restore). On a release's first
 deploy, the Job copies another GrifballWebApp database into the new one instead: how an environment
 moves between SQL Server and PostgreSQL (either way round, or the same kind). The image's converter
-(`/app/convert`) creates the database with the image's migrations and copies every table's rows in one
-transaction, row history included with each version's times, then reads every table back and compares
-it with the source before it commits; if anything fails, the database is dropped again, and the Job
-fails. The source is only read and must have exactly the image's migrations (deploy the image to it
-first). On PostgreSQL it's read in one snapshot, on SQL Server too if it allows snapshot isolation;
-otherwise keep it from being written to while the Job runs. Its connection string (ADO.NET, as the app
-takes it) comes from a Secret; the Job reaches it through `networkPolicy.migrations.extraEgress`, and
-the source has to admit the Job's pods (`app: grif-migrate`) in return.
+(`/app/convert`) creates the database (or takes an empty one made beforehand) with the image's
+migrations and copies every table's rows in one transaction, row history included with each version's
+times, then reads every table back and compares it with the source before it commits; if anything
+fails, the database is dropped again (or, if it was there already, its migrations are undone, leaving
+it with no tables), and the Job fails. The source is only read and must have exactly the image's
+migrations (deploy the image to it first). On PostgreSQL it's read in one snapshot, on SQL Server too
+if it allows snapshot isolation; otherwise keep it from being written to while the Job runs. Its
+connection string (ADO.NET, as the app takes it) comes from a Secret; the Job reaches it through
+`networkPolicy.migrations.extraEgress`, and the source has to admit the Job's pods
+(`app: grif-migrate`) in return.
 
 ```yaml
 database:

@@ -42,7 +42,7 @@ tests:
   - it: backs up with pg_dump to the backup volume, verified, the pod's fsGroup making it writable
     template: templates/migrations-job.yaml
     asserts:
-      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \]; then echo "No database to back up."; exit 0; fi' }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'if \[ ! -e /work/db-exists \] \|\| \[ -e /work/db-empty \]; then echo "No database to back up."; exit 0; fi' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'file="\$BACKUP_DIR/\$\{DB_NAME\}_\$\(date \+%Y%m%d_%H%M%S\)\.dump"' }
       - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: 'pg_dump -Fc -d "\$DB_NAME" -f "\$file.partial"\n  pg_restore --list "\$file.partial" > /dev/null\n  mv "\$file.partial" "\$file"' }
       - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: BACKUP_DIR, value: /backup/grif-x } }

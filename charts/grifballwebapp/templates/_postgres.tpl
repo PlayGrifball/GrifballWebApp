@@ -80,27 +80,35 @@ backup_database() {
 {{/*
 The restore step (migrations.restore): on a first deploy, the newest backup in RESTORE_DIR into a new
 database. Restored under a temporary name and renamed once complete, so a restore that fails part way
-leaves no database for the next run to take as the real one. No owners or privileges from the source:
-everything belongs to the administrator, and the login sync grants the app's rights afterwards.
+leaves no database for the next run to take as the real one. A database that's there already with no
+tables (made beforehand, as a managed server's often is, where the administrator may not create
+databases) takes the dump itself, in one transaction, so a failure leaves it empty for the next run.
+No owners or privileges from the source: everything belongs to the administrator, and the login sync
+grants the app's rights afterwards.
 */}}
 {{- define "grif.pgRestoreScript" -}}
-if [ -e /work/db-exists ]; then echo "Database $DB_NAME exists: nothing to restore."; exit 0; fi
+{{ include "grif.onlyNewDatabase" "restore" }}
 {{ include "grif.pgBackupFilesFunction" . }}
 [ -d "$RESTORE_DIR" ] || { echo "No folder $RESTORE_DIR to restore from."; exit 1; }
 newest=$(backup_files "$RESTORE_DIR" | tail -n 1)
 [ -n "$newest" ] || { echo "No ${DB_NAME}_<date>_<time>.dump in $RESTORE_DIR to restore."; exit 1; }
 file="$RESTORE_DIR/$newest"
 echo "Restoring $file"
-tmp="${DB_NAME}_restoring"
-psql -X -q -v ON_ERROR_STOP=1 -d postgres -v db="$DB_NAME" -v tmp="$tmp" <<'SQL'
+if [ -e /work/db-empty ]; then
+  echo "Into the existing, empty $DB_NAME, in one transaction."
+  pg_restore --no-owner --no-privileges --exit-on-error --single-transaction -d "$DB_NAME" "$file"
+else
+  tmp="${DB_NAME}_restoring"
+  psql -X -q -v ON_ERROR_STOP=1 -d postgres -v db="$DB_NAME" -v tmp="$tmp" <<'SQL'
 SET client_min_messages = warning;
 SELECT format('DROP DATABASE IF EXISTS %I', :'tmp') \gexec
 SELECT format('CREATE DATABASE %I', :'tmp') \gexec
 SQL
-pg_restore --no-owner --no-privileges --exit-on-error -d "$tmp" "$file"
-psql -X -q -v ON_ERROR_STOP=1 -d postgres -v db="$DB_NAME" -v tmp="$tmp" <<'SQL'
+  pg_restore --no-owner --no-privileges --exit-on-error -d "$tmp" "$file"
+  psql -X -q -v ON_ERROR_STOP=1 -d postgres -v db="$DB_NAME" -v tmp="$tmp" <<'SQL'
 SELECT format('ALTER DATABASE %I RENAME TO %I', :'tmp', :'db') \gexec
 SQL
+fi
 {{- end }}
 
 {{/*
