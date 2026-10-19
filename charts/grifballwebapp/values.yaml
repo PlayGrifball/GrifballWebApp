@@ -751,6 +751,9 @@ migrations:
       memory: 128Mi
     limits:
       memory: 512Mi
+  # Every other step (wait, check-pending, restore, backup; convert has its own) and the scheduled
+  # backup and retention CronJobs. Empty: requests 10m CPU and 32Mi, limits 250m CPU and 128Mi.
+  stepResources: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}

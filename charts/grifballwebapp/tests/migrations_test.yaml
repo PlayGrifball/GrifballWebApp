@@ -181,3 +181,23 @@ tests:
     asserts:
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "awk 'FILENAME == ARGV\\[1\\]" }
       - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "grep -vxF" }
+
+  - it: limits the small steps' CPU and memory, or takes migrations.stepResources, apart from migrate's
+    template: templates/migrations-job.yaml
+    set:
+      migrations.stepResources: { requests: { cpu: 20m, memory: 64Mi }, limits: { cpu: 500m, memory: 256Mi } }
+    asserts:
+      - equal:
+          path: "spec.template.spec.initContainers[2].resources"
+          value: { requests: { cpu: 20m, memory: 64Mi }, limits: { cpu: 500m, memory: 256Mi } }
+      - equal: { path: "spec.template.spec.containers[0].resources.limits.memory", value: 512Mi }
+
+  - it: gives the small steps a CPU limit by default
+    template: templates/migrations-job.yaml
+    asserts:
+      - equal:
+          path: "spec.template.spec.initContainers[0].resources"
+          value: { requests: { cpu: 10m, memory: 32Mi }, limits: { cpu: 250m, memory: 128Mi } }
+      - equal:
+          path: "spec.template.spec.initContainers[2].resources"
+          value: { requests: { cpu: 10m, memory: 32Mi }, limits: { cpu: 250m, memory: 128Mi } }

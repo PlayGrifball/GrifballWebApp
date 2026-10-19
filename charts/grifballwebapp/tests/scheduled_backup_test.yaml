@@ -76,3 +76,22 @@ tests:
       migrations.backup.scheduled: { enabled: true, suspend: true }
     asserts:
       - equal: { path: spec.suspend, value: true }
+
+  - it: limits its CPU and memory by default
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources
+          value: { requests: { cpu: 10m, memory: 32Mi }, limits: { cpu: 250m, memory: 128Mi } }
+
+  - it: takes its resources from migrations.stepResources
+    template: templates/backup-scheduled.yaml
+    set:
+      migrations.backup.scheduled.enabled: true
+      migrations.stepResources: { requests: { cpu: 20m, memory: 64Mi }, limits: { cpu: 500m, memory: 256Mi } }
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources
+          value: { requests: { cpu: 20m, memory: 64Mi }, limits: { cpu: 500m, memory: 256Mi } }

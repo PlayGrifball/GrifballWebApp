@@ -72,12 +72,21 @@ no migrations would look up to date.
 awk 'FILENAME == ARGV[1] { if ($0 != "") applied[$0]; next } !($0 in applied)' /work/applied.txt {{ include "grif.migrationList" . }}
 {{- end }}
 
+{{/*
+Every step but migrate and convert, and the backup and retention CronJobs: migrations.stepResources, or
+these. They mostly wait on the database (sqlcmd, psql); the CPU limit leaves pg_dump's compression room.
+*/}}
 {{- define "grif.migrationSmallResources" -}}
+{{- with .Values.migrations.stepResources }}
+{{- toYaml . }}
+{{- else -}}
 requests:
   cpu: 10m
   memory: 32Mi
 limits:
+  cpu: 250m
   memory: 128Mi
+{{- end }}
 {{- end }}
 
 {{/* A step's container: the backend image, its pull policy, the migrations' security context. */}}
