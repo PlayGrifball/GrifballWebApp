@@ -528,6 +528,7 @@
         "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
         "securityContext": { "$ref": "#/definitions/k8sObject" },
         "resources": { "$ref": "#/definitions/k8sObject" },
+        "stepResources": { "$ref": "#/definitions/k8sObject" },
         "nodeSelector": { "$ref": "#/definitions/stringMap" },
         "tolerations": { "$ref": "#/definitions/k8sList" },
         "affinity": { "$ref": "#/definitions/k8sObject" }

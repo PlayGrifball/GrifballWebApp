@@ -18,6 +18,7 @@ tests:
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "subjectAltName=DNS:postgres,DNS:postgres.grif-x,DNS:postgres.grif-x.svc" }
       - matchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: "chmod 600 /tls/tls.key" }
       - equal: { path: "spec.template.spec.initContainers[1].securityContext.runAsUser", value: 70 }
+      - equal: { path: "spec.template.spec.initContainers[1].resources.limits.cpu", value: 100m }
       - contains: { path: spec.template.spec.volumes, content: { name: tls, emptyDir: { medium: Memory } } }
       - contains: { path: "spec.template.spec.containers[0].volumeMounts", content: { name: tls, mountPath: /tls, readOnly: true } }
       - contains: { path: "spec.template.spec.containers[0].args", content: ssl=on }
