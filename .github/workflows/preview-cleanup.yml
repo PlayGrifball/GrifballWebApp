@@ -67,6 +67,8 @@ jobs:
               > "versions-$pkg.txt"
 
             while read -r id tags; do
+              # Never act on a line without an id and at least one tag.
+              [ -n "$id" ] && [ -n "$tags" ] || continue
               delete=yes
               for tag in $tags; do
                 case "$tag" in

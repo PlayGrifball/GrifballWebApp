@@ -18,7 +18,7 @@ on:
     types: [ labeled, reopened ]
   pull_request_target:
     branches: [ "master" ]
-    types: [ labeled ]
+    types: [ labeled, reopened ]
 
 permissions: {}
 
@@ -79,7 +79,8 @@ jobs:
     if: >-
       github.event_name == 'pull_request_target' &&
       github.event.pull_request.head.repo.full_name != github.repository &&
-      github.event.label.name == 'preview'
+      ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+       (github.event.action == 'reopened' && contains(github.event.pull_request.labels.*.name, 'preview')))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
