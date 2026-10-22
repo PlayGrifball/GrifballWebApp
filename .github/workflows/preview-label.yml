@@ -1,6 +1,6 @@
 name: Preview label
 
-# Gatekeeper for PR preview environments (behind Authentik). The `preview` label opts a PR in: docker-publish then
+# Gatekeeper for PR preview environments (public, at https://grif-preview<slot>.grifball.xyz). The `preview` label opts a PR in: docker-publish then
 # pushes its images, and the homelab deploys them. When the label is added, this either allows it or removes it again
 # and comments why:
 #  - previews are for PRs from branches of this repository only, never forks;
@@ -110,7 +110,7 @@ jobs:
           marker='<!-- preview-environment-url -->'
           body=$(cat <<EOF
           $marker
-          Preview environment: https://grif-preview$n.grifball.xyz (Authentik login), preview slot $n.
+          Preview environment: https://grif-preview$n.grifball.xyz (public, no login in front of it), preview slot $n.
 
           It runs this PR's images (\`sha-<first 7 of the head commit>\`), rebuilt on every push, against a copy of the test database with this PR's migrations applied. Discord runs against the slot's own test server, **GrifballWebAppPreview$n**, with its own bot; Halo Infinite and Google are off in previews. Remove the \`preview\` label or close the PR to tear it down; its images are deleted then too.
           EOF
