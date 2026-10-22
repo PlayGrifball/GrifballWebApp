@@ -8,7 +8,8 @@ name: Preview cleanup
 # a master push also built (and so may also be a master sha- tag) is never treated as the PR's. Untagged versions
 # (per-platform manifests and attestations under each image) are left alone.
 #
-# The homelab tears the environment itself down from the same label/close; this only reclaims the images.
+# The homelab tears the environment itself down from the same label/close, and preview-label.yml frees its slot; this
+# only reclaims the images.
 on:
   pull_request:
     branches: [ "master" ]
@@ -27,7 +28,6 @@ jobs:
       packages: write  # list and delete package versions
       pull-requests: read  # the PR's commits
       actions: read  # which commits were built, for this PR and for master
-      issues: write  # remove the preview-slot-<N> label (labels on PRs go through the issues API)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
@@ -36,19 +36,6 @@ jobs:
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
       PACKAGES: grifballwebappserver grifballwebappclient
     steps:
-      # Frees the PR's preview slot (preview-label.yml) for the next preview. A closed PR keeps it: closed PRs don't
-      # count, and if it is reopened preview-label.yml checks the slot is still free.
-      - name: Free this PR's preview slot
-        if: github.event.action == 'unlabeled'
-        env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-        run: |
-          set -euo pipefail
-          for s in $(jq -r '.[] | select(startswith("preview-slot-"))' <<< "$LABELS"); do
-            echo "Removing $s"
-            gh api -X DELETE "repos/$REPO/issues/$PR/labels/$s" > /dev/null
-          done
-
       - name: Delete this PR's image versions
         run: |
           set -euo pipefail
