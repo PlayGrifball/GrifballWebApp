@@ -76,13 +76,17 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         var previewMode = PreviewMode.IsEnabled(builder.Configuration);
-        if (previewMode)
+        // A preview turns Discord off unless its preview slot gives it a bot token; then Discord runs as normal.
+        var discordOff = PreviewMode.DisablesDiscord(builder.Configuration);
+        if (discordOff)
             Log.Logger.ForContext<Program>().Warning(PreviewMode.StartupMessage);
+        else if (previewMode)
+            Log.Logger.ForContext<Program>().Warning(PreviewMode.DiscordStartupMessage);
 
         var telemetry = TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment, GitInfo.CommitShortHash);
         builder.AddSerilogLogging(telemetry);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
-        builder.Services.AddAppHealthChecks(builder.Configuration, externalServices: !previewMode);
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff, haloInfinite: !previewMode);
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -180,7 +184,7 @@ public class Program
             };
         });
 
-        if (previewMode)
+        if (discordOff)
         {
             builder.Services.AddPreviewDiscord(builder.Configuration);
         }
@@ -213,13 +217,13 @@ public class Program
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
-        if (!previewMode)
+        if (!discordOff)
             builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
-        if (!previewMode)
+        if (!discordOff)
             builder.Services.AddHostedService<EventsBackgroundService>();
 
-        if (!previewMode)
+        if (!discordOff)
         {
             builder.Services.AddDiscordGateway(options =>
             {
@@ -285,7 +289,7 @@ public class Program
             };
         });
 
-        if (!previewMode)
+        if (!discordOff)
         {
             authentication.AddDiscord(options =>
             {
@@ -389,7 +393,7 @@ public class Program
         app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
         app.MapGet("CommitDate", () => GitInfo.CommitDate);
 
-        if (!previewMode)
+        if (!discordOff)
         {
             app.AddModules(typeof(Program).Assembly);
             app.UseGatewayEventHandlers();

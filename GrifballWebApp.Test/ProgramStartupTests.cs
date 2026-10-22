@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetCord.Gateway;
@@ -210,6 +211,64 @@ public class ProgramStartupTests
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
+    }
+
+    [Test]
+    public async Task PreviewModeWithBotToken_Should_RunDiscordAsInNormalMode()
+    {
+        // A preview holding a preview slot: that slot's bot and server, still no Halo Infinite or Google.
+        var settings = CommonSettings();
+        settings[PreviewMode.ConfigurationKey] = "true";
+        settings["Discord:ClientId"] = "123456789012345678";
+        settings["Discord:ClientSecret"] = "dummy-client-secret";
+        settings["Discord:Token"] = DummyBotToken;
+        settings["Discord:DraftChannel"] = "1";
+        settings["Discord:DisableGlobally"] = "false";
+
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.GatewayClientRegistered, Is.True, "Discord gateway must be registered in a preview with a bot token");
+            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
+            Assert.That(hostedTypes, Does.Contain(typeof(QueueBackgroundService)));
+            Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
+        });
+
+        // Not the preview stand-in: options are validated as in normal mode and DisableGlobally isn't forced.
+        var options = factory.Services.GetRequiredService<IOptions<GrifballWebApp.Server.DiscordOptions>>().Value;
+        Assert.That(options.DisableGlobally, Is.False);
+        Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
+
+        var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
+        Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
+
+        var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+        Assert.That(checks, Does.Contain("discord").And.Not.Contain("halo_infinite"));
+
+        AssertControllersResolve(factory.Services);
+
+        await AssertOk(client, "/CommitHash");
+        await AssertOk(client, "/Home/CurrentAndFutureEvents");
+    }
+
+    [Test]
+    public void PreviewModeWithBotToken_Should_FailStartup_When_DiscordSettingsAreMissing()
+    {
+        // A bot token turns Discord on in a preview, so the rest of the Discord settings are required as in normal mode.
+        var settings = CommonSettings();
+        settings[PreviewMode.ConfigurationKey] = "true";
+        settings["Discord:Token"] = DummyBotToken;
+        var args = settings
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Is.EqualTo("ClientId is required, ClientSecret is required, DraftChannel is required"));
     }
 
     [Test]

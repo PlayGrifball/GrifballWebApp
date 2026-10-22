@@ -37,7 +37,7 @@ jobs:
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
     env:
-      # PR preview environments (https://pr-<N>.grifball.xyz): a PR from a branch of this repo with the preview label
+      # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
       # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
       # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
       PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}

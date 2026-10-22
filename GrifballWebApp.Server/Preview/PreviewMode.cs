@@ -3,18 +3,30 @@ using NetCord.Rest;
 namespace GrifballWebApp.Server.Preview;
 
 /// <summary>
-/// Ephemeral PR preview environments (https://pr-N.grifball.xyz) run with <c>Preview__Enabled=true</c> and no Discord,
-/// Halo Infinite or Google settings. In that mode the app never connects to Discord: no gateway, slash commands,
-/// component interactions or Discord sign-in, and the queue/events background services don't run.
+/// Ephemeral PR preview environments run with <c>Preview__Enabled=true</c> and no Halo Infinite or Google settings.
+/// Without a Discord bot token as well, the app never connects to Discord: no gateway, slash commands, component
+/// interactions or Discord sign-in, and the queue/events background services don't run. A preview that holds one of
+/// the preview slots gets that slot's bot and test server (<c>Discord:Token</c>, its channels, its OAuth app) and runs
+/// Discord exactly as in normal mode (<see cref="HasDiscord"/>).
 /// When the key is false or unset nothing here is used and the app behaves exactly as before.
 /// </summary>
 public static class PreviewMode
 {
     public const string ConfigurationKey = "Preview:Enabled";
 
+    public const string DiscordTokenKey = "Discord:Token";
+
     public const string StartupMessage = "Preview mode is ON (Preview:Enabled=true): Discord gateway, commands, sign-in and the queue/events background services are disabled, and Discord REST calls fail locally";
 
+    public const string DiscordStartupMessage = "Preview mode is ON with Discord (Preview:Enabled=true and Discord:Token set): Discord runs as in normal mode, against this preview's own bot and server; the Halo Infinite health check is off";
+
     public static bool IsEnabled(IConfiguration configuration) => configuration.GetValue<bool>(ConfigurationKey);
+
+    /// <summary>Whether a bot token is configured, as a preview slot provides.</summary>
+    public static bool HasDiscord(IConfiguration configuration) => !string.IsNullOrWhiteSpace(configuration[DiscordTokenKey]);
+
+    /// <summary>Preview mode without a bot token: Discord is off and <see cref="AddPreviewDiscord"/> stands in for it.</summary>
+    public static bool DisablesDiscord(IConfiguration configuration) => IsEnabled(configuration) && !HasDiscord(configuration);
 
     /// <summary>
     /// Registers what the rest of the app needs from Discord, without Discord: <see cref="DiscordOptions"/> bound but not

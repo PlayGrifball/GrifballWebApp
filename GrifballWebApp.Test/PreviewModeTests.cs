@@ -52,6 +52,24 @@ public class PreviewModeTests
         }
     }
 
+    [TestCase(null, null, false, false)]
+    [TestCase("true", null, true, false)]
+    [TestCase("true", "", true, false)]
+    [TestCase("true", "  ", true, false)]
+    [TestCase("true", "bot-token", false, true)]
+    [TestCase("false", "bot-token", false, true)]
+    [TestCase(null, "bot-token", false, true)]
+    public void DisablesDiscord_Should_BeTrue_OnlyInPreviewModeWithoutABotToken(string? preview, string? token, bool disables, bool hasDiscord)
+    {
+        var configuration = Configuration(new() { ["Preview:Enabled"] = preview, ["Discord:Token"] = token });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(PreviewMode.DisablesDiscord(configuration), Is.EqualTo(disables));
+            Assert.That(PreviewMode.HasDiscord(configuration), Is.EqualTo(hasDiscord));
+        });
+    }
+
     private static ServiceProvider PreviewServices(Dictionary<string, string?> values)
     {
         var services = new ServiceCollection();
