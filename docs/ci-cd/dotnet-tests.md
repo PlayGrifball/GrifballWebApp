@@ -64,8 +64,8 @@ The tests use Testcontainers to provision an isolated database server, one per m
 
 ```bash
 # Full solution build and test
-dotnet restore GrifballWebApp.sln
-dotnet build GrifballWebApp.sln --configuration Release
+dotnet restore GrifballWebApp.slnx
+dotnet build GrifballWebApp.slnx --configuration Release
 dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --configuration Release
 
 # With coverage
