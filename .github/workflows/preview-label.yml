@@ -6,7 +6,9 @@ name: Preview label
 #  - slots 1..DISCORD_SLOTS run with Discord, each against its own bot and test server (GrifballWebAppPreview<N>);
 #  - the rest, up to SLOTS, run without Discord;
 #  - past SLOTS, a PR keeps its label and waits.
-# Every run rebalances all of them, whatever triggered it (a PR labelled, unlabelled, reopened or closed):
+# Every run rebalances all of them, whatever triggered it (a PR labelled or unlabelled `preview`, reopened or closed, or a
+# preview-slot-<N> label added or removed by hand, which this puts right within seconds; its own label changes use
+# GITHUB_TOKEN, which starts no workflow, so it never triggers itself):
 #  1. Each open `preview` PR keeps the slot it holds. A slot label on a PR without `preview` (or a closed one) goes.
 #  2. A free Discord slot goes to the oldest PR (lowest number) in a slot without Discord. Its Application keeps its
 #     name and namespace, so its database stays; only the host and the Discord settings change.
@@ -43,7 +45,8 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action == 'reopened' || github.event.action == 'closed' || github.event.label.name == 'preview')
+      (github.event.action == 'reopened' || github.event.action == 'closed' || github.event.label.name == 'preview' ||
+       startsWith(github.event.label.name, 'preview-slot-'))
     runs-on: ubuntu-latest
     permissions:
       # Read open PRs' labels, add and remove labels, comment. Labels and comments on PRs go through the issues API.
