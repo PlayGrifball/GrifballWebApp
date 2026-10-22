@@ -43,10 +43,16 @@ jobs:
       PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
       # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
       DOCKER_METADATA_PR_HEAD_SHA: true
+      # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
+      # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
+      # PRs still build arm64 after pushing, as a check (below).
+      PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
     # Digests of this run's images, for the release job.
     outputs:
       frontend-digest: ${{ steps.build-and-push-frontend.outputs.digest }}
       backend-digest: ${{ steps.build-and-push-backend.outputs.digest }}
+      # Both of a preview's images were pushed, for refresh-preview.
+      preview-pushed: ${{ github.event_name == 'pull_request' && steps.build-and-push-backend.outputs.digest != '' && steps.build-and-push-frontend.outputs.digest != '' }}
     permissions:
       contents: read
       packages: write
@@ -105,8 +111,50 @@ jobs:
             type=sha
             type=ref,event=pr
 
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
+          # in this run has built and pushed - never a partial set.
+          tags: |
+            type=sha
+            type=ref,event=pr
+
+      # Build frontend without pushing: nothing is pushed unless both images build (the push steps below re-run these from the
+      # builder's cache, so they only upload).
+      # https://github.com/docker/build-push-action
+      - name: Build Docker image for frontend
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: grifballwebapp.client
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build backend without pushing: nothing is pushed unless both images build (the push steps below re-run these from the
+      # builder's cache, so they only upload).
+      # https://github.com/docker/build-push-action
+      - name: Build Docker image for backend
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
-      # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check again before pushing anything, so a refused preview
+      # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check again now that both images are built, just before pushing, so a refused preview
       # doesn't publish images. When this step is skipped its output is empty, which still pushes.
       - name: Check the preview label is still on the PR
         id: still-labelled
@@ -124,19 +172,31 @@ jobs:
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Build and push Docker image with Buildx (on PRs, push only previews)
-      # https://github.com/docker/build-push-action
-      - name: Build and push Docker image for frontend
+      # Both images built: push them. Skipped (no digest) for PRs that don't publish.
+      - name: Push Docker image for frontend
         id: build-and-push-frontend
+        if: env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: grifballwebapp.client
-          platforms: linux/amd64,linux/arm64
-          push: ${{ env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false' }}
+          platforms: ${{ env.PLATFORMS }}
+          push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      - name: Push Docker image for backend
+        id: build-and-push-backend
+        if: env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false'
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
@@ -153,31 +213,29 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-      # Extract metadata (tags, labels) for Docker
-      # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata for backend
-        id: meta-backend
-        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
-          # in this run has built and pushed - never a partial set.
-          tags: |
-            type=sha
-            type=ref,event=pr
+      # Sign the resulting Docker image digest, only from master.
+      # This will only write to the public Rekor transparency log when the Docker
+      # repository is public to avoid leaking data.  If you would like to publish
+      # transparency data even for private images, pass --force to cosign below.
+      # https://github.com/sigstore/cosign
+      - name: Sign the published Docker image for backend
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+          TAGS: ${{ steps.meta-backend.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push-backend.outputs.digest }}
+        # This step uses the identity token to provision an ephemeral certificate
+        # against the sigstore community Fulcio instance.
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-      # Build and push Docker image with Buildx (on PRs, push only previews)
-      # https://github.com/docker/build-push-action
-      - name: Build and push Docker image for backend
-        id: build-and-push-backend
+      # A preview pushed amd64 only; build arm64 too, as master will, so a PR still catches what breaks there.
+      - name: Build the arm64 frontend image (PRs, not pushed)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
-          context: .
-          file: GrifballWebApp.Server/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false' }}
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+          context: grifballwebapp.client
+          platforms: linux/arm64
+          push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -199,21 +257,6 @@ jobs:
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
             'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
-
-      # Sign the resulting Docker image digest, only from master.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image for backend
-        if: ${{ github.ref == 'refs/heads/master' }}
-        env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta-backend.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push-backend.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
   # Moves :test and :latest to this run's images, all or nothing: it runs only after every build
   # above succeeded, so a failed build leaves them on the previous complete set. The homelab's
@@ -255,3 +298,30 @@ jobs:
             docker buildx imagetools create -t "$BACKEND:$tag" "$BACKEND@$BACKEND_DIGEST"
             docker buildx imagetools create -t "$FRONTEND:$tag" "$FRONTEND@$FRONTEND_DIGEST"
           done
+
+  # A preview's images are pushed: tell the homelab's Argo CD to look at this PR now rather than at its next poll, so the
+  # preview deploys (or moves to this commit) straight away. The ApplicationSet controller's webhook takes a GitHub-style
+  # pull_request event and refreshes the pull request generators for this repo - nothing else; it reads the PR itself
+  # from GitHub. It is only reachable inside the cluster, so this runs on the org's in-cluster runners (grif-k8s), which
+  # have no Kubernetes token and need none. Best effort: a failure here only means waiting for the poll (30 s).
+  refresh-preview:
+    needs: build
+    if: ${{ needs.build.outputs.preview-pushed == 'true' }}
+    runs-on: grif-k8s
+    permissions: {}
+    timeout-minutes: 2
+    continue-on-error: true
+    steps:
+      - name: Refresh the homelab's preview ApplicationSet
+        env:
+          OWNER: ${{ github.repository_owner }}
+          NAME: ${{ github.event.repository.name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          payload=$(printf '{"action":"synchronize","number":%s,"repository":{"name":"%s","owner":{"login":"%s"},"url":"https://api.github.com/repos/%s/%s"}}' \
+            "$PR" "$NAME" "$OWNER" "$OWNER" "$NAME")
+          curl -fsS --max-time 20 -X POST \
+            -H 'Content-Type: application/json' -H 'X-GitHub-Event: pull_request' \
+            --data "$payload" http://argocd-applicationset-controller.argocd.svc.cluster.local:7000/api/webhook
+          echo "Asked Argo CD to refresh the previews for #$PR"
