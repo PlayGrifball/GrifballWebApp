@@ -51,7 +51,7 @@ jobs:
         restore-keys: nuget-${{ runner.os }}-
 
     - name: Restore dependencies
-      run: dotnet restore GrifballWebApp.sln
+      run: dotnet restore GrifballWebApp.slnx
       
     - name: Build
       run: dotnet build GrifballWebApp.Test/GrifballWebApp.Test.csproj --no-restore --configuration Release /p:DefineConstants=DOCKER_BUILD
