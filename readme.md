@@ -281,7 +281,7 @@ deploy with `migrations.convert`.
 ### Running the Application
 
 0. Optionally, open the `grifballwebapp.client` folder in Visual Studio Code to work on the frontend. In the terminal, run `npm start` to start the Angular development server. The Angular frontend will be available at [https://localhost:4200](https://localhost:4200).
-1. Open the `GrifballWebApp.sln` file in Visual Studio.
+1. Open the `GrifballWebApp.slnx` file in Visual Studio.
 2. The startup project should be set to `GrifballWebApp.Server`, the project in bold in the Solution Explorer is the startup project, additionally it shows up as the startup project to the right of the cogwheel near the green debug arrow. Startup project can be changed either via cogwheel dropdown or by right-clicking the project and selecting "Set as Startup Project" in solution explorer.
 3. Recommended startup profile is `https`, or `IIS Express`. This is set via the dropdown near green debug arrow.
 4. Press `F5` or click the green debug arrow to start the backend server. The API swagger page will be available at [https://localhost:7210/swagger](https://localhost:7210/swagger). The backend will attempt to run `npm start` for the frontend, if it does not detect it already running as specified in step 0. It is recommended to run the frontend separately in step 0 to avoid issues with the backend trying to start the frontend.
