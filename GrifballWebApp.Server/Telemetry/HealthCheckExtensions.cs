@@ -27,23 +27,35 @@ public static class HealthCheckExtensions
     /// Halo outage must not take the website out of service.</item>
     /// </list>
     /// Every result is also published as <c>dotnet.health_check.*</c> metrics every 30 s.
+    /// Preview mode leaves checks out: <paramref name="haloInfinite"/> false (previews have no Halo Infinite
+    /// credentials to probe with), and <paramref name="discord"/> false too when the preview runs without
+    /// Discord (no gateway client to watch).
     /// </summary>
-    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static IHealthChecksBuilder AddAppHealthChecks(this IServiceCollection services, IConfiguration configuration, bool discord = true, bool haloInfinite = true)
     {
         var maxAllocated = configuration.GetValue("HealthChecks:MaxAllocatedMegabytes", DefaultMaxAllocatedMegabytes);
         services.TryAddSingleton(HealthCheckPaths.FromConfiguration(configuration));
 
-        services.TryAddSingleton<DiscordGatewayHealthCheck>();
-        services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
-        // A singleton, so the cached probe result outlives each run.
-        services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
-
         var checks = services.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck(ReadyTag)
-            .AddDbContextCheck<GrifballContext>("database", HealthStatus.Unhealthy, [ReadyTag])
-            .AddCheck<DiscordGatewayHealthCheck>("discord", HealthStatus.Degraded)
-            .AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded)
-            .AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
+            .AddDbContextCheck<GrifballContext>("database", HealthStatus.Unhealthy, [ReadyTag]);
+
+        if (discord)
+        {
+            // Needs the Discord gateway client, which preview mode without Discord doesn't register.
+            services.TryAddSingleton<DiscordGatewayHealthCheck>();
+            services.AddHostedService(sp => sp.GetRequiredService<DiscordGatewayHealthCheck>());
+            checks.AddCheck<DiscordGatewayHealthCheck>("discord", HealthStatus.Degraded);
+        }
+
+        if (haloInfinite)
+        {
+            // A singleton, so the cached probe result outlives each run.
+            services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
+            checks.AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded);
+        }
+
+        checks.AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
 
         services.AddTelemetryHealthCheckPublisher(options => options.LogOnlyUnhealthy = true);
         return checks;

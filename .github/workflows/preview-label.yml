@@ -1,0 +1,199 @@
+name: Preview label
+
+# Gatekeeper and slot keeper for PR preview environments (public, at https://grif-preview<slot>.grifball.xyz). The
+# `preview` label opts a PR in: docker-publish then pushes its images, and the homelab deploys the PRs that also hold a
+# preview-slot-<N> label, which only this workflow hands out:
+#  - slots 1..DISCORD_SLOTS run with Discord, each against its own bot and test server (GrifballWebAppPreview<N>);
+#  - the rest, up to SLOTS, run without Discord;
+#  - past SLOTS, a PR keeps its label and waits.
+# Every run rebalances all of them, whatever triggered it (a PR labelled or unlabelled `preview`, reopened or closed, or a
+# preview-slot-<N> label added or removed by hand, which this puts right within seconds; its own label changes use
+# GITHUB_TOKEN, which starts no workflow, so it never triggers itself):
+#  1. Each open `preview` PR keeps the slot it holds. A slot label on a PR without `preview` (or a closed one) goes.
+#  2. A free Discord slot goes to the oldest PR (lowest number) in a slot without Discord. Its Application keeps its
+#     name and namespace, so its database stays; only the host and the Discord settings change.
+#  3. Free slots go to the oldest waiting PRs, Discord slots first.
+#  4. Each `preview` PR's URL comment says where it is (or that it waits) and, without Discord, which PRs hold the
+#     Discord slots. It is edited in place, only when that changes.
+# Being idempotent, a run that GitHub cancels (concurrency keeps one pending run) is made up for by the next one.
+# Previews are only for PRs from branches of this repository; fork PRs lose the label (the fork job).
+# The `preview` and `preview-slot-1`..`preview-slot-<SLOTS>` labels must exist (Issues > Labels).
+#
+# Two triggers, each handling only its own kind of PR:
+#  - pull_request, for same-repo PRs. Its token can write for them.
+#  - pull_request_target, for fork PRs only, because pull_request gives forks a read-only token, so it could not
+#    remove the label. This is the safe use of pull_request_target: the job runs this file from master, never checks
+#    out or runs the PR's code, only calls the GitHub API, and passes every PR-controlled value through env.
+on:
+  pull_request:
+    branches: [ "master" ]
+    types: [ labeled, unlabeled, reopened, closed ]
+  pull_request_target:
+    branches: [ "master" ]
+    types: [ labeled, reopened ]
+
+permissions: {}
+
+# Same-repo runs one at a time across all PRs, so two runs never hand out the same slot. Fork runs only remove the
+# label, so they stay per PR.
+concurrency:
+  group: preview-label-${{ github.event_name == 'pull_request' && 'slots' || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  same-repo:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action == 'reopened' || github.event.action == 'closed' || github.event.label.name == 'preview' ||
+       startsWith(github.event.label.name, 'preview-slot-'))
+    runs-on: ubuntu-latest
+    permissions:
+      # Read open PRs' labels, add and remove labels, comment. Labels and comments on PRs go through the issues API.
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      ACTION: ${{ github.event.action }}
+      EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+      SLOTS: 6
+      DISCORD_SLOTS: 3
+    steps:
+      - name: Rebalance the preview slots
+        run: |
+          set -euo pipefail
+
+          remove_label() { gh api -X DELETE "repos/$REPO/issues/$1/labels/$2" > /dev/null 2>&1 || true; }
+          add_label() { gh api "repos/$REPO/issues/$1/labels" -f "labels[]=$2" > /dev/null; }
+
+          # A closed PR isn't in the open list below: free its slot here.
+          if [ "$ACTION" = closed ]; then
+            for s in $(jq -r '.[] | select(startswith("preview-slot-"))' <<< "$EVENT_LABELS"); do remove_label "$PR" "$s"; done
+          fi
+
+          # Every open same-repo PR: its number, whether it has `preview`, and its slot labels. Oldest first.
+          gh api "repos/$REPO/pulls?state=open&per_page=100" --paginate \
+            --jq '.[] | select(.head.repo.full_name == env.REPO) | "\(.number) \(any(.labels[]; .name == "preview")) \([.labels[].name | select(startswith("preview-slot-"))] | join(" "))"' \
+            | sort -n > prs.txt
+
+          declare -A holder=() slot_of=() had=()
+          previews=()
+          while read -r n has slots; do
+            [ "$has" = true ] && previews+=("$n")
+            for s in $slots; do
+              had["$n $s"]=1
+              i=${s#preview-slot-}
+              # 1. Keep a valid, unique slot on a preview PR; anything else goes below.
+              if [ "$has" = true ] && [[ "$i" =~ ^[0-9]+$ ]] && [ "$i" -ge 1 ] && [ "$i" -le "$SLOTS" ] \
+                && [ -z "${holder[$i]:-}" ] && [ -z "${slot_of[$n]:-}" ]; then
+                holder[$i]=$n
+                slot_of[$n]=$i
+              fi
+            done
+          done < prs.txt
+
+          # 2. Free Discord slots to the oldest previews without Discord.
+          for i in $(seq 1 "$DISCORD_SLOTS"); do
+            [ -n "${holder[$i]:-}" ] && continue
+            for n in "${previews[@]}"; do
+              j=${slot_of[$n]:-}
+              if [ -n "$j" ] && [ "$j" -gt "$DISCORD_SLOTS" ]; then
+                holder[$j]=""
+                holder[$i]=$n
+                slot_of[$n]=$i
+                break
+              fi
+            done
+          done
+
+          # 3. Free slots to the oldest waiting PRs, Discord slots first.
+          for n in "${previews[@]}"; do
+            [ -n "${slot_of[$n]:-}" ] && continue
+            for i in $(seq 1 "$SLOTS"); do
+              if [ -z "${holder[$i]:-}" ]; then holder[$i]=$n; slot_of[$n]=$i; break; fi
+            done
+          done
+
+          # Apply: each PR ends with exactly its slot's label, or none.
+          while read -r n has slots; do
+            for s in $slots; do
+              if [ "$s" != "preview-slot-${slot_of[$n]:-}" ]; then remove_label "$n" "$s"; fi
+            done
+            if [ -n "${slot_of[$n]:-}" ] && [ -z "${had["$n preview-slot-${slot_of[$n]}"]:-}" ]; then
+              add_label "$n" "preview-slot-${slot_of[$n]}"
+            fi
+          done < prs.txt
+
+          discord_holders="" all_holders=""
+          for i in $(seq 1 "$SLOTS"); do
+            [ -n "${holder[$i]:-}" ] || continue
+            all_holders="$all_holders #${holder[$i]}"
+            if [ "$i" -le "$DISCORD_SLOTS" ]; then discord_holders="$discord_holders #${holder[$i]} (slot $i),"; fi
+          done
+          discord_holders=${discord_holders%,}
+          for n in "${previews[@]}"; do
+            i=${slot_of[$n]:-}
+            if [ -z "$i" ]; then state="waiting"; elif [ "$i" -le "$DISCORD_SLOTS" ]; then state="slot $i, Discord"; else state="slot $i, no Discord"; fi
+            echo "#$n: $state"
+          done
+
+          # 4. One URL comment per PR, edited in place when its state changes.
+          marker='<!-- preview-environment-url -->'
+          for n in "${previews[@]}"; do
+            i=${slot_of[$n]:-}
+            if [ -z "$i" ]; then
+              body=$(cat <<EOF
+          $marker
+          **Preview: waiting.** All $SLOTS preview slots are in use (by${all_holders}). This PR keeps the \`preview\` label and gets the next free slot by itself, oldest waiting PR first.
+          EOF
+              )
+            elif [ "$i" -le "$DISCORD_SLOTS" ]; then
+              body=$(cat <<EOF
+          $marker
+          Preview environment: https://grif-preview$i.grifball.xyz (public, no login in front of it), preview slot $i.
+
+          It runs this PR's images (\`sha-<first 7 of the head commit>\`), rebuilt on every push, against a copy of the test database with this PR's migrations applied. Discord runs against the slot's own test server, **GrifballWebAppPreview$i**, with its own bot; Halo Infinite and Google are off in previews. Remove the \`preview\` label or close the PR to tear it down; its images are deleted then too.
+          EOF
+              )
+            else
+              body=$(cat <<EOF
+          $marker
+          Preview environment: https://grif-preview$i.grifball.xyz (public, no login in front of it), preview slot $i, **without Discord**: the $DISCORD_SLOTS Discord slots are held by${discord_holders}. When one frees up, this preview moves into it by itself (oldest first), at that slot's URL, keeping its database.
+
+          It runs this PR's images (\`sha-<first 7 of the head commit>\`), rebuilt on every push, against a copy of the test database with this PR's migrations applied. Discord, Halo Infinite and Google are off. Remove the \`preview\` label or close the PR to tear it down; its images are deleted then too.
+          EOF
+              )
+            fi
+            existing=$(gh api "repos/$REPO/issues/$n/comments" --paginate \
+              --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -n 1)
+            if [ -z "$existing" ]; then
+              gh api "repos/$REPO/issues/$n/comments" -f body="$body" > /dev/null
+            elif [ "$(gh api "repos/$REPO/issues/comments/$existing" --jq .body)" != "$body" ]; then
+              gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
+            fi
+          done
+
+  fork:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+       (github.event.action == 'reopened' && contains(github.event.pull_request.labels.*.name, 'preview')))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Remove the label from a fork PR
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$REPO/issues/$PR/labels/preview" > /dev/null
+          gh api "repos/$REPO/issues/$PR/comments" -F body=@- > /dev/null <<EOF
+          The \`preview\` label was removed: preview environments are only for PRs from branches of $REPO, not forks, because a preview publishes images with this repository's credentials.
+          EOF

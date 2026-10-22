@@ -129,6 +129,46 @@ public class HealthCheckExtensionsTests
         });
     }
 
+    [Test]
+    public void AddAppHealthChecks_PreviewWithDiscord_KeepsDiscord_LeavesOutHalo()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAppHealthChecks(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), discord: true, haloInfinite: false);
+        using var provider = services.BuildServiceProvider();
+
+        var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(registrations, Is.SupersetOf(new[] { "database", "memory", "discord" }));
+            Assert.That(registrations, Does.Not.Contain("halo_infinite"));
+            Assert.That(services.Any(d => d.ServiceType == typeof(DiscordGatewayHealthCheck)), Is.True);
+            Assert.That(services.Any(d => d.ServiceType == typeof(HaloInfiniteHealthCheck)), Is.False);
+        });
+    }
+
+    [Test]
+    public void AddAppHealthChecks_WithoutExternalServices_LeavesOutDiscordAndHalo()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAppHealthChecks(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), discord: false, haloInfinite: false);
+        using var provider = services.BuildServiceProvider();
+
+        var registrations = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+
+        Assert.Multiple(() =>
+        {
+            // Preview mode registers no Discord gateway client, which the Discord check (a hosted service) needs.
+            Assert.That(registrations, Is.SupersetOf(new[] { "database", "memory" }));
+            Assert.That(registrations, Does.Not.Contain("discord"));
+            Assert.That(registrations, Does.Not.Contain("halo_infinite"));
+            Assert.That(services.Any(d => d.ServiceType == typeof(DiscordGatewayHealthCheck)), Is.False);
+            Assert.That(services.Any(d => d.ServiceType == typeof(HaloInfiniteHealthCheck)), Is.False);
+        });
+    }
+
     [TestCase("/health", true)]
     [TestCase("/health/ready", true)]
     [TestCase("/HEALTH/live", true)]
