@@ -250,6 +250,20 @@
       ],
       "groupName": "NUnit major",
       "groupSlug": "nunit"
+    },
+    {
+      "description": "Jasmine majors (the client tests) go to the Angular major PR: zone.js's testing patch replaces Jasmine's globals (describe, it), which newer Jasmine makes read-only, so a Jasmine major needs the zone.js (and Angular) that supports it. jasmine-core 7 with zone.js 0.15 fails before any test runs: Cannot assign to read only property 'describe'. The slug puts them in the renovate/major-angular branch, as zone.js above",
+      "matchPackageNames": [
+        "jasmine-core",
+        "@types/jasmine",
+        "karma-jasmine",
+        "karma-jasmine-html-reporter"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Angular major",
+      "groupSlug": "major-angular"
     }
   ]
 }
