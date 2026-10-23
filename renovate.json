@@ -132,6 +132,17 @@
       "separateMajorMinor": false
     },
     {
+      "description": "The brackets libraries (brackets-manager, brackets-model, brackets-viewer) get their own PR: they make and draw the event brackets, and move together",
+      "matchPackageNames": [
+        "brackets-manager",
+        "brackets-model",
+        "brackets-viewer"
+      ],
+      "groupName": "brackets",
+      "groupSlug": "brackets",
+      "separateMajorMinor": false
+    },
+    {
       "description": "Angular majors get their own PR; they need ng update migrations and careful testing. @angular/material and @angular/cdk are covered by @angular/**; the @ng-matero libraries and ngx-drag-drop release one major per Angular major, so they ride along",
       "matchPackageNames": [
         "@angular/**",
