@@ -25,34 +25,27 @@ env:
   #IMAGE_NAME: ${{ github.repository }}
   IMAGE_NAME_FRONTEND: PlayGrifball/grifballwebappclient
   IMAGE_NAME_BACKEND: PlayGrifball/grifballwebappserver
-
+  # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
+  # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
+  # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
+  PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
+  # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
+  DOCKER_METADATA_PR_HEAD_SHA: true
+  # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
+  # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
+  PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
 
 # Images are signed and released only from master (a push to it, or a run started by hand on it):
 # github.ref is refs/heads/master for nothing else. They're pushed from master and for preview PRs
 # (PUBLISH, below); other pull requests, and runs started by hand on another branch, build without
 # logging in or pushing.
 jobs:
-  build:
+  build-frontend:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
-    env:
-      # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
-      # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
-      # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
-      PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
-      # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
-      DOCKER_METADATA_PR_HEAD_SHA: true
-      # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
-      # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
-      # PRs still build arm64 after pushing, as a check (below).
-      PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-    # Digests of this run's images, for the release job.
     outputs:
-      frontend-digest: ${{ steps.build-and-push-frontend.outputs.digest }}
-      backend-digest: ${{ steps.build-and-push-backend.outputs.digest }}
-      # Both of a preview's images were pushed, for refresh-preview.
-      preview-pushed: ${{ github.event_name == 'pull_request' && steps.build-and-push-backend.outputs.digest != '' && steps.build-and-push-frontend.outputs.digest != '' }}
+      digest: ${{ steps.push.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -65,21 +58,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-            fetch-depth: 0
-            # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
-            ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+          fetch-depth: 0
+          # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
 
       # Install the cosign tool, only from master
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
         if: github.ref == 'refs/heads/master'
-        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 #v3.5.0
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
         with:
           cosign-release: 'v2.2.4'
 
       # Emulation for the arm64 image's few RUN steps (apk add); the .NET and Node builds run natively
-      # and target arm64 (see the Dockerfiles).
+      # and target arm64 (see the Dockerfiles). Skipped on PRs where only amd64 is built.
       - name: Set up QEMU
+        if: github.event_name != 'pull_request'
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       # Set up BuildKit Docker container builder to be able to build
@@ -101,7 +95,7 @@ jobs:
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata for frontend
-        id: meta-frontend
+        id: meta
         uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
@@ -111,51 +105,20 @@ jobs:
             type=sha
             type=ref,event=pr
 
-      # Extract metadata (tags, labels) for Docker
-      # https://github.com/docker/metadata-action
-      - name: Extract Docker metadata for backend
-        id: meta-backend
-        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
-          # in this run has built and pushed - never a partial set.
-          tags: |
-            type=sha
-            type=ref,event=pr
-
-      # Build frontend without pushing: nothing is pushed unless both images build (the push steps below re-run these from the
-      # builder's cache, so they only upload).
-      # https://github.com/docker/build-push-action
+      # Build frontend without pushing first to populate builder cache and allow preview-label.yml to complete
       - name: Build Docker image for frontend
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: grifballwebapp.client
           platforms: ${{ env.PLATFORMS }}
           push: false
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Build backend without pushing: nothing is pushed unless both images build (the push steps below re-run these from the
-      # builder's cache, so they only upload).
-      # https://github.com/docker/build-push-action
-      - name: Build Docker image for backend
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
-        with:
-          context: .
-          file: GrifballWebApp.Server/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          push: false
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
-      # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check again now that both images are built, just before pushing, so a refused preview
-      # doesn't publish images. When this step is skipped its output is empty, which still pushes.
+      # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
       - name: Check the preview label is still on the PR
         id: still-labelled
         if: env.PUBLISH == 'true' && github.event_name == 'pull_request'
@@ -172,21 +135,129 @@ jobs:
             echo "push=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Both images built: push them. Skipped (no digest) for PRs that don't publish.
+      # Push frontend image (re-uses local builder cache from build step above)
       - name: Push Docker image for frontend
-        id: build-and-push-frontend
+        id: push
         if: env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: grifballwebapp.client
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          cache-from: type=gha
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=frontend
 
+      # Sign the resulting Docker image digest, only from master.
+      # This will only write to the public Rekor transparency log when the Docker
+      # repository is public to avoid leaking data.
+      # https://github.com/sigstore/cosign
+      - name: Sign the published Docker image for frontend
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  build-backend:
+    # Other labels don't change the build, so don't rebuild for them.
+    if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read  # re-check the preview label before pushing
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+
+      # Install the cosign tool, only from master
+      # https://github.com/sigstore/cosign-installer
+      - name: Install cosign
+        if: github.ref == 'refs/heads/master'
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+        with:
+          cosign-release: 'v2.2.4'
+
+      # Emulation for the arm64 image's few RUN steps (apk add); the .NET and Node builds run natively
+      # and target arm64 (see the Dockerfiles). Skipped on PRs where only amd64 is built.
+      - name: Set up QEMU
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      # Set up BuildKit Docker container builder to be able to build
+      # multi-platform images and export cache
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      # Login against a Docker registry: from master, and for preview PRs (PUBLISH)
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata for backend
+        id: meta
+        uses: docker/metadata-action@96383f45573cb7f253c731d3b3ab81c87ef81934 # v5.0.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          # Only the immutable sha- tag here (plus pr-<N> on preview PRs). :latest moves in the release job, once every image
+          # in this run has built and pushed - never a partial set.
+          tags: |
+            type=sha
+            type=ref,event=pr
+
+      # Build backend without pushing first to populate builder cache and allow preview-label.yml to complete
+      - name: Build Docker image for backend
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
+      # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
+      - name: Check the preview label is still on the PR
+        id: still-labelled
+        if: env.PUBLISH == 'true' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$REPO/pulls/$PR" --jq '.labels[].name' | grep -qx preview; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The preview label was removed from #$PR during this run; building without pushing"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Push backend image (re-uses local builder cache from build step above)
       - name: Push Docker image for backend
-        id: build-and-push-backend
+        id: push
         if: env.PUBLISH == 'true' && steps.still-labelled.outputs.push != 'false'
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
@@ -194,53 +265,78 @@ jobs:
           file: GrifballWebApp.Server/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-          cache-from: type=gha
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
 
       # Sign the resulting Docker image digest, only from master.
       # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
-      # https://github.com/sigstore/cosign
-      - name: Sign the published Docker image for frontend
-        if: ${{ github.ref == 'refs/heads/master' }}
-        env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta-frontend.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push-frontend.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
-
-      # Sign the resulting Docker image digest, only from master.
-      # This will only write to the public Rekor transparency log when the Docker
-      # repository is public to avoid leaking data.  If you would like to publish
-      # transparency data even for private images, pass --force to cosign below.
+      # repository is public to avoid leaking data.
       # https://github.com/sigstore/cosign
       - name: Sign the published Docker image for backend
         if: ${{ github.ref == 'refs/heads/master' }}
         env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta-backend.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push-backend.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-      # A preview pushed amd64 only; build arm64 too, as master will, so a PR still catches what breaks there.
-      - name: Build the arm64 frontend image (PRs, not pushed)
-        if: github.event_name == 'pull_request'
+      # Master builds both amd64 and arm64; verify the arm64 backend image with a smoke test before release.
+      # Skipped on pull requests to keep preview and check runs fast.
+      - name: Build the arm64 backend image to run it
+        if: github.ref == 'refs/heads/master'
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: backend-arm64
+          cache-from: type=gha,scope=backend
+
+      - name: Smoke-test the arm64 backend image
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
+            'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
+
+  # On PRs, build arm64 in a separate parallel job so any arm64 breakage is caught without delaying preview deployment.
+  check-arm64:
+    # Other labels don't change the build, so don't rebuild for them.
+    if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
+          ref: ${{ github.event.pull_request.head.sha || '' }}
+
+      # Emulation for the arm64 image's few RUN steps (apk add); the .NET and Node builds run natively
+      # and target arm64 (see the Dockerfiles).
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      # Set up BuildKit Docker container builder to be able to build
+      # multi-platform images and export cache
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      # Build the arm64 frontend image to check that it compiles
+      - name: Build the arm64 frontend image
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           context: grifballwebapp.client
           platforms: linux/arm64
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend
 
       # The arm64 backend's native pieces actually run: .NET, the migrations bundle (built for
-      # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache the build above just filled.
+      # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache.
       - name: Build the arm64 backend image to run it
         uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
@@ -250,7 +346,7 @@ jobs:
           load: true
           push: false
           tags: backend-arm64
-          cache-from: type=gha
+          cache-from: type=gha,scope=backend
 
       - name: Smoke-test the arm64 backend image
         run: |
@@ -264,8 +360,8 @@ jobs:
   # (no rebuild, no re-upload), and backend goes first: it carries the migrations bundle, and the backend/frontend pair only
   # has to stay API-compatible for the seconds between the two.
   release:
-    needs: build
-    if: ${{ github.ref == 'refs/heads/master' }}
+    needs: [build-frontend, build-backend]
+    if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -285,8 +381,8 @@ jobs:
         env:
           BACKEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
           FRONTEND: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-          BACKEND_DIGEST: ${{ needs.build.outputs.backend-digest }}
-          FRONTEND_DIGEST: ${{ needs.build.outputs.frontend-digest }}
+          BACKEND_DIGEST: ${{ needs.build-backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ needs.build-frontend.outputs.digest }}
         run: |
           set -euo pipefail
           test -n "$BACKEND_DIGEST" && test -n "$FRONTEND_DIGEST"
@@ -305,8 +401,8 @@ jobs:
   # from GitHub. It is only reachable inside the cluster, so this runs on the org's in-cluster runners (grif-k8s), which
   # have no Kubernetes token and need none. Best effort: a failure here only means waiting for the poll (30 s).
   refresh-preview:
-    needs: build
-    if: ${{ needs.build.outputs.preview-pushed == 'true' }}
+    needs: [build-frontend, build-backend]
+    if: ${{ !failure() && !cancelled() && github.event_name == 'pull_request' && needs.build-frontend.outputs.digest != '' && needs.build-backend.outputs.digest != '' }}
     runs-on: grif-k8s
     permissions: {}
     timeout-minutes: 2
