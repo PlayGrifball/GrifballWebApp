@@ -225,6 +225,31 @@
         "mcr.microsoft.com/dotnet/**"
       ],
       "enabled": false
+    },
+    {
+      "description": "Tailwind CSS majors get their own PR: they change the configuration and the PostCSS plugin (4.0 moved it to @tailwindcss/postcss), so they need a migration (npx @tailwindcss/upgrade). Minors and patches stay in the big PR",
+      "matchPackageNames": [
+        "tailwindcss",
+        "@tailwindcss/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Tailwind major",
+      "groupSlug": "tailwind"
+    },
+    {
+      "description": "NUnit majors get their own PR: they change the assertion API (5.0: Assert.ThrowsAsync returns a Task to await), so the tests need fixing with them. NUnit3TestAdapter and NUnit.Analyzers majors come along. Minors and patches stay in the big PR",
+      "matchPackageNames": [
+        "NUnit",
+        "NUnit.**",
+        "NUnit3TestAdapter"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "NUnit major",
+      "groupSlug": "nunit"
     }
   ]
 }
