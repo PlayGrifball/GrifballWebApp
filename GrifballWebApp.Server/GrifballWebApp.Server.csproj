@@ -29,7 +29,7 @@
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-    <PackageReference Include="NetCord.Hosting.Services" Version="1.0.0-alpha.365" />
+    <PackageReference Include="NetCord.Hosting.Services" Version="1.0.0-beta.28" />
     <PackageReference Include="OllamaSharp" Version="5.4.11" />
     <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.Common" Version="10.10.0" />
