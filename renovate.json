@@ -226,6 +226,19 @@
       ],
       "groupName": "Tailwind major",
       "groupSlug": "tailwind"
+    },
+    {
+      "description": "NUnit majors get their own PR: they change the assertion API (5.0: Assert.ThrowsAsync returns a Task to await), so the tests need fixing with them. NUnit3TestAdapter and NUnit.Analyzers majors come along. Minors and patches stay in the big PR",
+      "matchPackageNames": [
+        "NUnit",
+        "NUnit.**",
+        "NUnit3TestAdapter"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "NUnit major",
+      "groupSlug": "nunit"
     }
   ]
 }
