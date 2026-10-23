@@ -1,7 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 

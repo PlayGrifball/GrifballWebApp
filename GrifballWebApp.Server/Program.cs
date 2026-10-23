@@ -15,6 +15,7 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
+using GrifballWebApp.Server.Notifications;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
@@ -240,7 +241,7 @@ public class Program
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
 
-        builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+        builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
         builder.Services.AddTransient<IBracketService, BracketService>();

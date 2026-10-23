@@ -1,4 +1,4 @@
-﻿using MediatR;
+﻿using GrifballWebApp.Server.Notifications;
 
 namespace GrifballWebApp.Server.Matchmaking;
 

@@ -1,5 +1,5 @@
 ﻿using GrifballWebApp.Database;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
