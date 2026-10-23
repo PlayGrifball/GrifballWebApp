@@ -88,7 +88,7 @@
       "separateMajorMinor": false
     },
     {
-      "description": "Packages tied to the Angular or .NET version: keep minors in the big PR but split majors out",
+      "description": "Everything tied to the Angular version gets its own PR, never the big one: Angular itself, Node (the client build images and the CI setup-node versions), the CLI in debug.Dockerfile (@angular/cli, the custom manager above), and @material/material-color-utilities (the theme service builds the M3 palettes with it). Minors and patches go to an Angular PR (renovate/angular), majors to Angular major (renovate/major-angular, below)",
       "matchPackageNames": [
         "@angular/**",
         "@angular-devkit/**",
@@ -99,6 +99,15 @@
         "typescript",
         "node",
         "actions/node-versions",
+        "@material/material-color-utilities"
+      ],
+      "groupName": "Angular",
+      "groupSlug": "angular",
+      "separateMajorMinor": true
+    },
+    {
+      "description": "Packages tied to the .NET version: keep minors in the big PR but split majors out",
+      "matchPackageNames": [
         "Microsoft.AspNetCore.**",
         "Microsoft.EntityFrameworkCore.**",
         "Microsoft.Extensions.**",
@@ -111,6 +120,16 @@
         "mcr.microsoft.com/dotnet/**"
       ],
       "separateMajorMinor": true
+    },
+    {
+      "description": "NetCord (the Discord library) gets its own PR: it is a prerelease, and each new one can break the bot",
+      "matchPackageNames": [
+        "NetCord",
+        "NetCord.**"
+      ],
+      "groupName": "NetCord",
+      "groupSlug": "netcord",
+      "separateMajorMinor": false
     },
     {
       "description": "Angular majors get their own PR; they need ng update migrations and careful testing. @angular/material and @angular/cdk are covered by @angular/**; the @ng-matero libraries and ngx-drag-drop release one major per Angular major, so they ride along",
