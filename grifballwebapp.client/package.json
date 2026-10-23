@@ -29,7 +29,7 @@
     "@angular/platform-browser": "^22.2.1",
     "@angular/router": "^22.2.1",
     "@auth0/angular-jwt": "^5.2.0",
-    "@material/material-color-utilities": "^0.3.0",
+    "@material/material-color-utilities": "^0.4.0",
     "@microsoft/signalr": "^8.0.7",
     "@ng-matero/extensions": "^22.1.1",
     "@ng-matero/extensions-luxon-adapter": "^22.0.0",
