@@ -31,6 +31,50 @@
       ],
       "datasourceTemplate": "nuget",
       "versioningTemplate": "semver"
+    },
+    {
+      "description": "The .NET images (Dockerfile FROM ...:10.0-alpine), looked up in .NET's own release list rather than the image tags: the tags exist from the first preview, the list has a stable 11.0.x only once 11.0 ships (previews like 11.0.0-rc.2 don't match extractVersion). The docker manager's own lookup of these images is off (packageRules)",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile$/"
+      ],
+      "matchStrings": [
+        "(?<depName>mcr\\.microsoft\\.com/dotnet/(?:aspnet|sdk)):(?<currentValue>\\d+\\.\\d+)-alpine"
+      ],
+      "packageNameTemplate": "dotnet-runtime",
+      "datasourceTemplate": "dotnet-version",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)\\.\\d+$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$"
+    },
+    {
+      "description": "The projects' TargetFramework (net10.0), moved with the images in the .NET major PR",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/\\.csproj$/"
+      ],
+      "matchStrings": [
+        "<TargetFramework>net(?<currentValue>\\d+\\.\\d+)</TargetFramework>"
+      ],
+      "depNameTemplate": "TargetFramework",
+      "packageNameTemplate": "dotnet-runtime",
+      "datasourceTemplate": "dotnet-version",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)\\.\\d+$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$"
+    },
+    {
+      "description": "The SDK the .NET tests install (DOTNET_VERSION: 10.0.x in dotnet-tests.yml)",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "DOTNET_VERSION: '(?<currentValue>\\d+\\.\\d+)\\.x'"
+      ],
+      "depNameTemplate": "dotnet-sdk",
+      "packageNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)\\.\\d+$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)$"
     }
   ],
   "packageRules": [
@@ -63,6 +107,7 @@
         "Serilog.Settings.Configuration",
         "dotnet-ef",
         "dotnet-sdk",
+        "dotnet-runtime",
         "mcr.microsoft.com/dotnet/**"
       ],
       "separateMajorMinor": true
@@ -132,6 +177,7 @@
         "Serilog.Settings.Configuration",
         "dotnet-ef",
         "dotnet-sdk",
+        "dotnet-runtime",
         "mcr.microsoft.com/dotnet/**"
       ],
       "matchUpdateTypes": [
@@ -141,14 +187,14 @@
       "groupSlug": "dotnet"
     },
     {
-      "description": "The .NET images' floating tags (11.0-alpine) are published from the first preview on, so Renovate offers a .NET major months before it ships. Hold them at the current major; raise the bound once the next one is released (dotnet.microsoft.com/download/dotnet). NuGet packages and dotnet-sdk need nothing here: their previews are prereleases, which Renovate already skips",
+      "description": "The .NET images are looked up by the regex manager above (.NET's release list), not by their tags, which offer a .NET major from its first preview",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
         "mcr.microsoft.com/dotnet/**"
       ],
-      "allowedVersions": "<11"
+      "enabled": false
     }
   ]
 }
