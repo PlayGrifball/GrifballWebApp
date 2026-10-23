@@ -139,6 +139,16 @@
       ],
       "groupName": ".NET major",
       "groupSlug": "dotnet"
+    },
+    {
+      "description": "The .NET images' floating tags (11.0-alpine) are published from the first preview on, so Renovate offers a .NET major months before it ships. Hold them at the current major; raise the bound once the next one is released (dotnet.microsoft.com/download/dotnet). NuGet packages and dotnet-sdk need nothing here: their previews are prereleases, which Renovate already skips",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "mcr.microsoft.com/dotnet/**"
+      ],
+      "allowedVersions": "<11"
     }
   ]
 }
