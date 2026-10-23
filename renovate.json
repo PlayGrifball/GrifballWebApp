@@ -214,6 +214,18 @@
         "mcr.microsoft.com/dotnet/**"
       ],
       "enabled": false
+    },
+    {
+      "description": "Tailwind CSS majors get their own PR: they change the configuration and the PostCSS plugin (4.0 moved it to @tailwindcss/postcss), so they need a migration (npx @tailwindcss/upgrade). Minors and patches stay in the big PR",
+      "matchPackageNames": [
+        "tailwindcss",
+        "@tailwindcss/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "Tailwind major",
+      "groupSlug": "tailwind"
     }
   ]
 }
