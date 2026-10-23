@@ -4,7 +4,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Teams;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 

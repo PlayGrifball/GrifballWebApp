@@ -6,7 +6,7 @@ using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.TeamStandings;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

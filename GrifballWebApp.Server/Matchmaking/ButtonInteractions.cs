@@ -3,7 +3,7 @@ using DiscordInterfaces;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord;

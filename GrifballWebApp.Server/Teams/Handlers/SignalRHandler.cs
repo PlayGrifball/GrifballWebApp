@@ -1,4 +1,4 @@
-﻿using MediatR;
+﻿using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GrifballWebApp.Server.Teams.Handlers;

@@ -4,7 +4,7 @@ using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
-using MediatR;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
@@ -122,7 +122,7 @@ public class ProgramStartupTests
         return settings;
     }
 
-    /// <summary>Every concrete MediatR notification handler in the server, with the handler interface it implements.</summary>
+    /// <summary>Every concrete notification handler in the server, with the handler interface it implements.</summary>
     private static List<(Type Handler, Type Service)> NotificationHandlers()
         => typeof(ServerProgram).Assembly.GetTypes()
             .Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false })
@@ -245,10 +245,10 @@ public class ProgramStartupTests
     }
 
     [Test]
-    public async Task NormalMode_Should_RegisterEveryNotificationHandler_WithMediatR()
+    public async Task NormalMode_Should_RegisterEveryNotificationHandler()
     {
-        // Program.cs registers the handlers by scanning its assembly (AddMediatR); every other test replaces
-        // IPublisher with a substitute, so this is what checks a MediatR upgrade still finds and builds them all.
+        // Program.cs registers the handlers by scanning its assembly (AddNotifications); every other test replaces
+        // IPublisher with a substitute, so this is what checks they are all found and can be built from the container.
         await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
         using var client = factory.CreateClient();
 
@@ -268,7 +268,7 @@ public class ProgramStartupTests
     }
 
     [Test]
-    public async Task NormalMode_Should_PublishNotifications_ThroughMediatR_ToTheTeamsHub()
+    public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
     {
         // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
         // other connection to lock the captains (and LockChangeDiscordHandler, with Discord disabled, does nothing).
