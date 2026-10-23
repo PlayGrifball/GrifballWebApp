@@ -5,13 +5,14 @@ FROM --platform=$BUILDPLATFORM node:24.21.0-alpine AS build
 WORKDIR /usr/build
 COPY package.json ./
 COPY package-lock.json ./
+RUN npm install --force
+
 COPY angular.json ./
 COPY tsconfig.json ./
 COPY tsconfig.app.json ./
 COPY m3-theme.scss ./
 COPY tailwind.config.js ./
 COPY src src
-RUN npm install --force
 RUN npm run build
 
 # Stage 2
