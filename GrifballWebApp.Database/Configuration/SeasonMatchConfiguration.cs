@@ -1,4 +1,4 @@
-using GrifballWebApp.Database.Models;
+﻿using GrifballWebApp.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,7 +12,11 @@ public partial class SeasonMatchConfiguration : IEntityTypeConfiguration<SeasonM
             tb.IsTemporal();
 
             // Make sure that at least 1 team is null. If both are not null then they must not be the same
-            tb.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", "(HomeTeamID IS NULL) OR (AwayTeamID IS NULL) OR (HomeTeamID != AwayTeamID)");
+            tb.HasCheckConstraint("CK_Event_SeasonMatches_MustBeDifferentTeams", @"
+(HomeTeamID IS NULL) OR
+(AwayTeamID IS NULL) OR
+(HomeTeamID != AwayTeamID)
+".Replace(Environment.NewLine, " ").Trim()); // Do not put new lines in SQL constraints, it will cause PendingModelChangesWarning
         });
 
         entity.HasKey(e => e.SeasonMatchID);

@@ -25,6 +25,15 @@ env:
   #IMAGE_NAME: ${{ github.repository }}
   IMAGE_NAME_FRONTEND: PlayGrifball/grifballwebappclient
   IMAGE_NAME_BACKEND: PlayGrifball/grifballwebappserver
+  # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
+  # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
+  # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
+  PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
+  # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
+  DOCKER_METADATA_PR_HEAD_SHA: true
+  # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
+  # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
+  PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
 
 # Images are signed and released only from master (a push to it, or a run started by hand on it):
 # github.ref is refs/heads/master for nothing else. They're pushed from master and for preview PRs
@@ -35,16 +44,6 @@ jobs:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
-    env:
-      # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
-      # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
-      # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
-      PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
-      # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
-      DOCKER_METADATA_PR_HEAD_SHA: true
-      # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
-      # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
-      PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     permissions:
@@ -116,7 +115,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=min,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -164,16 +163,6 @@ jobs:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
     runs-on: ubuntu-latest
-    env:
-      # PR preview environments (https://grif-preview<slot>.grifball.xyz): a PR from a branch of this repo with the preview label
-      # pushes its images as sha-<first 7 of the PR head commit> and pr-<N>. Fork PRs, and PRs without the label, only
-      # build: no login, no push. preview-cleanup.yml deletes a PR's images when it closes or loses the label.
-      PUBLISH: ${{ github.ref == 'refs/heads/master' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'preview')) }}
-      # On pull_request, tag sha- with the PR head commit rather than GitHub's merge commit.
-      DOCKER_METADATA_PR_HEAD_SHA: true
-      # What is pushed: both architectures from master; amd64 only for a preview, which runs on the homelab's amd64 nodes
-      # (k1-k3; k0, the arm64 one, is tainted for the control plane), so its images are ready in about a third of the time.
-      PLATFORMS: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
     outputs:
       digest: ${{ steps.push.outputs.digest }}
     permissions:
@@ -246,7 +235,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=min,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       # preview-label.yml may have removed the label since this run started (over the cap), and a label removed by
       # GITHUB_TOKEN doesn't trigger preview-cleanup.yml. Check after building and just before pushing.
@@ -307,6 +296,59 @@ jobs:
 
       - name: Smoke-test the arm64 backend image
         if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
+            'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
+
+  # On PRs, build arm64 in a separate parallel job so any arm64 breakage is caught without delaying preview deployment.
+  check-arm64:
+    # Other labels don't change the build, so don't rebuild for them.
+    if: ${{ github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'preview') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          # PRs build their head commit, matching the sha- tag. Empty means the default (the pushed commit).
+          ref: ${{ github.event.pull_request.head.sha || '' }}
+
+      # Emulation for the arm64 image's few RUN steps (apk add); the .NET and Node builds run natively
+      # and target arm64 (see the Dockerfiles).
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      # Set up BuildKit Docker container builder to be able to build
+      # multi-platform images and export cache
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      # Build the arm64 frontend image to check that it compiles
+      - name: Build the arm64 frontend image
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: grifballwebapp.client
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha,scope=frontend
+
+      # The arm64 backend's native pieces actually run: .NET, the migrations bundle (built for
+      # linux-musl-arm64) and sqlcmd. Under QEMU, from the cache.
+      - name: Build the arm64 backend image to run it
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
+        with:
+          context: .
+          file: GrifballWebApp.Server/Dockerfile
+          platforms: linux/arm64
+          load: true
+          push: false
+          tags: backend-arm64
+          cache-from: type=gha,scope=backend
+
+      - name: Smoke-test the arm64 backend image
         run: |
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
