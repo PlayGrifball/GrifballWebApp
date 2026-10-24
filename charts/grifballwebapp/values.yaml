@@ -343,7 +343,7 @@ mssql:
     # A major version's channel, pinned by digest so a restart can't upgrade SQL Server: databases
     # are upgraded in place on a newer version's first start and can't go back. Renovate updates the
     # digest.
-    tag: 2025-latest@sha256:2b5b581621126574f3d1f75e78d3eebe8d05aedb59ad0cfdf9aa42cb0634d726
+    tag: 2025-latest@sha256:245f6b1c8903edae52cb20fa31419cefcde1a49938bb8c3447099011fc871ca3
     digest: ""
     pullPolicy: IfNotPresent
   # MSSQL_PID: the edition (Developer, Express, Standard, ... or a product key). Empty: Developer.
@@ -437,7 +437,7 @@ postgres:
     # A new major can't read an older one's files without pg_upgrade: the image keeps them in a
     # <major>/docker folder and refuses to start beside an older major's rather than begin an empty
     # one. Renovate updates the digest.
-    tag: 18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    tag: 18-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5
     digest: ""
     pullPolicy: IfNotPresent
   # The superuser's (postgres) password. Set when the data folder is first created: changing it in the
@@ -467,7 +467,7 @@ postgres:
     # Makes the self-signed certificate (PostgreSQL's image has no openssl).
     image:
       repository: docker.io/alpine/openssl
-      tag: 3.5.9@sha256:e8a2319d15637db5296c0ff540bb028cfabc480b22fcdd4a020582393d32673f
+      tag: 3.5.9@sha256:1c361a204e9791bec6202bccbd1065eafaa65cb5a1a9a06ae000238569fba6a2
       digest: ""
       pullPolicy: IfNotPresent
   # Mounted at /var/lib/postgresql; the data is in its <major>/docker folder (the image's PGDATA), so
@@ -534,7 +534,7 @@ sqlExporter:
   enabled: false
   image:
     repository: docker.io/burningalchemist/sql_exporter
-    tag: 0.24.9@sha256:6c554722faccd4b54342ccd765f87b26e8e65fba2a8cddc60bec6de336ecf2e0
+    tag: 0.24.12@sha256:528d46d6f6ce3a6f13aaebee39c71220446547c0671218635f42e11d8bce33e3
     pullPolicy: IfNotPresent
   # The login. Empty: the monitoring login (database.logins), else database.user and
   # database.password. It needs VIEW SERVER STATE and VIEW ANY DEFINITION (SQL Server) or pg_monitor

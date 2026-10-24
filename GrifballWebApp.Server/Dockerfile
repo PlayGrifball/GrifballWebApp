@@ -51,7 +51,7 @@ RUN dotnet publish "/src/GrifballWebApp.Convert/GrifballWebApp.Convert.csproj" -
 # connection string: a dummy.
 FROM build AS migrations
 ARG TARGETARCH
-RUN dotnet tool install --global dotnet-ef --version 10.0.12
+RUN dotnet tool install --global dotnet-ef --version 10.0.13
 ENV PATH="$PATH:/root/.dotnet/tools"
 WORKDIR /src
 RUN case "$TARGETARCH" in \
@@ -88,7 +88,7 @@ RUN list() { \
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
 # by checksum: a new version needs both checksums updated (sha256sum of each release asset).
-FROM --platform=$BUILDPLATFORM alpine:3.22 AS sqlcmd
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS sqlcmd
 ARG TARGETARCH
 ARG SQLCMD_VERSION=v1.10.0
 RUN case "$TARGETARCH" in \
