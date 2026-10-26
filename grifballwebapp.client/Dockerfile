@@ -16,7 +16,7 @@ COPY src src
 RUN npm run build
 
 # Stage 2
-FROM nginx:1.27.2-alpine-slim
+FROM nginx:1.31.8-alpine-slim
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /usr/build/dist/grifballwebapp.client/browser /usr/share/nginx/html
