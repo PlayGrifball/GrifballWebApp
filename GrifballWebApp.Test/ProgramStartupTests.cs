@@ -2,11 +2,15 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
+using GrifballWebApp.Server.Teams;
+using GrifballWebApp.Server.Teams.Handlers;
+using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -14,6 +18,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetCord.Gateway;
 using NetCord.Rest;
+using NSubstitute;
 using System.Net;
 using ServerProgram = GrifballWebApp.Server.Program;
 
@@ -47,7 +52,8 @@ public class ProgramStartupTests
         await TestDatabase.DropDatabase(_connectionString, ifExists: true);
     }
 
-    private sealed class StartupFactory(Dictionary<string, string?> settings, bool removeDiscordHostedServices)
+    private sealed class StartupFactory(Dictionary<string, string?> settings, bool removeDiscordHostedServices,
+        Action<IServiceCollection>? configureServices = null)
         : WebApplicationFactory<ServerProgram>
     {
         /// <summary>Every IHostedService registration Program.cs made, captured before any are removed.</summary>
@@ -74,6 +80,8 @@ public class ProgramStartupTests
                     foreach (var descriptor in services.Where(IsDiscordOrBackgroundService).ToList())
                         services.Remove(descriptor);
                 }
+
+                configureServices?.Invoke(services);
             });
         }
     }
@@ -99,6 +107,29 @@ public class ProgramStartupTests
         ["ApplyMigrations"] = "true",
         ["CreateDatabase"] = "true",
     };
+
+    /// <summary>Normal mode, with Discord configured but never contacted (DisableGlobally, hosted services removed).</summary>
+    private Dictionary<string, string?> NormalModeSettings()
+    {
+        var settings = CommonSettings();
+        settings["Discord:ClientId"] = "123456789012345678";
+        settings["Discord:ClientSecret"] = "dummy-client-secret";
+        settings["Discord:Token"] = DummyBotToken;
+        settings["Discord:DraftChannel"] = "1";
+        // QueueService (UpdateDisplayHandler's) refuses to be built without it.
+        settings["Discord:QueueChannel"] = "2";
+        settings["Discord:DisableGlobally"] = "true";
+        return settings;
+    }
+
+    /// <summary>Every concrete notification handler in the server, with the handler interface it implements.</summary>
+    private static List<(Type Handler, Type Service)> NotificationHandlers()
+        => typeof(ServerProgram).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false })
+            .SelectMany(t => t.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(INotificationHandler<>))
+                .Select(i => (t, i)))
+            .ToList();
 
     private static void AssertControllersResolve(IServiceProvider services)
     {
@@ -211,6 +242,55 @@ public class ProgramStartupTests
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
+    }
+
+    [Test]
+    public async Task NormalMode_Should_RegisterEveryNotificationHandler()
+    {
+        // Program.cs registers the handlers by scanning its assembly (AddNotifications); every other test replaces
+        // IPublisher with a substitute, so this is what checks they are all found and can be built from the container.
+        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var handlers = NotificationHandlers();
+        Assert.That(handlers.Select(h => h.Handler), Does.Contain(typeof(LockChangeHandler)).And.Contain(typeof(UpdateDisplayHandler)));
+
+        using var scope = factory.Services.CreateScope();
+        Assert.Multiple(() =>
+        {
+            foreach (var (handler, service) in handlers)
+            {
+                var resolved = scope.ServiceProvider.GetServices(service).Select(h => h!.GetType());
+                Assert.That(resolved, Does.Contain(handler),
+                    $"{handler.Name} is not registered for {service.GenericTypeArguments[0].Name}");
+            }
+        });
+    }
+
+    [Test]
+    public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
+    {
+        // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
+        // other connection to lock the captains (and LockChangeDiscordHandler, with Discord disabled, does nothing).
+        var others = Substitute.For<ITeamsHubClient>();
+        var clients = Substitute.For<IHubClients<ITeamsHubClient>>();
+        clients.AllExcept(Arg.Any<IReadOnlyList<string>>()).Returns(others);
+        var hub = Substitute.For<IHubContext<TeamsHub, ITeamsHubClient>>();
+        hub.Clients.Returns(clients);
+
+        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true,
+            services => services.AddSingleton(hub));
+        using var client = factory.CreateClient();
+
+        using var scope = factory.Services.CreateScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+        await publisher.Publish(new LockChanged(true, 7, "conn-1"));
+        await publisher.Publish(new LockChanged(false, 8, "conn-2"));
+
+        await others.Received(1).LockCaptains(7);
+        await others.Received(1).UnlockCaptains(8);
+        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "conn-1" })));
+        clients.Received(1).AllExcept(Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "conn-2" })));
     }
 
     [Test]

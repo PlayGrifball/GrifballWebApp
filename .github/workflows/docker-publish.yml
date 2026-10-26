@@ -159,6 +159,20 @@ jobs:
           DIGEST: ${{ steps.push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
+      # The signature the homelab checks (its Kyverno policy verify-signatures-grif): keyless, from this workflow on
+      # master. Verifying it here fails the run, before release moves :test, if a cosign upgrade signs differently.
+      - name: Verify the frontend image's signature
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image=$(echo "${TAGS}" | head -n 1)
+          cosign verify "${image%:*}@${DIGEST}" \
+            --certificate-identity https://github.com/PlayGrifball/GrifballWebApp/.github/workflows/docker-publish.yml@refs/heads/master \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+
   build-backend:
     # Other labels don't change the build, so don't rebuild for them.
     if: ${{ github.event.action != 'labeled' || github.event.label.name == 'preview' }}
@@ -279,6 +293,20 @@ jobs:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      # The signature the homelab checks (its Kyverno policy verify-signatures-grif): keyless, from this workflow on
+      # master. Verifying it here fails the run, before release moves :test, if a cosign upgrade signs differently.
+      - name: Verify the backend image's signature
+        if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image=$(echo "${TAGS}" | head -n 1)
+          cosign verify "${image%:*}@${DIGEST}" \
+            --certificate-identity https://github.com/PlayGrifball/GrifballWebApp/.github/workflows/docker-publish.yml@refs/heads/master \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
 
       # Master builds both amd64 and arm64; verify the arm64 backend image with a smoke test before release.
       # Skipped on pull requests to keep preview and check runs fast.
