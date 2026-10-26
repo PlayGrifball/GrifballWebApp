@@ -1,4 +1,4 @@
-import { Component, OnInit, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -28,6 +28,10 @@ import { AccountService } from '../account.service';
   changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PasswordResetComponent implements OnInit {
+  private router = inject(Router);
+  private accountService = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
   token = input<string>();
   hide = true;
   hideConfirm = true;
@@ -37,12 +41,6 @@ export class PasswordResetComponent implements OnInit {
     newPassword: '',
     confirmPassword: ''
   };
-
-  constructor(
-    private router: Router,
-    private accountService: AccountService,
-    private snackBar: MatSnackBar
-  ) {}
 
   ngOnInit(): void {
     if (!this.token()) {

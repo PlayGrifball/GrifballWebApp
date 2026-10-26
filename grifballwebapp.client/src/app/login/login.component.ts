@@ -1,4 +1,4 @@
-import { Component, input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
@@ -27,15 +27,15 @@ import { MatCardModule } from '@angular/material/card';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class LoginComponent implements OnInit {
+  accountService = inject(AccountService);
+  private router = inject(Router);
+
   hide = true;
 
   model: LoginDto = { } as LoginDto;
 
   callback = input<string>();
   followUp = input<string>();
-
-  constructor(public accountService: AccountService, private router: Router) {
-  }
 
   ngOnInit(): void {
     if (this.callback() === 'true') {

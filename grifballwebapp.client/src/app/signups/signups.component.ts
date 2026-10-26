@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
 import { ActivatedRoute } from '@angular/router';
@@ -16,12 +16,12 @@ import { MatTableModule } from '@angular/material/table';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SignupsComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+
   public signUps: SignupResponseDto[] = [];
   public displayedColumns: string[] = ['personName', 'timestamp', 'teamName', 'willCaptain', 'requiresAssistanceDrafting'];
   seasonID: number = 0;
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService) {
-  }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { TimeslotDto } from '../../api/dtos/signupResponseDto';
@@ -17,14 +17,14 @@ import { FormsModule } from '@angular/forms';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AvailabilityTableComponent {
+  private availabilityService = inject(AvailabilityService);
+
 
   DayOfWeek: string = this.availabilityService.DayOfWeek;
 
   private parseTime(time: string): string {
     return this.availabilityService.parseTime(time);
   }
-
-  constructor(private availabilityService: AvailabilityService) { }
 
   // The parent binds this before its HTTP request has resolved, so null/undefined
   // must be treated as "no timeslots yet" rather than throwing.

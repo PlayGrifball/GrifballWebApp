@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatIconModule} from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -26,16 +26,15 @@ import { ApiClientService } from '../api/apiClient.service';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ToolbarComponent implements OnInit {
+  accountService = inject(AccountService);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private api = inject(ApiClientService);
+
   @Input({ required: true }) snav!: MatSidenav;
 
   commitHash: string | null = null;
   commitDate: DateTime | null = null;
-
-  constructor(public accountService: AccountService,
-    private router: Router,
-    private dialog: MatDialog,
-    private api: ApiClientService) {
-  }
 
   ngOnInit(): void {
     this.api.commitHash()

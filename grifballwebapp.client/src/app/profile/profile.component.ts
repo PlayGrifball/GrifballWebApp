@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
@@ -24,11 +24,14 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ProfileComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+  private snackbar = inject(MatSnackBar);
+
   gamertag: string | null = null;
   userID: number = 0;
   settingGamertag: boolean = false;
-
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private snackbar: MatSnackBar) {}
 
   ngOnInit(): void {
     this.userID = Number(this.route.snapshot.paramMap.get('userID'));

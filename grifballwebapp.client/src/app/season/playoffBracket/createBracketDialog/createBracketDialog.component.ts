@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
@@ -26,6 +26,10 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateBracketDialogComponent {
+  private http = inject(HttpClient);
+  data = inject(MAT_DIALOG_DATA);
+  private snackBar = inject(MatSnackBar);
+
   @Input({ required: true }) seasonID!: number;
 
   participantsCount: number | null = 8;
@@ -34,7 +38,9 @@ export class CreateBracketDialogComponent {
 
   bracketCreated = new EventEmitter();
 
-  constructor(private http: HttpClient, @Inject(MAT_DIALOG_DATA) public data: number, private snackBar: MatSnackBar) {
+  constructor() {
+    const data = this.data;
+
     this.seasonID = data;
   }
 

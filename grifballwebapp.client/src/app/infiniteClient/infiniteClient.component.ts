@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -23,11 +23,12 @@ import { ActivatedRoute } from '@angular/router';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class InfiniteClientComponent implements OnInit {
+  private http = inject(HttpClient);
+  private snackbar = inject(MatSnackBar);
+  private route = inject(ActivatedRoute);
+
   code: string = "";
   status: string = "";
-
-  constructor(private http: HttpClient, private snackbar: MatSnackBar, private route: ActivatedRoute) {
-  }
 
   ngOnInit(): void {
     this.checkStatus();

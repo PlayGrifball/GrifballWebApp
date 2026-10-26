@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -26,9 +26,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class EditUserComponent {
-  model: UserResponseDto = {} as UserResponseDto;
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
 
-  constructor(private route: ActivatedRoute, private http: HttpClient) { }
+  model: UserResponseDto = {} as UserResponseDto;
 
   ngOnInit(): void {
     const userID = Number(this.route.snapshot.paramMap.get('userID'));

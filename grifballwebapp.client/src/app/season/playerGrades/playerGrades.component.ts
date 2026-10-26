@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
@@ -16,6 +16,10 @@ import { MatTableModule } from '@angular/material/table';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PlayerGradesComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  private pipe = inject(DecimalPipe);
+
   private seasonID: number = 0;
 
   pm: PerMinuteDto[] = [];
@@ -166,9 +170,6 @@ export class PlayerGradesComponent implements OnInit {
       color: 'Black',
     },
   ];
-
-  constructor(private route: ActivatedRoute, private http: HttpClient, private pipe: DecimalPipe) {
-  }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

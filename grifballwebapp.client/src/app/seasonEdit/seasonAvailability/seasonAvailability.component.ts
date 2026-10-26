@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -26,8 +26,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonAvailabilityComponent implements OnInit {
+  private http = inject(HttpClient);
+  private snackbar = inject(MatSnackBar);
 
-  constructor(private http: HttpClient, private snackbar: MatSnackBar) { }
 
   ngOnInit(): void {
     this.getSeasonAvailability()

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -27,11 +27,12 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonEditComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+
   @ViewChild('seasonForm') registerForm!: NgForm;
 
   model: SeasonDto = {} as SeasonDto;
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService) {}
 
   ngOnInit(): void {
     const seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

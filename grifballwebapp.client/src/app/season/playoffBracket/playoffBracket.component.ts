@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -24,11 +24,16 @@ import { Locale } from 'brackets-viewer/dist/lang';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class PlayoffBracketComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
+  accountService = inject(AccountService);
+
   private seasonID: number = 0;
 
   hasBracket = signal(false);
-  
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar, public accountService: AccountService) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

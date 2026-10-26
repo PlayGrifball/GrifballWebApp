@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, computed, effect, AfterViewInit, ElementRef, ViewChildren, QueryList } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, computed, effect, AfterViewInit, ElementRef, ViewChildren, QueryList, inject } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -29,6 +29,11 @@ import { MatButtonModule } from '@angular/material/button';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
+  private changeDetectorRef = inject(ChangeDetectorRef);
+  accountService = inject(AccountService);
+  api = inject(ApiClientService);
+  private themingService = inject(ThemingService);
+
   @ViewChild('snav') snav!: MatSidenav;
   @ViewChildren('toolbarLink') toolbarLinks!: QueryList<ElementRef>;
 
@@ -59,13 +64,9 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     this.themingService.setErrorShade(this.themingService.error());
   });
 
-  constructor(
-    private changeDetectorRef: ChangeDetectorRef,
-    media: MediaMatcher,
-    public accountService: AccountService,
-    public api: ApiClientService,
-    private themingService: ThemingService
-  ) {
+  constructor() {
+    const media = inject(MediaMatcher);
+
     this.mobileQuery = media.matchMedia('(max-width: 600px)');
     this._mobileQueryListener = () => this.changeDetectorRef.detectChanges();
     this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);

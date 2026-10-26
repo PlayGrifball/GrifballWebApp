@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -27,6 +27,9 @@ import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDt
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserManagementComponent {
+  private accountService = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   url = '/api/UserManagement/GetUsers';
 
@@ -39,11 +42,6 @@ export class UserManagementComponent {
       }
     ];
   });
-
-  constructor(
-    private accountService: AccountService,
-    private snackBar: MatSnackBar
-  ) {}
 
   generatePasswordResetLink(user: UserResponseDto): void {
     const request: GeneratePasswordResetLinkRequestDto = {

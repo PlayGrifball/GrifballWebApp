@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { KillsDto } from '../api/dtos/killsDto';
 import { MatTableModule } from '@angular/material/table';
 import { ApiClientService } from '../api/apiClient.service';
@@ -15,12 +15,11 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class TopStatsComponent implements OnInit {
+  private http = inject(ApiClientService);
+  private snackBar = inject(MatSnackBar);
+
   public kills: KillsDto[] = [];
   public displayedColumns: string[] = ['rank', 'gamertag', 'kills'];
-
-  constructor(private http: ApiClientService, private snackBar: MatSnackBar)
-  {
-  }
 
   ngOnInit() {
     this.getKills();

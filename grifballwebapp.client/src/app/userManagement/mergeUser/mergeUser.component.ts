@@ -1,5 +1,5 @@
 import { HttpClient, httpResource } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
 import { UserResponseDto } from '../userResponseDto';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
@@ -21,6 +21,8 @@ import { MatButton } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MergeUserComponent {
+  private http = inject(HttpClient);
+
 
   fromInput = input<number>(0);
   toInput = input<number>(0);
@@ -44,7 +46,7 @@ export class MergeUserComponent {
   transferSignups = signal(true);
   deleteMergeFrom = signal(true);
 
-  constructor(private http: HttpClient) {
+  constructor() {
     effect(() => {
       const x = this.fromInput();
       if (x)

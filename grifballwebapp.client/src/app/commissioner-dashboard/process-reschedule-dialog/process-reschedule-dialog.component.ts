@@ -1,4 +1,4 @@
-import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,15 +31,13 @@ interface ProcessRescheduleRequest {
   changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ProcessRescheduleDialogComponent {
+  dialogRef = inject<MatDialogRef<ProcessRescheduleDialogComponent>>(MatDialogRef);
+  reschedule = inject<RescheduleDto>(MAT_DIALOG_DATA);
+  private httpClient = inject(HttpClient);
+
   decision: 'approve' | 'reject' | null = null;
   commissionerNotes = '';
   processing = false;
-
-  constructor(
-    public dialogRef: MatDialogRef<ProcessRescheduleDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public reschedule: RescheduleDto,
-    private httpClient: HttpClient
-  ) {}
 
   formatDateTime(dateStr?: string): string {
     if (!dateStr) return 'Not scheduled';

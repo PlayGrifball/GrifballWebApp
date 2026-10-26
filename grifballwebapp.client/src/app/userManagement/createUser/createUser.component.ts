@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -22,10 +22,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateUserComponent {
-  model: CreateUserDto = {} as CreateUserDto;
+  private http = inject(HttpClient);
+  private snackbar = inject(MatSnackBar);
 
-  constructor(private http: HttpClient, private snackbar: MatSnackBar) {
-  }
+  model: CreateUserDto = {} as CreateUserDto;
 
 
   onSubmit(): void {

@@ -1,5 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { map, Observable } from 'rxjs';
 import { SeasonDto } from './dtos/seasonDto';
@@ -18,8 +18,8 @@ import { cloneDeep } from 'lodash-es';
   providedIn: 'root'
 })
 export class ApiClientService {
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) { }
 
   private readonly text : Object = {
     responseType: 'text'

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, OnInit, signal, inject } from '@angular/core';
 import { ExcelFormComponent } from './excelForm/excelForm.component';
 
 @Component({
@@ -12,13 +12,13 @@ import { ExcelFormComponent } from './excelForm/excelForm.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelComponent implements OnInit {
+  private httpClient = inject(HttpClient);
+
 
   inputSpreadsheetId = input<string>('');
   inputSheetName = input<string>('');
   
   sheetInfo = signal<SheetInfo[]>([]);
-
-  constructor(private httpClient: HttpClient) {}
 
   ngOnInit(): void {
 

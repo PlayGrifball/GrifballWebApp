@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, effect, input, signal, Signal, ViewChild, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, effect, input, signal, Signal, ViewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
@@ -39,6 +39,9 @@ import { AccountService } from '../../account.service';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonMatchComponent {
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
@@ -77,7 +80,7 @@ export class SeasonMatchComponent {
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
   regexErrorMessage: string = "Must be a valid GUID";
 
-  constructor(private http: HttpClient, public accountService: AccountService) {
+  constructor() {
     effect(() => {
       this.seasonMatchID();
       this.getPageDto();

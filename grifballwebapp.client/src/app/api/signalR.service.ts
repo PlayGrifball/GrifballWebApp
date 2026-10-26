@@ -1,4 +1,4 @@
-import { Injectable, effect } from '@angular/core';
+import { Injectable, effect, inject } from '@angular/core';
 import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { AccountService } from '../account.service';
@@ -10,7 +10,9 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
   providedIn: 'root'
 })
 export class SignalRService {
-  constructor(accountService: AccountService) {
+  constructor() {
+    const accountService = inject(AccountService);
+
     this.hubConnection = new HubConnectionBuilder()
       .withUrl('hub/TeamsHub', {
         accessTokenFactory: () => accountService.accessToken() ?? ""

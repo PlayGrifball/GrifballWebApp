@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -30,17 +30,19 @@ interface TeamStanding {
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeedOrderingDialogComponent implements OnInit {
+  private http = inject(HttpClient);
+  data = inject(MAT_DIALOG_DATA);
+  private snackBar = inject(MatSnackBar);
+  private dialogRef = inject<MatDialogRef<SeedOrderingDialogComponent>>(MatDialogRef);
+
   @Output() seedingOrder = new EventEmitter<void>();
   teams: TeamStanding[] = [];
   loading = true;
   private seasonID: number;
 
-  constructor(
-    private http: HttpClient, 
-    @Inject(MAT_DIALOG_DATA) public data: number, 
-    private snackBar: MatSnackBar,
-    private dialogRef: MatDialogRef<SeedOrderingDialogComponent>
-  ) {
+  constructor() {
+    const data = this.data;
+
     this.seasonID = data;
   }
 

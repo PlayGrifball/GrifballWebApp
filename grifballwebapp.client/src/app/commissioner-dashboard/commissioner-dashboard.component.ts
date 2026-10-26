@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -66,17 +66,15 @@ export interface DashboardSummaryDto {
   changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CommissionerDashboardComponent implements OnInit {
+  private httpClient = inject(HttpClient);
+  private dialog = inject(MatDialog);
+
   dashboardData: CommissionerDashboardDto | null = null;
   loading = true;
   error: string | null = null;
 
   rescheduleDisplayedColumns: string[] = ['match', 'originalTime', 'newTime', 'requestedBy', 'reason', 'requestedAt', 'process', 'thread'];
   overdueDisplayedColumns: string[] = ['match', 'scheduledTime', 'hoursOverdue', 'severity'];
-
-  constructor(
-    private httpClient: HttpClient,
-    private dialog: MatDialog
-  ) {}
 
   ngOnInit(): void {
     this.loadDashboardData();

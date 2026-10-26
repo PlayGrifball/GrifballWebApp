@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -31,6 +31,9 @@ import { AccountService } from '../account.service';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class RegisterComponent {
+  private apiClient = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
   @ViewChild('registerForm') registerForm!: NgForm;
   
   hidePassword = true;
@@ -40,9 +43,6 @@ export class RegisterComponent {
   regexErrorMessage: string = "Minimum 12 characters, uppercase letter, lowercase letter, number and special character #?!@$%^&*-";
 
   model: RegisterFormModel = {} as RegisterFormModel
-
-  constructor(private apiClient: AccountService, private snackBar: MatSnackBar) {
-  }
 
   onSubmit() {
     if (!this.registerForm) {

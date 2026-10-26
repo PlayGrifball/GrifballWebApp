@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, effect, input, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatCard, MatCardContent, MatCardHeader } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
@@ -24,6 +24,8 @@ import { Observable } from 'rxjs';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamComponent {
+  private http = inject(HttpClient);
+
 
   teamID = input.required<number>();
   seasonID = input.required<number>();
@@ -33,7 +35,7 @@ export class TeamComponent {
 
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
-  constructor(private http: HttpClient) {
+  constructor() {
     effect(() => {
       this.teamID();
       this.seasonID();

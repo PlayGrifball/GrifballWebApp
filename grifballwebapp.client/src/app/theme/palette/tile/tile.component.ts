@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, Signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, Signal, inject } from '@angular/core';
 import { palette } from '../../paletteTypes';
 import { ThemingService } from '../../../theming.service';
 
@@ -10,10 +10,10 @@ import { ThemingService } from '../../../theming.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TileComponent {
+  private themingService = inject(ThemingService);
+
   paletteName = input.required<palette>();
   i = input.required<number | null>();
-
-  constructor(private themingService: ThemingService) {}
 
   textColor = computed(() => {
     const i = this.i();

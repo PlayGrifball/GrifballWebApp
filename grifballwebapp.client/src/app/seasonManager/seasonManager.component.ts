@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -19,11 +19,10 @@ import { MatButtonModule } from '@angular/material/button';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonManagerComponent implements OnInit {
+  private http = inject(ApiClientService);
+
   public seasons: SeasonDto[] = [];
   public displayedColumns: string[] = ['seasonName', 'signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd', 'signupsCount', 'edit'];
-
-  constructor(private http: ApiClientService) {
-  }
 
   ngOnInit(): void {
     this.getSeasons();

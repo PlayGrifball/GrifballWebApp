@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -28,13 +28,16 @@ import { AvailabilityService } from '../availability.service';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SignupFormComponent {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+  private snackBar = inject(MatSnackBar);
+  private availabilityService = inject(AvailabilityService);
+
 
   @ViewChild('signupForm') registerForm!: NgForm;
   // Initialised with the class defaults (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
   model: SignupRequestDto = new SignupRequestDto();
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBar: MatSnackBar, private availabilityService: AvailabilityService) { }
 
   ngOnInit(): void {
     // May need smart way to get seasonID

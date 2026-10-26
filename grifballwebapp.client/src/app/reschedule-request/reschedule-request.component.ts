@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -37,18 +37,16 @@ interface RescheduleRequest {
   changeDetection: ChangeDetectionStrategy.Eager
 })
 export class RescheduleRequestComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  location = inject(Location);
+  private httpClient = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
+
   seasonMatchID: number = 0;
   newDate?: Date;
   newTime: string = '';
   reason: string = '';
   submitting = false;
-
-  constructor(
-    private route: ActivatedRoute,
-    public location: Location,
-    private httpClient: HttpClient,
-    private snackBar: MatSnackBar
-  ) {}
 
   ngOnInit(): void {
     this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));

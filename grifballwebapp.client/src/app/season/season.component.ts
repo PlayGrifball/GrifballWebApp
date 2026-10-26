@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatButtonModule } from '@angular/material/button';
@@ -20,10 +20,12 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class SeasonComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+  private router = inject(Router);
+
   private seasonID : number = 0;
   seasonName : string | null = "Season";
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private router: Router) {}
   
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -43,12 +43,15 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class ScheduleListComponent  implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+  private dialog = inject(MatDialog);
+
   private seasonID : number = 0;
   unscheduledMatches: UnscheduledMatchDto[] = [];
   scheduledMatches: WeekDto[] = [];
   isEditing: boolean = false;
-
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private dialog: MatDialog) {}
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

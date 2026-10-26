@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Inject, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +24,10 @@ import { HttpClient } from '@angular/common/http';
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class CreateRegularMatchesDialogComponent {
+  private http = inject(HttpClient);
+  data = inject(MAT_DIALOG_DATA);
+  private snackBar = inject(MatSnackBar);
+
   @Input({ required: true }) seasonID!: number;
 
   homeMatchesPerTeam: number | null = 1;
@@ -31,7 +35,9 @@ export class CreateRegularMatchesDialogComponent {
 
   regularMatchesCreated = new EventEmitter();
 
-  constructor(private http: HttpClient, @Inject(MAT_DIALOG_DATA) public data: number, private snackBar: MatSnackBar) {
+  constructor() {
+    const data = this.data;
+
     this.seasonID = data;
   }
 

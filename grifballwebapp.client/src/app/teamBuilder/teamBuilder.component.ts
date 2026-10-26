@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
@@ -44,6 +44,12 @@ interface DropzoneLayout {
     changeDetection: ChangeDetectionStrategy.Eager
 })
 export class TeamBuilderComponent {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+  private snackBarService = inject(MatSnackBar);
+  accountService = inject(AccountService);
+  private signalR = inject(SignalRService);
+
   private seasonID: number = 0;
   captainLocked: boolean = true;
   teams : TeamResponseDto[] = [];
@@ -73,10 +79,6 @@ export class TeamBuilderComponent {
     list: 'row wrap',
     dndHorizontal: true,
   };
-
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBarService: MatSnackBar, public accountService: AccountService,
-    private signalR: SignalRService) {}
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
