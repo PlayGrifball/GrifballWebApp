@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { outputToObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -26,6 +27,7 @@ export class PlayoffBracketComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
   private snackBar = inject(MatSnackBar);
   accountService = inject(AccountService);
 
@@ -90,7 +92,9 @@ export class PlayoffBracketComponent implements OnInit {
       data: this.seasonID
     });
 
-    dialogRef.componentInstance.bracketCreated.subscribe(() => {
+    outputToObservable(dialogRef.componentInstance.bracketCreated)
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(() => {
       this.getViewerData();
     });
   }
@@ -102,7 +106,9 @@ export class PlayoffBracketComponent implements OnInit {
       maxHeight: '80vh'
     });
 
-    dialogRef.componentInstance.seedingOrder.subscribe(() => {
+    outputToObservable(dialogRef.componentInstance.seedingOrder)
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(() => {
       this.getViewerData();
     });
   }

@@ -179,4 +179,21 @@ describe('PlayoffBracketComponent behaviour', () => {
     seeded.emit();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
   });
+
+  it('stops listening to the dialogs once the page is destroyed', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new EventEmitter<void>();
+    const seeded = new EventEmitter<void>();
+    dialog.open.and.returnValues({ componentInstance: { bracketCreated: created } } as any, { componentInstance: { seedingOrder: seeded } } as any);
+    component.openDialog();
+    component.setSeeds();
+    expect(created.observed).toBeTrue();
+    expect(seeded.observed).toBeTrue();
+
+    fixture.destroy();
+
+    expect(created.observed).toBeFalse();
+    expect(seeded.observed).toBeFalse();
+  });
 });
