@@ -6,7 +6,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
-import { catchError, forkJoin, Observable, of, Subject, switchMap } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
@@ -52,6 +52,8 @@ export class TeamBuilderComponent {
   // Saves still on their way, and whether a refusal asked for a reload once they are done.
   private savesInFlight = 0;
   private reloadAfterSaves = false;
+  // Saves ever started here; a load that saw a save start while it ran does not apply its result.
+  private savesStarted = 0;
 
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
@@ -82,13 +84,23 @@ export class TeamBuilderComponent {
     // keeps the current value for that part only.
     const part = <T>(request: Observable<T>) => request.pipe(catchError(() => of(undefined)));
     this.reloads.pipe(
-      switchMap(() => forkJoin({
-        teams: part(this.api.getTeams(this.seasonID)),
-        pool: part(this.api.getPlayerPool(this.seasonID)),
-        locked: part(this.api.areCaptainsLocked(this.seasonID)),
-      })),
+      switchMap(() => {
+        const savesStarted = this.savesStarted;
+        return forkJoin({
+          teams: part(this.api.getTeams(this.seasonID)),
+          pool: part(this.api.getPlayerPool(this.seasonID)),
+          locked: part(this.api.areCaptainsLocked(this.seasonID)),
+        }).pipe(map(snapshot => ({ ...snapshot, savesStarted })));
+      }),
       takeUntilDestroyed(),
-    ).subscribe(({ teams, pool, locked }) => {
+    ).subscribe(({ teams, pool, locked, savesStarted }) => {
+      // A drop saved while this was loading may be missing from it: load again once that
+      // save is done instead (SignalR updates do not count, so there is no loop).
+      if (savesStarted !== this.savesStarted) {
+        this.reloadAfterSaves = true;
+        this.reloadIfSettled();
+        return;
+      }
       if (teams !== undefined)
         this.teams.set(teams);
       if (pool !== undefined)
@@ -162,7 +174,8 @@ export class TeamBuilderComponent {
     const next = change(current);
     if (next === null) {
       console.log('Detected out of sync');
-      this.load();
+      this.reloadAfterSaves = true;
+      this.reloadIfSettled();
       return null;
     }
     if (next.teams !== current.teams)
@@ -208,6 +221,7 @@ export class TeamBuilderComponent {
    */
   private save<T>(request: Observable<T>, saved?: (response: T) => void): void {
     this.savesInFlight++;
+    this.savesStarted++;
     request.subscribe({
       next: r => {
         console.log(r);

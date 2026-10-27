@@ -556,6 +556,52 @@ describe('TeamBuilderComponent', () => {
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
     });
 
+    it('does not apply a reload that was loading when a drop was saved; loads again after that save', () => {
+      const loading = new Subject<TeamResponseDto[]>();
+      mockApiClient.getTeams.and.returnValue(loading);
+      component.load();
+
+      // A pick is dropped and its save starts while the reload is still loading.
+      const pick = new Subject<Object>();
+      mockApiClient.addPlayerToTeam.and.returnValue(pick);
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      expect(roster(102)).toEqual(['1:3']);
+
+      // The reload answers from before the pick: it must not remove it.
+      loading.next([{ teamID: 2, teamName: 'Bravo', captain: cap(102, 1), players: [] }]);
+      loading.complete();
+      expect(roster(102)).toEqual(['1:3']);
+      const loads = mockApiClient.getTeams.calls.count();
+
+      // Once the pick is saved, the page loads again (and that answer has it).
+      mockApiClient.getTeams.and.returnValue(of([
+        { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
+        { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [player(3, 1)] },
+      ]));
+      pick.next({});
+      pick.complete();
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(roster(102)).toEqual(['1:3']);
+    });
+
+    it('holds an out-of-sync reload until the page\'s saves are done', () => {
+      const pick = new Subject<Object>();
+      mockApiClient.addPlayerToTeam.and.returnValue(pick);
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      const loads = mockApiClient.getTeams.calls.count();
+
+      // Another user's update names a team this page does not know.
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      addPlayer({ seasonID: 5, captainID: 999, personID: 4 });
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+
+      pick.next({});
+      pick.complete();
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+    });
+
     it('uses the title, or a plain-text body, when there is no detail', () => {
       mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403, error: { title: 'Forbidden', status: 403 } })));
       grab(component.teams()[0], GrabbedThing.Team);
