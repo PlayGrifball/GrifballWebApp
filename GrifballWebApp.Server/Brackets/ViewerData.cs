@@ -119,7 +119,10 @@ public class Match : MatchResults
     public int Child_count { get; set; }
 }
 
-public class MatchGame
+/// <summary>
+/// brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match.
+/// </summary>
+public class MatchGame : MatchResults
 {
     /// <summary>
     /// ID of the match game: MatchID

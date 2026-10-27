@@ -226,6 +226,11 @@ public class BracketsControllerActionTests
             Assert.That(settings.GetProperty("seedOrdering")[0].GetString(), Is.EqualTo("natural"));
             Assert.That(match.GetProperty("opponent1").GetProperty("result").GetString(), Is.EqualTo("win"));
             Assert.That(root.GetProperty("matchGames")[0].GetProperty("parent_id").GetInt32(), Is.EqualTo(3));
+            // brackets-model's MatchGame extends MatchResults
+            var matchGame = root.GetProperty("matchGames")[0];
+            Assert.That(matchGame.GetProperty("status").ValueKind, Is.EqualTo(JsonValueKind.Number));
+            Assert.That(matchGame.TryGetProperty("opponent1", out _), Is.True);
+            Assert.That(matchGame.TryGetProperty("opponent2", out _), Is.True);
             Assert.That(match.GetProperty("stage_id").GetInt32(), Is.EqualTo(1));
         });
     }
