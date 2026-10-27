@@ -251,4 +251,20 @@ describe('ScheduleListComponent behaviour', () => {
     const pipe = new DatePipe('en-US');
     expect(text()).toContain(`${pipe.transform('2026-01-07T19:00:00Z', 'EEEE')} ${pipe.transform('2026-01-07T19:00:00Z', 'short')}`);
   });
+
+  it('saves an unscheduled match without a time as null, not an empty string', async () => {
+    isEventOrganizer.set(true);
+    load([unscheduled(5)], []);
+    component.toggleEdit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
+
+    const req = http.expectOne('/api/MatchPlanner/UpdateMatchTime/');
+    expect(req.request.body).toEqual({ seasonMatchID: 5, time: null });
+    req.flush({});
+    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
+    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+  });
 });

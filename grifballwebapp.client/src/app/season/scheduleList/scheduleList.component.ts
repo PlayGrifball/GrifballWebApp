@@ -151,8 +151,9 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   /** `time` is the row's own form value; the loaded match objects are never edited. */
-  onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime): void {
-    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time };
+  onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime | '' | null | undefined): void {
+    // An empty picker gives '', which the server's DateTime? cannot bind: send null (no time).
+    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: time || null };
     this.http.post('/api/MatchPlanner/UpdateMatchTime/', dto)
     .subscribe({
       next: r => this.GetMatches(),

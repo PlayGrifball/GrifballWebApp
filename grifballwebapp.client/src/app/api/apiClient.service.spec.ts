@@ -376,8 +376,8 @@ describe('ApiClientService', () => {
       const signupDto: any = {
         seasonID: 1,
         timeslots: [
-          { id: 1, time: '19:00:00', dayOfWeek: 'Monday', isChecked: true },
-          { id: 2, time: '20:00:00', dayOfWeek: 'Tuesday', isChecked: false }
+          { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
+          { optionID: 42, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
         ]
       };
 
@@ -388,6 +388,7 @@ describe('ApiClientService', () => {
       const req = httpTestingController.expectOne('/api/Signups/UpsertSignup/');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(signupDto);
+      expect(req.request.body.timeslots.map((t: any) => [t.optionID, t.isChecked])).toEqual([[41, true], [42, false]]);
       req.flush({});
     });
   });
