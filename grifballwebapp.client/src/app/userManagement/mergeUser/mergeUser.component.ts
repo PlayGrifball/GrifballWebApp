@@ -1,6 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
-import { UserResponseDto } from '../userResponseDto';
+import { parseUser, UserResponseDto } from '../userResponseDto';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -29,10 +29,10 @@ export class MergeUserComponent {
 
   // An undefined URL keeps the resource idle, so no request is made until an ID is chosen.
   mergeFromId = signal<number>(0);
-  mergeFrom = httpResource<UserResponseDto>(() => this.mergeFromId() ? '/api/usermanagement/getuser/' + this.mergeFromId() : undefined);
+  mergeFrom = httpResource(() => this.mergeFromId() ? '/api/usermanagement/getuser/' + this.mergeFromId() : undefined, { parse: parseUser });
 
   mergeToId = signal<number>(0);
-  mergeTo = httpResource<UserResponseDto>(() => this.mergeToId() ? '/api/usermanagement/getuser/' + this.mergeToId() : undefined);
+  mergeTo = httpResource(() => this.mergeToId() ? '/api/usermanagement/getuser/' + this.mergeToId() : undefined, { parse: parseUser });
 
   // value() throws while a resource is in the error state (Angular 20+), so
   // the template reads these instead and shows resource.error() separately.

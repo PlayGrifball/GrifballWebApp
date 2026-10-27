@@ -6,13 +6,15 @@ import { SeasonDto } from '../api/dtos/seasonDto';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
+import { ToDatePipe } from '../shared/toDate.pipe';
 @Component({
     selector: 'app-season-manager',
     imports: [
         CommonModule,
         MatTableModule,
         RouterModule,
-        MatButtonModule
+        MatButtonModule,
+        ToDatePipe,
     ],
     templateUrl: './seasonManager.component.html',
     styleUrl: './seasonManager.component.scss',

@@ -5,7 +5,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
-import { UserResponseDto } from '../userResponseDto';
+import { parseUser, UserResponseDto } from '../userResponseDto';
+import { map } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -49,7 +50,8 @@ export class EditUserComponent {
     }
 
     // Fetch from backend
-    this.http.get<UserResponseDto>('/api/usermanagement/getuser/' + userID)
+    this.http.get<unknown>('/api/usermanagement/getuser/' + userID)
+      .pipe(map(parseUser))
       .subscribe({
         next: (result) => this.model.set(result),
         error: (error) => console.log(error)

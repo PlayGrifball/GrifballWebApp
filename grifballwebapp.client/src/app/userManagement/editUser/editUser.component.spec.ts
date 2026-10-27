@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -122,5 +123,20 @@ describe('EditUserComponent', () => {
 
     expect(el().querySelector('h2')?.textContent).toContain('Edit User 15');
     expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('grif');
+  });
+
+  it('loads lockoutEnd as a DateTime and sends it back as ISO 8601 the server reads', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+    expect(component.model().lockoutEnd instanceof DateTime).toBeTrue();
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    const req = http.expectOne('/api/usermanagement/edituser/');
+    const sent = JSON.parse(JSON.stringify(req.request.body)).lockoutEnd as string;
+    expect(sent).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}(Z|[+-]\d\d:\d\d)$/);
+    expect(Date.parse(sent)).toBe(Date.parse('2026-03-04T05:06:00Z'));
+    req.flush({});
   });
 });

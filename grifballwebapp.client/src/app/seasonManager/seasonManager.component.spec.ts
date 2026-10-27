@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
@@ -11,7 +12,7 @@ describe('SeasonManagerComponent', () => {
   let api: jasmine.SpyObj<ApiClientService>;
 
   const season = (seasonID: number, seasonName: string): SeasonDto =>
-    Object.assign(new SeasonDto(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: '2026-01-02T03:04:00' });
+    Object.assign(new SeasonDto(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: DateTime.fromISO('2026-01-02T03:04:00') });
 
   beforeEach(async () => {
     api = jasmine.createSpyObj('ApiClientService', ['getSeasons']);

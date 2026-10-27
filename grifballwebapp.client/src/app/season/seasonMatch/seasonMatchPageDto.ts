@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { fromApiDate } from "../../shared/apiDates";
 
 export interface SeasonMatchPageDto {
   seasonID: number,
@@ -31,4 +32,9 @@ export interface BracketInfoDto {
 export interface ReportedGameDto {
   matchID: string,
   matchNumber: number,
+}
+
+/** The page as the API sends it (scheduledTime as an ISO string), with a real DateTime. */
+export function parseSeasonMatchPage(raw: any): SeasonMatchPageDto {
+  return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }

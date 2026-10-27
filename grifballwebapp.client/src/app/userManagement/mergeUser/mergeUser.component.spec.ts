@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -142,5 +143,15 @@ describe('MergeUserComponent merging', () => {
     component.submit();
     httpMock.expectOne('/api/usermanagement/MergeUser/').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(console.log).not.toHaveBeenCalledWith('Merged user');
+  });
+
+  it('reads the loaded users through parseUser (lockoutEnd as a DateTime)', async () => {
+    component.mergeToId.set(7);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/usermanagement/getuser/7').flush({ ...user(7), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+
+    expect(component.mergeToUser()?.lockoutEnd instanceof DateTime).toBeTrue();
+    expect(component.mergeFromUser()?.lockoutEnd).toBeNull();
   });
 });

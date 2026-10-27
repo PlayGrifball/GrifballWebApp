@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { map, Observable } from 'rxjs';
-import { SeasonDto } from './dtos/seasonDto';
+import { parseSeason, SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
@@ -12,6 +12,7 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { DateTime } from 'luxon';
+import { fromApiDate } from '../shared/apiDates';
 
 @Injectable({
   providedIn: 'root'
@@ -30,11 +31,13 @@ export class ApiClientService {
   }
 
   getSeasons(): Observable<SeasonDto[]> {
-    return this.http.get<SeasonDto[]>('/api/EventOrganizer/GetSeasons');
+    return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
+      .pipe(map(seasons => seasons.map(parseSeason)));
   }
 
   getSeason(seasonID: number): Observable<SeasonDto> {
-    return this.http.get<SeasonDto>('/api/EventOrganizer/GetSeason/' + seasonID);
+    return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
+      .pipe(map(parseSeason));
   }
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
@@ -132,6 +135,6 @@ export class ApiClientService {
 
   commitDate(): Observable<DateTime> {
     return this.http.get<string>('/api/CommitDate', this.text)
-      .pipe(map(x => DateTime.fromISO(x)));
+      .pipe(map(x => fromApiDate(x)));
   }
 }

@@ -14,10 +14,11 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { UpdateMatchTimeDto } from './updateMatchTimeDto';
-import { ScheduledMatchDto } from './scheduledMatchDto';
+import { parseScheduledMatch, ScheduledMatchDto } from './scheduledMatchDto';
 import { DateTime } from 'luxon';
 import { TimeDto } from './timeDto';
 import { groupBy, map, orderBy } from 'lodash-es';
+import { map as mapResponse } from 'rxjs';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -88,7 +89,8 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   GetScheduledMatches(): void {
-    this.http.get<ScheduledMatchDto[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
+    this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
+    .pipe(mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
       next: r => this.gotScheduledMatches(r),
     });
@@ -118,11 +120,7 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   private map(value: ScheduledMatchDto, index: number, array: ScheduledMatchDto[]): TimeDto {
-    const timeString = value.time;
-    var dateTime = DateTime.fromISO(timeString.toString());
-
-    let weekYear = dateTime.localWeekYear;
-    let weekNumber = dateTime.localWeekNumber;
+    const dateTime = value.time;
 
     return {
       SeasonMatchID: value.seasonMatchID,

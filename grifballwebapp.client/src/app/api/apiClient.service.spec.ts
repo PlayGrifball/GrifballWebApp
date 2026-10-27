@@ -45,12 +45,14 @@ describe('ApiClientService', () => {
 
   describe('getSeasons', () => {
     it('should fetch seasons data', (done) => {
-      const mockSeasons: any[] = [{ seasonID: 1, seasonName: 'Season 1' }];
+      const mockSeasons: any[] = [{ seasonID: 1, seasonName: 'Season 1', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z', signupsCount: 3 }];
 
       service.getSeasons().subscribe({
         next: (data) => {
           expect(data.length).toBe(1);
           expect(data[0].seasonID).toBe(1);
+          expect(data[0].seasonEnd instanceof DateTime).toBeTrue();
+          expect(data[0].seasonEnd.toMillis()).toBe(Date.parse('2026-03-01T00:00:00Z'));
           done();
         }
       });
@@ -63,12 +65,14 @@ describe('ApiClientService', () => {
 
   describe('getSeason', () => {
     it('should fetch single season by ID', (done) => {
-      const mockSeason: any = { seasonID: 1, seasonName: 'Season 1' };
+      const mockSeason: any = { seasonID: 1, seasonName: 'Season 1', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z', signupsCount: 3 };
 
       service.getSeason(1).subscribe({
         next: (data) => {
           expect(data.seasonID).toBe(1);
           expect(data.seasonName).toBe('Season 1');
+          expect(data.signupsOpen instanceof DateTime).toBeTrue();
+          expect(data.signupsOpen.toMillis()).toBe(Date.parse('2026-01-01T00:00:00Z'));
           done();
         }
       });

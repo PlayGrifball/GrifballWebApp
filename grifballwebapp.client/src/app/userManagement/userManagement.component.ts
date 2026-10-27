@@ -5,7 +5,8 @@ import { RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { UserResponseDto } from './userResponseDto';
+import { parseUser, UserResponseDto } from './userResponseDto';
+import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
@@ -21,6 +22,7 @@ import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDt
         MatTooltipModule,
         TableComponent,
         SearchBoxComponent,
+        ToDatePipe,
     ],
     templateUrl: './userManagement.component.html',
     styleUrl: './userManagement.component.scss',
@@ -32,6 +34,7 @@ export class UserManagementComponent {
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   url = '/api/UserManagement/GetUsers';
+  readonly parseUser = parseUser;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

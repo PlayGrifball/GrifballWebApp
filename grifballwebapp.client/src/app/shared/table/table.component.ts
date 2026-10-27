@@ -37,6 +37,8 @@ export class TableComponent<T> {
   readonly rowTemplates = contentChildren(TemplateRef);
 
   filters = input<Filter[]>();
+  /** Optional: turns each row from its JSON form (e.g. dates as strings) into a T. */
+  parseRow = input<(row: any) => T>();
   
   displayedColumns = input.required<string[]>();
   url = input.required<string>();
@@ -62,7 +64,7 @@ export class TableComponent<T> {
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,
       sortColumn: () => this.sort()?.active,
-    }, () => this.filters());
+    }, () => this.filters(), row => this.parseRow() ? this.parseRow()!(row) : row);
   x = this.paginationResource.resource;
   current = this.paginationResource.current;
 }

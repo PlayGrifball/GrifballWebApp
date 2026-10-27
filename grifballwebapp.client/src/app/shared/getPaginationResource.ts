@@ -7,6 +7,8 @@ export function getPaginationResource<T>(
     url: () => string,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
+    // Turns each row from its JSON form (e.g. dates as strings) into a T.
+    parseRow?: (row: any) => T,
 ) {
     const resource = httpResource<PaginationResult<T>>(
         () => {
@@ -38,7 +40,13 @@ export function getPaginationResource<T>(
             
             return `${url()}?${x}`;
         },
-        { defaultValue: PAGINATION_RESPONSE_DEFAULT }
+        {
+            defaultValue: PAGINATION_RESPONSE_DEFAULT,
+            parse: (raw: unknown) => {
+                const page = raw as PaginationResult<any>;
+                return parseRow ? { ...page, results: page.results.map(parseRow) } : page;
+            },
+        }
     );
 
     const current = linkedSignal<

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { SeasonMatchPageDto } from './seasonMatchPageDto';
+import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
@@ -16,7 +16,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
+import { map } from 'rxjs';
 
+import { ToDatePipe } from '../../shared/toDate.pipe';
 @Component({
     selector: 'app-season-match',
     imports: [
@@ -32,7 +34,8 @@ import { AccountService } from '../../account.service';
         MtxDatetimepickerModule,
         MatCardModule,
         MatListModule,
-        MatTableModule
+        MatTableModule,
+        ToDatePipe,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
@@ -87,7 +90,8 @@ export class SeasonMatchComponent {
   }
 
   getPageDto(): void {
-    this.http.get<SeasonMatchPageDto>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+    this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+      .pipe(map(parseSeasonMatchPage))
       .subscribe({
         next: result => this.seasonMatch.set(result),
       });

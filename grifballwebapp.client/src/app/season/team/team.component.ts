@@ -6,8 +6,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
 import { DateTime } from 'luxon';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
+import { fromApiDate } from '../../shared/apiDates';
 
+import { ToDatePipe } from '../../shared/toDate.pipe';
 @Component({
     selector: 'app-team',
     imports: [
@@ -18,6 +20,7 @@ import { Observable } from 'rxjs';
         MatTableModule,
         RouterModule,
         MatIcon,
+        ToDatePipe,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -54,7 +57,8 @@ export class TeamComponent {
   }
 
   getMatches(): Observable<MatchDto[]> {
-    return this.http.get<MatchDto[]>("/api/Team/Matches/" + this.teamID());
+    return this.http.get<any[]>("/api/Team/Matches/" + this.teamID())
+      .pipe(map(matches => matches.map(m => ({ ...m, scheduledTime: fromApiDate(m.scheduledTime) }))));
   } 
 }
 
