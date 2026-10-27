@@ -43,7 +43,7 @@ describe('SeasonAvailabilityComponent', () => {
   }
 
   it('loads the season availability and renders one row per timeslot', () => {
-    init([option('Monday', '19:00'), option('Tuesday', '20:00')]);
+    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
 
     expect(component.options().map(o => o.dayOfWeek)).toEqual(['Monday', 'Tuesday']);
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
@@ -90,7 +90,7 @@ describe('SeasonAvailabilityComponent', () => {
   });
 
   it('adds a blank slot at the top and deletes slots by index', () => {
-    init([option('Monday', '19:00'), option('Tuesday', '20:00')]);
+    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
 
     component.add();
     expect(component.options().length).toBe(3);
@@ -101,12 +101,12 @@ describe('SeasonAvailabilityComponent', () => {
   });
 
   it('saves the timeslots for the season', () => {
-    init([option('Monday', '19:00')]);
+    init([option('Monday', '19:00:00')]);
     component.saveChanges();
 
     const req = http.expectOne('api/Availability/UpdateSeasonAvailability');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ seasonID: 14, timeslots: [option('Monday', '19:00')] });
+    expect(req.request.body).toEqual({ seasonID: 14, timeslots: [option('Monday', '19:00:00')] });
     req.flush({});
     expect(snackBar.open).toHaveBeenCalledWith('Saved');
   });
@@ -121,11 +121,23 @@ describe('SeasonAvailabilityComponent', () => {
 
   it('renders the loaded timeslots, without a manual detectChanges', async () => {
     await fixture.whenStable();
-    http.expectOne('api/Availability/GetSeasonAvailability?seasonID=14').flush([option('Monday', '19:00'), option('Tuesday', '20:00')]);
+    http.expectOne('api/Availability/GetSeasonAvailability?seasonID=14').flush([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
     await fixture.whenStable();
 
     const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
       .filter(b => b.textContent!.trim() === 'Delete');
     expect(deleteButtons.length).toBe(2);
+  });
+
+  it('replaces an option when its day is changed, leaving the loaded objects alone', () => {
+    init([option('Monday', '19:00:00'), option('Tuesday', '20:00:00')]);
+    const loaded = component.options();
+
+    component.setOption(1, { dayOfWeek: 'Friday' });
+
+    expect(component.options()).not.toBe(loaded);
+    expect(component.options().map(o => o.dayOfWeek)).toEqual(['Monday', 'Friday']);
+    expect(component.options()[0]).toBe(loaded[0]);
+    expect(loaded[1].dayOfWeek).toBe('Tuesday');
   });
 });

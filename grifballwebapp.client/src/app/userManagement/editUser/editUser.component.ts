@@ -31,6 +31,15 @@ export class EditUserComponent {
 
   readonly model = signal<UserResponseDto>({} as UserResponseDto);
 
+  /** Form edits replace the model rather than mutating it. */
+  patch(changes: Partial<UserResponseDto>): void {
+    this.model.update(model => ({ ...model, ...changes }));
+  }
+
+  setRole(index: number, hasRole: boolean): void {
+    this.model.update(model => ({ ...model, roles: model.roles.map((role, i) => i === index ? { ...role, hasRole } : role) }));
+  }
+
   ngOnInit(): void {
     const userID = Number(this.route.snapshot.paramMap.get('userID'));
 

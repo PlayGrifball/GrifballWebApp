@@ -84,8 +84,18 @@ describe('EditUserComponent', () => {
   it('posts the edited user, including role changes', async () => {
     await load();
     spyOn(console, 'log');
-    component.model().roles[0].hasRole = true;
-    component.model().displayName = 'Private Grif';
+    const before = component.model();
+    // Edit through the form: tick the Sysadmin role and change the display name.
+    Array.from(el().querySelectorAll('mat-checkbox')).find(c => c.textContent!.trim() === 'Sysadmin')!.querySelector('input')!.click();
+    const displayName = el().querySelector<HTMLInputElement>('input[name="displayName"]')!;
+    displayName.value = 'Private Grif';
+    displayName.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    // The edits replaced the model; the loaded object was not changed.
+    expect(component.model()).not.toBe(before);
+    expect(before.roles[0].hasRole).toBeFalse();
+    expect(before.displayName).toBe('Grif');
 
     component.onSubmit();
     const req = http.expectOne('/api/usermanagement/edituser/');

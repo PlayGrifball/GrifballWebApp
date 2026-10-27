@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
+import { outputToObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -45,11 +46,12 @@ export class ScheduleListComponent  implements OnInit {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
 
   private seasonID : number = 0;
   readonly unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
   readonly scheduledMatches = signal<WeekDto[]>([]);
-  isEditing: boolean = false;
+  readonly isEditing = signal(false);
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -66,7 +68,9 @@ export class ScheduleListComponent  implements OnInit {
       data: this.seasonID
     });
 
-    dialogRef.componentInstance.regularMatchesCreated.subscribe(() => {
+    outputToObservable(dialogRef.componentInstance.regularMatchesCreated)
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe(() => {
       this.GetMatches();
     });
   }
@@ -143,11 +147,12 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   toggleEdit(): void {
-    this.isEditing = !this.isEditing;
+    this.isEditing.update(editing => !editing);
   }
 
-  onSubmit(match: UnscheduledMatchDto | WeekGameDto): void {
-    const dto: UpdateMatchTimeDto = match;
+  /** `time` is the row's own form value; the loaded match objects are never edited. */
+  onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime): void {
+    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time };
     this.http.post('/api/MatchPlanner/UpdateMatchTime/', dto)
     .subscribe({
       next: r => this.GetMatches(),

@@ -122,4 +122,21 @@ describe('SeasonEditComponent', () => {
     expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
     expect(el().textContent).toContain('Edit Availability');
   });
+
+  it('replaces the model on form edits instead of mutating the loaded season', async () => {
+    await render();
+    const loaded = component.model();
+    const name = el().querySelector<HTMLInputElement>('input[name="seasonName"]')!;
+    name.value = 'Renamed';
+    name.dispatchEvent(new Event('input'));
+    const copyFrom = el().querySelector<HTMLInputElement>('input[name="copyFrom"]')!;
+    copyFrom.value = '3';
+    copyFrom.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(component.model()).not.toBe(loaded);
+    expect(component.model().seasonName).toBe('Renamed');
+    expect(loaded.seasonName).toBe('Season 4');
+    expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
+  });
 });

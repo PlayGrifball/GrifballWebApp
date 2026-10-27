@@ -34,6 +34,11 @@ export class SeasonEditComponent implements OnInit {
 
   readonly model = signal<SeasonDto>({} as SeasonDto);
 
+  /** Form edits replace the model rather than mutating it. */
+  patch(changes: Partial<SeasonDto>): void {
+    this.model.update(model => ({ ...model, ...changes }));
+  }
+
   ngOnInit(): void {
     const seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
 

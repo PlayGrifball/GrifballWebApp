@@ -109,6 +109,11 @@ export class SeasonAvailabilityComponent implements OnInit {
     });
   }
 
+  /** Row edits replace the option (and the list) rather than mutating them. */
+  setOption(index: number, changes: Partial<AvailabilityOption>): void {
+    this.options.update(options => options.map((o, i) => i === index ? { ...o, ...changes } : o));
+  }
+
   add(): void {
     this.options.update(options => [new AvailabilityOption(), ...options]);
   }
