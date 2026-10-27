@@ -6,7 +6,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
-import { catchError, concatMap, EMPTY, finalize, forkJoin, Observable, Subject, tap } from 'rxjs';
+import { catchError, forkJoin, Observable, of, Subject, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
@@ -52,12 +52,9 @@ export class TeamBuilderComponent {
 
   private grabbedThing: GrabbedThing = GrabbedThing.AvailablePlayer;
 
-  // Saves run one after another; a reload waits for them (see save, load, requestReload).
-  private readonly saveQueue = new Subject<Observable<unknown>>();
-  private pendingSaves = 0;
-  private reloadWanted = false;
-  // Bumped on every change to the draft here, so a load that started earlier can be dropped.
-  private draftVersion = 0;
+  // Every reload goes through here; a newer one cancels the one still loading (see load).
+  private readonly reloads = new Subject<void>();
+  private destroyed = false;
 
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
@@ -94,7 +91,28 @@ export class TeamBuilderComponent {
   };
 
   constructor() {
-    this.saveQueue.pipe(concatMap(save => save), takeUntilDestroyed()).subscribe();
+    // The server's draft is the truth: the latest load replaces what the page shows, and later
+    // SignalR updates apply on top of it. Each part is taken on its own, so one failed request
+    // keeps the current value for that part only.
+    const part = <T>(request: Observable<T>) => request.pipe(catchError(() => of(undefined)));
+    this.reloads.pipe(
+      switchMap(() => forkJoin({
+        teams: part(this.api.getTeams(this.seasonID)),
+        pool: part(this.api.getPlayerPool(this.seasonID)),
+        locked: part(this.api.areCaptainsLocked(this.seasonID)),
+      })),
+      takeUntilDestroyed(),
+    ).subscribe(({ teams, pool, locked }) => {
+      if (teams !== undefined)
+        this.teams.set(teams);
+      if (pool !== undefined)
+        this.playerPool.set(pool);
+      if (locked !== undefined)
+        this.captainLocked.set(locked);
+      if (teams === undefined || pool === undefined || locked === undefined)
+        this.snackBarService.open('Failed to load the draft', 'Close');
+    });
+    this.destroyRef.onDestroy(() => this.destroyed = true);
   }
 
   ngOnInit(): void {
@@ -158,10 +176,9 @@ export class TeamBuilderComponent {
     const next = change(current);
     if (next === null) {
       console.log('Detected out of sync');
-      this.requestReload();
+      this.load();
       return null;
     }
-    this.draftVersion++;
     if (next.teams !== current.teams)
       this.teams.set(next.teams);
     if (next.pool !== current.pool)
@@ -169,41 +186,10 @@ export class TeamBuilderComponent {
     return next;
   }
 
-  /**
-   * Loads the draft from the server. A result that comes back after the draft changed here
-   * (a drop, or another user's update) would undo that change, so it is dropped and the load
-   * is asked for again (it then waits for any saves still on their way).
-   */
+  /** Loads the draft from the server (see the constructor); nothing once the page is gone. */
   load(): void {
-    const version = this.draftVersion;
-    forkJoin({
-      teams: this.api.getTeams(this.seasonID),
-      pool: this.api.getPlayerPool(this.seasonID),
-      locked: this.api.areCaptainsLocked(this.seasonID),
-    }).subscribe({
-      next: ({ teams, pool, locked }) => {
-        if (version !== this.draftVersion) {
-          this.requestReload();
-          return;
-        }
-        this.teams.set(teams);
-        this.playerPool.set(pool);
-        this.captainLocked.set(locked);
-      },
-    });
-  }
-
-  /** Reloads once no save is in flight, so the server has every change this page sent. */
-  private requestReload(): void {
-    this.reloadWanted = true;
-    this.reloadWhenIdle();
-  }
-
-  private reloadWhenIdle(): void {
-    if (this.reloadWanted && this.pendingSaves === 0) {
-      this.reloadWanted = false;
-      this.load();
-    }
+    if (!this.destroyed)
+      this.reloads.next();
   }
 
   lockCaptainsButtonClicked(): void {
@@ -233,29 +219,26 @@ export class TeamBuilderComponent {
   }
 
   /**
-   * Sends a drag-and-drop change. The page has already applied it. Changes go to the server
-   * one at a time, in the order they were made. If the server refuses one (not your turn, not
-   * signed up, not allowed...), say why and reload the real draft. `reload` also reloads after
-   * a success, for changes the server finishes itself. Reloads wait until no save is pending.
+   * Sends a drag-and-drop change; the page has already applied it. The request is not tied to
+   * the page: it completes even if the user navigates away. If the server refuses it (not your
+   * turn, not signed up, not allowed...), say why and reload the real draft. `reload` also
+   * reloads after a success, for changes the server finishes itself. Once the page is gone,
+   * nothing is shown or loaded.
    */
   private save(request: Observable<unknown>, reload = false): void {
-    this.pendingSaves++;
-    this.saveQueue.next(request.pipe(
-      tap(r => {
+    request.subscribe({
+      next: r => {
         console.log(r);
         if (reload)
-          this.reloadWanted = true;
-      }),
-      catchError(e => {
+          this.load();
+      },
+      error: e => {
+        if (this.destroyed)
+          return;
         this.snackBarService.open(`Draft change not saved: ${TeamBuilderComponent.refusalReason(e)}`, 'Close');
-        this.reloadWanted = true;
-        return EMPTY;
-      }),
-      finalize(() => {
-        this.pendingSaves--;
-        this.reloadWhenIdle();
-      }),
-    ));
+        this.load();
+      },
+    });
   }
 
   /**
