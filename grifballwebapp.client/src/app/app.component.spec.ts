@@ -311,6 +311,17 @@ describe('AppComponent behaviour', () => {
     expect(component.overflowNavLinks().length).toBe(component.navLinks().length);
   });
 
+  it('lays out the links from measured widths without touching the DOM while computing', () => {
+    fixture.detectChanges();
+    resizeHandler!(); // measures, and invalidates the layout
+    (document.getElementById as jasmine.Spy).calls.reset();
+    (document.querySelector as jasmine.Spy).calls.reset();
+
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    expect(document.getElementById).not.toHaveBeenCalled();
+    expect(document.querySelector).not.toHaveBeenCalled();
+  });
+
   it('stops listening for resizes once destroyed', () => {
     const remove = spyOn(window, 'removeEventListener').and.callThrough();
     fixture.detectChanges();
