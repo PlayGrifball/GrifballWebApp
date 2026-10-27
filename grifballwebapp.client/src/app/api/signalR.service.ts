@@ -42,52 +42,45 @@ export class SignalRService {
       .catch(err => console.log('Error while starting connection: ' + err));
   }
 
-  public addCaptain(callback: (value: CaptainAddedDto) => void): void {
-    this.hubConnection.on('AddCaptain', (dto: CaptainAddedDto) => {
-      callback.call(this, dto);
-    });
+  /**
+   * Registers `callback` for a hub method. Returns a function that unregisters exactly this
+   * handler; components call it when they are destroyed so handlers don't pile up across visits.
+   */
+  private on<T>(methodName: string, callback: (value: T) => void): () => void {
+    const handler = (dto: T) => callback.call(this, dto);
+    this.hubConnection.on(methodName, handler);
+    return () => this.hubConnection.off(methodName, handler);
   }
 
-  public resortCaptain(callback: (value: CaptainPlacementDto) => void): void {
-    this.hubConnection.on('ResortCaptain', (dto: CaptainPlacementDto) => {
-      callback.call(this, dto);
-    });
+  public addCaptain(callback: (value: CaptainAddedDto) => void): () => void {
+    return this.on('AddCaptain', callback);
   }
 
-  public removeCaptain(callback: (value: RemoveCaptainDto) => void): void {
-    this.hubConnection.on('RemoveCaptain', (dto: RemoveCaptainDto) => {
-      callback.call(this, dto);
-    });
+  public resortCaptain(callback: (value: CaptainPlacementDto) => void): () => void {
+    return this.on('ResortCaptain', callback);
   }
 
-  public removePlayerFromTeam(callback: (value: RemovePlayerFromTeamRequestDto) => void): void {
-    this.hubConnection.on('RemovePlayerFromTeam', (dto: RemovePlayerFromTeamRequestDto) => {
-      callback.call(this, dto);
-    });
+  public removeCaptain(callback: (value: RemoveCaptainDto) => void): () => void {
+    return this.on('RemoveCaptain', callback);
   }
 
-  public movePlayerToTeam(callback: (value: MovePlayerToTeamRequestDto) => void): void {
-    this.hubConnection.on('MovePlayerToTeam', (dto: MovePlayerToTeamRequestDto) => {
-      callback.call(this, dto);
-    });
+  public removePlayerFromTeam(callback: (value: RemovePlayerFromTeamRequestDto) => void): () => void {
+    return this.on('RemovePlayerFromTeam', callback);
   }
 
-  public addPlayerToTeam(callback: (value: AddPlayerToTeamRequestDto) => void): void {
-    this.hubConnection.on('AddPlayerToTeam', (dto: AddPlayerToTeamRequestDto) => {
-      callback.call(this, dto);
-    });
+  public movePlayerToTeam(callback: (value: MovePlayerToTeamRequestDto) => void): () => void {
+    return this.on('MovePlayerToTeam', callback);
   }
 
-  public lockCaptains(callback: (value: number) => void): void {
-    this.hubConnection.on('LockCaptains', (dto: number) => {
-      callback.call(this, dto);
-    });
+  public addPlayerToTeam(callback: (value: AddPlayerToTeamRequestDto) => void): () => void {
+    return this.on('AddPlayerToTeam', callback);
   }
 
-  public unlockCaptains(callback: (value: number) => void): void {
-    this.hubConnection.on('UnlockCaptains', (dto: number) => {
-      callback.call(this, dto);
-    });
+  public lockCaptains(callback: (value: number) => void): () => void {
+    return this.on('LockCaptains', callback);
   }
 
+  public unlockCaptains(callback: (value: number) => void): () => void {
+    return this.on('UnlockCaptains', callback);
+  }
 }

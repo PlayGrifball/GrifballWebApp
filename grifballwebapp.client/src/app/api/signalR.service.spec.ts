@@ -5,7 +5,7 @@ import { SignalRService } from './signalR.service';
 import { AccountService } from '../account.service';
 
 describe('SignalRService', () => {
-  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy };
+  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; off: jasmine.Spy };
   let accessToken: ReturnType<typeof signal<string | undefined>>;
   let withUrl: jasmine.Spy;
   let service: SignalRService;
@@ -21,6 +21,7 @@ describe('SignalRService', () => {
       start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
       on: jasmine.createSpy('on'),
+      off: jasmine.createSpy('off'),
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
@@ -100,6 +101,14 @@ describe('SignalRService', () => {
 
       expect(callback).toHaveBeenCalledOnceWith(payload);
       expect(callback.calls.mostRecent().object).toBe(service);
+    });
+
+    it(`${String(method)} returns a function that unregisters that same ${event} handler`, () => {
+      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, () => {});
+
+      unsubscribe();
+
+      expect(connection.off).toHaveBeenCalledOnceWith(event, handlerFor(event));
     });
   }
 });

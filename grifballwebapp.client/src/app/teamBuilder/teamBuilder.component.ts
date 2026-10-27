@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
@@ -49,6 +49,7 @@ export class TeamBuilderComponent {
   private snackBarService = inject(MatSnackBar);
   accountService = inject(AccountService);
   private signalR = inject(SignalRService);
+  private destroyRef = inject(DestroyRef);
 
   private seasonID: number = 0;
   readonly captainLocked = signal(true);
@@ -96,9 +97,9 @@ export class TeamBuilderComponent {
       this.load();
     }
 
-    this.signalR.addCaptain((dto) => this.updateDraft((teams, pool) => {
+    const offAddCaptain = this.signalR.addCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
-        return;
+        return false;
 
       const player = pool.find((p => {
         return p.personID === dto.personID;
@@ -107,7 +108,7 @@ export class TeamBuilderComponent {
       if (player === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       // Remove from player pool
@@ -131,11 +132,12 @@ export class TeamBuilderComponent {
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
+      return true;
     }));
 
-    this.signalR.resortCaptain((dto) => this.updateDraft((teams, pool) => {
+    const offResortCaptain = this.signalR.resortCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
-        return;
+        return false;
 
       const team = teams.find((t => {
         return t.captain.personID === dto.personID;
@@ -144,7 +146,7 @@ export class TeamBuilderComponent {
       if (team === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       // Remove from team
@@ -161,11 +163,12 @@ export class TeamBuilderComponent {
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
+      return true;
     }));
 
-    this.signalR.removeCaptain((dto) => this.updateDraft((teams, pool) => {
+    const offRemoveCaptain = this.signalR.removeCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
-        return;
+        return false;
 
       const team = teams.find((t => {
         return t.captain.personID === dto.personID;
@@ -174,7 +177,7 @@ export class TeamBuilderComponent {
       if (team === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       // Remove from team
@@ -202,12 +205,12 @@ export class TeamBuilderComponent {
       teams.forEach((t, i) => {
         t.captain.order = trueIndex++;
       });
-
+      return true;
     }));
 
-    this.signalR.addPlayerToTeam((dto) => this.updateDraft((teams, pool) => {
+    const offAddPlayerToTeam = this.signalR.addPlayerToTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
-        return;
+        return false;
 
       // Find player from the pool
       const player = pool.find((p => {
@@ -217,7 +220,7 @@ export class TeamBuilderComponent {
       if (player === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       // Find team to add to
@@ -228,7 +231,7 @@ export class TeamBuilderComponent {
       if (team === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       // Add player to team
@@ -239,11 +242,12 @@ export class TeamBuilderComponent {
       team.players.forEach(p => {
         p.round = trueIndex++;
       });
+      return true;
     }));
 
-    this.signalR.movePlayerToTeam((dto) => this.updateDraft((teams, pool) => {
+    const offMovePlayerToTeam = this.signalR.movePlayerToTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
-        return;
+        return false;
 
       // Player was moved from one team to another
       if (dto.previousCaptainID != dto.newCaptainID) {
@@ -254,7 +258,7 @@ export class TeamBuilderComponent {
         if (team === undefined) {
           console.log('Detected out of sync');
           this.load();
-          return;
+          return false;
         }
 
         const player = team.players.find(p => {
@@ -264,7 +268,7 @@ export class TeamBuilderComponent {
         if (player === undefined) {
           console.log('Detected out of sync');
           this.load();
-          return;
+          return false;
         }
 
         // Remove player from their old team
@@ -284,7 +288,7 @@ export class TeamBuilderComponent {
         if (newTeam === undefined) {
           console.log('Detected out of sync');
           this.load();
-          return;
+          return false;
         }
 
         newTeam.players.push(player);
@@ -302,7 +306,7 @@ export class TeamBuilderComponent {
         if (team === undefined) {
           console.log('Detected out of sync');
           this.load();
-          return;
+          return false;
         }
 
         const player = team.players.find(p => {
@@ -312,7 +316,7 @@ export class TeamBuilderComponent {
         if (player === undefined) {
           console.log('Detected out of sync');
           this.load();
-          return;
+          return false;
         }
 
         // Remove player from their team
@@ -326,11 +330,12 @@ export class TeamBuilderComponent {
           p.round = trueIndex++;
         })
       }
+      return true;
     }));
 
-    this.signalR.removePlayerFromTeam((dto) => this.updateDraft((teams, pool) => {
+    const offRemovePlayerFromTeam = this.signalR.removePlayerFromTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
-        return;
+        return false;
 
       // Find team with player
       const team = teams.find((t => {
@@ -340,7 +345,7 @@ export class TeamBuilderComponent {
       if (team === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       const player = team.players.find(p => {
@@ -350,7 +355,7 @@ export class TeamBuilderComponent {
       if (player === undefined) {
         console.log('Detected out of sync');
         this.load();
-        return;
+        return false;
       }
 
       player.pick = null;
@@ -365,32 +370,40 @@ export class TeamBuilderComponent {
       });
 
       pool.splice(0, 0, player);
+      return true;
     }));
 
-    this.signalR.lockCaptains((seasonID) => {
+    const offLockCaptains = this.signalR.lockCaptains((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
       this.captainLocked.set(true);
     });
 
-    this.signalR.unlockCaptains((seasonID) => {
+    const offUnlockCaptains = this.signalR.unlockCaptains((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
       this.captainLocked.set(false);
     });
+
+    // The hub connection outlives this page; drop this page's handlers when it goes away,
+    // otherwise every visit adds another set that keeps acting on a destroyed component.
+    const offs = [offAddCaptain, offResortCaptain, offRemoveCaptain, offAddPlayerToTeam, offMovePlayerToTeam, offRemovePlayerFromTeam, offLockCaptains, offUnlockCaptains];
+    this.destroyRef.onDestroy(() => offs.forEach(off => off()));
   }
 
   /**
-   * Applies a SignalR draft update. The handlers edit the lists in place (the same way the
-   * drag-and-drop handlers do), so they get copies and the signals are set afterwards to
-   * schedule a render.
+   * Applies a SignalR draft update. The handler edits a copy of the draft (new list, team and
+   * player objects, so the current signal values are never mutated) and returns whether it
+   * changed anything; only then are the signals set. Updates for another season, or ones that
+   * found the page out of sync (and reloaded it), return false.
    */
-  private updateDraft(change: (teams: TeamResponseDto[], pool: PlayerDto[]) => void): void {
-    const teams = [...this.teams()];
-    const pool = [...this.playerPool()];
-    change(teams, pool);
-    this.teams.set(teams);
-    this.playerPool.set(pool);
+  private updateDraft(change: (teams: TeamResponseDto[], pool: PlayerDto[]) => boolean): void {
+    const teams = this.teams().map(team => ({ ...team, captain: { ...team.captain }, players: team.players.map(p => ({ ...p })) }));
+    const pool = this.playerPool().map(p => ({ ...p }));
+    if (change(teams, pool)) {
+      this.teams.set(teams);
+      this.playerPool.set(pool);
+    }
   }
 
   load(): void {
@@ -448,6 +461,9 @@ export class TeamBuilderComponent {
 
     if (effect === 'move') {
       const index = list.indexOf(item);
+      // A SignalR update during the drag replaces the list's objects, so the item may be gone.
+      if (index === -1)
+        return;
       list.splice(index, 1);
       // TODO: If we remove we need to resort. No need to tell backend but frontend needs to stay up to date
     }

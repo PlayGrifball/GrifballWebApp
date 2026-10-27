@@ -6,7 +6,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { CaptainDto } from '../api/dtos/captainDto';
@@ -62,6 +62,11 @@ describe('TeamBuilderComponent', () => {
     ]);
 
     mockSignalR.hubConnection = { connectionId: 'test-connection-id' } as any;
+    // Each registration returns its own unregister function, like the real service.
+    for (const name of Object.keys(mockSignalR) as (keyof SignalRService)[]) {
+      const method = mockSignalR[name] as unknown as jasmine.Spy;
+      if (jasmine.isSpy(method)) method.and.callFake(() => jasmine.createSpy(`off ${String(name)}`));
+    }
 
     mockApiClient.getTeams.and.returnValue(of([]));
     mockApiClient.getPlayerPool.and.returnValue(of([]));
@@ -410,6 +415,14 @@ describe('TeamBuilderComponent', () => {
 
       expect(list.length).toBe(1);
     });
+
+    it('leaves the list alone when the dragged item is no longer in it', () => {
+      const list = [{ name: 'Player 2', personID: 2, pick: null, round: null }];
+
+      component.onDragged({ name: 'Player', personID: 1, pick: null, round: null }, list, 'move');
+
+      expect(list.map(p => p.personID)).toEqual([2]);
+    });
   });
 
   describe('createDraggedPlayer', () => {
@@ -475,6 +488,49 @@ describe('TeamBuilderComponent', () => {
       ]));
       mockApiClient.getPlayerPool.and.callFake(() => of([player(3), player(4), player(5)]));
       fixture.detectChanges();
+    });
+
+    it('unregisters all of its hub handlers when destroyed', () => {
+      const offs = [mockSignalR.addCaptain, mockSignalR.resortCaptain, mockSignalR.removeCaptain, mockSignalR.addPlayerToTeam,
+        mockSignalR.movePlayerToTeam, mockSignalR.removePlayerFromTeam, mockSignalR.lockCaptains, mockSignalR.unlockCaptains]
+        .map(spy => spy.calls.mostRecent().returnValue as jasmine.Spy);
+      expect(offs.every(off => off.calls.count() === 0)).toBeTrue();
+
+      fixture.destroy();
+
+      expect(offs.every(off => off.calls.count() === 1)).toBeTrue();
+    });
+
+    it('leaves the current lists untouched by an update (new objects instead)', () => {
+      const before = component.teams();
+      const alpha = before[0];
+      const alphaPlayers = alpha.players;
+      const beforePool = component.playerPool();
+
+      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 101, personID: 3 });
+
+      expect(component.teams()).not.toBe(before);
+      expect(alpha.players).toBe(alphaPlayers);
+      expect(alpha.players.map(p => p.personID)).toEqual([1, 2]);
+      expect(beforePool.map(p => p.personID)).toEqual([3, 4, 5]);
+      expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
+    });
+
+    it('keeps the same signal values when an update changes nothing', () => {
+      spyOn(console, 'log');
+      const teams = component.teams();
+      const playerPool = component.playerPool();
+
+      handler<any>(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamName: 'X', captainName: 'X', orderNumber: 1 });
+      expect(component.teams()).toBe(teams);
+      expect(component.playerPool()).toBe(playerPool);
+
+      // Out of sync: the page reloads instead (the mock returns fresh lists).
+      mockApiClient.getTeams.and.returnValue(new Subject<TeamResponseDto[]>());
+      mockApiClient.getPlayerPool.and.returnValue(new Subject<PlayerDto[]>());
+      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 });
+      expect(component.teams()).toBe(teams);
+      expect(component.playerPool()).toBe(playerPool);
     });
 
     it('renders an update pushed by another user without a manual detectChanges', async () => {
@@ -658,6 +714,11 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
       'unlockCaptains'
     ]);
     mockSignalR.hubConnection = { connectionId: 'conn-42' } as any;
+    // Each registration returns its own unregister function, like the real service.
+    for (const name of Object.keys(mockSignalR) as (keyof SignalRService)[]) {
+      const method = mockSignalR[name] as unknown as jasmine.Spy;
+      if (jasmine.isSpy(method)) method.and.callFake(() => jasmine.createSpy(`off ${String(name)}`));
+    }
 
     const mockAccountService = jasmine.createSpyObj('AccountService', ['isEventOrganizer', 'isSysAdmin', 'personID']);
     mockAccountService.isEventOrganizer.and.returnValue(true);
@@ -722,5 +783,54 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
 
     expect(component.teams().map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
     expect(component.playerPool().map(p => p.personID).sort()).toEqual([11, 21, 30]);
+  });
+});
+
+describe('TeamBuilderComponent hub handler registration (real SignalRService)', () => {
+  let handlers: Map<string, Function[]>;
+
+  beforeEach(async () => {
+    handlers = new Map();
+    const hubConnection = {
+      connectionId: 'conn',
+      on: (name: string, fn: Function) => handlers.set(name, [...(handlers.get(name) ?? []), fn]),
+      off: (name: string, fn: Function) => handlers.set(name, (handlers.get(name) ?? []).filter(h => h !== fn)),
+    };
+    const signalR = Object.create(SignalRService.prototype) as SignalRService;
+    signalR.hubConnection = hubConnection as any;
+
+    const api = jasmine.createSpyObj('ApiClientService', ['getTeams', 'getPlayerPool', 'areCaptainsLocked']);
+    api.getTeams.and.returnValue(of([]));
+    api.getPlayerPool.and.returnValue(of([]));
+    api.areCaptainsLocked.and.returnValue(of(true));
+    const account = jasmine.createSpyObj('AccountService', ['isEventOrganizer', 'personID']);
+
+    await TestBed.configureTestingModule({
+      imports: [TeamBuilderComponent],
+      providers: [
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '5' } } } },
+        { provide: ApiClientService, useValue: api },
+        { provide: AccountService, useValue: account },
+        { provide: SignalRService, useValue: signalR },
+      ]
+    }).compileComponents();
+  });
+
+  it('keeps one handler per hub method across visits, and a destroyed page no longer reacts', () => {
+    const first = TestBed.createComponent(TeamBuilderComponent);
+    first.detectChanges();
+    first.destroy();
+
+    const second = TestBed.createComponent(TeamBuilderComponent);
+    second.detectChanges();
+
+    for (const name of ['AddCaptain', 'ResortCaptain', 'RemoveCaptain', 'AddPlayerToTeam', 'MovePlayerToTeam', 'RemovePlayerFromTeam', 'LockCaptains', 'UnlockCaptains']) {
+      expect(handlers.get(name)?.length).withContext(name).toBe(1);
+    }
+
+    const unlockFirst = spyOn(first.componentInstance.captainLocked, 'set');
+    handlers.get('UnlockCaptains')![0](5);
+    expect(unlockFirst).not.toHaveBeenCalled();
+    expect(second.componentInstance.captainLocked()).toBeFalse();
   });
 });
