@@ -12,7 +12,6 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { DateTime } from 'luxon';
-import { cloneDeep } from 'lodash-es';
 
 @Injectable({
   providedIn: 'root'
@@ -66,15 +65,9 @@ export class ApiClientService {
     return this.http.get<SignupResponseDto>(path);
   }
 
-  private parseTime(time: string): string {
-    let dateTime = DateTime.fromFormat(time, 't');
-    return dateTime.toFormat('TT');
-  }
-
+  // The timeslots keep the API's time format: the availability table only formats copies for display.
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
-    const clone = cloneDeep(signupDto);
-    clone.timeslots.forEach(x => x.time = this.parseTime(x.time));
-    return this.http.post('/api/Signups/UpsertSignup/', clone);
+    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
   }
 
   getTeams(seasonID: number): Observable<TeamResponseDto[]> {

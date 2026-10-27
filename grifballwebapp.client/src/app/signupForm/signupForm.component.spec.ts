@@ -115,6 +115,24 @@ describe('SignupFormComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row').length).toBe(2);
   });
 
+  it('submits the slots ticked in the availability table, in the API time format', async () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    await fixture.whenStable();
+
+    // Tuesday 19:00 is the only Tuesday slot; its checkbox is the first one in that row.
+    const tuesday = fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row')[1] as HTMLElement;
+    tuesday.querySelector<HTMLInputElement>('mat-checkbox input')!.click();
+    await fixture.whenStable();
+
+    (component as any).signupForm = () => ({ valid: true });
+    component.onSubmit();
+    const body = httpMock.expectOne('/api/Signups/UpsertSignup/').request.body;
+    expect(body.timeslots.map((t: any) => [t.id, t.time, t.isChecked])).toEqual([[1, '19:00:00', false], [2, '20:00:00', true], [3, '19:00:00', true]]);
+  });
+
   describe('onSubmit', () => {
     // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
     const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });

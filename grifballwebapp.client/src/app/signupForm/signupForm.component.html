@@ -17,7 +17,7 @@
   </mat-checkbox>
   <app-error-message [control]="signupForm.controls['requiresAssistanceDrafting']" />
 
-  <app-availability-table [timeslots]="model().timeslots" />
+  <app-availability-table [timeslots]="model().timeslots" (timeslotsChange)="setTimeslots($event)" />
 
   <br>
 

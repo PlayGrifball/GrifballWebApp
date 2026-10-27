@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { SignupRequestDto } from '../api/dtos/signupRequestDto';
+import { TimeslotDto } from '../api/dtos/signupResponseDto';
 import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -69,6 +70,10 @@ export class SignupFormComponent {
       return;
     }
 
+  }
+
+  setTimeslots(timeslots: TimeslotDto[] | null | undefined): void {
+    this.model.update(model => ({ ...model, timeslots: timeslots ?? [] }));
   }
 
   onSubmit() {

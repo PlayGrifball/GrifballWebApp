@@ -368,12 +368,12 @@ describe('ApiClientService', () => {
   });
 
   describe('upsertSignup', () => {
-    it('should call upsertSignup with transformed timeslots', (done) => {
+    it('posts the signup with the timeslots in the API time format, as loaded', (done) => {
       const signupDto: any = {
         seasonID: 1,
         timeslots: [
-          { time: '7:00 PM', dayOfWeek: 'Monday' },
-          { time: '8:00 PM', dayOfWeek: 'Tuesday' }
+          { id: 1, time: '19:00:00', dayOfWeek: 'Monday', isChecked: true },
+          { id: 2, time: '20:00:00', dayOfWeek: 'Tuesday', isChecked: false }
         ]
       };
 
@@ -383,7 +383,7 @@ describe('ApiClientService', () => {
 
       const req = httpTestingController.expectOne('/api/Signups/UpsertSignup/');
       expect(req.request.method).toBe('POST');
-      // The times should be transformed from 't' format to 'TT' format
+      expect(req.request.body).toEqual(signupDto);
       req.flush({});
     });
   });

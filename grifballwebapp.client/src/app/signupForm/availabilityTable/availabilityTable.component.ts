@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, model } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { TimeslotDto } from '../../api/dtos/signupResponseDto';
@@ -28,16 +28,13 @@ export class AvailabilityTableComponent {
 
   // The parent binds this before its HTTP request has resolved, so null/undefined
   // must be treated as "no timeslots yet" rather than throwing.
-  readonly timeslots = input.required<TimeslotDto[] | null | undefined>();
+  // The grid is built from new cell objects; the timeslots themselves are never mutated.
+  // Ticking a box emits a new list (timeslotsChange) with the changed slots replaced.
+  readonly timeslots = model.required<TimeslotDto[] | null | undefined>();
 
   private readonly table = computed(() => this.buildTable(this.timeslots()));
   readonly timeColumns = computed(() => this.table().timeColumns);
   readonly dtos = computed(() => this.table().dtos);
-
-  /** Every real timeslot in the grid, leaving out the day-of-week headers and filler cells. */
-  selectableTimeslots(): TimeslotDto[] {
-    return this.dtos().flat().filter(x => x.id != 0);
-  }
 
   private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotDto[][] } {
     const timeslots = value ?? [];
@@ -70,27 +67,25 @@ export class AvailabilityTableComponent {
           return;
         }
 
-        let data = timeslots.find((dto, index3, arr3) => {
+        const source = timeslots.find((dto, index3, arr3) => {
           return dto.dayOfWeek === dayOfWeek && this.parseTime(dto.time) === time;
         });
 
-        if (data === undefined) {
-          data = new TimeslotDto();
-          data.isDisabled = true;
-          data.dayOfWeek = dayOfWeek;
-          data.time = time;
-          data.id = 0;
-          data.isChecked = false;
-          data.isHeader = false;
+        let cell: TimeslotDto;
+        if (source === undefined) {
+          cell = new TimeslotDto();
+          cell.isDisabled = true;
+          cell.dayOfWeek = dayOfWeek;
+          cell.time = time;
+          cell.id = 0;
+          cell.isChecked = false;
+          cell.isHeader = false;
         } else {
-          // Set values not sent from api
-          data.isDisabled = false;
-          data.isHeader = false;
-          // Parse time
-          data.time = this.parseTime(data.time);
+          // A copy with the display time and the values not sent from the api
+          cell = { ...source, isDisabled: false, isHeader: false, time: this.parseTime(source.time) };
         }
 
-        row.push(data);
+        row.push(cell);
       });
       rows.push(row);
     });
@@ -113,24 +108,24 @@ export class AvailabilityTableComponent {
     return newRow;
   }
 
+  /** Sets the checked state of the timeslots behind `cells` and emits the new list. */
+  public setChecked(cells: TimeslotDto[], checked: boolean): void {
+    const ids = new Set(cells.filter(c => c.id != 0).map(c => c.id));
+    this.timeslots.update(timeslots => (timeslots ?? []).map(t => ids.has(t.id) ? { ...t, isChecked: checked } : t));
+  }
+
   public dayOfWeekClicked(time: string, slots: TimeslotDto[]) {
     const filtered = slots.filter(x => x.isDisabled === false && x.isHeader === false);
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
-    if (anyTicked) {
-      filtered.forEach(x => x.isChecked = false);
-    } else {
-      filtered.forEach(x => x.isChecked = true);
-    }
+    this.setChecked(filtered, !anyTicked);
   }
 
   public timeClicked(time: string) {
     const filtered = this.dtos().flat().filter(x => x.isDisabled === false && x.isHeader === false && (time === this.availabilityService.DayOfWeek || x.time === time));
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
-    if (anyTicked) {
-      filtered.forEach(x => x.isChecked = false);
-    } else {
-      filtered.forEach(x => x.isChecked = true);
-    }
+    this.setChecked(filtered, !anyTicked);
   }
 
+  /** Rows are rebuilt on every change; keep the row views by day. */
+  public trackRow = (index: number, row: TimeslotDto[]) => row[0]?.dayOfWeek;
 }
