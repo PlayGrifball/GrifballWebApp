@@ -57,8 +57,8 @@ export class TeamComponent {
   }
 
   getMatches(): Observable<MatchDto[]> {
-    return this.http.get<any[]>("/api/Team/Matches/" + this.teamID())
-      .pipe(map(matches => matches.map(m => ({ ...m, scheduledTime: fromApiDate(m.scheduledTime) }))));
+    return this.http.get<unknown[]>("/api/Team/Matches/" + this.teamID())
+      .pipe(map(matches => matches.map(parseTeamMatch)));
   } 
 }
 
@@ -83,7 +83,7 @@ export interface PlayerDto
 export interface MatchDto
 {
   seasonMatchID: number,
-  scheduledTime: DateTime,
+  scheduledTime: DateTime | null, // DateTime? on the server: an unscheduled match has none
   bestOf: number,
   score: number | null,
   result: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | null,
@@ -91,4 +91,9 @@ export interface MatchDto
   otherTeamName: string | null,
   otherScore: number | null,
   otherResult: 'Won' | 'Loss' | 'Forfeit' | 'Bye' | null,
+}
+
+/** A team match as the API sends it (scheduledTime as an ISO string or null), with a real DateTime. */
+export function parseTeamMatch(raw: any): MatchDto {
+  return { ...raw, scheduledTime: fromApiDate(raw.scheduledTime) };
 }

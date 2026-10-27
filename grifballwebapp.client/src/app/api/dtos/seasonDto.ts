@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { fromApiDate } from "../../shared/apiDates";
+import { fromRequiredApiDate } from "../../shared/apiDates";
 
 export class SeasonDto {
   seasonID: number = 0;
@@ -20,10 +20,10 @@ export class SeasonDto {
 export function parseSeason(raw: any): SeasonDto {
   return {
     ...raw,
-    signupsOpen: fromApiDate(raw.signupsOpen),
-    signupsClose: fromApiDate(raw.signupsClose),
-    draftStart: fromApiDate(raw.draftStart),
-    seasonStart: fromApiDate(raw.seasonStart),
-    seasonEnd: fromApiDate(raw.seasonEnd),
+    signupsOpen: fromRequiredApiDate(raw.signupsOpen),
+    signupsClose: fromRequiredApiDate(raw.signupsClose),
+    draftStart: fromRequiredApiDate(raw.draftStart),
+    seasonStart: fromRequiredApiDate(raw.seasonStart),
+    seasonEnd: fromRequiredApiDate(raw.seasonEnd),
   };
 }

@@ -125,7 +125,7 @@ describe('EditUserComponent', () => {
     expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('grif');
   });
 
-  it('loads lockoutEnd as a DateTime and sends it back as ISO 8601 the server reads', async () => {
+  it('loads lockoutEnd as a DateTime and sends it back unchanged when untouched', async () => {
     fixture.detectChanges();
     http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
     await fixture.whenStable();
@@ -134,9 +134,44 @@ describe('EditUserComponent', () => {
     spyOn(console, 'log');
     component.onSubmit();
     const req = http.expectOne('/api/usermanagement/edituser/');
-    const sent = JSON.parse(JSON.stringify(req.request.body)).lockoutEnd as string;
-    expect(sent).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}(Z|[+-]\d\d:\d\d)$/);
-    expect(Date.parse(sent)).toBe(Date.parse('2026-03-04T05:06:00Z'));
+    expect(req.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
     req.flush({});
+  });
+
+  it('sends an untouched lockout back exactly as loaded, even a permanent one', async () => {
+    // DateTimeOffset.MaxValue, as the API sends it; any re-serialization would change it.
+    const permanent = '9999-12-31T23:59:59.9999999+00:00';
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: permanent });
+    await fixture.whenStable();
+    component.patch({ displayName: 'Renamed' });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    const body = http.expectOne('/api/usermanagement/edituser/').request.body;
+    expect(body.lockoutEnd).toBe(permanent);
+    expect(body.displayName).toBe('Renamed');
+  });
+
+  it('sends a changed lockout as ISO 8601 in UTC', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: null });
+    await fixture.whenStable();
+    component.patch({ lockoutEnd: DateTime.fromISO('2026-05-06T07:08:00+02:00') });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-05-06T05:08:00.000Z');
+  });
+
+  it('sends a cleared lockout as null', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+    component.patch({ lockoutEnd: null });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBeNull();
   });
 });

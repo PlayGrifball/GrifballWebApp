@@ -6,7 +6,8 @@ import { MatInputModule } from '@angular/material/input';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { parseUser, UserResponseDto } from '../userResponseDto';
-import { map } from 'rxjs';
+import { DateTime } from 'luxon';
+import { toApiDate } from '../../shared/apiDates';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -32,6 +33,12 @@ export class EditUserComponent {
 
   readonly model = signal<UserResponseDto>({} as UserResponseDto);
 
+  // lockoutEnd exactly as the API sent it, and the DateTime made from it. An untouched lockout
+  // is sent back as that string: re-serializing the DateTime would round it to milliseconds
+  // (the server would see a change on every save) and DateTimeOffset.MaxValue, a permanent
+  // lockout, would become year +010000 in zones ahead of UTC, which the server cannot read.
+  private loadedLockoutEnd: { raw: string | null, parsed: DateTime | null } = { raw: null, parsed: null };
+
   /** Form edits replace the model rather than mutating it. */
   patch(changes: Partial<UserResponseDto>): void {
     this.model.update(model => ({ ...model, ...changes }));
@@ -50,16 +57,21 @@ export class EditUserComponent {
     }
 
     // Fetch from backend
-    this.http.get<unknown>('/api/usermanagement/getuser/' + userID)
-      .pipe(map(parseUser))
+    this.http.get<any>('/api/usermanagement/getuser/' + userID)
       .subscribe({
-        next: (result) => this.model.set(result),
+        next: (raw) => {
+          const user = parseUser(raw);
+          this.loadedLockoutEnd = { raw: raw.lockoutEnd ?? null, parsed: user.lockoutEnd };
+          this.model.set(user);
+        },
         error: (error) => console.log(error)
       });
   }
 
   onSubmit() {
-    this.http.post('/api/usermanagement/edituser/', this.model()).subscribe({
+    const user = this.model();
+    const lockoutEnd = user.lockoutEnd === this.loadedLockoutEnd.parsed ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
+    this.http.post('/api/usermanagement/edituser/', { ...user, lockoutEnd }).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),
     });

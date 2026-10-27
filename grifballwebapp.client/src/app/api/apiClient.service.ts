@@ -133,7 +133,7 @@ export class ApiClientService {
     return this.http.get<string>('/api/CommitHash', this.text);
   }
 
-  commitDate(): Observable<DateTime> {
+  commitDate(): Observable<DateTime | null> {
     return this.http.get<string>('/api/CommitDate', this.text)
       .pipe(map(x => fromApiDate(x)));
   }

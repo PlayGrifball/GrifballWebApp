@@ -265,7 +265,7 @@ describe('ApiClientService', () => {
       service.commitDate().subscribe({
         next: (date) => {
           expect(date).toBeInstanceOf(DateTime);
-          expect(date.toISO()).toBe(DateTime.fromISO(dateString).toISO());
+          expect(date!.toISO()).toBe(DateTime.fromISO(dateString).toISO());
           done();
         }
       });
