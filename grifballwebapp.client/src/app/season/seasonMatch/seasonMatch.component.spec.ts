@@ -125,6 +125,15 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     expect(text()).not.toContain('Scheduled Date: 1');
   });
 
+  it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    expect(() => fixture.detectChanges()).not.toThrow();
+
+    expect(fixture.componentInstance.seasonMatch()).toBeNull();
+    expect(text()).toContain('Regular Season Match');
+  });
+
   it('shows the regular season text when the match has no bracket info', () => {
     load(page());
 

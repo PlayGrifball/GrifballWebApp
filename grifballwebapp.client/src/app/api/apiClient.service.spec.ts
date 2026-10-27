@@ -69,10 +69,10 @@ describe('ApiClientService', () => {
 
       service.getSeason(1).subscribe({
         next: (data) => {
-          expect(data.seasonID).toBe(1);
-          expect(data.seasonName).toBe('Season 1');
-          expect(data.signupsOpen instanceof DateTime).toBeTrue();
-          expect(data.signupsOpen.toMillis()).toBe(Date.parse('2026-01-01T00:00:00Z'));
+          expect(data!.seasonID).toBe(1);
+          expect(data!.seasonName).toBe('Season 1');
+          expect(data!.signupsOpen instanceof DateTime).toBeTrue();
+          expect(data!.signupsOpen.toMillis()).toBe(Date.parse('2026-01-01T00:00:00Z'));
           done();
         }
       });
@@ -80,6 +80,17 @@ describe('ApiClientService', () => {
       const req = httpTestingController.expectOne('/api/EventOrganizer/GetSeason/1');
       expect(req.request.method).toBe('GET');
       req.flush(mockSeason);
+    });
+
+    it('gives null for a season that does not exist (204)', (done) => {
+      service.getSeason(99).subscribe({
+        next: (data) => {
+          expect(data).toBeNull();
+          done();
+        }
+      });
+
+      httpTestingController.expectOne('/api/EventOrganizer/GetSeason/99').flush(null, { status: 204, statusText: 'No Content' });
     });
   });
 

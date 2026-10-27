@@ -52,7 +52,7 @@ describe('API dates', () => {
   });
 
   it('parseSeason converts every season date', () => {
-    const season = parseSeason({ seasonID: 4, seasonName: 'S', signupsOpen: UTC, signupsClose: UTC, draftStart: UTC, seasonStart: UTC, seasonEnd: UTC, signupsCount: 2 });
+    const season = parseSeason({ seasonID: 4, seasonName: 'S', signupsOpen: UTC, signupsClose: UTC, draftStart: UTC, seasonStart: UTC, seasonEnd: UTC, signupsCount: 2 })!;
     for (const field of ['signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd'] as const) {
       expect(season[field] instanceof DateTime).withContext(field).toBeTrue();
       expect(season[field].toMillis()).withContext(field).toBe(Date.parse(UTC));
@@ -62,20 +62,27 @@ describe('API dates', () => {
   });
 
   it('parseUser converts lockoutEnd, and keeps null', () => {
-    expect(parseUser({ userID: 1, lockoutEnd: OFFSET }).lockoutEnd!.toMillis()).toBe(Date.parse(UTC));
-    expect(parseUser({ userID: 1, lockoutEnd: null }).lockoutEnd).toBeNull();
-    expect(parseUser({ userID: 1, userName: 'grif', lockoutEnd: null }).userName).toBe('grif');
+    expect(parseUser({ userID: 1, lockoutEnd: OFFSET })!.lockoutEnd!.toMillis()).toBe(Date.parse(UTC));
+    expect(parseUser({ userID: 1, lockoutEnd: null })!.lockoutEnd).toBeNull();
+    expect(parseUser({ userID: 1, userName: 'grif', lockoutEnd: null })!.userName).toBe('grif');
   });
 
   it('parseScheduledMatch and parseSeasonMatchPage convert their times', () => {
     expect(parseScheduledMatch({ seasonMatchID: 1, time: UTC }).time.toMillis()).toBe(Date.parse(UTC));
-    expect(parseSeasonMatchPage({ seasonID: 1, scheduledTime: UTC }).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
-    expect(parseSeasonMatchPage({ seasonID: 1, scheduledTime: null }).scheduledTime).toBeNull();
+    expect(parseSeasonMatchPage({ seasonID: 1, scheduledTime: UTC })!.scheduledTime!.toMillis()).toBe(Date.parse(UTC));
+    expect(parseSeasonMatchPage({ seasonID: 1, scheduledTime: null })!.scheduledTime).toBeNull();
   });
 
   it('parseTeamMatch converts scheduledTime, and keeps an unscheduled match null', () => {
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: UTC, bestOf: 3 }).scheduledTime!.toMillis()).toBe(Date.parse(UTC));
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).scheduledTime).toBeNull();
     expect(parseTeamMatch({ seasonMatchID: 1, scheduledTime: null, bestOf: 3 }).bestOf).toBe(3);
+  });
+
+  it('the parsers for single DTOs keep a null body (204: no such season, user or match) null', () => {
+    expect(parseSeason(null)).toBeNull();
+    expect(parseUser(null)).toBeNull();
+    expect(parseSeasonMatchPage(null)).toBeNull();
+    expect(parseUser(undefined)).toBeNull();
   });
 });

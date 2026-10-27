@@ -16,8 +16,10 @@ export class SeasonDto {
   copyTeams: boolean = false;
 }
 
-/** A season as the API sends it (dates as ISO strings), with real DateTimes. */
-export function parseSeason(raw: any): SeasonDto {
+/** A season as the API sends it (dates as ISO strings), with real DateTimes; null (no such season) stays null. */
+export function parseSeason(raw: any): SeasonDto | null {
+  if (raw == null)
+    return null;
   return {
     ...raw,
     signupsOpen: fromRequiredApiDate(raw.signupsOpen),

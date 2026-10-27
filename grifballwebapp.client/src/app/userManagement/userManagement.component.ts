@@ -34,7 +34,8 @@ export class UserManagementComponent {
 
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   url = '/api/UserManagement/GetUsers';
-  readonly parseUser = parseUser;
+  // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
+  readonly parseUser = (row: unknown) => parseUser(row)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {

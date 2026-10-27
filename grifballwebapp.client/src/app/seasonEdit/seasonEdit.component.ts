@@ -46,7 +46,8 @@ export class SeasonEditComponent implements OnInit {
     if (seasonID > 0) {
       this.api.getSeason(seasonID)
         .subscribe({
-          next: (result) => this.model.set(result),
+          // No such season: keep the empty form.
+          next: (result) => { if (result) this.model.set(result); },
         });
       return;
     }

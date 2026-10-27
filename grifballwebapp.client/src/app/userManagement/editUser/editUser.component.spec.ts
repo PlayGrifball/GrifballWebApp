@@ -174,4 +174,11 @@ describe('EditUserComponent', () => {
     component.onSubmit();
     expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBeNull();
   });
+
+  it('keeps the empty form for a user that does not exist (204)', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')!.value).toBe('');
+  });
 });

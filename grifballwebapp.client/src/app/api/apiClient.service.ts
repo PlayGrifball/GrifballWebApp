@@ -32,10 +32,12 @@ export class ApiClientService {
 
   getSeasons(): Observable<SeasonDto[]> {
     return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
-      .pipe(map(seasons => seasons.map(parseSeason)));
+      // A list never holds nulls (List<SeasonDto> on the server).
+      .pipe(map(seasons => seasons.map(season => parseSeason(season)!)));
   }
 
-  getSeason(seasonID: number): Observable<SeasonDto> {
+  /** Null when there is no such season (the API answers 204). */
+  getSeason(seasonID: number): Observable<SeasonDto | null> {
     return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
       .pipe(map(parseSeason));
   }

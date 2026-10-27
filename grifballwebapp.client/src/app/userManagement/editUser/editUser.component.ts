@@ -61,6 +61,8 @@ export class EditUserComponent {
       .subscribe({
         next: (raw) => {
           const user = parseUser(raw);
+          if (!user)
+            return; // no such user: keep the empty form
           this.loadedLockoutEnd = { raw: raw.lockoutEnd ?? null, parsed: user.lockoutEnd };
           this.model.set(user);
         },

@@ -139,4 +139,10 @@ describe('SeasonEditComponent', () => {
     expect(loaded.seasonName).toBe('Season 4');
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
   });
+
+  it('keeps the empty form for a season that does not exist', async () => {
+    api.getSeason.and.returnValue(of(null));
+    await render();
+    expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('');
+  });
 });

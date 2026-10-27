@@ -53,6 +53,22 @@ describe('MergeUserComponent', () => {
     expect(mergeButton().disabled).toBeFalse();
   });
 
+  it('shows "User not found." for an unknown ID (the API answers 204 with no body)', async () => {
+    fixture.componentRef.setInput('fromInput', 1);
+    fixture.componentRef.setInput('toInput', 2);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/usermanagement/getuser/1').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/usermanagement/getuser/2').flush(user(2));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.mergeFrom.status()).not.toBe('error');
+    expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
+    expect(el().textContent).toContain('User not found.');
+    expect(el().textContent).toContain('user2');
+    expect(mergeButton().disabled).toBeTrue();
+  });
+
   it('does not throw when the API fails and shows an error with merge disabled', async () => {
     fixture.componentRef.setInput('fromInput', 1);
     fixture.componentRef.setInput('toInput', 2);

@@ -9,5 +9,5 @@ import { UserResponseDto } from '../../userResponseDto';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserDetailComponent {
-  user = input<UserResponseDto | undefined>(undefined);
+  user = input<UserResponseDto | null | undefined>(undefined);
 }
