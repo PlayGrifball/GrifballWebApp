@@ -495,7 +495,7 @@ public class BracketService : IBracketService
             {
                 result.Participants.Add(new Participant()
                 {
-                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.HomeTeamSeedNumber ?? throw new Exception("Missing home seed")),
+                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.HomeTeamSeedNumber) ?? throw new Exception("Missing home seed"),
                     Tournament_id = seasonID,
                     Name = $"Seed {seasonMatch.BracketMatch.HomeTeamSeedNumber}",
                 });
@@ -518,7 +518,7 @@ public class BracketService : IBracketService
             {
                 result.Participants.Add(new Participant()
                 {
-                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.AwayTeamSeedNumber ?? throw new Exception("Missing away seed")),
+                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.AwayTeamSeedNumber) ?? throw new Exception("Missing away seed"),
                     Tournament_id = seasonID,
                     Name = $"Seed {seasonMatch.BracketMatch.AwayTeamSeedNumber}",
                 });
@@ -693,8 +693,7 @@ public class BracketService : IBracketService
     /// The id of the "Seed N" placeholder participant shown until a team is seeded there. Negative, so it
     /// can never be a real TeamID.
     /// </summary>
-    public static int? SeedPlaceholderID(int? seed) => seed is null ? null : -seed;
-    private static int SeedPlaceholderID(int seed) => -seed;
+    public static int? SeedPlaceholderID(int? seed) => -seed;
 
     /// <summary>
     /// The match status as brackets-manager's getMatchStatus derives it (brackets-viewer reads it to
