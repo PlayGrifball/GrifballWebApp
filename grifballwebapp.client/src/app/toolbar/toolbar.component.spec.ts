@@ -7,7 +7,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSidenav } from '@angular/material/sidenav';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { DateTime } from 'luxon';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -103,6 +103,18 @@ describe('ToolbarComponent', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('deadbeef');
+  });
+
+  it('still renders when the build info cannot be loaded', () => {
+    mockApiClient.commitHash.and.returnValue(throwError(() => new Error('down')));
+    mockApiClient.commitDate.and.returnValue(throwError(() => new Error('down')));
+    fixture = createToolbar();
+    component = fixture.componentInstance;
+
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(component.commitHash()).toBeNull();
+    expect(component.commitDate()).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector('button[aria-label="menu icon"]')).not.toBeNull();
   });
 
   it('toggles the sidenav from the menu button', () => {

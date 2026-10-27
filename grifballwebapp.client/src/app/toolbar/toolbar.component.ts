@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, ChangeDetectionStrategy, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { catchError, of } from 'rxjs';
 import { MatIconModule} from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -32,8 +33,10 @@ export class ToolbarComponent {
 
   readonly snav = input.required<MatSidenav>();
 
-  readonly commitHash = toSignal(this.api.commitHash(), { initialValue: null });
-  readonly commitDate = toSignal(this.api.commitDate(), { initialValue: null });
+  // The build info is decoration: if it cannot be loaded the toolbar just leaves it out
+  // (a toSignal over a failed observable would throw on every read).
+  readonly commitHash = toSignal(this.api.commitHash().pipe(catchError(() => of(null))), { initialValue: null });
+  readonly commitDate = toSignal(this.api.commitDate().pipe(catchError(() => of(null))), { initialValue: null });
 
   theme(): void {
     this.dialog.open(ThemeComponent, {
