@@ -364,6 +364,19 @@ describe('PlayerGradesComponent', () => {
       expect(component.letters()[0].gamertag).toBe('Player1');
     });
   });
+
+  it('renders the grades once they arrive, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({
+      perMinutes: [],
+      letters: [{ xboxUserID: 1, gamertag: 'Grif', goals: 'S+', kdSpread: 'A', punches: 'B-', sprees: 'C', doubleKills: 'D+',
+        tripleKills: 'E', multiKills: 'F-', xFactor: 'A+', kills: 'S', gradeAvgMath: 3, gradeAvg: 'B+' }],
+    });
+    await fixture.whenStable();
+
+    const firstCell = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row td');
+    expect(firstCell?.textContent?.trim()).toBe('Grif');
+  });
 });
 
 describe('PlayerGradesComponent rendering', () => {

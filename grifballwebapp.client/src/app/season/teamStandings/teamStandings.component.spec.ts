@@ -58,6 +58,14 @@ describe('TeamStandingsComponent', () => {
     expect(log).toHaveBeenCalled();
     expect(rows()).toEqual([]);
   });
+
+  it('renders the standings once they arrive, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    await fixture.whenStable();
+
+    expect(rows()).toEqual([['Alpha', '4', '1']]);
+  });
 });
 
 describe('TeamStandingsComponent links', () => {

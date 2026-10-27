@@ -104,4 +104,13 @@ describe('EditUserComponent', () => {
     expect(log).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalledWith('Updated user');
   });
+
+  it('fills the form once the user arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
+    await fixture.whenStable();
+
+    expect(el().querySelector('h2')?.textContent).toContain('Edit User 15');
+    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('grif');
+  });
 });

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
@@ -70,5 +70,16 @@ describe('SignupsComponent', () => {
 
     expect(err).toHaveBeenCalledWith('boom');
     expect(rows()).toEqual([]);
+  });
+
+  it('renders the signups once they arrive, without a manual detectChanges', async () => {
+    const signups = new Subject<SignupResponseDto[]>();
+    api.getSignups.and.returnValue(signups);
+    await fixture.whenStable();
+
+    signups.next([signup('Ana')]);
+    await fixture.whenStable();
+
+    expect(rows().map(r => r[0])).toEqual(['Ana']);
   });
 });

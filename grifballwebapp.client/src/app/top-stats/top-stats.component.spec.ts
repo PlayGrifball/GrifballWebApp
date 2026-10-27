@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TopStatsComponent } from './top-stats.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { KillsDto } from '../api/dtos/killsDto';
 
 describe('TopStatsComponent', () => {
@@ -114,5 +114,18 @@ describe('TopStatsComponent', () => {
     mockApiClient.getKills.and.returnValue(of(secondKills));
     component.getKills();
     expect(component.kills()).toEqual(secondKills);
+  });
+
+  it('renders the kills once they arrive, without a manual detectChanges', async () => {
+    const kills = new Subject<KillsDto[]>();
+    mockApiClient.getKills.and.returnValue(kills);
+    fixture = TestBed.createComponent(TopStatsComponent);
+    await fixture.whenStable();
+
+    kills.next([{ rank: 1, gamertag: 'Grif', kills: 9 }]);
+    await fixture.whenStable();
+
+    const cells = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row td')).map(td => td.textContent!.trim());
+    expect(cells).toEqual(['1', 'Grif', '9']);
   });
 });

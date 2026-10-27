@@ -112,4 +112,27 @@ describe('ProfileComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
     expect(component.settingGamertag()).toBeTrue();
   });
+
+  it('shows the gamertag once it arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'Sgt Grif' });
+    await fixture.whenStable();
+
+    expect(text()).toContain('Gamertag: Sgt Grif');
+  });
+
+  it('leaves edit mode once the gamertag is saved, without a manual detectChanges', async () => {
+    personID.set(21);
+    await fixture.whenStable();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: null });
+    await fixture.whenStable();
+    expect(text()).toContain('Please set your gamertag');
+
+    component.gamertag.set('NewTag');
+    component.setGamertag();
+    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
+    await fixture.whenStable();
+
+    expect(text()).toContain('Gamertag: NewTag');
+  });
 });

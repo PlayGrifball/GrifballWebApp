@@ -118,4 +118,14 @@ describe('SeasonAvailabilityComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to save');
   });
+
+  it('renders the loaded timeslots, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('api/Availability/GetSeasonAvailability?seasonID=14').flush([option('Monday', '19:00'), option('Tuesday', '20:00')]);
+    await fixture.whenStable();
+
+    const deleteButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
+      .filter(b => b.textContent!.trim() === 'Delete');
+    expect(deleteButtons.length).toBe(2);
+  });
 });

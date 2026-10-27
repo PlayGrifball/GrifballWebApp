@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -108,5 +108,18 @@ describe('SeasonEditComponent', () => {
     component.onSubmit();
     expect(log).toHaveBeenCalledWith('nope');
     expect(component.model().seasonID).toBe(4);
+  });
+
+  it('fills the form once the season arrives, without a manual detectChanges', async () => {
+    const loaded = new Subject<SeasonDto>();
+    api.getSeason.and.returnValue(loaded);
+    await fixture.whenStable();
+    expect(el().textContent).not.toContain('Edit Availability');
+
+    loaded.next(season({ seasonName: 'Arrived Later' }));
+    await fixture.whenStable();
+
+    expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
+    expect(el().textContent).toContain('Edit Availability');
   });
 });

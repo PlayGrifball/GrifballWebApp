@@ -121,4 +121,19 @@ describe('ProcessRescheduleDialogComponent', () => {
     (el().querySelector('mat-dialog-actions button') as HTMLButtonElement).click();
     expect(dialogRef.close).toHaveBeenCalledWith(false);
   });
+
+  it('re-enables the buttons after a failed request, without a manual detectChanges', async () => {
+    spyOn(console, 'error');
+    await fixture.whenStable();
+    component.decision.set('approve');
+    component.processReschedule();
+    await fixture.whenStable();
+    expect(actionButton().textContent).toContain('Processing...');
+
+    http.expectOne('/api/Reschedule/ProcessReschedule/55').flush('x', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+
+    expect(actionButton().textContent).toContain('Approve');
+    expect(actionButton().disabled).toBeFalse();
+  });
 });

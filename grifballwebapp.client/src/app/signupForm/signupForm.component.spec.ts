@@ -104,4 +104,14 @@ describe('SignupFormComponent', () => {
     expect(() => fixture.detectChanges()).not.toThrow();
     httpMock.expectNone(() => true);
   });
+
+  it('renders the timeslots once they arrive, without a manual detectChanges', async () => {
+    setup('5');
+    await fixture.whenStable();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row').length).toBe(2);
+  });
 });

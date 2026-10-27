@@ -196,4 +196,15 @@ describe('ScheduleListComponent behaviour', () => {
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
     expect(component.unscheduledMatches().length).toBe(1);
   });
+
+  it('renders the matches once they arrive, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([unscheduled(1)]);
+    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([scheduled(2, '2026-03-02T19:00:00')]);
+    await fixture.whenStable();
+
+    expect(text()).toContain('Home1 vs Away1');
+    expect(text()).toContain('Week 1');
+    expect(text()).toContain('Home2 vs Away2');
+  });
 });

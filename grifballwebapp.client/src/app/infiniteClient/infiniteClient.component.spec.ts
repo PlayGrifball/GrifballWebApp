@@ -119,4 +119,12 @@ describe('InfiniteClientComponent', () => {
     http.expectOne('api/Admin/DeleteTokens').flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to delete tokens', 'Close');
   });
+
+  it('shows the status once it arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('api/Admin/CheckStatus').flush('Connected');
+    await fixture.whenStable();
+
+    expect(el().textContent).toContain('Connected');
+  });
 });

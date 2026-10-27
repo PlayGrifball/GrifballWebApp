@@ -455,6 +455,131 @@ describe('TeamBuilderComponent', () => {
     });
   });
 
+  describe('SignalR updates', () => {
+    const SEASON = 5;
+    const OTHER = 6;
+    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
+    const player = (id: number, round: number | null = null): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+
+    // The callback the component registered with the given SignalRService method.
+    const handler = <T>(spy: jasmine.Spy) => spy.calls.mostRecent().args[0] as (dto: T) => void;
+    const loads = () => mockApiClient.getTeams.calls.count();
+    const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.teamName}`);
+    const pool = () => component.playerPool().map(p => p.personID);
+    const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
+
+    beforeEach(() => {
+      mockApiClient.getTeams.and.callFake(() => of([
+        { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
+        { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [] },
+      ]));
+      mockApiClient.getPlayerPool.and.callFake(() => of([player(3), player(4), player(5)]));
+      fixture.detectChanges();
+    });
+
+    it('renders an update pushed by another user without a manual detectChanges', async () => {
+      fixture.autoDetectChanges();
+      await fixture.whenStable();
+
+      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
+      await fixture.whenStable();
+
+      const titles = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-card.item:not(.dndPlaceholder) mat-card-title'))
+        .map(t => t.textContent!.trim());
+      expect(titles).toEqual(['1 - Charlie', '2 - Alpha', '3 - Bravo']);
+    });
+
+    it('adds a captain at their pick order and takes them out of the pool', () => {
+      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 2 });
+      expect(teamNames()).toEqual(['1:Alpha', '2:Charlie', '3:Bravo']);
+      expect(pool()).toEqual([3, 5]);
+    });
+
+    it('moves a captain to a new pick order', () => {
+      handler<any>(mockSignalR.resortCaptain)({ seasonID: SEASON, personID: 102, orderNumber: 1 });
+      expect(teamNames()).toEqual(['1:Bravo', '2:Alpha']);
+    });
+
+    it('returns a removed captain and their picks to the pool', () => {
+      handler<any>(mockSignalR.removeCaptain)({ seasonID: SEASON, personID: 101 });
+      expect(teamNames()).toEqual(['1:Bravo']);
+      expect(pool()).toEqual([2, 1, 101, 3, 4, 5]);
+      expect(component.playerPool().every(p => p.round === null && p.pick === null)).toBeTrue();
+    });
+
+    it('adds a pool player to a team as its next round', () => {
+      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: SEASON, captainID: 102, personID: 3 });
+      expect(roster(102)).toEqual(['1:3']);
+    });
+
+    it('moves a player between teams and renumbers both rosters', () => {
+      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
+      expect(roster(101)).toEqual(['1:2']);
+      expect(roster(102)).toEqual(['1:1']);
+    });
+
+    it('moves a player to the end of their own team', () => {
+      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 1, roundNumber: 2 });
+      expect(roster(101)).toEqual(['1:2', '2:1']);
+    });
+
+    it('returns a removed player to the front of the pool', () => {
+      handler<any>(mockSignalR.removePlayerFromTeam)({ seasonID: SEASON, captainID: 101, personID: 1 });
+      expect(roster(101)).toEqual(['1:2']);
+      expect(pool()).toEqual([1, 3, 4, 5]);
+    });
+
+    it('follows captain locks for this season only', () => {
+      component.captainLocked.set(false);
+      handler<number>(mockSignalR.lockCaptains)(OTHER);
+      expect(component.captainLocked()).toBeFalse();
+      handler<number>(mockSignalR.lockCaptains)(SEASON);
+      expect(component.captainLocked()).toBeTrue();
+
+      handler<number>(mockSignalR.unlockCaptains)(OTHER);
+      expect(component.captainLocked()).toBeTrue();
+      handler<number>(mockSignalR.unlockCaptains)(SEASON);
+      expect(component.captainLocked()).toBeFalse();
+    });
+
+    it('ignores updates for another season', () => {
+      const before = { teams: teamNames(), pool: pool(), alpha: roster(101) };
+      handler<any>(mockSignalR.addCaptain)({ seasonID: OTHER, personID: 4, teamName: 'X', captainName: 'X', orderNumber: 1 });
+      handler<any>(mockSignalR.resortCaptain)({ seasonID: OTHER, personID: 102, orderNumber: 1 });
+      handler<any>(mockSignalR.removeCaptain)({ seasonID: OTHER, personID: 101 });
+      handler<any>(mockSignalR.addPlayerToTeam)({ seasonID: OTHER, captainID: 102, personID: 3 });
+      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: OTHER, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
+      handler<any>(mockSignalR.removePlayerFromTeam)({ seasonID: OTHER, captainID: 101, personID: 1 });
+
+      expect({ teams: teamNames(), pool: pool(), alpha: roster(101) }).toEqual(before);
+      expect(loads()).toBe(1);
+    });
+
+    // Each case names a person or captain the page does not know about, so it reloads.
+    const outOfSync: [string, () => jasmine.Spy, unknown][] = [
+      ['addCaptain: player not in the pool', () => mockSignalR.addCaptain, { seasonID: SEASON, personID: 99, teamName: 'X', captainName: 'X', orderNumber: 1 }],
+      ['resortCaptain: unknown captain', () => mockSignalR.resortCaptain, { seasonID: SEASON, personID: 99, orderNumber: 1 }],
+      ['removeCaptain: unknown captain', () => mockSignalR.removeCaptain, { seasonID: SEASON, personID: 99 }],
+      ['addPlayerToTeam: player not in the pool', () => mockSignalR.addPlayerToTeam, { seasonID: SEASON, captainID: 102, personID: 99 }],
+      ['addPlayerToTeam: unknown team', () => mockSignalR.addPlayerToTeam, { seasonID: SEASON, captainID: 99, personID: 3 }],
+      ['movePlayerToTeam: unknown previous team', () => mockSignalR.movePlayerToTeam, { seasonID: SEASON, previousCaptainID: 99, newCaptainID: 102, personID: 1, roundNumber: 1 }],
+      ['movePlayerToTeam: player not on the previous team', () => mockSignalR.movePlayerToTeam, { seasonID: SEASON, previousCaptainID: 101, newCaptainID: 102, personID: 99, roundNumber: 1 }],
+      ['movePlayerToTeam: unknown new team', () => mockSignalR.movePlayerToTeam, { seasonID: SEASON, previousCaptainID: 101, newCaptainID: 99, personID: 1, roundNumber: 1 }],
+      ['movePlayerToTeam: unknown team (same team)', () => mockSignalR.movePlayerToTeam, { seasonID: SEASON, previousCaptainID: 99, newCaptainID: 99, personID: 1, roundNumber: 1 }],
+      ['movePlayerToTeam: player not on the team (same team)', () => mockSignalR.movePlayerToTeam, { seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 99, roundNumber: 1 }],
+      ['removePlayerFromTeam: unknown team', () => mockSignalR.removePlayerFromTeam, { seasonID: SEASON, captainID: 99, personID: 1 }],
+      ['removePlayerFromTeam: player not on the team', () => mockSignalR.removePlayerFromTeam, { seasonID: SEASON, captainID: 101, personID: 99 }],
+    ];
+    for (const [name, spy, dto] of outOfSync) {
+      it(`reloads when out of sync (${name})`, () => {
+        spyOn(console, 'log');
+        handler<unknown>(spy())(dto);
+        expect(loads()).toBe(2);
+        expect(console.log).toHaveBeenCalledWith('Detected out of sync');
+      });
+    }
+  });
+
   describe('template rendering (@for)', () => {
     const cap = (n: number): CaptainDto => ({ name: 'Cap ' + n, personID: 100 + n, order: n });
     const player = (id: number, round: number): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: id, round: round });

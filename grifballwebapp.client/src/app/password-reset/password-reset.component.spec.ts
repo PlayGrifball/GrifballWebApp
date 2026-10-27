@@ -4,7 +4,7 @@ import { PasswordResetComponent } from './password-reset.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 describe('PasswordResetComponent', () => {
   let component: PasswordResetComponent;
@@ -218,5 +218,23 @@ describe('PasswordResetComponent', () => {
       expect(mockSnackBar.open).toHaveBeenCalledWith('Password must be at least 6 characters long', 'Close');
       expect(mockAccountService.resetPassword).not.toHaveBeenCalled();
     });
+  });
+
+  it('shows the busy label while the reset is in flight and clears it on failure, without a manual detectChanges', async () => {
+    fixture.componentRef.setInput('token', 'reset-token');
+    const result = new Subject<string>();
+    mockAccountService.resetPassword.and.returnValue(result);
+    await fixture.whenStable();
+    const submit = () => (fixture.nativeElement as HTMLElement).querySelector('button[type="submit"]')!.textContent!.trim();
+
+    component.model.newPassword = 'ValidPassword123';
+    component.model.confirmPassword = 'ValidPassword123';
+    component.onSubmit();
+    await fixture.whenStable();
+    expect(submit()).toBe('Resetting Password...');
+
+    result.error({ status: 500 });
+    await fixture.whenStable();
+    expect(submit()).toBe('Reset Password');
   });
 });

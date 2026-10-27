@@ -164,4 +164,14 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     component.onCancel();
     expect(dialogRef.close).toHaveBeenCalledWith(false);
   });
+
+  it('replaces the loading message with the teams once they arrive, without a manual detectChanges', async () => {
+    fixture.autoDetectChanges();
+    http.expectOne('api/TeamStandings/GetTeamStandings/9').flush(standings.map(s => ({ ...s })));
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent!;
+    expect(text).not.toContain('Loading team standings...');
+    expect(text).toContain('Charlie');
+  });
 });
