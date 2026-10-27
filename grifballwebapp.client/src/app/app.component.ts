@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, computed, effect, AfterViewInit, ElementRef, inject, viewChild, viewChildren } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, computed, effect, inject, signal, viewChild, viewChildren } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -26,10 +26,9 @@ import { MatButtonModule } from '@angular/material/button';
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
-  private changeDetectorRef = inject(ChangeDetectorRef);
   accountService = inject(AccountService);
   api = inject(ApiClientService);
   private themingService = inject(ThemingService);
@@ -37,10 +36,10 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   readonly snav = viewChild.required<MatSidenav>('snav');
   readonly toolbarLinks = viewChildren<ElementRef>('toolbarLink');
 
-  mobileQuery: MediaQueryList;
-  private _mobileQueryListener: () => void;
+  readonly mobileQuery = inject(MediaMatcher).matchMedia('(max-width: 600px)');
+  private readonly onResize = () => this.adjustToolbarLinks();
 
-  public navLinks: SideBarDto[] = [
+  readonly navLinks = signal<SideBarDto[]>([
     { title: "Home", path: "", show: computed(() => true) },
     { title: "Late League", path: "/lateLeague", show: computed(() => true) },
     { title: "Login", path: "/login", show: computed(() => true) },
@@ -49,10 +48,10 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },
     { title: "Infinite Client", path: "/infiniteclient", show: computed(() => this.accountService.isSysAdmin()) },
     { title: "Excel Exporter", path: "/excel", show: computed(() => this.accountService.isEventOrganizer()) },
-  ];
+  ]);
 
-  public visibleNavLinks: SideBarDto[] = [];
-  public overflowNavLinks: SideBarDto[] = [];
+  readonly visibleNavLinks = signal<SideBarDto[]>([]);
+  readonly overflowNavLinks = signal<SideBarDto[]>([]);
 
   setTheme = effect(() => {
     this.themingService.setFont(this.themingService.font());
@@ -64,14 +63,6 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     this.themingService.setErrorShade(this.themingService.error());
   });
 
-  constructor() {
-    const media = inject(MediaMatcher);
-
-    this.mobileQuery = media.matchMedia('(max-width: 600px)');
-    this._mobileQueryListener = () => this.changeDetectorRef.detectChanges();
-    this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);
-  }
-
   ngOnInit(): void {
     this.api.getCurrentSeasonID().subscribe({
       next: (result) => {
@@ -81,47 +72,45 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
           path: "/season/" + result,
           show: computed(() => true),
         };
-        this.navLinks.push(sideBarDto);
+        this.navLinks.update(links => [...links, sideBarDto]);
       },
     });
   }
 
   ngAfterViewInit(): void {
     this.adjustToolbarLinks();
-    this.changeDetectorRef.detectChanges(); // Trigger change detection
-    window.addEventListener('resize', () => this.adjustToolbarLinks());
+    window.addEventListener('resize', this.onResize);
   }
 
   ngOnDestroy(): void {
-    this.mobileQuery.removeEventListener("change", this._mobileQueryListener);
-    window.removeEventListener('resize', () => this.adjustToolbarLinks());
+    window.removeEventListener('resize', this.onResize);
   }
 
   private adjustToolbarLinks(): void {
     if (this.mobileQuery.matches) {
-      this.visibleNavLinks = [];
-      this.overflowNavLinks = [...this.navLinks];
-      this.changeDetectorRef.detectChanges();
+      this.visibleNavLinks.set([]);
+      this.overflowNavLinks.set([...this.navLinks()]);
       return;
     }
 
     const toolbarWidth = document.querySelector('.toolbar-links')?.clientWidth || 0;
     let usedWidth = 0;
 
-    this.visibleNavLinks = [];
-    this.overflowNavLinks = [];
+    const visible: SideBarDto[] = [];
+    const overflow: SideBarDto[] = [];
 
-    for (const nav of this.navLinks) {
+    for (const nav of this.navLinks()) {
       const linkWidth = this.getLinkWidth(nav.title);
       if (usedWidth + linkWidth < toolbarWidth) {
-        this.visibleNavLinks.push(nav);
+        visible.push(nav);
         usedWidth += linkWidth;
       } else {
-        this.overflowNavLinks.push(nav);
+        overflow.push(nav);
       }
     }
 
-    this.changeDetectorRef.detectChanges();
+    this.visibleNavLinks.set(visible);
+    this.overflowNavLinks.set(overflow);
   }
 
   private getLinkWidth(title: string): number {

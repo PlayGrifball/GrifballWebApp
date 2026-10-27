@@ -43,15 +43,20 @@ describe('RescheduleRequestComponent', () => {
     expect(component.seasonMatchID).toBe(31);
   });
 
-  it('keeps submit disabled until a non-blank reason is entered', () => {
+  it('keeps submit disabled until a non-blank reason is entered', async () => {
+    const typeReason = async (text: string) => {
+      const textarea = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+      textarea.value = text;
+      textarea.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+    };
     expect(submitButton().disabled).toBeTrue();
 
-    component.reason = '   ';
-    fixture.detectChanges();
+    await typeReason('   ');
     expect(submitButton().disabled).toBeTrue();
 
-    component.reason = 'Family emergency';
-    fixture.detectChanges();
+    await typeReason('Family emergency');
+    expect(component.reason).toBe('Family emergency');
     expect(submitButton().disabled).toBeFalse();
   });
 
@@ -60,7 +65,7 @@ describe('RescheduleRequestComponent', () => {
     component.submitRescheduleRequest();
 
     expect(snackBar.open).toHaveBeenCalledWith('Please provide a reason for the reschedule', 'Close', { duration: 3000 });
-    expect(component.submitting).toBeFalse();
+    expect(component.submitting()).toBeFalse();
     http.expectNone('/api/Reschedule/RequestReschedule');
   });
 
@@ -96,7 +101,7 @@ describe('RescheduleRequestComponent', () => {
     component.reason = 'x';
     component.submitRescheduleRequest();
     fixture.detectChanges();
-    expect(component.submitting).toBeTrue();
+    expect(component.submitting()).toBeTrue();
     expect(submitButton().textContent).toContain('Submitting...');
     expect(submitButton().disabled).toBeTrue();
 
@@ -104,7 +109,7 @@ describe('RescheduleRequestComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalledWith('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
     expect(location.back).toHaveBeenCalled();
-    expect(component.submitting).toBeFalse();
+    expect(component.submitting()).toBeFalse();
   });
 
   it('reports a failure and stays on the page', () => {
@@ -115,7 +120,7 @@ describe('RescheduleRequestComponent', () => {
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
     expect(location.back).not.toHaveBeenCalled();
-    expect(component.submitting).toBeFalse();
+    expect(component.submitting()).toBeFalse();
   });
 
   it('goes back when cancel is clicked', () => {

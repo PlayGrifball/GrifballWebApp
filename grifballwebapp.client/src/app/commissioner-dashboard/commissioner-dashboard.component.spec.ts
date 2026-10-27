@@ -51,9 +51,9 @@ describe('CommissionerDashboardComponent', () => {
   });
 
   it('should initialize with loading state', () => {
-    expect(component.loading).toBeTruthy();
-    expect(component.dashboardData).toBeNull();
-    expect(component.error).toBeNull();
+    expect(component.loading()).toBeTruthy();
+    expect(component.dashboardData()).toBeNull();
+    expect(component.error()).toBeNull();
   });
 
   it('should have correct displayed columns for tables', () => {
@@ -103,9 +103,9 @@ describe('CommissionerDashboardComponent', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mockDashboardData);
 
-    expect(component.loading).toBeFalsy();
-    expect(component.dashboardData).toEqual(mockDashboardData);
-    expect(component.error).toBeNull();
+    expect(component.loading()).toBeFalsy();
+    expect(component.dashboardData()).toEqual(mockDashboardData);
+    expect(component.error()).toBeNull();
   });
 
   it('should handle error when loading dashboard data', () => {
@@ -114,9 +114,9 @@ describe('CommissionerDashboardComponent', () => {
     const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
     req.flush('Error loading data', { status: 500, statusText: 'Internal Server Error' });
 
-    expect(component.loading).toBeFalsy();
-    expect(component.dashboardData).toBeNull();
-    expect(component.error).toBe('Failed to load dashboard data');
+    expect(component.loading()).toBeFalsy();
+    expect(component.dashboardData()).toBeNull();
+    expect(component.error()).toBe('Failed to load dashboard data');
   });
 
   it('should format datetime correctly', () => {

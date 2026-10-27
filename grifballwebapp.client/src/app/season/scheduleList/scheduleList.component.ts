@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -20,9 +20,7 @@ import { groupBy, map, orderBy } from 'lodash-es';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 
-@UntilDestroy()
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -40,7 +38,7 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
         RouterModule,
         MatDialogModule,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent  implements OnInit {
   private route = inject(ActivatedRoute);
@@ -49,8 +47,8 @@ export class ScheduleListComponent  implements OnInit {
   private dialog = inject(MatDialog);
 
   private seasonID : number = 0;
-  unscheduledMatches: UnscheduledMatchDto[] = [];
-  scheduledMatches: WeekDto[] = [];
+  readonly unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
+  readonly scheduledMatches = signal<WeekDto[]>([]);
   isEditing: boolean = false;
 
   ngOnInit(): void {
@@ -68,9 +66,7 @@ export class ScheduleListComponent  implements OnInit {
       data: this.seasonID
     });
 
-    dialogRef.componentInstance.regularMatchesCreated
-    .pipe(untilDestroyed(this))
-    .subscribe(() => {
+    dialogRef.componentInstance.regularMatchesCreated.subscribe(() => {
       this.GetMatches();
     });
   }
@@ -83,7 +79,7 @@ export class ScheduleListComponent  implements OnInit {
   GetUnscheduledMatches(): void {
     this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + this.seasonID)
     .subscribe({
-      next: r => this.unscheduledMatches = r,
+      next: r => this.unscheduledMatches.set(r),
     });
   }
 
@@ -114,7 +110,7 @@ export class ScheduleListComponent  implements OnInit {
         weeks.push(weekDto);
     });
 
-    this.scheduledMatches = weeks;
+    this.scheduledMatches.set(weeks);
   }
 
   private map(value: ScheduledMatchDto, index: number, array: ScheduledMatchDto[]): TimeDto {

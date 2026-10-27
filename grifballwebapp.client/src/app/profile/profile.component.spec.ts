@@ -49,7 +49,7 @@ describe('ProfileComponent', () => {
     load({ gamertag: 'Sgt Grif' });
 
     expect(component.userID).toBe(21);
-    expect(component.settingGamertag).toBeFalse();
+    expect(component.settingGamertag()).toBeFalse();
     expect(text()).toContain('Gamertag: Sgt Grif');
     expect((fixture.nativeElement as HTMLElement).querySelector('form')).toBeNull();
   });
@@ -57,14 +57,14 @@ describe('ProfileComponent', () => {
   it('does not prompt the owner when the gamertag is already set', () => {
     personID.set(21);
     load({ gamertag: 'Sgt Grif' });
-    expect(component.settingGamertag).toBeFalse();
+    expect(component.settingGamertag()).toBeFalse();
   });
 
   it('prompts the owner to set a missing gamertag', () => {
     personID.set(21);
     load({ gamertag: null });
 
-    expect(component.settingGamertag).toBeTrue();
+    expect(component.settingGamertag()).toBeTrue();
     expect(text()).toContain('Please set your gamertag');
     expect((fixture.nativeElement as HTMLElement).querySelector('form')).not.toBeNull();
   });
@@ -72,14 +72,14 @@ describe('ProfileComponent', () => {
   it('treats a null profile as having no gamertag', () => {
     personID.set(21);
     load(null);
-    expect(component.gamertag).toBeNull();
-    expect(component.settingGamertag).toBeTrue();
+    expect(component.gamertag()).toBeNull();
+    expect(component.settingGamertag()).toBeTrue();
   });
 
   it('does not prompt other users when the gamertag is missing', () => {
     personID.set(4);
     load({ gamertag: null });
-    expect(component.settingGamertag).toBeFalse();
+    expect(component.settingGamertag()).toBeFalse();
   });
 
   it('reports a failure to load the gamertag', () => {
@@ -92,12 +92,12 @@ describe('ProfileComponent', () => {
   it('saves the gamertag and leaves edit mode', () => {
     personID.set(21);
     load({ gamertag: null });
-    component.gamertag = 'NewTag';
+    component.gamertag.set('NewTag');
     component.setGamertag();
 
     http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
     fixture.detectChanges();
-    expect(component.settingGamertag).toBeFalse();
+    expect(component.settingGamertag()).toBeFalse();
     expect(text()).toContain('Gamertag: NewTag');
   });
 
@@ -105,11 +105,11 @@ describe('ProfileComponent', () => {
     spyOn(console, 'log');
     personID.set(21);
     load({ gamertag: null });
-    component.gamertag = 'NewTag';
+    component.gamertag.set('NewTag');
     component.setGamertag();
 
     http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
-    expect(component.settingGamertag).toBeTrue();
+    expect(component.settingGamertag()).toBeTrue();
   });
 });

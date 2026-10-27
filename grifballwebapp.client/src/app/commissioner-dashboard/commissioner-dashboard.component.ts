@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -10,7 +10,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/process-reschedule-dialog.component';
 import { HttpClient } from '@angular/common/http';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export interface CommissionerDashboardDto {
   pendingReschedules: RescheduleDto[];
@@ -46,7 +46,6 @@ export interface DashboardSummaryDto {
   criticalOverdueCount: number;
 }
 
-@UntilDestroy()
 @Component({
   selector: 'app-commissioner-dashboard',
   standalone: true,
@@ -63,15 +62,16 @@ export interface DashboardSummaryDto {
   ],
   templateUrl: './commissioner-dashboard.component.html',
   styleUrls: ['./commissioner-dashboard.component.scss'],
-  changeDetection: ChangeDetectionStrategy.Eager
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CommissionerDashboardComponent implements OnInit {
   private httpClient = inject(HttpClient);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
 
-  dashboardData: CommissionerDashboardDto | null = null;
-  loading = true;
-  error: string | null = null;
+  readonly dashboardData = signal<CommissionerDashboardDto | null>(null);
+  readonly loading = signal(true);
+  readonly error = signal<string | null>(null);
 
   rescheduleDisplayedColumns: string[] = ['match', 'originalTime', 'newTime', 'requestedBy', 'reason', 'requestedAt', 'process', 'thread'];
   overdueDisplayedColumns: string[] = ['match', 'scheduledTime', 'hoursOverdue', 'severity'];
@@ -81,18 +81,18 @@ export class CommissionerDashboardComponent implements OnInit {
   }
 
   loadDashboardData(): void {
-    this.loading = true;
-    this.error = null;
+    this.loading.set(true);
+    this.error.set(null);
     this.httpClient.get<CommissionerDashboardDto>('/api/CommissionerDashboard/GetDashboardData')
       .subscribe({
         next: (data) => {
-          this.dashboardData = data;
-          this.loading = false;
+          this.dashboardData.set(data);
+          this.loading.set(false);
         },
         error: (err) => {
-          this.error = 'Failed to load dashboard data';
+          this.error.set('Failed to load dashboard data');
           console.error('Dashboard load error:', err);
-          this.loading = false;
+          this.loading.set(false);
         }
       });
   }
@@ -121,7 +121,7 @@ export class CommissionerDashboardComponent implements OnInit {
     });
 
     dialogRef.afterClosed()
-    .pipe(untilDestroyed(this))
+    .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(result => {
       if (result) {
         this.loadDashboardData(); // Refresh data after processing

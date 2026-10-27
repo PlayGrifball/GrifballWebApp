@@ -1,3 +1,4 @@
+import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
 import { ActivatedRoute } from '@angular/router';
@@ -107,12 +108,12 @@ describe('TeamBuilderComponent', () => {
   });
 
   it('should initialize with empty teams and player pool', () => {
-    expect(component.teams).toEqual([]);
-    expect(component.playerPool).toEqual([]);
+    expect(component.teams()).toEqual([]);
+    expect(component.playerPool()).toEqual([]);
   });
 
   it('should have captainLocked as true initially', () => {
-    expect(component.captainLocked).toBe(true);
+    expect(component.captainLocked()).toBe(true);
   });
 
   describe('load', () => {
@@ -124,7 +125,7 @@ describe('TeamBuilderComponent', () => {
 
       component.load();
 
-      expect(component.teams).toEqual(mockTeams);
+      expect(component.teams()).toEqual(mockTeams);
     });
 
     it('should load player pool successfully', () => {
@@ -135,7 +136,7 @@ describe('TeamBuilderComponent', () => {
 
       component.load();
 
-      expect(component.playerPool).toEqual(mockPlayers);
+      expect(component.playerPool()).toEqual(mockPlayers);
     });
 
     it('should update captainLocked status', () => {
@@ -143,29 +144,29 @@ describe('TeamBuilderComponent', () => {
 
       component.load();
 
-      expect(component.captainLocked).toBe(false);
+      expect(component.captainLocked()).toBe(false);
     });
   });
 
   describe('lockCaptainsButtonClicked', () => {
     it('should unlock captains when currently locked', () => {
-      component.captainLocked = true;
+      component.captainLocked.set(true);
       mockApiClient.unlockCaptains.and.returnValue(of({}));
 
       component.lockCaptainsButtonClicked();
 
       expect(mockApiClient.unlockCaptains).toHaveBeenCalled();
-      expect(component.captainLocked).toBe(false);
+      expect(component.captainLocked()).toBe(false);
     });
 
     it('should lock captains when currently unlocked', () => {
-      component.captainLocked = false;
+      component.captainLocked.set(false);
       mockApiClient.lockCaptains.and.returnValue(of({}));
 
       component.lockCaptainsButtonClicked();
 
       expect(mockApiClient.lockCaptains).toHaveBeenCalled();
-      expect(component.captainLocked).toBe(true);
+      expect(component.captainLocked()).toBe(true);
     });
   });
 
@@ -187,21 +188,21 @@ describe('TeamBuilderComponent', () => {
 
   describe('DisableDraggingTeams', () => {
     it('should return true when captains are locked', () => {
-      component.captainLocked = true;
+      component.captainLocked.set(true);
       mockAccountService.isEventOrganizer.and.returnValue(true);
 
       expect(component.DisableDraggingTeams()).toBe(true);
     });
 
     it('should return true when user is not event organizer', () => {
-      component.captainLocked = false;
+      component.captainLocked.set(false);
       mockAccountService.isEventOrganizer.and.returnValue(false);
 
       expect(component.DisableDraggingTeams()).toBe(true);
     });
 
     it('should return false when captains unlocked and user is event organizer', () => {
-      component.captainLocked = false;
+      component.captainLocked.set(false);
       mockAccountService.isEventOrganizer.and.returnValue(true);
 
       expect(component.DisableDraggingTeams()).toBe(false);
@@ -232,7 +233,7 @@ describe('TeamBuilderComponent', () => {
 
     it('should return true when no current captain on deck', () => {
       mockAccountService.isEventOrganizer.and.returnValue(false);
-      component.teams = [];
+      component.teams.set([]);
       const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] };
 
       expect(component.DisableDraggingPlayerToTeam(team)).toBe(true);
@@ -241,8 +242,8 @@ describe('TeamBuilderComponent', () => {
     it('should return false when it is current users turn and their team', () => {
       mockAccountService.isEventOrganizer.and.returnValue(false);
       mockAccountService.personID.and.returnValue(1);
-      component.teams = [{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }];
-      component.playerPool = [{ name: 'Player', personID: 2, pick: null, round: null }];
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null }]);
       const team: TeamResponseDto = { teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] };
 
       expect(component.DisableDraggingPlayerToTeam(team)).toBe(false);
@@ -251,24 +252,24 @@ describe('TeamBuilderComponent', () => {
 
   describe('CurrentCaptainOnDeck', () => {
     it('should return null when no teams exist', () => {
-      component.teams = [];
+      component.teams.set([]);
 
       expect(component.CurrentCaptainOnDeck()).toBeNull();
     });
 
     it('should return null when player pool is empty', () => {
-      component.teams = [{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }];
-      component.playerPool = [];
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
+      component.playerPool.set([]);
 
       expect(component.CurrentCaptainOnDeck()).toBeNull();
     });
 
     it('should return captain with fewest players', () => {
-      component.teams = [
+      component.teams.set([
         { teamID: 0, teamName: 'Team 1', captain: { name: 'Cap 1', personID: 1, order: 1 }, players: [{ name: 'P1', personID: 3, pick: 1, round: 1 }] },
         { teamID: 0, teamName: 'Team 2', captain: { name: 'Cap 2', personID: 2, order: 2 }, players: [] }
-      ];
-      component.playerPool = [{ name: 'Player', personID: 4, pick: null, round: null }];
+      ]);
+      component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null }]);
 
       const result = component.CurrentCaptainOnDeck();
 
@@ -279,21 +280,21 @@ describe('TeamBuilderComponent', () => {
 
   describe('StatusText', () => {
     it('should return no teams message when teams array is empty', () => {
-      component.teams = [];
+      component.teams.set([]);
 
       expect(component.StatusText()).toBe('No Teams Added');
     });
 
     it('should return empty pool message when player pool is empty', () => {
-      component.teams = [{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }];
-      component.playerPool = [];
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
+      component.playerPool.set([]);
 
       expect(component.StatusText()).toBe('Player pool is empty');
     });
 
     it('should return captain on deck message', () => {
-      component.teams = [{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1 }, players: [] }];
-      component.playerPool = [{ name: 'Player', personID: 2, pick: null, round: null }];
+      component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1 }, players: [] }]);
+      component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null }]);
 
       expect(component.StatusText()).toBe('Captain Name is on deck');
     });
@@ -434,7 +435,7 @@ describe('TeamBuilderComponent', () => {
         captain: { name: 'Cap', personID: 10, order: 1 },
         players: [player1, player2, player3]
       };
-      component.teams = [team];
+      component.teams.set([team]);
 
       const grabbedPlayer = { player: player2, team: team };
 
@@ -495,9 +496,12 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('re-renders after the lists are mutated in place, as drag and drop does', () => {
-      const picked = component.playerPool.splice(1, 1)[0];
-      component.teams[1].players.push({ ...picked, round: 1 });
-      component.teams.reverse();
+      const picked = component.playerPool().splice(1, 1)[0];
+      component.teams()[1].players.push({ ...picked, round: 1 });
+      component.teams().reverse();
+      // Drag and drop mutates the lists inside template event handlers, and Angular marks the
+      // view for check whenever one of those handlers runs. Do the same here.
+      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
       fixture.detectChanges();
 
       const cards = teamCards();
@@ -568,12 +572,12 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   function dropTeamInPool(team: TeamResponseDto): void {
     component.onDragStart(team, new DragEvent('dragstart'), GrabbedThing.Team);
     // ngx-drag-drop removes the dragged card from its source list on a "move".
-    component.onDragged(team, component.teams, 'move');
-    component.onDropInPool({ data: team, dropEffect: 'move', index: 0 } as DndDropEvent, component.playerPool);
+    component.onDragged(team, component.teams(), 'move');
+    component.onDropInPool({ data: team, dropEffect: 'move', index: 0 } as DndDropEvent, component.playerPool());
   }
 
   it('posts a RemoveCaptainDto with only seasonID and personID', () => {
-    dropTeamInPool(component.teams[1]);
+    dropTeamInPool(component.teams()[1]);
 
     const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
     expect(req.request.method).toBe('POST');
@@ -585,13 +589,13 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
   });
 
   it('returns the captain and their players to the pool and re-sequences the remaining captains', () => {
-    dropTeamInPool(component.teams[0]);
+    dropTeamInPool(component.teams()[0]);
 
     const req = httpTesting.expectOne('/api/Teams/RemoveCaptain/');
     expect(req.request.body).toEqual({ seasonID: 7, personID: 11 });
     req.flush({});
 
-    expect(component.teams.map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
-    expect(component.playerPool.map(p => p.personID).sort()).toEqual([11, 21, 30]);
+    expect(component.teams().map(t => [t.captain.personID, t.captain.order])).toEqual([[12, 1], [13, 2]]);
+    expect(component.playerPool().map(p => p.personID).sort()).toEqual([11, 21, 30]);
   });
 });

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
@@ -23,26 +23,20 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     ],
     templateUrl: './createBracketDialog.component.html',
     styleUrl: './createBracketDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateBracketDialogComponent {
   private http = inject(HttpClient);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
 
-  @Input({ required: true }) seasonID!: number;
+  readonly seasonID: number = this.data;
 
   participantsCount: number | null = 8;
   doubleElimination: boolean = true;
   bestOf: number | null = 3;
 
-  bracketCreated = new EventEmitter();
-
-  constructor() {
-    const data = this.data;
-
-    this.seasonID = data;
-  }
+  readonly bracketCreated = output();
 
   onSubmit() {
     this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)

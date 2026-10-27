@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -27,7 +27,7 @@ interface TeamStanding {
     ],
     templateUrl: './seedOrderingDialog.component.html',
     styleUrl: './seedOrderingDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeedOrderingDialogComponent implements OnInit {
   private http = inject(HttpClient);
@@ -35,16 +35,10 @@ export class SeedOrderingDialogComponent implements OnInit {
   private snackBar = inject(MatSnackBar);
   private dialogRef = inject<MatDialogRef<SeedOrderingDialogComponent>>(MatDialogRef);
 
-  @Output() seedingOrder = new EventEmitter<void>();
-  teams: TeamStanding[] = [];
-  loading = true;
-  private seasonID: number;
-
-  constructor() {
-    const data = this.data;
-
-    this.seasonID = data;
-  }
+  readonly seedingOrder = output<void>();
+  readonly teams = signal<TeamStanding[]>([]);
+  readonly loading = signal(true);
+  private readonly seasonID: number = this.data;
 
   ngOnInit(): void {
     this.loadTeamStandings();
@@ -54,16 +48,16 @@ export class SeedOrderingDialogComponent implements OnInit {
     this.http.get<TeamStanding[]>(`api/TeamStandings/GetTeamStandings/${this.seasonID}`)
       .subscribe({
         next: (standings) => {
-          this.teams = standings.map((team, index) => ({
+          this.teams.set(standings.map((team, index) => ({
             ...team,
             seed: index + 1
-          }));
-          this.loading = false;
+          })));
+          this.loading.set(false);
         },
         error: (e) => {
           console.log(e);
           this.snackBar.open("Failed to load team standings", "Close");
-          this.loading = false;
+          this.loading.set(false);
         }
       });
   }
@@ -71,12 +65,13 @@ export class SeedOrderingDialogComponent implements OnInit {
   onDrop(event: DndDropEvent): void {
     if (event.dropEffect === 'move') {
       const draggedTeam = event.data as TeamStanding;
-      const draggedIndex = this.teams.findIndex(t => t.teamID === draggedTeam.teamID);
+      const teams = [...this.teams()];
+      const draggedIndex = teams.findIndex(t => t.teamID === draggedTeam.teamID);
       let newIndex = event.index;
       
       if (draggedIndex !== -1 && typeof newIndex !== 'undefined') {
         // Remove from old position
-        this.teams.splice(draggedIndex, 1);
+        teams.splice(draggedIndex, 1);
         
         // Adjust index if we're moving down in the same list
         if (draggedIndex < newIndex) {
@@ -84,18 +79,16 @@ export class SeedOrderingDialogComponent implements OnInit {
         }
         
         // Insert at new position
-        this.teams.splice(newIndex, 0, draggedTeam);
+        teams.splice(newIndex, 0, draggedTeam);
         
         // Update seed numbers
-        this.teams.forEach((team, index) => {
-          team.seed = index + 1;
-        });
+        this.teams.set(teams.map((team, index) => ({ ...team, seed: index + 1 })));
       }
     }
   }
 
   onSubmit(): void {
-    const customSeeding = this.teams.map(team => ({
+    const customSeeding = this.teams().map(team => ({
       teamID: team.teamID,
       seed: team.seed!
     }));

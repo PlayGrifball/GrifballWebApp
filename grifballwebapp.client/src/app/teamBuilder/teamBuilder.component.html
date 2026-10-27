@@ -1,6 +1,6 @@
 @if (accountService.isEventOrganizer()) {
 <button mat-flat-button color="primary" (click)="lockCaptainsButtonClicked()">
-  {{captainLocked ? 'Unlock Captains' : 'Lock Captains'}}
+  {{captainLocked() ? 'Unlock Captains' : 'Lock Captains'}}
 </button>
 }
 
@@ -10,7 +10,7 @@
 
 <div [class.horizontal]="layout.dndHorizontal"
      [dndHorizontal]="layout.dndHorizontal"
-     (dndDrop)="onDropInTeam($event, teams)"
+     (dndDrop)="onDropInTeam($event, teams())"
      [dndDropzone]="['availablePlayer', 'team']"
      class="dndList flexList"
      dndDropzone
@@ -25,15 +25,15 @@
     <mat-card-content class="players-area" />
   </mat-card>
 
-  @for (item of teams; track item) {
+  @for (item of teams(); track item) {
   <mat-card class="item"
             [dndDisableIf]="DisableDraggingTeams()"
             [dndDraggable]="item"
             dndEffectAllowed="move"
             [dndType]="'team'"
-            (dndCanceled)="onDragged(item, teams, 'none')"
+            (dndCanceled)="onDragged(item, teams(), 'none')"
             (dndEnd)="onDragEnd($event)"
-            (dndMoved)="onDragged(item, teams, 'move')"
+            (dndMoved)="onDragged(item, teams(), 'move')"
             (dndStart)="onDragStart(item, $event, GrabbedThing.Team)">
     <mat-card-header>
       <!--<div mat-card-avatar class="example-header-image"></div>-->
@@ -68,7 +68,7 @@
 
 <mat-list [class.horizontal]="layout.dndHorizontal"
           [dndHorizontal]="layout.dndHorizontal"
-          (dndDrop)="onDropInPool($event, playerPool)"
+          (dndDrop)="onDropInPool($event, playerPool())"
           class="dndList flexList"
           dndDropzone
           dndEffectAllowed="copyMove">
@@ -77,16 +77,16 @@
     <span matListItemTitle> *** </span>
   </mat-list-item>
 
-  @for (item of playerPool; track item) {
+  @for (item of playerPool(); track item) {
   <mat-list-item
                  class="player-pool-item"
                  [dndDisableIf]="DisableDraggingPlayerFromPool(item)"
                  [dndDraggable]="item"
                  dndEffectAllowed="move"
                  [dndType]="'availablePlayer'"
-                 (dndCanceled)="onDragged(item, playerPool, 'none')"
+                 (dndCanceled)="onDragged(item, playerPool(), 'none')"
                  (dndEnd)="onDragEnd($event)"
-                 (dndMoved)="onDragged(item, playerPool, 'move')"
+                 (dndMoved)="onDragged(item, playerPool(), 'move')"
                  (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)">
     <span matListItemTitle>{{ item.name }}</span>
   </mat-list-item>

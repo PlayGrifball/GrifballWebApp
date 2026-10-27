@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -23,13 +23,13 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     ],
     templateUrl: './editUser.component.html',
     styleUrl: './editUser.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EditUserComponent {
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
 
-  model: UserResponseDto = {} as UserResponseDto;
+  readonly model = signal<UserResponseDto>({} as UserResponseDto);
 
   ngOnInit(): void {
     const userID = Number(this.route.snapshot.paramMap.get('userID'));
@@ -42,13 +42,13 @@ export class EditUserComponent {
     // Fetch from backend
     this.http.get<UserResponseDto>('/api/usermanagement/getuser/' + userID)
       .subscribe({
-        next: (result) => this.model = result,
+        next: (result) => this.model.set(result),
         error: (error) => console.log(error)
       });
   }
 
   onSubmit() {
-    this.http.post('/api/usermanagement/edituser/', this.model).subscribe({
+    this.http.post('/api/usermanagement/edituser/', this.model()).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),
     });

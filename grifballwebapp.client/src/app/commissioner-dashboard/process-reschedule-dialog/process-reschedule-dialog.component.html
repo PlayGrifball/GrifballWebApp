@@ -61,26 +61,26 @@
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()" [disabled]="processing">
+    <button mat-button (click)="onCancel()" [disabled]="processing()">
       Cancel
     </button>
     <button mat-raised-button 
-            [color]="decision === 'approve' ? 'primary' : 'warn'"
+            [color]="decision() === 'approve' ? 'primary' : 'warn'"
             (click)="processReschedule()" 
-            [disabled]="!decision || processing">
-      @if (processing)
+            [disabled]="!decision() || processing()">
+      @if (processing())
       {
         <mat-icon>hourglass_empty</mat-icon>
       }
-      @if (!processing && decision === 'approve')
+      @if (!processing() && decision() === 'approve')
       {
         <mat-icon>check_circle</mat-icon>
       }
-      @if (!processing && decision === 'reject')
+      @if (!processing() && decision() === 'reject')
       {
         <mat-icon>cancel</mat-icon>
       }
-      {{ processing ? 'Processing...' : (decision === 'approve' ? 'Approve' : 'Reject') }}
+      {{ processing() ? 'Processing...' : (decision() === 'approve' ? 'Approve' : 'Reject') }}
     </button>
   </mat-dialog-actions>
 </div>

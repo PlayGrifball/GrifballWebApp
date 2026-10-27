@@ -65,12 +65,12 @@ describe('ProcessRescheduleDialogComponent', () => {
   it('disables the action until a decision is chosen, then labels it accordingly', () => {
     expect(actionButton().disabled).toBeTrue();
 
-    component.decision = 'approve';
+    component.decision.set('approve');
     fixture.detectChanges();
     expect(actionButton().disabled).toBeFalse();
     expect(actionButton().textContent).toContain('Approve');
 
-    component.decision = 'reject';
+    component.decision.set('reject');
     fixture.detectChanges();
     expect(actionButton().textContent).toContain('Reject');
   });
@@ -78,12 +78,12 @@ describe('ProcessRescheduleDialogComponent', () => {
   it('does nothing without a decision', async () => {
     await component.processReschedule();
     http.expectNone(() => true);
-    expect(component.processing).toBeFalse();
+    expect(component.processing()).toBeFalse();
   });
 
   it('approves with trimmed notes and closes with true', async () => {
-    component.decision = 'approve';
-    component.commissionerNotes = '  Fine by me  ';
+    component.decision.set('approve');
+    component.commissionerNotes.set('  Fine by me  ');
     await component.processReschedule();
     fixture.detectChanges();
     expect(actionButton().textContent).toContain('Processing...');
@@ -94,12 +94,12 @@ describe('ProcessRescheduleDialogComponent', () => {
     req.flush({});
 
     expect(dialogRef.close).toHaveBeenCalledWith(true);
-    expect(component.processing).toBeFalse();
+    expect(component.processing()).toBeFalse();
   });
 
   it('rejects without notes when the notes are blank', async () => {
-    component.decision = 'reject';
-    component.commissionerNotes = '   ';
+    component.decision.set('reject');
+    component.commissionerNotes.set('   ');
     await component.processReschedule();
 
     const req = http.expectOne('/api/Reschedule/ProcessReschedule/55');
@@ -109,12 +109,12 @@ describe('ProcessRescheduleDialogComponent', () => {
 
   it('stays open and re-enables the action when processing fails', async () => {
     spyOn(console, 'error');
-    component.decision = 'approve';
+    component.decision.set('approve');
     await component.processReschedule();
     http.expectOne('/api/Reschedule/ProcessReschedule/55').flush('x', { status: 500, statusText: 'Server Error' });
 
     expect(dialogRef.close).not.toHaveBeenCalled();
-    expect(component.processing).toBeFalse();
+    expect(component.processing()).toBeFalse();
   });
 
   it('closes with false on cancel', () => {

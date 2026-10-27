@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, output } from '@angular/core';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -21,25 +21,19 @@ import { HttpClient } from '@angular/common/http';
     ],
     templateUrl: './createRegularMatchesDialog.component.html',
     styleUrl: './createRegularMatchesDialog.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateRegularMatchesDialogComponent {
   private http = inject(HttpClient);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
 
-  @Input({ required: true }) seasonID!: number;
+  readonly seasonID: number = this.data;
 
   homeMatchesPerTeam: number | null = 1;
   bestOf: number | null = 1;
 
-  regularMatchesCreated = new EventEmitter();
-
-  constructor() {
-    const data = this.data;
-
-    this.seasonID = data;
-  }
+  readonly regularMatchesCreated = output();
 
   onSubmit() {
     this.http.get("api/MatchPlanner/CreateSeasonMatches?seasonID=" + this.seasonID + "&homeMatchesPerTeam=" + this.homeMatchesPerTeam + "&bestOf=" + this.bestOf)

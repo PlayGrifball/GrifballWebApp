@@ -62,7 +62,7 @@ describe('SeasonEditComponent', () => {
     await render();
 
     expect(api.getSeason).toHaveBeenCalledWith(4);
-    expect(component.model.seasonName).toBe('Season 4');
+    expect(component.model().seasonName).toBe('Season 4');
     expect(saveButton().textContent).toContain('Save Season');
     expect(saveButton().disabled).toBeFalse();
     const availability = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Edit Availability'))!;
@@ -73,7 +73,7 @@ describe('SeasonEditComponent', () => {
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
 
-    component.model.copyFrom = '3';
+    component.model.update(model => ({ ...model, copyFrom: '3' }));
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
   });
@@ -89,14 +89,15 @@ describe('SeasonEditComponent', () => {
     seasonID = '0';
     api.getSeason.and.returnValue(of(season()));
     await render();
-    component.model = season({ seasonID: 0 });
+    component.model.set(season({ seasonID: 0 }));
     await render();
     api.upsertSeason.and.returnValue(of(12));
+    const submitted = component.model();
 
     component.onSubmit();
 
-    expect(api.upsertSeason).toHaveBeenCalledWith(component.model);
-    expect(component.model.seasonID).toBe(12);
+    expect(api.upsertSeason).toHaveBeenCalledWith(submitted);
+    expect(component.model().seasonID).toBe(12);
   });
 
   it('logs a failed save', async () => {
@@ -106,6 +107,6 @@ describe('SeasonEditComponent', () => {
 
     component.onSubmit();
     expect(log).toHaveBeenCalledWith('nope');
-    expect(component.model.seasonID).toBe(4);
+    expect(component.model().seasonID).toBe(4);
   });
 });

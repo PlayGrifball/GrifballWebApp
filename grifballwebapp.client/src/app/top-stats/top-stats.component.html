@@ -1,10 +1,10 @@
 <h1 id="tableLabel">Top Kills</h1>
 
-@if (!kills) {
+@if (!kills()) {
   <p><em>Loading... Please refresh once the ASP.NET backend has started. See <a href="https://aka.ms/jspsintegrationangular">https://aka.ms/jspsintegrationangular</a> for more details.</em></p>
 }
 
-<table mat-table [dataSource]="kills" class="mat-elevation-z8">
+<table mat-table [dataSource]="kills()" class="mat-elevation-z8">
 
   <!--- Note that these columns can be defined in any order.
         The actual rendered columns are set as a property on the row definition" -->

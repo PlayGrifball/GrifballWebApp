@@ -19,7 +19,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     ],
     templateUrl: './createUser.component.html',
     styleUrl: './createUser.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreateUserComponent {
   private http = inject(HttpClient);

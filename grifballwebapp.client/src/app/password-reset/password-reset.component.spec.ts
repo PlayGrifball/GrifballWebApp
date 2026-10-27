@@ -47,7 +47,7 @@ describe('PasswordResetComponent', () => {
   });
 
   it('should initialize with isLoading set to false', () => {
-    expect(component.isLoading).toBe(false);
+    expect(component.isLoading()).toBe(false);
   });
 
   it('should initialize with empty model', () => {
@@ -116,7 +116,7 @@ describe('PasswordResetComponent', () => {
       
       component.onSubmit();
 
-      expect(component.isLoading).toBe(true);
+      expect(component.isLoading()).toBe(true);
     });
 
     it('should call resetPassword with correct request when passwords match and are valid', () => {
@@ -155,7 +155,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to reset password', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should show specific error message when provided as string', () => {
@@ -168,7 +168,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Token has expired', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should show default 400 error message when status is 400 without specific error', () => {
@@ -181,7 +181,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Invalid or expired reset link', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should not navigate to login on error', () => {

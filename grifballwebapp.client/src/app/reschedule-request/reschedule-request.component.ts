@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -34,7 +34,7 @@ interface RescheduleRequest {
   ],
   templateUrl: './reschedule-request.component.html',
   styleUrls: ['./reschedule-request.component.scss'],
-  changeDetection: ChangeDetectionStrategy.Eager
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RescheduleRequestComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -46,7 +46,7 @@ export class RescheduleRequestComponent implements OnInit {
   newDate?: Date;
   newTime: string = '';
   reason: string = '';
-  submitting = false;
+  readonly submitting = signal(false);
 
   ngOnInit(): void {
     this.seasonMatchID = Number(this.route.snapshot.paramMap.get('seasonMatchID'));
@@ -58,7 +58,7 @@ export class RescheduleRequestComponent implements OnInit {
       return;
     }
 
-    this.submitting = true;
+    this.submitting.set(true);
 
     let newScheduledTime: string | undefined;
     if (this.newDate && this.newTime) {
@@ -79,12 +79,12 @@ export class RescheduleRequestComponent implements OnInit {
       next: () => {
         this.snackBar.open('Reschedule request submitted successfully!', 'Close', { duration: 5000 });
         this.location.back();
-        this.submitting = false;
+        this.submitting.set(false);
       },
       error: (error) => {
         console.error('Failed to submit reschedule request:', error);
         this.snackBar.open('Failed to submit reschedule request. Please try again.', 'Close', { duration: 5000 });
-        this.submitting = false;
+        this.submitting.set(false);
       }
     });
   }

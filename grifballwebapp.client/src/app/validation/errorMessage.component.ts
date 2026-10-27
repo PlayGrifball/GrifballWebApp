@@ -1,37 +1,52 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
-import { AbstractControl, AbstractControlDirective, FormControl } from '@angular/forms';
+import { Component, ChangeDetectionStrategy, computed, effect, input, signal } from '@angular/core';
+import { AbstractControl, AbstractControlDirective } from '@angular/forms';
 import { ValidationService } from './validationService';
 
 @Component({
     selector: 'app-error-message',
     imports: [],
     template: `
-    @if (errorMessage !== null) {
-      <div>{{errorMessage}}</div>
+    @if (errorMessage() !== null) {
+      <div>{{errorMessage()}}</div>
     }
     `,
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ErrorMessageComponent {
-  @Input() control!: AbstractControl | AbstractControlDirective;
+  readonly control = input<AbstractControl | AbstractControlDirective | null>();
 
-  get errorMessage(): string | null {
-    if (this.control === null)
+  // Bumped on every value/status/touched/pristine event of the bound control. The control is
+  // not a signal, so without this the message would not update while the input stays the same.
+  private readonly controlEvents = signal(0);
+
+  constructor() {
+    effect(onCleanup => {
+      const control = this.control();
+      const formControl = control instanceof AbstractControlDirective ? control.control : control;
+      const subscription = formControl?.events.subscribe(() => this.controlEvents.update(n => n + 1));
+      onCleanup(() => subscription?.unsubscribe());
+    });
+  }
+
+  readonly errorMessage = computed<string | null>(() => {
+    this.controlEvents();
+    const control = this.control();
+    if (control === null)
       return null;
-    if (this.control === undefined)
+    if (control === undefined)
       return null;
-    for (let propertyName in this.control.errors) {
+    for (let propertyName in control.errors) {
       if (
-        this.control.errors.hasOwnProperty(propertyName) &&
-        (this.control.touched || this.control.dirty)
+        control.errors.hasOwnProperty(propertyName) &&
+        (control.touched || control.dirty)
       ) {
         return ValidationService.getValidatorErrorMessage(
           propertyName,
-          this.control.errors[propertyName]
+          control.errors[propertyName]
         );
       }
     }
 
     return null;
-  }
+  });
 }

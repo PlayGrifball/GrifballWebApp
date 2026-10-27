@@ -100,7 +100,7 @@ describe('ScheduleListComponent behaviour', () => {
     seasonID = null;
     fixture.detectChanges();
     http.expectNone(() => true);
-    expect(component.scheduledMatches).toEqual([]);
+    expect(component.scheduledMatches()).toEqual([]);
   });
 
   it('groups scheduled matches into numbered weeks', () => {
@@ -110,13 +110,13 @@ describe('ScheduleListComponent behaviour', () => {
       scheduled(3, '2026-01-14T19:00:00'),
     ]);
 
-    expect(component.scheduledMatches.length).toBe(2);
-    expect(component.scheduledMatches[0].weekNumber).toBe(1);
-    expect(component.scheduledMatches[0].games.map(g => g.seasonMatchID)).toEqual([1, 2]);
-    expect(component.scheduledMatches[1].weekNumber).toBe(2);
-    expect(component.scheduledMatches[1].games.map(g => g.seasonMatchID)).toEqual([3]);
+    expect(component.scheduledMatches().length).toBe(2);
+    expect(component.scheduledMatches()[0].weekNumber).toBe(1);
+    expect(component.scheduledMatches()[0].games.map(g => g.seasonMatchID)).toEqual([1, 2]);
+    expect(component.scheduledMatches()[1].weekNumber).toBe(2);
+    expect(component.scheduledMatches()[1].games.map(g => g.seasonMatchID)).toEqual([3]);
 
-    const game = component.scheduledMatches[0].games[0];
+    const game = component.scheduledMatches()[0].games[0];
     expect(game.homeCaptainName).toBe('Home1');
     expect(game.awayCaptainName).toBe('Away1');
     expect(game.complete).toBeFalse();
@@ -180,7 +180,7 @@ describe('ScheduleListComponent behaviour', () => {
 
     http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
-    expect(component.unscheduledMatches).toEqual([]);
+    expect(component.unscheduledMatches()).toEqual([]);
   });
 
   it('opens the create-matches dialog for this season and reloads when matches are created', () => {
@@ -194,6 +194,6 @@ describe('ScheduleListComponent behaviour', () => {
     created.emit();
     http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([unscheduled(1)]);
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
-    expect(component.unscheduledMatches.length).toBe(1);
+    expect(component.unscheduledMatches().length).toBe(1);
   });
 });

@@ -50,7 +50,7 @@ describe('SignupFormComponent', () => {
     setup('5');
     // First change detection runs ngOnInit and binds model.timeslots while the HTTP request is still pending.
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model.timeslots).toEqual([]);
+    expect(component.model().timeslots).toEqual([]);
     httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
     httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
   });
@@ -61,14 +61,14 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
     // The model is reset for a new signup; timeslots have not arrived yet.
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model.seasonID).toBe(5);
-    expect(component.model.timeslots).toEqual([]);
+    expect(component.model().seasonID).toBe(5);
+    expect(component.model().timeslots).toEqual([]);
 
     httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
     fixture.detectChanges();
 
     const rows = fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row, app-availability-table tr[mat-row]');
-    expect(component.model.timeslots.length).toBe(3);
+    expect(component.model().timeslots.length).toBe(3);
     expect(rows.length).toBe(2); // Monday and Tuesday
   });
 
@@ -79,8 +79,8 @@ describe('SignupFormComponent', () => {
       seasonID: 5, userID: 7, teamName: 'Team', willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
     });
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model.teamName).toBe('Team');
-    expect(component.model.timeslots.length).toBe(3);
+    expect(component.model().teamName).toBe('Team');
+    expect(component.model().timeslots.length).toBe(3);
   });
 
   it('does not throw if the API response omits timeslots', () => {
@@ -88,7 +88,7 @@ describe('SignupFormComponent', () => {
     fixture.detectChanges();
     httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({ seasonID: 5, userID: 7, willCaptain: false });
     expect(() => fixture.detectChanges()).not.toThrow();
-    expect(component.model.timeslots).toEqual([]);
+    expect(component.model().timeslots).toEqual([]);
   });
 
   it('does not throw and shows a snackbar when the signup request fails', () => {

@@ -59,8 +59,11 @@ describe('RegisterComponent', () => {
   });
 
   describe('onSubmit', () => {
+    // registerForm is a viewChild() signal; swap it for one that returns the stand-in form.
+    const stubForm = (form: unknown) => (component as any).registerForm = () => form;
+
     it('should return early if registerForm is not defined', () => {
-      component.registerForm = undefined as any;
+      stubForm(undefined);
       
       component.onSubmit();
 
@@ -68,9 +71,9 @@ describe('RegisterComponent', () => {
     });
 
     it('should return early if form is invalid', () => {
-      component.registerForm = {
+      stubForm({
         valid: false
-      } as any;
+      });
       
       component.onSubmit();
 
@@ -84,9 +87,9 @@ describe('RegisterComponent', () => {
         confirmPassword: 'Test@1234567890',
         gamertag: 'TestGT'
       };
-      component.registerForm = {
+      stubForm({
         valid: true
-      } as any;
+      });
       mockAccountService.register.and.returnValue(of({}));
       
       component.onSubmit();
@@ -95,9 +98,9 @@ describe('RegisterComponent', () => {
     });
 
     it('should show success message on successful registration', () => {
-      component.registerForm = {
+      stubForm({
         valid: true
-      } as any;
+      });
       mockAccountService.register.and.returnValue(of({}));
       
       component.onSubmit();
@@ -106,9 +109,9 @@ describe('RegisterComponent', () => {
     });
 
     it('should show error message on registration failure', () => {
-      component.registerForm = {
+      stubForm({
         valid: true
-      } as any;
+      });
       const error = { error: 'Username already exists' };
       mockAccountService.register.and.returnValue(throwError(() => error));
       
@@ -124,9 +127,9 @@ describe('RegisterComponent', () => {
         confirmPassword: 'SecurePass123!@#',
         gamertag: 'NewGamerTag'
       };
-      component.registerForm = {
+      stubForm({
         valid: true
-      } as any;
+      });
       mockAccountService.register.and.returnValue(of({}));
       
       component.onSubmit();

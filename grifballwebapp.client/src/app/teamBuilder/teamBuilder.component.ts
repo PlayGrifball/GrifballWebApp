@@ -1,6 +1,6 @@
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
@@ -41,7 +41,7 @@ interface DropzoneLayout {
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamBuilderComponent {
   private route = inject(ActivatedRoute);
@@ -51,9 +51,9 @@ export class TeamBuilderComponent {
   private signalR = inject(SignalRService);
 
   private seasonID: number = 0;
-  captainLocked: boolean = true;
-  teams : TeamResponseDto[] = [];
-  playerPool: PlayerDto[] = [];
+  readonly captainLocked = signal(true);
+  readonly teams = signal<TeamResponseDto[]>([]);
+  readonly playerPool = signal<PlayerDto[]>([]);
 
   allowTypes: string[] = [
     'PlayerDto'
@@ -96,11 +96,11 @@ export class TeamBuilderComponent {
       this.load();
     }
 
-    this.signalR.addCaptain((dto) => {
+    this.signalR.addCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
         return;
 
-      const player = this.playerPool.find((p => {
+      const player = pool.find((p => {
         return p.personID === dto.personID;
       }));
 
@@ -111,8 +111,8 @@ export class TeamBuilderComponent {
       }
 
       // Remove from player pool
-      const index = this.playerPool.indexOf(player);
-      this.playerPool.splice(index, 1);
+      const index = pool.indexOf(player);
+      pool.splice(index, 1);
 
       // Add to teams
       let newTeam = new TeamResponseDto();
@@ -122,22 +122,22 @@ export class TeamBuilderComponent {
       newTeam.captain.order = dto.orderNumber;
       newTeam.captain.personID = dto.personID;
       newTeam.players = [];
-      this.teams.splice(dto.orderNumber - 1, 0, newTeam);
+      teams.splice(dto.orderNumber - 1, 0, newTeam);
 
       // Fix order
       let trueIndex = 1;
-      this.teams.forEach((t, i) => {
+      teams.forEach((t, i) => {
         t.captain.order = trueIndex++;
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
-    });
+    }));
 
-    this.signalR.resortCaptain((dto) => {
+    this.signalR.resortCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
         return;
 
-      const team = this.teams.find((t => {
+      const team = teams.find((t => {
         return t.captain.personID === dto.personID;
       }));
 
@@ -148,26 +148,26 @@ export class TeamBuilderComponent {
       }
 
       // Remove from team
-      const index = this.teams.indexOf(team);
-      this.teams.splice(index, 1);
+      const index = teams.indexOf(team);
+      teams.splice(index, 1);
 
       // Reinsert at new location
-      this.teams.splice(dto.orderNumber - 1, 0, team);
+      teams.splice(dto.orderNumber - 1, 0, team);
 
       // Fix order
       let trueIndex = 1;
-      this.teams.forEach((t, i) => {
+      teams.forEach((t, i) => {
         t.captain.order = trueIndex++;
       });
 
       // TODO: may need to handle out of sync order, also what is user is currently dragging?
-    });
+    }));
 
-    this.signalR.removeCaptain((dto) => {
+    this.signalR.removeCaptain((dto) => this.updateDraft((teams, pool) => {
       if (this.seasonID != dto.seasonID)
         return;
 
-      const team = this.teams.find((t => {
+      const team = teams.find((t => {
         return t.captain.personID === dto.personID;
       }));
 
@@ -178,8 +178,8 @@ export class TeamBuilderComponent {
       }
 
       // Remove from team
-      const index = this.teams.indexOf(team);
-      this.teams.splice(index, 1);
+      const index = teams.indexOf(team);
+      teams.splice(index, 1);
 
       // Map captain to player
       let captainPlayer = new PlayerDto();
@@ -188,29 +188,29 @@ export class TeamBuilderComponent {
       captainPlayer.pick = null;
       captainPlayer.round = null;
       // Put captain back in pool
-      this.playerPool.splice(0, 0, captainPlayer);
+      pool.splice(0, 0, captainPlayer);
 
       // Put each player back in pool as well
       team.players.forEach(p => {
         p.pick = null;
         p.round = null;
-        this.playerPool.splice(0, 0, p);
+        pool.splice(0, 0, p);
       });
 
       // Fix order of teams
       let trueIndex = 1;
-      this.teams.forEach((t, i) => {
+      teams.forEach((t, i) => {
         t.captain.order = trueIndex++;
       });
 
-    });
+    }));
 
-    this.signalR.addPlayerToTeam((dto) => {
+    this.signalR.addPlayerToTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
       // Find player from the pool
-      const player = this.playerPool.find((p => {
+      const player = pool.find((p => {
         return p.personID === dto.personID;
       }));
 
@@ -221,7 +221,7 @@ export class TeamBuilderComponent {
       }
 
       // Find team to add to
-      const team = this.teams.find((t => {
+      const team = teams.find((t => {
         return t.captain.personID === dto.captainID;
       }));
 
@@ -239,15 +239,15 @@ export class TeamBuilderComponent {
       team.players.forEach(p => {
         p.round = trueIndex++;
       });
-    });
+    }));
 
-    this.signalR.movePlayerToTeam((dto) => {
+    this.signalR.movePlayerToTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
       // Player was moved from one team to another
       if (dto.previousCaptainID != dto.newCaptainID) {
-        const team = this.teams.find((t => {
+        const team = teams.find((t => {
           return t.captain.personID === dto.previousCaptainID;
         }));
 
@@ -277,7 +277,7 @@ export class TeamBuilderComponent {
           p.round = trueIndex++;
         })
 
-        const newTeam = this.teams.find((t => {
+        const newTeam = teams.find((t => {
           return t.captain.personID === dto.newCaptainID;
         }));
 
@@ -295,7 +295,7 @@ export class TeamBuilderComponent {
         })
       }
       else { // Player was moved within existing team
-        const team = this.teams.find((t => {
+        const team = teams.find((t => {
           return t.captain.personID === dto.newCaptainID;
         }));
 
@@ -326,14 +326,14 @@ export class TeamBuilderComponent {
           p.round = trueIndex++;
         })
       }
-    });
+    }));
 
-    this.signalR.removePlayerFromTeam((dto) => {
+    this.signalR.removePlayerFromTeam((dto) => this.updateDraft((teams, pool) => {
       if (dto.seasonID !== this.seasonID)
         return;
 
       // Find team with player
-      const team = this.teams.find((t => {
+      const team = teams.find((t => {
         return t.captain.personID === dto.captainID;
       }));
 
@@ -364,53 +364,66 @@ export class TeamBuilderComponent {
         p.round = trueIndex++;
       });
 
-      this.playerPool.splice(0, 0, player);
-    });
+      pool.splice(0, 0, player);
+    }));
 
     this.signalR.lockCaptains((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
-      this.captainLocked = true;
+      this.captainLocked.set(true);
     });
 
     this.signalR.unlockCaptains((seasonID) => {
       if (seasonID !== this.seasonID)
         return;
-      this.captainLocked = false;
+      this.captainLocked.set(false);
     });
+  }
+
+  /**
+   * Applies a SignalR draft update. The handlers edit the lists in place (the same way the
+   * drag-and-drop handlers do), so they get copies and the signals are set afterwards to
+   * schedule a render.
+   */
+  private updateDraft(change: (teams: TeamResponseDto[], pool: PlayerDto[]) => void): void {
+    const teams = [...this.teams()];
+    const pool = [...this.playerPool()];
+    change(teams, pool);
+    this.teams.set(teams);
+    this.playerPool.set(pool);
   }
 
   load(): void {
     this.api.getTeams(this.seasonID)
         .subscribe({
-          next: (result) => this.teams = result,
+          next: (result) => this.teams.set(result),
         });
     this.api.getPlayerPool(this.seasonID)
         .subscribe({
           next: (result) => {
-            this.playerPool = result;
+            this.playerPool.set(result);
           },
         });
     this.api.areCaptainsLocked(this.seasonID)
       .subscribe({
         next: (result) => {
-          this.captainLocked = result;
+          this.captainLocked.set(result);
         },
       });
   }
 
   lockCaptainsButtonClicked(): void {
-    if (this.captainLocked) {
+    if (this.captainLocked()) {
       this.api.unlockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe({
-          next: r => this.captainLocked = false
+          next: r => this.captainLocked.set(false)
         })
     }
     else {
       this.api.lockCaptains(this.seasonID, this.signalR.hubConnection.connectionId)
         .subscribe(
           {
-            next: r => this.captainLocked = true
+            next: r => this.captainLocked.set(true)
           })
     }
   }
@@ -516,7 +529,7 @@ export class TeamBuilderComponent {
   }
 
   resortPreviousTeam(grabbedPlayer: GrabbedPlayer) {
-    const previousTeam = this.teams.find((t => {
+    const previousTeam = this.teams().find((t => {
       return t.captain.personID === grabbedPlayer.team.captain.personID;
     }));
 
@@ -569,7 +582,7 @@ export class TeamBuilderComponent {
     // Team -> AvailablePlayer = Player is now available
     else if (this.grabbedThing === GrabbedThing.Team) {
       let trueIndex = 1;
-      this.teams.forEach((t, i) => {
+      this.teams().forEach((t, i) => {
         const matchingCaptainID = t.captain.personID == player.personID;
         if (matchingCaptainID) {
           // Ignore removed team.
@@ -704,7 +717,7 @@ export class TeamBuilderComponent {
   DisableDraggingTeams(): boolean {
     // return true if CaptainsLocked or missing EventManager role
 
-    if (this.captainLocked)
+    if (this.captainLocked())
       return true;
     if (!this.accountService.isEventOrganizer())
       return true;
@@ -745,13 +758,13 @@ export class TeamBuilderComponent {
 
   CurrentCaptainOnDeck(): CaptainDto | null {
     // If there are no teams then it is no ones turn yet
-    if (this.teams.length === 0)
+    if (this.teams().length === 0)
       return null;
 
-    if (this.playerPool.length === 0)
+    if (this.playerPool().length === 0)
       return null;
 
-    const sorted = [...this.teams].sort((a, b) => {
+    const sorted = [...this.teams()].sort((a, b) => {
       const aPlayerCount = a.players.length;
       const BPlayerCount = b.players.length;
       return aPlayerCount - BPlayerCount;
@@ -763,13 +776,13 @@ export class TeamBuilderComponent {
 
   StatusText(): string {
     // If there are no teams then it is no ones turn yet
-    if (this.teams.length === 0)
+    if (this.teams().length === 0)
       return "No Teams Added";
 
-    if (this.playerPool.length === 0)
+    if (this.playerPool().length === 0)
       return "Player pool is empty";
 
-    const sorted = [...this.teams].sort((a, b) => {
+    const sorted = [...this.teams()].sort((a, b) => {
       const aPlayerCount = a.players.length;
       const BPlayerCount = b.players.length;
       return aPlayerCount - BPlayerCount;

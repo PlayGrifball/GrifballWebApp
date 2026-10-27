@@ -8,10 +8,8 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Locale } from 'brackets-viewer/dist/lang';
 
-@UntilDestroy()
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
@@ -21,7 +19,7 @@ import { Locale } from 'brackets-viewer/dist/lang';
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayoffBracketComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -92,9 +90,7 @@ export class PlayoffBracketComponent implements OnInit {
       data: this.seasonID
     });
 
-    dialogRef.componentInstance.bracketCreated
-    .pipe(untilDestroyed(this))
-    .subscribe(() => {
+    dialogRef.componentInstance.bracketCreated.subscribe(() => {
       this.getViewerData();
     });
   }
@@ -106,9 +102,7 @@ export class PlayoffBracketComponent implements OnInit {
       maxHeight: '80vh'
     });
 
-    dialogRef.componentInstance.seedingOrder
-    .pipe(untilDestroyed(this))
-    .subscribe(() => {
+    dialogRef.componentInstance.seedingOrder.subscribe(() => {
       this.getViewerData();
     });
   }

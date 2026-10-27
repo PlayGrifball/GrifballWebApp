@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +17,7 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
         PlayoffBracketComponent,
         TeamStandingsComponent
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -25,7 +25,7 @@ export class SeasonComponent implements OnInit {
   private router = inject(Router);
 
   private seasonID : number = 0;
-  seasonName : string | null = "Season";
+  readonly seasonName = signal<string | null>("Season");
   
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -47,7 +47,7 @@ export class SeasonComponent implements OnInit {
   getSeasonName(): void {
     this.api.getSeasonName(this.seasonID)
         .subscribe({
-          next: (result) => this.seasonName = result,
+          next: (result) => this.seasonName.set(result),
         });
   }
 

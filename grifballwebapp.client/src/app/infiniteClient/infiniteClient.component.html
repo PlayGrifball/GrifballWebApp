@@ -1,10 +1,10 @@
 <p>Status: </p>
-@if (status.startsWith('https')) {
-  <a [href]="status">
-    <p>{{status}}</p>
+@if (status().startsWith('https')) {
+  <a [href]="status()">
+    <p>{{status()}}</p>
   </a>
 } @else {
-  <p>{{status}}</p>
+  <p>{{status()}}</p>
 }
 
 <button mat-flat-button color="primary" (click)="deleteTokens()">

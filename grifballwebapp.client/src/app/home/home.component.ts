@@ -34,7 +34,7 @@ import { PaginationResult } from '../shared/paginationResult';
             ])
         ])
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit {
   private http = inject(HttpClient);

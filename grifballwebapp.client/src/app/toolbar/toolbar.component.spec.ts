@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
@@ -6,7 +7,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSidenav } from '@angular/material/sidenav';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { DateTime } from 'luxon';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -21,7 +22,11 @@ describe('ToolbarComponent', () => {
   let mockActivatedRoute: jasmine.SpyObj<ActivatedRoute>;
 
   beforeEach(async () => {
-    mockAccountService = jasmine.createSpyObj('AccountService', ['logout']);
+    mockAccountService = jasmine.createSpyObj('AccountService', ['logout'], {
+      isLoggedIn: signal(false),
+      displayName: signal(null),
+      personID: signal(null),
+    });
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
     mockApiClient = jasmine.createSpyObj('ApiClientService', ['commitHash', 'commitDate']);
@@ -43,38 +48,68 @@ describe('ToolbarComponent', () => {
       ]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(ToolbarComponent);
+    fixture = createToolbar();
     component = fixture.componentInstance;
-    component.snav = mockSidenav;
   });
+
+  function createToolbar(): ComponentFixture<ToolbarComponent> {
+    const f = TestBed.createComponent(ToolbarComponent);
+    f.componentRef.setInput('snav', mockSidenav);
+    return f;
+  }
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should load commit hash on init', () => {
+  it('should load commit hash on creation', () => {
     const testHash = 'test-commit-hash';
     mockApiClient.commitHash.and.returnValue(of(testHash));
 
-    component.ngOnInit();
+    component = createToolbar().componentInstance;
 
     expect(mockApiClient.commitHash).toHaveBeenCalled();
-    expect(component.commitHash).toBe(testHash);
+    expect(component.commitHash()).toBe(testHash);
   });
 
-  it('should load commit date on init', () => {
+  it('should load commit date on creation', () => {
     const testDate = DateTime.fromISO('2024-01-15T10:30:00Z');
     mockApiClient.commitDate.and.returnValue(of(testDate));
 
-    component.ngOnInit();
+    component = createToolbar().componentInstance;
 
     expect(mockApiClient.commitDate).toHaveBeenCalled();
-    expect(component.commitDate).toEqual(testDate);
+    expect(component.commitDate()).toEqual(testDate);
   });
 
-  it('should initialize with null commit hash and date', () => {
-    expect(component.commitHash).toBeNull();
-    expect(component.commitDate).toBeNull();
+  it('should have null commit hash and date until the API answers', () => {
+    mockApiClient.commitHash.and.returnValue(new Subject<string>());
+    mockApiClient.commitDate.and.returnValue(new Subject<DateTime>());
+
+    component = createToolbar().componentInstance;
+
+    expect(component.commitHash()).toBeNull();
+    expect(component.commitDate()).toBeNull();
+  });
+
+  it('renders the commit hash once it arrives, without a manual detectChanges', async () => {
+    const hash = new Subject<string>();
+    mockApiClient.commitHash.and.returnValue(hash);
+    fixture = createToolbar();
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+
+    hash.next('deadbeef');
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('deadbeef');
+  });
+
+  it('toggles the sidenav from the menu button', () => {
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="menu icon"]')!.click();
+
+    expect(mockSidenav.toggle).toHaveBeenCalled();
   });
 
   it('should have account service injected', () => {

@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, input } from '@angular/core';
-import { FormsModule, NgForm } from '@angular/forms';
+import { Component, OnInit, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormField, MatInputModule } from '@angular/material/input';
@@ -23,7 +23,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent implements OnInit {
   private http = inject(HttpClient);
@@ -33,12 +33,10 @@ export class SeasonAvailabilityComponent implements OnInit {
   ngOnInit(): void {
     this.getSeasonAvailability()
     .subscribe({
-      next: x => this.options = x,
+      next: x => this.options.set(x),
       error: () => this.snackbar.open('Failed to get season availability'),
     });
   }
-
-  readonly form = input.required<NgForm>();
 
   readonly seasonID = input.required<number>();
 
@@ -82,10 +80,10 @@ export class SeasonAvailabilityComponent implements OnInit {
     return this.checkboxes.map(x => x.name);
   }
 
-  options: AvailabilityOption[] = [];
+  readonly options = signal<AvailabilityOption[]>([]);
 
   bulkModify(): void {
-    this.options = [];
+    const options: AvailabilityOption[] = [];
 
     let time = this.start;
 
@@ -95,11 +93,13 @@ export class SeasonAvailabilityComponent implements OnInit {
         o.dayOfWeek = dayOfWeek;
         o.time = time.toString();
 
-        this.options.push(o);
+        options.push(o);
       }
 
       time = time.plus({ minutes: this.minutes });
     }
+
+    this.options.set(options);
   }
 
   saveChanges(): void {
@@ -110,17 +110,17 @@ export class SeasonAvailabilityComponent implements OnInit {
   }
 
   add(): void {
-    this.options.unshift(new AvailabilityOption());
+    this.options.update(options => [new AvailabilityOption(), ...options]);
   }
 
   delete(index: number): void {
-    this.options.splice(index, 1);
+    this.options.update(options => options.filter((_, i) => i !== index));
   }
 
   updateSeasonAvailability() {
     return this.http.post('api/Availability/UpdateSeasonAvailability', {
       seasonID: this.seasonID(),
-      timeslots: this.options,
+      timeslots: this.options(),
     });
   }
 

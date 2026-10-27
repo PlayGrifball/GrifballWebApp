@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { TimeslotDto } from '../../api/dtos/signupResponseDto';
@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
     ],
     templateUrl: './availabilityTable.component.html',
     styleUrl: './availabilityTable.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AvailabilityTableComponent {
   private availabilityService = inject(AvailabilityService);
@@ -28,15 +28,25 @@ export class AvailabilityTableComponent {
 
   // The parent binds this before its HTTP request has resolved, so null/undefined
   // must be treated as "no timeslots yet" rather than throwing.
-  @Input({ required: true })
-  public set timeslots(value: TimeslotDto[] | null | undefined) {
+  readonly timeslots = input.required<TimeslotDto[] | null | undefined>();
+
+  private readonly table = computed(() => this.buildTable(this.timeslots()));
+  readonly timeColumns = computed(() => this.table().timeColumns);
+  readonly dtos = computed(() => this.table().dtos);
+
+  /** Every real timeslot in the grid, leaving out the day-of-week headers and filler cells. */
+  selectableTimeslots(): TimeslotDto[] {
+    return this.dtos().flat().filter(x => x.id != 0);
+  }
+
+  private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotDto[][] } {
     const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 
-    this.timeColumns = [this.DayOfWeek];
-    this.timeColumns.push(...[...new Set(timeslots.map(item => item.time))]);
+    let timeColumns = [this.DayOfWeek];
+    timeColumns.push(...[...new Set(timeslots.map(item => item.time))]);
 
-    this.timeColumns = this.timeColumns.map(x => {
+    timeColumns = timeColumns.map(x => {
       return this.parseTime(x);
     })
 
@@ -53,7 +63,7 @@ export class AvailabilityTableComponent {
       header.id = 0;
 
       // Create a new cell for each time slot, disabled if not a valid timeslot in backend
-      this.timeColumns.forEach((time, index2, arr2) => {
+      timeColumns.forEach((time, index2, arr2) => {
 
         if (time === this.DayOfWeek) {
           row.push(header);
@@ -85,10 +95,7 @@ export class AvailabilityTableComponent {
       rows.push(row);
     });
 
-    this.dtos = rows;
-  }
-  public get timeslots(): TimeslotDto[] {
-    return this.dtos.flat().filter(x => x.id != 0);
+    return { timeColumns, dtos: rows };
   }
 
 
@@ -117,7 +124,7 @@ export class AvailabilityTableComponent {
   }
 
   public timeClicked(time: string) {
-    const filtered = this.dtos.flat().filter(x => x.isDisabled === false && x.isHeader === false && (time === this.availabilityService.DayOfWeek || x.time === time));
+    const filtered = this.dtos().flat().filter(x => x.isDisabled === false && x.isHeader === false && (time === this.availabilityService.DayOfWeek || x.time === time));
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
     if (anyTicked) {
       filtered.forEach(x => x.isChecked = false);
@@ -126,6 +133,4 @@ export class AvailabilityTableComponent {
     }
   }
 
-  public timeColumns: string[] = [];
-  public dtos: TimeslotDto[][] = [];
 }

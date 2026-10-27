@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
 import { ActivatedRoute } from '@angular/router';
@@ -13,13 +13,13 @@ import { MatTableModule } from '@angular/material/table';
     ],
     templateUrl: './signups.component.html',
     styleUrl: './signups.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
 
-  public signUps: SignupResponseDto[] = [];
+  readonly signUps = signal<SignupResponseDto[]>([]);
   public displayedColumns: string[] = ['personName', 'timestamp', 'teamName', 'willCaptain', 'requiresAssistanceDrafting'];
   seasonID: number = 0;
 
@@ -42,7 +42,7 @@ export class SignupsComponent implements OnInit {
 
   getSignups(): void {
     this.api.getSignups(this.seasonID).subscribe({
-      next: (result) => this.signUps = result,
+      next: (result) => this.signUps.set(result),
       error: (error) => console.error(error),
     });
   }

@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
@@ -13,7 +13,7 @@ import { MatTableModule } from '@angular/material/table';
     providers: [DecimalPipe],
     templateUrl: './playerGrades.component.html',
     styleUrl: './playerGrades.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayerGradesComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -22,8 +22,8 @@ export class PlayerGradesComponent implements OnInit {
 
   private seasonID: number = 0;
 
-  pm: PerMinuteDto[] = [];
-  letters: LetterDto[] = [];
+  readonly pm = signal<PerMinuteDto[]>([]);
+  readonly letters = signal<LetterDto[]>([]);
 
   public pmDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills'];
 
@@ -180,8 +180,8 @@ export class PlayerGradesComponent implements OnInit {
     this.http.get<GradesDto>('/api/Grades/GetGrades/' + this.seasonID)
       .subscribe({
         next: result => {
-          this.pm = result.perMinutes;
-          this.letters = result.letters;
+          this.pm.set(result.perMinutes);
+          this.letters.set(result.letters);
         },
       });
   }

@@ -36,7 +36,7 @@ import { AccountService } from '../../account.service';
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
   private http = inject(HttpClient);
@@ -74,7 +74,7 @@ export class SeasonMatchComponent {
     },
   ];
 
-  readonly reportMatchForm = viewChild.required<NgForm>('reportMatchForm');
+  readonly reportMatchForm = viewChild<NgForm>('reportMatchForm');
 
   matchID: string = "";
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;

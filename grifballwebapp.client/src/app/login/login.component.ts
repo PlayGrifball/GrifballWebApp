@@ -24,7 +24,7 @@ import { MatCardModule } from '@angular/material/card';
     ],
     templateUrl: './login.component.html',
     styleUrl: './login.component.css',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent implements OnInit {
   accountService = inject(AccountService);
