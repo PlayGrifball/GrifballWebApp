@@ -165,8 +165,8 @@
                 </mat-cell>
               </ng-container>
 
-              <mat-header-row *matHeaderRowDef="rescheduleDisplayedColumns"></mat-header-row>
-              <mat-row *matRowDef="let row; columns: rescheduleDisplayedColumns;"></mat-row>
+              <mat-header-row *matHeaderRowDef="rescheduleDisplayedColumns" />
+              <mat-row *matRowDef="let row; columns: rescheduleDisplayedColumns;" />
             </mat-table>
           </div>
           }
@@ -228,10 +228,10 @@
                 </mat-cell>
               </ng-container>
 
-              <mat-header-row *matHeaderRowDef="overdueDisplayedColumns"></mat-header-row>
+              <mat-header-row *matHeaderRowDef="overdueDisplayedColumns" />
               <mat-row *matRowDef="let row; columns: overdueDisplayedColumns;"
                        [class.critical-row]="row.hoursOverdue > 72"
-                       [class.warning-row]="row.hoursOverdue > 48 && row.hoursOverdue <= 72"></mat-row>
+                       [class.warning-row]="row.hoursOverdue > 48 && row.hoursOverdue <= 72" />
             </mat-table>
           </div>
           }

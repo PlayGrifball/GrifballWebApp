@@ -1,7 +1,7 @@
 <h2>{{inputName()}}</h2>
 
 @if (isSubmittingMatch()) {
-    <mat-spinner></mat-spinner>
+    <mat-spinner />
 } @else {
     <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
         <mat-form-field class="app-full-width">

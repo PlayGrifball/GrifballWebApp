@@ -17,15 +17,15 @@
     </mat-card-header>
     <mat-card-content>
       @for (match of week.games; track match) {
-      <mat-divider></mat-divider>
+      <mat-divider />
       <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
             [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
       @if (accountService.isEventOrganizer() && isEditing) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>
           <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
-          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
-          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
           <app-error-message [control]="f.controls['time']" />
         </mat-form-field>
 
@@ -50,7 +50,7 @@
   </mat-card-header>
   <mat-card-content>
     @for (match of unscheduledMatches; track match.seasonMatchID) {
-    <mat-divider></mat-divider>
+    <mat-divider />
     <div>
       <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
             [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
@@ -58,8 +58,8 @@
       <form #f="ngForm" (ngSubmit)="onSubmit(match)">
         <mat-form-field>
           <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="match.time" name="time">
-          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
-          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
           <app-error-message [control]="f.controls['time']" />
         </mat-form-field>
 

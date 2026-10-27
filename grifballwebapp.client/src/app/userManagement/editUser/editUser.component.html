@@ -10,8 +10,8 @@
   <mat-form-field class="app-full-width">
     <mat-label>lockoutEnd</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="model.lockoutEnd" name="lockoutEnd">
-    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix></mtx-datetimepicker-toggle>
-    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime"></mtx-datetimepicker>
+    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
+    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" />
     <app-error-message [control]="userForm.controls['lockoutEnd']" />
   </mat-form-field>
 

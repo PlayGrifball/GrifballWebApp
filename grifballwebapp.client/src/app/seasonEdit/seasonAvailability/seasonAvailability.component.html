@@ -8,15 +8,15 @@
   <mat-form-field>
     <mat-label>From</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="start" required name="start">
-    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix></mtx-datetimepicker-toggle>
-    <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time"></mtx-datetimepicker>
+    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
+    <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time" />
   </mat-form-field>
 
   <mat-form-field>
     <mat-label>To</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="end" required name="end">
-    <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix></mtx-datetimepicker-toggle>
-    <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time"></mtx-datetimepicker>
+    <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+    <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time" />
   </mat-form-field>
 
   <label>On the following days:</label>
@@ -35,8 +35,8 @@
   <div>
     <mat-form-field>
       <input matInput [mtxDatetimepicker]="datetimePicker3" [(ngModel)]="option.time" required [name]="'picker' + $index">
-      <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix></mtx-datetimepicker-toggle>
-      <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time"></mtx-datetimepicker>
+      <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
+      <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" />
     </mat-form-field>
 
     <mat-form-field>
