@@ -6,7 +6,8 @@ import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
-import { Observable } from 'rxjs';
+import { catchError, concatMap, EMPTY, finalize, forkJoin, Observable, Subject, tap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
 import { CaptainDto } from '../api/dtos/captainDto';
@@ -51,6 +52,13 @@ export class TeamBuilderComponent {
 
   private grabbedThing: GrabbedThing = GrabbedThing.AvailablePlayer;
 
+  // Saves run one after another; a reload waits for them (see save, load, requestReload).
+  private readonly saveQueue = new Subject<Observable<unknown>>();
+  private pendingSaves = 0;
+  private reloadWanted = false;
+  // Bumped on every change to the draft here, so a load that started earlier can be dropped.
+  private draftVersion = 0;
+
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
     const teams = this.teams();
@@ -84,6 +92,10 @@ export class TeamBuilderComponent {
     list: 'row wrap',
     dndHorizontal: true,
   };
+
+  constructor() {
+    this.saveQueue.pipe(concatMap(save => save), takeUntilDestroyed()).subscribe();
+  }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -146,9 +158,10 @@ export class TeamBuilderComponent {
     const next = change(current);
     if (next === null) {
       console.log('Detected out of sync');
-      this.load();
+      this.requestReload();
       return null;
     }
+    this.draftVersion++;
     if (next.teams !== current.teams)
       this.teams.set(next.teams);
     if (next.pool !== current.pool)
@@ -156,23 +169,41 @@ export class TeamBuilderComponent {
     return next;
   }
 
+  /**
+   * Loads the draft from the server. A result that comes back after the draft changed here
+   * (a drop, or another user's update) would undo that change, so it is dropped and the load
+   * is asked for again (it then waits for any saves still on their way).
+   */
   load(): void {
-    this.api.getTeams(this.seasonID)
-        .subscribe({
-          next: (result) => this.teams.set(result),
-        });
-    this.api.getPlayerPool(this.seasonID)
-        .subscribe({
-          next: (result) => {
-            this.playerPool.set(result);
-          },
-        });
-    this.api.areCaptainsLocked(this.seasonID)
-      .subscribe({
-        next: (result) => {
-          this.captainLocked.set(result);
-        },
-      });
+    const version = this.draftVersion;
+    forkJoin({
+      teams: this.api.getTeams(this.seasonID),
+      pool: this.api.getPlayerPool(this.seasonID),
+      locked: this.api.areCaptainsLocked(this.seasonID),
+    }).subscribe({
+      next: ({ teams, pool, locked }) => {
+        if (version !== this.draftVersion) {
+          this.requestReload();
+          return;
+        }
+        this.teams.set(teams);
+        this.playerPool.set(pool);
+        this.captainLocked.set(locked);
+      },
+    });
+  }
+
+  /** Reloads once no save is in flight, so the server has every change this page sent. */
+  private requestReload(): void {
+    this.reloadWanted = true;
+    this.reloadWhenIdle();
+  }
+
+  private reloadWhenIdle(): void {
+    if (this.reloadWanted && this.pendingSaves === 0) {
+      this.reloadWanted = false;
+      this.load();
+    }
   }
 
   lockCaptainsButtonClicked(): void {
@@ -202,23 +233,41 @@ export class TeamBuilderComponent {
   }
 
   /**
-   * Sends a drag-and-drop change. The page has already applied it; if the server refuses
-   * (not your turn, not signed up, not allowed...), say why and reload the real draft.
-   * `reload` also reloads after a success, for changes the server finishes itself.
+   * Sends a drag-and-drop change. The page has already applied it. Changes go to the server
+   * one at a time, in the order they were made. If the server refuses one (not your turn, not
+   * signed up, not allowed...), say why and reload the real draft. `reload` also reloads after
+   * a success, for changes the server finishes itself. Reloads wait until no save is pending.
    */
   private save(request: Observable<unknown>, reload = false): void {
-    request.subscribe({
-      next: r => {
+    this.pendingSaves++;
+    this.saveQueue.next(request.pipe(
+      tap(r => {
         console.log(r);
         if (reload)
-          this.load();
-      },
-      error: e => {
-        const reason = typeof e?.error === 'string' && e.error ? e.error : 'the server refused it';
-        this.snackBarService.open(`Draft change not saved: ${reason}`, 'Close');
-        this.load();
-      },
-    });
+          this.reloadWanted = true;
+      }),
+      catchError(e => {
+        this.snackBarService.open(`Draft change not saved: ${TeamBuilderComponent.refusalReason(e)}`, 'Close');
+        this.reloadWanted = true;
+        return EMPTY;
+      }),
+      finalize(() => {
+        this.pendingSaves--;
+        this.reloadWhenIdle();
+      }),
+    ));
+  }
+
+  /**
+   * Why the server refused a change. TeamService's refusals come back from GlobalExceptionHandler
+   * as ProblemDetails ({ title: "Server error", detail: "<message>" }); a few endpoints answer
+   * with a plain string.
+   */
+  private static refusalReason(e: any): string {
+    const error = e?.error;
+    if (typeof error === 'string' && error)
+      return error;
+    return error?.detail || error?.title || 'the server refused it';
   }
 
   private static isDrop(event: DndDropEvent): boolean {

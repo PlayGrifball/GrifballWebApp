@@ -6,7 +6,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
-import { of, Subject, throwError } from 'rxjs';
+import { Observable, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
@@ -424,6 +424,7 @@ describe('TeamBuilderComponent', () => {
         { teamID: 2, teamName: 'Bravo', captain: cap(102, 3), players: [] },
       ]));
       saved.next({});
+      saved.complete();
       expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
       expect(component.teams()[1].teamName).toBe('The Fours');
     });
@@ -449,7 +450,8 @@ describe('TeamBuilderComponent', () => {
     ];
     for (const [name, request, act] of refusals) {
       it(`says why and reloads the real draft when the server refuses a drop (${name})`, () => {
-        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: 'It is not your turn to be making a draft pick' })));
+        // As GlobalExceptionHandler sends a TeamServiceException.
+        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', status: 500, detail: 'It is not your turn to be making a draft pick' } })));
         const loads = mockApiClient.getTeams.calls.count();
 
         act();
@@ -462,6 +464,78 @@ describe('TeamBuilderComponent', () => {
         expect(pool()).toEqual([3, 4, 5]);
       });
     }
+
+    it('sends changes one at a time, in order', () => {
+      const first = new Subject<Object>();
+      let secondSent = false;
+      mockApiClient.addPlayerToTeam.and.returnValue(first);
+      mockApiClient.resortCaptain.and.returnValue(new Observable<Object>(sub => { secondSent = true; sub.next({}); sub.complete(); }));
+
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2));
+      expect(secondSent).toBeFalse();
+
+      first.next({});
+      first.complete();
+      expect(secondSent).toBeTrue();
+    });
+
+    it('waits for later changes to be saved before reloading, so they are not undone', () => {
+      const captainSaved = new Subject<Object>();
+      const pickSaved = new Subject<Object>();
+      mockApiClient.addCaptain.and.returnValue(captainSaved);
+      mockApiClient.addPlayerToTeam.and.returnValue(pickSaved);
+      const loads = mockApiClient.getTeams.calls.count();
+
+      grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
+      component.onDropInTeam(drop(component.playerPool()[1], 1)); // wants a reload once saved
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
+
+      captainSaved.next({});
+      captainSaved.complete();
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads); // the pick is still on its way
+
+      pickSaved.next({});
+      pickSaved.complete();
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+    });
+
+    it('drops a reload that comes back after the draft changed here, and loads again', () => {
+      const staleTeams = new Subject<TeamResponseDto[]>();
+      mockApiClient.getTeams.and.returnValue(staleTeams);
+      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } })));
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2)); // refused: reload starts
+      const loads = mockApiClient.getTeams.calls.count();
+
+      // Meanwhile another user drafts Player 3 and the page shows it.
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      addPlayer({ seasonID: 5, captainID: 101, personID: 3 });
+      expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
+
+      // The reload answers with the draft from before that update: it must not win.
+      mockApiClient.getTeams.and.returnValue(of([{ teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2), player(3, 3)] }]));
+      staleTeams.next([{ teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] }]);
+      staleTeams.complete();
+
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
+    });
+
+    it('uses the title, or a plain-text body, when there is no detail', () => {
+      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403, error: { title: 'Forbidden', status: 403 } })));
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2));
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: Forbidden', 'Close');
+
+      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: 'You must be logged in' })));
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2));
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: You must be logged in', 'Close');
+    });
 
     it('gives a generic reason when the refusal has no message', () => {
       mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403 })));

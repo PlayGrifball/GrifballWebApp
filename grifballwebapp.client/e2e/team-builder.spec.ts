@@ -61,9 +61,10 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     if (path.startsWith('/api/Teams/') && request.method() === 'POST') {
       const body = request.postDataJSON();
       calls.push({ path, body });
-      // TeamService rejects with a message (e.g. not your turn); nothing changes on the server.
+      // TeamService rejects with a message (e.g. not your turn), which GlobalExceptionHandler
+      // sends as ProblemDetails; nothing changes on the server.
       if (opts.refuse)
-        return route.fulfill({ status: 400, contentType: 'text/plain', body: opts.refuse });
+        return route.fulfill({ status: 500, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Server error', status: 500, detail: opts.refuse }) });
       // Like TeamService.AddCaptain: the new team is named after the captain's signup.
       if (path === '/api/Teams/AddCaptain/') {
         const captain = data.pool.find(p => p.personID === body.personID)!;
