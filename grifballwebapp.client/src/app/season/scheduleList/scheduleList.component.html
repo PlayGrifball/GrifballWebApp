@@ -35,7 +35,7 @@
       </form>
       }
       @else {
-      <span style="display: block">{{match.time.toString() | date:'EEEE'}} {{match.time.toString() | date:'short'}}</span>
+      <span style="display: block">{{match.time | toDate | date:'EEEE'}} {{match.time | toDate | date:'short'}}</span>
       }
       }
     </mat-card-content>

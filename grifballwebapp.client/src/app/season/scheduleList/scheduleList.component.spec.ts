@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { By } from '@angular/platform-browser';
 import { NgForm } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -243,5 +244,11 @@ describe('ScheduleListComponent behaviour', () => {
     req.flush({});
     http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+  });
+
+  it('shows each scheduled match day and time as the date pipe showed the API value', () => {
+    load([], [scheduled(1, '2026-01-07T19:00:00Z')]);
+    const pipe = new DatePipe('en-US');
+    expect(text()).toContain(`${pipe.transform('2026-01-07T19:00:00Z', 'EEEE')} ${pipe.transform('2026-01-07T19:00:00Z', 'short')}`);
   });
 });

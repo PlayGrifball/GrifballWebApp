@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToolbarComponent } from './toolbar.component';
@@ -138,5 +139,13 @@ describe('ToolbarComponent', () => {
       maxHeight: '90vh',
       panelClass: 'dialog-no-bg'
     });
+  });
+
+  it('shows the build date as the date pipe showed the API value', () => {
+    mockApiClient.commitDate.and.returnValue(of(DateTime.fromISO('2026-01-02T03:04:05Z')));
+    fixture = createToolbar();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('a')!.textContent)
+      .toContain(new DatePipe('en-US').transform('2026-01-02T03:04:05Z', 'short')!);
   });
 });

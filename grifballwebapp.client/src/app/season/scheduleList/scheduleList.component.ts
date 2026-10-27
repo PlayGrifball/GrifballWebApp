@@ -23,6 +23,7 @@ import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
+import { ToDatePipe } from '../../shared/toDate.pipe';
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -39,6 +40,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
         MatButtonModule,
         RouterModule,
         MatDialogModule,
+        ToDatePipe,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

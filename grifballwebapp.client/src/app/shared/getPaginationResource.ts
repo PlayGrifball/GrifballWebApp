@@ -7,8 +7,9 @@ export function getPaginationResource<T>(
     url: () => string,
     paginationFilter: PaginationFilter,
     additionalFilters?: () => Filter[] | undefined,
-    // Turns each row from its JSON form (e.g. dates as strings) into a T.
-    parseRow?: (row: any) => T,
+    // Turns each row from its JSON form (e.g. dates as strings) into a T; rows are used as
+    // they are when it is missing or returns undefined.
+    parseRow?: () => ((row: any) => T) | undefined,
 ) {
     const resource = httpResource<PaginationResult<T>>(
         () => {
@@ -44,7 +45,8 @@ export function getPaginationResource<T>(
             defaultValue: PAGINATION_RESPONSE_DEFAULT,
             parse: (raw: unknown) => {
                 const page = raw as PaginationResult<any>;
-                return parseRow ? { ...page, results: page.results.map(parseRow) } : page;
+                const parse = parseRow?.();
+                return parse ? { ...page, results: page.results.map(parse) } : page;
             },
         }
     );

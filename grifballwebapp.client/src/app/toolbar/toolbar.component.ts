@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ThemeComponent } from '../theme/theme.component';
 import { ApiClientService } from '../api/apiClient.service';
 
+import { ToDatePipe } from '../shared/toDate.pipe';
 @Component({
     selector: 'app-toolbar',
     imports: [
@@ -21,6 +22,7 @@ import { ApiClientService } from '../api/apiClient.service';
         MatButtonModule,
         MatIconModule,
         MatDialogModule,
+        ToDatePipe,
     ],
     templateUrl: './toolbar.component.html',
     styleUrl: './toolbar.component.css',

@@ -9,7 +9,7 @@
 
   <span class="text-xs">
     <a href="https://github.com/PlayGrifball/GrifballWebApp">
-      {{commitDate()?.toString() | date:'short'}} {{commitHash()}}
+      {{commitDate() | toDate | date:'short'}} {{commitHash()}}
     </a>
   </span>
 

@@ -64,7 +64,7 @@ export class TableComponent<T> {
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,
       sortColumn: () => this.sort()?.active,
-    }, () => this.filters(), row => this.parseRow() ? this.parseRow()!(row) : row);
+    }, () => this.filters(), this.parseRow);
   x = this.paginationResource.resource;
   current = this.paginationResource.current;
 }
