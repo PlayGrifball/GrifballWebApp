@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ContentChild, ContentChildren, input, QueryList, signal, TemplateRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal, TemplateRef, contentChildren } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
@@ -34,8 +34,7 @@ import { MatButtonModule } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent<T> {
-  @ContentChild(TemplateRef) rowTemplate!: TemplateRef<any>;
-  @ContentChildren(TemplateRef) rowTemplates!: QueryList<TemplateRef<any>>;
+  readonly rowTemplates = contentChildren(TemplateRef);
 
   filters = input<Filter[]>();
   

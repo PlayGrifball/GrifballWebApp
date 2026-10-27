@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, input } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -38,11 +38,9 @@ export class SeasonAvailabilityComponent implements OnInit {
     });
   }
 
-  @Input({ required: true })
-  form!: NgForm;
+  readonly form = input.required<NgForm>();
 
-  @Input()
-  seasonID!: number;
+  readonly seasonID = input.required<number>();
 
   minutes: number = 30;
 
@@ -121,13 +119,13 @@ export class SeasonAvailabilityComponent implements OnInit {
 
   updateSeasonAvailability() {
     return this.http.post('api/Availability/UpdateSeasonAvailability', {
-      seasonID: this.seasonID,
+      seasonID: this.seasonID(),
       timeslots: this.options,
     });
   }
 
   getSeasonAvailability() {
-    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID);
+    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID());
   }
 }
 

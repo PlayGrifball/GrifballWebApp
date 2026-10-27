@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -30,7 +30,7 @@ export class SeasonEditComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private api = inject(ApiClientService);
 
-  @ViewChild('seasonForm') registerForm!: NgForm;
+  readonly registerForm = viewChild.required<NgForm>('seasonForm');
 
   model: SeasonDto = {} as SeasonDto;
 
@@ -50,7 +50,7 @@ export class SeasonEditComponent implements OnInit {
   }
 
   onSubmit() {
-    if (!this.registerForm.valid) {
+    if (!this.registerForm().valid) {
       return;
     }
 

@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, viewChild } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -34,7 +34,7 @@ export class SignupFormComponent {
   private availabilityService = inject(AvailabilityService);
 
 
-  @ViewChild('signupForm') registerForm!: NgForm;
+  readonly registerForm = viewChild.required<NgForm>('signupForm');
   // Initialised with the class defaults (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
   model: SignupRequestDto = new SignupRequestDto();
@@ -71,7 +71,7 @@ export class SignupFormComponent {
   }
 
   onSubmit() {
-    if (!this.registerForm.valid) {
+    if (!this.registerForm().valid) {
       return;
     }
 

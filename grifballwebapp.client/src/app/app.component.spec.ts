@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { of } from 'rxjs';
 import { ToolbarComponent } from './toolbar/toolbar.component';
@@ -82,7 +82,7 @@ describe('AppComponent', () => {
 });
 @Component({ selector: 'app-toolbar', template: '<ng-content />' })
 class StubToolbarComponent {
-  @Input() snav: unknown;
+  readonly snav = input<unknown>();
 }
 
 describe('AppComponent behaviour', () => {

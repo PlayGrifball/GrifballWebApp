@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, computed, effect, AfterViewInit, ElementRef, ViewChildren, QueryList, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, computed, effect, AfterViewInit, ElementRef, inject, viewChild, viewChildren } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -34,8 +34,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   api = inject(ApiClientService);
   private themingService = inject(ThemingService);
 
-  @ViewChild('snav') snav!: MatSidenav;
-  @ViewChildren('toolbarLink') toolbarLinks!: QueryList<ElementRef>;
+  readonly snav = viewChild.required<MatSidenav>('snav');
+  readonly toolbarLinks = viewChildren<ElementRef>('toolbarLink');
 
   mobileQuery: MediaQueryList;
   private _mobileQueryListener: () => void;

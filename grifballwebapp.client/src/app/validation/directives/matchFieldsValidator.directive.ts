@@ -1,4 +1,4 @@
-import { Directive, Input } from '@angular/core';
+import { Directive, input } from '@angular/core';
 import { AbstractControl, NG_VALIDATORS, ValidationErrors, Validator, ValidatorFn } from '@angular/forms';
 import { matchFieldsValidator } from '../validators/matchFieldsValidator';
 
@@ -14,12 +14,14 @@ import { matchFieldsValidator } from '../validators/matchFieldsValidator';
   standalone: true,
 })
 export class MatchFieldsValidatorDirective {
-  @Input('field1') field1!: AbstractControl;
-  @Input('field2') field2!: AbstractControl;
+  readonly field1 = input<AbstractControl>();
+  readonly field2 = input<AbstractControl>();
 
   validate(control: AbstractControl): ValidationErrors | null {
-    return this.field1 && this.field2
-      ? matchFieldsValidator(this.field1, this.field2)(control)
+    const field1 = this.field1();
+    const field2 = this.field2();
+    return field1 && field2
+      ? matchFieldsValidator(field1, field2)(control)
       : null;
   }
 }
