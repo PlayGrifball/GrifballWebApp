@@ -10,7 +10,8 @@ public interface IBracketService
 {
     Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default);
     Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default);
-    Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
+    /// <returns>The bracket for the viewer, or null when the season does not exist.</returns>
+    Task<ViewerDataDto?> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
     Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default);
     NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
 }
@@ -439,7 +440,7 @@ public class BracketService : IBracketService
         };
     }
 
-    public async Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default)
+    public async Task<ViewerDataDto?> GetViewerDataAsync(int seasonID, CancellationToken ct = default)
     {
         var season = await _grifballContext.Seasons
             .Where(s => s.SeasonID == seasonID)
@@ -448,7 +449,7 @@ public class BracketService : IBracketService
 
         if (season is null)
         {
-            throw new Exception("Season does not exist");
+            return null;
         }
 
         var seasonMatches = await _grifballContext.SeasonMatches

@@ -99,6 +99,17 @@ public class BracketsControllerActionTests
     }
 
     [Test]
+    public async Task GetViewerData_MissingSeason_ReturnsNotFound()
+    {
+        _service.GetViewerDataAsync(5, Arg.Any<CancellationToken>()).Returns((ViewerDataDto?)null);
+
+        var result = await _controller.GetViewerData(5);
+
+        Assert.That(result.Result, Is.TypeOf<NotFoundObjectResult>());
+        Assert.That(((NotFoundObjectResult)result.Result!).Value, Is.EqualTo("Season does not exist"));
+    }
+
+    [Test]
     public async Task SetSeeds_PassesNullCustomSeeds()
     {
         using var cts = new CancellationTokenSource();
@@ -168,8 +179,54 @@ public class BracketsControllerActionTests
             Assert.That(opp2.TryGetProperty("Result", out _), Is.False);
             Assert.That(opp2.GetProperty("Id").ValueKind, Is.EqualTo(JsonValueKind.Null), "Id is written even when null");
             Assert.That(opp2.GetProperty("Forfeit").GetBoolean(), Is.True);
-            Assert.That((game.GetProperty("Id").GetString(), game.GetProperty("Stage_id").GetInt32(), game.GetProperty("ParentID").GetInt32(), game.GetProperty("Number").GetInt32()),
+            Assert.That((game.GetProperty("Id").GetString(), game.GetProperty("Stage_id").GetInt32(), game.GetProperty("parent_id").GetInt32(), game.GetProperty("Number").GetInt32()),
                 Is.EqualTo(("g", 1, 3, 1)));
+        });
+    }
+
+    [Test]
+    public void ViewerData_AsTheApiSendsIt_MatchesBracketsModel()
+    {
+        // Serialized with the API's own options: web naming plus the global string enum converter.
+        var dto = new ViewerDataDto
+        {
+            Stages = [new Stage
+            {
+                Id = 1, Tournament_id = 1, Name = "S", Number = 1, Type = StageType.single_elimination,
+                Settings = new StageSettings
+                {
+                    Size = 2, SeedOrdering = [SeedOrdering.natural], ManualOrdering = [],
+                    GrandFinal = GrandFinalType.none, RoundRobinMode = RoundRobinMode.simple,
+                },
+            }],
+            Matches = [new Match
+            {
+                Id = 3, Stage_id = 1, Group_id = 1, Round_id = 1, Number = 1, Status = Status.Completed,
+                Opponent1 = new ParticpantResult { Id = 10, Position = 1, Score = 2, Result = Result.win },
+                Opponent2 = new ParticpantResult { Id = 11, Position = 2, Score = 0, Result = Result.loss },
+            }],
+            MatchGames = [new MatchGame { Id = "g", Stage_id = 1, ParentID = 3, Number = 1 }],
+            Participants = [new Participant { Id = 10, Tournament_id = 1, Name = "Team" }],
+        };
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(dto, GrifballWebApp.Server.ApiJson.Options()));
+        var root = doc.RootElement;
+        var match = root.GetProperty("matches")[0];
+        var settings = root.GetProperty("stages")[0].GetProperty("settings");
+
+        Assert.Multiple(() =>
+        {
+            // brackets-model Status is numeric (Locked = 0 ... Archived = 5); brackets-viewer compares numbers.
+            Assert.That(match.GetProperty("status").ValueKind, Is.EqualTo(JsonValueKind.Number));
+            Assert.That(match.GetProperty("status").GetInt32(), Is.EqualTo(4));
+            // The other bracket enums are string unions in brackets-model.
+            Assert.That(root.GetProperty("stages")[0].GetProperty("type").GetString(), Is.EqualTo("single_elimination"));
+            Assert.That(settings.GetProperty("grandFinal").GetString(), Is.EqualTo("none"));
+            Assert.That(settings.GetProperty("roundRobinMode").GetString(), Is.EqualTo("simple"));
+            Assert.That(settings.GetProperty("seedOrdering")[0].GetString(), Is.EqualTo("natural"));
+            Assert.That(match.GetProperty("opponent1").GetProperty("result").GetString(), Is.EqualTo("win"));
+            Assert.That(root.GetProperty("matchGames")[0].GetProperty("parent_id").GetInt32(), Is.EqualTo(3));
+            Assert.That(match.GetProperty("stage_id").GetInt32(), Is.EqualTo(1));
         });
     }
 }

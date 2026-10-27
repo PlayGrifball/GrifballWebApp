@@ -50,6 +50,11 @@ export class PlayoffBracketComponent implements OnInit {
         {
           next: r => this.render(r),
           error: e => {
+            // 404: the season does not exist, so there is no bracket to show.
+            if (e?.status === 404) {
+              this.hasBracket.set(false);
+              return;
+            }
             console.log(e);
             this.snackBar.open("Failed to get viewer data", "Close");
           }

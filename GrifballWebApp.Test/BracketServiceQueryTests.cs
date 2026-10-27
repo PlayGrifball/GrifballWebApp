@@ -150,10 +150,25 @@ public class BracketServiceQueryTests
     // ---------------- GetViewerDataAsync ----------------
 
     [Test]
-    public void GetViewerDataAsync_SeasonMissing_Throws()
+    public async Task GetViewerDataAsync_SeasonMissing_ReturnsNull()
     {
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(12345));
-        Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
+        Assert.That(await _service.GetViewerDataAsync(12345), Is.Null);
+    }
+
+    [Test]
+    public async Task GetViewerDataAsync_SeasonWithoutBracket_ReturnsEmptyBracket()
+    {
+        var seasonID = await CreateSeason("No Playoffs");
+
+        var data = await _service.GetViewerDataAsync(seasonID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(data, Is.Not.Null);
+            Assert.That(data!.Participants, Is.Empty);
+            Assert.That(data.Matches, Is.Empty);
+            Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(0));
+        });
     }
 
     [Test]

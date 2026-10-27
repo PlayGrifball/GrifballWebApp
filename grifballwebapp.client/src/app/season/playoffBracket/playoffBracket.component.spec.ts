@@ -196,4 +196,13 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(created.observed).toBeFalse();
     expect(seeded.observed).toBeFalse();
   });
+
+  it('shows "No bracket created" without an error for a season that does not exist (404)', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush('Season does not exist', { status: 404, statusText: 'Not Found' });
+    fixture.detectChanges();
+
+    expect(snackBar.open).not.toHaveBeenCalled();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No bracket created');
+  });
 });
