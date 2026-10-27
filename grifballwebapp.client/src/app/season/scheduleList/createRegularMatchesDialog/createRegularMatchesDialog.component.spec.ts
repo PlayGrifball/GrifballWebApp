@@ -65,6 +65,17 @@ describe('CreateRegularMatchesDialogComponent', () => {
     expect(created).toHaveBeenCalled();
   });
 
+  it('still tells the page when the dialog was closed before the matches were created', () => {
+    const created = jasmine.createSpy('regularMatchesCreated');
+    component.regularMatchesCreated.subscribe(created);
+    component.onSubmit();
+
+    fixture.destroy(); // Esc / backdrop while the request is on its way
+    http.expectOne(r => r.url.startsWith('api/MatchPlanner/CreateSeasonMatches')).flush({});
+
+    expect(created).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a failure and does not emit', () => {
     spyOn(console, 'log');
     const created = jasmine.createSpy('regularMatchesCreated');

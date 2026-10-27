@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy, inject, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
@@ -36,12 +37,17 @@ export class CreateBracketDialogComponent {
   doubleElimination: boolean = true;
   bestOf: number | null = 3;
 
-  readonly bracketCreated = output();
+  // A Subject rather than an output(): the request can finish after the dialog was closed
+  // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
+  readonly bracketCreated = new Subject<void>();
 
   onSubmit() {
     this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => this.bracketCreated.emit(),
+        next: r => {
+          this.bracketCreated.next();
+          this.bracketCreated.complete();
+        },
         error: e => {
           console.log(e);
           this.snackBar.open("Failed to create bracket", "Close");

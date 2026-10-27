@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
@@ -35,7 +36,9 @@ export class SeedOrderingDialogComponent implements OnInit {
   private snackBar = inject(MatSnackBar);
   private dialogRef = inject<MatDialogRef<SeedOrderingDialogComponent>>(MatDialogRef);
 
-  readonly seedingOrder = output<void>();
+  // A Subject rather than an output(): the request can finish after the dialog was closed
+  // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
+  readonly seedingOrder = new Subject<void>();
   readonly teams = signal<TeamStanding[]>([]);
   readonly loading = signal(true);
   private readonly seasonID: number = this.data;
@@ -96,7 +99,8 @@ export class SeedOrderingDialogComponent implements OnInit {
     this.http.post(`api/Brackets/SetCustomSeeds/${this.seasonID}`, customSeeding)
       .subscribe({
         next: () => {
-          this.seedingOrder.emit();
+          this.seedingOrder.next();
+          this.seedingOrder.complete();
           this.dialogRef.close(true);
         },
         error: (e) => {

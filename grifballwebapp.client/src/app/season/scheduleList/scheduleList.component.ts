@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
-import { outputToObservable, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -71,7 +71,7 @@ export class ScheduleListComponent  implements OnInit {
       data: this.seasonID
     });
 
-    outputToObservable(dialogRef.componentInstance.regularMatchesCreated)
+    dialogRef.componentInstance.regularMatchesCreated
     .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.GetMatches();

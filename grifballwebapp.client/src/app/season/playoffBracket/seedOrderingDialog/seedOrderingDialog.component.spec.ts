@@ -149,14 +149,29 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     expect(dialogRef.close).toHaveBeenCalledWith(true);
   });
 
+  it('still tells the page when the dialog was closed before the seeds were saved', () => {
+    loadStandings();
+    const emitted = jasmine.createSpy('seedingOrder');
+    component.seedingOrder.subscribe(emitted);
+    component.onSubmit();
+
+    fixture.destroy(); // Esc / backdrop while the request is on its way
+    http.expectOne('api/Brackets/SetCustomSeeds/9').flush({});
+
+    expect(emitted).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the dialog open and reports when saving the seeds fails', () => {
     loadStandings();
     spyOn(console, 'log');
+    const emitted = jasmine.createSpy('seedingOrder');
+    component.seedingOrder.subscribe(emitted);
     component.onSubmit();
     http.expectOne('api/Brackets/SetCustomSeeds/9').flush('x', { status: 400, statusText: 'Bad Request' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to set custom seeds', 'Close');
     expect(dialogRef.close).not.toHaveBeenCalled();
+    expect(emitted).not.toHaveBeenCalled();
   });
 
   it('closes with false on cancel', () => {

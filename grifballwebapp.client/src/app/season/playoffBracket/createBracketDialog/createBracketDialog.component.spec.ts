@@ -70,6 +70,17 @@ describe('CreateBracketDialogComponent', () => {
     expect(snackBar.open).not.toHaveBeenCalled();
   });
 
+  it('still tells the page when the dialog was closed before the bracket was created', () => {
+    const created = jasmine.createSpy('bracketCreated');
+    component.bracketCreated.subscribe(created);
+    component.onSubmit();
+
+    fixture.destroy(); // Esc / backdrop / Cancel while the request is on its way
+    http.expectOne(r => r.url.startsWith('api/Brackets/CreateBracket')).flush({});
+
+    expect(created).toHaveBeenCalledTimes(1);
+  });
+
   it('reports a failure and does not emit', () => {
     spyOn(console, 'log');
     const created = jasmine.createSpy('bracketCreated');

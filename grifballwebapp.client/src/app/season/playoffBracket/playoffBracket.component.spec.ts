@@ -9,7 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
@@ -204,5 +204,18 @@ describe('PlayoffBracketComponent behaviour', () => {
 
     expect(snackBar.open).not.toHaveBeenCalled();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No bracket created');
+  });
+
+  it('reloads when the bracket is created after its dialog was already closed', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new Subject<void>();
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    component.openDialog();
+
+    // The dialog is gone (Esc), its request still finishes.
+    created.next();
+
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
   });
 });

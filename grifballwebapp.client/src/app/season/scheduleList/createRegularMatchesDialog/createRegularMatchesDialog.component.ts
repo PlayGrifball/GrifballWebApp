@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy, inject, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Subject } from 'rxjs';
 import { ErrorMessageComponent } from '../../../validation/errorMessage.component';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
@@ -33,12 +34,17 @@ export class CreateRegularMatchesDialogComponent {
   homeMatchesPerTeam: number | null = 1;
   bestOf: number | null = 1;
 
-  readonly regularMatchesCreated = output();
+  // A Subject rather than an output(): the request can finish after the dialog was closed
+  // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
+  readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
     this.http.get("api/MatchPlanner/CreateSeasonMatches?seasonID=" + this.seasonID + "&homeMatchesPerTeam=" + this.homeMatchesPerTeam + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => this.regularMatchesCreated.emit(),
+        next: r => {
+          this.regularMatchesCreated.next();
+          this.regularMatchesCreated.complete();
+        },
         error: e => {
           console.log(e);
           this.snackBar.open("Failed to create regular matches", "Close");
