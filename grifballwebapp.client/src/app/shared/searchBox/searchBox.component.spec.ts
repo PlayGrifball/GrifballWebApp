@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SearchBoxComponent } from './searchBox.component';
 import { signal } from '@angular/core';
 
@@ -18,6 +18,14 @@ describe('SearchBoxComponent', () => {
     fixture.componentRef.setInput('value', signal(''));
     
     fixture.detectChanges();
+
+    // debounceTime reads the scheduler's clock (Date.now) as well as setTimeout, so mock both.
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date(2024, 0, 1));
+  });
+
+  afterEach(() => {
+    jasmine.clock().uninstall();
   });
 
   it('should create', () => {
@@ -28,18 +36,18 @@ describe('SearchBoxComponent', () => {
     expect(component.type()).toBe('text');
   });
 
-  it('should handle text input with debounce', fakeAsync(() => {
+  it('should handle text input with debounce', () => {
     const inputElement = document.createElement('input');
     inputElement.value = '  test query  ';
     const event = { target: inputElement } as unknown as Event;
     
     component.onInput(event);
-    tick(300); // Wait for debounce
+    jasmine.clock().tick(300); // Wait for debounce
     
     expect(component.value()).toBe('test query'); // Should be trimmed
-  }));
+  });
 
-  it('should handle number input', fakeAsync(() => {
+  it('should handle number input', () => {
     const componentNumber = TestBed.createComponent(SearchBoxComponent<number>);
     componentNumber.componentRef.setInput('value', signal(0));
     componentNumber.componentRef.setInput('type', 'number');
@@ -50,12 +58,12 @@ describe('SearchBoxComponent', () => {
     const event = { target: inputElement } as unknown as Event;
     
     componentNumber.componentInstance.onInput(event);
-    tick(300); // Wait for debounce
+    jasmine.clock().tick(300); // Wait for debounce
     
     expect(componentNumber.componentInstance.value()).toBe(42);
-  }));
+  });
 
-  it('should handle invalid number input', fakeAsync(() => {
+  it('should handle invalid number input', () => {
     const componentNumber = TestBed.createComponent(SearchBoxComponent<number>);
     componentNumber.componentRef.setInput('value', signal(0));
     componentNumber.componentRef.setInput('type', 'number');
@@ -68,12 +76,12 @@ describe('SearchBoxComponent', () => {
     const event = { target: inputElement } as unknown as Event;
     
     componentNumber.componentInstance.onInput(event);
-    tick(300);
+    jasmine.clock().tick(300);
     
     expect(consoleSpy).toHaveBeenCalledWith('Invalid number input');
-  }));
+  });
 
-  it('should debounce rapid inputs', fakeAsync(() => {
+  it('should debounce rapid inputs', () => {
     const input1 = document.createElement('input');
     input1.value = 'a';
     const input2 = document.createElement('input');
@@ -82,15 +90,15 @@ describe('SearchBoxComponent', () => {
     input3.value = 'abc';
     
     component.onInput({ target: input1 } as unknown as Event);
-    tick(100);
+    jasmine.clock().tick(100);
     component.onInput({ target: input2 } as unknown as Event);
-    tick(100);
+    jasmine.clock().tick(100);
     component.onInput({ target: input3 } as unknown as Event);
-    tick(300);
+    jasmine.clock().tick(300);
     
     // Should only process the last value after full debounce
     expect(component.value()).toBe('abc');
-  }));
+  });
 
   it('should clean up on destroy', () => {
     const completeSpy = spyOn(component['inputSubject'], 'complete');
@@ -100,18 +108,18 @@ describe('SearchBoxComponent', () => {
     expect(completeSpy).toHaveBeenCalled();
   });
 
-  it('should trim string values', fakeAsync(() => {
+  it('should trim string values', () => {
     const inputElement = document.createElement('input');
     inputElement.value = '   spaces   ';
     const event = { target: inputElement } as unknown as Event;
     
     component.onInput(event);
-    tick(300);
+    jasmine.clock().tick(300);
     
     expect(component.value()).toBe('spaces');
-  }));
+  });
 
-  it('should not trim non-string values', fakeAsync(() => {
+  it('should not trim non-string values', () => {
     const componentNumber = TestBed.createComponent(SearchBoxComponent<number>);
     componentNumber.componentRef.setInput('value', signal(0));
     componentNumber.componentRef.setInput('type', 'number');
@@ -122,8 +130,8 @@ describe('SearchBoxComponent', () => {
     const event = { target: inputElement } as unknown as Event;
     
     componentNumber.componentInstance.onInput(event);
-    tick(300);
+    jasmine.clock().tick(300);
     
     expect(componentNumber.componentInstance.value()).toBe(123);
-  }));
+  });
 });
