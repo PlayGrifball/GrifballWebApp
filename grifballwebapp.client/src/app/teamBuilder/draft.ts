@@ -9,6 +9,11 @@ import { TeamResponseDto } from '../api/dtos/teamResponseDto';
  * operation names (the page is out of sync and should reload). Teams are identified by
  * their captain's personID and players by their personID, never by object identity,
  * because the lists are replaced on every change.
+ *
+ * Positions come in two kinds. The server (and so SignalR) gives final positions: a captain's
+ * order, a pick's round. A drop gives ngx-drag-drop's index, which still counts the dragged
+ * item where it was (it is hidden, not removed, while dragging). The drop* operations take
+ * the drop index and convert it.
  */
 export interface Draft {
   teams: TeamResponseDto[];
@@ -31,8 +36,8 @@ function withPlayers(team: TeamResponseDto, players: PlayerDto[]): TeamResponseD
   return { ...team, players: players.map((p, i) => p.round === i + 1 ? p : { ...p, round: i + 1 }) };
 }
 
-/** The index to insert at once the moved item has been taken out of the same list. */
-export function indexAfterRemoval(from: number, to: number): number {
+/** The index to insert at once the moved item (at `from`, or -1 if elsewhere) has been taken out of the same list. */
+function indexAfterRemoval(from: number, to: number): number {
   return from !== -1 && from < to ? to - 1 : to;
 }
 
@@ -53,6 +58,12 @@ export function resortCaptain(draft: Draft, personID: number, order: number): Dr
   return { ...draft, teams: renumberCaptains(insertAt(removeAt(draft.teams, from), order - 1, draft.teams[from])) };
 }
 
+/** Re-sorts a dropped team to the drop index (which still counts the dragged team). */
+export function dropTeam(draft: Draft, personID: number, dropIndex: number): Draft | null {
+  const from = teamIndex(draft.teams, personID);
+  return resortCaptain(draft, personID, indexAfterRemoval(from, dropIndex) + 1);
+}
+
 /** Disbands a captain's team: the captain and their picks go back to the pool at `poolIndex`. */
 export function removeCaptain(draft: Draft, personID: number, poolIndex = 0): Draft | null {
   const from = teamIndex(draft.teams, personID);
@@ -64,20 +75,21 @@ export function removeCaptain(draft: Draft, personID: number, poolIndex = 0): Dr
   return { teams: renumberCaptains(removeAt(draft.teams, from)), pool: insertAt(draft.pool, poolIndex, ...returned) };
 }
 
-/** Drafts a pool player onto a team, at `index` among its picks (default: last). */
-export function addPlayerToTeam(draft: Draft, captainID: number, personID: number, index?: number): Draft | null {
+/** Drafts a pool player onto a team as its last pick (the server always appends, TeamService.AddPlayerToTeam). */
+export function addPlayerToTeam(draft: Draft, captainID: number, personID: number): Draft | null {
   const from = playerIndex(draft.pool, personID);
   const to = teamIndex(draft.teams, captainID);
   if (from === -1 || to === -1)
     return null;
   const team = draft.teams[to];
-  const players = insertAt(team.players, index ?? team.players.length, undrafted(draft.pool[from]));
+  const players = [...team.players, undrafted(draft.pool[from])];
   return { teams: draft.teams.map((t, i) => i === to ? withPlayers(team, players) : t), pool: removeAt(draft.pool, from) };
 }
 
 /**
- * Moves a pick from one team to another, or within a team, to `index` among the new
- * team's picks (default: last). `index` counts the picks without the moved one.
+ * Moves a pick from one team to another, or within a team, to `index` among the new team's
+ * picks once the moved one is out (default: last), i.e. round `index + 1` as the server does
+ * (TeamService.MovePlayerToTeam inserts at RoundNumber - 1).
  */
 export function movePlayerToTeam(draft: Draft, previousCaptainID: number, newCaptainID: number, personID: number, index?: number): Draft | null {
   const fromTeam = teamIndex(draft.teams, previousCaptainID);
@@ -95,6 +107,15 @@ export function movePlayerToTeam(draft: Draft, previousCaptainID: number, newCap
   const target = teams[toTeam];
   const players = insertAt(target.players, index ?? target.players.length, player);
   return { ...draft, teams: teams.map((t, i) => i === toTeam ? withPlayers(target, players) : t) };
+}
+
+/** A pick dropped on a team's picks at the drop index (default: last). */
+export function dropPick(draft: Draft, previousCaptainID: number, newCaptainID: number, personID: number, dropIndex?: number): Draft | null {
+  if (dropIndex === undefined)
+    return movePlayerToTeam(draft, previousCaptainID, newCaptainID, personID);
+  const sameTeam = previousCaptainID === newCaptainID ? draft.teams[teamIndex(draft.teams, newCaptainID)] : undefined;
+  const from = sameTeam ? playerIndex(sameTeam.players, personID) : -1;
+  return movePlayerToTeam(draft, previousCaptainID, newCaptainID, personID, indexAfterRemoval(from, dropIndex));
 }
 
 /** Undrafts a pick: back to the pool at `poolIndex`. */

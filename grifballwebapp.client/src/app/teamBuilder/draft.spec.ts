@@ -1,7 +1,7 @@
 import { PlayerDto } from '../api/dtos/playerDto';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import {
-  addCaptain, addPlayerToTeam, Draft, indexAfterRemoval, movePlayerToTeam, movePoolPlayer,
+  addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer,
   removeCaptain, removePlayerFromTeam, resortCaptain,
 } from './draft';
 
@@ -54,9 +54,9 @@ describe('team builder draft operations', () => {
   });
 
   it('addPlayerToTeam drafts from the pool, at an index or last', () => {
-    expect(roster(addPlayerToTeam(draft, 101, 4)!, 101)).toEqual(['1:1', '2:2', '3:4']);
-    const next = addPlayerToTeam(draft, 101, 4, 0)!;
-    expect(roster(next, 101)).toEqual(['1:4', '2:1', '3:2']);
+    // Always the last round, as TeamService.AddPlayerToTeam does.
+    const next = addPlayerToTeam(draft, 101, 4)!;
+    expect(roster(next, 101)).toEqual(['1:1', '2:2', '3:4']);
     expect(pool(next)).toEqual([3, 5]);
     expect(next.teams[1]).toBe(draft.teams[1]);
     expect(addPlayerToTeam(draft, 101, 99)).toBeNull();
@@ -92,9 +92,24 @@ describe('team builder draft operations', () => {
     expect(movePoolPlayer(draft, 99, 0)).toBeNull();
   });
 
-  it('indexAfterRemoval only shifts targets after the removed position', () => {
-    expect(indexAfterRemoval(0, 2)).toBe(1);
-    expect(indexAfterRemoval(2, 0)).toBe(0);
-    expect(indexAfterRemoval(-1, 2)).toBe(2);
+  it('dropTeam takes the drop index, which still counts the dragged team', () => {
+    expect(order(dropTeam(draft, 101, 2)!)).toEqual(['1:102', '2:101', '3:103']); // dropped between 102 and 103
+    expect(order(dropTeam(draft, 103, 0)!)).toEqual(['1:103', '2:101', '3:102']);
+    expect(order(dropTeam(draft, 101, 3)!)).toEqual(['1:102', '2:103', '3:101']); // dropped at the end
+    expect(dropTeam(draft, 99, 0)).toBeNull();
+  });
+
+  it('dropPick takes the drop index within the same team, and a final position on another', () => {
+    expect(roster(dropPick(draft, 101, 101, 1, 2)!, 101)).toEqual(['1:2', '2:1']); // after pick 2
+    expect(roster(dropPick(draft, 101, 101, 2, 0)!, 101)).toEqual(['1:2', '2:1']);
+    expect(roster(dropPick(draft, 101, 101, 1)!, 101)).toEqual(['1:2', '2:1']); // no index: last
+    const onto = { ...draft, teams: draft.teams.map(t => t.captain.personID === 102 ? { ...t, players: [player(7, 1)] } : t) };
+    expect(roster(dropPick(onto, 101, 102, 1, 0)!, 102)).toEqual(['1:1', '2:7']);
+    expect(dropPick(draft, 99, 101, 1, 0)).toBeNull();
+  });
+
+  it('movePlayerToTeam puts the pick at the given index, as a SignalR roundNumber - 1', () => {
+    const onto = { ...draft, teams: draft.teams.map(t => t.captain.personID === 102 ? { ...t, players: [player(7, 1), player(8, 2)] } : t) };
+    expect(roster(movePlayerToTeam(onto, 101, 102, 1, 1)!, 102)).toEqual(['1:7', '2:1', '3:8']);
   });
 });

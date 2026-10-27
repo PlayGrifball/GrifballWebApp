@@ -4,7 +4,7 @@
 </button>
 }
 
-<p>{{StatusText()}}</p>
+<p>{{statusText()}}</p>
 
 <h3>Teams</h3>
 
@@ -31,7 +31,6 @@
             [dndDraggable]="item"
             dndEffectAllowed="move"
             [dndType]="'team'"
-            (dndEnd)="onDragEnd($event)"
             (dndStart)="onDragStart(item, $event, GrabbedThing.Team)">
     <mat-card-header>
       <!--<div mat-card-avatar class="example-header-image"></div>-->
@@ -46,10 +45,9 @@
       @for (player of item.players; track player.personID) {
       <div
            [dndDisableIf]="DisableDraggingPlayerFromTeam()"
-           [dndDraggable]="createDraggedPlayer(player, item)"
+           [dndDraggable]="draggedPicks().get(player.personID)"
            dndEffectAllowed="move"
            [dndType]="'player'"
-           (dndEnd)="onDragEnd($event)"
            (dndStart)="onDragStart(player, $event, GrabbedThing.Player)">
         {{ player.round }} {{ player.name }}
       </div>
@@ -80,7 +78,6 @@
                  [dndDraggable]="item"
                  dndEffectAllowed="move"
                  [dndType]="'availablePlayer'"
-                 (dndEnd)="onDragEnd($event)"
                  (dndStart)="onDragStart(item, $event, GrabbedThing.AvailablePlayer)">
     <span matListItemTitle>{{ item.name }}</span>
   </mat-list-item>

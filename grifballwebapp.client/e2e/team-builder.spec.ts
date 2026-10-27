@@ -30,7 +30,7 @@ function seed(): { teams: Team[]; pool: Player[] } {
 }
 
 /** Logs in as a synthetic commissioner and mocks every API and SignalR call the page makes. */
-async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean } = {}): Promise<Call[]> {
+async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; refuse?: string } = {}): Promise<Call[]> {
   const data = seed();
   const calls: Call[] = [];
 
@@ -59,7 +59,18 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean } = 
     if (path === `/api/Teams/GetPlayerPool/${SEASON_ID}`) return json(data.pool);
     if (path === `/api/Teams/areCaptainsLocked/${SEASON_ID}`) return json(opts.captainsLocked ?? true);
     if (path.startsWith('/api/Teams/') && request.method() === 'POST') {
-      calls.push({ path, body: request.postDataJSON() });
+      const body = request.postDataJSON();
+      calls.push({ path, body });
+      // TeamService rejects with a message (e.g. not your turn); nothing changes on the server.
+      if (opts.refuse)
+        return route.fulfill({ status: 400, contentType: 'text/plain', body: opts.refuse });
+      // Like TeamService.AddCaptain: the new team is named after the captain's signup.
+      if (path === '/api/Teams/AddCaptain/') {
+        const captain = data.pool.find(p => p.personID === body.personID)!;
+        data.pool = data.pool.filter(p => p !== captain);
+        data.teams.splice(body.orderNumber - 1, 0, { teamID: 9, teamName: `${captain.name.replace('Pool ', '')} Crew`, captain: { name: captain.name, personID: captain.personID, order: body.orderNumber }, players: [] });
+        data.teams.forEach((t, i) => t.captain.order = i + 1);
+      }
       return json({});
     }
     // Anything else (toolbar commit info, sidebar, ...) is irrelevant here.
@@ -167,7 +178,8 @@ test('makes a pool player a captain when captains are unlocked', async ({ page }
 
   await drag(poolItem(page, 'Pool Casey'), teamsZone(page));
 
-  await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team', "3 - Pool Casey's Team"]);
+  // Shown at once with a placeholder name, then with the name the server gave the team.
+  await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team', '3 - Casey Crew']);
   await expect.poll(() => poolNames(page)).toEqual(['Pool Alex', 'Pool Blair']);
   await waitForCalls(calls, 1);
   expect(calls[0]).toEqual({ path: '/api/Teams/AddCaptain/', body: { seasonID: SEASON_ID, personID: 103, orderNumber: 3 } });
@@ -203,4 +215,15 @@ test('does not let teams be dragged while captains are locked', async ({ page })
 
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team']);
   expect(calls).toEqual([]);
+});
+
+test('puts the draft back and says why when the server refuses a pick', async ({ page }) => {
+  const calls = await openTeamBuilder(page, { refuse: 'It is not your turn to be making a draft pick' });
+
+  await drag(poolItem(page, 'Pool Blair'), playersArea(page, 'Blue Team'));
+
+  await waitForCalls(calls, 1);
+  await expect(page.getByText('Draft change not saved: It is not your turn to be making a draft pick')).toBeVisible();
+  await expect.poll(() => rosterOf(page, 'Blue Team')).toEqual([]);
+  await expect.poll(() => poolNames(page)).toEqual(['Pool Alex', 'Pool Blair', 'Pool Casey']);
 });

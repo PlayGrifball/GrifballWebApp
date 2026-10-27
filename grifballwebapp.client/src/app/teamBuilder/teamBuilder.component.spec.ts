@@ -6,7 +6,8 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { CaptainDto } from '../api/dtos/captainDto';
@@ -255,18 +256,18 @@ describe('TeamBuilderComponent', () => {
     });
   });
 
-  describe('CurrentCaptainOnDeck', () => {
+  describe('onDeck', () => {
     it('should return null when no teams exist', () => {
       component.teams.set([]);
 
-      expect(component.CurrentCaptainOnDeck()).toBeNull();
+      expect(component.onDeck()).toBeNull();
     });
 
     it('should return null when player pool is empty', () => {
       component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
       component.playerPool.set([]);
 
-      expect(component.CurrentCaptainOnDeck()).toBeNull();
+      expect(component.onDeck()).toBeNull();
     });
 
     it('should return captain with fewest players', () => {
@@ -276,32 +277,32 @@ describe('TeamBuilderComponent', () => {
       ]);
       component.playerPool.set([{ name: 'Player', personID: 4, pick: null, round: null }]);
 
-      const result = component.CurrentCaptainOnDeck();
+      const result = component.onDeck();
 
       expect(result?.personID).toBe(2);
       expect(result?.name).toBe('Cap 2');
     });
   });
 
-  describe('StatusText', () => {
+  describe('statusText', () => {
     it('should return no teams message when teams array is empty', () => {
       component.teams.set([]);
 
-      expect(component.StatusText()).toBe('No Teams Added');
+      expect(component.statusText()).toBe('No Teams Added');
     });
 
     it('should return empty pool message when player pool is empty', () => {
       component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }]);
       component.playerPool.set([]);
 
-      expect(component.StatusText()).toBe('Player pool is empty');
+      expect(component.statusText()).toBe('Player pool is empty');
     });
 
     it('should return captain on deck message', () => {
       component.teams.set([{ teamID: 0, teamName: 'Test', captain: { name: 'Captain Name', personID: 1, order: 1 }, players: [] }]);
       component.playerPool.set([{ name: 'Player', personID: 2, pick: null, round: null }]);
 
-      expect(component.StatusText()).toBe('Captain Name is on deck');
+      expect(component.statusText()).toBe('Captain Name is on deck');
     });
   });
 
@@ -317,38 +318,10 @@ describe('TeamBuilderComponent', () => {
       expect(result.pick).toBeNull();
     });
 
-    it('should map grabbed player correctly', () => {
-      const grabbedPlayer = {
-        player: { name: 'Grabbed', personID: 2, pick: 3, round: 1 },
-        team: { teamID: 0, teamName: 'Team', captain: { name: 'Cap', personID: 1, order: 1 }, players: [] }
-      };
 
-      const result = component.MapToPlayer(grabbedPlayer, GrabbedThing.Player);
-
-      expect(result.name).toBe('Grabbed');
-      expect(result.personID).toBe(2);
-      expect(result.round).toBeNull();
-      expect(result.pick).toBeNull();
-    });
-
-    it('should map team to player correctly', () => {
-      const team: TeamResponseDto = {
-        teamID: 0,
-        teamName: 'Test Team',
-        captain: { name: 'Captain', personID: 3, order: 1 },
-        players: []
-      };
-
-      const result = component.MapToPlayer(team, GrabbedThing.Team);
-
-      expect(result.name).toBe('Captain');
-      expect(result.personID).toBe(3);
-      expect(result.round).toBeNull();
-      expect(result.pick).toBeNull();
-    });
 
     it('should throw error for invalid type', () => {
-      expect(() => component.MapToPlayer({}, 999 as any)).toThrowError('Unable to map to player');
+      expect(() => component.MapToPlayer({}, GrabbedThing.Team)).toThrowError('Unable to map to player');
     });
   });
 
@@ -433,13 +406,80 @@ describe('TeamBuilderComponent', () => {
       fixture.detectChanges();
     });
 
-    it('makes a pool player a captain at the drop position', () => {
+    it('makes a pool player a captain at the drop position, then reloads for the server\'s team name', () => {
+      const saved = new Subject<Object>();
+      mockApiClient.addCaptain.and.returnValue(saved);
       grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[1], 1));
 
       expect(teamNames()).toEqual(['1:101', '2:4', '3:102']);
       expect(pool()).toEqual([3, 5]);
       expect(mockApiClient.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ seasonID: 5, personID: 4, orderNumber: 2 }), 'test-connection-id');
+
+      // The server picks the name (the signup's team name) and does not echo it back to us.
+      const loads = mockApiClient.getTeams.calls.count();
+      mockApiClient.getTeams.and.returnValue(of([
+        { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
+        { teamID: 3, teamName: 'The Fours', captain: cap(4, 2), players: [] },
+        { teamID: 2, teamName: 'Bravo', captain: cap(102, 3), players: [] },
+      ]));
+      saved.next({});
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(component.teams()[1].teamName).toBe('The Fours');
+    });
+
+    // Every drop is applied before the server answers; a refusal must not leave it on screen.
+    const refusals: [string, keyof ApiClientService, () => void][] = [
+      ['new captain', 'addCaptain', () => { grab(component.playerPool()[1], GrabbedThing.AvailablePlayer); component.onDropInTeam(drop(component.playerPool()[1], 1)); }],
+      ['re-sort', 'resortCaptain', () => { grab(component.teams()[0], GrabbedThing.Team); component.onDropInTeam(drop(component.teams()[0], 2)); }],
+      ['draft pick', 'addPlayerToTeam', () => { grab(component.playerPool()[0], GrabbedThing.AvailablePlayer); component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]); }],
+      ['move pick', 'movePlayerToTeam', () => {
+        const alpha = component.teams()[0];
+        const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+        grab(grabbed, GrabbedThing.Player);
+        component.onDropPickInTeam(drop(grabbed), component.teams()[1]);
+      }],
+      ['undraft pick', 'removePlayerFromTeam', () => {
+        const alpha = component.teams()[0];
+        const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+        grab(grabbed, GrabbedThing.Player);
+        component.onDropInPool(drop(grabbed, 0));
+      }],
+      ['disband team', 'removeCaptain', () => { grab(component.teams()[0], GrabbedThing.Team); component.onDropInPool(drop(component.teams()[0], 0)); }],
+    ];
+    for (const [name, request, act] of refusals) {
+      it(`says why and reloads the real draft when the server refuses a drop (${name})`, () => {
+        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: 'It is not your turn to be making a draft pick' })));
+        const loads = mockApiClient.getTeams.calls.count();
+
+        act();
+
+        expect(mockApiClient[request]).toHaveBeenCalled();
+        expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: It is not your turn to be making a draft pick', 'Close');
+        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+        expect(teamNames()).toEqual(['1:101', '2:102']);
+        expect(roster(101)).toEqual(['1:1', '2:2']);
+        expect(pool()).toEqual([3, 4, 5]);
+      });
+    }
+
+    it('gives a generic reason when the refusal has no message', () => {
+      mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2));
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: the server refused it', 'Close');
+    });
+
+    it('builds the drag data for each pick once per change, not per render', () => {
+      const first = component.draggedPicks();
+      fixture.detectChanges();
+      expect(component.draggedPicks()).toBe(first);
+      expect(first.get(1)).toEqual({ team: component.teams()[0], player: component.teams()[0].players[0] });
+
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      expect(component.draggedPicks()).not.toBe(first);
+      expect(component.draggedPicks().get(3)?.team.captain.personID).toBe(102);
     });
 
     it('re-sorts a team, counting the drop index with the dragged team still in the list', () => {
@@ -553,6 +593,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('appends when the drop has no index', () => {
+      mockApiClient.addCaptain.and.returnValue(new Subject<Object>());
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[0]));
       expect(teamNames()).toEqual(['1:101', '2:102', '3:3']);
@@ -707,6 +748,11 @@ describe('TeamBuilderComponent', () => {
       handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 });
       expect(roster(101)).toEqual(['1:2']);
       expect(roster(102)).toEqual(['1:1']);
+    });
+
+    it('puts a moved pick at the round the server chose', () => {
+      handler<any>(mockSignalR.movePlayerToTeam)({ seasonID: SEASON, previousCaptainID: 101, newCaptainID: 101, personID: 2, roundNumber: 1 });
+      expect(roster(101)).toEqual(['1:2', '2:1']);
     });
 
     it('moves a player to the end of their own team', () => {
