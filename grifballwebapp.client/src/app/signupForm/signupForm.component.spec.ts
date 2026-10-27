@@ -13,10 +13,11 @@ describe('SignupFormComponent', () => {
   let httpMock: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
 
+  // Exactly what GET /api/Signups/getTimeslots returns (GrifballWebApp.Server.Signups.TimeslotDto).
   const timeslots = () => [
-    { id: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false, isDisabled: false, isHeader: false },
-    { id: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true, isDisabled: false, isHeader: false },
-    { id: 3, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false, isDisabled: false, isHeader: false },
+    { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+    { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
+    { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
   ];
 
   function setup(seasonID: string | null) {
@@ -130,7 +131,36 @@ describe('SignupFormComponent', () => {
     (component as any).signupForm = () => ({ valid: true });
     component.onSubmit();
     const body = httpMock.expectOne('/api/Signups/UpsertSignup/').request.body;
-    expect(body.timeslots.map((t: any) => [t.id, t.time, t.isChecked])).toEqual([[1, '19:00:00', false], [2, '20:00:00', true], [3, '19:00:00', true]]);
+    expect(body.timeslots).toEqual([
+      { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+      { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
+      { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: true },
+    ]);
+  });
+
+  it('replaces the model on form edits, and ticking one slot ticks only that slot', async () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    await fixture.whenStable();
+    const loaded = component.model();
+
+    fixture.nativeElement.querySelector('mat-checkbox[name="willCaptain"] input').click();
+    await fixture.whenStable();
+    const team = fixture.nativeElement.querySelector('input[name="teamName"]') as HTMLInputElement;
+    team.value = 'Reds';
+    team.dispatchEvent(new Event('input'));
+    const monday = fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row')[0] as HTMLElement;
+    monday.querySelectorAll<HTMLInputElement>('mat-checkbox input')[0].click(); // Monday 19:00
+    await fixture.whenStable();
+
+    expect(component.model()).not.toBe(loaded);
+    expect(loaded.willCaptain).toBeFalse();
+    expect(loaded.timeslots.map(t => t.isChecked)).toEqual([false, true, false]);
+    expect(component.model().willCaptain).toBeTrue();
+    expect(component.model().teamName).toBe('Reds');
+    expect(component.model().timeslots.map(t => [t.optionID, t.isChecked])).toEqual([[41, true], [42, true], [57, false]]);
   });
 
   describe('onSubmit', () => {

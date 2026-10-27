@@ -21,10 +21,10 @@ describe('SignupResponseDto', () => {
 });
 
 describe('TimeslotDto', () => {
-  it('defaults to an unchecked, enabled, non-header slot', () => {
+  it('defaults to an unchecked slot', () => {
     const slot = new TimeslotDto();
     expect(slot).toEqual(jasmine.objectContaining({
-      id: 0, dayOfWeek: '', time: '', isChecked: false, isDisabled: false, isHeader: false
+      optionID: 0, dayOfWeek: '', time: '', isChecked: false
     }));
   });
 });

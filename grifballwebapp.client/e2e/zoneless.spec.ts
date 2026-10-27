@@ -46,11 +46,11 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
 test('home renders the events and past seasons that load after navigation', async ({ page }) => {
   await mockBackend(page, {
     '/api/Home/CurrentAndFutureEvents/': route => json(route, [
-      { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00', end: '2026-05-01T00:00:00', eventType: 'Season' },
+      { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
     ]),
     '/api/Home/PastSeasons': route => json(route, {
       totalCount: 1,
-      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00', end: '2026-02-01T00:00:00', eventType: 'Season' }],
+      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
   });
 
@@ -66,12 +66,12 @@ test('a season page reached by an in-app link renders the data it loads', async 
     '/api/Home/CurrentAndFutureEvents/': route => json(route, []),
     '/api/Home/PastSeasons': route => json(route, {
       totalCount: 1,
-      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00', end: '2026-02-01T00:00:00', eventType: 'Season' }],
+      results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
     '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
     '/api/TeamStandings/GetTeamStandings/3': route => json(route, [{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]),
     '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, [
-      { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', complete: false, time: null },
+      { seasonMatchID: 21, homeCaptain: 'Home Cap', awayCaptain: 'Away Cap', complete: false },
     ]),
     '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
     '/api/Brackets/GetViewerData': route => json(route, { stages: [], matches: [], matchGames: [], participants: [] }),
@@ -91,7 +91,7 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
   const reschedule = {
     matchRescheduleID: 8, seasonMatchID: 80, homeCaptain: 'Red Cap', awayCaptain: 'Blue Cap',
     originalScheduledTime: '2026-03-01T19:00:00Z', newScheduledTime: '2026-03-02T19:00:00Z',
-    reason: 'Travel', requestedByGamertag: 'Red Cap', requestedAt: '2026-02-20T10:00:00Z', status: 0,
+    reason: 'Travel', requestedByGamertag: 'Red Cap', requestedAt: '2026-02-20T10:00:00Z', status: 'Pending',
   };
   let processed = false;
   await mockBackend(page, {
@@ -121,10 +121,12 @@ test('processing a reschedule in the dialog refreshes the commissioner dashboard
 });
 
 test('the user search box debounces typing and the table shows the filtered users', async ({ page }) => {
-  const users = [
-    { userID: 1, userName: 'grif', displayName: 'Grif', gamertag: 'SgtGrif' },
-    { userID: 2, userName: 'simmons', displayName: 'Simmons', gamertag: 'Simmons' },
-  ];
+  // GrifballWebApp.Server UserResponseDto, as the API sends it.
+  const user = (userID: number, userName: string, displayName: string, gamertag: string) => ({
+    userID, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false, accessFailedCount: 0, region: null,
+    displayName, gamertag, discord: null, externalAuthCount: 0, hasPassword: true, roles: [],
+  });
+  const users = [user(1, 'grif', 'Grif', 'SgtGrif'), user(2, 'simmons', 'Simmons', 'Simmons')];
   const requests = await mockBackend(page, {
     '/api/UserManagement/GetUsers': (route, url) => {
       const search = url.searchParams.get('search') ?? '';
@@ -139,13 +141,15 @@ test('the user search box debounces typing and the table shows the filtered user
 
   await page.getByLabel('Search').pressSequentially('grif', { delay: 50 });
 
+  // 'g' alone already narrows the table to one row, so wait for the request for the full
+  // term before looking at the table.
+  const terms = () => searches().map(r => new URL(r.split(' ')[1], 'http://x').searchParams.get('search'));
+  await expect.poll(terms).toContain('grif');
   await expect(page.locator('tr.mat-mdc-row')).toHaveCount(1);
   await expect(page.locator('tr.mat-mdc-row')).toContainText(['SgtGrif']);
-  // The last search is the full term, and the debounce kept it below one request per keystroke
-  // (exact counts depend on timing, so they are not asserted).
-  const terms = searches().map(r => new URL(r.split(' ')[1], 'http://x').searchParams.get('search'));
-  expect(terms.at(-1)).toBe('grif');
-  expect(terms.length).toBeLessThan('grif'.length);
+  // The debounce kept it below one request per keystroke (exact counts depend on timing).
+  expect(terms().at(-1)).toBe('grif');
+  expect(terms().length).toBeLessThan('grif'.length);
 });
 
 test('the team builder renders a captain added by another user over SignalR', async ({ page }) => {
@@ -190,4 +194,59 @@ test('the team builder renders a captain added by another user over SignalR', as
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toHaveCount(0);
+});
+
+test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {
+  // Exactly what GET /api/Signups/getTimeslots sends (GrifballWebApp.Server.Signups.TimeslotDto):
+  // optionID, the day as the enum name, the time as "HH:mm:ss", isChecked.
+  const timeslots = [
+    { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+    { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
+    { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
+    { optionID: 58, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false },
+  ];
+  const posted: any[] = [];
+  await mockBackend(page, {
+    // No signup yet: the action returns Ok(null), which ASP.NET sends as 204 No Content.
+    '/api/Signups/getSignup/5': route => route.fulfill({ status: 204, body: '' }),
+    '/api/Signups/getTimeslots/5': route => json(route, timeslots),
+    '/api/Signups/UpsertSignup/': route => {
+      posted.push(route.request().postDataJSON());
+      return route.fulfill({ status: 200, body: '' });
+    },
+  });
+
+  await page.goto('/season/5/signupForm');
+  const rows = page.locator('app-availability-table tr.mat-mdc-row');
+  await expect(rows).toHaveCount(2);
+  const boxes = (row: number) => rows.nth(row).locator('mat-checkbox input');
+  const checked = async (row: number) => Promise.all((await boxes(row).all()).map(b => b.isChecked()));
+  expect(await checked(0)).toEqual([false, true]);
+  expect(await checked(1)).toEqual([false, false]);
+
+  // One box ticks only that slot.
+  await boxes(0).nth(0).check();
+  await expect.poll(() => checked(0)).toEqual([true, true]);
+  expect(await checked(1)).toEqual([false, false]);
+
+  // The day header ticks only its own row.
+  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await expect.poll(() => checked(1)).toEqual([true, true]);
+  expect(await checked(0)).toEqual([true, true]);
+
+  // Clicking it again clears that row only.
+  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await expect.poll(() => checked(1)).toEqual([false, false]);
+
+  await boxes(1).nth(1).check(); // Tuesday 20:00
+  await page.getByRole('button', { name: 'Submit' }).click();
+
+  await expect.poll(() => posted.length).toBe(1);
+  expect(posted[0].timeslots).toEqual([
+    { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
+    { optionID: 42, dayOfWeek: 'Monday', time: '20:00:00', isChecked: true },
+    { optionID: 57, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
+    { optionID: 58, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: true },
+  ]);
+  expect(posted[0].seasonID).toBe(5);
 });

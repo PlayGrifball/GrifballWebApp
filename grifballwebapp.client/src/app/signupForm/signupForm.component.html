@@ -1,23 +1,23 @@
 <h2>Season Signup</h2>
 
 <form class="app-form" #signupForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-checkbox [(ngModel)]="model().willCaptain" name="willCaptain">
+  <mat-checkbox [ngModel]="model().willCaptain" (ngModelChange)="patch({ willCaptain: $event })" name="willCaptain">
         Willing to captain
   </mat-checkbox>
   <app-error-message [control]="signupForm.controls['willCaptain']" />
 
   <mat-form-field class="app-full-width">
     <mat-label>teamName</mat-label>
-    <input matInput required [(ngModel)]="model().teamName" name="teamName" [disabled]="!model().willCaptain" >
+    <input matInput required [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
     <app-error-message [control]="signupForm.controls['teamName']" />
   </mat-form-field>
 
-  <mat-checkbox [(ngModel)]="model().requiresAssistanceDrafting" name="requiresAssistanceDrafting" [disabled]="!model().willCaptain" >
+  <mat-checkbox [ngModel]="model().requiresAssistanceDrafting" (ngModelChange)="patch({ requiresAssistanceDrafting: $event })" name="requiresAssistanceDrafting" [disabled]="!model().willCaptain" >
     I Require Assistance Drafting
   </mat-checkbox>
   <app-error-message [control]="signupForm.controls['requiresAssistanceDrafting']" />
 
-  <app-availability-table [timeslots]="model().timeslots" (timeslotsChange)="setTimeslots($event)" />
+  <app-availability-table [timeslots]="model().timeslots" (timeslotsChange)="patch({ timeslots: $event ?? [] })" />
 
   <br>
 

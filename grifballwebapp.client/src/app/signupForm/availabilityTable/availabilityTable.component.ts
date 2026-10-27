@@ -5,6 +5,12 @@ import { TimeslotDto } from '../../api/dtos/signupResponseDto';
 import { AvailabilityService } from '../../availability.service';
 import { FormsModule } from '@angular/forms';
 
+/** A grid cell: a copy of a timeslot (with its display time), a day-of-week header, or a filler. */
+export interface TimeslotCell extends TimeslotDto {
+  isDisabled: boolean;
+  isHeader: boolean;
+}
+
 @Component({
     selector: 'app-availability-table',
     imports: [
@@ -36,7 +42,7 @@ export class AvailabilityTableComponent {
   readonly timeColumns = computed(() => this.table().timeColumns);
   readonly dtos = computed(() => this.table().dtos);
 
-  private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotDto[][] } {
+  private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotCell[][] } {
     const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 
@@ -47,17 +53,13 @@ export class AvailabilityTableComponent {
       return this.parseTime(x);
     })
 
-    const rows: TimeslotDto[][] = [];
+    const rows: TimeslotCell[][] = [];
 
     // Create a new row for each day of the week
     uniqueDaysOfWeek.forEach((dayOfWeek, index, arr) => {
-      const row: TimeslotDto[] = [];
+      const row: TimeslotCell[] = [];
 
-      let header = new TimeslotDto();
-      header.isHeader = true;
-      header.dayOfWeek = dayOfWeek;
-      header.time = dayOfWeek.toString();
-      header.id = 0;
+      const header: TimeslotCell = { optionID: 0, dayOfWeek, time: dayOfWeek.toString(), isChecked: false, isDisabled: false, isHeader: true };
 
       // Create a new cell for each time slot, disabled if not a valid timeslot in backend
       timeColumns.forEach((time, index2, arr2) => {
@@ -71,15 +73,9 @@ export class AvailabilityTableComponent {
           return dto.dayOfWeek === dayOfWeek && this.parseTime(dto.time) === time;
         });
 
-        let cell: TimeslotDto;
+        let cell: TimeslotCell;
         if (source === undefined) {
-          cell = new TimeslotDto();
-          cell.isDisabled = true;
-          cell.dayOfWeek = dayOfWeek;
-          cell.time = time;
-          cell.id = 0;
-          cell.isChecked = false;
-          cell.isHeader = false;
+          cell = { optionID: 0, dayOfWeek, time, isChecked: false, isDisabled: true, isHeader: false };
         } else {
           // A copy with the display time and the values not sent from the api
           cell = { ...source, isDisabled: false, isHeader: false, time: this.parseTime(source.time) };
@@ -94,7 +90,7 @@ export class AvailabilityTableComponent {
   }
 
 
-  public getCell(time: string, slots: TimeslotDto[]): TimeslotDto {
+  public getCell(time: string, slots: TimeslotCell[]): TimeslotCell {
 
     if (time === this.availabilityService.DayOfWeek)
       return slots[0];
@@ -103,18 +99,16 @@ export class AvailabilityTableComponent {
     if (c !== undefined) {
       return c;
     }
-    let newRow = new TimeslotDto();
-    newRow.isDisabled = true;
-    return newRow;
+    return { optionID: 0, dayOfWeek: '', time, isChecked: false, isDisabled: true, isHeader: false };
   }
 
-  /** Sets the checked state of the timeslots behind `cells` and emits the new list. */
-  public setChecked(cells: TimeslotDto[], checked: boolean): void {
-    const ids = new Set(cells.filter(c => c.id != 0).map(c => c.id));
-    this.timeslots.update(timeslots => (timeslots ?? []).map(t => ids.has(t.id) ? { ...t, isChecked: checked } : t));
+  /** Sets the checked state of the timeslots behind `cells` (headers and fillers are skipped) and emits the new list. */
+  public setChecked(cells: TimeslotCell[], checked: boolean): void {
+    const optionIDs = new Set(cells.filter(c => !c.isHeader && !c.isDisabled).map(c => c.optionID));
+    this.timeslots.update(timeslots => (timeslots ?? []).map(t => optionIDs.has(t.optionID) ? { ...t, isChecked: checked } : t));
   }
 
-  public dayOfWeekClicked(time: string, slots: TimeslotDto[]) {
+  public dayOfWeekClicked(time: string, slots: TimeslotCell[]) {
     const filtered = slots.filter(x => x.isDisabled === false && x.isHeader === false);
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
     this.setChecked(filtered, !anyTicked);
@@ -127,5 +121,5 @@ export class AvailabilityTableComponent {
   }
 
   /** Rows are rebuilt on every change; keep the row views by day. */
-  public trackRow = (index: number, row: TimeslotDto[]) => row[0]?.dayOfWeek;
+  public trackRow = (index: number, row: TimeslotCell[]) => row[0]?.dayOfWeek;
 }
