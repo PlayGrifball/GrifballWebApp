@@ -135,6 +135,21 @@ describe('AvailabilityTableComponent', () => {
     });
   });
 
+  describe('cost', () => {
+    it('converts each distinct time once per build, however many days share it', () => {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const timeslots: TimeslotDto[] = days.flatMap((dayOfWeek, d) => ['19:00:00', '20:00:00', '21:00:00']
+        .map((time, t) => ({ optionID: d * 10 + t + 1, dayOfWeek, time, isChecked: false })));
+      mockAvailabilityService.parseTime.calls.reset();
+
+      fixture.componentRef.setInput('timeslots', timeslots);
+      expect(component.dtos().length).toBe(7);
+
+      expect(mockAvailabilityService.parseTime).toHaveBeenCalledTimes(3);
+      expect(component.dtos().flat().filter(c => !c.isHeader && !c.isDisabled).length).toBe(21);
+    });
+  });
+
   describe('purity', () => {
     it('builds the same table again from the same timeslot objects, without changing them', () => {
       const timeslots: TimeslotDto[] = [

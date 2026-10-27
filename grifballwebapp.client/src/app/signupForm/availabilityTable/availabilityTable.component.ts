@@ -46,12 +46,11 @@ export class AvailabilityTableComponent {
     const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 
-    let timeColumns = [this.DayOfWeek];
-    timeColumns.push(...[...new Set(timeslots.map(item => item.time))]);
+    // Parse each time once, and index the slots by day and display time for the grid below.
+    const displayTime = new Map([...new Set(timeslots.map(t => t.time))].map(time => [time, this.parseTime(time)]));
+    const byCell = new Map(timeslots.map(t => [`${t.dayOfWeek}|${displayTime.get(t.time)}`, t]));
 
-    timeColumns = timeColumns.map(x => {
-      return this.parseTime(x);
-    })
+    const timeColumns = [this.DayOfWeek, ...new Set(timeslots.map(item => displayTime.get(item.time)!))];
 
     const rows: TimeslotCell[][] = [];
 
@@ -69,16 +68,14 @@ export class AvailabilityTableComponent {
           return;
         }
 
-        const source = timeslots.find((dto, index3, arr3) => {
-          return dto.dayOfWeek === dayOfWeek && this.parseTime(dto.time) === time;
-        });
+        const source = byCell.get(`${dayOfWeek}|${time}`);
 
         let cell: TimeslotCell;
         if (source === undefined) {
           cell = { optionID: 0, dayOfWeek, time, isChecked: false, isDisabled: true, isHeader: false };
         } else {
           // A copy with the display time and the values not sent from the api
-          cell = { ...source, isDisabled: false, isHeader: false, time: this.parseTime(source.time) };
+          cell = { ...source, isDisabled: false, isHeader: false, time };
         }
 
         row.push(cell);
