@@ -12,7 +12,6 @@ import {
   DndDropzoneDirective,
   DndHandleDirective,
   DndPlaceholderRefDirective,
-  DropEffect,
   EffectAllowed,
 } from 'ngx-drag-drop';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -23,6 +22,7 @@ import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SignalRService } from '../api/signalR.service';
+import { addCaptain, addPlayerToTeam, Draft, indexAfterRemoval, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, resortCaptain } from './draft';
 
 interface DropzoneLayout {
   container: string;
@@ -97,313 +97,58 @@ export class TeamBuilderComponent {
       this.load();
     }
 
-    const offAddCaptain = this.signalR.addCaptain((dto) => this.updateDraft((teams, pool) => {
-      if (this.seasonID != dto.seasonID)
-        return false;
-
-      const player = pool.find((p => {
-        return p.personID === dto.personID;
-      }));
-
-      if (player === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      // Remove from player pool
-      const index = pool.indexOf(player);
-      pool.splice(index, 1);
-
-      // Add to teams
-      let newTeam = new TeamResponseDto();
-      newTeam.teamName = dto.teamName;
-      newTeam.captain = new CaptainDto();
-      newTeam.captain.name = dto.captainName;
-      newTeam.captain.order = dto.orderNumber;
-      newTeam.captain.personID = dto.personID;
-      newTeam.players = [];
-      teams.splice(dto.orderNumber - 1, 0, newTeam);
-
-      // Fix order
-      let trueIndex = 1;
-      teams.forEach((t, i) => {
-        t.captain.order = trueIndex++;
-      });
-
-      // TODO: may need to handle out of sync order, also what is user is currently dragging?
-      return true;
-    }));
-
-    const offResortCaptain = this.signalR.resortCaptain((dto) => this.updateDraft((teams, pool) => {
-      if (this.seasonID != dto.seasonID)
-        return false;
-
-      const team = teams.find((t => {
-        return t.captain.personID === dto.personID;
-      }));
-
-      if (team === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      // Remove from team
-      const index = teams.indexOf(team);
-      teams.splice(index, 1);
-
-      // Reinsert at new location
-      teams.splice(dto.orderNumber - 1, 0, team);
-
-      // Fix order
-      let trueIndex = 1;
-      teams.forEach((t, i) => {
-        t.captain.order = trueIndex++;
-      });
-
-      // TODO: may need to handle out of sync order, also what is user is currently dragging?
-      return true;
-    }));
-
-    const offRemoveCaptain = this.signalR.removeCaptain((dto) => this.updateDraft((teams, pool) => {
-      if (this.seasonID != dto.seasonID)
-        return false;
-
-      const team = teams.find((t => {
-        return t.captain.personID === dto.personID;
-      }));
-
-      if (team === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      // Remove from team
-      const index = teams.indexOf(team);
-      teams.splice(index, 1);
-
-      // Map captain to player
-      let captainPlayer = new PlayerDto();
-      captainPlayer.name = team.captain.name;
-      captainPlayer.personID = team.captain.personID;
-      captainPlayer.pick = null;
-      captainPlayer.round = null;
-      // Put captain back in pool
-      pool.splice(0, 0, captainPlayer);
-
-      // Put each player back in pool as well
-      team.players.forEach(p => {
-        p.pick = null;
-        p.round = null;
-        pool.splice(0, 0, p);
-      });
-
-      // Fix order of teams
-      let trueIndex = 1;
-      teams.forEach((t, i) => {
-        t.captain.order = trueIndex++;
-      });
-      return true;
-    }));
-
-    const offAddPlayerToTeam = this.signalR.addPlayerToTeam((dto) => this.updateDraft((teams, pool) => {
-      if (dto.seasonID !== this.seasonID)
-        return false;
-
-      // Find player from the pool
-      const player = pool.find((p => {
-        return p.personID === dto.personID;
-      }));
-
-      if (player === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      // Find team to add to
-      const team = teams.find((t => {
-        return t.captain.personID === dto.captainID;
-      }));
-
-      if (team === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      // Add player to team
-      team.players.push(player);
-
-      // Fix round
-      let trueIndex = 1;
-      team.players.forEach(p => {
-        p.round = trueIndex++;
-      });
-      return true;
-    }));
-
-    const offMovePlayerToTeam = this.signalR.movePlayerToTeam((dto) => this.updateDraft((teams, pool) => {
-      if (dto.seasonID !== this.seasonID)
-        return false;
-
-      // Player was moved from one team to another
-      if (dto.previousCaptainID != dto.newCaptainID) {
-        const team = teams.find((t => {
-          return t.captain.personID === dto.previousCaptainID;
-        }));
-
-        if (team === undefined) {
-          console.log('Detected out of sync');
-          this.load();
-          return false;
-        }
-
-        const player = team.players.find(p => {
-          return p.personID === dto.personID;
-        });
-
-        if (player === undefined) {
-          console.log('Detected out of sync');
-          this.load();
-          return false;
-        }
-
-        // Remove player from their old team
-        const index = team.players.indexOf(player);
-        team.players.splice(index, 1);
-
-        // Fix round
-        let trueIndex = 1;
-        team.players.forEach(p => {
-          p.round = trueIndex++;
-        })
-
-        const newTeam = teams.find((t => {
-          return t.captain.personID === dto.newCaptainID;
-        }));
-
-        if (newTeam === undefined) {
-          console.log('Detected out of sync');
-          this.load();
-          return false;
-        }
-
-        newTeam.players.push(player);
-        // Fix round
-        let trueIndex2 = 1;
-        newTeam.players.forEach(p => {
-          p.round = trueIndex2++;
-        })
-      }
-      else { // Player was moved within existing team
-        const team = teams.find((t => {
-          return t.captain.personID === dto.newCaptainID;
-        }));
-
-        if (team === undefined) {
-          console.log('Detected out of sync');
-          this.load();
-          return false;
-        }
-
-        const player = team.players.find(p => {
-          return p.personID === dto.personID;
-        });
-
-        if (player === undefined) {
-          console.log('Detected out of sync');
-          this.load();
-          return false;
-        }
-
-        // Remove player from their team
-        const index = team.players.indexOf(player);
-        team.players.splice(index, 1);
-
-        team.players.push(player);
-        // Fix round
-        let trueIndex = 1;
-        team.players.forEach(p => {
-          p.round = trueIndex++;
-        })
-      }
-      return true;
-    }));
-
-    const offRemovePlayerFromTeam = this.signalR.removePlayerFromTeam((dto) => this.updateDraft((teams, pool) => {
-      if (dto.seasonID !== this.seasonID)
-        return false;
-
-      // Find team with player
-      const team = teams.find((t => {
-        return t.captain.personID === dto.captainID;
-      }));
-
-      if (team === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      const player = team.players.find(p => {
-        return p.personID === dto.personID;
-      });
-
-      if (player === undefined) {
-        console.log('Detected out of sync');
-        this.load();
-        return false;
-      }
-
-      player.pick = null;
-      player.round = null;
-
-      const index = team.players.indexOf(player);
-      team.players.splice(index, 1);
-
-      let trueIndex = 1;
-      team.players.forEach(p => {
-        p.round = trueIndex++;
-      });
-
-      pool.splice(0, 0, player);
-      return true;
-    }));
-
-    const offLockCaptains = this.signalR.lockCaptains((seasonID) => {
-      if (seasonID !== this.seasonID)
-        return;
-      this.captainLocked.set(true);
-    });
-
-    const offUnlockCaptains = this.signalR.unlockCaptains((seasonID) => {
-      if (seasonID !== this.seasonID)
-        return;
-      this.captainLocked.set(false);
-    });
-
-    // The hub connection outlives this page; drop this page's handlers when it goes away,
-    // otherwise every visit adds another set that keeps acting on a destroyed component.
-    const offs = [offAddCaptain, offResortCaptain, offRemoveCaptain, offAddPlayerToTeam, offMovePlayerToTeam, offRemovePlayerFromTeam, offLockCaptains, offUnlockCaptains];
+    // Other users' changes. The hub connection outlives this page, so the handlers are
+    // removed again when the page is destroyed.
+    const offs = [
+      this.signalR.addCaptain(dto => this.applyRemote(dto.seasonID,
+        draft => addCaptain(draft, dto.personID, dto.teamName, dto.captainName, dto.orderNumber))),
+      this.signalR.resortCaptain(dto => this.applyRemote(dto.seasonID,
+        draft => resortCaptain(draft, dto.personID, dto.orderNumber))),
+      this.signalR.removeCaptain(dto => this.applyRemote(dto.seasonID,
+        draft => removeCaptain(draft, dto.personID))),
+      this.signalR.addPlayerToTeam(dto => this.applyRemote(dto.seasonID,
+        draft => addPlayerToTeam(draft, dto.captainID, dto.personID))),
+      this.signalR.movePlayerToTeam(dto => this.applyRemote(dto.seasonID,
+        draft => movePlayerToTeam(draft, dto.previousCaptainID, dto.newCaptainID, dto.personID))),
+      this.signalR.removePlayerFromTeam(dto => this.applyRemote(dto.seasonID,
+        draft => removePlayerFromTeam(draft, dto.captainID, dto.personID))),
+      this.signalR.lockCaptains(seasonID => {
+        if (seasonID === this.seasonID)
+          this.captainLocked.set(true);
+      }),
+      this.signalR.unlockCaptains(seasonID => {
+        if (seasonID === this.seasonID)
+          this.captainLocked.set(false);
+      }),
+    ];
     this.destroyRef.onDestroy(() => offs.forEach(off => off()));
   }
 
+  /** Applies another user's change, if it is for this season. */
+  private applyRemote(seasonID: number, change: (draft: Draft) => Draft | null): void {
+    if (seasonID !== this.seasonID)
+      return;
+    this.applyDraft(change);
+  }
+
   /**
-   * Applies a SignalR draft update. The handler edits a copy of the draft (new list, team and
-   * player objects, so the current signal values are never mutated) and returns whether it
-   * changed anything; only then are the signals set. Updates for another season, or ones that
-   * found the page out of sync (and reloaded it), return false.
+   * The one way the draft changes (drag and drop and SignalR alike): a pure operation from
+   * ./draft returns the next draft, and only the lists it replaced are set. If the people it
+   * names are not in the draft, the page is out of sync and reloads.
    */
-  private updateDraft(change: (teams: TeamResponseDto[], pool: PlayerDto[]) => boolean): void {
-    const teams = this.teams().map(team => ({ ...team, captain: { ...team.captain }, players: team.players.map(p => ({ ...p })) }));
-    const pool = this.playerPool().map(p => ({ ...p }));
-    if (change(teams, pool)) {
-      this.teams.set(teams);
-      this.playerPool.set(pool);
+  private applyDraft(change: (draft: Draft) => Draft | null): Draft | null {
+    const current: Draft = { teams: this.teams(), pool: this.playerPool() };
+    const next = change(current);
+    if (next === null) {
+      console.log('Detected out of sync');
+      this.load();
+      return null;
     }
+    if (next.teams !== current.teams)
+      this.teams.set(next.teams);
+    if (next.pool !== current.pool)
+      this.playerPool.set(next.pool);
+    return next;
   }
 
   load(): void {
@@ -456,19 +201,6 @@ export class TeamBuilderComponent {
     //this.snackBarService.open('Drag started!', undefined, { duration: 2000 });
   }
 
-  onDragged(item: GrabbedThingTypes, list: GrabbedThingTypes[], effect: DropEffect) {
-    //this.currentDragEffectMsg = `Drag ended with effect "${effect}"!`;
-
-    if (effect === 'move') {
-      const index = list.indexOf(item);
-      // A SignalR update during the drag replaces the list's objects, so the item may be gone.
-      if (index === -1)
-        return;
-      list.splice(index, 1);
-      // TODO: If we remove we need to resort. No need to tell backend but frontend needs to stay up to date
-    }
-  }
-
   onDragEnd(event: DragEvent) {
     //this.currentDraggableEvent = event;
     //this.snackBarService.dismiss();
@@ -479,255 +211,176 @@ export class TeamBuilderComponent {
     //);
   }
 
-  onDropInTeam(event: DndDropEvent, list?: TeamResponseDto[]) {
-    if (!list)
+  private static isDrop(event: DndDropEvent): boolean {
+    return event.dropEffect === 'copy' || event.dropEffect === 'move';
+  }
+
+  /** A pool player dropped on the teams list becomes a captain; a team dropped there is re-sorted. */
+  onDropInTeam(event: DndDropEvent) {
+    if (!TeamBuilderComponent.isDrop(event))
       return;
-    if (event.dropEffect !== 'copy' && event.dropEffect !== 'move')
-      return;
 
-    let index = event.index;
-
-    if (typeof index === 'undefined') {
-      index = list.length;
-    }
-
-    let team = this.MapToTeam(event.data, this.grabbedThing);
-
-    list.splice(index, 0, team);
+    const index = event.index ?? this.teams().length;
 
     // AvailablePlayer -> Team = New team created
     if (this.grabbedThing === GrabbedThing.AvailablePlayer) {
-      // There are no duplicates so we just use index
-      list.forEach((team, index) => {
-        team.captain.order = index + 1;
-      });
+      const player = this.MapToPlayer(event.data, this.grabbedThing);
+      const team = this.MapToTeam(player, GrabbedThing.AvailablePlayer);
+      const next = this.applyDraft(draft => addCaptain(draft, player.personID, team.teamName, team.captain.name, index + 1));
+      if (!next)
+        return;
+      const added = next.teams.find(t => t.captain.personID === player.personID)!;
       const dto = new CaptainPlacementDto();
       dto.seasonID = this.seasonID;
-      dto.personID = team.captain.personID;
-      dto.orderNumber = team.captain.order!; // Order must not be null
+      dto.personID = added.captain.personID;
+      dto.orderNumber = added.captain.order!; // Order must not be null
       this.api.addCaptain(dto, this.signalR.hubConnection.connectionId)
         .subscribe({next: r => console.log(r)});
-      console.log('Added new captain ' + team.captain.name + ' with pick order ' + team.captain.order);
+      console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
     // Team -> Team = Resort team
     else {
-      // When resorting there will be a ghost team we have to ignore. Resort to using our own index
-      let trueIndex = 1;
-      list.forEach((t, i) => {
-        const matchingCaptainID = t.captain.personID == team.captain.personID;
-        if (matchingCaptainID && i !== index) {
-          // Ignore ghost team.
-        }
-        else {
-          t.captain.order = trueIndex++;
-        }
-      });
+      const team = this.MapToTeam(event.data, this.grabbedThing);
+      const from = this.teams().findIndex(t => t.captain.personID === team.captain.personID);
+      const next = this.applyDraft(draft => resortCaptain(draft, team.captain.personID, indexAfterRemoval(from, index) + 1));
+      if (!next)
+        return;
+      const moved = next.teams.find(t => t.captain.personID === team.captain.personID)!;
       const dto = new CaptainPlacementDto();
       dto.seasonID = this.seasonID;
-      dto.personID = team.captain.personID;
-      dto.orderNumber = team.captain.order!; // Order must not be null
-      this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });;
-      console.log('Resorted captains ' + team.captain.name + ' now has pick order ' + team.captain.order);
+      dto.personID = moved.captain.personID;
+      dto.orderNumber = moved.captain.order!; // Order must not be null
       // Announce to backend that team has been resorted
+      this.api.resortCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
+      console.log('Resorted captains ' + moved.captain.name + ' now has pick order ' + moved.captain.order);
     }
   }
 
   createDraggedPlayer(player: PlayerDto, team: TeamResponseDto): GrabbedPlayer {
-    let foo = {
+    return {
       team: team,
       player: player,
     };
-    return foo;
-    //let draggedPlayer = new GrabbedPlayer();
-    //draggedPlayer.player = player;
-    //draggedPlayer.team = team;
-    //return draggedPlayer;
   }
 
-  resortPreviousTeam(grabbedPlayer: GrabbedPlayer) {
-    const previousTeam = this.teams().find((t => {
-      return t.captain.personID === grabbedPlayer.team.captain.personID;
-    }));
-
-    if (previousTeam === undefined) {
+  /** Pool players can be reordered; a pick dropped here is undrafted; a team dropped here is disbanded. */
+  onDropInPool(event: DndDropEvent) {
+    if (!TeamBuilderComponent.isDrop(event))
       return;
+
+    const index = event.index ?? this.playerPool().length;
+
+    // AvailablePlayer -> AvailablePlayer = only the order changes, the backend does not care
+    if (this.grabbedThing === GrabbedThing.AvailablePlayer) {
+      const player = this.MapToPlayer(event.data, this.grabbedThing);
+      this.applyDraft(draft => movePoolPlayer(draft, player.personID, index));
     }
-
-    let trueIndex = 1;
-    previousTeam.players.forEach((p, i) => {
-      const matchingPlayerID = p.personID == grabbedPlayer.player.personID;
-      if (matchingPlayerID) {
-        // Ignore removed player.
-      }
-      else {
-        p.round = trueIndex++;
-      }
-    });
-
-  }
-
-  onDropInPool(event: DndDropEvent, list?: PlayerDto[]) {
-    if (!list)
-      return;
-    if (event.dropEffect !== 'copy' && event.dropEffect !== 'move')
-      return;
-
-    let index = event.index;
-
-    if (typeof index === 'undefined') {
-      index = list.length;
-    }
-
-    let player = this.MapToPlayer(event.data, this.grabbedThing);
-
-    list.splice(index, 0, player);
-
-    // AvailablePlayer -> AvailablePlayer = Do not care
-    if (this.grabbedThing === GrabbedThing.AvailablePlayer)
-      return;
+    // Player -> AvailablePlayer = Player is now available
     else if (this.grabbedThing === GrabbedThing.Player) {
       const grabbedPlayer = event.data as GrabbedPlayer;
-      this.resortPreviousTeam(grabbedPlayer);
+      const captainID = grabbedPlayer.team.captain.personID;
+      const personID = grabbedPlayer.player.personID;
+      if (!this.applyDraft(draft => removePlayerFromTeam(draft, captainID, personID, index)))
+        return;
       // Announce player is now available
       this.api.removePlayerFromTeam({
         seasonID: this.seasonID,
-        captainID: grabbedPlayer.team.captain.personID,
-        personID: player.personID,
+        captainID: captainID,
+        personID: personID,
       }, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
     }
-    // Team -> AvailablePlayer = Player is now available
+    // Team -> AvailablePlayer = the captain and their picks are available again
     else if (this.grabbedThing === GrabbedThing.Team) {
-      let trueIndex = 1;
-      this.teams().forEach((t, i) => {
-        const matchingCaptainID = t.captain.personID == player.personID;
-        if (matchingCaptainID) {
-          // Ignore removed team.
-        }
-        else {
-          t.captain.order = trueIndex++;
-        }
-      });
-
-      // TBD but if we allow putting team back in pool then the players also must go back in pool, not just captain
       const team = event.data as TeamResponseDto;
-      team.players.forEach((p, i) => {
-        list.splice(index!, 0, p);
-      });
-
+      const personID = team.captain.personID;
+      if (!this.applyDraft(draft => removeCaptain(draft, personID, index)))
+        return;
       // Announce to backend that player is now available. RemoveCaptainDto carries no order
       // number: the server re-sequences the remaining captains 1..n itself (TeamService.RemoveCaptain).
-      // This used to send a CaptainPlacementDto, whose unused orderNumber defaulted to 0; the API
-      // ignored it, but it read like "captain stored at order 0".
-      const dto: RemoveCaptainDto = { seasonID: this.seasonID, personID: player.personID };
+      const dto: RemoveCaptainDto = { seasonID: this.seasonID, personID };
       this.api.removeCaptain(dto, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
-
     }
     else {
       console.log('Unexpected type placed in draft pool: ' + this.grabbedThing);
     }
   }
 
+  /** A pool player or another pick dropped on a team's picks. */
   onDropPickInTeam(event: DndDropEvent, team?: TeamResponseDto) {
     if (!team)
       return;
-    if (event.dropEffect !== 'copy' && event.dropEffect !== 'move')
+    if (!TeamBuilderComponent.isDrop(event))
       return;
 
-    let index = event.index;
+    const captainID = team.captain.personID;
+    const current = this.teams().find(t => t.captain.personID === captainID);
+    const index = event.index ?? current?.players.length;
 
-    if (typeof index === 'undefined') {
-      index = team.players.length;
-    }
-
-    let player = this.MapToPlayer(event.data, this.grabbedThing);
-    //console.log(event.data);
-    //team.players.push(player);
-    team.players.splice(index, 0, player);
-
-    let trueIndex = 1;
-    team.players.forEach((p, i) => {
-      const matchingCaptainID = p.personID == player.personID;
-      if (matchingCaptainID && i !== index) {
-        // Ignore ghost player.
-      }
-      else {
-        p.round = trueIndex++;
-        //console.log(player.name + ' is now round ' + player.round);
-      }
-    });
-
+    let personID: number;
     if (this.grabbedThing === GrabbedThing.Player) {
       const grabbedPlayer = event.data as GrabbedPlayer;
-      if (team.captain.personID !== grabbedPlayer.team.captain.personID) {
-        // Need to update previous team
-        this.resortPreviousTeam(grabbedPlayer);
-      }
+      const previousCaptainID = grabbedPlayer.team.captain.personID;
+      personID = grabbedPlayer.player.personID;
+      // Within the same team the drop index still counts the moved pick.
+      const from = previousCaptainID === captainID && current ? current.players.findIndex(p => p.personID === personID) : -1;
+      const to = index === undefined ? undefined : indexAfterRemoval(from, index);
+      const next = this.applyDraft(draft => movePlayerToTeam(draft, previousCaptainID, captainID, personID, to));
+      if (!next)
+        return;
+      const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player moved
       this.api.movePlayerToTeam({
         seasonID: this.seasonID,
-        previousCaptainID: grabbedPlayer.team.captain.personID,
-        newCaptainID: team.captain.personID,
-        personID: player.personID,
+        previousCaptainID: previousCaptainID,
+        newCaptainID: captainID,
+        personID: personID,
         roundNumber: player.round!, // MUST NOT BE NULL :(
       }, this.signalR.hubConnection.connectionId).subscribe({next: r => console.log(r)});
+      console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
     else {
+      const picked = this.MapToPlayer(event.data, this.grabbedThing);
+      personID = picked.personID;
+      const next = this.applyDraft(draft => addPlayerToTeam(draft, captainID, personID, index));
+      if (!next)
+        return;
+      const player = next.teams.find(t => t.captain.personID === captainID)!.players.find(p => p.personID === personID)!;
       // Announce player added to team
       this.api.addPlayerToTeam({
         seasonID: this.seasonID,
-        captainID: team.captain.personID,
-        personID: player.personID,
+        captainID: captainID,
+        personID: personID,
       }, this.signalR.hubConnection.connectionId).subscribe({ next: r => console.log(r) });
+      console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
     }
-
-    console.log(team.captain.name + '\'s ' + player.round + ' pick is ' + player.name);
-    //console.log(team.players.length)
   }
 
+  /** The player a drag carries (drag data is a copy made by ngx-drag-drop). */
   MapToPlayer(data: any, t: GrabbedThing): PlayerDto {
-    let player = new PlayerDto();
-
     if (t === GrabbedThing.AvailablePlayer) {
-      player = data as PlayerDto;
-      player.round = null;
-      player.pick = null;
+      return { ...(data as PlayerDto), round: null, pick: null };
     } else if (t === GrabbedThing.Player) {
-      const grabbedPlayer = data as GrabbedPlayer;
-      player = grabbedPlayer.player; // Not sure we should be nulling these out...
-      player.round = null;
-      player.pick = null;
+      return { ...(data as GrabbedPlayer).player, round: null, pick: null };
     } else if (t === GrabbedThing.Team) {
       const captain = data.captain as CaptainDto;
-      player.personID = captain.personID;
-      player.name = captain.name;
-      player.round = null;
-      player.pick = null;
+      return { personID: captain.personID, name: captain.name, round: null, pick: null };
     } else {
       console.log(data);
       throw new Error('Unable to map to player');
     }
-
-    return player;
   }
 
+  /** The team a drag carries, or the new team a pool player would captain. */
   MapToTeam(data: any, t: GrabbedThing): TeamResponseDto {
-    let team = new TeamResponseDto();
-    team.captain = new CaptainDto();
-    team.players = [];
-
     if (t === GrabbedThing.AvailablePlayer) {
       const player = data as PlayerDto;
-      team.teamName = player.name + "'s Team";
-      team.captain.name = player.name;
-      team.captain.personID = player.personID;
+      return { teamID: 0, teamName: player.name + "'s Team", captain: { name: player.name, personID: player.personID, order: null }, players: [] };
     } else if (t === GrabbedThing.Team) {
-      team = data as TeamResponseDto;
+      return data as TeamResponseDto;
     } else {
       console.log(data);
       throw new Error('Unable to map to team');
     }
-
-    return team;
   }
 
   DisableDraggingTeams(): boolean {

@@ -396,35 +396,6 @@ describe('TeamBuilderComponent', () => {
     });
   });
 
-  describe('onDragged', () => {
-    it('should remove item from list on move effect', () => {
-      const player: PlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
-      const list = [player, { name: 'Player 2', personID: 2, pick: null, round: null }];
-
-      component.onDragged(player, list, 'move');
-
-      expect(list.length).toBe(1);
-      expect(list[0].name).toBe('Player 2');
-    });
-
-    it('should not remove item on copy effect', () => {
-      const player: PlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
-      const list = [player];
-
-      component.onDragged(player, list, 'copy');
-
-      expect(list.length).toBe(1);
-    });
-
-    it('leaves the list alone when the dragged item is no longer in it', () => {
-      const list = [{ name: 'Player 2', personID: 2, pick: null, round: null }];
-
-      component.onDragged({ name: 'Player', personID: 1, pick: null, round: null }, list, 'move');
-
-      expect(list.map(p => p.personID)).toEqual([2]);
-    });
-  });
-
   describe('createDraggedPlayer', () => {
     it('should create grabbed player object', () => {
       const player: PlayerDto = { name: 'Player', personID: 1, pick: null, round: null };
@@ -437,34 +408,198 @@ describe('TeamBuilderComponent', () => {
     });
   });
 
-  describe('resortPreviousTeam', () => {
-    it('should resort previous team after player removal', () => {
-      const player1: PlayerDto = { name: 'P1', personID: 1, pick: 1, round: 1 };
-      const player2: PlayerDto = { name: 'P2', personID: 2, pick: 2, round: 2 };
-      const player3: PlayerDto = { name: 'P3', personID: 3, pick: 3, round: 3 };
-      const team: TeamResponseDto = {
-        teamID: 0,
-        teamName: 'Team',
-        captain: { name: 'Cap', personID: 10, order: 1 },
-        players: [player1, player2, player3]
-      };
-      component.teams.set([team]);
+  describe('drag and drop', () => {
+    // The ids that drop handlers announce come from the drag data, which ngx-drag-drop
+    // hands over as a JSON copy, so the specs use copies too.
+    const copy = <T>(x: T): T => JSON.parse(JSON.stringify(x));
+    const cap = (id: number, order: number): CaptainDto => ({ name: 'Cap ' + id, personID: id, order });
+    const player = (id: number, round: number | null = null): PlayerDto => ({ name: 'Player ' + id, personID: id, pick: round, round });
+    const drop = (data: unknown, index?: number) => ({ data: copy(data), dropEffect: 'move', index } as DndDropEvent);
+    const teamNames = () => component.teams().map(t => `${t.captain.order}:${t.captain.personID}`);
+    const roster = (captainID: number) => component.teams().find(t => t.captain.personID === captainID)!.players.map(p => `${p.round}:${p.personID}`);
+    const pool = () => component.playerPool().map(p => p.personID);
+    const grab = (thing: unknown, kind: GrabbedThing) => component.onDragStart(thing as any, new DragEvent('dragstart'), kind);
 
-      const grabbedPlayer = { player: player2, team: team };
-
-      component.resortPreviousTeam(grabbedPlayer);
-
-      expect(team.players[0].round).toBe(1);
-      expect(team.players[2].round).toBe(2); // player3 gets new round
+    beforeEach(() => {
+      mockApiClient.getTeams.and.returnValue(of([
+        { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
+        { teamID: 2, teamName: 'Bravo', captain: cap(102, 2), players: [] },
+      ]));
+      mockApiClient.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
+      for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
+        (mockApiClient[m] as jasmine.Spy).and.returnValue(of({}));
+      }
+      spyOn(console, 'log');
+      fixture.detectChanges();
     });
 
-    it('should handle missing team gracefully', () => {
-      const grabbedPlayer = {
-        player: { name: 'P1', personID: 1, pick: 1, round: 1 },
-        team: { teamID: 0, teamName: 'Missing', captain: { name: 'Cap', personID: 999, order: 1 }, players: [] }
-      };
+    it('makes a pool player a captain at the drop position', () => {
+      grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
+      component.onDropInTeam(drop(component.playerPool()[1], 1));
 
-      expect(() => component.resortPreviousTeam(grabbedPlayer)).not.toThrow();
+      expect(teamNames()).toEqual(['1:101', '2:4', '3:102']);
+      expect(pool()).toEqual([3, 5]);
+      expect(mockApiClient.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ seasonID: 5, personID: 4, orderNumber: 2 }), 'test-connection-id');
+    });
+
+    it('re-sorts a team, counting the drop index with the dragged team still in the list', () => {
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2)); // after Bravo
+
+      expect(teamNames()).toEqual(['1:102', '2:101']);
+      expect(mockApiClient.resortCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ personID: 101, orderNumber: 2 }), 'test-connection-id');
+    });
+
+    it('drafts a pool player onto a team', () => {
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+
+      expect(roster(102)).toEqual(['1:3']);
+      expect(pool()).toEqual([4, 5]);
+      expect(mockApiClient.addPlayerToTeam).toHaveBeenCalledWith({ seasonID: 5, captainID: 102, personID: 3 }, 'test-connection-id');
+    });
+
+    it('moves a pick to another team and renumbers both', () => {
+      const alpha = component.teams()[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropPickInTeam(drop(grabbed), component.teams()[1]);
+
+      expect(roster(101)).toEqual(['1:2']);
+      expect(roster(102)).toEqual(['1:1']);
+      expect(mockApiClient.movePlayerToTeam).toHaveBeenCalledWith({ seasonID: 5, previousCaptainID: 101, newCaptainID: 102, personID: 1, roundNumber: 1 }, 'test-connection-id');
+    });
+
+    it('moves a pick to the end of its own team', () => {
+      const alpha = component.teams()[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropPickInTeam(drop(grabbed), component.teams()[0]);
+
+      expect(roster(101)).toEqual(['1:2', '2:1']);
+      expect(mockApiClient.movePlayerToTeam).toHaveBeenCalledWith(jasmine.objectContaining({ previousCaptainID: 101, newCaptainID: 101, roundNumber: 2 }), 'test-connection-id');
+    });
+
+    it('moves a pick within its own team to the drop position', () => {
+      const alpha = component.teams()[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropPickInTeam(drop(grabbed, 2), component.teams()[0]); // after pick 2
+
+      expect(roster(101)).toEqual(['1:2', '2:1']);
+    });
+
+    it('returns a pick to the pool at the drop position', () => {
+      const alpha = component.teams()[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[1], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropInPool(drop(grabbed, 1));
+
+      expect(roster(101)).toEqual(['1:1']);
+      expect(pool()).toEqual([3, 2, 4, 5]);
+      expect(component.playerPool()[1].round).toBeNull();
+      expect(mockApiClient.removePlayerFromTeam).toHaveBeenCalledWith({ seasonID: 5, captainID: 101, personID: 2 }, 'test-connection-id');
+    });
+
+    it('reorders the pool without telling the backend', () => {
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropInPool(drop(component.playerPool()[0], 3)); // to the end
+
+      expect(pool()).toEqual([4, 5, 3]);
+      expect(mockApiClient.removePlayerFromTeam).not.toHaveBeenCalled();
+    });
+
+    it('logs an unexpected drag type dropped in the pool', () => {
+      grab({}, 'Mystery' as GrabbedThing);
+      component.onDropInPool(drop({}, 0));
+      expect(console.log).toHaveBeenCalledWith('Unexpected type placed in draft pool: Mystery');
+    });
+
+    it('ignores drops that are not a copy or move, and pick drops without a team', () => {
+      const before = { teams: component.teams(), pool: component.playerPool() };
+      component.onDropInTeam({ data: {}, dropEffect: 'none' } as DndDropEvent);
+      component.onDropInPool({ data: {}, dropEffect: 'link' } as DndDropEvent);
+      component.onDropPickInTeam({ data: {}, dropEffect: 'none' } as DndDropEvent, component.teams()[0]);
+      component.onDropPickInTeam(drop({}), undefined);
+      expect({ teams: component.teams(), pool: component.playerPool() }).toEqual(before);
+    });
+
+    it('never mutates the lists it replaces', () => {
+      const teams = component.teams();
+      const snapshot = copy(teams);
+      const alpha = teams[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropPickInTeam(drop(grabbed), teams[1]);
+
+      expect(component.teams()).not.toBe(teams);
+      expect(teams).toEqual(snapshot);
+    });
+
+    it('does not duplicate a player when another user\'s update lands mid-drag', () => {
+      const dragged = component.playerPool()[1]; // Player 4, the object the drag started from
+      grab(dragged, GrabbedThing.AvailablePlayer);
+
+      // Meanwhile someone drafts Player 3: every list is replaced with new objects.
+      const addPlayer = mockSignalR.addPlayerToTeam.calls.mostRecent().args[0] as (dto: any) => void;
+      addPlayer({ seasonID: 5, captainID: 101, personID: 3 });
+
+      component.onDropPickInTeam(drop(dragged), component.teams()[1]);
+
+      expect(pool()).toEqual([5]);
+      expect(roster(102)).toEqual(['1:4']);
+      const everyone = [...component.teams().flatMap(t => t.players.map(p => p.personID)), ...pool()];
+      expect(new Set(everyone).size).toBe(everyone.length);
+    });
+
+    it('appends when the drop has no index', () => {
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropInTeam(drop(component.playerPool()[0]));
+      expect(teamNames()).toEqual(['1:101', '2:102', '3:3']);
+
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropInPool(drop(component.playerPool()[0]));
+      expect(pool()).toEqual([5, 4]);
+
+      const alpha = component.teams()[0];
+      const grabbed = component.createDraggedPlayer(alpha.players[0], alpha);
+      grab(grabbed, GrabbedThing.Player);
+      component.onDropInPool(drop(grabbed));
+      expect(pool()).toEqual([5, 4, 1]);
+    });
+
+    // Each drop names someone who is gone (e.g. another user moved them first): no request, a reload.
+    const stale = (): [string, () => void, jasmine.Spy][] => {
+      const ghostTeam = { teamID: 9, teamName: 'Gone', captain: cap(999, 9), players: [player(998, 1)] };
+      const ghostPick = component.createDraggedPlayer(player(998, 1), ghostTeam);
+      return [
+        ['new captain', () => { grab(player(997), GrabbedThing.AvailablePlayer); component.onDropInTeam(drop(player(997), 0)); }, mockApiClient.addCaptain],
+        ['re-sorted team', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInTeam(drop(ghostTeam, 0)); }, mockApiClient.resortCaptain],
+        ['pick to pool', () => { grab(ghostPick, GrabbedThing.Player); component.onDropInPool(drop(ghostPick, 0)); }, mockApiClient.removePlayerFromTeam],
+        ['team to pool', () => { grab(ghostTeam, GrabbedThing.Team); component.onDropInPool(drop(ghostTeam, 0)); }, mockApiClient.removeCaptain],
+        ['pick to team', () => { grab(ghostPick, GrabbedThing.Player); component.onDropPickInTeam(drop(ghostPick), component.teams()[1]); }, mockApiClient.movePlayerToTeam],
+      ];
+    };
+    for (const name of ['new captain', 're-sorted team', 'pick to pool', 'team to pool', 'pick to team']) {
+      it(`reloads instead of announcing a stale drop (${name})`, () => {
+        const [, act, request] = stale().find(([n]) => n === name)!;
+        const loads = mockApiClient.getTeams.calls.count();
+        act();
+        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+        expect(request).not.toHaveBeenCalled();
+      });
+    }
+
+    it('reloads instead of guessing when a drop names someone the page no longer has', () => {
+      const dragged = component.playerPool()[0];
+      grab(dragged, GrabbedThing.AvailablePlayer);
+      component.playerPool.set(component.playerPool().slice(1)); // already drafted elsewhere
+      const loads = mockApiClient.getTeams.calls.count();
+
+      component.onDropPickInTeam(drop(dragged), component.teams()[1]);
+
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+      expect(mockApiClient.addPlayerToTeam).not.toHaveBeenCalled();
     });
   });
 
@@ -676,19 +811,21 @@ describe('TeamBuilderComponent', () => {
       expect(poolItems().map(i => i.textContent?.trim())).toEqual(['Player 3', 'Player 4', 'Player 5']);
     });
 
-    it('re-renders after the lists are mutated in place, as drag and drop does', () => {
-      const picked = component.playerPool().splice(1, 1)[0];
-      component.teams()[1].players.push({ ...picked, round: 1 });
-      component.teams().reverse();
-      // Drag and drop mutates the lists inside template event handlers, and Angular marks the
-      // view for check whenever one of those handlers runs. Do the same here.
-      fixture.debugElement.injector.get(ChangeDetectorRef).markForCheck();
+    it('keeps the existing cards and rows when the lists are replaced with new objects', () => {
+      const cardsBefore = teamCards();
+      const poolBefore = poolItems();
+
+      // Same people, new objects (as every update now produces), plus one pick moved.
+      const teams = component.teams().map(t => ({ ...t, captain: { ...t.captain }, players: t.players.map(p => ({ ...p })) }));
+      teams[1].players = [{ ...component.playerPool()[0], round: 1 }];
+      component.teams.set(teams);
+      component.playerPool.set(component.playerPool().slice(1).map(p => ({ ...p })));
       fixture.detectChanges();
 
-      const cards = teamCards();
-      expect(cards.map(c => c.querySelector('mat-card-title')?.textContent?.trim())).toEqual(['2 - Bravo', '1 - Alpha']);
-      expect(Array.from(cards[0].querySelectorAll('.players-area > div')).map(d => d.textContent?.trim())).toEqual(['1 Player 4']);
-      expect(poolItems().map(i => i.textContent?.trim())).toEqual(['Player 3', 'Player 5']);
+      expect(teamCards()[0]).toBe(cardsBefore[0]);
+      expect(teamCards()[1]).toBe(cardsBefore[1]);
+      expect(poolItems()[0]).toBe(poolBefore[1]);
+      expect(Array.from(teamCards()[1].querySelectorAll('.players-area > div')).map(d => d.textContent?.trim())).toEqual(['1 Player 3']);
     });
   });
 });
@@ -757,9 +894,7 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
 
   function dropTeamInPool(team: TeamResponseDto): void {
     component.onDragStart(team, new DragEvent('dragstart'), GrabbedThing.Team);
-    // ngx-drag-drop removes the dragged card from its source list on a "move".
-    component.onDragged(team, component.teams(), 'move');
-    component.onDropInPool({ data: team, dropEffect: 'move', index: 0 } as DndDropEvent, component.playerPool());
+    component.onDropInPool({ data: JSON.parse(JSON.stringify(team)), dropEffect: 'move', index: 0 } as DndDropEvent);
   }
 
   it('posts a RemoveCaptainDto with only seasonID and personID', () => {
