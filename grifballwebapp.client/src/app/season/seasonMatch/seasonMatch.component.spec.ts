@@ -189,8 +189,8 @@ describe('SeasonMatchComponent reporting', () => {
 
   const possible: PossibleMatchDto = {
     matchID: 'abc-123',
-    homeTeam: { teamID: 10, score: 50, outcome: 2, players: [player('Grif', 11)] },
-    awayTeam: { teamID: 20, score: 49, outcome: 3, players: [player('Tucker', 7)] },
+    homeTeam: { teamID: 10, score: 50, outcome: 'Won', players: [player('Grif', 11)] },
+    awayTeam: { teamID: 20, score: 49, outcome: 'Lost', players: [player('Tucker', 7)] },
   };
 
   beforeEach(async () => {

@@ -141,7 +141,7 @@ describe('ApiClientService', () => {
 
   describe('getSignups', () => {
     it('should fetch signups for a season', (done) => {
-      const mockSignups = [{ seasonID: 1, playerID: 1 }] as any;
+      const mockSignups = [{ seasonID: 1, userID: 7, personName: 'Grif', timestamp: '2026-01-07T19:00:00Z', teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] }] as any;
 
       service.getSignups(1).subscribe({
         next: (data) => {
@@ -158,7 +158,7 @@ describe('ApiClientService', () => {
 
   describe('getTimeslots', () => {
     it('should fetch timeslots with offset', (done) => {
-      const mockTimeslots = [{ time: '7:00 PM', dayOfWeek: 'Monday' }] as any;
+      const mockTimeslots = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
 
       service.getTimeslots(1, 300).subscribe({
         next: (data) => {
@@ -175,7 +175,7 @@ describe('ApiClientService', () => {
 
   describe('getSignup', () => {
     it('should fetch signup with offset', (done) => {
-      const mockSignup = { seasonID: 1, playerID: 1 } as any;
+      const mockSignup = { seasonID: 1, userID: 7, personName: 'Grif', timestamp: '2026-01-07T19:00:00Z', teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] } as any;
 
       service.getSignup(1, 300).subscribe({
         next: (data) => {
@@ -192,7 +192,7 @@ describe('ApiClientService', () => {
 
   describe('getTeams', () => {
     it('should fetch teams for a season', (done) => {
-      const mockTeams = [{ teamID: 1, name: 'Team A' }] as any;
+      const mockTeams = [{ teamID: 1, teamName: 'Team A', captain: { name: 'Cap', personID: 3, order: 1 }, players: [] }];
 
       service.getTeams(1).subscribe({
         next: (data) => {
@@ -209,7 +209,7 @@ describe('ApiClientService', () => {
 
   describe('getPlayerPool', () => {
     it('should fetch player pool for a season', (done) => {
-      const mockPlayers = [{ playerID: 1, gamertag: 'Player1' }] as any;
+      const mockPlayers = [{ personID: 1, name: 'Player1', round: null, pick: null }];
 
       service.getPlayerPool(1).subscribe({
         next: (data) => {

@@ -83,7 +83,7 @@ describe('CommissionerDashboardComponent', () => {
           requestedByGamertag: 'Player1',
           reason: 'Schedule conflict',
           requestedAt: '2024-01-14T10:00:00Z',
-          status: 0
+          status: 'Pending'
         }
       ],
       overdueMatches: [
@@ -159,7 +159,7 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 0
+      status: 'Pending'
     };
 
     // Spy on the dialog's open method directly
@@ -181,7 +181,7 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 0
+      status: 'Pending'
     };
 
     component.createDiscordThread(mockReschedule);
@@ -197,7 +197,7 @@ describe('CommissionerDashboardComponent', () => {
 
   describe('reschedule actions', () => {
     const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
-      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 0 } as RescheduleDto;
+      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' } as RescheduleDto;
     const empty = { pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } };
 
     it('reloads the dashboard after the dialog reports a processed request', () => {

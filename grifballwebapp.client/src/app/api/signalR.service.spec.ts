@@ -82,12 +82,12 @@ describe('SignalRService', () => {
   });
 
   const events: [keyof SignalRService, string, unknown][] = [
-    ['addCaptain', 'AddCaptain', { captainID: 1 }],
-    ['resortCaptain', 'ResortCaptain', { captainID: 2 }],
-    ['removeCaptain', 'RemoveCaptain', { captainID: 3 }],
-    ['removePlayerFromTeam', 'RemovePlayerFromTeam', { personID: 4 }],
-    ['movePlayerToTeam', 'MovePlayerToTeam', { personID: 5 }],
-    ['addPlayerToTeam', 'AddPlayerToTeam', { personID: 6 }],
+    ['addCaptain', 'AddCaptain', { seasonID: 1, personID: 11, teamName: 'Reds', captainName: 'Red', orderNumber: 1 }],
+    ['resortCaptain', 'ResortCaptain', { seasonID: 1, personID: 12, orderNumber: 2 }],
+    ['removeCaptain', 'RemoveCaptain', { seasonID: 1, personID: 13 }],
+    ['removePlayerFromTeam', 'RemovePlayerFromTeam', { seasonID: 1, captainID: 11, personID: 4 }],
+    ['movePlayerToTeam', 'MovePlayerToTeam', { seasonID: 1, previousCaptainID: 11, newCaptainID: 12, personID: 5, roundNumber: 1 }],
+    ['addPlayerToTeam', 'AddPlayerToTeam', { seasonID: 1, captainID: 11, personID: 6 }],
     ['lockCaptains', 'LockCaptains', 7],
     ['unlockCaptains', 'UnlockCaptains', 8],
   ];

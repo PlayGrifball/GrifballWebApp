@@ -28,8 +28,8 @@ export interface RescheduleDto {
   reason: string;
   requestedByGamertag: string;
   requestedAt: string;
-  status: number;
-  discordThreadID?: number;
+  status: 'Pending' | 'Approved' | 'Rejected'; // RescheduleStatus enum, sent as its name
+  discordThreadID?: string | number | null; // ulong snowflake; only checked for presence
 }
 
 export interface OverdueMatchDto {

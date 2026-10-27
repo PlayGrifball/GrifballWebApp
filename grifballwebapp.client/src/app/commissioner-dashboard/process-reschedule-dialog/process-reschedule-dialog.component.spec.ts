@@ -21,7 +21,7 @@ describe('ProcessRescheduleDialogComponent', () => {
     reason: 'Out of town',
     requestedByGamertag: 'Requester',
     requestedAt: '2026-02-20T12:00:00Z',
-    status: 0,
+    status: 'Pending',
   };
 
   beforeEach(async () => {
