@@ -284,6 +284,33 @@ describe('AppComponent behaviour', () => {
     expect(sidenavLinks).toContain('Current Season');
   });
 
+  it('shows a Current Season link that arrives after the first render in the toolbar, without a resize', async () => {
+    toolbarWidth = 10000;
+    const season = new Subject<number>();
+    api.getCurrentSeasonID.and.returnValue(season);
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+
+    season.next(7);
+    await fixture.whenStable();
+
+    expect(component.visibleNavLinks().map(n => n.title)).toContain('Current Season');
+    const toolbarLinks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.toolbar-links a:not(#hidden)'))
+      .map(a => a.textContent!.trim());
+    expect(toolbarLinks).toContain('Current Season');
+  });
+
+  it('moves the links to the overflow when a resize switches to the mobile layout', () => {
+    fixture.detectChanges();
+    expect(component.visibleNavLinks().length).toBe(2);
+
+    mobile = true;
+    resizeHandler!();
+
+    expect(component.visibleNavLinks()).toEqual([]);
+    expect(component.overflowNavLinks().length).toBe(component.navLinks().length);
+  });
+
   it('stops listening for resizes once destroyed', () => {
     const remove = spyOn(window, 'removeEventListener').and.callThrough();
     fixture.detectChanges();
