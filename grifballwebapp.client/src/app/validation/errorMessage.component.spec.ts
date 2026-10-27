@@ -26,6 +26,13 @@ describe('ErrorMessageComponent', () => {
     expect(messages()).toEqual([]);
   });
 
+  it('renders nothing when the bound control is null', () => {
+    fixture.componentRef.setInput('control', null);
+    fixture.detectChanges();
+    expect(component.errorMessage()).toBeNull();
+    expect(messages()).toEqual([]);
+  });
+
   it('renders nothing for an invalid control that has not been touched', () => {
     fixture.componentRef.setInput('control', new FormControl('', Validators.required));
     fixture.detectChanges();

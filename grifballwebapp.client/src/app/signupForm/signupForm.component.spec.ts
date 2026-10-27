@@ -114,4 +114,40 @@ describe('SignupFormComponent', () => {
 
     expect(fixture.nativeElement.querySelectorAll('app-availability-table tr.mat-mdc-row').length).toBe(2);
   });
+
+  describe('onSubmit', () => {
+    // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
+    const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });
+
+    beforeEach(() => {
+      setup(null);
+      fixture.detectChanges();
+    });
+
+    it('does not submit an invalid form', () => {
+      stubForm(false);
+      component.onSubmit();
+      httpMock.expectNone('/api/Signups/UpsertSignup/');
+    });
+
+    it('submits the signup and confirms it', () => {
+      stubForm(true);
+      component.model.update(model => ({ ...model, seasonID: 5, teamName: 'Reds' }));
+      component.onSubmit();
+
+      const req = httpMock.expectOne('/api/Signups/UpsertSignup/');
+      expect(req.request.body).toEqual(jasmine.objectContaining({ seasonID: 5, teamName: 'Reds' }));
+      req.flush({});
+      expect(snackBar.open).toHaveBeenCalledWith('Signup Submitted', 'OK');
+    });
+
+    it('reports a failed submission', () => {
+      stubForm(true);
+      spyOn(console, 'log');
+      component.onSubmit();
+
+      httpMock.expectOne('/api/Signups/UpsertSignup/').flush('Signups are closed', { status: 400, statusText: 'Bad Request' });
+      expect(snackBar.open).toHaveBeenCalledWith('Error Occurred: Signups are closed', 'OK');
+    });
+  });
 });
