@@ -16,13 +16,7 @@ import { AccountService } from '../account.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SignalRService } from '../api/signalR.service';
-import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, resortCaptain } from './draft';
-
-interface DropzoneLayout {
-  container: string;
-  list: string;
-  dndHorizontal: boolean;
-}
+import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
 
 @Component({
     selector: 'app-team-builder',
@@ -78,17 +72,6 @@ export class TeamBuilderComponent {
     team.players.map(player => [player.personID, this.createDraggedPlayer(player, team)] as const))));
 
   public GrabbedThing: typeof GrabbedThing = GrabbedThing;
-  private readonly verticalLayout: DropzoneLayout = {
-    container: 'row',
-    list: 'column',
-    dndHorizontal: false,
-  };
-  layout: DropzoneLayout = this.verticalLayout;
-  private readonly horizontalLayout: DropzoneLayout = {
-    container: 'row',
-    list: 'row wrap',
-    dndHorizontal: true,
-  };
 
   constructor() {
     // The server's draft is the truth: the latest load replaces what the page shows, and later
@@ -208,12 +191,6 @@ export class TeamBuilderComponent {
     }
   }
 
-  setHorizontalLayout(horizontalLayoutActive: boolean) {
-    this.layout = horizontalLayoutActive
-      ? this.horizontalLayout
-      : this.verticalLayout;
-  }
-
   onDragStart(item: GrabbedThingTypes, event: DragEvent, kind: GrabbedThing) {
     this.grabbedThing = kind;
   }
@@ -221,16 +198,17 @@ export class TeamBuilderComponent {
   /**
    * Sends a drag-and-drop change; the page has already applied it. The request is not tied to
    * the page: it completes even if the user navigates away. If the server refuses it (not your
-   * turn, not signed up, not allowed...), say why and reload the real draft. `reload` also
-   * reloads after a success, for changes the server finishes itself. Once the page is gone,
+   * turn, not signed up, not allowed...), say why and reload the real draft. `saved` gets the
+   * server's answer, for changes the server finishes itself. A success never reloads, since a
+   * reload could replace a later change that is still on its way. Once the page is gone,
    * nothing is shown or loaded.
    */
-  private save(request: Observable<unknown>, reload = false): void {
+  private save<T>(request: Observable<T>, saved?: (response: T) => void): void {
     request.subscribe({
       next: r => {
         console.log(r);
-        if (reload)
-          this.load();
+        if (saved && !this.destroyed)
+          saved(r);
       },
       error: e => {
         if (this.destroyed)
@@ -276,9 +254,10 @@ export class TeamBuilderComponent {
       dto.seasonID = this.seasonID;
       dto.personID = added.captain.personID;
       dto.orderNumber = added.captain.order!; // Order must not be null
-      // The server names the team (the signup's team name, or "<display name>'s Team"),
-      // and does not echo the change back to this connection, so reload to show its name.
-      this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId), true);
+      // The server names the team (the signup's team name, or "<display name>'s Team") and
+      // answers with that name; the broadcast to others skips this connection.
+      this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId),
+        added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName)));
       console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
     // Team -> Team = Resort team

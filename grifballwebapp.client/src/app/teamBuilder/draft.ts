@@ -58,6 +58,14 @@ export function resortCaptain(draft: Draft, personID: number, order: number): Dr
   return { ...draft, teams: renumberCaptains(insertAt(removeAt(draft.teams, from), order - 1, draft.teams[from])) };
 }
 
+/** Gives a captain's team its name (the one the server chose); a team that is gone stays gone. */
+export function renameTeam(draft: Draft, captainID: number, teamName: string): Draft {
+  const index = teamIndex(draft.teams, captainID);
+  if (index === -1 || draft.teams[index].teamName === teamName)
+    return draft;
+  return { ...draft, teams: draft.teams.map((t, i) => i === index ? { ...t, teamName } : t) };
+}
+
 /** Re-sorts a dropped team to the drop index (which still counts the dragged team). */
 export function dropTeam(draft: Draft, personID: number, dropIndex: number): Draft | null {
   const from = teamIndex(draft.teams, personID);

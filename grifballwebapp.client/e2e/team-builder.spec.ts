@@ -65,12 +65,11 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
       // sends as ProblemDetails; nothing changes on the server.
       if (opts.refuse)
         return route.fulfill({ status: 500, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Server error', status: 500, detail: opts.refuse }) });
-      // Like TeamService.AddCaptain: the new team is named after the captain's signup.
+      // Like TeamService.AddCaptain: the new team is named after the captain's signup, and the
+      // response carries that name (CaptainAddedResponseDto).
       if (path === '/api/Teams/AddCaptain/') {
         const captain = data.pool.find(p => p.personID === body.personID)!;
-        data.pool = data.pool.filter(p => p !== captain);
-        data.teams.splice(body.orderNumber - 1, 0, { teamID: 9, teamName: `${captain.name.replace('Pool ', '')} Crew`, captain: { name: captain.name, personID: captain.personID, order: body.orderNumber }, players: [] });
-        data.teams.forEach((t, i) => t.captain.order = i + 1);
+        return json({ teamName: `${captain.name.replace('Pool ', '')} Crew` });
       }
       return json({});
     }
@@ -179,7 +178,7 @@ test('makes a pool player a captain when captains are unlocked', async ({ page }
 
   await drag(poolItem(page, 'Pool Casey'), teamsZone(page));
 
-  // Shown at once with a placeholder name, then with the name the server gave the team.
+  // Shown at once with a placeholder name, then with the name the server answered with (no reload).
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team', '3 - Casey Crew']);
   await expect.poll(() => poolNames(page)).toEqual(['Pool Alex', 'Pool Blair']);
   await waitForCalls(calls, 1);

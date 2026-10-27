@@ -7,7 +7,7 @@ import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
 import { PlayerDto } from './dtos/playerDto';
-import { CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
+import { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
@@ -93,8 +93,9 @@ export class ApiClientService {
     return obj;
   }
 
-  addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
+  /** Answers with the name the server gave the new team (it is not sent back over SignalR). */
+  addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<CaptainAddedResponseDto> {
+    return this.http.post<CaptainAddedResponseDto>('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
   }
 
   resortCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {

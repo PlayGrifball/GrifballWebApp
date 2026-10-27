@@ -8,9 +8,7 @@
 
 <h3>Teams</h3>
 
-<div [class.horizontal]="layout.dndHorizontal"
-     [dndHorizontal]="layout.dndHorizontal"
-     (dndDrop)="onDropInTeam($event)"
+<div (dndDrop)="onDropInTeam($event)"
      [dndDropzone]="['availablePlayer', 'team']"
      class="dndList flexList"
      dndDropzone
@@ -60,9 +58,7 @@
 
 <h3>Draft Pool</h3>
 
-<mat-list [class.horizontal]="layout.dndHorizontal"
-          [dndHorizontal]="layout.dndHorizontal"
-          (dndDrop)="onDropInPool($event)"
+<mat-list (dndDrop)="onDropInPool($event)"
           class="dndList flexList"
           dndDropzone
           dndEffectAllowed="copyMove">

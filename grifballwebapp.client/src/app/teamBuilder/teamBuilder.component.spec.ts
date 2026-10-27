@@ -1,3 +1,4 @@
+import { CaptainAddedResponseDto } from '../api/dtos/captainPlacementDto';
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TeamBuilderComponent } from './teamBuilder.component';
@@ -173,22 +174,6 @@ describe('TeamBuilderComponent', () => {
 
       expect(mockApiClient.lockCaptains).toHaveBeenCalled();
       expect(component.captainLocked()).toBe(true);
-    });
-  });
-
-  describe('setHorizontalLayout', () => {
-    it('should set horizontal layout when true', () => {
-      component.setHorizontalLayout(true);
-
-      expect(component.layout.dndHorizontal).toBe(true);
-      expect(component.layout.list).toBe('row wrap');
-    });
-
-    it('should set vertical layout when false', () => {
-      component.setHorizontalLayout(false);
-
-      expect(component.layout.dndHorizontal).toBe(false);
-      expect(component.layout.list).toBe('column');
     });
   });
 
@@ -400,33 +385,35 @@ describe('TeamBuilderComponent', () => {
       ]));
       mockApiClient.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
       for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
-        (mockApiClient[m] as jasmine.Spy).and.returnValue(of({}));
+        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named' } : {}));
       }
       spyOn(console, 'log');
       fixture.detectChanges();
     });
 
-    it('makes a pool player a captain at the drop position, then reloads for the server\'s team name', () => {
-      const saved = new Subject<Object>();
+    it('makes a pool player a captain at the drop position and takes the name the server answers with', () => {
+      const saved = new Subject<CaptainAddedResponseDto>();
       mockApiClient.addCaptain.and.returnValue(saved);
       grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[1], 1));
 
       expect(teamNames()).toEqual(['1:101', '2:4', '3:102']);
       expect(pool()).toEqual([3, 5]);
+      expect(component.teams()[1].teamName).toBe("Player 4's Team");
       expect(mockApiClient.addCaptain).toHaveBeenCalledWith(jasmine.objectContaining({ seasonID: 5, personID: 4, orderNumber: 2 }), 'test-connection-id');
 
-      // The server picks the name (the signup's team name) and does not echo it back to us.
+      // A later pick is still on its way; the answer must not reload over it.
+      mockApiClient.addPlayerToTeam.and.returnValue(new Subject<Object>());
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
       const loads = mockApiClient.getTeams.calls.count();
-      mockApiClient.getTeams.and.returnValue(of([
-        { teamID: 1, teamName: 'Alpha', captain: cap(101, 1), players: [player(1, 1), player(2, 2)] },
-        { teamID: 3, teamName: 'The Fours', captain: cap(4, 2), players: [] },
-        { teamID: 2, teamName: 'Bravo', captain: cap(102, 3), players: [] },
-      ]));
-      saved.next({});
+
+      saved.next({ teamName: 'The Fours' });
       saved.complete();
-      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
       expect(component.teams()[1].teamName).toBe('The Fours');
+      expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
     });
 
     // Every drop is applied before the server answers; a refusal must not leave it on screen.
@@ -684,7 +671,7 @@ describe('TeamBuilderComponent', () => {
     });
 
     it('appends when the drop has no index', () => {
-      mockApiClient.addCaptain.and.returnValue(new Subject<Object>());
+      mockApiClient.addCaptain.and.returnValue(new Subject<CaptainAddedResponseDto>());
       grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
       component.onDropInTeam(drop(component.playerPool()[0]));
       expect(teamNames()).toEqual(['1:101', '2:102', '3:3']);

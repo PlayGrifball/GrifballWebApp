@@ -1,7 +1,7 @@
 import { PlayerDto } from '../api/dtos/playerDto';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import {
-  addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer,
+  addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, renameTeam,
   removeCaptain, removePlayerFromTeam, resortCaptain,
 } from './draft';
 
@@ -111,5 +111,13 @@ describe('team builder draft operations', () => {
   it('movePlayerToTeam puts the pick at the given index, as a SignalR roundNumber - 1', () => {
     const onto = { ...draft, teams: draft.teams.map(t => t.captain.personID === 102 ? { ...t, players: [player(7, 1), player(8, 2)] } : t) };
     expect(roster(movePlayerToTeam(onto, 101, 102, 1, 1)!, 102)).toEqual(['1:7', '2:1', '3:8']);
+  });
+
+  it('renameTeam names a team, and leaves the draft as it is when nothing changes', () => {
+    const next = renameTeam(draft, 102, 'The Hammers');
+    expect(next.teams[1].teamName).toBe('The Hammers');
+    expect(next.teams[0]).toBe(draft.teams[0]);
+    expect(renameTeam(draft, 102, 'T102')).toBe(draft);
+    expect(renameTeam(draft, 99, 'Gone')).toBe(draft);
   });
 });

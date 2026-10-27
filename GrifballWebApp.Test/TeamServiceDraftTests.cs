@@ -155,7 +155,8 @@ public class TeamServiceDraftTests
         await _context.AddTeam(season, "Team 2", cap2, 2);
         await _context.AddSignup(season, newCap, teamName: "The Hammers");
 
-        await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = newCap.Id, OrderNumber = 2 }, resortOnly: false, "conn-1");
+        var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = newCap.Id, OrderNumber = 2 }, resortOnly: false, "conn-1");
+        Assert.That(returned, Is.EqualTo("The Hammers"));
 
         Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap1.Id, (int?)1), (newCap.Id, (int?)2), (cap2.Id, (int?)3) }));
 
@@ -184,10 +185,11 @@ public class TeamServiceDraftTests
         var cap = await _context.AddUser("capuser", "Disp");
         await _context.AddSignup(season, cap);
 
-        await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: false);
+        var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: false);
 
         var team = await _context.NewContextLike().Teams.SingleAsync();
         Assert.That(team.TeamName, Is.EqualTo("Disp's Team"));
+        Assert.That(returned, Is.EqualTo("Disp's Team"));
         Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (cap.Id, (int?)1) }));
         var note = Published<Notification<CaptainAddedDto>>().Single();
         Assert.That(note.Value.TeamName, Is.EqualTo("Disp's Team"));
@@ -223,11 +225,12 @@ public class TeamServiceDraftTests
         var cap = await _context.AddUser("capuser", "Disp");
         await _context.AddSignup(season, cap);
 
-        await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 2 }, resortOnly: false);
+        var returned = await _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 2 }, resortOnly: false);
 
         await using var ctx = _context.NewContextLike();
         var team = await ctx.Teams.Include(t => t.Captain).SingleAsync(t => t.Captain.UserID == cap.Id);
         Assert.That(team.TeamName, Does.Match(@"^Disp's Team [0-9a-f]{4}$"));
+        Assert.That(returned, Is.EqualTo(team.TeamName), "the name with its suffix");
         Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (otherCap.Id, (int?)1), (cap.Id, (int?)2) }));
     }
 
@@ -255,7 +258,7 @@ public class TeamServiceDraftTests
         await _context.AddTeam(season, "T3", c3, 3);
 
         var dto = new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = c3.Id, OrderNumber = 1 };
-        await _service.AddCaptain(dto, resortOnly: true, "conn-x");
+        Assert.That(await _service.AddCaptain(dto, resortOnly: true, "conn-x"), Is.Null, "a resort names no team");
 
         Assert.That(await CaptainOrders(season.SeasonID), Is.EqualTo(new[] { (c3.Id, (int?)1), (c1.Id, (int?)2), (c2.Id, (int?)3) }));
         Assert.That(await _context.NewContextLike().Teams.CountAsync(), Is.EqualTo(3), "resort must not create teams");
