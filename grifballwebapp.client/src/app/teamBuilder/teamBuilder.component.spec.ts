@@ -529,6 +529,33 @@ describe('TeamBuilderComponent', () => {
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
     });
 
+    it('reloads after a refusal only once the other saves from this page are done, and once', () => {
+      const refused = new Subject<Object>();
+      const pending = new Subject<Object>();
+      mockApiClient.resortCaptain.and.returnValue(refused);
+      mockApiClient.addPlayerToTeam.and.returnValue(pending);
+      grab(component.teams()[0], GrabbedThing.Team);
+      component.onDropInTeam(drop(component.teams()[0], 2));
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      const loads = mockApiClient.getTeams.calls.count();
+
+      refused.error(new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } }));
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: No', 'Close');
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads); // the pick is still on its way
+
+      pending.next({});
+      pending.complete();
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1);
+    });
+
+    it('does not reload after a successful save', () => {
+      const loads = mockApiClient.getTeams.calls.count();
+      grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+      component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+      expect(mockApiClient.getTeams.calls.count()).toBe(loads);
+    });
+
     it('uses the title, or a plain-text body, when there is no detail', () => {
       mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 403, error: { title: 'Forbidden', status: 403 } })));
       grab(component.teams()[0], GrabbedThing.Team);

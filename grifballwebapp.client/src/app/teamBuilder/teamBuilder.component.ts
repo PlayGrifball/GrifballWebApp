@@ -49,6 +49,9 @@ export class TeamBuilderComponent {
   // Every reload goes through here; a newer one cancels the one still loading (see load).
   private readonly reloads = new Subject<void>();
   private destroyed = false;
+  // Saves still on their way, and whether a refusal asked for a reload once they are done.
+  private savesInFlight = 0;
+  private reloadAfterSaves = false;
 
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
@@ -198,12 +201,13 @@ export class TeamBuilderComponent {
   /**
    * Sends a drag-and-drop change; the page has already applied it. The request is not tied to
    * the page: it completes even if the user navigates away. If the server refuses it (not your
-   * turn, not signed up, not allowed...), say why and reload the real draft. `saved` gets the
-   * server's answer, for changes the server finishes itself. A success never reloads, since a
-   * reload could replace a later change that is still on its way. Once the page is gone,
-   * nothing is shown or loaded.
+   * turn, not signed up, not allowed...), say why and reload the real draft once no other save
+   * is on its way. `saved` gets the server's answer, for changes the server finishes itself.
+   * A success never reloads, since a reload could replace a later change that is still on its
+   * way. Once the page is gone, nothing is shown or loaded.
    */
   private save<T>(request: Observable<T>, saved?: (response: T) => void): void {
+    this.savesInFlight++;
     request.subscribe({
       next: r => {
         console.log(r);
@@ -211,12 +215,27 @@ export class TeamBuilderComponent {
           saved(r);
       },
       error: e => {
+        this.savesInFlight--;
         if (this.destroyed)
           return;
         this.snackBarService.open(`Draft change not saved: ${TeamBuilderComponent.refusalReason(e)}`, 'Close');
-        this.load();
+        // Reload once no other save from this page is on its way: an earlier snapshot could miss
+        // one of them, and the server does not echo our own changes back.
+        this.reloadAfterSaves = true;
+        this.reloadIfSettled();
+      },
+      complete: () => {
+        this.savesInFlight--;
+        this.reloadIfSettled();
       },
     });
+  }
+
+  private reloadIfSettled(): void {
+    if (this.savesInFlight === 0 && this.reloadAfterSaves) {
+      this.reloadAfterSaves = false;
+      this.load();
+    }
   }
 
   /**
