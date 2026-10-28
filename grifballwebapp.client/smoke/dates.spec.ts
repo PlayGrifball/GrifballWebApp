@@ -27,9 +27,9 @@ test.describe('dates', () => {
       signupsOpen: new RegExp(`${thisYear}|${Number(thisYear) - 1}`),
       signupsClose: new RegExp(`${thisYear}|${Number(thisYear) + 1}`),
       // league.ts: draft 2099-01-05, season 2099-01-10 to 2099-03-01.
-      draftStart: /1\/5\/2099/,
-      seasonStart: /1\/10\/2099/,
-      seasonEnd: /3\/1\/2099/,
+      draftStart: /2099-01-05/,
+      seasonStart: /2099-01-10/,
+      seasonEnd: /2099-03-01/,
     };
     for (const [name, pattern] of Object.entries(expected)) {
       const input = page.locator(`input[name="${name}"]`);
@@ -40,21 +40,22 @@ test.describe('dates', () => {
     // The season list shows them too.
     await page.goto('/seasonManager');
     const row = page.locator('tr', { hasText: league.name });
-    await expect(row).toContainText('2099');
+    await expect(row).toContainText('1/5/99'); // draft start, short date
     await expect(row).not.toContainText(/invalid/i);
   });
 
   test('a permanent lockout survives saving the user with only a new display name', async ({ adminPage: page, admin, baseUrl }) => {
-    const user = await createLockedOutUser(baseUrl, admin, 'dates-lockout');
+    const user = await createLockedOutUser(baseUrl, admin);
     expect(user.lockoutEnd).toMatch(/^9999-12-31/);
 
     await page.goto(`/usermanagement/edituser/${user.userID}`);
     await expect(page.locator('input[name="userName"]')).toHaveValue(user.userName);
     const lockout = page.locator('input[name="lockoutEnd"]');
-    await expect(lockout).toHaveValue(/9999/);
+    // Shown in local time: in a zone ahead of UTC that is past year 9999 (e.g. 10000-01-01 00:59).
+    await expect(lockout).toHaveValue(/^(9999|10000)-/);
     await expect(lockout).not.toHaveValue(/invalid/i);
 
-    const displayName = `${user.userName} renamed`;
+    const displayName = `${user.userName} new`; // Display names: 30 characters at most.
     await page.locator('input[name="displayName"]').fill(displayName);
     const saved = page.waitForResponse(r => /\/api\/UserManagement\/EditUser/i.test(r.url()));
     await page.getByRole('button', { name: 'Update User' }).click();

@@ -10,7 +10,7 @@ test('merge users: an unknown ID shows "User not found." and the merge stays dis
   const from = page.locator('app-search-box').nth(0).locator('input');
   const to = page.locator('app-search-box').nth(1).locator('input');
 
-  const lookup = page.waitForResponse(r => r.url().includes(`/GetUser/${missing}`));
+  const lookup = page.waitForResponse(r => r.url().toLowerCase().includes(`/getuser/${missing}`));
   await from.fill(String(missing));
   await to.fill(String(admin.userID)); // A real user (the smoke user), so only "from" is unknown.
   expect((await lookup).ok()).toBe(true); // 204, no body.

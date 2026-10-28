@@ -97,7 +97,10 @@ test.describe('team builder', () => {
       await stale.route('**/hub/**', route => route.abort());
       await openTeamBuilder(stale, league);
 
+      // Saved before the stale browser tries: otherwise its request could win the race.
+      const saved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
       await drag(poolItem(a, p5.name), playersArea(a, team2));
+      expect((await saved).ok()).toBe(true);
       await expect.poll(() => roster(a, team2)).toEqual([`1 ${p3.name}`, `2 ${p5.name}`]);
       await expect(poolItem(stale, p5.name)).toBeVisible(); // stale
 

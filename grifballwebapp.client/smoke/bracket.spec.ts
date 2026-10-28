@@ -38,6 +38,7 @@ test.describe('playoff bracket', () => {
     await page.locator('a', { hasText: 'Create Bracket' }).click(); // an <a> without href: no link role
     const dialog = page.locator('mat-dialog-container');
     await dialog.locator('input[name="participantsCount"]').fill('4');
+    await dialog.getByRole('checkbox', { name: 'Double Elimination' }).uncheck();
     await dialog.locator('input[name="bestOf"]').fill('1');
     const refreshed = viewerData(page);
     await dialog.getByRole('button', { name: 'Create Bracket' }).click();

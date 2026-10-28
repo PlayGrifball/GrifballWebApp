@@ -43,14 +43,18 @@ export function smokeUsers(): [Credentials, Credentials] {
 
 /**
  * Names everything this run creates (`smoke-<runid>-...`), so leftovers are easy to recognise.
- * SMOKE_RUN_ID if set (CI passes the workflow run), otherwise made up once and shared with the
+ * At most 8 characters: season and team names are limited to 30. From SMOKE_RUN_ID if set (CI
+ * passes the workflow run ID, shortened to base 36), otherwise made up once and shared with the
  * workers through the environment.
  */
 export function smokeRunId(): string {
   let id = process.env['SMOKE_RUN_ID'];
   if (!id) {
-    id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    process.env['SMOKE_RUN_ID'] = id;
+    id = Date.now().toString(36);
+  } else if (/^\d+$/.test(id)) {
+    id = Number(id).toString(36);
   }
+  id = id.replace(/[^a-z0-9]/gi, '').slice(-8).toLowerCase();
+  process.env['SMOKE_RUN_ID'] = id;
   return id;
 }

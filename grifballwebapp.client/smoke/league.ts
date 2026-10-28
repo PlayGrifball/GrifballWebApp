@@ -5,7 +5,8 @@ import { smokeRunId, type Credentials } from './env';
 // with its own throwaway players. No direct database access and no fixed IDs, so a run works on
 // any preview and never touches the data the preview was seeded with.
 //
-// Everything is named smoke-<runid>-<label>[...]. The API can't delete seasons, users, signups or
+// Everything is named smoke-<runid>-<random>-... (short: season, team and display names are limited
+// to 30 characters, and a team named after its captain is "<user name>'s Team"). The API can't delete seasons, users, signups or
 // brackets, so cleanup is limited to closing the season (all its dates moved to 2001), which keeps
 // it out of the home page's open signups and current/upcoming events. Leftovers are harmless:
 // a closed season and players with random passwords nobody knows.
@@ -28,6 +29,8 @@ export interface Player extends Credentials {
 
 export interface League {
   seasonID: number;
+  /** <runid>-<random>, in every name this league uses. */
+  tag: string;
   name: string;
   players: Player[];
   /** The first `captains` players, in pick order, each captain of a team named by teamName(). */
@@ -35,10 +38,11 @@ export interface League {
   close(): Promise<void>;
 }
 
-export const teamName = (league: { name: string }, captainIndex: number) => `${league.name} Team ${captainIndex + 1}`;
+export const teamName = (league: { tag: string }, captainIndex: number) => `smoke ${league.tag} T${captainIndex + 1}`;
 
-export function smokeName(label: string): string {
-  return `smoke-${smokeRunId()}-${label}`;
+/** <runid>-<random>: unique even when a retry builds the same thing again. At most 12 characters. */
+export function smokeTag(): string {
+  return `${smokeRunId()}-${Math.random().toString(36).slice(2, 5)}`;
 }
 
 function randomPassword(): string {
@@ -52,7 +56,8 @@ function randomPassword(): string {
  */
 export async function createLeague(baseURL: string, admin: Api, label: string,
   opts: { players?: number; captains?: number } = {}): Promise<League> {
-  const name = smokeName(label);
+  const tag = smokeTag();
+  const name = `smoke-${tag}-${label.slice(0, 7)}`;
   const now = Date.now();
   const day = 24 * 3600 * 1000;
   const season: SeasonDto = {
@@ -74,8 +79,8 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
   // A few at a time: each is several requests, and the preview is small.
   for (let i = 0; i < count; i += 4) {
     const batch = Array.from({ length: Math.min(4, count - i) }, (_, j) => i + j);
-    players.push(...await Promise.all(batch.map(n => createPlayer(baseURL, admin, `${name}-p${n + 1}`, seasonID,
-      n < captainCount ? teamName({ name }, n) : null))));
+    players.push(...await Promise.all(batch.map(n => createPlayer(baseURL, admin, `smoke-${tag}-p${n + 1}`, seasonID,
+      n < captainCount ? teamName({ tag }, n) : null))));
   }
 
   const captains = players.slice(0, captainCount);
@@ -85,6 +90,7 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
 
   return {
     seasonID,
+    tag,
     name,
     players,
     captains,
@@ -95,16 +101,13 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
 /** Registers a user, gives them the Player role and signs them up for the season. */
 async function createPlayer(baseURL: string, admin: Api, username: string, seasonID: number,
   captainOf: string | null): Promise<Player> {
-  const credentials = { username, password: randomPassword() };
-  await register(baseURL, credentials);
-  const user = await findUser(admin, username);
-  await admin.post('UserManagement/EditUser', {
-    ...user,
-    roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
-  });
-
-  const api = await Api.login(baseURL, credentials);
+  const { credentials, user, api } = await newUser(baseURL, admin, username);
   try {
+    await admin.post('UserManagement/EditUser', {
+      ...user,
+      roles: user.roles.map(r => ({ ...r, hasRole: r.hasRole || r.roleName === 'Player' })),
+    });
+    await api.relogin(); // Roles are in the token.
     const timeslots = await api.get<TimeslotDto[]>(`Signups/GetTimeslots/${seasonID}?offset=0`);
     await api.post('Signups/UpsertSignup', {
       seasonID,
@@ -120,22 +123,24 @@ async function createPlayer(baseURL: string, admin: Api, username: string, seaso
 }
 
 /** A registered user with a permanent lockout (LockoutEnd = DateTimeOffset.MaxValue). */
-export async function createLockedOutUser(baseURL: string, admin: Api, label: string): Promise<UserResponseDto> {
-  const username = smokeName(label);
-  await register(baseURL, { username, password: randomPassword() });
-  const user = await findUser(admin, username);
+export async function createLockedOutUser(baseURL: string, admin: Api): Promise<UserResponseDto> {
+  const { user, api } = await newUser(baseURL, admin, `smoke-${smokeTag()}-lock`);
+  await api.dispose();
   await admin.post('UserManagement/EditUser', { ...user, lockoutEnd: '9999-12-31T23:59:59.9999999+00:00' });
   return admin.get<UserResponseDto>(`UserManagement/GetUser/${user.userID}`);
 }
 
-export async function findUser(admin: Api, username: string): Promise<UserResponseDto> {
-  const page = await admin.get<{ results: UserResponseDto[] }>(
-    `UserManagement/GetUsers?search=${encodeURIComponent(username)}&pageNumber=1&pageSize=50`);
-  const user = page.results.find(u => u.userName === username);
-  if (!user) {
-    throw new Error(`User ${username} not found after registering`);
-  }
-  return user;
+/**
+ * Registers a user and signs in as them, which gives their ID (no lookup by name: the user search
+ * isn't needed, and fails on PostgreSQL).
+ */
+async function newUser(baseURL: string, admin: Api, username: string):
+  Promise<{ credentials: Credentials; user: UserResponseDto; api: Api }> {
+  const credentials = { username, password: randomPassword() };
+  await register(baseURL, credentials);
+  const api = await Api.login(baseURL, credentials);
+  const user = await admin.get<UserResponseDto>(`UserManagement/GetUser/${api.userID}`);
+  return { credentials, user, api };
 }
 
 /** Best effort: moves every date of the season to 2001 so it no longer shows as open or upcoming. */
