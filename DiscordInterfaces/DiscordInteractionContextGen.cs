@@ -675,7 +675,7 @@ public partial interface IDiscordMessageOptions
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     HttpContent Serialize();
     IDiscordMessageOptions WithContent(string content);
@@ -683,8 +683,8 @@ public partial interface IDiscordMessageOptions
     IDiscordMessageOptions AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
     IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags);
     IDiscordMessageOptions WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordMessageOptions WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
-    IDiscordMessageOptions AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
+    IDiscordMessageOptions WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components);
+    IDiscordMessageOptions AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components);
     IDiscordMessageOptions WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordMessageOptions AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
 }
@@ -698,7 +698,7 @@ public partial interface IDiscordInteractionMessageProperties
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
-    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     IDiscordMessagePollProperties? Poll { get; set; }
     HttpContent Serialize();
@@ -708,8 +708,8 @@ public partial interface IDiscordInteractionMessageProperties
     IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
     IDiscordInteractionMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
     IDiscordInteractionMessageProperties WithFlags(NetCord.MessageFlags? flags);
-    IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
-    IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
+    IDiscordInteractionMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components);
+    IDiscordInteractionMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components);
     IDiscordInteractionMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordInteractionMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
     IDiscordInteractionMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
@@ -3494,7 +3494,7 @@ public partial interface IDiscordWebhookMessageProperties
     bool Tts { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     string? ThreadName { get; set; }
@@ -3508,8 +3508,8 @@ public partial interface IDiscordWebhookMessageProperties
     IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
     IDiscordWebhookMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
-    IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
+    IDiscordWebhookMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components);
+    IDiscordWebhookMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components);
     IDiscordWebhookMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordWebhookMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
     IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags);
@@ -3728,7 +3728,7 @@ public partial interface IDiscordReplyMessageProperties
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties AllowedMentions { get; set; }
     bool? FailIfNotExists { get; set; }
-    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
     IEnumerable<ulong> StickerIds { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     IDiscordMessagePollProperties Poll { get; set; }
@@ -3742,18 +3742,12 @@ public partial interface IDiscordReplyMessageProperties
     IDiscordReplyMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
     IDiscordReplyMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
     IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true);
-    IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
-    IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
+    IDiscordReplyMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components);
+    IDiscordReplyMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components);
     IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
     IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
     IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags);
     IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
-}
-
-
-public partial interface IDiscordMessageComponentProperties  
-{
-    NetCord.Rest.IMessageComponentProperties Original { get; }
 }
 
 
@@ -4591,7 +4585,7 @@ public partial interface IDiscordForumGuildThreadMessageProperties
     string? Content { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get; set; }
     IEnumerable<ulong>? StickerIds { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
@@ -4599,8 +4593,8 @@ public partial interface IDiscordForumGuildThreadMessageProperties
     IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
     IDiscordForumGuildThreadMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
-    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
+    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components);
+    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components);
     IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
     IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
     IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
@@ -6331,11 +6325,11 @@ public partial class DiscordGatewayClientCache : IDiscordGatewayClientCache
     }
     public IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IReadOnlyList<IDiscordGuildUser> users) 
     {
-        return new DiscordGatewayClientCache(_original.CacheGuildUsers(guildId, users));
+        return new DiscordGatewayClientCache(_original.CacheGuildUsers(guildId, users.Select(x => x.Original).ToList()));
     }
     public IDiscordGatewayClientCache CachePresences(ulong guildId, IReadOnlyList<IDiscordPresence> presences) 
     {
-        return new DiscordGatewayClientCache(_original.CachePresences(guildId, presences));
+        return new DiscordGatewayClientCache(_original.CachePresences(guildId, presences.Select(x => x.Original).ToList()));
     }
     public IDiscordGatewayClientCache CacheRole(IDiscordRole role) 
     {
@@ -7475,7 +7469,7 @@ public partial class DiscordMessageOptions : IDiscordMessageOptions
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public HttpContent Serialize() 
     {
@@ -7501,13 +7495,13 @@ public partial class DiscordMessageOptions : IDiscordMessageOptions
     {
         return new DiscordMessageOptions(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
+    public IDiscordMessageOptions WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components) 
     {
-        return new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.WithComponents(components));
     }
-    public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
+    public IDiscordMessageOptions AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components) 
     {
-        return new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original)));
+        return new DiscordMessageOptions(_original.AddComponents(components));
     }
     public IDiscordMessageOptions WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
@@ -7533,7 +7527,7 @@ public partial class DiscordInteractionMessageProperties : IDiscordInteractionMe
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
     public HttpContent Serialize() 
@@ -7564,13 +7558,13 @@ public partial class DiscordInteractionMessageProperties : IDiscordInteractionMe
     {
         return new DiscordInteractionMessageProperties(_original.WithFlags(flags));
     }
-    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
+    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components) 
     {
-        return new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.WithComponents(components));
     }
-    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
+    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components) 
     {
-        return new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+        return new DiscordInteractionMessageProperties(_original.AddComponents(components));
     }
     public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
@@ -13279,7 +13273,7 @@ public partial class DiscordWebhookMessageProperties : IDiscordWebhookMessagePro
     public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public string? ThreadName { get { return _original.ThreadName; } set { _original.ThreadName = value; } }
@@ -13317,13 +13311,13 @@ public partial class DiscordWebhookMessageProperties : IDiscordWebhookMessagePro
     {
         return new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
+    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components) 
     {
-        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.WithComponents(components));
     }
-    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
+    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components) 
     {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components));
     }
     public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
@@ -13649,7 +13643,7 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
     public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
-    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
     public IEnumerable<ulong> StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public IDiscordMessagePollProperties Poll { get { return new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value.Original; } }
@@ -13693,13 +13687,13 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     {
         return new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
     }
-    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
+    public IDiscordReplyMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components) 
     {
-        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.WithComponents(components));
     }
-    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
+    public IDiscordReplyMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components) 
     {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+        return new DiscordReplyMessageProperties(_original.AddComponents(components));
     }
     public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
     {
@@ -13717,17 +13711,6 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     {
         return new DiscordReplyMessageProperties(_original.WithPoll(poll?.Original));
     }
-}
-
-
-public partial class DiscordMessageComponentProperties : IDiscordMessageComponentProperties 
-{
-    private readonly NetCord.Rest.IMessageComponentProperties _original;
-    public DiscordMessageComponentProperties(NetCord.Rest.IMessageComponentProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.Rest.IMessageComponentProperties Original => _original;
 }
 
 
@@ -14654,12 +14637,12 @@ public partial class DiscordJsonInteractionResolvedData : IDiscordJsonInteractio
         _original = original;
     }
     public NetCord.JsonModels.JsonInteractionResolvedData Original => _original;
-    public Dictionary<ulong, IDiscordJsonUser>? Users { get { return _original.Users; } set { _original.Users = value; } }
-    public Dictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get { return _original.GuildUsers; } set { _original.GuildUsers = value; } }
-    public Dictionary<ulong, IDiscordJsonRole>? Roles { get { return _original.Roles; } set { _original.Roles = value; } }
-    public Dictionary<ulong, IDiscordJsonChannel>? Channels { get { return _original.Channels; } set { _original.Channels = value; } }
-    public Dictionary<ulong, IDiscordJsonMessage>? Messages { get { return _original.Messages; } set { _original.Messages = value; } }
-    public Dictionary<ulong, IDiscordJsonAttachment>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
+    public Dictionary<ulong, IDiscordJsonUser>? Users { get { return _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordJsonUser)new DiscordJsonUser(kv.Value)); } set { _original.Users = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get { return _original.GuildUsers is null ? null : _original.GuildUsers.ToDictionary(kv => kv.Key, kv => (IDiscordJsonGuildUser)new DiscordJsonGuildUser(kv.Value)); } set { _original.GuildUsers = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonRole>? Roles { get { return _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordJsonRole)new DiscordJsonRole(kv.Value)); } set { _original.Roles = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonChannel>? Channels { get { return _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.Channels = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonMessage>? Messages { get { return _original.Messages is null ? null : _original.Messages.ToDictionary(kv => kv.Key, kv => (IDiscordJsonMessage)new DiscordJsonMessage(kv.Value)); } set { _original.Messages = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonAttachment>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordJsonAttachment)new DiscordJsonAttachment(kv.Value)); } set { _original.Attachments = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
 }
 
 
@@ -15093,7 +15076,7 @@ public partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGui
     public string? Content { get { return _original.Content; } set { _original.Content = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<NetCord.Rest.IMessageComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
     public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
@@ -15113,13 +15096,13 @@ public partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGui
     {
         return new DiscordForumGuildThreadMessageProperties(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
+    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties>? components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components));
     }
-    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
+    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<NetCord.Rest.IMessageComponentProperties> components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
+        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components));
     }
     public IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
     {
