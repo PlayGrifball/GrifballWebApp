@@ -699,10 +699,13 @@ public class BracketService : IBracketService
     /// The match status as brackets-manager's getMatchStatus derives it (brackets-viewer reads it to
     /// label matches and to clear origin hints from Completed on): Locked while neither team is known,
     /// Waiting with one, Completed once a result or forfeit is in, Running once a score is in, else Ready.
-    /// Seed placeholders do not count as known teams.
+    /// A match with a BYE is Locked. Seed placeholders do not count as known teams.
     /// </summary>
     public static Status GetMatchStatus(SeasonMatch sm)
     {
+        // A BYE on either side locks the match (brackets-manager's hasBye), whatever else it has.
+        if (sm.HomeTeamResult is SeasonMatchResult.Bye || sm.AwayTeamResult is SeasonMatchResult.Bye)
+            return Status.Locked;
         var home = sm.HomeTeamID is not null;
         var away = sm.AwayTeamID is not null;
         if (!home && !away)

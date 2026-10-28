@@ -367,6 +367,8 @@ public class BracketServiceQueryTests
     [TestCase(1, 2, 0, null, null, null, Status.Running)]
     [TestCase(1, 2, 1, 0, SeasonMatchResult.Won, SeasonMatchResult.Loss, Status.Completed)]
     [TestCase(1, 2, null, null, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, Status.Completed)]
+    [TestCase(1, null, null, null, SeasonMatchResult.Bye, null, Status.Locked)]
+    [TestCase(1, 2, null, null, SeasonMatchResult.Won, SeasonMatchResult.Bye, Status.Locked)]
     public void GetMatchStatus_FollowsBracketsManager(int? home, int? away, int? homeScore, int? awayScore, SeasonMatchResult? homeResult, SeasonMatchResult? awayResult, Status expected)
     {
         var sm = new SeasonMatch
