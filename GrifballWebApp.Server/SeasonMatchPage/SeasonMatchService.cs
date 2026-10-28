@@ -78,6 +78,7 @@ public class SeasonMatchService
                 AwayTeamPreviousMatchID = seasonMatch.BracketMatch.AwayTeamPreviousMatchBracketInfo?.SeasonMatchID,
                 WinnerNextMatchID = nextMatch?.Winner?.Game.SeasonMatchID,
                 LoserNextMatchID = nextMatch?.Loser?.Game.SeasonMatchID,
+                IsGrandFinal = seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath,
             },
             ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
         };
@@ -380,7 +381,20 @@ public class SeasonMatchService
         };
     }
 
-    public async Task HomeForfeit(int seasonMatchID, CancellationToken ct = default)
+    public Task HomeForfeit(int seasonMatchID, CancellationToken ct = default) =>
+        Forfeit(seasonMatchID, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, ct);
+
+    public Task AwayForfeit(int seasonMatchID, CancellationToken ct = default) =>
+        Forfeit(seasonMatchID, SeasonMatchResult.Won, SeasonMatchResult.Forfeit, ct);
+
+    /// <summary>
+    /// Both teams forfeit: both take a loss and nobody wins. In a bracket every match this one feeds gets a BYE
+    /// in its place, so the teams waiting there go straight on.
+    /// </summary>
+    public Task DoubleForfeit(int seasonMatchID, CancellationToken ct = default) =>
+        Forfeit(seasonMatchID, SeasonMatchResult.Forfeit, SeasonMatchResult.Forfeit, ct);
+
+    private async Task Forfeit(int seasonMatchID, SeasonMatchResult homeTeamResult, SeasonMatchResult awayTeamResult, CancellationToken ct)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
@@ -395,41 +409,18 @@ public class SeasonMatchService
         if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
             throw new Exception("Results for this match have already been decided");
 
-        seasonMatch.HomeTeamResult = SeasonMatchResult.Forfeit;
-        seasonMatch.AwayTeamResult = SeasonMatchResult.Won;
+        if (seasonMatch.BracketMatch?.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath)
+            throw new SeasonMatchActionNotAllowedException("The grand final cannot be forfeited, report its games instead");
+
+        seasonMatch.HomeTeamResult = homeTeamResult;
+        seasonMatch.AwayTeamResult = awayTeamResult;
 
         if (seasonMatch.BracketMatch is not null)
         {
-            HandleSettingNextMatchesInBracket(seasonMatch);
-            // A team that lands opposite a BYE goes straight on to its next match
-            await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
-        }
-
-        await _context.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-    }
-
-    public async Task AwayForfeit(int seasonMatchID, CancellationToken ct = default)
-    {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-
-        var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
-
-        if (seasonMatch is null)
-            throw new Exception("Season match does not exist");
-
-        if (seasonMatch.HomeTeamID is null || seasonMatch.AwayTeamID is null)
-            throw new Exception("You cannot report a match for a season match that does not have both teams assigned");
-
-        if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
-            throw new Exception("Results for this match have already been decided");
-
-        seasonMatch.HomeTeamResult = SeasonMatchResult.Won;
-        seasonMatch.AwayTeamResult = SeasonMatchResult.Forfeit;
-
-        if (seasonMatch.BracketMatch is not null)
-        {
-            HandleSettingNextMatchesInBracket(seasonMatch);
+            if (homeTeamResult is SeasonMatchResult.Forfeit && awayTeamResult is SeasonMatchResult.Forfeit)
+                _bracketService.SendByesToNextMatches(seasonMatch);
+            else
+                HandleSettingNextMatchesInBracket(seasonMatch);
             // A team that lands opposite a BYE goes straight on to its next match
             await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
         }

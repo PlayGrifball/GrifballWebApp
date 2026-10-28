@@ -40,6 +40,8 @@ public record BracketInfoDto
     public required int? AwayTeamPreviousMatchID { get; set; }
     public required int? WinnerNextMatchID { get; set; }
     public required int? LoserNextMatchID { get; set; }
+    /// <summary>The grand final or its sudden death: these cannot be forfeited.</summary>
+    public required bool IsGrandFinal { get; set; }
 }
 
 public record ReportedGameDto

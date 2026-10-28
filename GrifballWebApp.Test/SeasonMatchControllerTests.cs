@@ -97,6 +97,59 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
+    public async Task DoubleForfeit_ReturnsOk_AndSetsBothResults()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _context.ChangeTracker.Clear();
+
+        var result = await _controller.DoubleForfeit(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
+
+        _context.ChangeTracker.Clear();
+        var sm = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.InstanceOf<OkResult>());
+            Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
+            Assert.That(sm.AwayTeamResult, Is.EqualTo(SeasonMatchResult.Forfeit));
+        });
+    }
+
+    [TestCase(nameof(SeasonMatchController.HomeForfeit))]
+    [TestCase(nameof(SeasonMatchController.AwayForfeit))]
+    [TestCase(nameof(SeasonMatchController.DoubleForfeit))]
+    public async Task Forfeits_ReturnBadRequest_ForTheGrandFinal(string action)
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 4, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.GrandFinal });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var id = seeded.SeasonMatch.SeasonMatchID;
+
+        var result = action switch
+        {
+            nameof(SeasonMatchController.HomeForfeit) => await _controller.HomeForfeit(id, CancellationToken.None),
+            nameof(SeasonMatchController.AwayForfeit) => await _controller.AwayForfeit(id, CancellationToken.None),
+            _ => await _controller.DoubleForfeit(id, CancellationToken.None),
+        };
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("The grand final cannot be forfeited, report its games instead"));
+    }
+
+    [Test]
+    public void Forfeits_ArePosts()
+    {
+        var type = typeof(SeasonMatchController);
+        Assert.Multiple(() =>
+        {
+            foreach (var name in new[] { nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit) })
+            {
+                Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpPostAttribute>(), Is.Not.Null, name);
+                Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpGetAttribute>(), Is.Null, name);
+            }
+        });
+    }
+
+    [Test]
     public async Task GetPossibleMatches_DelegatesToService()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
@@ -111,7 +164,7 @@ public class SeasonMatchControllerTests
         var type = typeof(SeasonMatchController);
         Assert.Multiple(() =>
         {
-            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit) })
+            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
             foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);

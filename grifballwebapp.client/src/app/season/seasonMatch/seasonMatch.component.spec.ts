@@ -81,6 +81,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     awayTeamPreviousMatchID: null,
     winnerNextMatchID: null,
     loserNextMatchID: null,
+    isGrandFinal: false,
     ...overrides
   });
 
@@ -222,6 +223,12 @@ describe('SeasonMatchComponent reporting', () => {
     ...overrides
   });
 
+  const bracket = (overrides: Partial<BracketInfoDto> = {}): BracketInfoDto => ({
+    homeTeamSeed: 1, awayTeamSeed: 4, homeTeamPreviousMatchID: null, awayTeamPreviousMatchID: null,
+    winnerNextMatchID: 11, loserNextMatchID: 12, isGrandFinal: false,
+    ...overrides
+  });
+
   const player = (gamertag: string, score: number): PossiblePlayerDto =>
     ({ xboxUserID: score, gamertag, score, kills: score + 1, deaths: score + 2, isOnTeam: true });
 
@@ -330,23 +337,75 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
   });
 
-  it('records a home forfeit', () => {
+  function forfeit(label: string): void {
+    button(label)!.click();
+    fixture.detectChanges();
+  }
+
+  it('asks for confirmation before recording a home forfeit', () => {
     load(page());
-    button('Home Team Forfeit')!.click();
+    forfeit('Home Team Forfeit');
+
+    httpMock.expectNone('/api/SeasonMatch/HomeForfeit/7');
+    expect(text()).toContain('The home team forfeits and the away team wins.');
+    expect(button('Home Team Forfeit')).toBeUndefined();
+
+    forfeit('Confirm Forfeit');
     expect(component.isSubmittingMatch()).toBeTrue();
 
-    httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7').flush('ok');
+    const req = httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7');
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     expect(component.isSubmittingMatch()).toBeFalse();
   });
 
   it('records an away forfeit, reloading even on failure', () => {
     load(page());
-    button('Away Team Forfeit')!.click();
+    forfeit('Away Team Forfeit');
+    expect(text()).toContain('The away team forfeits and the home team wins.');
+    forfeit('Confirm Forfeit');
 
-    httpMock.expectOne('/api/SeasonMatch/AwayForfeit/7').flush('no', { status: 500, statusText: 'Server Error' });
+    const req = httpMock.expectOne('/api/SeasonMatch/AwayForfeit/7');
+    expect(req.request.method).toBe('POST');
+    req.flush('no', { status: 500, statusText: 'Server Error' });
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     expect(component.isSubmittingMatch()).toBeFalse();
+  });
+
+  it('records a forfeit by both teams once confirmed', () => {
+    load(page({ isPlayoff: true, bracketInfo: bracket() }));
+    forfeit('Both Teams Forfeit');
+    expect(text()).toContain('Both teams forfeit and take a loss.');
+    forfeit('Confirm Forfeit');
+
+    const req = httpMock.expectOne('/api/SeasonMatch/DoubleForfeit/7');
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+  });
+
+  it('records nothing when a forfeit is cancelled', () => {
+    load(page());
+    forfeit('Both Teams Forfeit');
+    forfeit('Cancel');
+
+    httpMock.expectNone('/api/SeasonMatch/DoubleForfeit/7');
+    expect(component.pendingForfeit()).toBeNull();
+    expect(button('Both Teams Forfeit')).toBeDefined();
+  });
+
+  it('confirming does nothing when no forfeit is pending', () => {
+    load(page());
+    component.confirmForfeit();
+    expect(component.isSubmittingMatch()).toBeFalse();
+  });
+
+  it('offers no forfeit for the grand final or its sudden death, only reporting', () => {
+    load(page({ isPlayoff: true, bracketInfo: bracket({ isGrandFinal: true }) }));
+
+    expect(text()).not.toContain('Forfeit');
+    expect(text()).toContain('Enter Match ID');
   });
 
   it('only accepts a GUID as a match id', async () => {

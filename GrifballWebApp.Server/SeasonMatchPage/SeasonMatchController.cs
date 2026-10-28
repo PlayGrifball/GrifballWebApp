@@ -33,24 +33,42 @@ public class SeasonMatchController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonMatchID:int}", Name = "HomeForfeit")]
-    public async Task<IActionResult?> HomeForfeit([FromRoute] int seasonMatchID, CancellationToken ct)
+    [HttpPost("{seasonMatchID:int}", Name = "HomeForfeit")]
+    public Task<IActionResult> HomeForfeit([FromRoute] int seasonMatchID, CancellationToken ct)
     {
-        await _seasonMatchService.HomeForfeit(seasonMatchID, ct);
-
-        return Ok();
+        return Run(() => _seasonMatchService.HomeForfeit(seasonMatchID, ct));
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonMatchID:int}", Name = "AwayForfeit")]
-    public async Task<IActionResult?> AwayForfeit([FromRoute] int seasonMatchID, CancellationToken ct)
+    [HttpPost("{seasonMatchID:int}", Name = "AwayForfeit")]
+    public Task<IActionResult> AwayForfeit([FromRoute] int seasonMatchID, CancellationToken ct)
     {
-        await _seasonMatchService.AwayForfeit(seasonMatchID, ct);
+        return Run(() => _seasonMatchService.AwayForfeit(seasonMatchID, ct));
+    }
+
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}", Name = "DoubleForfeit")]
+    public Task<IActionResult> DoubleForfeit([FromRoute] int seasonMatchID, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.DoubleForfeit(seasonMatchID, ct));
+    }
+
+    /// <summary>
+    /// Runs a commissioner action, answering a rule it breaks with a 400.
+    /// </summary>
+    private async Task<IActionResult> Run(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (SeasonMatchActionNotAllowedException ex)
+        {
+            return BadRequest(ex.Message);
+        }
 
         return Ok();
     }
-
-    // TODO: Dual forfeits gets complicated because then we gotta possibily walk up the bracket in multiple directions and make bye matches
 
     [HttpGet("{seasonMatchID:int}", Name = "GetPossibleMatches")]
     public Task<List<PossibleMatchDto>> GetPossibleMatches([FromRoute] int seasonMatchID, CancellationToken ct)
