@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AccountService } from '../account.service';
@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
+import { errorText } from '../shared/errorText';
 
 @Component({
     selector: 'app-profile',
@@ -63,9 +64,9 @@ export class ProfileComponent implements OnInit {
         next: r => {
           this.settingGamertag.set(false);
         },
-        error: e => {
+        error: (e: HttpErrorResponse) => {
           console.log(e);
-          this.snackbar.open("Failed set gamertag", "Close");
+          this.snackbar.open(errorText(e, "Failed set gamertag"), "Close");
         }
       });
   }
