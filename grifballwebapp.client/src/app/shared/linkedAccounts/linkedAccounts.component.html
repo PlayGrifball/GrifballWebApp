@@ -1,0 +1,34 @@
+<h3>Linked accounts</h3>
+
+@if (message(); as m) {
+  <p class="linked-message" role="status">{{ m }}</p>
+}
+
+@if (data(); as d) {
+  @if (d.logins.length === 0) {
+    <p>No linked accounts.</p>
+  } @else {
+    <ul class="linked-list">
+      @for (login of d.logins; track login.loginProvider + ':' + login.providerKey) {
+        <li class="linked-login">
+          <span class="linked-provider">{{ login.providerDisplayName }}</span>
+          <span class="linked-key">{{ login.providerKey }}</span>
+          @if (canUnlink()) {
+            <button mat-stroked-button type="button" [disabled]="busy()" (click)="unlink(login)">{{ userID() === undefined ? 'Unlink' : 'Remove' }}</button>
+          }
+        </li>
+      }
+    </ul>
+    @if (!canUnlink()) {
+      <p class="linked-hint">This is the only way to sign in, so it cannot be removed.</p>
+    }
+  }
+
+  @if (userID() === undefined) {
+    <div class="linked-providers">
+      @for (provider of d.providers; track provider.name) {
+        <button mat-flat-button type="button" [disabled]="busy()" (click)="link(provider)">Link {{ provider.displayName }}</button>
+      }
+    </div>
+  }
+}

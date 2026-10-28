@@ -6,6 +6,12 @@ import { ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent } from './profile.component';
 import { AccountService } from '../account.service';
+import { Component } from '@angular/core';
+import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
+
+// The linked-accounts section loads its own data; its behaviour is covered by its own spec.
+@Component({ selector: 'app-linked-accounts', template: '<p>linked accounts</p>' })
+class LinkedAccountsStubComponent {}
 
 describe('ProfileComponent', () => {
   let fixture: ComponentFixture<ProfileComponent>;
@@ -27,6 +33,7 @@ describe('ProfileComponent', () => {
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
+      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
       .compileComponents();
 
     http = TestBed.inject(HttpTestingController);
@@ -134,5 +141,47 @@ describe('ProfileComponent', () => {
     await fixture.whenStable();
 
     expect(text()).toContain('Gamertag: NewTag');
+  });
+});
+
+describe('ProfileComponent linked accounts', () => {
+  let fixture: ComponentFixture<ProfileComponent>;
+  let http: HttpTestingController;
+  let personID: WritableSignal<number | null>;
+
+  beforeEach(async () => {
+    personID = signal<number | null>(null);
+    await TestBed.configureTestingModule({
+      imports: [ProfileComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        { provide: AccountService, useValue: { personID } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
+      ]
+    })
+      .overrideComponent(ProfileComponent, { remove: { imports: [LinkedAccountsComponent] }, add: { imports: [LinkedAccountsStubComponent] } })
+      .compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ProfileComponent);
+  });
+
+  afterEach(() => http.verify());
+
+  function render(): HTMLElement {
+    fixture.detectChanges();
+    http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'Sgt Grif' });
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('shows the linked accounts on your own profile', () => {
+    personID.set(21);
+    expect(render().querySelector('app-linked-accounts')).not.toBeNull();
+  });
+
+  it("hides them on someone else's profile", () => {
+    personID.set(4);
+    expect(render().querySelector('app-linked-accounts')).toBeNull();
   });
 });

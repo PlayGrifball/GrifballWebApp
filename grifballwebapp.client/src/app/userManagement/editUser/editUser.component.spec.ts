@@ -46,11 +46,17 @@ describe('EditUserComponent', () => {
     component = fixture.componentInstance;
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // The linked-accounts section loads its own data once the user arrives; specs that don't look at it leave it unanswered.
+    http.match('/api/ExternalLogins/UserLogins/15').forEach(req => req.flush({ hasPassword: true, logins: [] }));
+    http.verify();
+  });
 
   async function load(): Promise<void> {
     fixture.detectChanges();
     http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
+    fixture.detectChanges();
+    http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '111', providerDisplayName: 'Discord' }] });
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -114,6 +120,23 @@ describe('EditUserComponent', () => {
     http.expectOne('/api/usermanagement/edituser/').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(log).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalledWith('Updated user');
+  });
+
+  it("lists the user's external logins and removes one", async () => {
+    await load();
+    expect(el().textContent).toContain('Linked accounts');
+    expect(el().querySelector('.linked-provider')!.textContent).toBe('Discord');
+
+    (el().querySelector('.linked-login button') as HTMLButtonElement).click();
+    const req = http.expectOne('/api/ExternalLogins/RemoveUserLogin/15');
+    expect(req.request.body).toEqual({ loginProvider: 'Discord', providerKey: '111' });
+    req.flush(null);
+    http.expectOne('/api/ExternalLogins/UserLogins/15').flush({ hasPassword: true, logins: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el().textContent).toContain('Unlinked Discord');
+    expect(el().textContent).toContain('No linked accounts.');
   });
 
   it('fills the form once the user arrives, without a manual detectChanges', async () => {

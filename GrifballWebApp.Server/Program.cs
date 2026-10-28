@@ -8,6 +8,7 @@ using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
 using GrifballWebApp.Server.Preview;
@@ -255,6 +256,7 @@ public class Program
         builder.Services.AddTransient<DiscordSetGamertag>();
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
+        builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();
         builder.Services.AddTransient<TransferLegacyDiscordService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 

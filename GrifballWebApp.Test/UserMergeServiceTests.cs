@@ -35,7 +35,7 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 
@@ -48,7 +48,7 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 
@@ -252,5 +252,180 @@ public class UserMergeServiceTests
         // Assert
         var deletedRole = await _context.UserRoles.FirstOrDefaultAsync(ur => ur.UserId == mergeFromUser.Id && ur.RoleId == role.Id);
         Assert.That(deletedRole, Is.Null);
+    }
+
+    // ---------- External logins ----------
+
+    private async Task<(User To, User From)> TwoUsers(long? fromDiscord = null, long? toDiscord = null)
+    {
+        var to = new User { UserName = "mergeto", DisplayName = "Merge To", DiscordUserID = toDiscord };
+        var from = new User { UserName = "mergefrom", DisplayName = "Merge From", DiscordUserID = fromDiscord };
+        await _context.Users.AddRangeAsync(to, from);
+        await _context.SaveChangesAsync();
+        return (to, from);
+    }
+
+    private async Task AddLogin(int userId, string provider, string key)
+    {
+        _context.UserLogins.Add(new UserLogin { UserId = userId, LoginProvider = provider, ProviderKey = key, ProviderDisplayName = provider });
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task AddDiscordUser(long id)
+    {
+        _context.DiscordUsers.Add(new DiscordUser { DiscordUserID = id, DiscordUsername = "discord" + id });
+        await _context.SaveChangesAsync();
+    }
+
+    private Task<List<UserLogin>> LoginsOf(int userId) =>
+        _context.UserLogins.AsNoTracking().Where(l => l.UserId == userId).OrderBy(l => l.LoginProvider).ToListAsync();
+
+    [Test]
+    public async Task Merge_MovesAllExternalLogins_DeletesSource_AndTargetSignsInWithThem()
+    {
+        // The incident: a login-only account (no DiscordUserID) merged with TransferDiscord + DeleteMergeFrom.
+        var (to, from) = await TwoUsers();
+        await AddLogin(from.Id, "Discord", "111");
+        await AddLogin(from.Id, "Google", "g-1");
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { TransferDiscord = true, DeleteMergeFrom = true });
+
+        var moved = await LoginsOf(to.Id);
+        Assert.That(moved.Select(l => l.LoginProvider), Is.EqualTo(new[] { "Discord", "Google" }));
+        Assert.That(await _context.Users.AsNoTracking().AnyAsync(u => u.Id == from.Id), Is.False);
+
+        // The next "Sign in with Discord" finds the target instead of creating a new account.
+        var userManager = IdentityTestHelpers.NewUserManager(_context);
+        var signsInAs = await userManager.FindByLoginAsync("Discord", "111");
+        Assert.That(signsInAs?.Id, Is.EqualTo(to.Id));
+    }
+
+    [Test]
+    public async Task Merge_KeepsTargetsOwnLogins_AndAllowsSeveralForOneProvider()
+    {
+        var (to, from) = await TwoUsers();
+        await AddLogin(to.Id, "Discord", "222");
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id);
+
+        var keys = (await LoginsOf(to.Id)).Select(l => l.ProviderKey).Order();
+        Assert.That(keys, Is.EqualTo(new[] { "111", "222" }));
+    }
+
+    [Test]
+    public async Task Merge_TransferLoginsOff_KeepsLoginsOnSource()
+    {
+        var (to, from) = await TwoUsers();
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { TransferLogins = false, DeleteMergeFrom = false });
+
+        Assert.That(await LoginsOf(to.Id), Is.Empty);
+        Assert.That((await LoginsOf(from.Id)).Single().ProviderKey, Is.EqualTo("111"));
+    }
+
+    [Test]
+    public async Task Merge_TransferLoginsOff_WithDelete_RemovesLoginsWithSource()
+    {
+        var (to, from) = await TwoUsers();
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { TransferLogins = false, DeleteMergeFrom = true });
+
+        Assert.That(await _context.UserLogins.AsNoTracking().AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task Merge_LinksDiscordFromLogin_WhenNeitherUserHasDiscordUserID()
+    {
+        await AddDiscordUser(111);
+        var (to, from) = await TwoUsers();
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id);
+
+        var target = await _context.Users.AsNoTracking().SingleAsync(u => u.Id == to.Id);
+        Assert.That(target.DiscordUserID, Is.EqualTo(111));
+    }
+
+    [Test]
+    public async Task Merge_KeepsTargetsDiscordUserID_OverTheSourcesDiscordLogin()
+    {
+        await AddDiscordUser(111);
+        await AddDiscordUser(222);
+        var (to, from) = await TwoUsers(toDiscord: 222);
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id);
+
+        var target = await _context.Users.AsNoTracking().SingleAsync(u => u.Id == to.Id);
+        Assert.That(target.DiscordUserID, Is.EqualTo(222));
+    }
+
+    [TestCase("111", false, true, TestName = "Merge_DoesNotLinkDiscord_WhenDiscordUserUnknown")]
+    [TestCase("not-a-number", true, true, TestName = "Merge_DoesNotLinkDiscord_WhenLoginKeyIsNotAnId")]
+    [TestCase("111", true, false, TestName = "Merge_DoesNotLinkDiscord_WhenTransferDiscordOff")]
+    public async Task Merge_DoesNotLinkDiscordFromLogin(string key, bool knownDiscordUser, bool transferDiscord)
+    {
+        if (knownDiscordUser)
+            await AddDiscordUser(111);
+        var (to, from) = await TwoUsers();
+        await AddLogin(from.Id, "Discord", key);
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { TransferDiscord = transferDiscord });
+
+        var target = await _context.Users.AsNoTracking().SingleAsync(u => u.Id == to.Id);
+        Assert.That(target.DiscordUserID, Is.Null);
+    }
+
+    [Test]
+    public async Task Merge_DoesNotLinkDiscord_WhenAThirdUserHasIt()
+    {
+        await AddDiscordUser(111);
+        var (to, from) = await TwoUsers();
+        var third = new User { UserName = "third", DiscordUserID = 111 };
+        _context.Users.Add(third);
+        await _context.SaveChangesAsync();
+        await AddLogin(from.Id, "Discord", "111");
+
+        await _service.Merge(to.Id, from.Id);
+
+        var target = await _context.Users.AsNoTracking().SingleAsync(u => u.Id == to.Id);
+        Assert.That(target.DiscordUserID, Is.Null);
+    }
+
+    [Test]
+    public async Task Merge_TransferDiscord_WithoutDelete_ClearsSourceLink()
+    {
+        // Users.DiscordUserID is unique, so the source must let go of it when the target takes it.
+        await AddDiscordUser(111);
+        var (to, from) = await TwoUsers(fromDiscord: 111);
+
+        await _service.Merge(to.Id, from.Id, new MergeOptions { DeleteMergeFrom = false });
+
+        var users = await _context.Users.AsNoTracking().Where(u => u.Id == to.Id || u.Id == from.Id).ToDictionaryAsync(u => u.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That(users[to.Id].DiscordUserID, Is.EqualTo(111));
+            Assert.That(users[from.Id].DiscordUserID, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task Merge_IntoItself_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.Merge(5, 5));
+        Assert.That(ex!.Message, Does.Contain("itself"));
+    }
+
+    [Test]
+    public async Task Merge_Twice_SecondFailsWithUserNotFound()
+    {
+        var (to, from) = await TwoUsers();
+        await _service.Merge(to.Id, from.Id);
+
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(to.Id, from.Id));
+        Assert.That(ex!.UserId, Is.EqualTo(from.Id));
     }
 }

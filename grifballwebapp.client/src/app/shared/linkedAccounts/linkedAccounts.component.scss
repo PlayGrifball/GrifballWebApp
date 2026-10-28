@@ -1,0 +1,29 @@
+:host {
+  display: block;
+}
+
+.linked-list {
+  list-style: none;
+  padding: 0;
+}
+
+.linked-login {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.linked-provider {
+  font-weight: 500;
+}
+
+.linked-key {
+  opacity: 0.7;
+}
+
+.linked-providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

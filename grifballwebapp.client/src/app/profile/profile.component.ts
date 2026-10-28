@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { LinkedAccountsComponent } from '../shared/linkedAccounts/linkedAccounts.component';
 
 @Component({
     selector: 'app-profile',
@@ -17,7 +18,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
         MatInputModule,
         MatButtonModule,
         MatFormFieldModule,
-        MatSnackBarModule
+        MatSnackBarModule,
+        LinkedAccountsComponent
     ],
     templateUrl: './profile.component.html',
     styleUrl: './profile.component.scss',

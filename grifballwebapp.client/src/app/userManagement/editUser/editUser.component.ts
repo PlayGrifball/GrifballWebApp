@@ -11,6 +11,7 @@ import { toApiDate } from '../../shared/apiDates';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
 
 @Component({
     selector: 'app-edit-user',
@@ -21,7 +22,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         MatButtonModule,
         ErrorMessageComponent,
         MtxDatetimepickerModule,
-        MatCheckboxModule
+        MatCheckboxModule,
+        LinkedAccountsComponent
     ],
     templateUrl: './editUser.component.html',
     styleUrl: './editUser.component.scss',

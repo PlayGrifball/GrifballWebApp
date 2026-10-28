@@ -55,7 +55,19 @@ public class UserManagementController : ControllerBase
     [HttpPost(Name = "MergeUser")]
     public async Task<IActionResult> MergeUser([FromBody] MergeRequest mergeRequest, CancellationToken ct)
     {
-        await _userMergeService.Merge(mergeRequest.MergeToId, mergeRequest.MergeFromId, mergeRequest.MergeOptions, ct);
+        try
+        {
+            await _userMergeService.Merge(mergeRequest.MergeToId, mergeRequest.MergeFromId, mergeRequest.MergeOptions, ct);
+        }
+        catch (UserNotFoundException e)
+        {
+            // Typically a repeated request: the first merge already deleted the source user.
+            return NotFound($"{e.Message}. It may already have been merged or deleted.");
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
         return Ok();
     }
 }
