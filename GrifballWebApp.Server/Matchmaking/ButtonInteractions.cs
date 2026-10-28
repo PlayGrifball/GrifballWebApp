@@ -54,11 +54,13 @@ public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionCo
     {
         _discordContext ??= Context.ToDiscordContext();
         var modal = new ModalProperties(DiscordModalsContants.SetGamertag, "Set Gamertag")
-            .AddComponents(new TextInputProperties("gamertag", TextInputStyle.Short, "Gamertag")
+        {
+            new LabelProperties("Gamertag", new TextInputProperties("gamertag", TextInputStyle.Short)
             {
                 Required = true,
                 MaxLength = 20,
-            });
+            }),
+        };
 
         await _discordContext.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
     }

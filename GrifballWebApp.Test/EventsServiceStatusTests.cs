@@ -94,9 +94,9 @@ public class EventsServiceStatusTests
             Assert.That(futureMsg.Embeds!.Single().Description, Does.StartWith("Signups will start at <t:").And.Contain(" and close at <t:"));
             Assert.That(closedMsg.Embeds!.Single().Description, Does.StartWith("Signups are closed.\n"));
             Assert.That(closedMsg.Embeds!.Single().Description, Does.Contain("The [draft](https://example.test/season/"));
-            Assert.That(((ActionRowProperties)openMsg.Components!.Single()).Buttons.Count(), Is.EqualTo(2), "Open signups get a Signup button");
-            Assert.That(((ActionRowProperties)futureMsg.Components!.Single()).Buttons.Count(), Is.EqualTo(1));
-            Assert.That(((ActionRowProperties)closedMsg.Components!.Single()).Buttons.Count(), Is.EqualTo(1));
+            Assert.That(((ActionRowProperties)openMsg.Components!.Single()).Components.Count(), Is.EqualTo(2), "Open signups get a Signup button");
+            Assert.That(((ActionRowProperties)futureMsg.Components!.Single()).Components.Count(), Is.EqualTo(1));
+            Assert.That(((ActionRowProperties)closedMsg.Components!.Single()).Components.Count(), Is.EqualTo(1));
         });
     }
 }

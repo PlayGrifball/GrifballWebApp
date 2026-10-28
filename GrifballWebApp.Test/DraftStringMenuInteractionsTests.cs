@@ -26,7 +26,7 @@ public class DraftStringMenuInteractionsTests
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
     private RestClient _rest = null!;
-    private readonly List<InteractionCallback> _callbacks = [];
+    private readonly List<InteractionCallbackProperties> _callbacks = [];
 
     [SetUp]
     public async Task SetUp()
@@ -52,7 +52,7 @@ public class DraftStringMenuInteractionsTests
         """;
         var model = JsonSerializer.Deserialize<JsonInteraction>(json,
             new JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString })!;
-        var interaction = new StringMenuInteraction(model, null!, (_, cb, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.CompletedTask; }, _rest);
+        var interaction = new StringMenuInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new StringMenuInteractionContext(interaction, null!);
 
         var module = new TeamsStringMenuInteractions(_context, teamService);

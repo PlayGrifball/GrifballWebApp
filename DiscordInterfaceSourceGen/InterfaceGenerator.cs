@@ -109,7 +109,7 @@ public class Program
         {
             sb.AppendLine($"    {type.FullName} Original {{ get; }}");
         }
-        foreach (var prop in type.GetProperties())
+        foreach (var prop in GetVisibleProperties(type))
         {
             if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
                 continue; // Skip obsolete properties
@@ -163,7 +163,7 @@ public class Program
             classSb.AppendLine($"    public {type.FullName} Original => _original;");
         }
         
-        foreach (var prop in type.GetProperties())
+        foreach (var prop in GetVisibleProperties(type))
         {
             if (prop.CustomAttributes.Any(a => a.AttributeType.FullName == "System.ObsoleteAttribute"))
                 continue; // Skip obsolete properties
@@ -274,8 +274,8 @@ public class Program
                     continue;
                 }
             }
-            // Handle IReadOnlyDictionary<TKey, TValue> of generated interface
-            if (prop.PropertyType.IsGenericType && prop.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>))
+            // Handle IReadOnlyDictionary<TKey, TValue> or Dictionary<TKey, TValue> of generated interface
+            if (prop.PropertyType.IsGenericType && (prop.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) || prop.PropertyType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
             {
                 var valueType = prop.PropertyType.GetGenericArguments()[1];
                 var valueTypeName = GetDiscordTypeName(valueType, interfaceQueue);
@@ -376,7 +376,7 @@ public class Program
                 // For multiple, you may want to handle each separately
                 // Here, just use the last one (usually the value type)
 
-                if (prop.Name is "sendResponseAsync" && prop.ParameterType.IsGenericType && prop.ParameterType.GetGenericTypeDefinition() == typeof(Func<,,,,>))
+                if (prop.Name is "sendResponseAsync" && prop.ParameterType.IsGenericType && prop.ParameterType.GetGenericTypeDefinition() == typeof(Func<,,,,,>))
                 {
                     return ""; // Known issue with this specific method, skip for now. Does not matter anyways since we currently just hard coded this one method.
                 }
@@ -768,13 +768,13 @@ public class Program
 
             if (forInterface && method.IsStatic && type == typeof(NetCord.Interaction) && returnType is "IDiscordInteraction" && method.Name is "CreateFromJson" && parameters.Length is 4)
             {
-                sb.AppendLine($"    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallback, NetCord.Rest.RestRequestProperties?, System.Threading.CancellationToken, Task> sendResponseAsync, IDiscordRestClient client)");
+                sb.AppendLine($"    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallbackProperties, bool, NetCord.Rest.RestRequestProperties?, System.Threading.CancellationToken, Task<NetCord.Rest.InteractionCallbackResponse?>> sendResponseAsync, IDiscordRestClient client)");
                 sb.AppendLine($"    {{");
-                sb.AppendLine($"        Task converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)");
+                sb.AppendLine($"        Task<NetCord.Rest.InteractionCallbackResponse?> converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallbackProperties callback, bool withResponse, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)");
                 sb.AppendLine($"        {{");
                 sb.AppendLine($"            NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception(\"Cast failed\");"); // This cast has not been tested yet... but currently has no usage so I don't care
                 sb.AppendLine($"            IDiscordInteraction discordInteraction = new DiscordInteraction(casted);");
-                sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, properties, cancellationToken);");
+                sb.AppendLine($"            return sendResponseAsync(discordInteraction, callback, withResponse, properties, cancellationToken);");
                 sb.AppendLine($"        }}");
                 sb.AppendLine($"        return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, converted, client.Original));");
                 sb.AppendLine($"    }}");
@@ -869,6 +869,23 @@ public class Program
                             {
                                 var nullableModifier = NullabilityModifier(param);
                                 argNames.Add($"{param.Name}{nullableModifier}.Select(x => x.Original)");
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (param.ParameterType.IsGenericType && param.ParameterType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
+                    {
+                        var trueType = param.ParameterType.GetGenericArguments()[0];
+                        if (trueType?.Assembly?.FullName is null)
+                            throw new Exception("Full name null");
+                        if (trueType.Assembly.FullName.StartsWith("NetCord"))
+                        {
+                            var trueTypeName = GetDiscordTypeName(trueType, interfaceQueue);
+                            if (trueTypeName.StartsWith("IDiscord"))
+                            {
+                                var nullableModifier = NullabilityModifier(param);
+                                argNames.Add($"{param.Name}{nullableModifier}.Select(x => x.Original).ToList()");
                                 continue;
                             }
                         }
@@ -1270,14 +1287,15 @@ public class Program
         Type[] ignoredTypes = [
             typeof(RestRequestProperties),
             typeof(GuildThreadFromMessageProperties),
-            typeof(InteractionCallback),
+            typeof(InteractionCallbackProperties),
             typeof(MessageProperties),
-            typeof(InteractionCallback<>),
+            typeof(InteractionCallbackProperties<>),
             typeof(PaginationProperties<>),
             typeof(AttachmentProperties),
             typeof(EmbedProperties),
             typeof(AllowedMentionsProperties),
             typeof(IComponentProperties),
+            typeof(IMessageComponentProperties),
         ];
         if ((!type.IsGenericType && ignoredTypes.Contains(type)) || (type.IsGenericType && ignoredTypes.Contains(type.GetGenericTypeDefinition()))) // TODO: Not sure if excluding InteractionCallback is correct here, might not be able to intercept with NSubstitute
         {
@@ -1374,6 +1392,13 @@ public class Program
         if (typeName.StartsWith("I") && type.IsInterface && typeName.Length > 1 && char.IsUpper(typeName[1]))
             typeName = typeName.Substring(1);
         return typeName;
+    }
+
+    // GetProperties lists derived properties first, so DistinctBy keeps a `new` property over the base one it hides
+    private static IEnumerable<PropertyInfo> GetVisibleProperties(Type type)
+    {
+        return type.GetProperties()
+            .DistinctBy(p => (p.Name, string.Join(",", p.GetIndexParameters().Select(i => i.ParameterType.FullName))));
     }
 
     private static bool MethodsAreEquivalent(MethodInfo a, MethodInfo b)
