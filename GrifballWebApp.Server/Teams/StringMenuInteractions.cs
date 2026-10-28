@@ -11,11 +11,13 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
 {
     private readonly GrifballContext _context;
     private readonly TeamService _teamService;
+    private readonly ILogger<StringMenuInteractions> _logger;
 
-    public StringMenuInteractions(GrifballContext context, TeamService teamService)
+    public StringMenuInteractions(GrifballContext context, TeamService teamService, ILogger<StringMenuInteractions> logger)
     {
         _context = context;
         _teamService = teamService;
+        _logger = logger;
     }
 
     private async Task<Database.Models.User?> UserGuard()
@@ -62,10 +64,11 @@ public class StringMenuInteractions : ComponentInteractionModule<StringMenuInter
             var username = new UserId(id).ToString();
             await Context.Interaction.ModifyResponseAsync(x => x.WithContent($"Hey {username}, " + ex.Message));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             var id = Context.User.Id;
             var username = new UserId(id).ToString();
+            _logger.LogError(ex, "DraftPick failed for Discord user {DiscordUserId}, season {SeasonId}, captain {CaptainId}", id, seasonId, captainId);
             await Context.Interaction.ModifyResponseAsync(x => x.WithContent($"Hey {username}, something bad happened. Please try again and contact sysadmin if problem persists"));
         }
     }

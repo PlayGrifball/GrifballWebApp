@@ -4,6 +4,7 @@ using GrifballWebApp.Server;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NetCord.Rest;
 using NSubstitute;
 using System.Text.Json;
@@ -11,7 +12,9 @@ using System.Text.Json;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// Only the routing in HandleAsync is tested. HandleResponse talks to a local Ollama instance and is deliberately never reached.
+/// Only the routing in HandleAsync, and that a failure inside HandleResponse is logged rather than
+/// thrown, is tested. HandleResponse otherwise talks to a local Ollama instance and is deliberately
+/// never reached.
 /// </summary>
 [TestFixture]
 public class MessageCreateHandlerTests
@@ -21,6 +24,7 @@ public class MessageCreateHandlerTests
     private IDiscordRestClient _discordClient;
     private IDbContextFactory<GrifballContext> _contextFactory;
     private IServiceScopeFactory _scopeFactory;
+    private RecordingLogger<MessageCreateHandler> _logger;
     private MessageCreateHandler _handler;
 
     [SetUp]
@@ -29,8 +33,9 @@ public class MessageCreateHandlerTests
         _discordClient = Substitute.For<IDiscordRestClient>();
         _contextFactory = Substitute.For<IDbContextFactory<GrifballContext>>();
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
+        _logger = new RecordingLogger<MessageCreateHandler>();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        _handler = new MessageCreateHandler(_discordClient, _contextFactory, config, _scopeFactory);
+        _handler = new MessageCreateHandler(_discordClient, _contextFactory, config, _scopeFactory, _logger);
     }
 
     private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null)
@@ -130,5 +135,24 @@ public class MessageCreateHandlerTests
         var url = _handler.RecentMatchesUrl("Grunt Padre", id);
 
         Assert.That(url, Is.EqualTo($"https://www.halowaypoint.com/halo-infinite/players/Grunt%20Padre/matches/{id}"));
+    }
+
+    [Test]
+    public async Task HandleAsync_WhenHandlingTheMessageFails_LogsInsteadOfThrowing()
+    {
+        // _contextFactory is an unconfigured substitute, so CreateDbContextAsync completes with a null
+        // GrifballContext: HandleResponse's first real use of it (context.DiscordUsers) throws a
+        // NullReferenceException, standing in for any failure (a down Ollama, a DB error, ...).
+        var message = Message(5, [BotId]);
+
+        await _handler.HandleAsync(message);
+
+        var entry = _logger.Entries.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Exception, Is.TypeOf<NullReferenceException>());
+            Assert.That(entry.Message, Does.Contain("Failed to handle message").And.Contain(message.Author.Id.ToString()));
+        });
     }
 }

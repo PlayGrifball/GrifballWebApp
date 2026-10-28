@@ -13,9 +13,12 @@ using System.Threading.Channels;
 
 namespace GrifballWebApp.Server;
 
-public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IMessageCreateGatewayHandler
+public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
+
+    // Where the bot's chat model lives; defaults to Ollama's own default port.
+    private Uri OllamaUrl { get; } = new(configuration["Ollama:Url"] ?? "http://localhost:11434/");
 
     public async ValueTask HandleAsync(Message message)
     {
@@ -45,7 +48,20 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFa
 
     private async ValueTask HandleResponse(Message message)
     {
-        IChatClient chatClient = new OllamaApiClient(new Uri("http://localhost:11434/"), "llama3.1:latest");
+        try
+        {
+            await HandleResponseCore(message);
+        }
+        catch (Exception ex)
+        {
+            // One failing message must not fault the gateway handler for every message after it.
+            logger.LogError(ex, "Failed to handle message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+        }
+    }
+
+    private async ValueTask HandleResponseCore(Message message)
+    {
+        IChatClient chatClient = new OllamaApiClient(OllamaUrl, "llama3.1:latest");
 
         chatClient = new ChatClientBuilder(chatClient)
             .UseFunctionInvocation()
@@ -264,7 +280,7 @@ In future updates, users should be able to interact with the bot using natural l
         }
         catch (Exception ex)
         {
-            //_logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
+            logger.LogError(ex, "Failed to fetch recent matches for {Gamertag}", xboxUser.Gamertag);
         }
 
         var matches = await _context.Matches

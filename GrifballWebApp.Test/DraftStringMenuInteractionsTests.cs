@@ -5,6 +5,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NetCord;
 using NetCord.JsonModels;
 using NetCord.Rest;
@@ -26,6 +27,7 @@ public class DraftStringMenuInteractionsTests
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
     private RestClient _rest = null!;
+    private RecordingLogger<TeamsStringMenuInteractions> _logger = null!;
     private readonly List<InteractionCallbackProperties> _callbacks = [];
 
     [SetUp]
@@ -33,6 +35,7 @@ public class DraftStringMenuInteractionsTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _rest = FakeRestRequestHandler.CreateClient(out _handler);
+        _logger = new RecordingLogger<TeamsStringMenuInteractions>();
     }
 
     [TearDown]
@@ -55,7 +58,7 @@ public class DraftStringMenuInteractionsTests
         var interaction = new StringMenuInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new StringMenuInteractionContext(interaction, null!);
 
-        var module = new TeamsStringMenuInteractions(_context, teamService);
+        var module = new TeamsStringMenuInteractions(_context, teamService, _logger);
         typeof(BaseComponentInteractionModule<StringMenuInteractionContext>)
             .GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(module, context);
@@ -138,5 +141,13 @@ public class DraftStringMenuInteractionsTests
         await module.DraftPick(season.SeasonID, captain.Id, 0);
 
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, something bad happened. Please try again and contact sysadmin if problem persists" }));
+        var entry = _logger.Entries.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Exception, Is.Not.Null, "the exception must be logged, not dropped");
+            Assert.That(entry.Message, Does.Contain("DraftPick failed").And.Contain(DiscordId.ToString())
+                .And.Contain(season.SeasonID.ToString()).And.Contain(captain.Id.ToString()));
+        });
     }
 }
