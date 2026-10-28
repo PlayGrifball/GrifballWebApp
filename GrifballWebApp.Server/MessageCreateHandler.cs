@@ -1,6 +1,7 @@
 ﻿using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server.Extensions;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ using System.Threading.Channels;
 
 namespace GrifballWebApp.Server;
 
-public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
+public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, IAmbientCurrentUser ambientCurrentUser, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
@@ -48,6 +49,9 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
     private async ValueTask HandleResponse(Message message)
     {
+        // A fresh ambient user slot per message, filled in with the author in HandleResponseCore, for contexts with no scope of
+        // their own (IDbContextFactory) and other scopes (RecentMatches)
+        ambientCurrentUser.Begin();
         try
         {
             await HandleResponseCore(message);
@@ -56,6 +60,10 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
         {
             // One failing message must not fault the gateway handler for every message after it.
             logger.LogError(ex, "Failed to handle message {MessageId} from Discord user {DiscordUserId}", message.Id, message.Author.Id);
+        }
+        finally
+        {
+            ambientCurrentUser.End();
         }
     }
 
@@ -70,8 +78,7 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IConfigurati
 
         var UserId = (long)message.Author.Id;
         var BotID = (long)BotId;
-        // The scoped context has the AuditInterceptor (IDbContextFactory contexts are not audited), and the
-        // author's linked app user, if any, is the audit user for the scope's writes.
+        // The author's linked app user, if any, is the audit user for this scope's writes and the ambient user.
         using var scope = scopeFactory.CreateScope();
         await DiscordInteractionPipeline.SetCurrentUserAsync(message.Author.Id, logger, scope.ServiceProvider);
         var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();

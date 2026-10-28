@@ -16,6 +16,7 @@ public class AuditInterceptorScopingTests
         
         // Act - Register services like in Program.cs
         services.AddHttpContextAccessor();
+        services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<AuditInterceptor>();
         

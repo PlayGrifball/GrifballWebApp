@@ -35,7 +35,7 @@ public class MessageCreateHandlerTests
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
         _logger = new RecordingLogger<MessageCreateHandler>();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, _logger);
+        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger);
     }
 
     private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null)
@@ -156,6 +156,7 @@ public class MessageCreateHandlerTests
 
     // Registered like Program.cs: a scoped GrifballContext with the scope's AuditInterceptor and ICurrentUserService
     private GrifballContext? _db;
+    private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
 
     [TearDown]
     public async Task TearDown()
@@ -170,6 +171,7 @@ public class MessageCreateHandlerTests
         var connectionString = _db.Database.GetConnectionString()!;
         var services = new ServiceCollection()
             .AddHttpContextAccessor()
+            .AddSingleton(_ambient)
             .AddScoped<ICurrentUserService, CurrentUserService>()
             .AddScoped<AuditInterceptor>()
             .AddDbContext<GrifballContext>((sp, options) => options
@@ -181,7 +183,7 @@ public class MessageCreateHandlerTests
             ["Discord:ClientId"] = BotId.ToString(),
             ["Ollama:Url"] = "http://127.0.0.1:9/", // refused at once
         }).Build();
-        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _logger);
+        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger);
     }
 
     [Test]
@@ -207,6 +209,13 @@ public class MessageCreateHandlerTests
             Assert.That(bot.CreatedByID, Is.EqualTo(user.Id));
             // Only Ollama failed, after the writes
             Assert.That(_logger.Entries.Single().Message, Does.Contain("Failed to handle message"));
+        });
+        // The author is also the ambient user while the message is handled, and only then
+        Received.InOrder(() =>
+        {
+            _ambient.Begin();
+            _ambient.UserId = user.Id;
+            _ambient.End();
         });
     }
 
