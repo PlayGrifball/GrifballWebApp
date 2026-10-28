@@ -119,6 +119,15 @@ describe('ProfileComponent', () => {
     expect(component.settingGamertag()).toBeFalse();
   });
 
+  it('sends an empty gamertag rather than the literal string "null"', () => {
+    personID.set(21);
+    load({ gamertag: null });
+    component.setGamertag();
+
+    http.expectOne('api/profile/setgamertag/21?gamertag=').flush({});
+    expect(component.settingGamertag()).toBeFalse();
+  });
+
   it('stays in edit mode when saving fails', () => {
     spyOn(console, 'log');
     personID.set(21);
