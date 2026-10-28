@@ -96,6 +96,15 @@ describe('TeamComponent', () => {
     expect(r[0][3]).toMatch(/^4\/1\/26, 7:00\sPM$/);
   });
 
+  it('shows a won playoff bye as a win against BYE, without a team link', () => {
+    load(team, [match({ seasonMatchID: 5, score: null, otherScore: null, otherResult: 'Bye', otherTeamID: null, otherTeamName: null })]);
+    const urls = fixture.debugElement.queryAll(By.directive(RouterLink))
+      .map(d => d.injector.get(RouterLink).urlTree!.toString());
+
+    expect(rows()[0].slice(0, 3)).toEqual(['BYE', 'N/A', 'Won']);
+    expect(urls).toEqual(['/seasonmatch/5']);
+  });
+
   it('links to the opposing team and the match page', () => {
     load(team, [match({ seasonMatchID: 99, otherTeamID: 20 })]);
     const urls = fixture.debugElement.queryAll(By.directive(RouterLink))

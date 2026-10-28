@@ -593,9 +593,9 @@ public class BracketServiceQueryTests
             // W1 = seed 1 (C) vs BYE; W2 = seed 3 (D) vs seed 2 (A); B (4th) is not in the bracket
             Assert.That((W(1).HomeTeamID, W(1).AwayTeamID, W(1).AwayTeamResult), Is.EqualTo(((int?)c.TeamID, (int?)null, (SeasonMatchResult?)SeasonMatchResult.Bye)));
             Assert.That((W(2).HomeTeamID, W(2).AwayTeamID), Is.EqualTo(((int?)d.TeamID, (int?)a.TeamID)));
-            // C goes straight to the final, without a result for the BYE match
+            // C wins its BYE match, so it counts in the standings, and goes straight to the final
             Assert.That((W(3).HomeTeamID, W(3).AwayTeamID), Is.EqualTo(((int?)c.TeamID, (int?)null)));
-            Assert.That(W(1).HomeTeamResult, Is.Null);
+            Assert.That(W(1).HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
         });
     }
 

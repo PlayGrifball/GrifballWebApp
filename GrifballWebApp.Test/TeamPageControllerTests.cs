@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Security.Claims;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Brackets;
+using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.TeamPage;
 using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
@@ -126,6 +128,33 @@ public class TeamPageControllerTests
                 Is.EqualTo(((int?)1, (int?)2, (SeasonMatchResult?)SeasonMatchResult.Loss, (int?)c.TeamID)));
             Assert.That(matches[4].Result, Is.EqualTo(SeasonMatchResult.Forfeit));
             Assert.That(matches[4].Score, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task PlayoffBye_CountsAsAWin_AndListsTheByeAsTheOpponent()
+    {
+        var (season, a, b, c, _, _, _) = await Seed();
+        var bracketService = new BracketService(_context, new TeamStandingsService(_context));
+        // Three teams: W1 = seed 1 (B) vs BYE, W2 = seed 3 (C) vs seed 2 (A)
+        await bracketService.CreateBracket(3, season.SeasonID, false, 1);
+        await bracketService.SetSeeds(season.SeasonID, new CustomSeedDto[]
+        {
+            new() { Seed = 1, TeamID = b.TeamID },
+            new() { Seed = 2, TeamID = a.TeamID },
+            new() { Seed = 3, TeamID = c.TeamID },
+        });
+        _context.ChangeTracker.Clear();
+
+        var team = await _controller.Team(b.TeamID, CancellationToken.None);
+        var bye = (await _controller.Matches(b.TeamID, CancellationToken.None))
+            .Single(m => m.OtherResult == SeasonMatchResult.Bye);
+
+        Assert.Multiple(() =>
+        {
+            // Seed() gives B one win; the BYE adds another, the final (vs the winner of W2) is still to play
+            Assert.That((team!.Wins, team.TBD), Is.EqualTo((2, 3)));
+            Assert.That((bye.Result, bye.OtherTeamID, bye.OtherTeamName, bye.Score), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)null, (string?)null, (int?)null)));
         });
     }
 }

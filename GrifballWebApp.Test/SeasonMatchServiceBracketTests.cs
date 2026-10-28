@@ -222,7 +222,7 @@ public class SeasonMatchServiceBracketTests
         Assert.Multiple(() =>
         {
             Assert.That((final.HomeTeamID, final.AwayTeamID), Is.EqualTo(((int?)third.TeamID, (int?)seeded.Away.TeamID)));
-            Assert.That((l1.HomeTeamResult, l1.AwayTeamID), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Bye, (int?)seeded.Home.TeamID)));
+            Assert.That((l1.HomeTeamResult, l1.AwayTeamID, l1.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Bye, (int?)seeded.Home.TeamID, (SeasonMatchResult?)SeasonMatchResult.Won)));
             // L1 has a BYE, so the team that dropped into it goes straight on to L2
             Assert.That((l2.HomeTeamID, l2.AwayTeamID), Is.EqualTo(((int?)null, (int?)seeded.Home.TeamID)));
         });

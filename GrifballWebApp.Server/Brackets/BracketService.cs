@@ -908,8 +908,8 @@ public class BracketService : IBracketService
     }
 
     /// <summary>
-    /// Moves the bracket past its BYEs, as brackets-manager does: a team facing a BYE goes straight to its
-    /// next match, a match with a BYE has no loser so the loser bracket slot it feeds becomes a BYE, and a
+    /// Moves the bracket past its BYEs, as brackets-manager does: a team facing a BYE wins the match (so it
+    /// counts in the standings) and goes straight to its next match, a match with a BYE has no loser so the loser bracket slot it feeds becomes a BYE, and a
     /// match with two BYEs sends a BYE on as its winner too. Loads the season's bracket into the context;
     /// the caller saves.
     /// </summary>
@@ -939,7 +939,19 @@ public class BracketService : IBracketService
                 if (homeBye && awayBye)
                     changed |= MoveIntoNextMatch(next.Winner, teamID: null);
                 else if ((homeBye ? match.AwayTeamID : match.HomeTeamID) is int teamID)
+                {
+                    if (homeBye && match.AwayTeamResult is null)
+                    {
+                        match.AwayTeamResult = SeasonMatchResult.Won;
+                        changed = true;
+                    }
+                    else if (awayBye && match.HomeTeamResult is null)
+                    {
+                        match.HomeTeamResult = SeasonMatchResult.Won;
+                        changed = true;
+                    }
                     changed |= MoveIntoNextMatch(next.Winner, teamID);
+                }
             }
         } while (changed);
     }
