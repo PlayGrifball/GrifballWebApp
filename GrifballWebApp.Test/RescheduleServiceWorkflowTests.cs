@@ -428,4 +428,29 @@ public class RescheduleServiceWorkflowTests
         await _thread.DidNotReceive().AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
         await _thread.DidNotReceive().AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task CreateThread_UsesUnknown_When_CaptainHasNoXboxAccount()
+    {
+        var season = new Season { SeasonName = "S" };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var homeCaptain = await RescheduleTestData.AddUser(_context, "homecapnoxbox", discordId: 5101, displayName: "Home Cap");
+        var awayCaptain = await RescheduleTestData.AddUser(_context, "awaycapnoxbox", discordId: 5102, displayName: "Away Cap");
+        var requester = await RescheduleTestData.AddUser(_context, "requester2", 1003, 5003);
+        var home = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Home2", homeCaptain);
+        var away = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Away2", awayCaptain);
+        var match = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, BestOf = 3 };
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        var r = await RescheduleTestData.AddReschedule(_context, match.SeasonMatchID, requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+
+        var channelMessage = SentContents(Channel).Single();
+        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
+        await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
+            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
 }
