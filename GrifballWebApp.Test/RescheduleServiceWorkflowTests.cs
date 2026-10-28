@@ -251,17 +251,19 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
-    public async Task GetPending_Throws_When_TeamHasNoCaptain()
+    public async Task GetPending_UsesUnknown_When_TeamHasNoCaptain()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
         await _context.SaveChangesAsync();
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();
 
-        // BUG: RescheduleService.cs:144 uses `HomeTeam?.Captain.User` - a team without a captain (CaptainID is nullable)
-        // causes a NullReferenceException instead of falling back to "UNKNOWN".
-        await Assert.ThrowsAsync<NullReferenceException>(() => _service.GetPendingReschedulesAsync());
+        var result = await _service.GetPendingReschedulesAsync();
+
+        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
     }
 
     // ---------- GetOverdueMatchesAsync ----------
@@ -292,6 +294,20 @@ public class RescheduleServiceWorkflowTests
             Assert.That(result[1].HoursOverdue, Is.InRange(49, 50));
             Assert.That(result[1].ScheduledTime, Is.EqualTo(s.Match.ScheduledTime!.Value).Within(TimeSpan.FromMilliseconds(1)));
         });
+    }
+
+    [Test]
+    public async Task GetOverdue_UsesUnknown_When_TeamHasNoCaptain()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
+        s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetOverdueMatchesAsync();
+
+        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
     }
 
     [Test]
@@ -385,5 +401,56 @@ public class RescheduleServiceWorkflowTests
             Assert.That(errors, Does.Contain("Could not add awaycap to thread, missing discord id."));
             Assert.That(errors, Does.Contain("Could not add commish to thread, exception thrown"));
         });
+    }
+
+    [Test]
+    public async Task CreateThread_UsesUnknown_And_ReportsMissingCaptain_When_TeamHasNoCaptain()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
+        await _context.SaveChangesAsync();
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+
+        var channelMessage = SentContents(Channel).Single();
+        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
+        await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
+            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        var errors = SentContents(888UL).Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
+            Assert.That(errors, Does.Contain("Could not add Away captain to thread, team has no captain."));
+        });
+        await _thread.DidNotReceive().AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
+        await _thread.DidNotReceive().AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task CreateThread_UsesUnknown_When_CaptainHasNoXboxAccount()
+    {
+        var season = new Season { SeasonName = "S" };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var homeCaptain = await RescheduleTestData.AddUser(_context, "homecapnoxbox", discordId: 5101, displayName: "Home Cap");
+        var awayCaptain = await RescheduleTestData.AddUser(_context, "awaycapnoxbox", discordId: 5102, displayName: "Away Cap");
+        var requester = await RescheduleTestData.AddUser(_context, "requester2", 1003, 5003);
+        var home = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Home2", homeCaptain);
+        var away = await RescheduleTestData.AddTeamWithCaptain(_context, season, "Away2", awayCaptain);
+        var match = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, BestOf = 3 };
+        _context.SeasonMatches.Add(match);
+        await _context.SaveChangesAsync();
+        var r = await RescheduleTestData.AddReschedule(_context, match.SeasonMatchID, requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+
+        var channelMessage = SentContents(Channel).Single();
+        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
+        await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
+            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 }
