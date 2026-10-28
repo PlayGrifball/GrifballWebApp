@@ -46,33 +46,31 @@ public class SeasonScheduleEvaluatorTests
     [Test]
     public void Evaluate_ManyPenalties_DecreasesFitness()
     {
-        // Overlap (counted from both genes) and nobody available: score = 1 - 2 - 4 = -5
+        // Overlap (counted from both genes) and nobody available: 2 overlap penalties + 4 unavailability penalties = 6
         var options = OptionsAvailableFor();
         var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
 
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 5).Within(1e-9));
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 7).Within(1e-9));
     }
 
     [Test]
-    public void Evaluate_ExactlyOnePenalty_IsInfinite()
+    public void Evaluate_OnePenalty_IsHalf()
     {
         var options = OptionsAvailableFor(1, 2, 3);
         var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20)); // away team 4 unavailable
 
-        // BUG: SeasonScheduleEvaluator returns |score|^-1 with score starting at 1, so one penalty gives 0^-1 = +Infinity
-        // (fitter than a perfect schedule) and two penalties give |-1|^-1 = 1 (as fit as a perfect schedule).
-        // Expected: fitness strictly decreases with penalties.
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(double.PositiveInfinity));
+        // One penalty should score worse than a perfect schedule, not better.
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 2).Within(1e-9));
     }
 
     [Test]
-    public void Evaluate_TwoPenalties_EqualsPerfectFitness()
+    public void Evaluate_TwoPenalties_IsWorseThanOnePenalty()
     {
         var options = OptionsAvailableFor(1, 2);
         var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 3, 4, Monday20)); // teams 3 and 4 unavailable
 
-        // BUG: see Evaluate_ExactlyOnePenalty_IsInfinite
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1));
+        // Two penalties should score strictly worse than a perfect schedule (and worse than one penalty).
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 3).Within(1e-9));
     }
 
     [Test]

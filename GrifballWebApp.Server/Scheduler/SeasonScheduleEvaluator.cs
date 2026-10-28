@@ -13,7 +13,7 @@ public class SeasonScheduleEvaluator : IFitness
 
     public double Evaluate(IChromosome chromosome)
     {
-        double score = 1;
+        double penalties = 0;
 
         if (chromosome is not SeasonScheduleChromosome ssc)
             throw new Exception("SeasonScheduleEvaluator can only evaluate SeasonScheduleChromosome");
@@ -32,15 +32,19 @@ public class SeasonScheduleEvaluator : IFitness
         {
             var count = gene.GetOverlap(genes).Count();
 
-            score -= count;
+            penalties += count;
 
             if (!gene.HomeTeamAvailable(_options))
-                score -= 1;
+                penalties += 1;
 
             if (!gene.AwayTeamAvailable(_options))
-                score -= 1;
+                penalties += 1;
         }
 
-        return Math.Pow(Math.Abs(score), -1);
+        // Fitness must stay on a 0-1 scale where 1.0 is a perfect, conflict-free schedule
+        // (GeneticSharp's FitnessThresholdTermination defaults to an expected fitness of
+        // 1.00) and must decrease monotonically as penalties increase, so that EliteSelection
+        // and comparisons against the best chromosome's fitness behave correctly.
+        return 1.0 / (1.0 + penalties);
     }
 }
