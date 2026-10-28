@@ -90,7 +90,7 @@ public class GrifballContextFactoryTests
             using var factoryContext = await GrifballContextTestExtensions.FactoryFor(context).CreateDbContextAsync();
             factoryContext.Seasons.Add(NewSeason());
 
-            Assert.ThrowsAsync<UnauditedWriteException>(() => factoryContext.SaveChangesAsync());
+            await Assert.ThrowsAsync<UnauditedWriteException>(() => factoryContext.SaveChangesAsync());
         }
         finally
         {
