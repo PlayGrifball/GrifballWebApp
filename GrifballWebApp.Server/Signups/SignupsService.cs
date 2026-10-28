@@ -68,17 +68,12 @@ public class SignupsService
                 IsChecked = x.SignupAvailability.Any(y => y.SeasonSignupID == signupID),
             }).ToArrayAsync(ct);
 
-        var rollback = offset < 0;
         var offsetTimespan = TimeSpan.FromMinutes(offset);
 
         foreach (var item in timeslots)
         {
-            var timespan = item.Time.ToTimeSpan();
-            var days = rollback ? timespan.Subtract(offsetTimespan).Days * -1
-                                : timespan.Add(offsetTimespan).Days;
-
-            item.Time = item.Time.Add(offsetTimespan);
-            item.DayOfWeek = (DayOfWeek)MathMod((int)item.DayOfWeek + days, 7);
+            item.Time = item.Time.Add(offsetTimespan, out var wrappedDays);
+            item.DayOfWeek = (DayOfWeek)MathMod((int)item.DayOfWeek + wrappedDays, 7);
         }
 
         timeslots = timeslots.OrderBy(x => x.DayOfWeek).ToArray();

@@ -45,15 +45,7 @@ public class SeasonScheduleChromosome : ChromosomeBase
     {
         var match = _matches.Skip(geneIndex).FirstOrDefault() ?? throw new Exception($"Missing course with index {geneIndex}");
 
-        DateTime randomDate = new DateTime(Random.NextInt64(_start.Ticks, _end.Ticks));
-
-        var possibleTimes = _options
-            .Where(x => x.DayOfWeek == randomDate.DayOfWeek)
-            .ToArray();
-        var index = Random.Next(possibleTimes.Length);
-        var time = possibleTimes[index].Time;
-
-        var newDateTime = new DateTime(randomDate.Year, randomDate.Month, randomDate.Day, time.Hour, time.Minute, time.Second);
+        var newDateTime = PickTimeInWindow();
 
         return new Gene(new SeasonMatchGene()
         {
@@ -62,5 +54,34 @@ public class SeasonScheduleChromosome : ChromosomeBase
             AwayTeamID = match.AwayTeamID ?? throw new Exception("Cannot create gene with away team"),
             ScheduledTime = newDateTime,
         });
+    }
+
+    /// <summary>
+    /// Picks a random (day, option time) combination whose resulting date-time falls inside
+    /// [_start, _end]. Snapping a random instant to the nearest option (the old approach) could
+    /// land outside the window on the first or last day of the range; this only considers
+    /// combinations that stay inside it.
+    /// </summary>
+    private DateTime PickTimeInWindow()
+    {
+        var possibleTimes = new List<DateTime>();
+        for (var day = _start.Date; day <= _end.Date; day = day.AddDays(1))
+        {
+            foreach (var option in _options.Where(x => x.DayOfWeek == day.DayOfWeek))
+            {
+                var candidate = new DateTime(day.Year, day.Month, day.Day, option.Time.Hour, option.Time.Minute, option.Time.Second);
+                if (candidate >= _start && candidate <= _end)
+                {
+                    possibleTimes.Add(candidate);
+                }
+            }
+        }
+
+        if (possibleTimes.Count == 0)
+        {
+            throw new Exception("No availability options fall within the season window");
+        }
+
+        return possibleTimes[Random.Next(possibleTimes.Count)];
     }
 }

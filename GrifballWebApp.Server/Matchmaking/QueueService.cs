@@ -131,7 +131,7 @@ public class QueueService
                 var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
                 await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
             }
-            else if (voteResult is { Key: WinnerVote.Cancel } || match.StartedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
+            else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
             {
                 // Cancel the match
                 match.Active = false;
@@ -389,12 +389,12 @@ public class QueueService
             player.LossStreak++;
 
             var streakModifier = 0;
-            if (player.Losses >= discordOptions.Value.LossThreshold)
+            if (player.LossStreak >= discordOptions.Value.LossThreshold)
             {
                 streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (player.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
             }
 
-            player.MMR -= mmrGain - streakModifier;
+            player.MMR -= mmrLoss + streakModifier;
             if (player.MMR < 0)
             {
                 player.MMR = 0; // Prevent negative MMR
@@ -517,7 +517,8 @@ public class QueueService
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
             var votes = await _context.MatchedWinnerVotes
-                .Include(x => x.MatchedPlayer.User)
+                .Include(x => x.MatchedPlayer.User.XboxUser)
+                .Include(x => x.MatchedPlayer.User.DiscordUser)
                 .Where(x => x.MatchId == match.Id)
                 .Where(x => x.MatchedPlayer.Kicked == false)
                 .GroupBy(x => x.WinnerVote)
@@ -561,7 +562,7 @@ public class QueueService
         {
             sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);
             sb.Append(": ");
-            var found = oldMMR.TryGetValue(player.Id, out var oldMmr);
+            var found = oldMMR.TryGetValue(player.UserID, out var oldMmr);
             int? OLDMMR = found ? oldMmr : null;
             if (OLDMMR is not null)
                 sb.Append(OLDMMR);

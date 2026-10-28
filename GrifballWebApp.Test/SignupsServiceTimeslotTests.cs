@@ -53,7 +53,7 @@ public class SignupsServiceTimeslotTests
     }
 
     [Test]
-    public async Task GetTimeslots_NegativeOffsetBeforeMidnight_CurrentBehaviour()
+    public async Task GetTimeslots_NegativeOffsetBeforeMidnight_MovesToPreviousDay()
     {
         var season = await SignupTestData.OpenSeason(_context);
         await SignupTestData.Options(_context, season, (DayOfWeek.Monday, new TimeOnly(1, 17)), (DayOfWeek.Wednesday, new TimeOnly(15, 17)));
@@ -61,11 +61,27 @@ public class SignupsServiceTimeslotTests
         var slots = await _service.GetTimeslots(season.SeasonID, -120, userID: 0);
 
         var shifted = slots.Single(s => s.Time == new TimeOnly(23, 17));
-        // BUG: SignupsService.GetTimeslots uses TimeSpan.Days on a negative span (01:17 - 2h = -00:43), which truncates
-        // to 0, so the slot stays on Monday instead of rolling back to Sunday 23:17.
-        Assert.That(shifted.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
+        // Monday 01:17 - 2h = Sunday 23:17.
+        Assert.That(shifted.DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
         var other = slots.Single(s => s.Time == new TimeOnly(13, 17));
         Assert.That(other.DayOfWeek, Is.EqualTo(DayOfWeek.Wednesday));
+    }
+
+    [Test]
+    public async Task GetTimeslots_NegativeFiveHourOffset_HandlesWrapAndNoWrapCorrectly()
+    {
+        // Reproduces the two failure modes from issue #135 for a North American EST offset (UTC-5).
+        var season = await SignupTestData.OpenSeason(_context);
+        await SignupTestData.Options(_context, season, (DayOfWeek.Sunday, new TimeOnly(1, 0)), (DayOfWeek.Thursday, new TimeOnly(21, 0)));
+
+        var slots = await _service.GetTimeslots(season.SeasonID, -300, userID: 0);
+
+        // Sunday 01:00 - 5h = Saturday 20:00 (rolls back a day).
+        var rolledBack = slots.Single(s => s.Time == new TimeOnly(20, 0));
+        Assert.That(rolledBack.DayOfWeek, Is.EqualTo(DayOfWeek.Saturday));
+        // Thursday 21:00 - 5h = Thursday 16:00 (same day, no wrap).
+        var sameDay = slots.Single(s => s.Time == new TimeOnly(16, 0));
+        Assert.That(sameDay.DayOfWeek, Is.EqualTo(DayOfWeek.Thursday));
     }
 
     [Test]

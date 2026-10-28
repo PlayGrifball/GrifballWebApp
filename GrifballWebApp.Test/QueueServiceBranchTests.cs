@@ -168,18 +168,15 @@ public class QueueServiceBranchTests
             Assert.That(winners.Select(x => x.MMR), Is.All.EqualTo(1024), "KFactor 32 * 0.75 = 24 gained");
             Assert.That(winners.Select(x => x.Wins), Is.All.EqualTo(1));
             Assert.That(winners.Select(x => x.WinStreak), Is.All.EqualTo(1));
-            // BUG: QueueService.cs:397 subtracts mmrGain (24) instead of the computed mmrLoss (KFactor * 0.625 = 20).
-            Assert.That(losers.Select(x => x.MMR), Is.All.EqualTo(976));
+            Assert.That(losers.Select(x => x.MMR), Is.All.EqualTo(980), "KFactor 32 * 0.625 = 20 lost");
             Assert.That(losers.Select(x => x.Losses), Is.All.EqualTo(1));
             Assert.That(losers.Select(x => x.LossStreak), Is.All.EqualTo(1));
             Assert.That(embed.Title, Is.EqualTo("Match Ended"));
             Assert.That(embed.Description, Is.EqualTo($"Match #{match.Id} has ended. Team 0 is the winner"));
             Assert.That(Field(log, "Winning Team"), Is.EqualTo("0"));
             Assert.That(Field(log, "Duration"), Is.EqualTo("Unknown"));
-            // BUG: GetMMRChanges (QueueService.cs:564) looks up the old MMR by MatchedPlayer.Id but the dictionary is keyed by User.Id,
-            // so the old MMR is reported as UNK whenever the two ids differ.
-            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("UNK -> 1024 (UNK)"));
-            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("UNK -> 976 (UNK)"));
+            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
+            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
         });
         Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."), "Thread should be told it will be deleted");
     }
@@ -206,7 +203,7 @@ public class QueueServiceBranchTests
             Assert.That(awayUsers.Select(x => x.Wins), Is.All.EqualTo(1));
             Assert.That(log.Embeds!.Single().Description, Does.EndWith("Team 1 is the winner"));
             Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
-            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 976 (-24)"));
+            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
             Assert.That(Field(log, "Home Team MMR Changes").Split('\n'), Has.Length.EqualTo(2), "One line per player");
         });
     }
@@ -238,9 +235,7 @@ public class QueueServiceBranchTests
             Assert.That(h1.MMR, Is.EqualTo(1000 + 24 + 20), "Bonus is capped at MaxBonus");
             Assert.That(a0.LossStreak, Is.EqualTo(3));
             Assert.That(a0.WinStreak, Is.EqualTo(0));
-            // BUG: QueueService.cs:392-397 checks total Losses instead of LossStreak, and the "penalty" is subtracted from the
-            // loss (MMR -= gain - penalty), so a loss streak makes players lose LESS MMR (24 - 10 = 14) instead of more.
-            Assert.That(a0.MMR, Is.EqualTo(1000 - 14));
+            Assert.That(a0.MMR, Is.EqualTo(1000 - 20 - 10), "LossStreak of 3 hits the threshold: mmrLoss + PenaltyPerLoss");
             Assert.That(a1.MMR, Is.EqualTo(0), "MMR is clamped at zero");
         });
     }
@@ -296,7 +291,7 @@ public class QueueServiceBranchTests
     }
 
     [Test]
-    public async Task Go_MatchWithStartTimeMoreThanTwoHoursInTheFuture_IsCanceled()
+    public async Task Go_MatchWithStartTimeInTheFuture_IsNotCanceled()
     {
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
@@ -306,13 +301,12 @@ public class QueueServiceBranchTests
         await _service.Go(CancellationToken.None);
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
-        Assert.That(SentTo(LogChannel).Single().Embeds!.Single().Title, Is.EqualTo("Match Canceled"));
-        Assert.That(SentTo(ThreadId), Is.Empty, "No thread to close");
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
     [Test]
-    public async Task Go_StaleMatchStartedHoursAgo_IsNotCanceled()
+    public async Task Go_StaleMatchStartedHoursAgo_IsCanceled()
     {
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
@@ -322,9 +316,7 @@ public class QueueServiceBranchTests
         await _service.Go(CancellationToken.None);
 
         await using var fresh = Fresh();
-        // BUG: QueueService.cs:134 computes StartedAt - UtcNow (negative for past matches), so matches older than
-        // 2 hours are never auto-canceled. Expected: canceled. Actual: still active.
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
     }
 
     [Test]
@@ -419,9 +411,7 @@ public class QueueServiceBranchTests
             Assert.That(embeds[0].Fields!.Single().Value, Is.EqualTo($"1. {queued[0].XboxUser!.Gamertag} (MMR: 1000) = Queued <t:1704067200:R>"));
             Assert.That(embeds[1].Description, Is.EqualTo("1 active matches"));
             Assert.That(embeds[2].Fields!.Select(f => f.Name), Is.EqualTo(new[] { "Home (Avg MMR: 1000)", "Away (Avg MMR: 1000)" }));
-            // BUG: QueueRepository.GetActiveMatches (IQueueRepository.cs:49-55) includes User.DiscordUser but not User.XboxUser, so players
-            // without a linked Discord account show up with an empty name in the active match embed. Expected "gt.. (MMR: 1000)".
-            Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo(" (MMR: 1000)"));
+            Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo($"{home[0].XboxUser!.Gamertag} (MMR: 1000)"));
         });
     }
 
@@ -530,10 +520,8 @@ public class QueueServiceBranchTests
         {
             Assert.That(embeds[0].Title, Is.EqualTo("Votes"));
             Assert.That(embeds[0].Description, Is.EqualTo("You need a majority of at least 2 votes"), "3 non-kicked players -> 3/2 + 1");
-            // BUG: QueueService.cs:519-525 only includes MatchedPlayer.User (no XboxUser/DiscordUser) in an AsNoTracking query, so the
-            // voter names always fall back to the user id instead of the gamertag.
-            Assert.That(embeds.Single(e => e.Title == "Home (2)").Description!.Split(", "), Is.EquivalentTo(home.Select(x => x.Id.ToString())));
-            Assert.That(embeds.Single(e => e.Title == "Cancel (1)").Description, Is.EqualTo(away[0].Id.ToString()));
+            Assert.That(embeds.Single(e => e.Title == "Home (2)").Description!.Split(", "), Is.EquivalentTo(home.Select(x => x.XboxUser!.Gamertag)));
+            Assert.That(embeds.Single(e => e.Title == "Cancel (1)").Description, Is.EqualTo(away[0].XboxUser!.Gamertag));
             Assert.That(embeds.Any(e => e.Title!.StartsWith("Away")), Is.False, "Kicked player's vote is not shown");
             Assert.That(embeds, Has.Count.EqualTo(3));
             Assert.That(kickMenu.Options.Select(o => o.Value), Is.EquivalentTo(new[] { home[0].Id, home[1].Id, away[0].Id }.Select(x => x.ToString())), "Kicked players cannot be voted on again");

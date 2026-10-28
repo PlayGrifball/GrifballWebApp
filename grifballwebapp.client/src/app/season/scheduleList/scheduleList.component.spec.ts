@@ -127,6 +127,21 @@ describe('ScheduleListComponent behaviour', () => {
     expect(game.time.toISO()).toBe(DateTime.fromISO('2026-01-07T19:00:00Z').toISO());
   });
 
+  it('sorts weeks chronologically across a year boundary', () => {
+    // Fed to the component out of order, and spanning the 2026/2027 year boundary:
+    // Number("2026-52") / Number("2027-1") are both NaN, so a sort on that string would
+    // leave the groups in whatever order the API/dictionary happened to return them.
+    load([], [
+      scheduled(3, '2027-01-04T19:00:00Z'), // last, but fed first
+      scheduled(1, '2026-12-21T19:00:00Z'), // earliest week
+      scheduled(2, '2026-12-28T19:00:00Z'), // middle week, last week of 2026
+    ]);
+
+    expect(component.scheduledMatches().length).toBe(3);
+    expect(component.scheduledMatches().map(w => w.games.map(g => g.seasonMatchID))).toEqual([[1], [2], [3]]);
+    expect(component.scheduledMatches().map(w => w.weekNumber)).toEqual([1, 2, 3]);
+  });
+
   it('renders weeks, matchups and unscheduled matches, striking completed ones', () => {
     load([unscheduled(9, true)], [scheduled(1, '2026-01-07T19:00:00Z')]);
 

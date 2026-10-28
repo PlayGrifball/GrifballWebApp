@@ -15,9 +15,9 @@ public class ScheduleService
         _logger = logger;
     }
 
-    public async Task<List<SeasonMatchGene>> GetTimeRecommendations(CancellationToken ct = default)
+    public async Task<List<SeasonMatchGene>> GetTimeRecommendations(int seasonID, CancellationToken ct = default)
     {
-        var season = await _context.Seasons.Where(x => x.SeasonID == 4).FirstOrDefaultAsync(ct)
+        var season = await _context.Seasons.Where(x => x.SeasonID == seasonID).FirstOrDefaultAsync(ct)
             ?? throw new Exception("Season not found");
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
@@ -25,6 +25,7 @@ public class ScheduleService
         var end = TimeZoneInfo.ConvertTimeFromUtc(season.SeasonEnd, timeZone);
 
         var matches = await _context.SeasonMatches
+            .Where(x => x.SeasonID == seasonID)
             .Where(x => x.BracketMatch == null)
             .Where(x => x.HomeTeam != null)
             .Where(x => x.AwayTeam != null)
@@ -33,7 +34,7 @@ public class ScheduleService
         var timeSlots = await _context.Availability.ToArrayAsync(ct);
 
         var timeSlotsWithTeams = await _context.Availability
-            .Include(x => x.TeamAvailability.Where(x => x.Team.SeasonID == 4))
+            .Include(x => x.TeamAvailability.Where(x => x.Team.SeasonID == seasonID))
             .ToArrayAsync(ct);
 
         var selection = new EliteSelection();

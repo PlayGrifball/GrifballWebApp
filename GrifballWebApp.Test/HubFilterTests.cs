@@ -46,13 +46,14 @@ public class HubFilterTests
     }
 
     [Test]
-    public void ExceptionLogHubFilter_SynchronousThrow_IsLoggedAndRethrown()
+    public async Task ExceptionLogHubFilter_SynchronousThrow_IsLoggedAndRethrown()
     {
         var logger = new RecordingLogger<ExceptionLogHubFilter>();
         var filter = new ExceptionLogHubFilter(logger);
         var exception = new InvalidOperationException("bad");
 
-        var thrown = Assert.Throws<InvalidOperationException>(() => filter.InvokeMethodAsync(Invocation(), _ => throw exception));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await filter.InvokeMethodAsync(Invocation(), _ => throw exception));
 
         var entry = logger.Entries.Single();
         Assert.Multiple(() =>
@@ -65,17 +66,23 @@ public class HubFilterTests
     }
 
     [Test]
-    public async Task ExceptionLogHubFilter_AsyncFault_IsNotLogged()
+    public async Task ExceptionLogHubFilter_AsyncFault_IsLoggedAndRethrown()
     {
         var logger = new RecordingLogger<ExceptionLogHubFilter>();
         var filter = new ExceptionLogHubFilter(logger);
+        var exception = new InvalidOperationException("async");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await filter.InvokeMethodAsync(Invocation(), async _ => { await Task.Yield(); throw new InvalidOperationException("async"); }));
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await filter.InvokeMethodAsync(Invocation(), async _ => { await Task.Yield(); throw exception; }));
 
-        // BUG: ExceptionLogHubFilter.cs:20 returns next(...) without awaiting it, so exceptions thrown by async hub methods
-        // (i.e. nearly all of them) escape the try/catch and are never logged. Expected: one error entry. Actual: none.
-        Assert.That(logger.Entries, Is.Empty);
+        var entry = logger.Entries.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(thrown, Is.SameAs(exception));
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Message, Is.EqualTo("An error occurred in the hub method: Ping"));
+            Assert.That(entry.Exception, Is.SameAs(exception));
+        });
     }
 
     [Test]

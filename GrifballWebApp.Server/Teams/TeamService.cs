@@ -117,7 +117,7 @@ public class TeamService
             {
                 var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.XboxUser.Gamertag).FirstOrDefaultAsync(ct);
                 name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DiscordUser.DiscordUsername).FirstOrDefaultAsync(ct);
-                name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
+                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
                 name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.UserName).FirstOrDefaultAsync(ct);
                 newTeam.TeamName = $"{name}'s Team";
                 var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == newTeam.TeamName && x.SeasonID == dto.SeasonID, ct);
