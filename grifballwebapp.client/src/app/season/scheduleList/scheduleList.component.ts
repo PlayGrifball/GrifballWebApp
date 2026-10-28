@@ -103,7 +103,9 @@ export class ScheduleListComponent  implements OnInit {
 
     const grouped = groupBy(mappedMatches, (match) => match.LocalWeekYear + "-" + match.LocalWeekNumber);
     const mapped = map(grouped, (matches, key) => ({ key, matches }));
-    const groupedByWeek = orderBy(mapped, group => Number(group.key), ['asc']);
+    // Sort by year then week number (not Number(key): "2026-5" is NaN), so weeks
+    // stay chronological across a year boundary (week 52 of 2026 before week 1 of 2027).
+    const groupedByWeek = orderBy(mapped, [group => group.matches[0].LocalWeekYear, group => group.matches[0].LocalWeekNumber], ['asc', 'asc']);
 
     let weeks: WeekDto[] = [];
 
