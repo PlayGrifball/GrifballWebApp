@@ -76,7 +76,7 @@ public class GrifballContextFactoryTests
 
     // DbContext implements IInfrastructure<IServiceProvider> explicitly, so the EF internal service
     // provider (and from it, the configured interceptors) is only reachable through that interface.
-    private static IReadOnlyList<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>? InterceptorsOf(GrifballContext context)
+    private static IEnumerable<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>? InterceptorsOf(GrifballContext context)
     {
         var internalProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
         return internalProvider.GetService<IDbContextOptions>()?.FindExtension<CoreOptionsExtension>()?.Interceptors;
