@@ -49,7 +49,11 @@ public class QueueRepository : IQueueRepository
     {
         return await _context.MatchedMatches
             .Include(x => x.HomeTeam.Players)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(x => x.HomeTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
+            .Include(x => x.AwayTeam.Players)
+                .ThenInclude(x => x.User.XboxUser)
             .Include(x => x.AwayTeam.Players)
                 .ThenInclude(x => x.User.DiscordUser)
             .Where(x => x.Active)

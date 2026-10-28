@@ -419,9 +419,7 @@ public class QueueServiceBranchTests
             Assert.That(embeds[0].Fields!.Single().Value, Is.EqualTo($"1. {queued[0].XboxUser!.Gamertag} (MMR: 1000) = Queued <t:1704067200:R>"));
             Assert.That(embeds[1].Description, Is.EqualTo("1 active matches"));
             Assert.That(embeds[2].Fields!.Select(f => f.Name), Is.EqualTo(new[] { "Home (Avg MMR: 1000)", "Away (Avg MMR: 1000)" }));
-            // BUG: QueueRepository.GetActiveMatches (IQueueRepository.cs:49-55) includes User.DiscordUser but not User.XboxUser, so players
-            // without a linked Discord account show up with an empty name in the active match embed. Expected "gt.. (MMR: 1000)".
-            Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo(" (MMR: 1000)"));
+            Assert.That(embeds[2].Fields!.First().Value, Is.EqualTo($"{home[0].XboxUser!.Gamertag} (MMR: 1000)"));
         });
     }
 
@@ -530,10 +528,8 @@ public class QueueServiceBranchTests
         {
             Assert.That(embeds[0].Title, Is.EqualTo("Votes"));
             Assert.That(embeds[0].Description, Is.EqualTo("You need a majority of at least 2 votes"), "3 non-kicked players -> 3/2 + 1");
-            // BUG: QueueService.cs:519-525 only includes MatchedPlayer.User (no XboxUser/DiscordUser) in an AsNoTracking query, so the
-            // voter names always fall back to the user id instead of the gamertag.
-            Assert.That(embeds.Single(e => e.Title == "Home (2)").Description!.Split(", "), Is.EquivalentTo(home.Select(x => x.Id.ToString())));
-            Assert.That(embeds.Single(e => e.Title == "Cancel (1)").Description, Is.EqualTo(away[0].Id.ToString()));
+            Assert.That(embeds.Single(e => e.Title == "Home (2)").Description!.Split(", "), Is.EquivalentTo(home.Select(x => x.XboxUser!.Gamertag)));
+            Assert.That(embeds.Single(e => e.Title == "Cancel (1)").Description, Is.EqualTo(away[0].XboxUser!.Gamertag));
             Assert.That(embeds.Any(e => e.Title!.StartsWith("Away")), Is.False, "Kicked player's vote is not shown");
             Assert.That(embeds, Has.Count.EqualTo(3));
             Assert.That(kickMenu.Options.Select(o => o.Value), Is.EquivalentTo(new[] { home[0].Id, home[1].Id, away[0].Id }.Select(x => x.ToString())), "Kicked players cannot be voted on again");
