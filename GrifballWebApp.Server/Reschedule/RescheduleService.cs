@@ -43,7 +43,7 @@ public class RescheduleService
 
             // Prevent new request if there is already an active one
             if (seasonMatch.ActiveRescheduleRequestId.HasValue)
-                throw new InvalidOperationException("There is already an active reschedule request for this match.");
+                throw new RescheduleAlreadyActiveException();
 
             // Create the reschedule request
             var reschedule = new MatchReschedule
@@ -87,7 +87,7 @@ public class RescheduleService
                 throw new ArgumentException("Reschedule request not found");
 
             if (reschedule.Status != RescheduleStatus.Pending)
-                throw new InvalidOperationException("Reschedule request has already been processed");
+                throw new RescheduleAlreadyProcessedException();
 
             reschedule.Status = dto.Approved ? RescheduleStatus.Approved : RescheduleStatus.Rejected;
             reschedule.ApprovedByUserID = commissionerUserId;

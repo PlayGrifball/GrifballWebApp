@@ -30,6 +30,10 @@ public class RescheduleController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (RescheduleAlreadyActiveException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("{rescheduleId:int}", Name = "ProcessReschedule")]
@@ -47,7 +51,7 @@ public class RescheduleController : ControllerBase
         {
             return NotFound(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (RescheduleAlreadyProcessedException ex)
         {
             return BadRequest(ex.Message);
         }

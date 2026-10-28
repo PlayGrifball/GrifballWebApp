@@ -69,14 +69,15 @@ public class RescheduleControllerTests
     }
 
     [Test]
-    public async Task RequestReschedule_PropagatesInvalidOperation_When_AlreadyActive()
+    public async Task RequestReschedule_ReturnsBadRequest_When_AlreadyActive()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         SetUser(s.Requester.Id);
         await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
 
-        // Only ArgumentException is mapped to 400; the "already active" InvalidOperationException escapes the action (500).
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None));
+        var result = await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("There is already an active reschedule request for this match."));
     }
 
     [TestCase(true, "approved")]
