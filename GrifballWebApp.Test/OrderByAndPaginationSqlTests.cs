@@ -168,12 +168,20 @@ public class OrderByAndPaginationSqlTests
     }
 
     [Test]
-    public async Task PaginationResult_NegativePageSize_Throws()
+    public async Task PaginationResult_NegativePageSize_ClampsToOne()
     {
         await SeedSeasons();
-        // See PaginationFilterTests: the constructor does not clamp page size from below, so SQL Server rejects it.
+        // See PaginationFilterTests: PageSize clamps to [1, 250], so a negative
+        // value never reaches Take() and SQL Server no longer rejects it.
         var filter = new PaginationFilter(1, -1);
-        Assert.That(async () => await _context.Seasons.OrderBy(x => x.SeasonID).PaginationResult(filter), Throws.Exception);
+        var paged = await _context.Seasons.OrderBy(x => x.SeasonID).PaginationResult(filter);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(filter.PageSize, Is.EqualTo(1));
+            Assert.That(paged.TotalCount, Is.EqualTo(5));
+            Assert.That(paged.Results, Has.Length.EqualTo(1));
+        });
     }
 
     public class PagedSeason
