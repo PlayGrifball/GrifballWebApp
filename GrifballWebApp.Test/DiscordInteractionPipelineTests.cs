@@ -221,7 +221,7 @@ public class DiscordInteractionPipelineTests
 
         var thrown = Assert.ThrowsAsync<RestException>(async () =>
             await new ComponentInteractionPipeline<ButtonInteractionContext>().HandleResultAsync(new ExecutionExceptionResult(new Exception()), Button(), null, _logger, null!));
-        Assert.That(thrown, Is.SameAs(_responseError));
+        Assert.That(thrown?.Error?.Code, Is.EqualTo(10062));
         Assert.That(_rest.Requests, Is.Empty);
     }
 
