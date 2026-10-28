@@ -1,5 +1,7 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Interceptors;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,9 +14,9 @@ using System.Text.Json;
 namespace GrifballWebApp.Test;
 
 /// <summary>
-/// Only the routing in HandleAsync, and that a failure inside HandleResponse is logged rather than
-/// thrown, is tested. HandleResponse otherwise talks to a local Ollama instance and is deliberately
-/// never reached.
+/// The routing in HandleAsync, that a failure inside HandleResponse is logged rather than thrown, and
+/// the audited writes HandleResponse makes before it asks Ollama for a reply. Ollama is pointed at a
+/// port nothing listens on, so the reply itself is never produced.
 /// </summary>
 [TestFixture]
 public class MessageCreateHandlerTests
@@ -22,7 +24,6 @@ public class MessageCreateHandlerTests
     private const ulong BotId = 1;
 
     private IDiscordRestClient _discordClient;
-    private IDbContextFactory<GrifballContext> _contextFactory;
     private IServiceScopeFactory _scopeFactory;
     private RecordingLogger<MessageCreateHandler> _logger;
     private MessageCreateHandler _handler;
@@ -31,11 +32,10 @@ public class MessageCreateHandlerTests
     public void SetUp()
     {
         _discordClient = Substitute.For<IDiscordRestClient>();
-        _contextFactory = Substitute.For<IDbContextFactory<GrifballContext>>();
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
         _logger = new RecordingLogger<MessageCreateHandler>();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
-        _handler = new MessageCreateHandler(_discordClient, _contextFactory, config, _scopeFactory, _logger);
+        _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, _logger);
     }
 
     private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null)
@@ -66,8 +66,7 @@ public class MessageCreateHandlerTests
 
     private void AssertNoResponse()
     {
-        _contextFactory.DidNotReceiveWithAnyArgs().CreateDbContextAsync(default);
-        Assert.That(_contextFactory.ReceivedCalls(), Is.Empty, "HandleResponse would have created a context");
+        Assert.That(_scopeFactory.ReceivedCalls(), Is.Empty, "HandleResponse would have created a scope");
     }
 
     [Test]
@@ -140,9 +139,8 @@ public class MessageCreateHandlerTests
     [Test]
     public async Task HandleAsync_WhenHandlingTheMessageFails_LogsInsteadOfThrowing()
     {
-        // _contextFactory is an unconfigured substitute, so CreateDbContextAsync completes with a null
-        // GrifballContext: HandleResponse's first real use of it (context.DiscordUsers) throws a
-        // NullReferenceException, standing in for any failure (a down Ollama, a DB error, ...).
+        // Stands in for any failure (a down Ollama, a DB error, ...)
+        _scopeFactory.CreateScope().Returns(_ => throw new InvalidOperationException("boom"));
         var message = Message(5, [BotId]);
 
         await _handler.HandleAsync(message);
@@ -151,8 +149,87 @@ public class MessageCreateHandlerTests
         Assert.Multiple(() =>
         {
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
-            Assert.That(entry.Exception, Is.TypeOf<NullReferenceException>());
+            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
             Assert.That(entry.Message, Does.Contain("Failed to handle message").And.Contain(message.Author.Id.ToString()));
+        });
+    }
+
+    // Registered like Program.cs: a scoped GrifballContext with the scope's AuditInterceptor and ICurrentUserService
+    private GrifballContext? _db;
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        // One fixture instance runs every test, and only some use a database
+        if (_db is not null)
+            await _db.DropDatabaseAndDispose();
+        _db = null;
+    }
+
+    private async Task<MessageCreateHandler> HandlerWithDatabase()
+    {
+        _db = await SetUpFixture.NewGrifballContext();
+        var connectionString = _db.Database.GetConnectionString()!;
+        var services = new ServiceCollection()
+            .AddHttpContextAccessor()
+            .AddScoped<ICurrentUserService, CurrentUserService>()
+            .AddScoped<AuditInterceptor>()
+            .AddDbContext<GrifballContext>((sp, options) => options
+                .UseGrifballDatabase(TestDatabase.Provider, connectionString)
+                .AddInterceptors(sp.GetRequiredService<AuditInterceptor>()))
+            .BuildServiceProvider();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Discord:ClientId"] = BotId.ToString(),
+            ["Ollama:Url"] = "http://127.0.0.1:9/", // refused at once
+        }).Build();
+        return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _logger);
+    }
+
+    [Test]
+    public async Task HandleAsync_LinkedAuthor_WritesAreAuditedAsTheirAppUser()
+    {
+        var handler = await HandlerWithDatabase();
+        var user = new Database.Models.User { UserName = "linked", DiscordUser = new Database.Models.DiscordUser { DiscordUserID = 5, DiscordUsername = "user5" } };
+        _db!.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        await handler.HandleAsync(Message(5, [BotId]));
+
+        using var read = _db.NewContextLike();
+        var saved = await read.DiscordMessages.SingleAsync(x => x.Id == 10);
+        var bot = await read.DiscordUsers.SingleAsync(x => x.DiscordUserID == (long)BotId);
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(saved.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(saved.CreatedByID, Is.EqualTo(user.Id));
+            Assert.That(saved.ModifiedByID, Is.EqualTo(user.Id));
+            Assert.That(bot.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(bot.CreatedByID, Is.EqualTo(user.Id));
+            // Only Ollama failed, after the writes
+            Assert.That(_logger.Entries.Single().Message, Does.Contain("Failed to handle message"));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_UnlinkedAuthor_WritesAreTimestampedWithNoUser()
+    {
+        var handler = await HandlerWithDatabase();
+
+        await handler.HandleAsync(Message(5, [BotId]));
+
+        using var read = _db!.NewContextLike();
+        var saved = await read.DiscordMessages.SingleAsync(x => x.Id == 10);
+        var author = await read.DiscordUsers.SingleAsync(x => x.DiscordUserID == 5);
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(saved.CreatedByID, Is.Null);
+            Assert.That(saved.ModifiedByID, Is.Null);
+            Assert.That(author.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(author.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+            Assert.That(author.CreatedByID, Is.Null);
         });
     }
 }

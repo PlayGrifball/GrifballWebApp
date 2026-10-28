@@ -49,7 +49,17 @@ public static class DiscordInteractionPipeline
     /// </summary>
     public static async ValueTask<PreExecutionResult> SetCurrentUserAsync(Interaction interaction, ILogger logger, IServiceProvider services)
     {
-        var discordUserId = (long)interaction.User.Id;
+        await SetCurrentUserAsync(interaction.User.Id, logger, services);
+        return PreExecutionResult.Continue;
+    }
+
+    /// <summary>
+    /// Sets the current user in <paramref name="services"/> (a DI scope) to the app user linked to <paramref name="discordId"/>, if any.
+    /// A failed lookup is logged, not thrown.
+    /// </summary>
+    public static async Task SetCurrentUserAsync(ulong discordId, ILogger logger, IServiceProvider services)
+    {
+        var discordUserId = (long)discordId;
         try
         {
             var context = services.GetRequiredService<GrifballContext>();
@@ -63,11 +73,9 @@ public static class DiscordInteractionPipeline
         }
         catch (Exception ex)
         {
-            // Still run the interaction: a failed lookup should cost the audit user, not the reply
+            // Still run the interaction (or answer the message): a failed lookup should cost the audit user, not the reply
             logger.LogError(ex, "Failed to look up the app user for Discord user {DiscordUserId}", discordUserId);
         }
-
-        return PreExecutionResult.Continue;
     }
 
     /// <summary>
