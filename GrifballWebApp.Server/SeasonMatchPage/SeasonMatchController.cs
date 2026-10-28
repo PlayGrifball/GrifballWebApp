@@ -53,6 +53,13 @@ public class SeasonMatchController : ControllerBase
         return Run(() => _seasonMatchService.DoubleForfeit(seasonMatchID, ct));
     }
 
+    [Authorize(Roles = "Commissioner")]
+    [HttpPost("{seasonMatchID:int}", Name = "UndoResult")]
+    public Task<IActionResult> UndoResult([FromRoute] int seasonMatchID, CancellationToken ct)
+    {
+        return Run(() => _seasonMatchService.UndoResult(seasonMatchID, ct));
+    }
+
     /// <summary>
     /// Runs a commissioner action, answering a rule it breaks with a 400.
     /// </summary>

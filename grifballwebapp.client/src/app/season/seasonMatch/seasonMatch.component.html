@@ -84,6 +84,21 @@
 @if (accountService.isEventOrganizer()) {
 <h2>Report Game</h2>
 
+@if (actionError(); as error) {
+<p role="alert">{{error}}</p>
+}
+
+@if (pendingAction(); as action) {
+<p>{{actionPrompts[action]}}</p>
+
+<button mat-flat-button color="warn" (click)="confirmAction()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Confirm</button>
+
+<button mat-button (click)="cancelAction()">Cancel</button>
+} @else {
+@if (canUndo()) {
+<button mat-button (click)="requestAction('UndoResult')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Undo Result</button>
+}
+
 @if (seasonMatch()?.homeTeamResult !== 'TBD' || seasonMatch()?.awayTeamResult !== 'TBD') {
 <p>This match has been completed.</p>
 } @else {
@@ -91,19 +106,11 @@
 @if (!seasonMatch()?.bracketInfo?.isGrandFinal) {
 <h3>Forfeit</h3>
 
-@if (pendingForfeit(); as action) {
-<p>{{forfeitPrompts[action]}}</p>
+<button mat-button (click)="requestAction('HomeForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Home Team Forfeit</button>
 
-<button mat-flat-button color="warn" (click)="confirmForfeit()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Confirm Forfeit</button>
+<button mat-button (click)="requestAction('AwayForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Away Team Forfeit</button>
 
-<button mat-button (click)="cancelForfeit()">Cancel</button>
-} @else {
-<button mat-button (click)="requestForfeit('HomeForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Home Team Forfeit</button>
-
-<button mat-button (click)="requestForfeit('AwayForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Away Team Forfeit</button>
-
-<button mat-button (click)="requestForfeit('DoubleForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Both Teams Forfeit</button>
-}
+<button mat-button (click)="requestAction('DoubleForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Both Teams Forfeit</button>
 }
 
 <h3>Enter Match ID</h3>
@@ -119,6 +126,7 @@
     Submit
   </button>
 </form>
+}
 }
 
 <h3>Possible Matches</h3>

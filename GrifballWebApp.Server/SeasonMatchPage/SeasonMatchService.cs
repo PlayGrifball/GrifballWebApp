@@ -429,6 +429,42 @@ public class SeasonMatchService
         await transaction.CommitAsync(ct);
     }
 
+    /// <summary>
+    /// Resets a reported or forfeited match to undecided: clears its results, scores and reported games and, in a
+    /// bracket, takes back everything the result sent on. Not allowed once a later match it fed into has a result
+    /// of its own, other than one a BYE gave out.
+    /// </summary>
+    public async Task UndoResult(int seasonMatchID, CancellationToken ct = default)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+
+        var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
+
+        if (seasonMatch is null)
+            throw new Exception("Season match does not exist");
+
+        if (seasonMatch.HomeTeamResult is SeasonMatchResult.Bye || seasonMatch.AwayTeamResult is SeasonMatchResult.Bye)
+            throw new SeasonMatchActionNotAllowedException("This match has a BYE, so its result is decided by the bracket and cannot be undone");
+
+        var decided = seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null;
+
+        if (decided is false && seasonMatch.MatchLinks.Count is 0)
+            throw new SeasonMatchActionNotAllowedException("This match has no result to undo");
+
+        if (decided && seasonMatch.BracketMatch is not null)
+            await _bracketService.UndoAdvancementAsync(seasonMatch, ct);
+
+        seasonMatch.HomeTeamResult = null;
+        seasonMatch.AwayTeamResult = null;
+        seasonMatch.HomeTeamScore = null;
+        seasonMatch.AwayTeamScore = null;
+        // Frees the games so they can be reported again
+        _context.MatchLinks.RemoveRange(seasonMatch.MatchLinks);
+
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+    }
+
     private class TeamsDto
     {
         public required MatchTeam HomeTeam { get; set; }
