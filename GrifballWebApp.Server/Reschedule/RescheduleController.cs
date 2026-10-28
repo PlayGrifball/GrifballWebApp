@@ -30,6 +30,10 @@ public class RescheduleController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("{rescheduleId:int}", Name = "ProcessReschedule")]
