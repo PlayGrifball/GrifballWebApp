@@ -88,7 +88,7 @@ public class DraftStringMenuInteractionsTests
 
         var cb = _callbacks.Single();
         Assert.That(cb.Type, Is.EqualTo(InteractionCallbackType.Message));
-        var data = (InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!;
+        var data = ((InteractionCallbackProperties<InteractionMessageProperties>)cb).Data;
         Assert.That(data.Content, Is.EqualTo("You must set your gamertag first"));
         Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Delete), Is.True, "temp response is deleted afterwards");
         Assert.That(ModifiedContents(), Is.Empty);

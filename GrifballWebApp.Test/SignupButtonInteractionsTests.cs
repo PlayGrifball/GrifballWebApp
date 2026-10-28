@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NetCord;
-using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 using User = GrifballWebApp.Database.Models.User;
@@ -41,28 +40,9 @@ public class SignupButtonInteractionsTests
     [TearDown]
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
-    private static void FillArrays(object o)
-    {
-        foreach (var p in o.GetType().GetProperties())
-            if (p.PropertyType.IsArray && p.CanWrite && p.GetValue(o) is null)
-                p.SetValue(o, Array.CreateInstance(p.PropertyType.GetElementType()!, 0));
-    }
-
     private ButtonInteractionContext BuildContext(ulong userId)
     {
-        var json = new JsonInteraction
-        {
-            Id = 1,
-            ApplicationId = 2,
-            Type = (InteractionType)3, // message component
-            Token = "token",
-            User = new JsonUser { Id = userId, Username = "discorduser" },
-            Data = new JsonInteractionData { CustomId = "signup", ComponentType = ComponentType.Button },
-            Message = new JsonMessage { Id = 5, ChannelId = 6, Author = new JsonUser { Id = 7, Username = "bot" } },
-            Channel = new JsonChannel { Id = 6, Type = ChannelType.TextGuildChannel },
-        };
-        FillArrays(json);
-        FillArrays(json.Message);
+        var json = DiscordInteractionJson.Button("signup", userId, "discorduser");
         var restClient = new RestClient(new RestClientConfiguration { RequestHandler = _rest });
         var interaction = new ButtonInteraction(json, null, (_, cb, _, _, _) =>
         {
@@ -75,7 +55,7 @@ public class SignupButtonInteractionsTests
     private string LastMessage()
     {
         var cb = _callbacks.Last();
-        var data = cb.GetType().GetProperty("Data")!.GetValue(cb) as InteractionMessageProperties;
+        var data = (cb as InteractionCallbackProperties<InteractionMessageProperties>)?.Data;
         Assert.That(data, Is.Not.Null);
         Assert.That(data!.Flags, Is.EqualTo(MessageFlags.Ephemeral));
         return data.Content!;

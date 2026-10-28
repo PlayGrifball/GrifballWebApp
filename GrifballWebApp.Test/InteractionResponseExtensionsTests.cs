@@ -1,12 +1,7 @@
-using System.Net;
-using System.Security.Claims;
-using System.Text;
 using DiscordInterface.Generated;
-using GrifballWebApp.Database.Services;
+using DiscordInterfaces;
 using GrifballWebApp.Server.Extensions;
-using Microsoft.AspNetCore.Http;
 using NetCord;
-using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 using NSubstitute;
@@ -20,37 +15,24 @@ public class InteractionResponseExtensionsTests
 {
     private readonly List<InteractionCallbackProperties> _callbacks = [];
     private FakeRestRequestHandler _rest;
-    private ButtonInteractionContext _ctx;
+    private IDiscordButtonInteractionContext _ctx;
 
     [SetUp]
     public void Setup()
     {
         _rest = new FakeRestRequestHandler();
-        var json = new JsonInteraction
-        {
-            Id = 1,
-            ApplicationId = 2,
-            Type = (InteractionType)3,
-            Token = "tok",
-            User = new JsonUser { Id = 3, Username = "u" },
-            Data = new JsonInteractionData { CustomId = "x", ComponentType = ComponentType.Button },
-            Message = new JsonMessage { Id = 5, ChannelId = 6, Author = new JsonUser { Id = 7, Username = "bot" } },
-            Channel = new JsonChannel { Id = 6, Type = ChannelType.TextGuildChannel },
-        };
-        foreach (var o in new object[] { json, json.Message })
-            foreach (var p in o.GetType().GetProperties())
-                if (p.PropertyType.IsArray && p.CanWrite && p.GetValue(o) is null)
-                    p.SetValue(o, Array.CreateInstance(p.PropertyType.GetElementType()!, 0));
+        var json = DiscordInteractionJson.Button("x", 3);
         var interaction = new ButtonInteraction(json, null, (_, cb, _, _, _) => { _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); },
             new RestClient(new RestClientConfiguration { RequestHandler = _rest }));
-        _ctx = new ButtonInteractionContext(interaction, null!);
+        // A real NetCord context behind our wrapper, so these check what actually reaches Discord
+        _ctx = new ButtonInteractionContext(interaction, null!).ToDiscordContext();
     }
 
     private InteractionMessageProperties SentMessage() =>
-        (InteractionMessageProperties)_callbacks.Single().GetType().GetProperty("Data")!.GetValue(_callbacks.Single())!;
+        ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Single()).Data;
 
     [Test]
-    public async Task EphemeralResponse_NetCordContext_SendsEphemeralMessage()
+    public async Task EphemeralResponse_WrappedNetCordContext_SendsEphemeralMessage()
     {
         await _ctx.EphemeralResponse("hello");
 
@@ -60,7 +42,7 @@ public class InteractionResponseExtensionsTests
     }
 
     [Test]
-    public async Task TempResponse_NetCordContext_SendsThenDeletesOriginal()
+    public async Task TempResponse_WrappedNetCordContext_SendsThenDeletesOriginal()
     {
         await _ctx.TempResponse("temp");
 
@@ -70,7 +52,7 @@ public class InteractionResponseExtensionsTests
     }
 
     [Test]
-    public async Task ModifyTempResponse_NetCordContext_PatchesThenDeletesOriginal()
+    public async Task ModifyTempResponse_WrappedNetCordContext_PatchesThenDeletesOriginal()
     {
         await _ctx.ModifyTempResponse("modified");
 
@@ -88,7 +70,7 @@ public class InteractionResponseExtensionsTests
         await ctx.EphemeralResponse("hi there");
 
         await ctx.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(cb =>
-            ((InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!).Content == "hi there" &&
-            ((InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!).Flags == MessageFlags.Ephemeral));
+            ((InteractionCallbackProperties<InteractionMessageProperties>)cb).Data.Content == "hi there" &&
+            ((InteractionCallbackProperties<InteractionMessageProperties>)cb).Data.Flags == MessageFlags.Ephemeral));
     }
 }

@@ -27,6 +27,11 @@ public static class Ext
     {
         return new DiscordApplicationCommandContext(interactionContext);
     }
+
+    public static IDiscordModalInteractionContext ToDiscordContext(this ModalInteractionContext interactionContext)
+    {
+        return new DiscordModalInteractionContext(interactionContext);
+    }
 }
 
 public partial interface IDiscordStringMenuInteractionContext : IDiscordInteractionContext
@@ -135,6 +140,43 @@ public partial class DiscordApplicationCommandContext : IDiscordApplicationComma
     public IDiscordInteraction Interaction => new DiscordInteraction(_original.Interaction);
 
     public DiscordApplicationCommandContext(ApplicationCommandContext original)
+    {
+        _original = original;
+    }
+}
+
+public partial interface IDiscordModalInteractionContext : IDiscordInteractionContext
+{
+    GatewayClient Client { get; }
+
+    IDiscordUser User { get; }
+
+    IDiscordGuild? Guild { get; }
+
+    IDiscordTextChannel Channel { get; }
+
+    IReadOnlyList<NetCord.IModalComponent> Components { get; }
+}
+
+public partial class DiscordModalInteractionContext : IDiscordModalInteractionContext
+{
+    private readonly ModalInteractionContext _original;
+
+    public GatewayClient Client => _original.Client;
+
+    public IDiscordUser User => new DiscordUser(_original.User);
+
+    public IDiscordGuild? Guild => _original.Guild is null ? null : new DiscordGuild(_original.Guild);
+
+    public IDiscordTextChannel Channel => new DiscordTextChannel(_original.Channel);
+
+    public IReadOnlyList<NetCord.IModalComponent> Components => _original.Components;
+
+    public IInteractionContext Original => _original;
+
+    public IDiscordInteraction Interaction => new DiscordInteraction(_original.Interaction);
+
+    public DiscordModalInteractionContext(ModalInteractionContext original)
     {
         _original = original;
     }

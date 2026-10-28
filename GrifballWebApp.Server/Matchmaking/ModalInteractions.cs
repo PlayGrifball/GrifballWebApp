@@ -1,9 +1,12 @@
-﻿using DiscordInterfaces;
-using NetCord;
+using DiscordInterfaces;
 using NetCord.Services.ComponentInteractions;
 
 namespace GrifballWebApp.Server.Matchmaking;
 
+/// <summary>
+/// NetCord entry point for the Set Gamertag modal: wraps the context and hands off to <see cref="DiscordSetGamertag"/>.
+/// Keep logic out of here, it is excluded from coverage (coverlet.runsettings).
+/// </summary>
 public class ModalInteractions : ComponentInteractionModule<ModalInteractionContext>
 {
     private readonly DiscordSetGamertag _discordSetGamertag;
@@ -15,7 +18,6 @@ public class ModalInteractions : ComponentInteractionModule<ModalInteractionCont
     [ComponentInteraction(DiscordModalsContants.SetGamertag)]
     public async Task SetGamertag()
     {
-        var gamertag = ((TextInput)((Label)Context.Components[0]).Component).Value;
-        await _discordSetGamertag.SetGamertag(Context.ToDiscordContext(), gamertag);
+        await _discordSetGamertag.SetGamertag(Context.ToDiscordContext());
     }
 }
