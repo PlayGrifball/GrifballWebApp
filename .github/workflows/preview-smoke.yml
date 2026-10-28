@@ -155,7 +155,8 @@ jobs:
       if: steps.preview.outputs.run == 'true'
       env:
         SMOKE_BASE_URL: ${{ steps.preview.outputs.url }}
-        SMOKE_RUN_ID: gh${{ github.run_id }}-${{ github.run_attempt }}
+        # Shortened to base 36 by the suite (smoke/env.ts); names also get a random part, so reruns never clash.
+        SMOKE_RUN_ID: ${{ github.run_id }}
       run: npm run smoke
 
     - name: Upload the report and traces
