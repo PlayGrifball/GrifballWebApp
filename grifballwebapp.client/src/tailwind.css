@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* Palette colors can be picked at runtime (e.g. bg-primary-40), so generate them all. */
+@source inline("bg-{primary,secondary,tertiary,neutral,neutral-variant,error}{,-{0,10,20,30,40,50,60,70,80,90,100}}");
+
+/* Material 3 palette; the variables are defined in styles.scss. */
+@theme inline {
+    --color-primary: var(--primary);
+    --color-primary-0: var(--primary-0);
+    --color-primary-10: var(--primary-10);
+    --color-primary-20: var(--primary-20);
+    --color-primary-30: var(--primary-30);
+    --color-primary-40: var(--primary-40);
+    --color-primary-50: var(--primary-50);
+    --color-primary-60: var(--primary-60);
+    --color-primary-70: var(--primary-70);
+    --color-primary-80: var(--primary-80);
+    --color-primary-90: var(--primary-90);
+    --color-primary-100: var(--primary-100);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-0: var(--secondary-0);
+    --color-secondary-10: var(--secondary-10);
+    --color-secondary-20: var(--secondary-20);
+    --color-secondary-30: var(--secondary-30);
+    --color-secondary-40: var(--secondary-40);
+    --color-secondary-50: var(--secondary-50);
+    --color-secondary-60: var(--secondary-60);
+    --color-secondary-70: var(--secondary-70);
+    --color-secondary-80: var(--secondary-80);
+    --color-secondary-90: var(--secondary-90);
+    --color-secondary-100: var(--secondary-100);
+
+    --color-tertiary: var(--tertiary);
+    --color-tertiary-0: var(--tertiary-0);
+    --color-tertiary-10: var(--tertiary-10);
+    --color-tertiary-20: var(--tertiary-20);
+    --color-tertiary-30: var(--tertiary-30);
+    --color-tertiary-40: var(--tertiary-40);
+    --color-tertiary-50: var(--tertiary-50);
+    --color-tertiary-60: var(--tertiary-60);
+    --color-tertiary-70: var(--tertiary-70);
+    --color-tertiary-80: var(--tertiary-80);
+    --color-tertiary-90: var(--tertiary-90);
+    --color-tertiary-100: var(--tertiary-100);
+
+    --color-neutral: var(--neutral);
+    --color-neutral-0: var(--neutral-0);
+    --color-neutral-10: var(--neutral-10);
+    --color-neutral-20: var(--neutral-20);
+    --color-neutral-30: var(--neutral-30);
+    --color-neutral-40: var(--neutral-40);
+    --color-neutral-50: var(--neutral-50);
+    --color-neutral-60: var(--neutral-60);
+    --color-neutral-70: var(--neutral-70);
+    --color-neutral-80: var(--neutral-80);
+    --color-neutral-90: var(--neutral-90);
+    --color-neutral-100: var(--neutral-100);
+
+    --color-neutral-variant: var(--neutral-variant);
+    --color-neutral-variant-0: var(--neutral-variant-0);
+    --color-neutral-variant-10: var(--neutral-variant-10);
+    --color-neutral-variant-20: var(--neutral-variant-20);
+    --color-neutral-variant-30: var(--neutral-variant-30);
+    --color-neutral-variant-40: var(--neutral-variant-40);
+    --color-neutral-variant-50: var(--neutral-variant-50);
+    --color-neutral-variant-60: var(--neutral-variant-60);
+    --color-neutral-variant-70: var(--neutral-variant-70);
+    --color-neutral-variant-80: var(--neutral-variant-80);
+    --color-neutral-variant-90: var(--neutral-variant-90);
+    --color-neutral-variant-100: var(--neutral-variant-100);
+
+    --color-error: var(--error);
+    --color-error-0: var(--error-0);
+    --color-error-10: var(--error-10);
+    --color-error-20: var(--error-20);
+    --color-error-30: var(--error-30);
+    --color-error-40: var(--error-40);
+    --color-error-50: var(--error-50);
+    --color-error-60: var(--error-60);
+    --color-error-70: var(--error-70);
+    --color-error-80: var(--error-80);
+    --color-error-90: var(--error-90);
+    --color-error-100: var(--error-100);
+}
+
+/* Tailwind v4 borders default to currentColor; keep v3 gray-200. */
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+}
+
+@layer base {
+    h1 {
+        @apply text-2xl;
+        @apply font-bold;
+    }
+    h2 {
+        @apply text-xl;
+        @apply font-bold;
+    }
+    h3 {
+        @apply text-lg;
+        @apply font-bold;
+    }
+    h4 {
+        @apply text-base;
+        @apply font-bold;
+    }
+    h5 {
+        @apply text-sm;
+        @apply font-bold;
+    }
+    h6 {
+        @apply text-xs;
+        @apply font-bold;
+    }
+}
+
+.mdc-notched-outline__notch {
+    border-style: none;
+}
+
+.mat-mdc-icon-button {
+    line-height: normal;
+}
