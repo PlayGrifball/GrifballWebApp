@@ -20,6 +20,7 @@ using NetCord.Gateway;
 using NetCord.Rest;
 using NSubstitute;
 using System.Net;
+using System.Net.Http.Json;
 using ServerProgram = GrifballWebApp.Server.Program;
 
 namespace GrifballWebApp.Test;
@@ -157,6 +158,14 @@ public class ProgramStartupTests
         });
     }
 
+    private const string SmokePassword = "Smoke-Test-Password-1";
+
+    private static async Task AssertLogin(HttpClient client, string userName, HttpStatusCode expected)
+    {
+        using var response = await client.PostAsJsonAsync("/Identity/Login", new { Username = userName, Password = SmokePassword });
+        Assert.That(response.StatusCode, Is.EqualTo(expected), $"login as {userName}");
+    }
+
     private static async Task AssertOk(HttpClient client, string path)
     {
         using var response = await client.GetAsync(path);
@@ -168,6 +177,7 @@ public class ProgramStartupTests
     {
         var settings = CommonSettings();
         settings[PreviewMode.ConfigurationKey] = "true";
+        settings[PreviewSmokeUsers.PasswordKey] = SmokePassword;
 
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
         using var client = factory.CreateClient();
@@ -199,6 +209,10 @@ public class ProgramStartupTests
         await AssertOk(client, "/CommitDate");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
         await AssertOk(client, "/Home/PastSeasons");
+
+        // The smoke-test accounts were made at startup and can sign in.
+        foreach (var userName in PreviewSmokeUsers.UserNames)
+            await AssertLogin(client, userName, HttpStatusCode.OK);
     }
 
     [Test]
@@ -210,6 +224,8 @@ public class ProgramStartupTests
         settings["Discord:Token"] = DummyBotToken;
         settings["Discord:DraftChannel"] = "1";
         settings["Discord:DisableGlobally"] = "true";
+        // Ignored outside preview mode.
+        settings[PreviewSmokeUsers.PasswordKey] = SmokePassword;
 
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
         using var client = factory.CreateClient();
@@ -242,6 +258,7 @@ public class ProgramStartupTests
 
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
+        await AssertLogin(client, PreviewSmokeUsers.UserNames[0], HttpStatusCode.Unauthorized);
     }
 
     [Test]
