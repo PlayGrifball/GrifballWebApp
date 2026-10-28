@@ -179,7 +179,7 @@ public class EventOrganizerServiceTests
     }
 
     [Test]
-    public void UpsertSeason_Should_ThrowException_When_SeasonDoesNotExist()
+    public async Task UpsertSeason_Should_ThrowException_When_SeasonDoesNotExist()
     {
         // Arrange
         var now = DateTime.UtcNow;
@@ -195,7 +195,7 @@ public class EventOrganizerServiceTests
         };
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.UpsertSeason(dto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UpsertSeason(dto, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
     }
 

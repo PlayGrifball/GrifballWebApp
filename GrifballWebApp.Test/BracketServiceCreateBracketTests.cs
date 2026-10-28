@@ -264,7 +264,7 @@ public class BracketServiceCreateBracketTests
     {
         var seasonID = await CreateSeason();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.CreateBracket(1, seasonID, true, 1));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.CreateBracket(1, seasonID, true, 1));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find the last winner bracket match"));
     }
@@ -277,7 +277,7 @@ public class BracketServiceCreateBracketTests
         _context.ChangeTracker.Clear();
 
         // With only one winner round there is no loser bracket to build
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.CreateBracket(2, seasonID, true, 1));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.CreateBracket(2, seasonID, true, 1));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to get last loser match"));
         _context.ChangeTracker.Clear();
@@ -294,7 +294,7 @@ public class BracketServiceCreateBracketTests
         // BUG: GetSeedMatchUps turns missing seeds into byes (null seed) but the match has no previous match either,
         // which violates CK_Event_MatchBracketInfo_Require{Home,Away}SeedOrPreviousMatch. Expected: a bracket with byes is
         // created; actual: SaveChanges throws and nothing is persisted.
-        var ex = Assert.ThrowsAsync<DbUpdateException>(() => _service.CreateBracket(participants, seasonID, false, 1));
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => _service.CreateBracket(participants, seasonID, false, 1));
 
         Assert.That(ex!.InnerException?.Message, Does.Contain("CK_Event_MatchBracketInfo_Require"));
         _context.ChangeTracker.Clear();

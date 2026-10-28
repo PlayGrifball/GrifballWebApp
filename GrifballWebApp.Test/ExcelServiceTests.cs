@@ -286,22 +286,22 @@ public class ExcelServiceTests
     }
 
     [Test]
-    public void ExportAll_MissingCopySpreadsheetConfig_Throws()
+    public async Task ExportAll_MissingCopySpreadsheetConfig_Throws()
     {
         var service = CreateService(Config(new() { ["GoogleSheets:CopySpreadsheetID"] = null }));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
+        var ex = await Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
 
         Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySpreadsheetID"));
         Assert.That(_handler.Requests, Is.Empty);
     }
 
     [Test]
-    public void ExportAll_MissingCopySheetRangeConfig_Throws()
+    public async Task ExportAll_MissingCopySheetRangeConfig_Throws()
     {
         var service = CreateService(Config(new() { ["GoogleSheets:CopySheetNameRange"] = null }));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
+        var ex = await Assert.ThrowsAsync<Exception>(() => service.ExportAll(Target));
 
         Assert.That(ex!.Message, Is.EqualTo("Missing GoogleSheets:CopySheetNameRange"));
     }

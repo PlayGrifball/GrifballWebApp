@@ -183,7 +183,7 @@ public class DataPullServiceTests
         _context.MedalTypes.Add(new Database.Models.MedalType { MedalTypeID = 1, MedalTypeName = "Test" });
         _context.Medals.Add(new Database.Models.Medal { MedalID = 1, MedalName = "Test", Description = "desc", SpriteIndex = 0, SortingWeight = 0, MedalDifficultyID = 1, MedalTypeID = 1, PersonalScore = 0 });
         await _context.SaveChangesAsync();
-        Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());
+        await Assert.ThrowsAsync<Exception>(async () => await _service.DownloadMedals());
     }
 
     [Test]

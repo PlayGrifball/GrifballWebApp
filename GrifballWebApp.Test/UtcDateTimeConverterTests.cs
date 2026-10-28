@@ -93,11 +93,11 @@ public class UtcDateTimeStorageTests
     }
 
     [Test]
-    public void LocalDateTime_IsNotSaved()
+    public async Task LocalDateTime_IsNotSaved()
     {
         _context.Seasons.Add(new GrifballWebApp.Database.Models.Season { SeasonName = "Local", SignupsOpen = DateTime.Now, SignupsClose = DateTime.UtcNow });
 
-        var ex = Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
 
         Assert.That(ex!.InnerException, Is.InstanceOf<InvalidOperationException>().With.Message.Contains("Kind Local"));
     }

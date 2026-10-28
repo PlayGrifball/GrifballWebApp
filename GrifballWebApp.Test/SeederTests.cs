@@ -62,9 +62,9 @@ public class SeederTests
     }
 
     [Test]
-    public void FileReader_MissingFolderConfig_Throws()
+    public async Task FileReader_MissingFolderConfig_Throws()
     {
-        var ex = Assert.ThrowsAsync<Exception>(() => new FileReader(Config(null)).LoadIcon("Gold1.png"));
+        var ex = await Assert.ThrowsAsync<Exception>(() => new FileReader(Config(null)).LoadIcon("Gold1.png"));
 
         Assert.That(ex!.Message, Is.EqualTo("Missing Folder in configuration cannot load icon"));
     }

@@ -101,7 +101,7 @@ public class PreviewModeTests
     }
 
     [Test]
-    public void AddPreviewDiscord_Should_FailDiscordRequestsLocally()
+    public async Task AddPreviewDiscord_Should_FailDiscordRequestsLocally()
     {
         using var provider = PreviewServices([]);
 
@@ -109,7 +109,7 @@ public class PreviewModeTests
 
         var client = provider.GetRequiredService<IDiscordRestClient>();
 
-        var ex = Assert.ThrowsAsync<PreviewDiscordDisabledException>(()
+        var ex = await Assert.ThrowsAsync<PreviewDiscordDisabledException>(()
             => client.SendMessageAsync(1234, new MessageProperties { Content = "hello" }));
         Assert.That(ex!.Message, Does.StartWith("Discord is disabled in preview mode"));
     }

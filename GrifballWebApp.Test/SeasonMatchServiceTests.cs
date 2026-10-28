@@ -187,7 +187,7 @@ public class SeasonMatchServiceTests
         const int nonExistentSeasonMatchId = 999;
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(nonExistentSeasonMatchId, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }
 
@@ -217,7 +217,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
 
@@ -255,7 +255,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Results for this match have already been decided"));
     }
 
@@ -309,7 +309,7 @@ public class SeasonMatchServiceTests
         const int nonExistentSeasonMatchId = 999;
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(nonExistentSeasonMatchId, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }
 
@@ -339,7 +339,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
 
@@ -377,7 +377,7 @@ public class SeasonMatchServiceTests
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Results for this match have already been decided"));
     }
 

@@ -350,7 +350,7 @@ public class DatabaseConversionTests
         await using (var db = DatabaseConverter.NewContext(target))
             await db.Database.MigrateAsync();
 
-        var e = Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
+        var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
 
         await Assert.MultipleAsync(async () =>
         {
@@ -367,7 +367,7 @@ public class DatabaseConversionTests
             await db.GetService<IMigrator>().MigrateAsync(db.Database.GetMigrations().First());
         var target = Database(TestDatabase.Other);
 
-        var e = Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
+        var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, target));
 
         await Assert.MultipleAsync(async () =>
         {
@@ -387,15 +387,15 @@ public class DatabaseConversionTests
             await db.Database.ExecuteSqlRawAsync(history.GetInsertScript(new HistoryRow("29991231000000_FromTheFuture", "10.0.12")));
         }
 
-        var e = Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, Database(TestDatabase.Other)));
+        var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(source, Database(TestDatabase.Other)));
 
         Assert.That(e!.Message, Does.Contain("29991231000000_FromTheFuture"));
     }
 
     [Test]
-    public void Refuses_ASourceThatDoesNotExist()
+    public async Task Refuses_ASourceThatDoesNotExist()
     {
-        var e = Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(Database(TestDatabase.Provider), Database(TestDatabase.Other)));
+        var e = await Assert.ThrowsAsync<ConversionException>(() => Converter().ConvertAsync(Database(TestDatabase.Provider), Database(TestDatabase.Other)));
 
         Assert.That(e!.Message, Does.Contain("doesn't exist"));
     }
@@ -420,7 +420,7 @@ public class DatabaseConversionTests
         var target = Database(TestDatabase.Other);
         using var cancellation = new CancellationTokenSource();
 
-        Assert.CatchAsync<OperationCanceledException>(() => new DatabaseConverter(new CancelAfterFirstTable(cancellation)).ConvertAsync(source, target, cancellation.Token));
+        await Assert.CatchAsync<OperationCanceledException>(() => new DatabaseConverter(new CancelAfterFirstTable(cancellation)).ConvertAsync(source, target, cancellation.Token));
 
         Assert.That(await ExistsAsync(target), Is.False);
     }
@@ -460,7 +460,7 @@ public class DatabaseConversionTests
         await CreateEmpty(target);
         using var cancellation = new CancellationTokenSource();
 
-        Assert.CatchAsync<OperationCanceledException>(() => new DatabaseConverter(new CancelAfterFirstTable(cancellation)).ConvertAsync(source, target, cancellation.Token));
+        await Assert.CatchAsync<OperationCanceledException>(() => new DatabaseConverter(new CancelAfterFirstTable(cancellation)).ConvertAsync(source, target, cancellation.Token));
 
         var exists = await ExistsAsync(target);
         var hasTables = await HasTablesAsync(target);

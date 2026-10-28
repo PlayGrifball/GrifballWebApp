@@ -86,7 +86,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        Assert.Multiple(() =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -95,12 +95,12 @@ public class DiscordSetGamertagTests
             Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
             Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
             Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                     .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
@@ -131,7 +131,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        Assert.Multiple(() =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -140,12 +140,12 @@ public class DiscordSetGamertagTests
             Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
             Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
             Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                     .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();
@@ -190,7 +190,7 @@ public class DiscordSetGamertagTests
             .FirstOrDefaultAsync();
 
         // Assert
-        Assert.Multiple(() =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(user, Is.Not.Null, "User should be created");
             // Gamertag will not be set unless we 1 mock it, or 2 have a real Profile service
@@ -199,12 +199,12 @@ public class DiscordSetGamertagTests
             Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
             Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
             Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                     .ModifyResponseAsync(Arg.Any<Action<IDiscordMessageOptions>>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
             }, "Message should be modified");
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)
                 .DeleteResponseAsync();

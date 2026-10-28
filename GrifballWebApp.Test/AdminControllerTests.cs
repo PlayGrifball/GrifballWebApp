@@ -40,9 +40,9 @@ public class AdminControllerTests
     }
 
     [Test]
-    public void Get_ShouldThrowException_WhenGameIsNotGuid()
+    public async Task Get_ShouldThrowException_WhenGameIsNotGuid()
     {
-        var ex = Assert.ThrowsAsync<Exception>(async () => await _controller.Get("not-a-guid"));
+        var ex = await Assert.ThrowsAsync<Exception>(async () => await _controller.Get("not-a-guid"));
         Assert.That(ex.Message, Is.EqualTo("Not valid guid"));
     }
 
