@@ -6,7 +6,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
+import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { AccountService } from '../../account.service';
@@ -139,6 +140,30 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
 
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
+  });
+
+  function teamTiles(): { text: string, linked: boolean }[] {
+    return fixture.debugElement.queryAll(By.css('mat-grid-tile'))
+      .map(d => ({ text: (d.nativeElement as HTMLElement).textContent?.trim() ?? '', linked: d.injector.get(RouterLink, null, { self: true }) !== null }))
+      .filter(t => t.text === 'Home' || t.text === 'Away' || t.text === 'BYE');
+  }
+
+  it('links both teams for a match with two teams', () => {
+    load(page());
+
+    expect(teamTiles()).toEqual([{ text: 'Home', linked: true }, { text: 'Away', linked: true }]);
+  });
+
+  it('shows an away BYE without a team link', () => {
+    load(page({ isPlayoff: true, homeTeamResult: 'Won', awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye' }));
+
+    expect(teamTiles()).toEqual([{ text: 'Home', linked: true }, { text: 'BYE', linked: false }]);
+  });
+
+  it('shows a home BYE without a team link', () => {
+    load(page({ isPlayoff: true, homeTeamName: null, homeTeamID: null, homeTeamResult: 'Bye', awayTeamResult: 'Won' }));
+
+    expect(teamTiles()).toEqual([{ text: 'BYE', linked: false }, { text: 'Away', linked: true }]);
   });
 
   it('shows seeds and next-match links for a first-round playoff match', () => {
