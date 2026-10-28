@@ -241,4 +241,17 @@ describe('TableComponent API responses', () => {
     expect(text()).toContain('No results found');
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
+
+  it('passes rows through untouched when no parseRow is bound', async () => {
+    pending().flush({ totalCount: 1, results: [{ id: 1, name: 'alpha' }] });
+    await fixture.whenStable();
+    expect(component.current().results).toEqual([{ id: 1, name: 'alpha' }]);
+  });
+
+  it('turns each row through parseRow when one is bound', async () => {
+    fixture.componentRef.setInput('parseRow', (row: any) => ({ ...row, name: row.name.toUpperCase() }));
+    pending().flush({ totalCount: 2, results: [{ id: 1, name: 'alpha' }, { id: 2, name: 'beta' }] });
+    await fixture.whenStable();
+    expect(component.current().results.map(r => r.name)).toEqual(['ALPHA', 'BETA']);
+  });
 });

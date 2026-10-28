@@ -150,10 +150,25 @@ public class BracketServiceQueryTests
     // ---------------- GetViewerDataAsync ----------------
 
     [Test]
-    public void GetViewerDataAsync_SeasonMissing_Throws()
+    public async Task GetViewerDataAsync_SeasonMissing_ReturnsNull()
     {
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(12345));
-        Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
+        Assert.That(await _service.GetViewerDataAsync(12345), Is.Null);
+    }
+
+    [Test]
+    public async Task GetViewerDataAsync_SeasonWithoutBracket_ReturnsEmptyBracket()
+    {
+        var seasonID = await CreateSeason("No Playoffs");
+
+        var data = await _service.GetViewerDataAsync(seasonID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(data, Is.Not.Null);
+            Assert.That(data!.Participants, Is.Empty);
+            Assert.That(data.Matches, Is.Empty);
+            Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(0));
+        });
     }
 
     [Test]
@@ -172,7 +187,8 @@ public class BracketServiceQueryTests
             Assert.That(data.MatchGames, Is.Empty);
             Assert.That(data.Participants.Select(p => (p.Id, p.Name, p.Tournament_id)), Is.EqualTo(new[]
             {
-                (1, "Seed 1", seasonID), (4, "Seed 4", seasonID), (3, "Seed 3", seasonID), (2, "Seed 2", seasonID),
+                // Seed placeholders have negative ids, so they cannot collide with a TeamID
+                (-1, "Seed 1", seasonID), (-4, "Seed 4", seasonID), (-3, "Seed 3", seasonID), (-2, "Seed 2", seasonID),
             }));
 
             var stage = data.Stages.Single();
@@ -191,10 +207,11 @@ public class BracketServiceQueryTests
             var byId = data.Matches.ToDictionary(m => m.Id);
 
             var w1 = byId[Sm(Bracket.Winner, 1)];
-            Assert.That((w1.Group_id, w1.Round_id, w1.Number, w1.Status, w1.Stage_id), Is.EqualTo((1, 1, 1, Status.Ready, seasonID)));
+            // No team is seeded yet, so even round 1 is Locked; its slots show the seed placeholders
+            Assert.That((w1.Group_id, w1.Round_id, w1.Number, w1.Status, w1.Stage_id), Is.EqualTo((1, 1, 1, Status.Locked, seasonID)));
             Assert.That(w1.Opponent1!.Position, Is.EqualTo(1));
             Assert.That(w1.Opponent2!.Position, Is.EqualTo(4));
-            Assert.That(w1.Opponent1.Id, Is.Null);
+            Assert.That((w1.Opponent1.Id, w1.Opponent2.Id), Is.EqualTo(((int?)-1, (int?)-4)));
             Assert.That(w1.Opponent1.Result, Is.Null);
             Assert.That(w1.Opponent1.Forfeit, Is.False);
 
@@ -205,6 +222,7 @@ public class BracketServiceQueryTests
             var w3 = byId[Sm(Bracket.Winner, 3)];
             Assert.That((w3.Group_id, w3.Round_id, w3.Number, w3.Status), Is.EqualTo((1, 2, 1, Status.Locked)));
             Assert.That(w3.Opponent1!.Position, Is.Null);
+            Assert.That(w3.Opponent1.Id, Is.Null, "later rounds stay TBD");
 
             // Loser rounds continue after the last winner round (2)
             var l1 = byId[Sm(Bracket.Loser, 1)];
@@ -223,7 +241,11 @@ public class BracketServiceQueryTests
             Assert.That(gf.Opponent1!.Position, Is.Null);
 
             var sd = byId[Sm(Bracket.GrandFinalSuddenDeath, 5)];
-            Assert.That((sd.Group_id, sd.Round_id, sd.Number, sd.Status), Is.EqualTo((3, 0, 2, Status.Ready)));
+            Assert.That((sd.Group_id, sd.Round_id, sd.Number, sd.Status), Is.EqualTo((3, 0, 2, Status.Locked)), "the reset waits for its teams like the grand final");
+
+            // Every opponent id names a participant
+            var participantIds = data.Participants.Select(p => p.Id).ToHashSet();
+            Assert.That(data.Matches.SelectMany(m => new[] { m.Opponent1!.Id, m.Opponent2!.Id }).Where(id => id is not null).All(id => participantIds.Contains(id!.Value)), Is.True);
         });
     }
 
@@ -303,6 +325,66 @@ public class BracketServiceQueryTests
             Assert.That((m2.Opponent2!.Id, m2.Opponent2.Result, m2.Opponent2.Forfeit),
                 Is.EqualTo(((int?)a.TeamID, (Result?)Result.win, false)));
         });
+    }
+
+    [Test]
+    public async Task GetViewerDataAsync_StatusFollowsTheMatch()
+    {
+        var seasonID = await CreateSeason();
+        var (a, b, c, d) = await CreateTeamsWithStandings(seasonID);
+        await _service.CreateBracket(4, seasonID, true, 1);
+        await _service.SetSeeds(seasonID);
+
+        async Task<SeasonMatch> Get(Bracket kind, int number) =>
+            await _context.SeasonMatches.SingleAsync(x => x.BracketMatch!.Bracket == kind && x.BracketMatch.MatchNumber == number);
+        var w1 = await Get(Bracket.Winner, 1);   // completed
+        w1.HomeTeamScore = 2; w1.HomeTeamResult = SeasonMatchResult.Won;
+        w1.AwayTeamScore = 0; w1.AwayTeamResult = SeasonMatchResult.Loss;
+        var w2 = await Get(Bracket.Winner, 2);   // running: a score, no result yet
+        w2.HomeTeamScore = 1;
+        var w3 = await Get(Bracket.Winner, 3);   // waiting: W1's winner is in, W2's is not
+        w3.HomeTeamID = w1.HomeTeamID;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var data = await _service.GetViewerDataAsync(seasonID);
+        Status StatusOf(SeasonMatch sm) => data!.Matches.Single(m => m.Id == sm.SeasonMatchID).Status;
+        var l1 = await _context.SeasonMatches.AsNoTracking().SingleAsync(x => x.BracketMatch!.Bracket == Bracket.Loser && x.BracketMatch.MatchNumber == 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(StatusOf(w1), Is.EqualTo(Status.Completed));
+            Assert.That(StatusOf(w2), Is.EqualTo(Status.Running));
+            Assert.That(StatusOf(w3), Is.EqualTo(Status.Waiting));
+            Assert.That(StatusOf(l1), Is.EqualTo(Status.Locked));
+        });
+    }
+
+    [TestCase(null, null, null, null, null, null, Status.Locked)]
+    [TestCase(1, null, null, null, null, null, Status.Waiting)]
+    [TestCase(null, 2, null, null, null, null, Status.Waiting)]
+    [TestCase(1, 2, null, null, null, null, Status.Ready)]
+    [TestCase(1, 2, 0, null, null, null, Status.Running)]
+    [TestCase(1, 2, 1, 0, SeasonMatchResult.Won, SeasonMatchResult.Loss, Status.Completed)]
+    [TestCase(1, 2, null, null, SeasonMatchResult.Forfeit, SeasonMatchResult.Won, Status.Completed)]
+    [TestCase(1, null, null, null, SeasonMatchResult.Bye, null, Status.Locked)]
+    [TestCase(1, 2, null, null, SeasonMatchResult.Won, SeasonMatchResult.Bye, Status.Locked)]
+    public void GetMatchStatus_FollowsBracketsManager(int? home, int? away, int? homeScore, int? awayScore, SeasonMatchResult? homeResult, SeasonMatchResult? awayResult, Status expected)
+    {
+        var sm = new SeasonMatch
+        {
+            HomeTeamID = home, AwayTeamID = away,
+            HomeTeamScore = homeScore, AwayTeamScore = awayScore,
+            HomeTeamResult = homeResult, AwayTeamResult = awayResult,
+        };
+
+        Assert.That(BracketService.GetMatchStatus(sm), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void SeedPlaceholderID_IsNegative()
+    {
+        Assert.That((BracketService.SeedPlaceholderID(3), BracketService.SeedPlaceholderID((int?)null)), Is.EqualTo(((int?)-3, (int?)null)));
     }
 
     [TestCase(Bracket.Winner)]

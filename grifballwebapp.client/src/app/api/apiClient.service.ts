@@ -1,25 +1,25 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { KillsDto } from './dtos/killsDto';
 import { map, Observable } from 'rxjs';
-import { SeasonDto } from './dtos/seasonDto';
+import { parseSeason, SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
 import { PlayerDto } from './dtos/playerDto';
-import { CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
+import { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { DateTime } from 'luxon';
-import { cloneDeep } from 'lodash-es';
+import { fromApiDate } from '../shared/apiDates';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiClientService {
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) { }
 
   private readonly text : Object = {
     responseType: 'text'
@@ -31,11 +31,15 @@ export class ApiClientService {
   }
 
   getSeasons(): Observable<SeasonDto[]> {
-    return this.http.get<SeasonDto[]>('/api/EventOrganizer/GetSeasons');
+    return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
+      // A list never holds nulls (List<SeasonDto> on the server).
+      .pipe(map(seasons => seasons.map(season => parseSeason(season)!)));
   }
 
-  getSeason(seasonID: number): Observable<SeasonDto> {
-    return this.http.get<SeasonDto>('/api/EventOrganizer/GetSeason/' + seasonID);
+  /** Null when there is no such season (the API answers 204). */
+  getSeason(seasonID: number): Observable<SeasonDto | null> {
+    return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
+      .pipe(map(parseSeason));
   }
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
@@ -66,15 +70,9 @@ export class ApiClientService {
     return this.http.get<SignupResponseDto>(path);
   }
 
-  private parseTime(time: string): string {
-    let dateTime = DateTime.fromFormat(time, 't');
-    return dateTime.toFormat('TT');
-  }
-
+  // The timeslots keep the API's time format: the availability table only formats copies for display.
   upsertSignup(signupDto: SignupRequestDto): Observable<Object> {
-    const clone = cloneDeep(signupDto);
-    clone.timeslots.forEach(x => x.time = this.parseTime(x.time));
-    return this.http.post('/api/Signups/UpsertSignup/', clone);
+    return this.http.post('/api/Signups/UpsertSignup/', signupDto);
   }
 
   getTeams(seasonID: number): Observable<TeamResponseDto[]> {
@@ -85,8 +83,9 @@ export class ApiClientService {
     return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
   }
 
-  private prepareHeaders(connectionID: string | null) : Object | undefined {
-    if (connectionID === null)
+  // The hub connection's id is null (or undefined/empty) until it has connected: send no header then.
+  private prepareHeaders(connectionID: string | null | undefined) : Object | undefined {
+    if (!connectionID)
       return undefined;
     let headers = new HttpHeaders();
     headers = headers.append('SignalRConnectionID', connectionID);
@@ -97,8 +96,9 @@ export class ApiClientService {
     return obj;
   }
 
-  addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
-    return this.http.post('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
+  /** Answers with the name the server gave the new team (it is not sent back over SignalR). */
+  addCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<CaptainAddedResponseDto> {
+    return this.http.post<CaptainAddedResponseDto>('/api/Teams/AddCaptain/', dto, this.prepareHeaders(connectionID));
   }
 
   resortCaptain(dto: CaptainPlacementDto, connectionID: string | null): Observable<Object> {
@@ -137,8 +137,8 @@ export class ApiClientService {
     return this.http.get<string>('/api/CommitHash', this.text);
   }
 
-  commitDate(): Observable<DateTime> {
+  commitDate(): Observable<DateTime | null> {
     return this.http.get<string>('/api/CommitDate', this.text)
-      .pipe(map(x => DateTime.fromISO(x)));
+      .pipe(map(x => fromApiDate(x)));
   }
 }

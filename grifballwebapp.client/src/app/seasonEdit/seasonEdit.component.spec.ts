@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { SeasonEditComponent } from './seasonEdit.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -62,7 +62,7 @@ describe('SeasonEditComponent', () => {
     await render();
 
     expect(api.getSeason).toHaveBeenCalledWith(4);
-    expect(component.model.seasonName).toBe('Season 4');
+    expect(component.model().seasonName).toBe('Season 4');
     expect(saveButton().textContent).toContain('Save Season');
     expect(saveButton().disabled).toBeFalse();
     const availability = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Edit Availability'))!;
@@ -73,7 +73,7 @@ describe('SeasonEditComponent', () => {
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
 
-    component.model.copyFrom = '3';
+    component.model.update(model => ({ ...model, copyFrom: '3' }));
     await render();
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
   });
@@ -89,14 +89,15 @@ describe('SeasonEditComponent', () => {
     seasonID = '0';
     api.getSeason.and.returnValue(of(season()));
     await render();
-    component.model = season({ seasonID: 0 });
+    component.model.set(season({ seasonID: 0 }));
     await render();
     api.upsertSeason.and.returnValue(of(12));
+    const submitted = component.model();
 
     component.onSubmit();
 
-    expect(api.upsertSeason).toHaveBeenCalledWith(component.model);
-    expect(component.model.seasonID).toBe(12);
+    expect(api.upsertSeason).toHaveBeenCalledWith(submitted);
+    expect(component.model().seasonID).toBe(12);
   });
 
   it('logs a failed save', async () => {
@@ -106,6 +107,42 @@ describe('SeasonEditComponent', () => {
 
     component.onSubmit();
     expect(log).toHaveBeenCalledWith('nope');
-    expect(component.model.seasonID).toBe(4);
+    expect(component.model().seasonID).toBe(4);
+  });
+
+  it('fills the form once the season arrives, without a manual detectChanges', async () => {
+    const loaded = new Subject<SeasonDto>();
+    api.getSeason.and.returnValue(loaded);
+    await fixture.whenStable();
+    expect(el().textContent).not.toContain('Edit Availability');
+
+    loaded.next(season({ seasonName: 'Arrived Later' }));
+    await fixture.whenStable();
+
+    expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')?.value).toBe('Arrived Later');
+    expect(el().textContent).toContain('Edit Availability');
+  });
+
+  it('replaces the model on form edits instead of mutating the loaded season', async () => {
+    await render();
+    const loaded = component.model();
+    const name = el().querySelector<HTMLInputElement>('input[name="seasonName"]')!;
+    name.value = 'Renamed';
+    name.dispatchEvent(new Event('input'));
+    const copyFrom = el().querySelector<HTMLInputElement>('input[name="copyFrom"]')!;
+    copyFrom.value = '3';
+    copyFrom.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(component.model()).not.toBe(loaded);
+    expect(component.model().seasonName).toBe('Renamed');
+    expect(loaded.seasonName).toBe('Season 4');
+    expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
+  });
+
+  it('keeps the empty form for a season that does not exist', async () => {
+    api.getSeason.and.returnValue(of(null));
+    await render();
+    expect(el().querySelector<HTMLInputElement>('input[name="seasonName"]')!.value).toBe('');
   });
 });

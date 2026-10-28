@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,14 +20,15 @@ import { ActivatedRoute } from '@angular/router';
     ],
     templateUrl: './infiniteClient.component.html',
     styleUrl: './infiniteClient.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfiniteClientComponent implements OnInit {
-  code: string = "";
-  status: string = "";
+  private http = inject(HttpClient);
+  private snackbar = inject(MatSnackBar);
+  private route = inject(ActivatedRoute);
 
-  constructor(private http: HttpClient, private snackbar: MatSnackBar, private route: ActivatedRoute) {
-  }
+  code: string = "";
+  readonly status = signal("");
 
   ngOnInit(): void {
     this.checkStatus();
@@ -49,10 +50,10 @@ export class InfiniteClientComponent implements OnInit {
 
   checkStatus() {
     this.http.get<string>("api/Admin/CheckStatus", this.text).subscribe({
-      next: r => this.status = r,
+      next: r => this.status.set(r),
       error: r => {
         console.log(r);
-        this.status = "Failed to check status";
+        this.status.set("Failed to check status");
         this.snackbar.open('Failed to check status', "Close");
       }
     })

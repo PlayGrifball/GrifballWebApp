@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TopStatsComponent } from './top-stats.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { KillsDto } from '../api/dtos/killsDto';
 
 describe('TopStatsComponent', () => {
@@ -33,7 +33,7 @@ describe('TopStatsComponent', () => {
   });
 
   it('should have empty kills array initially', () => {
-    expect(component.kills).toEqual([]);
+    expect(component.kills()).toEqual([]);
   });
 
   it('should have correct displayed columns', () => {
@@ -55,7 +55,7 @@ describe('TopStatsComponent', () => {
 
     component.getKills();
 
-    expect(component.kills).toEqual(mockKills);
+    expect(component.kills()).toEqual(mockKills);
   });
 
   it('should handle empty kills array from API', () => {
@@ -63,7 +63,7 @@ describe('TopStatsComponent', () => {
 
     component.getKills();
 
-    expect(component.kills).toEqual([]);
+    expect(component.kills()).toEqual([]);
   });
 
   it('should log error when API call fails', () => {
@@ -86,9 +86,9 @@ describe('TopStatsComponent', () => {
 
     component.getKills();
 
-    expect(component.kills.length).toBe(100);
-    expect(component.kills[0].rank).toBe(1);
-    expect(component.kills[99].rank).toBe(100);
+    expect(component.kills().length).toBe(100);
+    expect(component.kills()[0].rank).toBe(1);
+    expect(component.kills()[99].rank).toBe(100);
   });
 
   it('should not open snack bar on successful completion', () => {
@@ -109,10 +109,23 @@ describe('TopStatsComponent', () => {
     
     mockApiClient.getKills.and.returnValue(of(firstKills));
     component.getKills();
-    expect(component.kills).toEqual(firstKills);
+    expect(component.kills()).toEqual(firstKills);
 
     mockApiClient.getKills.and.returnValue(of(secondKills));
     component.getKills();
-    expect(component.kills).toEqual(secondKills);
+    expect(component.kills()).toEqual(secondKills);
+  });
+
+  it('renders the kills once they arrive, without a manual detectChanges', async () => {
+    const kills = new Subject<KillsDto[]>();
+    mockApiClient.getKills.and.returnValue(kills);
+    fixture = TestBed.createComponent(TopStatsComponent);
+    await fixture.whenStable();
+
+    kills.next([{ rank: 1, gamertag: 'Grif', kills: 9 }]);
+    await fixture.whenStable();
+
+    const cells = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row td')).map(td => td.textContent!.trim());
+    expect(cells).toEqual(['1', 'Grif', '9']);
   });
 });

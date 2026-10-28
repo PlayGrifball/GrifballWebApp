@@ -96,4 +96,39 @@ public class TeamsSignalRHandlersTests
         await handler.Handle(new LockChanged(false, 8, "conn-1"), CancellationToken.None);
         await _others.Received(1).UnlockCaptains(8);
     }
+
+    // Without a connection id (e.g. a change made from Discord) there is no sender to skip:
+    // everyone gets the update. AllExcept(null!) would throw.
+    [TestCase(null)]
+    [TestCase("")]
+    public async Task Handlers_Should_BroadcastToEveryone_When_NoConnectionId(string? connectionId)
+    {
+        var all = Substitute.For<ITeamsHubClient>();
+        _hub.Clients.All.Returns(all);
+        var added = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
+        var placed = new CaptainPlacementDto { SeasonID = 1, PersonID = 2, OrderNumber = 3 };
+        var removed = new RemoveCaptainDto { SeasonID = 1, PersonID = 2 };
+        var addPlayer = new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };
+        var removePlayer = new RemovePlayerFromTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };
+        var move = new MovePlayerToTeamRequestDto { SeasonID = 1, PreviousCaptainID = 2, NewCaptainID = 3, PersonID = 4, RoundNumber = 1 };
+
+        await new AddCaptainHandler(_hub).Handle(Notification.Create(connectionId, added), CancellationToken.None);
+        await new ResortCaptainHandler(_hub).Handle(Notification.Create(connectionId, placed), CancellationToken.None);
+        await new RemoveCaptainHandler(_hub).Handle(Notification.Create(connectionId, removed), CancellationToken.None);
+        await new AddPlayerHandler(_hub).Handle(Notification.Create(connectionId, addPlayer), CancellationToken.None);
+        await new RemovePlayerHandler(_hub).Handle(Notification.Create(connectionId, removePlayer), CancellationToken.None);
+        await new MovePlayerHandler(_hub).Handle(Notification.Create(connectionId, move), CancellationToken.None);
+        await new LockChangeHandler(_hub).Handle(new LockChanged(true, 7, connectionId), CancellationToken.None);
+        await new LockChangeHandler(_hub).Handle(new LockChanged(false, 8, connectionId), CancellationToken.None);
+
+        await all.Received(1).AddCaptain(added);
+        await all.Received(1).ResortCaptain(placed);
+        await all.Received(1).RemoveCaptain(removed);
+        await all.Received(1).AddPlayerToTeam(addPlayer);
+        await all.Received(1).RemovePlayerFromTeam(removePlayer);
+        await all.Received(1).MovePlayerToTeam(move);
+        await all.Received(1).LockCaptains(7);
+        await all.Received(1).UnlockCaptains(8);
+        _hub.Clients.DidNotReceive().AllExcept(Arg.Any<IReadOnlyList<string>>());
+    }
 }

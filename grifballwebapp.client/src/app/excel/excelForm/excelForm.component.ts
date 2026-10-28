@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, OnInit, signal, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, OnInit, signal, WritableSignal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,6 +25,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExcelFormComponent implements OnInit {
+  private httpClient = inject(HttpClient);
+
 
   inputName = input<string>('');
   inputSpreadsheetId = input<string>('');
@@ -40,8 +42,6 @@ export class ExcelFormComponent implements OnInit {
   sheetName: string = "";
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
   regexErrorMessage: string = "Must be a valid GUID";
-
-  constructor(private httpClient: HttpClient) {}
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
 

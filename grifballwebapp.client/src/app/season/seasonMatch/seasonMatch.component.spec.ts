@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -123,6 +125,15 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     expect(text()).not.toContain('Scheduled Date: 1');
   });
 
+  it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    expect(() => fixture.detectChanges()).not.toThrow();
+
+    expect(fixture.componentInstance.seasonMatch()).toBeNull();
+    expect(text()).toContain('Regular Season Match');
+  });
+
   it('shows the regular season text when the match has no bracket info', () => {
     load(page());
 
@@ -162,10 +173,12 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     ]);
   });
 
-  it('formats the scheduled time once loaded', () => {
-    load(page({ scheduledTime: '2026-01-02T03:04:00' as unknown as SeasonMatchPageDto['scheduledTime'] }));
+  it('formats the scheduled time once loaded, as the date pipe shows the API value', () => {
+    // As the API sends it: ISO 8601 in UTC.
+    load(page({ scheduledTime: '2026-01-02T03:04:00Z' as unknown as SeasonMatchPageDto['scheduledTime'] }));
 
-    expect(text()).toMatch(/Scheduled Date: 1\/2\/26, 3:04/);
+    expect(fixture.componentInstance.seasonMatch()!.scheduledTime instanceof DateTime).toBeTrue();
+    expect(text()).toContain('Scheduled Date: ' + new DatePipe('en-US').transform('2026-01-02T03:04:00Z', 'short'));
   });
 });
 
@@ -189,8 +202,8 @@ describe('SeasonMatchComponent reporting', () => {
 
   const possible: PossibleMatchDto = {
     matchID: 'abc-123',
-    homeTeam: { teamID: 10, score: 50, outcome: 2, players: [player('Grif', 11)] },
-    awayTeam: { teamID: 20, score: 49, outcome: 3, players: [player('Tucker', 7)] },
+    homeTeam: { teamID: 10, score: 50, outcome: 'Won', players: [player('Grif', 11)] },
+    awayTeam: { teamID: 20, score: 49, outcome: 'Lost', players: [player('Tucker', 7)] },
   };
 
   beforeEach(async () => {

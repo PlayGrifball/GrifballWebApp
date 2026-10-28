@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { fromApiDate } from "../shared/apiDates";
 
 export interface UserResponseDto {
   userID: number,
@@ -19,4 +20,11 @@ export interface UserResponseDto {
 export interface RoleDto {
   roleName: string,
   hasRole: boolean
+}
+
+/** A user as the API sends it (lockoutEnd as an ISO string), with a real DateTime; null (no such user) stays null. */
+export function parseUser(raw: any): UserResponseDto | null {
+  if (raw == null)
+    return null;
+  return { ...raw, lockoutEnd: fromApiDate(raw.lockoutEnd) };
 }

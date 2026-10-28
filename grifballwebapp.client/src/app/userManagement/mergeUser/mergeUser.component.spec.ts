@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -50,6 +51,22 @@ describe('MergeUserComponent', () => {
     expect(el().textContent).toContain('user1');
     expect(el().textContent).toContain('user2');
     expect(mergeButton().disabled).toBeFalse();
+  });
+
+  it('shows "User not found." for an unknown ID (the API answers 204 with no body)', async () => {
+    fixture.componentRef.setInput('fromInput', 1);
+    fixture.componentRef.setInput('toInput', 2);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/usermanagement/getuser/1').flush(null, { status: 204, statusText: 'No Content' });
+    httpMock.expectOne('/api/usermanagement/getuser/2').flush(user(2));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.mergeFrom.status()).not.toBe('error');
+    expect(el().querySelectorAll('[role="alert"]').length).toBe(0);
+    expect(el().textContent).toContain('User not found.');
+    expect(el().textContent).toContain('user2');
+    expect(mergeButton().disabled).toBeTrue();
   });
 
   it('does not throw when the API fails and shows an error with merge disabled', async () => {
@@ -142,5 +159,15 @@ describe('MergeUserComponent merging', () => {
     component.submit();
     httpMock.expectOne('/api/usermanagement/MergeUser/').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(console.log).not.toHaveBeenCalledWith('Merged user');
+  });
+
+  it('reads the loaded users through parseUser (lockoutEnd as a DateTime)', async () => {
+    component.mergeToId.set(7);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/usermanagement/getuser/7').flush({ ...user(7), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+
+    expect(component.mergeToUser()?.lockoutEnd instanceof DateTime).toBeTrue();
+    expect(component.mergeFromUser()?.lockoutEnd).toBeNull();
   });
 });

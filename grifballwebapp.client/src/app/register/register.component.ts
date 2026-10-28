@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, viewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -28,10 +28,13 @@ import { AccountService } from '../account.service';
     ],
     templateUrl: './register.component.html',
     styleUrl: './register.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegisterComponent {
-  @ViewChild('registerForm') registerForm!: NgForm;
+  private apiClient = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
+  readonly registerForm = viewChild<NgForm>('registerForm');
   
   hidePassword = true;
   hideConfirmPassword = true;
@@ -41,14 +44,12 @@ export class RegisterComponent {
 
   model: RegisterFormModel = {} as RegisterFormModel
 
-  constructor(private apiClient: AccountService, private snackBar: MatSnackBar) {
-  }
-
   onSubmit() {
-    if (!this.registerForm) {
+    const registerForm = this.registerForm();
+    if (!registerForm) {
       return;
     }
-    if (!this.registerForm.valid) {
+    if (!registerForm.valid) {
       return;
     }
 

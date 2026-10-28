@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, OnInit, WritableSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, OnInit, WritableSignal, inject } from '@angular/core';
 import { TileComponent } from './tile/tile.component';
 import { palette } from '../paletteTypes';
 import { MtxColorpickerModule } from '@ng-matero/extensions/colorpicker';
@@ -23,10 +23,9 @@ import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angu
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaletteComponent implements OnInit {
-  paletteName = input.required<palette>();
+  private themingService = inject(ThemingService);
 
-  constructor(private themingService: ThemingService) {
-  }
+  paletteName = input.required<palette>();
   
   private getSignal(paletteName: palette): WritableSignal<string> | null {
     switch(paletteName) {

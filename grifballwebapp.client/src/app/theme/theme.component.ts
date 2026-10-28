@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { PaletteComponent } from './palette/palette.component';
 import { MatFormField, MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -18,7 +18,8 @@ import { ThemingService } from '../theming.service';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ThemeComponent implements OnInit {
-  constructor(private themingService: ThemingService) {}
+  private themingService = inject(ThemingService);
+
 
   ngOnInit(): void {
     const initialValue = this.themingService.font();

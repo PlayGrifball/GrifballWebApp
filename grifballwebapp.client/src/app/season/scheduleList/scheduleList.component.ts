@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -13,16 +14,16 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { UpdateMatchTimeDto } from './updateMatchTimeDto';
-import { ScheduledMatchDto } from './scheduledMatchDto';
+import { parseScheduledMatch, ScheduledMatchDto } from './scheduledMatchDto';
 import { DateTime } from 'luxon';
 import { TimeDto } from './timeDto';
 import { groupBy, map, orderBy } from 'lodash-es';
+import { map as mapResponse } from 'rxjs';
 import { WeekDto, WeekGameDto } from './weekDto';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 
-@UntilDestroy()
+import { ToDatePipe } from '../../shared/toDate.pipe';
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -39,16 +40,21 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
         MatButtonModule,
         RouterModule,
         MatDialogModule,
+        ToDatePipe,
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent  implements OnInit {
-  private seasonID : number = 0;
-  unscheduledMatches: UnscheduledMatchDto[] = [];
-  scheduledMatches: WeekDto[] = [];
-  isEditing: boolean = false;
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+  private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private dialog: MatDialog) {}
+  private seasonID : number = 0;
+  readonly unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
+  readonly scheduledMatches = signal<WeekDto[]>([]);
+  readonly isEditing = signal(false);
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -66,7 +72,7 @@ export class ScheduleListComponent  implements OnInit {
     });
 
     dialogRef.componentInstance.regularMatchesCreated
-    .pipe(untilDestroyed(this))
+    .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.GetMatches();
     });
@@ -80,12 +86,13 @@ export class ScheduleListComponent  implements OnInit {
   GetUnscheduledMatches(): void {
     this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + this.seasonID)
     .subscribe({
-      next: r => this.unscheduledMatches = r,
+      next: r => this.unscheduledMatches.set(r),
     });
   }
 
   GetScheduledMatches(): void {
-    this.http.get<ScheduledMatchDto[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
+    this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
+    .pipe(mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
       next: r => this.gotScheduledMatches(r),
     });
@@ -111,15 +118,11 @@ export class ScheduleListComponent  implements OnInit {
         weeks.push(weekDto);
     });
 
-    this.scheduledMatches = weeks;
+    this.scheduledMatches.set(weeks);
   }
 
   private map(value: ScheduledMatchDto, index: number, array: ScheduledMatchDto[]): TimeDto {
-    const timeString = value.time;
-    var dateTime = DateTime.fromISO(timeString.toString());
-
-    let weekYear = dateTime.localWeekYear;
-    let weekNumber = dateTime.localWeekNumber;
+    const dateTime = value.time;
 
     return {
       SeasonMatchID: value.seasonMatchID,
@@ -144,11 +147,13 @@ export class ScheduleListComponent  implements OnInit {
   }
 
   toggleEdit(): void {
-    this.isEditing = !this.isEditing;
+    this.isEditing.update(editing => !editing);
   }
 
-  onSubmit(match: UnscheduledMatchDto | WeekGameDto): void {
-    const dto: UpdateMatchTimeDto = match;
+  /** `time` is the row's own form value; the loaded match objects are never edited. */
+  onSubmit(match: UnscheduledMatchDto | WeekGameDto, time: DateTime | '' | null | undefined): void {
+    // An empty picker gives '', which the server's DateTime? cannot bind: send null (no time).
+    const dto: UpdateMatchTimeDto = { seasonMatchID: match.seasonMatchID, time: time || null };
     this.http.post('/api/MatchPlanner/UpdateMatchTime/', dto)
     .subscribe({
       next: r => this.GetMatches(),

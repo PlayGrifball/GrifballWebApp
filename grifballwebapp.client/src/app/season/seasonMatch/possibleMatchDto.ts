@@ -7,7 +7,7 @@ export interface PossibleMatchDto {
 export interface PossibleTeamDto {
   teamID: number,
   score: number,
-  outcome: number, // Make this a string later
+  outcome: 'Tie' | 'Won' | 'Lost' | 'DidNotFinish', // Outcomes enum, sent as its name
   players: PossiblePlayerDto[],
 }
 

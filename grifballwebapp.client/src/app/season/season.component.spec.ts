@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { SeasonComponent } from './season.component';
 import { ApiClientService } from '../api/apiClient.service';
@@ -63,6 +63,17 @@ describe('SeasonComponent', () => {
     expect(heading()).toBe('Season 8');
   });
 
+
+  it('shows the season name once it arrives, without a manual detectChanges', async () => {
+    const name = new Subject<string>();
+    api.getSeasonName.and.returnValue(name);
+    await fixture.whenStable();
+
+    name.next('Late Season');
+    await fixture.whenStable();
+
+    expect(heading()).toBe('Late Season');
+  });
 });
 
 describe('SeasonComponent links', () => {

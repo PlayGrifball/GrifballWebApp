@@ -1,7 +1,7 @@
 <h2 mat-dialog-title>Set Custom Seed Order</h2>
 
 <mat-dialog-content>
-  @if (loading) {
+  @if (loading()) {
     <p>Loading team standings...</p>
   } @else {
     <p>Drag and drop teams to reorder their seeding:</p>
@@ -21,7 +21,7 @@
         </div>
       </div>
       
-      @for (team of teams; track team.teamID; let i = $index) {
+      @for (team of teams(); track team.teamID; let i = $index) {
         <div class="seed-item"
              [dndDraggable]="team"
              dndEffectAllowed="move"
@@ -46,7 +46,7 @@
   <button mat-flat-button 
           color="primary" 
           (click)="onSubmit()" 
-          [disabled]="loading">
+          [disabled]="loading()">
     Set Seeds
   </button>
 </mat-dialog-actions>

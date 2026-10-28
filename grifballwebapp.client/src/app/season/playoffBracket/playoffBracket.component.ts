@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -8,10 +9,8 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Locale } from 'brackets-viewer/dist/lang';
 
-@UntilDestroy()
 @Component({
     selector: 'app-playoff-bracket',
     imports: [
@@ -21,14 +20,20 @@ import { Locale } from 'brackets-viewer/dist/lang';
     ],
     templateUrl: './playoffBracket.component.html',
     styleUrl: './playoffBracket.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PlayoffBracketComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
+  private snackBar = inject(MatSnackBar);
+  accountService = inject(AccountService);
+
   private seasonID: number = 0;
 
   hasBracket = signal(false);
-  
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router, private dialog: MatDialog, private snackBar: MatSnackBar, public accountService: AccountService) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -45,6 +50,11 @@ export class PlayoffBracketComponent implements OnInit {
         {
           next: r => this.render(r),
           error: e => {
+            // 404: the season does not exist, so there is no bracket to show.
+            if (e?.status === 404) {
+              this.hasBracket.set(false);
+              return;
+            }
             console.log(e);
             this.snackBar.open("Failed to get viewer data", "Close");
           }
@@ -88,7 +98,7 @@ export class PlayoffBracketComponent implements OnInit {
     });
 
     dialogRef.componentInstance.bracketCreated
-    .pipe(untilDestroyed(this))
+    .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.getViewerData();
     });
@@ -102,7 +112,7 @@ export class PlayoffBracketComponent implements OnInit {
     });
 
     dialogRef.componentInstance.seedingOrder
-    .pipe(untilDestroyed(this))
+    .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe(() => {
       this.getViewerData();
     });

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
@@ -12,16 +12,18 @@ import { MatTableModule } from '@angular/material/table';
     ],
     templateUrl: './teamStandings.component.html',
     styleUrl: './teamStandings.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamStandingsComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+
   private seasonID: number = 0;
 
-  teamStandings: TeamStandingDto[] = [];
+  readonly teamStandings = signal<TeamStandingDto[]>([]);
 
   displayedColumns: string[] = ['teamName', 'wins', 'losses'];
-
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) { }
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -32,7 +34,7 @@ export class TeamStandingsComponent implements OnInit {
     this.http.get<TeamStandingDto[]>("api/TeamStandings/GetTeamStandings/" + this.seasonID)
       .subscribe(
         {
-          next: r => this.teamStandings = r,
+          next: r => this.teamStandings.set(r),
           error: e => console.log(e)
         });
   }

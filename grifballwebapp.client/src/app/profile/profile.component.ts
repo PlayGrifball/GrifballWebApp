@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
@@ -21,14 +21,17 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     ],
     templateUrl: './profile.component.html',
     styleUrl: './profile.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfileComponent implements OnInit {
-  gamertag: string | null = null;
-  userID: number = 0;
-  settingGamertag: boolean = false;
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+  private snackbar = inject(MatSnackBar);
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, public accountService: AccountService, private snackbar: MatSnackBar) {}
+  readonly gamertag = signal<string | null>(null);
+  userID: number = 0;
+  readonly settingGamertag = signal(false);
 
   ngOnInit(): void {
     this.userID = Number(this.route.snapshot.paramMap.get('userID'));
@@ -42,8 +45,8 @@ export class ProfileComponent implements OnInit {
     this.http.get<ProfileDto | null>("api/profile/getgamertag/" + this.userID)
       .subscribe({
         next: r => {
-          this.gamertag = r?.gamertag ?? null;
-          this.settingGamertag = this.accountService.personID() == this.userID && this.gamertag === null;
+          this.gamertag.set(r?.gamertag ?? null);
+          this.settingGamertag.set(this.accountService.personID() == this.userID && this.gamertag() === null);
         },
         error: e => {
           console.log(e);
@@ -53,11 +56,10 @@ export class ProfileComponent implements OnInit {
   }
 
   setGamertag(): void {
-    this.http.get("api/profile/setgamertag/" + this.userID + "?gamertag=" + this.gamertag)
+    this.http.get("api/profile/setgamertag/" + this.userID + "?gamertag=" + this.gamertag())
       .subscribe({
         next: r => {
-          this.gamertag = this.gamertag;
-          this.settingGamertag = false;
+          this.settingGamertag.set(false);
         },
         error: e => {
           console.log(e);

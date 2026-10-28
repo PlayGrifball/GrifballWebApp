@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild, computed, effect, AfterViewInit, ElementRef, ViewChildren, QueryList } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, OnInit, afterRenderEffect, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
@@ -26,16 +26,33 @@ import { MatButtonModule } from '@angular/material/button';
     ],
     templateUrl: './app.component.html',
     styleUrl: './app.component.css',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
-  @ViewChild('snav') snav!: MatSidenav;
-  @ViewChildren('toolbarLink') toolbarLinks!: QueryList<ElementRef>;
+  accountService = inject(AccountService);
+  api = inject(ApiClientService);
+  private themingService = inject(ThemingService);
 
-  mobileQuery: MediaQueryList;
-  private _mobileQueryListener: () => void;
+  readonly mobileQuery = inject(MediaMatcher).matchMedia('(max-width: 600px)');
+  // Resize events come many times a frame: measure at most once per animation frame.
+  private resizeFrame: number | null = null;
+  private readonly onResize = () => {
+    if (this.resizeFrame !== null)
+      return;
+    this.resizeFrame = requestAnimationFrame(() => {
+      this.resizeFrame = null;
+      this.measureToolbar();
+    });
+  };
+  // Crossing the mobile breakpoint changes the layout even without a window resize (e.g. zoom).
+  private readonly onMobileChange = () => this.measureToolbar();
 
-  public navLinks: SideBarDto[] = [
+  // Layout inputs, measured from the DOM after rendering (when the links change) and on every resize.
+  private readonly isMobile = signal(false);
+  private readonly toolbarWidth = signal(0);
+  private readonly linkWidths = signal(new Map<string, number>());
+
+  readonly navLinks = signal<SideBarDto[]>([
     { title: "Home", path: "", show: computed(() => true) },
     { title: "Late League", path: "/lateLeague", show: computed(() => true) },
     { title: "Login", path: "/login", show: computed(() => true) },
@@ -44,10 +61,12 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },
     { title: "Infinite Client", path: "/infiniteclient", show: computed(() => this.accountService.isSysAdmin()) },
     { title: "Excel Exporter", path: "/excel", show: computed(() => this.accountService.isEventOrganizer()) },
-  ];
+  ]);
 
-  public visibleNavLinks: SideBarDto[] = [];
-  public overflowNavLinks: SideBarDto[] = [];
+  // Recomputed whenever the links change (e.g. "Current Season" arriving) or the toolbar is resized.
+  private readonly toolbarLayout = computed(() => this.layoutToolbarLinks(this.navLinks(), this.isMobile(), this.toolbarWidth(), this.linkWidths()));
+  readonly visibleNavLinks = computed(() => this.toolbarLayout().visible);
+  readonly overflowNavLinks = computed(() => this.toolbarLayout().overflow);
 
   setTheme = effect(() => {
     this.themingService.setFont(this.themingService.font());
@@ -59,16 +78,12 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
     this.themingService.setErrorShade(this.themingService.error());
   });
 
-  constructor(
-    private changeDetectorRef: ChangeDetectorRef,
-    media: MediaMatcher,
-    public accountService: AccountService,
-    public api: ApiClientService,
-    private themingService: ThemingService
-  ) {
-    this.mobileQuery = media.matchMedia('(max-width: 600px)');
-    this._mobileQueryListener = () => this.changeDetectorRef.detectChanges();
-    this.mobileQuery.addEventListener("change", () => this._mobileQueryListener);
+  constructor() {
+    // Measuring touches the DOM, so it happens after rendering, never inside the computed layout.
+    afterRenderEffect(() => {
+      this.navLinks();
+      untracked(() => this.measureToolbar());
+    });
   }
 
   ngOnInit(): void {
@@ -80,47 +95,49 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
           path: "/season/" + result,
           show: computed(() => true),
         };
-        this.navLinks.push(sideBarDto);
+        this.navLinks.update(links => [...links, sideBarDto]);
       },
     });
   }
 
   ngAfterViewInit(): void {
-    this.adjustToolbarLinks();
-    this.changeDetectorRef.detectChanges(); // Trigger change detection
-    window.addEventListener('resize', () => this.adjustToolbarLinks());
+    window.addEventListener('resize', this.onResize);
+    this.mobileQuery.addEventListener('change', this.onMobileChange);
   }
 
   ngOnDestroy(): void {
-    this.mobileQuery.removeEventListener("change", this._mobileQueryListener);
-    window.removeEventListener('resize', () => this.adjustToolbarLinks());
+    window.removeEventListener('resize', this.onResize);
+    this.mobileQuery.removeEventListener('change', this.onMobileChange);
+    if (this.resizeFrame !== null)
+      cancelAnimationFrame(this.resizeFrame);
   }
 
-  private adjustToolbarLinks(): void {
-    if (this.mobileQuery.matches) {
-      this.visibleNavLinks = [];
-      this.overflowNavLinks = [...this.navLinks];
-      this.changeDetectorRef.detectChanges();
-      return;
+  private measureToolbar(): void {
+    this.isMobile.set(this.mobileQuery.matches);
+    this.toolbarWidth.set(document.querySelector('.toolbar-links')?.clientWidth || 0);
+    this.linkWidths.set(new Map(this.navLinks().map(nav => [nav.title, this.getLinkWidth(nav.title)])));
+  }
+
+  private layoutToolbarLinks(navLinks: SideBarDto[], isMobile: boolean, toolbarWidth: number, linkWidths: Map<string, number>): { visible: SideBarDto[], overflow: SideBarDto[] } {
+    if (isMobile) {
+      return { visible: [], overflow: [...navLinks] };
     }
 
-    const toolbarWidth = document.querySelector('.toolbar-links')?.clientWidth || 0;
     let usedWidth = 0;
+    const visible: SideBarDto[] = [];
+    const overflow: SideBarDto[] = [];
 
-    this.visibleNavLinks = [];
-    this.overflowNavLinks = [];
-
-    for (const nav of this.navLinks) {
-      const linkWidth = this.getLinkWidth(nav.title);
+    for (const nav of navLinks) {
+      const linkWidth = linkWidths.get(nav.title) ?? 0;
       if (usedWidth + linkWidth < toolbarWidth) {
-        this.visibleNavLinks.push(nav);
+        visible.push(nav);
         usedWidth += linkWidth;
       } else {
-        this.overflowNavLinks.push(nav);
+        overflow.push(nav);
       }
     }
 
-    this.changeDetectorRef.detectChanges();
+    return { visible, overflow };
   }
 
   private getLinkWidth(title: string): number {

@@ -32,20 +32,16 @@ describe('SignupRequestDto', () => {
   it('should allow setting timeslots array', () => {
     const dto = new SignupRequestDto();
     const timeslot1: TimeslotDto = {
-      id: 1,
+      optionID: 1,
       dayOfWeek: 'Monday',
-      time: '19:00',
-      isChecked: true,
-      isDisabled: false,
-      isHeader: false
+      time: '19:00:00',
+      isChecked: true
     };
     const timeslot2: TimeslotDto = {
-      id: 2,
+      optionID: 2,
       dayOfWeek: 'Wednesday',
-      time: '20:00',
-      isChecked: true,
-      isDisabled: false,
-      isHeader: false
+      time: '20:00:00',
+      isChecked: true
     };
     
     dto.timeslots = [timeslot1, timeslot2];

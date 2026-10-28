@@ -1,6 +1,6 @@
 <h1>Player Grades</h1>
 
-<!--<table mat-table [dataSource]="pm" class="mat-elevation-z8">
+<!--<table mat-table [dataSource]="pm()" class="mat-elevation-z8">
   @for (column of pmColumns; track column) {
   <ng-container [matColumnDef]="column.columnDef">
     <th mat-header-cell *matHeaderCellDef>
@@ -15,7 +15,7 @@
   <tr mat-row *matRowDef="let row; columns: pmDisplayedColumns;"></tr>
 </table>-->
 
-<table mat-table [dataSource]="letters" class="mat-elevation-z8">
+<table mat-table [dataSource]="letters()" class="mat-elevation-z8">
   @for (column of letterColumns; track column) {
   <ng-container [matColumnDef]="column.columnDef">
     <th mat-header-cell *matHeaderCellDef>

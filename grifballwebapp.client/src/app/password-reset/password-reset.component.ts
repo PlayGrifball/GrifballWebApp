@@ -1,4 +1,4 @@
-import { Component, OnInit, input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, input, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,24 +25,22 @@ import { AccountService } from '../account.service';
   ],
   templateUrl: './password-reset.component.html',
   styleUrl: './password-reset.component.css',
-  changeDetection: ChangeDetectionStrategy.Eager
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PasswordResetComponent implements OnInit {
+  private router = inject(Router);
+  private accountService = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
   token = input<string>();
   hide = true;
   hideConfirm = true;
-  isLoading = false;
+  readonly isLoading = signal(false);
   
   model = {
     newPassword: '',
     confirmPassword: ''
   };
-
-  constructor(
-    private router: Router,
-    private accountService: AccountService,
-    private snackBar: MatSnackBar
-  ) {}
 
   ngOnInit(): void {
     if (!this.token()) {
@@ -62,7 +60,7 @@ export class PasswordResetComponent implements OnInit {
       return;
     }
 
-    this.isLoading = true;
+    this.isLoading.set(true);
 
     const request: UsePasswordResetLinkRequestDto = {
       token: this.token()!,
@@ -84,7 +82,7 @@ export class PasswordResetComponent implements OnInit {
           errorMessage = 'Invalid or expired reset link';
         }
         this.snackBar.open(errorMessage, 'Close');
-        this.isLoading = false;
+        this.isLoading.set(false);
       }
     });
   }

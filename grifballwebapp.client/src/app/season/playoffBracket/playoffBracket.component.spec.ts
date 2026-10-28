@@ -9,7 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { CreateBracketDialogComponent } from './createBracketDialog/createBracketDialog.component';
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
@@ -167,6 +167,19 @@ describe('PlayoffBracketComponent behaviour', () => {
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
   });
 
+  it('reloads the bracket each time it is created again from the same dialog', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new Subject<void>();
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    component.openDialog();
+
+    created.next();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    created.next();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+  });
+
   it('reloads the bracket after custom seeds are saved', () => {
     fixture.detectChanges();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
@@ -177,6 +190,45 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(dialog.open).toHaveBeenCalledWith(SeedOrderingDialogComponent, { data: 6, width: '600px', maxHeight: '80vh' });
 
     seeded.emit();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+  });
+
+  it('stops listening to the dialogs once the page is destroyed', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new EventEmitter<void>();
+    const seeded = new EventEmitter<void>();
+    dialog.open.and.returnValues({ componentInstance: { bracketCreated: created } } as any, { componentInstance: { seedingOrder: seeded } } as any);
+    component.openDialog();
+    component.setSeeds();
+    expect(created.observed).toBeTrue();
+    expect(seeded.observed).toBeTrue();
+
+    fixture.destroy();
+
+    expect(created.observed).toBeFalse();
+    expect(seeded.observed).toBeFalse();
+  });
+
+  it('shows "No bracket created" without an error for a season that does not exist (404)', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush('Season does not exist', { status: 404, statusText: 'Not Found' });
+    fixture.detectChanges();
+
+    expect(snackBar.open).not.toHaveBeenCalled();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No bracket created');
+  });
+
+  it('reloads when the bracket is created after its dialog was already closed', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new Subject<void>();
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    component.openDialog();
+
+    // The dialog is gone (Esc), its request still finishes.
+    created.next();
+
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
   });
 });

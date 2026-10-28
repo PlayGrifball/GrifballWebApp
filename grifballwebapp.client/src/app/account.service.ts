@@ -1,4 +1,4 @@
-import { Injectable, Signal, WritableSignal, computed, effect, signal } from '@angular/core';
+import { Injectable, Signal, WritableSignal, computed, effect, signal, inject } from '@angular/core';
 import { ApiClientService } from './api/apiClient.service';
 import { LoginDto } from './api/dtos/loginDto';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -14,6 +14,12 @@ import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseD
   providedIn: 'root',
 })
 export class AccountService {
+  private apiClient = inject(ApiClientService);
+  private snackBar = inject(MatSnackBar);
+  private jwtHelper = inject(JwtHelperService);
+  private http = inject(HttpClient);
+  private router = inject(Router);
+
   accessTokenResponse: WritableSignal<AccessTokenResponse | undefined> = signal(undefined);
 
   accessToken: Signal<string | undefined> = computed(() => {
@@ -32,7 +38,7 @@ export class AccountService {
   personID: WritableSignal<number | null> = signal(null);
   displayName: WritableSignal<string | null> = signal(null);
 
-  constructor(private apiClient: ApiClientService, private snackBar: MatSnackBar, private jwtHelper: JwtHelperService, private http: HttpClient, private router: Router) {
+  constructor() {
     let accessToken = localStorage.getItem("access_token");
     if (accessToken !== null) {
       const accessT: AccessTokenResponse = JSON.parse(accessToken)

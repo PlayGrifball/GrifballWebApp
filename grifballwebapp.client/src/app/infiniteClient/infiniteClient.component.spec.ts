@@ -45,7 +45,7 @@ describe('InfiniteClientComponent', () => {
 
   it('shows a plain status message', () => {
     init('Token valid');
-    expect(component.status).toBe('Token valid');
+    expect(component.status()).toBe('Token valid');
     expect(el().textContent).toContain('Token valid');
     expect(el().querySelector('a')).toBeNull();
   });
@@ -62,7 +62,7 @@ describe('InfiniteClientComponent', () => {
     http.expectOne('api/Admin/CheckStatus').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
-    expect(component.status).toBe('Failed to check status');
+    expect(component.status()).toBe('Failed to check status');
     expect(snackBar.open).toHaveBeenCalledWith('Failed to check status', 'Close');
   });
 
@@ -118,5 +118,13 @@ describe('InfiniteClientComponent', () => {
     component.deleteTokens();
     http.expectOne('api/Admin/DeleteTokens').flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to delete tokens', 'Close');
+  });
+
+  it('shows the status once it arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('api/Admin/CheckStatus').flush('Connected');
+    await fixture.whenStable();
+
+    expect(el().textContent).toContain('Connected');
   });
 });

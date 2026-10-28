@@ -176,11 +176,11 @@ describe('SignalRService over the SignalR wire protocol', () => {
 
     hub.invoke('LockCaptains', 7);
     hub.invoke('UnlockCaptains', 8);
-    hub.invoke('AddCaptain', { seasonID: 7, personID: 42, name: 'Captain', order: 1 });
+    hub.invoke('AddCaptain', { seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 });
     await waitFor(() => locked.length + unlocked.length + captains.length === 3, 'the invocations');
 
     expect(locked).toEqual([7]);
     expect(unlocked).toEqual([8]);
-    expect(captains).toEqual([{ seasonID: 7, personID: 42, name: 'Captain', order: 1 }]);
+    expect(captains).toEqual([{ seasonID: 7, personID: 42, teamName: "Captain's Team", captainName: 'Captain', orderNumber: 1 }]);
   });
 });

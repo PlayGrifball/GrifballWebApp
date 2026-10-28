@@ -1,4 +1,4 @@
-import { ComponentFixture } from '@angular/core/testing';
+import { ComponentFixture, ComponentFixtureAutoDetect } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
@@ -11,7 +11,10 @@ describe('HomeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule]
+      imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
+      // These specs drive the component's methods by hand. Zoneless fixtures render on their own,
+      // which would run ngOnInit and fire the real requests, so turn that off here.
+      providers: [provideRouter([]), { provide: ComponentFixtureAutoDetect, useValue: false }]
     }).compileComponents();
 
     const fixture = TestBed.createComponent(HomeComponent);

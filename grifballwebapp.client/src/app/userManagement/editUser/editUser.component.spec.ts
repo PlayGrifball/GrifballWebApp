@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -69,7 +70,7 @@ describe('EditUserComponent', () => {
     await load();
 
     expect(el().querySelector('h2')!.textContent).toBe('Edit User 15');
-    expect(component.model.userName).toBe('grif');
+    expect(component.model().userName).toBe('grif');
     const labels = Array.from(el().querySelectorAll('mat-checkbox')).map(c => c.textContent!.trim());
     expect(labels).toEqual(['Lockout Enabled', 'Is Dummy User', 'Sysadmin', 'Commissioner']);
   });
@@ -84,8 +85,18 @@ describe('EditUserComponent', () => {
   it('posts the edited user, including role changes', async () => {
     await load();
     spyOn(console, 'log');
-    component.model.roles[0].hasRole = true;
-    component.model.displayName = 'Private Grif';
+    const before = component.model();
+    // Edit through the form: tick the Sysadmin role and change the display name.
+    Array.from(el().querySelectorAll('mat-checkbox')).find(c => c.textContent!.trim() === 'Sysadmin')!.querySelector('input')!.click();
+    const displayName = el().querySelector<HTMLInputElement>('input[name="displayName"]')!;
+    displayName.value = 'Private Grif';
+    displayName.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    // The edits replaced the model; the loaded object was not changed.
+    expect(component.model()).not.toBe(before);
+    expect(before.roles[0].hasRole).toBeFalse();
+    expect(before.displayName).toBe('Grif');
 
     component.onSubmit();
     const req = http.expectOne('/api/usermanagement/edituser/');
@@ -103,5 +114,83 @@ describe('EditUserComponent', () => {
     http.expectOne('/api/usermanagement/edituser/').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(log).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalledWith('Updated user');
+  });
+
+  it('fills the form once the user arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
+    await fixture.whenStable();
+
+    expect(el().querySelector('h2')?.textContent).toContain('Edit User 15');
+    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('grif');
+  });
+
+  it('loads lockoutEnd as a DateTime and sends it back unchanged when untouched', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+    expect(component.model().lockoutEnd instanceof DateTime).toBeTrue();
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    const req = http.expectOne('/api/usermanagement/edituser/');
+    expect(req.request.body.lockoutEnd).toBe('2026-03-04T05:06:00+00:00');
+    req.flush({});
+  });
+
+  it('sends an untouched lockout back exactly as loaded, even a permanent one', async () => {
+    // DateTimeOffset.MaxValue, as the API sends it; any re-serialization would change it.
+    const permanent = '9999-12-31T23:59:59.9999999+00:00';
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: permanent });
+    await fixture.whenStable();
+    component.patch({ displayName: 'Renamed' });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    const body = http.expectOne('/api/usermanagement/edituser/').request.body;
+    expect(body.lockoutEnd).toBe(permanent);
+    expect(body.displayName).toBe('Renamed');
+  });
+
+  it('sends the original string when the same instant is picked again', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:07.1234567+00:00' });
+    await fixture.whenStable();
+    // A new DateTime for the same instant, in another zone, as a picker might hand back.
+    component.patch({ lockoutEnd: component.model().lockoutEnd!.setZone('Europe/Berlin') });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-03-04T05:06:07.1234567+00:00');
+  });
+
+  it('sends a changed lockout as ISO 8601 in UTC', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: null });
+    await fixture.whenStable();
+    component.patch({ lockoutEnd: DateTime.fromISO('2026-05-06T07:08:00+02:00') });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-05-06T05:08:00.000Z');
+  });
+
+  it('sends a cleared lockout as null', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:00+00:00' });
+    await fixture.whenStable();
+    component.patch({ lockoutEnd: null });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBeNull();
+  });
+
+  it('keeps the empty form for a user that does not exist (204)', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+    expect(el().querySelector<HTMLInputElement>('input[name="userName"]')!.value).toBe('');
   });
 });

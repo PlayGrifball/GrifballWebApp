@@ -47,6 +47,8 @@ public class BracketsController : ControllerBase
             return BadRequest("Please provide seasonID");
 
         var bracketDto = await _bracketService.GetViewerDataAsync(seasonID);
+        if (bracketDto is null)
+            return NotFound("Season does not exist");
         return Ok(bracketDto);
     }
 

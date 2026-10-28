@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -23,7 +25,7 @@ describe('TeamComponent', () => {
 
   const match = (overrides: Partial<MatchDto>): MatchDto => ({
     seasonMatchID: 1,
-    scheduledTime: '2026-04-01T19:00:00' as any,
+    scheduledTime: '2026-04-01T19:00:00Z' as any, // as the API sends it
     bestOf: 3,
     score: 2,
     result: 'Won',
@@ -111,5 +113,12 @@ describe('TeamComponent', () => {
     http.expectOne('/api/Team/Matches/8').flush([]);
     fixture.detectChanges();
     expect(el().querySelector('h1')!.textContent).toBe('Other');
+  });
+
+  it('shows each match time as the date pipe showed the API value', () => {
+    load(team, [match({})]);
+
+    expect(component.matches.data[0].scheduledTime instanceof DateTime).toBeTrue();
+    expect(rows()[0]).toContain(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
   });
 });

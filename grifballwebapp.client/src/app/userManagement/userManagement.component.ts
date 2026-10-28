@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { UserResponseDto } from './userResponseDto';
+import { parseUser, UserResponseDto } from './userResponseDto';
+import { ToDatePipe } from '../shared/toDate.pipe';
 import { Column, Filter, TableComponent } from '../shared/table/table.component';
 import { SearchBoxComponent } from '../shared/searchBox/searchBox.component';
 import { AccountService } from '../account.service';
@@ -21,14 +22,20 @@ import { GeneratePasswordResetLinkRequestDto } from '../api/dtos/passwordResetDt
         MatTooltipModule,
         TableComponent,
         SearchBoxComponent,
+        ToDatePipe,
     ],
     templateUrl: './userManagement.component.html',
     styleUrl: './userManagement.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserManagementComponent {
+  private accountService = inject(AccountService);
+  private snackBar = inject(MatSnackBar);
+
   public displayedColumns: string[] = ['userID', 'userName', 'lockoutEnd', 'lockoutEnabled', 'accessFailedCount', 'region', 'displayName', 'gamertag', 'discord', 'externalAuthCount', 'actions'];
   url = '/api/UserManagement/GetUsers';
+  // Rows of the user list are never null (PaginationResult<UserResponseDto> on the server).
+  readonly parseUser = (row: unknown) => parseUser(row)!;
 
   filter = signal<string>('');
   filters = computed<Filter[]>(() => {
@@ -39,11 +46,6 @@ export class UserManagementComponent {
       }
     ];
   });
-
-  constructor(
-    private accountService: AccountService,
-    private snackBar: MatSnackBar
-  ) {}
 
   generatePasswordResetLink(user: UserResponseDto): void {
     const request: GeneratePasswordResetLinkRequestDto = {
