@@ -90,6 +90,13 @@ public class IdentityController : ControllerBase
             return BadRequest(sb.ToString());
         }
 
+        result = await _userManager.AddToRoleAsync(user, "Player");
+
+        if (!result.Succeeded)
+        {
+            return BadRequest("Failed to add role");
+        }
+
         return Ok();
     }
 
@@ -174,6 +181,12 @@ public class IdentityController : ControllerBase
             if (result.Succeeded)
             {
                 result = await _userManager.AddToRoleAsync(user, "Player");
+
+                if (!result.Succeeded)
+                {
+                    return BadRequest("Failed to add role");
+                }
+
                 result = await _userManager.AddLoginAsync(user, info);
 
                 if (!result.Succeeded)
