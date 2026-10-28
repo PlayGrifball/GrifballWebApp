@@ -255,6 +255,7 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
         await _context.SaveChangesAsync();
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();
@@ -262,7 +263,7 @@ public class RescheduleServiceWorkflowTests
         var result = await _service.GetPendingReschedulesAsync();
 
         Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
-        Assert.That(result[0].AwayCaptain, Is.EqualTo("GT_awaycap"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
     }
 
     // ---------- GetOverdueMatchesAsync ----------
@@ -300,12 +301,13 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
         s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
         await _context.SaveChangesAsync();
 
         var result = await _service.GetOverdueMatchesAsync();
 
         Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
-        Assert.That(result[0].AwayCaptain, Is.EqualTo("GT_awaycap"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
     }
 
     [Test]
@@ -406,6 +408,7 @@ public class RescheduleServiceWorkflowTests
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         s.Home.CaptainID = null;
+        s.Away.CaptainID = null;
         await _context.SaveChangesAsync();
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();
@@ -413,12 +416,16 @@ public class RescheduleServiceWorkflowTests
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
 
         var channelMessage = SentContents(Channel).Single();
-        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs GT_awaycap"));
+        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
         await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
-            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs GT_awaycap"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         var errors = SentContents(888UL).Single();
-        Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
+        Assert.Multiple(() =>
+        {
+            Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
+            Assert.That(errors, Does.Contain("Could not add Away captain to thread, team has no captain."));
+        });
         await _thread.DidNotReceive().AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
-        await _thread.Received(1).AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
+        await _thread.DidNotReceive().AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
     }
 }
