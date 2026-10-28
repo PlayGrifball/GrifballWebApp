@@ -74,7 +74,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     fixture.detectChanges();
   }
 
-  const names = () => component.teams.map(t => `${t.seed}:${t.teamName}`);
+  const names = () => component.teams().map(t => `${t.seed}:${t.teamName}`);
 
   it('shows a loading message and disables submit until standings arrive', () => {
     const el = fixture.nativeElement as HTMLElement;
@@ -89,7 +89,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
   it('seeds teams in standings order and renders their records', () => {
     loadStandings();
 
-    expect(component.loading).toBeFalse();
+    expect(component.loading()).toBeFalse();
     expect(names()).toEqual(['1:Alpha', '2:Bravo', '3:Charlie']);
     const text = (fixture.nativeElement as HTMLElement).textContent!;
     expect(text).toContain('Alpha');
@@ -101,29 +101,29 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     spyOn(console, 'log');
     http.expectOne('api/TeamStandings/GetTeamStandings/9').flush('x', { status: 500, statusText: 'Server Error' });
 
-    expect(component.loading).toBeFalse();
-    expect(component.teams).toEqual([]);
+    expect(component.loading()).toBeFalse();
+    expect(component.teams()).toEqual([]);
     expect(snackBar.open).toHaveBeenCalledWith('Failed to load team standings', 'Close');
   });
 
   it('moves a team up and renumbers the seeds', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams[2], index: 0 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as any);
 
     expect(names()).toEqual(['1:Charlie', '2:Alpha', '3:Bravo']);
   });
 
   it('moves a team down, accounting for its removal from above the drop point', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams[0], index: 2 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[0], index: 2 } as any);
 
     expect(names()).toEqual(['1:Bravo', '2:Alpha', '3:Charlie']);
   });
 
   it('ignores drops that are not moves, have no index, or carry an unknown team', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'copy', data: component.teams[2], index: 0 } as any);
-    component.onDrop({ dropEffect: 'move', data: component.teams[2], index: undefined } as any);
+    component.onDrop({ dropEffect: 'copy', data: component.teams()[2], index: 0 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: undefined } as any);
     component.onDrop({ dropEffect: 'move', data: { teamID: 99 }, index: 0 } as any);
 
     expect(names()).toEqual(['1:Alpha', '2:Bravo', '3:Charlie']);
@@ -131,7 +131,7 @@ describe('SeedOrderingDialogComponent behaviour', () => {
 
   it('submits the custom seeds, emits and closes the dialog with true', () => {
     loadStandings();
-    component.onDrop({ dropEffect: 'move', data: component.teams[2], index: 0 } as any);
+    component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as any);
     const emitted = jasmine.createSpy('seedingOrder');
     component.seedingOrder.subscribe(emitted);
 
@@ -149,19 +149,44 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     expect(dialogRef.close).toHaveBeenCalledWith(true);
   });
 
+  it('still tells the page when the dialog was closed before the seeds were saved', () => {
+    loadStandings();
+    const emitted = jasmine.createSpy('seedingOrder');
+    component.seedingOrder.subscribe(emitted);
+    component.onSubmit();
+
+    fixture.destroy(); // Esc / backdrop while the request is on its way
+    http.expectOne('api/Brackets/SetCustomSeeds/9').flush({});
+
+    expect(emitted).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the dialog open and reports when saving the seeds fails', () => {
     loadStandings();
     spyOn(console, 'log');
+    const emitted = jasmine.createSpy('seedingOrder');
+    component.seedingOrder.subscribe(emitted);
     component.onSubmit();
     http.expectOne('api/Brackets/SetCustomSeeds/9').flush('x', { status: 400, statusText: 'Bad Request' });
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to set custom seeds', 'Close');
     expect(dialogRef.close).not.toHaveBeenCalled();
+    expect(emitted).not.toHaveBeenCalled();
   });
 
   it('closes with false on cancel', () => {
     loadStandings();
     component.onCancel();
     expect(dialogRef.close).toHaveBeenCalledWith(false);
+  });
+
+  it('replaces the loading message with the teams once they arrive, without a manual detectChanges', async () => {
+    fixture.autoDetectChanges();
+    http.expectOne('api/TeamStandings/GetTeamStandings/9').flush(standings.map(s => ({ ...s })));
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent!;
+    expect(text).not.toContain('Loading team standings...');
+    expect(text).toContain('Charlie');
   });
 });

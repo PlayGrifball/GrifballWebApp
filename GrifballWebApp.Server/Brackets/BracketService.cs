@@ -10,7 +10,8 @@ public interface IBracketService
 {
     Task CreateBracket(int participantsCount, int seasonID, bool doubleElimination, int bestOf, CancellationToken ct = default);
     Task<BracketDto> GetBracketsAsync(int seasonID, CancellationToken ct = default);
-    Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
+    /// <returns>The bracket for the viewer, or null when the season does not exist.</returns>
+    Task<ViewerDataDto?> GetViewerDataAsync(int seasonID, CancellationToken ct = default);
     Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default);
     NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
 }
@@ -439,7 +440,7 @@ public class BracketService : IBracketService
         };
     }
 
-    public async Task<ViewerDataDto> GetViewerDataAsync(int seasonID, CancellationToken ct = default)
+    public async Task<ViewerDataDto?> GetViewerDataAsync(int seasonID, CancellationToken ct = default)
     {
         var season = await _grifballContext.Seasons
             .Where(s => s.SeasonID == seasonID)
@@ -448,7 +449,7 @@ public class BracketService : IBracketService
 
         if (season is null)
         {
-            throw new Exception("Season does not exist");
+            return null;
         }
 
         var seasonMatches = await _grifballContext.SeasonMatches
@@ -494,7 +495,7 @@ public class BracketService : IBracketService
             {
                 result.Participants.Add(new Participant()
                 {
-                    Id = seasonMatch.BracketMatch.HomeTeamSeedNumber ?? throw new Exception("Missing home seed"),
+                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.HomeTeamSeedNumber) ?? throw new Exception("Missing home seed"),
                     Tournament_id = seasonID,
                     Name = $"Seed {seasonMatch.BracketMatch.HomeTeamSeedNumber}",
                 });
@@ -517,7 +518,7 @@ public class BracketService : IBracketService
             {
                 result.Participants.Add(new Participant()
                 {
-                    Id = seasonMatch.BracketMatch.AwayTeamSeedNumber ?? throw new Exception("Missing away seed"),
+                    Id = SeedPlaceholderID(seasonMatch.BracketMatch.AwayTeamSeedNumber) ?? throw new Exception("Missing away seed"),
                     Tournament_id = seasonID,
                     Name = $"Seed {seasonMatch.BracketMatch.AwayTeamSeedNumber}",
                 });
@@ -568,10 +569,11 @@ public class BracketService : IBracketService
             Round_id = sm.BracketMatch.RoundNumber,
             Number = GetMatchNumberWithinRound(sm, exceptLosers), // This is total match number, need to get match number within round
             Child_count = 0,
-            Status = sm.BracketMatch.RoundNumber is 1 ? Status.Ready : Status.Locked,
+            Status = GetMatchStatus(sm),
             Opponent1 = new ParticpantResult()
             {
-                Id = sm.HomeTeamID,
+                // An undecided first-round slot shows its seed placeholder participant
+                Id = sm.HomeTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.HomeTeamSeedNumber) : null),
                 Position = sm.BracketMatch.HomeTeamSeedNumber ?? null,
                 Forfeit = sm.HomeTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.HomeTeamScore,
@@ -579,7 +581,7 @@ public class BracketService : IBracketService
             },
             Opponent2 = new ParticpantResult()
             {
-                Id = sm.AwayTeamID,
+                Id = sm.AwayTeamID ?? (sm.BracketMatch.RoundNumber is 1 ? SeedPlaceholderID(sm.BracketMatch.AwayTeamSeedNumber) : null),
                 Position = sm.BracketMatch.AwayTeamSeedNumber ?? null,
                 Forfeit = sm.AwayTeamResult is SeasonMatchResult.Forfeit or SeasonMatchResult.Bye,
                 Score = sm.AwayTeamScore,
@@ -598,7 +600,7 @@ public class BracketService : IBracketService
             Round_id = sm.BracketMatch.RoundNumber + finalRound,
             Number = GetMatchNumberWithinRound(sm, losers), // This is total match number, need to get match number within round
             Child_count = 0,
-            Status = Status.Locked,
+            Status = GetMatchStatus(sm),
             Opponent1 = new ParticpantResult()
             {
                 Id = sm.HomeTeamID,
@@ -630,7 +632,7 @@ public class BracketService : IBracketService
                 Round_id = 0, // Round does not matter, just has to be the same as sudden death
                 Number = 1, // Grand Final is always the first match in this round
                 Child_count = 0,
-                Status = Status.Locked,
+                Status = GetMatchStatus(grandFinal),
                 Opponent1 = new ParticpantResult()
                 {
                     Id = grandFinal.HomeTeamID,
@@ -661,7 +663,7 @@ public class BracketService : IBracketService
                     Round_id = 0, // Round does not matter, just has to be the same as grand final
                     Number = 2, // Sudden death is always the second match, since it is after the grand final
                     Child_count = 0,
-                    Status = Status.Ready,
+                    Status = GetMatchStatus(grandFinalSuddenDeath),
                     Opponent1 = new ParticpantResult()
                     {
                         Id = grandFinalSuddenDeath.HomeTeamID,
@@ -685,6 +687,36 @@ public class BracketService : IBracketService
         result.MatchGames = new();
 
         return result;
+    }
+
+    /// <summary>
+    /// The id of the "Seed N" placeholder participant shown until a team is seeded there. Negative, so it
+    /// can never be a real TeamID.
+    /// </summary>
+    public static int? SeedPlaceholderID(int? seed) => -seed;
+
+    /// <summary>
+    /// The match status as brackets-manager's getMatchStatus derives it (brackets-viewer reads it to
+    /// label matches and to clear origin hints from Completed on): Locked while neither team is known,
+    /// Waiting with one, Completed once a result or forfeit is in, Running once a score is in, else Ready.
+    /// A match with a BYE is Locked. Seed placeholders do not count as known teams.
+    /// </summary>
+    public static Status GetMatchStatus(SeasonMatch sm)
+    {
+        // A BYE on either side locks the match (brackets-manager's hasBye), whatever else it has.
+        if (sm.HomeTeamResult is SeasonMatchResult.Bye || sm.AwayTeamResult is SeasonMatchResult.Bye)
+            return Status.Locked;
+        var home = sm.HomeTeamID is not null;
+        var away = sm.AwayTeamID is not null;
+        if (!home && !away)
+            return Status.Locked;
+        if (!home || !away)
+            return Status.Waiting;
+        if (sm.HomeTeamResult is not null || sm.AwayTeamResult is not null)
+            return Status.Completed;
+        if (sm.HomeTeamScore is not null || sm.AwayTeamScore is not null)
+            return Status.Running;
+        return Status.Ready;
     }
 
     private Result? MapResult(SeasonMatchResult? r)

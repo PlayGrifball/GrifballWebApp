@@ -29,9 +29,10 @@ public class TeamsController : ControllerBase
 
     [Authorize(Roles = "Commissioner")]
     [HttpPost(Name = "AddCaptain")]
-    public Task AddCaptain([FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
+    public async Task<CaptainAddedResponseDto> AddCaptain([FromBody] CaptainPlacementDto dto, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
-        return _teamService.AddCaptain(dto, resortOnly: false, signalRConnectionID, ct);
+        var teamName = await _teamService.AddCaptain(dto, resortOnly: false, signalRConnectionID, ct);
+        return new CaptainAddedResponseDto { TeamName = teamName! };
     }
 
     [Authorize(Roles = "Commissioner")]

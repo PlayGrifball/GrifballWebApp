@@ -28,8 +28,8 @@
                      [(ngModel)]="newDate" 
                      name="newDate"
                      placeholder="Choose a date">
-              <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-              <mat-datepicker #picker></mat-datepicker>
+              <mat-datepicker-toggle matIconSuffix [for]="picker" />
+              <mat-datepicker #picker />
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -83,20 +83,20 @@
       <button mat-button 
               type="button" 
               (click)="this.location.back();"
-              [disabled]="submitting">
+              [disabled]="submitting()">
         Cancel
       </button>
       <button mat-raised-button 
               color="primary" 
               (click)="submitRescheduleRequest()"
-              [disabled]="submitting || !reason.trim()">
-        @if (submitting) {
+              [disabled]="submitting() || !reason.trim()">
+        @if (submitting()) {
         <mat-icon>hourglass_empty</mat-icon>
         }
         @else {
         <mat-icon>send</mat-icon>
         }
-        {{ submitting ? 'Submitting...' : 'Submit Request' }}
+        {{ submitting() ? 'Submitting...' : 'Submit Request' }}
       </button>
     </mat-card-actions>
   </mat-card>

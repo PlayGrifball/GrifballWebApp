@@ -4,7 +4,7 @@ import { PasswordResetComponent } from './password-reset.component';
 import { AccountService } from '../account.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 describe('PasswordResetComponent', () => {
   let component: PasswordResetComponent;
@@ -47,7 +47,7 @@ describe('PasswordResetComponent', () => {
   });
 
   it('should initialize with isLoading set to false', () => {
-    expect(component.isLoading).toBe(false);
+    expect(component.isLoading()).toBe(false);
   });
 
   it('should initialize with empty model', () => {
@@ -116,7 +116,7 @@ describe('PasswordResetComponent', () => {
       
       component.onSubmit();
 
-      expect(component.isLoading).toBe(true);
+      expect(component.isLoading()).toBe(true);
     });
 
     it('should call resetPassword with correct request when passwords match and are valid', () => {
@@ -155,7 +155,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to reset password', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should show specific error message when provided as string', () => {
@@ -168,7 +168,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Token has expired', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should show default 400 error message when status is 400 without specific error', () => {
@@ -181,7 +181,7 @@ describe('PasswordResetComponent', () => {
       component.onSubmit();
 
       expect(mockSnackBar.open).toHaveBeenCalledWith('Invalid or expired reset link', 'Close');
-      expect(component.isLoading).toBe(false);
+      expect(component.isLoading()).toBe(false);
     });
 
     it('should not navigate to login on error', () => {
@@ -218,5 +218,23 @@ describe('PasswordResetComponent', () => {
       expect(mockSnackBar.open).toHaveBeenCalledWith('Password must be at least 6 characters long', 'Close');
       expect(mockAccountService.resetPassword).not.toHaveBeenCalled();
     });
+  });
+
+  it('shows the busy label while the reset is in flight and clears it on failure, without a manual detectChanges', async () => {
+    fixture.componentRef.setInput('token', 'reset-token');
+    const result = new Subject<string>();
+    mockAccountService.resetPassword.and.returnValue(result);
+    await fixture.whenStable();
+    const submit = () => (fixture.nativeElement as HTMLElement).querySelector('button[type="submit"]')!.textContent!.trim();
+
+    component.model.newPassword = 'ValidPassword123';
+    component.model.confirmPassword = 'ValidPassword123';
+    component.onSubmit();
+    await fixture.whenStable();
+    expect(submit()).toBe('Resetting Password...');
+
+    result.error({ status: 500 });
+    await fixture.whenStable();
+    expect(submit()).toBe('Reset Password');
   });
 });

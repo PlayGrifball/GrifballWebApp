@@ -1,7 +1,7 @@
 import { animate, style, transition, trigger } from '@angular/animations';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Component, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/sort';
@@ -34,9 +34,11 @@ import { PaginationResult } from '../shared/paginationResult';
             ])
         ])
     ],
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HomeComponent implements OnInit {
+  private http = inject(HttpClient);
+
 
   displayedColumns: string[] = ['name', 'start', 'end'];
   currentAndFutureEvents: WritableSignal<Event[]> = signal([]);
@@ -52,9 +54,6 @@ export class HomeComponent implements OnInit {
   sort$ = toObservable(this.sort);
   s: WritableSignal<Sort | undefined> = signal(undefined);
   s$ = toObservable(this.s);
-
-  constructor(private http: HttpClient) {
-  }
 
   ngOnInit(): void {
     this.getCurrentAndFutureEvents().subscribe({

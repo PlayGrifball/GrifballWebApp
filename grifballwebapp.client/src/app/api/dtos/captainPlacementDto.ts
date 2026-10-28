@@ -16,3 +16,8 @@ export class RemoveCaptainDto {
   seasonID: number = 0;
   personID: number = 0;
 }
+
+/** GrifballWebApp.Server.Teams.CaptainAddedResponseDto: the answer to AddCaptain. */
+export interface CaptainAddedResponseDto {
+  teamName: string;
+}

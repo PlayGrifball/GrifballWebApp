@@ -1,29 +1,30 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
+import { ToDatePipe } from '../shared/toDate.pipe';
 @Component({
     selector: 'app-season-manager',
     imports: [
         CommonModule,
         MatTableModule,
         RouterModule,
-        MatButtonModule
+        MatButtonModule,
+        ToDatePipe,
     ],
     templateUrl: './seasonManager.component.html',
     styleUrl: './seasonManager.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonManagerComponent implements OnInit {
-  public seasons: SeasonDto[] = [];
-  public displayedColumns: string[] = ['seasonName', 'signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd', 'signupsCount', 'edit'];
+  private http = inject(ApiClientService);
 
-  constructor(private http: ApiClientService) {
-  }
+  readonly seasons = signal<SeasonDto[]>([]);
+  public displayedColumns: string[] = ['seasonName', 'signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd', 'signupsCount', 'edit'];
 
   ngOnInit(): void {
     this.getSeasons();
@@ -31,7 +32,7 @@ export class SeasonManagerComponent implements OnInit {
 
   getSeasons(): void {
     this.http.getSeasons().subscribe({
-      next: (result) => this.seasons = result,
+      next: (result) => this.seasons.set(result),
       error: (error) => console.error(error),
     });
   }

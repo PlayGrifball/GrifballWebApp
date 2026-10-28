@@ -82,6 +82,10 @@ public enum RoundRobinMode
 
 public class MatchResults
 {
+    // brackets-model's Status is a numeric enum and brackets-viewer compares it as a number.
+    // A converter on the property wins over the API's global JsonStringEnumConverter (one on the
+    // enum type would not), so this stays a number while the other bracket enums are strings.
+    [JsonConverter(typeof(JsonNumberEnumConverter<Status>))]
     public Status Status { get; set; }
     public ParticpantResult? Opponent1 { get; set; }
     public ParticpantResult? Opponent2 { get; set; }
@@ -115,7 +119,10 @@ public class Match : MatchResults
     public int Child_count { get; set; }
 }
 
-public class MatchGame
+/// <summary>
+/// brackets-model's MatchGame extends MatchResults (status, opponent1, opponent2), like Match.
+/// </summary>
+public class MatchGame : MatchResults
 {
     /// <summary>
     /// ID of the match game: MatchID
@@ -128,6 +135,7 @@ public class MatchGame
     /// <summary>
     /// ID of the parent match: SeasonMatchID
     /// </summary>
+    [JsonPropertyName("parent_id")] // brackets-model's name
     public int ParentID { get; set; }
     /// <summary>
     /// The number of the match game in its parent match: 1, 2, 3...
@@ -135,7 +143,6 @@ public class MatchGame
     public int Number { get; set; }
 }
 
-// Not string?
 public enum Status
 {
     // The two matches leading to this one are not completed yet.

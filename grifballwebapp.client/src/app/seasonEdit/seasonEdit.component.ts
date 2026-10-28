@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -24,14 +24,20 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {
-  @ViewChild('seasonForm') registerForm!: NgForm;
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
 
-  model: SeasonDto = {} as SeasonDto;
+  readonly seasonForm = viewChild.required<NgForm>('seasonForm');
 
-  constructor(private route: ActivatedRoute, private api: ApiClientService) {}
+  readonly model = signal<SeasonDto>({} as SeasonDto);
+
+  /** Form edits replace the model rather than mutating it. */
+  patch(changes: Partial<SeasonDto>): void {
+    this.model.update(model => ({ ...model, ...changes }));
+  }
 
   ngOnInit(): void {
     const seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -40,7 +46,8 @@ export class SeasonEditComponent implements OnInit {
     if (seasonID > 0) {
       this.api.getSeason(seasonID)
         .subscribe({
-          next: (result) => this.model = result,
+          // No such season: keep the empty form.
+          next: (result) => { if (result) this.model.set(result); },
         });
       return;
     }
@@ -49,12 +56,12 @@ export class SeasonEditComponent implements OnInit {
   }
 
   onSubmit() {
-    if (!this.registerForm.valid) {
+    if (!this.seasonForm().valid) {
       return;
     }
 
-    this.api.upsertSeason(this.model).subscribe({
-      next: (result) => this.model.seasonID = result,
+    this.api.upsertSeason(this.model()).subscribe({
+      next: (result) => this.model.update(model => ({ ...model, seasonID: result })),
       error: (result) => console.log(result),
       });
   }

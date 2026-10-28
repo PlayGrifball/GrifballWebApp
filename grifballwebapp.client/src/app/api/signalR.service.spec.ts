@@ -5,7 +5,7 @@ import { SignalRService } from './signalR.service';
 import { AccountService } from '../account.service';
 
 describe('SignalRService', () => {
-  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy };
+  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; off: jasmine.Spy };
   let accessToken: ReturnType<typeof signal<string | undefined>>;
   let withUrl: jasmine.Spy;
   let service: SignalRService;
@@ -21,6 +21,7 @@ describe('SignalRService', () => {
       start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
       on: jasmine.createSpy('on'),
+      off: jasmine.createSpy('off'),
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
@@ -81,12 +82,12 @@ describe('SignalRService', () => {
   });
 
   const events: [keyof SignalRService, string, unknown][] = [
-    ['addCaptain', 'AddCaptain', { captainID: 1 }],
-    ['resortCaptain', 'ResortCaptain', { captainID: 2 }],
-    ['removeCaptain', 'RemoveCaptain', { captainID: 3 }],
-    ['removePlayerFromTeam', 'RemovePlayerFromTeam', { personID: 4 }],
-    ['movePlayerToTeam', 'MovePlayerToTeam', { personID: 5 }],
-    ['addPlayerToTeam', 'AddPlayerToTeam', { personID: 6 }],
+    ['addCaptain', 'AddCaptain', { seasonID: 1, personID: 11, teamName: 'Reds', captainName: 'Red', orderNumber: 1 }],
+    ['resortCaptain', 'ResortCaptain', { seasonID: 1, personID: 12, orderNumber: 2 }],
+    ['removeCaptain', 'RemoveCaptain', { seasonID: 1, personID: 13 }],
+    ['removePlayerFromTeam', 'RemovePlayerFromTeam', { seasonID: 1, captainID: 11, personID: 4 }],
+    ['movePlayerToTeam', 'MovePlayerToTeam', { seasonID: 1, previousCaptainID: 11, newCaptainID: 12, personID: 5, roundNumber: 1 }],
+    ['addPlayerToTeam', 'AddPlayerToTeam', { seasonID: 1, captainID: 11, personID: 6 }],
     ['lockCaptains', 'LockCaptains', 7],
     ['unlockCaptains', 'UnlockCaptains', 8],
   ];
@@ -100,6 +101,14 @@ describe('SignalRService', () => {
 
       expect(callback).toHaveBeenCalledOnceWith(payload);
       expect(callback.calls.mostRecent().object).toBe(service);
+    });
+
+    it(`${String(method)} returns a function that unregisters that same ${event} handler`, () => {
+      const unsubscribe = (service[method] as (cb: (v: unknown) => void) => () => void).call(service, () => {});
+
+      unsubscribe();
+
+      expect(connection.off).toHaveBeenCalledOnceWith(event, handlerFor(event));
     });
   }
 });

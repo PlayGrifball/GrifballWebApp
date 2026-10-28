@@ -1,20 +1,20 @@
 <div class="flex gap-4">
   <div class="flex-1">
     <h2>Merge From</h2>
-    <app-search-box [(value)]="mergeFromId" type="number"></app-search-box>
+    <app-search-box [(value)]="mergeFromId" type="number" />
     @if (mergeFrom.error()) {
       <p class="merge-error" role="alert">Failed to load user.</p>
     } @else {
-      <app-user-detail [user]="mergeFromUser()"></app-user-detail>
+      <app-user-detail [user]="mergeFromUser()" />
     }
   </div>
   <div class="flex-1">
     <h2>Merge To</h2>
-    <app-search-box [(value)]="mergeToId" type="number"></app-search-box>
+    <app-search-box [(value)]="mergeToId" type="number" />
     @if (mergeTo.error()) {
       <p class="merge-error" role="alert">Failed to load user.</p>
     } @else {
-      <app-user-detail [user]="mergeToUser()"></app-user-detail>
+      <app-user-detail [user]="mergeToUser()" />
     }
   </div>
 </div>

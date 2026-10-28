@@ -1,4 +1,4 @@
-import { Component, Inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,18 +28,16 @@ interface ProcessRescheduleRequest {
   ],
   templateUrl: './process-reschedule-dialog.component.html',
   styleUrls: ['./process-reschedule-dialog.component.scss'],
-  changeDetection: ChangeDetectionStrategy.Eager
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProcessRescheduleDialogComponent {
-  decision: 'approve' | 'reject' | null = null;
-  commissionerNotes = '';
-  processing = false;
+  dialogRef = inject<MatDialogRef<ProcessRescheduleDialogComponent>>(MatDialogRef);
+  reschedule = inject<RescheduleDto>(MAT_DIALOG_DATA);
+  private httpClient = inject(HttpClient);
 
-  constructor(
-    public dialogRef: MatDialogRef<ProcessRescheduleDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public reschedule: RescheduleDto,
-    private httpClient: HttpClient
-  ) {}
+  readonly decision = signal<'approve' | 'reject' | null>(null);
+  readonly commissionerNotes = signal('');
+  readonly processing = signal(false);
 
   formatDateTime(dateStr?: string): string {
     if (!dateStr) return 'Not scheduled';
@@ -47,25 +45,25 @@ export class ProcessRescheduleDialogComponent {
   }
 
   async processReschedule(): Promise<void> {
-    if (this.decision === null) return;
+    if (this.decision() === null) return;
 
     const request: ProcessRescheduleRequest = {
-      approved: this.decision === 'approve',
-      commissionerNotes: this.commissionerNotes.trim() || undefined
+      approved: this.decision() === 'approve',
+      commissionerNotes: this.commissionerNotes().trim() || undefined
     };
 
-    this.processing = true;
+    this.processing.set(true);
 
     this.httpClient.post(`/api/Reschedule/ProcessReschedule/${this.reschedule.matchRescheduleID}`, request)
     .subscribe({
       next: () => {
         this.dialogRef.close(true); // Signal success
-        this.processing = false;
+        this.processing.set(false);
       },
       error: (error) => {
         console.error('Failed to process reschedule:', error);
         // You might want to show an error message here
-        this.processing = false;
+        this.processing.set(false);
       }
     });
     

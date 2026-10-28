@@ -45,12 +45,14 @@ describe('ApiClientService', () => {
 
   describe('getSeasons', () => {
     it('should fetch seasons data', (done) => {
-      const mockSeasons: any[] = [{ seasonID: 1, seasonName: 'Season 1' }];
+      const mockSeasons: any[] = [{ seasonID: 1, seasonName: 'Season 1', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z', signupsCount: 3 }];
 
       service.getSeasons().subscribe({
         next: (data) => {
           expect(data.length).toBe(1);
           expect(data[0].seasonID).toBe(1);
+          expect(data[0].seasonEnd instanceof DateTime).toBeTrue();
+          expect(data[0].seasonEnd.toMillis()).toBe(Date.parse('2026-03-01T00:00:00Z'));
           done();
         }
       });
@@ -63,12 +65,14 @@ describe('ApiClientService', () => {
 
   describe('getSeason', () => {
     it('should fetch single season by ID', (done) => {
-      const mockSeason: any = { seasonID: 1, seasonName: 'Season 1' };
+      const mockSeason: any = { seasonID: 1, seasonName: 'Season 1', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z', signupsCount: 3 };
 
       service.getSeason(1).subscribe({
         next: (data) => {
-          expect(data.seasonID).toBe(1);
-          expect(data.seasonName).toBe('Season 1');
+          expect(data!.seasonID).toBe(1);
+          expect(data!.seasonName).toBe('Season 1');
+          expect(data!.signupsOpen instanceof DateTime).toBeTrue();
+          expect(data!.signupsOpen.toMillis()).toBe(Date.parse('2026-01-01T00:00:00Z'));
           done();
         }
       });
@@ -76,6 +80,17 @@ describe('ApiClientService', () => {
       const req = httpTestingController.expectOne('/api/EventOrganizer/GetSeason/1');
       expect(req.request.method).toBe('GET');
       req.flush(mockSeason);
+    });
+
+    it('gives null for a season that does not exist (204)', (done) => {
+      service.getSeason(99).subscribe({
+        next: (data) => {
+          expect(data).toBeNull();
+          done();
+        }
+      });
+
+      httpTestingController.expectOne('/api/EventOrganizer/GetSeason/99').flush(null, { status: 204, statusText: 'No Content' });
     });
   });
 
@@ -141,7 +156,7 @@ describe('ApiClientService', () => {
 
   describe('getSignups', () => {
     it('should fetch signups for a season', (done) => {
-      const mockSignups = [{ seasonID: 1, playerID: 1 }] as any;
+      const mockSignups = [{ seasonID: 1, userID: 7, personName: 'Grif', timestamp: '2026-01-07T19:00:00Z', teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] }] as any;
 
       service.getSignups(1).subscribe({
         next: (data) => {
@@ -158,7 +173,7 @@ describe('ApiClientService', () => {
 
   describe('getTimeslots', () => {
     it('should fetch timeslots with offset', (done) => {
-      const mockTimeslots = [{ time: '7:00 PM', dayOfWeek: 'Monday' }] as any;
+      const mockTimeslots = [{ optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }];
 
       service.getTimeslots(1, 300).subscribe({
         next: (data) => {
@@ -175,7 +190,7 @@ describe('ApiClientService', () => {
 
   describe('getSignup', () => {
     it('should fetch signup with offset', (done) => {
-      const mockSignup = { seasonID: 1, playerID: 1 } as any;
+      const mockSignup = { seasonID: 1, userID: 7, personName: 'Grif', timestamp: '2026-01-07T19:00:00Z', teamName: null, willCaptain: false, requiresAssistanceDrafting: false, timeslots: [] } as any;
 
       service.getSignup(1, 300).subscribe({
         next: (data) => {
@@ -192,7 +207,7 @@ describe('ApiClientService', () => {
 
   describe('getTeams', () => {
     it('should fetch teams for a season', (done) => {
-      const mockTeams = [{ teamID: 1, name: 'Team A' }] as any;
+      const mockTeams = [{ teamID: 1, teamName: 'Team A', captain: { name: 'Cap', personID: 3, order: 1 }, players: [] }];
 
       service.getTeams(1).subscribe({
         next: (data) => {
@@ -209,7 +224,7 @@ describe('ApiClientService', () => {
 
   describe('getPlayerPool', () => {
     it('should fetch player pool for a season', (done) => {
-      const mockPlayers = [{ playerID: 1, gamertag: 'Player1' }] as any;
+      const mockPlayers = [{ personID: 1, name: 'Player1', round: null, pick: null }];
 
       service.getPlayerPool(1).subscribe({
         next: (data) => {
@@ -261,7 +276,7 @@ describe('ApiClientService', () => {
       service.commitDate().subscribe({
         next: (date) => {
           expect(date).toBeInstanceOf(DateTime);
-          expect(date.toISO()).toBe(DateTime.fromISO(dateString).toISO());
+          expect(date!.toISO()).toBe(DateTime.fromISO(dateString).toISO());
           done();
         }
       });
@@ -273,6 +288,18 @@ describe('ApiClientService', () => {
   });
 
   describe('captain operations with SignalR connection', () => {
+    it('sends no connection header while the hub has no connection id (undefined or empty)', () => {
+      const dto = { seasonID: 1, personID: 1, orderNumber: 1 } as any;
+      service.addCaptain(dto, undefined as any).subscribe();
+      service.resortCaptain(dto, '').subscribe();
+
+      for (const url of ['/api/Teams/AddCaptain/', '/api/Teams/ResortCaptain/']) {
+        const req = httpTestingController.expectOne(url);
+        expect(req.request.headers.has('SignalRConnectionID')).toBe(false);
+        req.flush({});
+      }
+    });
+
     it('should add captain without connection ID', (done) => {
       const dto = { seasonID: 1, playerID: 1 } as any;
 
@@ -368,12 +395,12 @@ describe('ApiClientService', () => {
   });
 
   describe('upsertSignup', () => {
-    it('should call upsertSignup with transformed timeslots', (done) => {
+    it('posts the signup with the timeslots in the API time format, as loaded', (done) => {
       const signupDto: any = {
         seasonID: 1,
         timeslots: [
-          { time: '7:00 PM', dayOfWeek: 'Monday' },
-          { time: '8:00 PM', dayOfWeek: 'Tuesday' }
+          { optionID: 41, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
+          { optionID: 42, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
         ]
       };
 
@@ -383,7 +410,8 @@ describe('ApiClientService', () => {
 
       const req = httpTestingController.expectOne('/api/Signups/UpsertSignup/');
       expect(req.request.method).toBe('POST');
-      // The times should be transformed from 't' format to 'TT' format
+      expect(req.request.body).toEqual(signupDto);
+      expect(req.request.body.timeslots.map((t: any) => [t.optionID, t.isChecked])).toEqual([[41, true], [42, false]]);
       req.flush({});
     });
   });

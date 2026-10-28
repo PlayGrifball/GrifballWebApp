@@ -1,5 +1,5 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule, NgForm } from '@angular/forms';
+import { Component, OnInit, ChangeDetectionStrategy, inject, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormField, MatInputModule } from '@angular/material/input';
@@ -23,25 +23,22 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent implements OnInit {
+  private http = inject(HttpClient);
+  private snackbar = inject(MatSnackBar);
 
-  constructor(private http: HttpClient, private snackbar: MatSnackBar) { }
 
   ngOnInit(): void {
     this.getSeasonAvailability()
     .subscribe({
-      next: x => this.options = x,
+      next: x => this.options.set(x),
       error: () => this.snackbar.open('Failed to get season availability'),
     });
   }
 
-  @Input({ required: true })
-  form!: NgForm;
-
-  @Input()
-  seasonID!: number;
+  readonly seasonID = input.required<number>();
 
   minutes: number = 30;
 
@@ -83,10 +80,10 @@ export class SeasonAvailabilityComponent implements OnInit {
     return this.checkboxes.map(x => x.name);
   }
 
-  options: AvailabilityOption[] = [];
+  readonly options = signal<AvailabilityOption[]>([]);
 
   bulkModify(): void {
-    this.options = [];
+    const options: AvailabilityOption[] = [];
 
     let time = this.start;
 
@@ -96,11 +93,13 @@ export class SeasonAvailabilityComponent implements OnInit {
         o.dayOfWeek = dayOfWeek;
         o.time = time.toString();
 
-        this.options.push(o);
+        options.push(o);
       }
 
       time = time.plus({ minutes: this.minutes });
     }
+
+    this.options.set(options);
   }
 
   saveChanges(): void {
@@ -110,23 +109,28 @@ export class SeasonAvailabilityComponent implements OnInit {
     });
   }
 
+  /** Row edits replace the option (and the list) rather than mutating them. */
+  setOption(index: number, changes: Partial<AvailabilityOption>): void {
+    this.options.update(options => options.map((o, i) => i === index ? { ...o, ...changes } : o));
+  }
+
   add(): void {
-    this.options.unshift(new AvailabilityOption());
+    this.options.update(options => [new AvailabilityOption(), ...options]);
   }
 
   delete(index: number): void {
-    this.options.splice(index, 1);
+    this.options.update(options => options.filter((_, i) => i !== index));
   }
 
   updateSeasonAvailability() {
     return this.http.post('api/Availability/UpdateSeasonAvailability', {
-      seasonID: this.seasonID,
-      timeslots: this.options,
+      seasonID: this.seasonID(),
+      timeslots: this.options(),
     });
   }
 
   getSeasonAvailability() {
-    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID);
+    return this.http.get<AvailabilityOption[]>('api/Availability/GetSeasonAvailability?seasonID=' + this.seasonID());
   }
 }
 

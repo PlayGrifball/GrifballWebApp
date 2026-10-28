@@ -10,7 +10,7 @@ public class AddPlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext)
 {
     public override async Task Handle(Notification<AddPlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.AllExcept(request.ConnectionId!).AddPlayerToTeam(request.Value);
+        await Others(request.ConnectionId).AddPlayerToTeam(request.Value);
     }
 }
 

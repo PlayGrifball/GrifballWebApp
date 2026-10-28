@@ -11,11 +11,9 @@ describe('AvailabilityTableComponent', () => {
   beforeEach(async () => {
     mockAvailabilityService = jasmine.createSpyObj('AvailabilityService', ['parseTime']);
     mockAvailabilityService.DayOfWeek = 'Day of Week';
-    mockAvailabilityService.parseTime.and.callFake((time: string) => {
-      // Simple mock implementation
-      if (time === 'Day of Week') return time;
-      return time; // Just return as-is for testing
-    });
+    // The real conversion: the API's "HH:mm:ss" to the display format ("7:00 PM").
+    const real = new AvailabilityService();
+    mockAvailabilityService.parseTime.and.callFake((time: string) => time === 'Day of Week' ? time : real.parseTime(time));
 
     await TestBed.configureTestingModule({
       imports: [AvailabilityTableComponent],
@@ -32,9 +30,10 @@ describe('AvailabilityTableComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize with empty arrays', () => {
-    expect(component.timeColumns).toEqual([]);
-    expect(component.dtos).toEqual([]);
+  it('treats an unset (null) timeslot list as having no rows yet', () => {
+    fixture.componentRef.setInput('timeslots', null);
+    expect(component.timeColumns()).toEqual(['Day of Week']);
+    expect(component.dtos()).toEqual([]);
   });
 
   it('should have DayOfWeek from service', () => {
@@ -43,140 +42,143 @@ describe('AvailabilityTableComponent', () => {
 
   describe('timeslots setter', () => {
     it('should process empty timeslots array', () => {
-      component.timeslots = [];
+      fixture.componentRef.setInput('timeslots', []);
 
-      expect(component.timeColumns).toEqual(['Day of Week']);
-      expect(component.dtos).toEqual([]);
+      expect(component.timeColumns()).toEqual(['Day of Week']);
+      expect(component.dtos()).toEqual([]);
     });
 
     it('should create time columns from timeslots', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.timeColumns.length).toBeGreaterThan(0);
-      expect(component.timeColumns[0]).toBe('Day of Week');
+      expect(component.timeColumns().length).toBeGreaterThan(0);
+      expect(component.timeColumns()[0]).toBe('Day of Week');
     });
 
     it('should create rows for each unique day of week', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Tuesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos.length).toBe(2);
+      expect(component.dtos().length).toBe(2);
     });
 
     it('should create header for each day of week', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      const firstRow = component.dtos[0];
+      const firstRow = component.dtos()[0];
       expect(firstRow[0].isHeader).toBe(true);
       expect(firstRow[0].dayOfWeek).toBe('Monday');
     });
 
     it('should create disabled cells for missing timeslots', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 3, dayOfWeek: 'Tuesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
       // The component should create cells and some might be disabled if there are gaps
       // Just verify the component processes without errors
-      expect(component.dtos.length).toBeGreaterThan(0);
-      expect(component.timeColumns.length).toBeGreaterThan(0);
+      expect(component.dtos().length).toBeGreaterThan(0);
+      expect(component.timeColumns().length).toBeGreaterThan(0);
     });
 
     it('should set isDisabled to false for valid timeslots', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      const nonHeaderCells = component.dtos[0].filter(dto => !dto.isHeader);
+      const nonHeaderCells = component.dtos()[0].filter(dto => !dto.isHeader);
       expect(nonHeaderCells.some(dto => !dto.isDisabled)).toBe(true);
     });
 
     it('should parse time for all timeslots', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
+      component.dtos();
 
       expect(mockAvailabilityService.parseTime).toHaveBeenCalled();
     });
 
     it('should handle multiple days with multiple times', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 3, dayOfWeek: 'Tuesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 4, dayOfWeek: 'Tuesday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
+        { optionID: 4, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos.length).toBe(2); // 2 days
-      expect(component.dtos[0].length).toBeGreaterThan(1); // Multiple times per day
+      expect(component.dtos().length).toBe(2); // 2 days
+      expect(component.dtos()[0].length).toBeGreaterThan(1); // Multiple times per day
     });
   });
 
-  describe('timeslots getter', () => {
-    it('should return flattened non-header timeslots', () => {
-      const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
-      ];
+  describe('cost', () => {
+    it('converts each distinct time once per build, however many days share it', () => {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const timeslots: TimeslotDto[] = days.flatMap((dayOfWeek, d) => ['19:00:00', '20:00:00', '21:00:00']
+        .map((time, t) => ({ optionID: d * 10 + t + 1, dayOfWeek, time, isChecked: false })));
+      mockAvailabilityService.parseTime.calls.reset();
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
+      expect(component.dtos().length).toBe(7);
 
-      const result = component.timeslots;
-
-      expect(result.every(dto => dto.id !== 0)).toBe(true);
-      expect(result.every(dto => !dto.isHeader)).toBe(true);
+      expect(mockAvailabilityService.parseTime).toHaveBeenCalledTimes(3);
+      expect(component.dtos().flat().filter(c => !c.isHeader && !c.isDisabled).length).toBe(21);
     });
+  });
 
-    it('should exclude header and disabled cells', () => {
+  describe('purity', () => {
+    it('builds the same table again from the same timeslot objects, without changing them', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
+        { optionID: 2, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false },
       ];
+      const snapshot = structuredClone(timeslots);
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
+      const first = { columns: component.timeColumns(), dtos: component.dtos() };
+      fixture.componentRef.setInput('timeslots', [...timeslots]); // same objects, new list: recompute
+      const second = { columns: component.timeColumns(), dtos: component.dtos() };
 
-      const result = component.timeslots;
-
-      expect(result.length).toBeGreaterThan(0);
-      result.forEach(dto => {
-        expect(dto.isHeader).toBe(false);
-        expect(dto.id).not.toBe(0);
-      });
+      expect(second.dtos).not.toBe(first.dtos);
+      expect(second).toEqual(first);
+      expect(timeslots).toEqual(snapshot);
     });
   });
 
   describe('getCell', () => {
     beforeEach(() => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false }
       ];
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
     });
 
     it('should return first cell when time is DayOfWeek', () => {
-      const slots = component.dtos[0];
+      const slots = component.dtos()[0];
 
       const result = component.getCell('Day of Week', slots);
 
@@ -185,7 +187,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should return matching cell for given time', () => {
-      const slots = component.dtos[0];
+      const slots = component.dtos()[0];
       const testTime = '7:00 PM';
 
       const result = component.getCell(testTime, slots);
@@ -194,7 +196,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('should return disabled cell when time not found', () => {
-      const slots = component.dtos[0];
+      const slots = component.dtos()[0];
 
       const result = component.getCell('9:00 PM', slots);
 
@@ -202,180 +204,133 @@ describe('AvailabilityTableComponent', () => {
     });
   });
 
+  // Ticking emits a new timeslot list; the ids of the checked slots after each action.
+  const checkedIds = () => (component.timeslots() ?? []).filter(t => t.isChecked).map(t => t.optionID);
+
   describe('dayOfWeekClicked', () => {
+    let timeslots: TimeslotDto[];
     beforeEach(() => {
-      const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+      timeslots = [
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
       ];
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
     });
 
-    it('should check all timeslots when none are checked', () => {
-      const slots = component.dtos[0];
-      slots.forEach(slot => slot.isChecked = false);
-
-      component.dayOfWeekClicked('Day of Week', slots);
-
-      const nonDisabledNonHeader = slots.filter(x => !x.isDisabled && !x.isHeader);
-      expect(nonDisabledNonHeader.every(x => x.isChecked)).toBe(true);
+    it('should check all timeslots of the day when none are checked', () => {
+      component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
+      expect(checkedIds()).toEqual([1, 2]);
     });
 
-    it('should uncheck all timeslots when any are checked', () => {
-      const slots = component.dtos[0];
-      const nonDisabledNonHeader = slots.filter(x => !x.isDisabled && !x.isHeader);
-      if (nonDisabledNonHeader.length > 0) {
-        nonDisabledNonHeader[0].isChecked = true;
-      }
+    it('should uncheck all timeslots of the day when any are checked', () => {
+      component.setChecked([component.dtos()[0][1]], true);
+      expect(checkedIds()).toEqual([1]);
 
-      component.dayOfWeekClicked('Day of Week', slots);
-
-      expect(nonDisabledNonHeader.every(x => !x.isChecked)).toBe(true);
-    });
-
-    it('should not affect disabled or header cells', () => {
-      const slots = component.dtos[0];
-      const header = slots.find(x => x.isHeader);
-
-      component.dayOfWeekClicked('Day of Week', slots);
-
-      if (header) {
-        expect(header.isHeader).toBe(true);
-      }
+      component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
+      expect(checkedIds()).toEqual([]);
     });
 
     it('should toggle state on multiple clicks', () => {
-      const slots = component.dtos[0];
+      component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
+      component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
+      expect(checkedIds()).toEqual([]);
+    });
 
-      component.dayOfWeekClicked('Day of Week', slots);
-      const firstState = slots.filter(x => !x.isDisabled && !x.isHeader)[0]?.isChecked;
+    it('emits new timeslot objects and leaves the bound ones alone', () => {
+      const emitted: unknown[] = [];
+      component.timeslots.subscribe(v => emitted.push(v));
 
-      component.dayOfWeekClicked('Day of Week', slots);
-      const secondState = slots.filter(x => !x.isDisabled && !x.isHeader)[0]?.isChecked;
+      component.dayOfWeekClicked('Day of Week', component.dtos()[0]);
 
-      if (firstState !== undefined && secondState !== undefined) {
-        expect(firstState).not.toBe(secondState);
-      }
+      expect(emitted.length).toBe(1);
+      expect(timeslots.every(t => !t.isChecked)).toBeTrue();
+      expect(component.timeslots()![2]).toBe(timeslots[2]); // untouched slots are kept as they are
     });
   });
 
   describe('timeClicked', () => {
     beforeEach(() => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Tuesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
       ];
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
     });
 
     it('should check all matching time slots when none are checked', () => {
-      component.dtos.flat().forEach(slot => slot.isChecked = false);
-
       component.timeClicked('7:00 PM');
-
-      const matchingSlots = component.dtos.flat().filter(x => 
-        !x.isDisabled && !x.isHeader && x.time === '7:00 PM'
-      );
-      expect(matchingSlots.every(x => x.isChecked)).toBe(true);
+      expect(checkedIds()).toEqual([1, 2]);
     });
 
     it('should uncheck all matching time slots when any are checked', () => {
-      const allSlots = component.dtos.flat();
-      const matchingSlots = allSlots.filter(x => 
-        !x.isDisabled && !x.isHeader && x.time === '7:00 PM'
-      );
-      
-      if (matchingSlots.length > 0) {
-        matchingSlots[0].isChecked = true;
-      }
-
+      component.setChecked([component.dtos()[0][1]], true);
       component.timeClicked('7:00 PM');
-
-      expect(matchingSlots.every(x => !x.isChecked)).toBe(true);
+      expect(checkedIds()).toEqual([]);
     });
 
     it('should handle Day of Week click to toggle all slots', () => {
-      component.dtos.flat().forEach(slot => slot.isChecked = false);
-
       component.timeClicked('Day of Week');
-
-      const nonDisabledNonHeader = component.dtos.flat().filter(x => 
-        !x.isDisabled && !x.isHeader
-      );
-      expect(nonDisabledNonHeader.every(x => x.isChecked)).toBe(true);
+      expect(checkedIds()).toEqual([1, 2, 3]);
     });
 
-    it('should only affect non-disabled and non-header cells', () => {
-      component.timeClicked('7:00 PM');
-
-      const headers = component.dtos.flat().filter(x => x.isHeader);
-      const disabled = component.dtos.flat().filter(x => x.isDisabled);
-
-      headers.forEach(h => expect(h.isHeader).toBe(true));
-      disabled.forEach(d => expect(d.isDisabled).toBe(true));
+    it('should leave header and filler cells as they are', () => {
+      component.timeClicked('Day of Week');
+      expect(component.dtos().flat().filter(x => x.isHeader).every(h => !h.isChecked)).toBeTrue();
+      expect(component.dtos().flat().filter(x => x.isDisabled).every(d => !d.isChecked)).toBeTrue();
     });
 
-    it('should toggle state on multiple clicks', () => {
+    it('shows the new checked state in the grid', () => {
       component.timeClicked('7:00 PM');
-      const firstState = component.dtos.flat().filter(x => 
-        !x.isDisabled && !x.isHeader && x.time === '7:00 PM'
-      )[0]?.isChecked;
-
-      component.timeClicked('7:00 PM');
-      const secondState = component.dtos.flat().filter(x => 
-        !x.isDisabled && !x.isHeader && x.time === '7:00 PM'
-      )[0]?.isChecked;
-
-      if (firstState !== undefined && secondState !== undefined) {
-        expect(firstState).not.toBe(secondState);
-      }
+      const checkedCells = component.dtos().flat().filter(c => c.isChecked).map(c => c.optionID);
+      expect(checkedCells).toEqual([1, 2]);
     });
   });
 
   describe('integration tests', () => {
     it('should handle complex schedule with multiple days and times', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '6:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 3, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 4, dayOfWeek: 'Tuesday', time: '6:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 5, dayOfWeek: 'Tuesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 6, dayOfWeek: 'Wednesday', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '18:00:00', isChecked: false },
+        { optionID: 2, dayOfWeek: 'Monday', time: '19:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
+        { optionID: 4, dayOfWeek: 'Tuesday', time: '18:00:00', isChecked: false },
+        { optionID: 5, dayOfWeek: 'Tuesday', time: '19:00:00', isChecked: false },
+        { optionID: 6, dayOfWeek: 'Wednesday', time: '19:00:00', isChecked: false }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      expect(component.dtos.length).toBe(3); // 3 unique days
-      expect(component.timeColumns.length).toBeGreaterThan(1);
+      expect(component.dtos().length).toBe(3); // 3 unique days
+      expect(component.timeColumns().length).toBeGreaterThan(1);
     });
 
     it('should maintain checked state after re-setting timeslots', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: true, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true }
       ];
 
-      component.timeslots = timeslots;
+      fixture.componentRef.setInput('timeslots', timeslots);
 
-      const result = component.timeslots;
-      expect(result[0].isChecked).toBe(true);
+      expect(component.dtos().flat().find(x => x.optionID === 1)?.isChecked).toBe(true);
     });
 
     it('should handle empty day of week correctly', () => {
       const timeslots: TimeslotDto[] = [
-        { id: 1, dayOfWeek: '', time: '7:00 PM', isChecked: false, isDisabled: false, isHeader: false }
+        { optionID: 1, dayOfWeek: '', time: '19:00:00', isChecked: false }
       ];
 
-      expect(() => component.timeslots = timeslots).not.toThrow();
+      expect(() => fixture.componentRef.setInput('timeslots', timeslots)).not.toThrow();
     });
   });
 
   describe('template rendering (@if ... as)', () => {
     beforeEach(() => {
-      component.timeslots = [
-        { id: 1, dayOfWeek: 'Monday', time: '7:00 PM', isChecked: true, isDisabled: false, isHeader: false },
-        { id: 2, dayOfWeek: 'Monday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false },
-        { id: 3, dayOfWeek: 'Tuesday', time: '8:00 PM', isChecked: false, isDisabled: false, isHeader: false }
-      ];
+      fixture.componentRef.setInput('timeslots', [
+        { optionID: 1, dayOfWeek: 'Monday', time: '19:00:00', isChecked: true },
+        { optionID: 2, dayOfWeek: 'Monday', time: '20:00:00', isChecked: false },
+        { optionID: 3, dayOfWeek: 'Tuesday', time: '20:00:00', isChecked: false }
+      ]);
       fixture.detectChanges();
     });
 
@@ -406,22 +361,31 @@ describe('AvailabilityTableComponent', () => {
     it('toggles the row when the day of week header is clicked', () => {
       const tuesdayHeader = rows()[1].querySelector<HTMLElement>('td div')!;
       tuesdayHeader.click();
-      expect(component.timeslots.find(x => x.id === 3)?.isChecked).toBe(true);
-      expect(component.timeslots.find(x => x.id === 1)?.isChecked).toBe(true);
-      expect(component.timeslots.find(x => x.id === 2)?.isChecked).toBe(false);
+      expect(component.timeslots()!.find(x => x.optionID === 3)?.isChecked).toBe(true);
+      expect(component.timeslots()!.find(x => x.optionID === 1)?.isChecked).toBe(true);
+      expect(component.timeslots()!.find(x => x.optionID === 2)?.isChecked).toBe(false);
+    });
+
+    it('ticks a slot from its checkbox and re-renders it checked', async () => {
+      const input = rows()[1].querySelectorAll<HTMLInputElement>('mat-checkbox input')[1];
+      input.click();
+      await fixture.whenStable();
+
+      expect(component.timeslots()!.find(x => x.optionID === 3)?.isChecked).toBe(true);
+      expect(rows()[1].querySelectorAll<HTMLInputElement>('mat-checkbox input')[1].checked).toBeTrue();
     });
   });
 
   describe('missing timeslots', () => {
     it('treats undefined timeslots as empty instead of throwing', () => {
-      expect(() => component.timeslots = undefined as unknown as TimeslotDto[]).not.toThrow();
-      expect(component.timeColumns).toEqual(['Day of Week']);
-      expect(component.dtos).toEqual([]);
+      expect(() => fixture.componentRef.setInput('timeslots', undefined as unknown as TimeslotDto[])).not.toThrow();
+      expect(component.timeColumns()).toEqual(['Day of Week']);
+      expect(component.dtos()).toEqual([]);
     });
 
     it('treats null timeslots as empty instead of throwing', () => {
-      expect(() => component.timeslots = null as unknown as TimeslotDto[]).not.toThrow();
-      expect(component.dtos).toEqual([]);
+      expect(() => fixture.componentRef.setInput('timeslots', null as unknown as TimeslotDto[])).not.toThrow();
+      expect(component.dtos()).toEqual([]);
     });
 
     it('renders when bound to undefined timeslots', () => {

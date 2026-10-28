@@ -3,7 +3,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto, OverdueMatchDto } from './commissioner-dashboard.component';
 
@@ -51,9 +51,9 @@ describe('CommissionerDashboardComponent', () => {
   });
 
   it('should initialize with loading state', () => {
-    expect(component.loading).toBeTruthy();
-    expect(component.dashboardData).toBeNull();
-    expect(component.error).toBeNull();
+    expect(component.loading()).toBeTruthy();
+    expect(component.dashboardData()).toBeNull();
+    expect(component.error()).toBeNull();
   });
 
   it('should have correct displayed columns for tables', () => {
@@ -83,7 +83,7 @@ describe('CommissionerDashboardComponent', () => {
           requestedByGamertag: 'Player1',
           reason: 'Schedule conflict',
           requestedAt: '2024-01-14T10:00:00Z',
-          status: 0
+          status: 'Pending'
         }
       ],
       overdueMatches: [
@@ -103,9 +103,9 @@ describe('CommissionerDashboardComponent', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mockDashboardData);
 
-    expect(component.loading).toBeFalsy();
-    expect(component.dashboardData).toEqual(mockDashboardData);
-    expect(component.error).toBeNull();
+    expect(component.loading()).toBeFalsy();
+    expect(component.dashboardData()).toEqual(mockDashboardData);
+    expect(component.error()).toBeNull();
   });
 
   it('should handle error when loading dashboard data', () => {
@@ -114,9 +114,9 @@ describe('CommissionerDashboardComponent', () => {
     const req = httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData');
     req.flush('Error loading data', { status: 500, statusText: 'Internal Server Error' });
 
-    expect(component.loading).toBeFalsy();
-    expect(component.dashboardData).toBeNull();
-    expect(component.error).toBe('Failed to load dashboard data');
+    expect(component.loading()).toBeFalsy();
+    expect(component.dashboardData()).toBeNull();
+    expect(component.error()).toBe('Failed to load dashboard data');
   });
 
   it('should format datetime correctly', () => {
@@ -159,7 +159,7 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 0
+      status: 'Pending'
     };
 
     // Spy on the dialog's open method directly
@@ -181,7 +181,7 @@ describe('CommissionerDashboardComponent', () => {
       requestedByGamertag: 'Player1',
       reason: 'Schedule conflict',
       requestedAt: '2024-01-14T10:00:00Z',
-      status: 0
+      status: 'Pending'
     };
 
     component.createDiscordThread(mockReschedule);
@@ -197,7 +197,7 @@ describe('CommissionerDashboardComponent', () => {
 
   describe('reschedule actions', () => {
     const reschedule = { matchRescheduleID: 4, seasonMatchID: 40, homeCaptain: 'A', awayCaptain: 'B',
-      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 0 } as RescheduleDto;
+      reason: 'r', requestedByGamertag: 'p', requestedAt: '2024-01-01T00:00:00Z', status: 'Pending' } as RescheduleDto;
     const empty = { pendingReschedules: [], overdueMatches: [], summary: { pendingRescheduleCount: 0, overdueMatchCount: 0, criticalOverdueCount: 0 } };
 
     it('reloads the dashboard after the dialog reports a processed request', () => {
@@ -229,5 +229,42 @@ describe('CommissionerDashboardComponent', () => {
       httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush(empty);
       expect(err).toHaveBeenCalledWith('Failed to create Discord thread:', jasmine.anything());
     });
+  });
+
+  it('renders the dashboard once it arrives, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading dashboard data...');
+
+    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+      pendingReschedules: [], overdueMatches: [],
+      summary: { pendingRescheduleCount: 4, overdueMatchCount: 0, criticalOverdueCount: 0 },
+    });
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent!;
+    expect(text).not.toContain('Loading dashboard data...');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.metric-value')?.textContent?.trim()).toBe('4');
+  });
+
+  it('shows the error once the request fails, without a manual detectChanges', async () => {
+    spyOn(console, 'error');
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush('x', { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Failed to load dashboard data');
+  });
+
+  it('stops listening to the dialog once destroyed', () => {
+    const closed = new Subject<boolean>();
+    const ref = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
+    ref.afterClosed.and.returnValue(closed);
+    spyOn(component['dialog'], 'open').and.returnValue(ref);
+    component.openProcessRescheduleDialog({ matchRescheduleID: 1 } as RescheduleDto);
+    expect(closed.observed).toBeTrue();
+
+    fixture.destroy();
+
+    expect(closed.observed).toBeFalse();
   });
 });

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
@@ -12,7 +12,7 @@ describe('SignupsComponent', () => {
   let seasonID: string | null;
 
   const signup = (personName: string, overrides: Partial<SignupResponseDto> = {}): SignupResponseDto =>
-    Object.assign(new SignupResponseDto(), { personName, teamName: `${personName}'s team`, ...overrides });
+    Object.assign(new SignupResponseDto(), { personName, timestamp: '2026-01-07T19:00:00Z', teamName: `${personName}'s team`, ...overrides });
 
   beforeEach(async () => {
     seasonID = '3';
@@ -70,5 +70,22 @@ describe('SignupsComponent', () => {
 
     expect(err).toHaveBeenCalledWith('boom');
     expect(rows()).toEqual([]);
+  });
+
+  it('renders the signups once they arrive, without a manual detectChanges', async () => {
+    const signups = new Subject<SignupResponseDto[]>();
+    api.getSignups.and.returnValue(signups);
+    await fixture.whenStable();
+
+    signups.next([signup('Ana')]);
+    await fixture.whenStable();
+
+    expect(rows().map(r => r[0])).toEqual(['Ana']);
+  });
+
+  it('shows when each player signed up', async () => {
+    api.getSignups.and.returnValue(of([signup('Ana')]));
+    await fixture.whenStable();
+    expect(rows()[0][1]).toMatch(/^1\/7\/26, \d+:00\s[AP]M$/);
   });
 });

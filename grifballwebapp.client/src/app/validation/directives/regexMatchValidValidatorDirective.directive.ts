@@ -1,4 +1,4 @@
-import { Directive, Input } from '@angular/core';
+import { Directive, input } from '@angular/core';
 import { AbstractControl, NG_VALIDATORS, ValidationErrors, Validator } from '@angular/forms';
 import { regexMatchValidValidator } from '../validators/regexMatchValidator';
 
@@ -14,12 +14,13 @@ import { regexMatchValidValidator } from '../validators/regexMatchValidator';
   standalone: true,
 })
 export class RegexMatchValidValidatorDirective implements Validator {
-  @Input('regexExpression') regexExpression = '';
-  @Input('errorMessage') errorMessage = 'Must not match regex';
+  readonly regexExpression = input('');
+  readonly errorMessage = input('Must not match regex');
 
   validate(control: AbstractControl): ValidationErrors | null {
-    return this.regexExpression
-      ? regexMatchValidValidator(new RegExp(this.regexExpression, 'g'), this.errorMessage)(control)
+    const regexExpression = this.regexExpression();
+    return regexExpression
+      ? regexMatchValidValidator(new RegExp(regexExpression, 'g'), this.errorMessage())(control)
       : null;
   }
 }

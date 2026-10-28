@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, viewChild, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -25,16 +25,19 @@ import { AvailabilityService } from '../availability.service';
     ],
     templateUrl: './signupForm.component.html',
     styleUrl: './signupForm.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SignupFormComponent {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiClientService);
+  private snackBar = inject(MatSnackBar);
+  private availabilityService = inject(AvailabilityService);
 
-  @ViewChild('signupForm') registerForm!: NgForm;
+
+  readonly signupForm = viewChild.required<NgForm>('signupForm');
   // Initialised with the class defaults (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
-  model: SignupRequestDto = new SignupRequestDto();
-
-  constructor(private route: ActivatedRoute, private api: ApiClientService, private snackBar: MatSnackBar, private availabilityService: AvailabilityService) { }
+  readonly model = signal(new SignupRequestDto());
 
   ngOnInit(): void {
     // May need smart way to get seasonID
@@ -48,16 +51,17 @@ export class SignupFormComponent {
           {
             if (result === null)
             {
-              this.model = new SignupRequestDto();
-              this.model.seasonID = seasonID;
+              const model = new SignupRequestDto();
+              model.seasonID = seasonID;
+              this.model.set(model);
               this.api.getTimeslots(seasonID, this.availabilityService.getDif()).subscribe({
-                next: (r) => this.model.timeslots = r,
+                next: (r) => this.model.update(model => ({ ...model, timeslots: r })),
                 error: () => this.snackBar.open('Failed to get timeslots'),
               })
             }
             else
             {
-              this.model = { ...result, timeslots: result.timeslots ?? [] };
+              this.model.set({ ...result, timeslots: result.timeslots ?? [] });
             }
           },
           error: () => this.snackBar.open('Failed to get signup'),
@@ -67,12 +71,17 @@ export class SignupFormComponent {
 
   }
 
+  /** Every edit (form fields and the availability table) replaces the model rather than mutating it. */
+  patch(changes: Partial<SignupRequestDto>): void {
+    this.model.update(model => ({ ...model, ...changes }));
+  }
+
   onSubmit() {
-    if (!this.registerForm.valid) {
+    if (!this.signupForm().valid) {
       return;
     }
 
-    this.api.upsertSignup(this.model).subscribe({
+    this.api.upsertSignup(this.model()).subscribe({
       next: (result) => this.snackBar.open('Signup Submitted', 'OK'),
       error: (result) =>
       {

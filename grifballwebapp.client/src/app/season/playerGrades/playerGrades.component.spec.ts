@@ -42,8 +42,8 @@ describe('PlayerGradesComponent', () => {
   });
 
   it('should initialize with empty pm and letters arrays', () => {
-    expect(component.pm).toEqual([]);
-    expect(component.letters).toEqual([]);
+    expect(component.pm()).toEqual([]);
+    expect(component.letters()).toEqual([]);
   });
 
   it('should get seasonID from route params on init', () => {
@@ -100,8 +100,8 @@ describe('PlayerGradesComponent', () => {
       expect(req.request.method).toBe('GET');
       req.flush(mockGrades);
 
-      expect(component.pm).toEqual(mockGrades.perMinutes);
-      expect(component.letters).toEqual(mockGrades.letters);
+      expect(component.pm()).toEqual(mockGrades.perMinutes);
+      expect(component.letters()).toEqual(mockGrades.letters);
     });
 
     it('should handle empty grades response', () => {
@@ -112,8 +112,8 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush({ totals: [], perMinutes: [], letters: [] });
 
-      expect(component.pm).toEqual([]);
-      expect(component.letters).toEqual([]);
+      expect(component.pm()).toEqual([]);
+      expect(component.letters()).toEqual([]);
     });
 
     it('should handle multiple players', () => {
@@ -133,8 +133,8 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.pm.length).toBe(3);
-      expect(component.pm[1].gamertag).toBe('Player2');
+      expect(component.pm().length).toBe(3);
+      expect(component.pm()[1].gamertag).toBe('Player2');
     });
   });
 
@@ -358,11 +358,24 @@ describe('PlayerGradesComponent', () => {
       );
       req.flush(mockGrades);
 
-      expect(component.pm.length).toBe(1);
-      expect(component.letters.length).toBe(1);
-      expect(component.pm[0].gamertag).toBe('Player1');
-      expect(component.letters[0].gamertag).toBe('Player1');
+      expect(component.pm().length).toBe(1);
+      expect(component.letters().length).toBe(1);
+      expect(component.pm()[0].gamertag).toBe('Player1');
+      expect(component.letters()[0].gamertag).toBe('Player1');
     });
+  });
+
+  it('renders the grades once they arrive, without a manual detectChanges', async () => {
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({
+      perMinutes: [],
+      letters: [{ xboxUserID: 1, gamertag: 'Grif', goals: 'S+', kdSpread: 'A', punches: 'B-', sprees: 'C', doubleKills: 'D+',
+        tripleKills: 'E', multiKills: 'F-', xFactor: 'A+', kills: 'S', gradeAvgMath: 3, gradeAvg: 'B+' }],
+    });
+    await fixture.whenStable();
+
+    const firstCell = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row td');
+    expect(firstCell?.textContent?.trim()).toBe('Grif');
   });
 });
 

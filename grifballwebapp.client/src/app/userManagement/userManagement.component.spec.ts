@@ -1,3 +1,8 @@
+import { TableComponent } from '../shared/table/table.component';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { By } from '@angular/platform-browser';
+import { DateTime } from 'luxon';
+import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserManagementComponent } from './userManagement.component';
 import { AccountService } from '../account.service';
@@ -343,5 +348,39 @@ describe('UserManagementComponent', () => {
         { column: 'search', value: '' }
       ]);
     });
+  });
+});
+
+describe('UserManagementComponent user table', () => {
+  let fixture: ComponentFixture<UserManagementComponent>;
+  let http: HttpTestingController;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [UserManagementComponent, NoopAnimationsModule],
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([]), { provide: AccountService, useValue: {} }]
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(UserManagementComponent);
+  });
+
+  it('shows lockoutEnd as the date pipe showed the API value, from a real DateTime', async () => {
+    // The page request is a pending task, so render without waiting for stability first.
+    fixture.detectChanges();
+    // GrifballWebApp.Server UserResponseDto as the API sends it: lockoutEnd is a DateTimeOffset.
+    http.expectOne(r => r.url.startsWith('/api/UserManagement/GetUsers')).flush({
+      totalCount: 1,
+      results: [{
+        userID: 1, userName: 'grif', lockoutEnd: '2026-03-04T05:06:00+00:00', lockoutEnabled: true, isDummyUser: false,
+        accessFailedCount: 0, region: null, displayName: 'Grif', gamertag: 'SgtGrif', discord: null,
+        externalAuthCount: 0, hasPassword: true, roles: [],
+      }],
+    });
+    await fixture.whenStable();
+
+    const table = fixture.debugElement.query(By.directive(TableComponent)).componentInstance as TableComponent<UserResponseDto>;
+    expect(table.current().results[0].lockoutEnd instanceof DateTime).toBeTrue();
+    const cells = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row td')).map(td => td.textContent!.trim());
+    expect(cells).toContain(new DatePipe('en-US').transform('2026-03-04T05:06:00Z', 'short')!);
   });
 });

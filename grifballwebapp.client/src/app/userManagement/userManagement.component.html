@@ -3,13 +3,13 @@
 <button mat-flat-button color="primary" [routerLink]="['createuser']">Create New User
 </button>
 
-<app-search-box [(value)]="filter"></app-search-box>
+<app-search-box [(value)]="filter" />
 
 <!--
   Columns are almost entirely setup in ts,
   but we allow the use of templates that can be used in the ts via index
  -->
-<app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()">
+<app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser">
   <ng-template let-row>
     <div class="action-buttons">
       <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">
@@ -25,7 +25,7 @@
     </div>
   </ng-template>
   <ng-template let-row>
-    {{row.lockoutEnd | date:'short' }}
+    {{row.lockoutEnd | toDate | date:'short' }}
   </ng-template>
 </app-table>
 

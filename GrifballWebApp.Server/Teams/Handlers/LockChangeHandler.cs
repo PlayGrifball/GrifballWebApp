@@ -13,11 +13,11 @@ public class LockChangeHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext
     {
         if (request.Value)
         {
-            await _hubContext.Clients.AllExcept(request.connectionID!).LockCaptains(request.seasonID);
+            await Others(request.connectionID).LockCaptains(request.seasonID);
         }
         else
         {
-            await _hubContext.Clients.AllExcept(request.connectionID!).UnlockCaptains(request.seasonID);
+            await Others(request.connectionID).UnlockCaptains(request.seasonID);
         }
     }
 }

@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
 import { errorText } from '../../shared/errorText';
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
-import { UserResponseDto } from '../userResponseDto';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal, inject } from '@angular/core';
+import { parseUser, UserResponseDto } from '../userResponseDto';
 import { SearchBoxComponent } from '../../shared/searchBox/searchBox.component';
 import { UserDetailComponent } from './userDetail/userDetail.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -22,16 +22,18 @@ import { MatButton } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MergeUserComponent {
+  private http = inject(HttpClient);
+
 
   fromInput = input<number>(0);
   toInput = input<number>(0);
 
   // An undefined URL keeps the resource idle, so no request is made until an ID is chosen.
   mergeFromId = signal<number>(0);
-  mergeFrom = httpResource<UserResponseDto>(() => this.mergeFromId() ? '/api/usermanagement/getuser/' + this.mergeFromId() : undefined);
+  mergeFrom = httpResource(() => this.mergeFromId() ? '/api/usermanagement/getuser/' + this.mergeFromId() : undefined, { parse: parseUser });
 
   mergeToId = signal<number>(0);
-  mergeTo = httpResource<UserResponseDto>(() => this.mergeToId() ? '/api/usermanagement/getuser/' + this.mergeToId() : undefined);
+  mergeTo = httpResource(() => this.mergeToId() ? '/api/usermanagement/getuser/' + this.mergeToId() : undefined, { parse: parseUser });
 
   // value() throws while a resource is in the error state (Angular 20+), so
   // the template reads these instead and shows resource.error() separately.
@@ -50,7 +52,7 @@ export class MergeUserComponent {
   submitting = signal(false);
   result = signal<{ ok: boolean; text: string } | null>(null);
 
-  constructor(private http: HttpClient) {
+  constructor() {
     effect(() => {
       const x = this.fromInput();
       if (x)

@@ -1,6 +1,6 @@
-@if (dtos.length > 0) {
-<table mat-table [dataSource]="dtos" class="mat-elevation-z8">
-  @for (time of timeColumns; track time) {
+@if (dtos().length > 0) {
+<table mat-table [dataSource]="dtos()" [trackBy]="trackRow" class="mat-elevation-z8">
+  @for (time of timeColumns(); track time) {
   <ng-container [matColumnDef]="time">
     <th mat-header-cell *matHeaderCellDef (click)="timeClicked(time)">
       {{time}}
@@ -13,14 +13,13 @@
         </div>
         }
         @else {
-        <mat-checkbox [(ngModel)]="cell.isChecked" [disabled]="cell.isDisabled">
-        </mat-checkbox>
+        <mat-checkbox [ngModel]="cell.isChecked" (ngModelChange)="setChecked([cell], $event)" [disabled]="cell.isDisabled" />
         }
       }
     </td>
   </ng-container>
   }
-  <tr mat-header-row *matHeaderRowDef="timeColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: timeColumns;"></tr>
+  <tr mat-header-row *matHeaderRowDef="timeColumns()"></tr>
+  <tr mat-row *matRowDef="let row; columns: timeColumns();"></tr>
 </table>
 }

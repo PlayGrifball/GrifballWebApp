@@ -10,7 +10,7 @@ public class ResortCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubCont
 {
     public override async Task Handle(Notification<CaptainPlacementDto> request, CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.AllExcept(request.ConnectionId!).ResortCaptain(request.Value);
+        await Others(request.ConnectionId).ResortCaptain(request.Value);
     }
 }
 

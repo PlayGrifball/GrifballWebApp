@@ -1,9 +1,15 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, model } from '@angular/core';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { TimeslotDto } from '../../api/dtos/signupResponseDto';
 import { AvailabilityService } from '../../availability.service';
 import { FormsModule } from '@angular/forms';
+
+/** A grid cell: a copy of a timeslot (with its display time), a day-of-week header, or a filler. */
+export interface TimeslotCell extends TimeslotDto {
+  isDisabled: boolean;
+  isHeader: boolean;
+}
 
 @Component({
     selector: 'app-availability-table',
@@ -14,9 +20,11 @@ import { FormsModule } from '@angular/forms';
     ],
     templateUrl: './availabilityTable.component.html',
     styleUrl: './availabilityTable.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AvailabilityTableComponent {
+  private availabilityService = inject(AvailabilityService);
+
 
   DayOfWeek: string = this.availabilityService.DayOfWeek;
 
@@ -24,75 +32,62 @@ export class AvailabilityTableComponent {
     return this.availabilityService.parseTime(time);
   }
 
-  constructor(private availabilityService: AvailabilityService) { }
-
   // The parent binds this before its HTTP request has resolved, so null/undefined
   // must be treated as "no timeslots yet" rather than throwing.
-  @Input({ required: true })
-  public set timeslots(value: TimeslotDto[] | null | undefined) {
+  // The grid is built from new cell objects; the timeslots themselves are never mutated.
+  // Ticking a box emits a new list (timeslotsChange) with the changed slots replaced.
+  readonly timeslots = model.required<TimeslotDto[] | null | undefined>();
+
+  private readonly table = computed(() => this.buildTable(this.timeslots()));
+  readonly timeColumns = computed(() => this.table().timeColumns);
+  readonly dtos = computed(() => this.table().dtos);
+
+  private buildTable(value: TimeslotDto[] | null | undefined): { timeColumns: string[], dtos: TimeslotCell[][] } {
     const timeslots = value ?? [];
     const uniqueDaysOfWeek = [...new Set(timeslots.map(item => item.dayOfWeek))];
 
-    this.timeColumns = [this.DayOfWeek];
-    this.timeColumns.push(...[...new Set(timeslots.map(item => item.time))]);
+    // Parse each time once, and index the slots by day and display time for the grid below.
+    const displayTime = new Map([...new Set(timeslots.map(t => t.time))].map(time => [time, this.parseTime(time)]));
+    const byCell = new Map(timeslots.map(t => [`${t.dayOfWeek}|${displayTime.get(t.time)}`, t]));
 
-    this.timeColumns = this.timeColumns.map(x => {
-      return this.parseTime(x);
-    })
+    const timeColumns = [this.DayOfWeek, ...new Set(timeslots.map(item => displayTime.get(item.time)!))];
 
-    const rows: TimeslotDto[][] = [];
+    const rows: TimeslotCell[][] = [];
 
     // Create a new row for each day of the week
     uniqueDaysOfWeek.forEach((dayOfWeek, index, arr) => {
-      const row: TimeslotDto[] = [];
+      const row: TimeslotCell[] = [];
 
-      let header = new TimeslotDto();
-      header.isHeader = true;
-      header.dayOfWeek = dayOfWeek;
-      header.time = dayOfWeek.toString();
-      header.id = 0;
+      const header: TimeslotCell = { optionID: 0, dayOfWeek, time: dayOfWeek.toString(), isChecked: false, isDisabled: false, isHeader: true };
 
       // Create a new cell for each time slot, disabled if not a valid timeslot in backend
-      this.timeColumns.forEach((time, index2, arr2) => {
+      timeColumns.forEach((time, index2, arr2) => {
 
         if (time === this.DayOfWeek) {
           row.push(header);
           return;
         }
 
-        let data = timeslots.find((dto, index3, arr3) => {
-          return dto.dayOfWeek === dayOfWeek && this.parseTime(dto.time) === time;
-        });
+        const source = byCell.get(`${dayOfWeek}|${time}`);
 
-        if (data === undefined) {
-          data = new TimeslotDto();
-          data.isDisabled = true;
-          data.dayOfWeek = dayOfWeek;
-          data.time = time;
-          data.id = 0;
-          data.isChecked = false;
-          data.isHeader = false;
+        let cell: TimeslotCell;
+        if (source === undefined) {
+          cell = { optionID: 0, dayOfWeek, time, isChecked: false, isDisabled: true, isHeader: false };
         } else {
-          // Set values not sent from api
-          data.isDisabled = false;
-          data.isHeader = false;
-          // Parse time
-          data.time = this.parseTime(data.time);
+          // A copy with the display time and the values not sent from the api
+          cell = { ...source, isDisabled: false, isHeader: false, time };
         }
 
-        row.push(data);
+        row.push(cell);
       });
       rows.push(row);
     });
 
-    this.dtos = rows;
-  }
-  public get timeslots(): TimeslotDto[] {
-    return this.dtos.flat().filter(x => x.id != 0);
+    return { timeColumns, dtos: rows };
   }
 
 
-  public getCell(time: string, slots: TimeslotDto[]): TimeslotDto {
+  public getCell(time: string, slots: TimeslotCell[]): TimeslotCell {
 
     if (time === this.availabilityService.DayOfWeek)
       return slots[0];
@@ -101,31 +96,27 @@ export class AvailabilityTableComponent {
     if (c !== undefined) {
       return c;
     }
-    let newRow = new TimeslotDto();
-    newRow.isDisabled = true;
-    return newRow;
+    return { optionID: 0, dayOfWeek: '', time, isChecked: false, isDisabled: true, isHeader: false };
   }
 
-  public dayOfWeekClicked(time: string, slots: TimeslotDto[]) {
+  /** Sets the checked state of the timeslots behind `cells` (headers and fillers are skipped) and emits the new list. */
+  public setChecked(cells: TimeslotCell[], checked: boolean): void {
+    const optionIDs = new Set(cells.filter(c => !c.isHeader && !c.isDisabled).map(c => c.optionID));
+    this.timeslots.update(timeslots => (timeslots ?? []).map(t => optionIDs.has(t.optionID) ? { ...t, isChecked: checked } : t));
+  }
+
+  public dayOfWeekClicked(time: string, slots: TimeslotCell[]) {
     const filtered = slots.filter(x => x.isDisabled === false && x.isHeader === false);
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
-    if (anyTicked) {
-      filtered.forEach(x => x.isChecked = false);
-    } else {
-      filtered.forEach(x => x.isChecked = true);
-    }
+    this.setChecked(filtered, !anyTicked);
   }
 
   public timeClicked(time: string) {
-    const filtered = this.dtos.flat().filter(x => x.isDisabled === false && x.isHeader === false && (time === this.availabilityService.DayOfWeek || x.time === time));
+    const filtered = this.dtos().flat().filter(x => x.isDisabled === false && x.isHeader === false && (time === this.availabilityService.DayOfWeek || x.time === time));
     const anyTicked = filtered.find(x => x.isChecked) !== undefined;
-    if (anyTicked) {
-      filtered.forEach(x => x.isChecked = false);
-    } else {
-      filtered.forEach(x => x.isChecked = true);
-    }
+    this.setChecked(filtered, !anyTicked);
   }
 
-  public timeColumns: string[] = [];
-  public dtos: TimeslotDto[][] = [];
+  /** Rows are rebuilt on every change; keep the row views by day. */
+  public trackRow = (index: number, row: TimeslotCell[]) => row[0]?.dayOfWeek;
 }

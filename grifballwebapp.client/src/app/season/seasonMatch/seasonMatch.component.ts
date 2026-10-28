@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, effect, input, signal, Signal, ViewChild, WritableSignal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { SeasonMatchPageDto } from './seasonMatchPageDto';
+import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
@@ -16,7 +16,9 @@ import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
+import { map } from 'rxjs';
 
+import { ToDatePipe } from '../../shared/toDate.pipe';
 @Component({
     selector: 'app-season-match',
     imports: [
@@ -32,13 +34,17 @@ import { AccountService } from '../../account.service';
         MtxDatetimepickerModule,
         MatCardModule,
         MatListModule,
-        MatTableModule
+        MatTableModule,
+        ToDatePipe,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
-    changeDetection: ChangeDetectionStrategy.Eager
+    changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
+  private http = inject(HttpClient);
+  accountService = inject(AccountService);
+
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
@@ -71,13 +77,11 @@ export class SeasonMatchComponent {
     },
   ];
 
-  @ViewChild('reportMatchForm') reportMatchForm!: NgForm;
-
   matchID: string = "";
   regex: string = String.raw`^[{]?[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}[}]?$`;
   regexErrorMessage: string = "Must be a valid GUID";
 
-  constructor(private http: HttpClient, public accountService: AccountService) {
+  constructor() {
     effect(() => {
       this.seasonMatchID();
       this.getPageDto();
@@ -86,7 +90,8 @@ export class SeasonMatchComponent {
   }
 
   getPageDto(): void {
-    this.http.get<SeasonMatchPageDto>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+    this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
+      .pipe(map(parseSeasonMatchPage))
       .subscribe({
         next: result => this.seasonMatch.set(result),
       });

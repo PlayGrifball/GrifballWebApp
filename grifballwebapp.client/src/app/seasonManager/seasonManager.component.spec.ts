@@ -1,7 +1,8 @@
+import { DateTime } from 'luxon';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { SeasonManagerComponent } from './seasonManager.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SeasonDto } from '../api/dtos/seasonDto';
@@ -11,7 +12,7 @@ describe('SeasonManagerComponent', () => {
   let api: jasmine.SpyObj<ApiClientService>;
 
   const season = (seasonID: number, seasonName: string): SeasonDto =>
-    Object.assign(new SeasonDto(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: '2026-01-02T03:04:00' });
+    Object.assign(new SeasonDto(), { seasonID, seasonName, signupsCount: seasonID * 10, signupsOpen: DateTime.fromISO('2026-01-02T03:04:00') });
 
   beforeEach(async () => {
     api = jasmine.createSpyObj('ApiClientService', ['getSeasons']);
@@ -52,5 +53,16 @@ describe('SeasonManagerComponent', () => {
 
     expect(err).toHaveBeenCalledWith('boom');
     expect(el().querySelectorAll('tr.mat-mdc-row').length).toBe(0);
+  });
+
+  it('renders the seasons once they arrive, without a manual detectChanges', async () => {
+    const seasons = new Subject<SeasonDto[]>();
+    api.getSeasons.and.returnValue(seasons);
+    await fixture.whenStable();
+
+    seasons.next([season(1, 'Season 1')]);
+    await fixture.whenStable();
+
+    expect(el().querySelectorAll('tr.mat-mdc-row').length).toBe(1);
   });
 });

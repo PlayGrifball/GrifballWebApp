@@ -10,7 +10,7 @@ public class MovePlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubContext
 {
     public override async Task Handle(Notification<MovePlayerToTeamRequestDto> request, CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.AllExcept(request.ConnectionId!).MovePlayerToTeam(request.Value);
+        await Others(request.ConnectionId).MovePlayerToTeam(request.Value);
     }
 }
 

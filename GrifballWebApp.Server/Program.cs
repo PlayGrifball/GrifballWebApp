@@ -42,7 +42,6 @@ using Serilog;
 using Surprenant.Grunt.Core;
 using Surprenant.Grunt.Util;
 using System.Net;
-using System.Text.Json.Serialization;
 using Polly;
 using Polly.Extensions.Http;
 
@@ -101,12 +100,7 @@ public class Program
         });
 
         builder.Services.AddControllers()
-            .AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.Converters.Add(new DateTimeJsonConverter());
-                options.JsonSerializerOptions.Converters.Add(new TimeOnlyJsonConverter());
-            });
+            .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();

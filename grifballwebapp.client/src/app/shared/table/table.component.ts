@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ContentChild, ContentChildren, input, QueryList, signal, TemplateRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal, TemplateRef, contentChildren } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
@@ -34,10 +34,11 @@ import { MatButtonModule } from '@angular/material/button';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent<T> {
-  @ContentChild(TemplateRef) rowTemplate!: TemplateRef<any>;
-  @ContentChildren(TemplateRef) rowTemplates!: QueryList<TemplateRef<any>>;
+  readonly rowTemplates = contentChildren(TemplateRef);
 
   filters = input<Filter[]>();
+  /** Optional: turns each row from its JSON form (e.g. dates as strings) into a T. */
+  parseRow = input<(row: any) => T>();
   
   displayedColumns = input.required<string[]>();
   url = input.required<string>();
@@ -63,7 +64,7 @@ export class TableComponent<T> {
       pageNumber: () => this.pageNumber(),
       sortDirection: () => this.sort()?.direction,
       sortColumn: () => this.sort()?.active,
-    }, () => this.filters());
+    }, () => this.filters(), this.parseRow);
   x = this.paginationResource.resource;
   current = this.paginationResource.current;
 }

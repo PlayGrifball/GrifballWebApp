@@ -68,7 +68,8 @@ public class TeamService
             .ToListAsync(ct);
     }
 
-    public async Task AddCaptain(CaptainPlacementDto dto, bool resortOnly, string? signalRConnectionID = null, CancellationToken ct = default)
+    /// <returns>The new team's name when adding a captain (the signup's team name, or "&lt;name&gt;'s Team"); null for a resort.</returns>
+    public async Task<string?> AddCaptain(CaptainPlacementDto dto, bool resortOnly, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
         // Grab existing captains for this season
@@ -154,18 +155,20 @@ public class TeamService
         if (resortOnly)
         {
             _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
+            return null;
         }
-        else
+
+        var teamName = captain.Team?.TeamName ?? "Team";
+        _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
         {
-            _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
-            {
-                SeasonID = dto.SeasonID,
-                PersonID = dto.PersonID,
-                CaptainName = await _context.Users.Where(p => p.Id == captain.UserID).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Person",
-                TeamName = captain.Team?.TeamName ?? "Team",
-                OrderNumber = dto.OrderNumber,
-            }));
-        }
+            SeasonID = dto.SeasonID,
+            PersonID = dto.PersonID,
+            CaptainName = await _context.Users.Where(p => p.Id == captain.UserID).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Person",
+            TeamName = teamName,
+            OrderNumber = dto.OrderNumber,
+        }));
+        // The broadcast skips the sender's connection, so the sender gets the name here.
+        return teamName;
     }
 
     public async Task RemoveCaptain(RemoveCaptainDto dto, string? signalRConnectionID = null, CancellationToken ct = default)

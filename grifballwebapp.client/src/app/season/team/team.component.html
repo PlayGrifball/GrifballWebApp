@@ -10,8 +10,7 @@
         }
         
         <mat-card style="margin: 1em; width: fit-content;" appearance="outlined">
-            <mat-card-header>
-            </mat-card-header>
+            <mat-card-header />
             <mat-card-content>
                 @for (player of team()?.players; track player.teamPlayerID) {
                     <div>
@@ -56,7 +55,7 @@
 
             <ng-container matColumnDef="scheduledTime">
                 <th mat-header-cell *matHeaderCellDef> Scheduled Time </th>
-                <td mat-cell *matCellDef="let row"> {{row.scheduledTime | date: 'short'}} </td>
+                <td mat-cell *matCellDef="let row"> {{row.scheduledTime | toDate | date: 'short'}} </td>
             </ng-container>
 
             <ng-container matColumnDef="matchPage">

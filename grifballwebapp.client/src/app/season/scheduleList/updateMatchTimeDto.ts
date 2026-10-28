@@ -2,5 +2,5 @@ import { DateTime } from "luxon";
 
 export interface UpdateMatchTimeDto {
     seasonMatchID: number,
-    time: DateTime
+    time: DateTime | null // DateTime? on the server
 }

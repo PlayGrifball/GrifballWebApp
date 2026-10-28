@@ -1,15 +1,15 @@
 <mat-toolbar>
-  <button mat-icon-button (click)="snav.toggle()" aria-label="menu icon">
+  <button mat-icon-button (click)="snav().toggle()" aria-label="menu icon">
     <mat-icon>menu</mat-icon>
   </button>
   <button mat-icon-button aria-label="grifball icon" [routerLink]="['/']">
     <img src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true" >
   </button>
-  <ng-content></ng-content>
+  <ng-content />
 
   <span class="text-xs">
     <a href="https://github.com/PlayGrifball/GrifballWebApp">
-      {{commitDate?.toString() | date:'short'}} {{commitHash}}
+      {{commitDate() | toDate | date:'short'}} {{commitHash()}}
     </a>
   </span>
 
