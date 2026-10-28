@@ -53,7 +53,7 @@ public class CaseInsensitiveTextTests
 
         _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = "team GRIF" });
 
-        Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
+        await Assert.ThrowsAsync<DbUpdateException>(() => _context.SaveChangesAsync());
     }
 
     [Test]

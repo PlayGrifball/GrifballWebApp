@@ -294,10 +294,10 @@ public class TemporalQueryTests
     }
 
     [Test]
-    public void Navigations_UnderAnythingButAsOf_AreRefused()
+    public async Task Navigations_UnderAnythingButAsOf_AreRefused()
     {
-        var all = Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAll().Include(s => s.SeasonMatches).ToListAsync());
-        var between = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var all = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAll().Include(s => s.SeasonMatches).ToListAsync());
+        var between = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _context.SeasonMatches.TemporalBetween(DateTime.MinValue, DateTime.MaxValue).Select(m => m.Season.SeasonName).ToListAsync());
 
         Assert.Multiple(() =>
@@ -308,28 +308,28 @@ public class TemporalQueryTests
     }
 
     [Test]
-    public void Navigations_ToATableWithoutHistory_AreRefused()
+    public async Task Navigations_ToATableWithoutHistory_AreRefused()
     {
-        var include = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var include = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _context.SeasonMatches.TemporalAsOf(DateTime.UtcNow).Include(m => m.ActiveRescheduleRequest).ToListAsync());
 
         Assert.That(include!.Message, Is.EqualTo(SqlServerStrings.TemporalNavigationExpansionBetweenTemporalAndNonTemporal(nameof(MatchReschedule))));
     }
 
     [Test]
-    public void ATableWithoutHistory_HasNoTemporalQueries()
+    public async Task ATableWithoutHistory_HasNoTemporalQueries()
     {
         // SQL Server refuses the query (FOR SYSTEM_TIME on a table that isn't temporal), Postgres before
         // sending it.
-        Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
+        await Assert.CatchAsync(() => _context.MatchReschedules.TemporalAll().ToListAsync());
     }
 
     [Test]
-    public void SetOperations_OfDifferentTimes_AreRefused()
+    public async Task SetOperations_OfDifferentTimes_AreRefused()
     {
-        var concat = Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAsOf(DateTime.UtcNow)
+        var concat = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAsOf(DateTime.UtcNow)
             .Concat(_context.Seasons.TemporalAsOf(DateTime.UtcNow.AddDays(-1))).ToListAsync());
-        var withCurrent = Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAll()
+        var withCurrent = await Assert.ThrowsAsync<InvalidOperationException>(() => _context.Seasons.TemporalAll()
             .Union(_context.Seasons).ToListAsync());
 
         Assert.Multiple(() =>

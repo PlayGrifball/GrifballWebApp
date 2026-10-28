@@ -196,11 +196,11 @@ public class UserManagementServiceBranchTests
     private void NoRoles(User u) => _userManager.GetRolesAsync(Arg.Is<User>(x => x.Id == u.Id)).Returns(new List<string>());
 
     [Test]
-    public void EditUser_UserMissing_Throws()
+    public async Task EditUser_UserMissing_Throws()
     {
         var dto = new UserResponseDto { UserID = 999999, UserName = "x", Region = null, DisplayName = null, Gamertag = null, Discord = null, ExternalAuthCount = 0, HasPassword = false, Roles = [] };
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.EditUser(dto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.EditUser(dto, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("User does not exist"));
     }
 

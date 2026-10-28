@@ -109,7 +109,7 @@ public class SignupsServiceTimeslotTests
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.UpsertSignup(new SignupRequestDto
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UpsertSignup(new SignupRequestDto
         {
             SeasonID = season.SeasonID, UserID = user.Id,
             Timeslots = [new TimeslotDto { OptionID = foreign[0].AvailabilityOptionID, IsChecked = true }],

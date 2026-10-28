@@ -27,7 +27,7 @@ public class UserMergeServiceTests
     }
 
     [Test]
-    public void Merge_Should_ThrowException_When_MergeToUserDoesNotExist()
+    public async Task Merge_Should_ThrowException_When_MergeToUserDoesNotExist()
     {
         // Arrange
         var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
@@ -35,12 +35,12 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 
     [Test]
-    public void Merge_Should_ThrowException_When_MergeFromUserDoesNotExist()
+    public async Task Merge_Should_ThrowException_When_MergeFromUserDoesNotExist()
     {
         // Arrange
         var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
@@ -48,7 +48,7 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 

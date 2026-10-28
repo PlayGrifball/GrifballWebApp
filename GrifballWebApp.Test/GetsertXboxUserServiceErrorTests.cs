@@ -62,11 +62,11 @@ public class GetsertXboxUserServiceErrorTests
     }
 
     [Test]
-    public void GetsertXboxUsersByXuid_ApiError_Throws()
+    public async Task GetsertXboxUsersByXuid_ApiError_Throws()
     {
         _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Error("rate limited"));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5]));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to resolved gamertag: rate limited"));
     }
@@ -76,28 +76,28 @@ public class GetsertXboxUserServiceErrorTests
     {
         _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Users(("5", "five")));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5, 6, 7]));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUsersByXuid([5, 6, 7]));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find the following xbox users: 6,7"));
         Assert.That(await _context.XboxUsers.AnyAsync(), Is.False, "Nothing is saved when any user is missing");
     }
 
     [Test]
-    public void GetsertXboxUserByXuid_ApiError_Throws()
+    public async Task GetsertXboxUserByXuid_ApiError_Throws()
     {
         _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Error("down"));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to resolved gamertag: down"));
     }
 
     [Test]
-    public void GetsertXboxUserByXuid_UserNotReturned_LogsAndThrows()
+    public async Task GetsertXboxUserByXuid_UserNotReturned_LogsAndThrows()
     {
         _factory.Users(Arg.Any<IEnumerable<string>>()).Returns(Users(("6", "someone else")));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetsertXboxUserByXuid(5));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find user"));
         var entry = _logger.Entries.Single();

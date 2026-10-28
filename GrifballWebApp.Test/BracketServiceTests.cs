@@ -164,7 +164,7 @@ public class BracketServiceTests
         await transaction.CommitAsync();
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
+        var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         Assert.That(exception.Message, Is.EqualTo("Teams have already been seeded"));
     }
 
@@ -202,7 +202,7 @@ public class BracketServiceTests
         await transaction.CommitAsync();
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
+        var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         Assert.That(exception.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
     }
 
@@ -241,7 +241,7 @@ public class BracketServiceTests
         await transaction.CommitAsync();
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
+        var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         Assert.That(exception.Message, Is.EqualTo("Missing home team seed number"));
     }
 
@@ -280,7 +280,7 @@ public class BracketServiceTests
         await transaction.CommitAsync();
 
         // Act & Assert
-        var exception = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
+        var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
         Assert.That(exception.Message, Is.EqualTo("Missing away team seed number"));
     }
 

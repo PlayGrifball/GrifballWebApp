@@ -76,9 +76,9 @@ public class ScheduleServiceTests
     }
 
     [Test]
-    public void GetTimeRecommendations_NoSeason4_Throws()
+    public async Task GetTimeRecommendations_NoSeason4_Throws()
     {
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetTimeRecommendations());
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetTimeRecommendations());
         Assert.That(ex!.Message, Is.EqualTo("Season not found"));
     }
 

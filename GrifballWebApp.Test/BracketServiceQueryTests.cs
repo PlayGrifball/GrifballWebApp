@@ -403,7 +403,7 @@ public class BracketServiceQueryTests
         // BUG: BracketService.MapResult has no case for SeasonMatchResult.Bye, although the same code treats Bye as
         // forfeit-like (Forfeit = result is Forfeit or Bye). Expected: a bye maps to a result (e.g. loss with forfeit=true);
         // actual: the whole viewer request fails with ArgumentOutOfRangeException.
-        var ex = Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.GetViewerDataAsync(seasonID));
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.GetViewerDataAsync(seasonID));
         Assert.That(ex!.ParamName, Is.EqualTo("r"));
     }
 
@@ -432,7 +432,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
 
         Assert.That(ex!.Message, Is.EqualTo($"Season Match {invalid.SeasonMatchID} is not valid for first round of bracket"));
     }
@@ -462,7 +462,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
 
         Assert.That(ex!.Message, Is.EqualTo($"Season Match {invalid.SeasonMatchID} is not valid for first round of bracket"));
     }
@@ -491,7 +491,7 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetViewerDataAsync(seasonID));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find previous rounds last match"));
     }
@@ -527,7 +527,7 @@ public class BracketServiceQueryTests
         await CreateTeamsWithStandings(seasonID);
         await _service.CreateBracket(8, seasonID, false, 1);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID));
 
         Assert.That(ex!.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
     }

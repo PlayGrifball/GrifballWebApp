@@ -268,12 +268,12 @@ public class IdentityControllerActionTests
     }
 
     [Test]
-    public void ExternalLoginCallback_MissingName_Throws()
+    public async Task ExternalLoginCallback_MissingName_Throws()
     {
         _signInManager.GetExternalLoginInfoAsync().Returns(Info(name: null));
         ExternalResult(IdentitySignInResult.Failed);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _controller.ExternalLoginCallback(false, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _controller.ExternalLoginCallback(false, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Missing name"));
     }
 

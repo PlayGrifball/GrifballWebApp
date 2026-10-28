@@ -44,7 +44,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var matchID = Guid.NewGuid();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Match does not exist"));
         await _dataPullService.Received(1).GetAndSaveMatch(matchID);
@@ -58,7 +58,7 @@ public class SeasonMatchServiceReportMatchTests
         _context.MatchLinks.Add(new MatchLink { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
         await _context.SaveChangesAsync();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Match is already associated with a season match"));
     }
@@ -69,7 +69,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Tie, SeasonMatchTestData.AwayXbox, Outcomes.Tie);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("There must be a winner for the match you are reporting"));
     }
@@ -80,7 +80,7 @@ public class SeasonMatchServiceReportMatchTests
         await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(99999, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(99999, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Season match does not exist"));
     }
@@ -94,7 +94,7 @@ public class SeasonMatchServiceReportMatchTests
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(tbd.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(tbd.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Does.Contain("does not have both teams assigned"));
     }
@@ -107,7 +107,7 @@ public class SeasonMatchServiceReportMatchTests
         await _context.SaveChangesAsync();
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Results for this match have already been decided"));
     }
@@ -189,7 +189,7 @@ public class SeasonMatchServiceReportMatchTests
         var second = await SeasonMatchTestData.AddMatchAsync(_context, start.AddMinutes(20), SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, second.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, second.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Cannot go over max number of matches. Something is wrong"));
         var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
@@ -203,7 +203,7 @@ public class SeasonMatchServiceReportMatchTests
         var other = SeasonMatchTestData.OtherXbox;
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, other[..4], Outcomes.Won, other[4..], Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Unable to verify teams"));
     }
@@ -217,7 +217,7 @@ public class SeasonMatchServiceReportMatchTests
         // Team 0 has two home and two away players => cannot determine which side is which
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [h[0], h[1], a[0], a[1]], Outcomes.Won, [h[2], h[3], a[2], a[3]], Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Unable to verify teams"));
     }
@@ -228,7 +228,7 @@ public class SeasonMatchServiceReportMatchTests
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.OtherXbox[..4], Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Unable to verify teams"));
     }
@@ -241,7 +241,7 @@ public class SeasonMatchServiceReportMatchTests
         var a = SeasonMatchTestData.AwayXbox;
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, [h[0], h[1], h[2], SeasonMatchTestData.OtherXbox[0]], Outcomes.Won, [h[3], a[0], a[1], a[2]], Outcomes.Lost);
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID));
 
         Assert.That(ex!.Message, Is.EqualTo("Unable to verify teams"));
     }
