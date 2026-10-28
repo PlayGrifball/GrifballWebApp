@@ -296,7 +296,7 @@ public class QueueServiceBranchTests
     }
 
     [Test]
-    public async Task Go_MatchWithStartTimeMoreThanTwoHoursInTheFuture_IsCanceled()
+    public async Task Go_MatchWithStartTimeInTheFuture_IsNotCanceled()
     {
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
@@ -306,9 +306,8 @@ public class QueueServiceBranchTests
         await _service.Go(CancellationToken.None);
 
         await using var fresh = Fresh();
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
-        Assert.That(SentTo(LogChannel).Single().Embeds!.Single().Title, Is.EqualTo("Match Canceled"));
-        Assert.That(SentTo(ThreadId), Is.Empty, "No thread to close");
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That(SentTo(LogChannel), Is.Empty);
     }
 
     [Test]
