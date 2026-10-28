@@ -11,7 +11,7 @@ public static class OrderByExtensions
 {
     public static IQueryable<T> OrderBy<T>(this IQueryable<T> query, PaginationFilter filter)
     {
-        if (filter.SortDirection is null || filter.SortColumn is null)
+        if (filter.SortDirection is null || filter.SortColumn is null || filter.SortDirection is SortDirection.None)
             return query;
 
         var isAsc = filter.SortDirection is SortDirection.Asc;
@@ -89,7 +89,7 @@ public class SortCollection<TSource>
         var properties = typeof(TSource).GetProperties().ToList();
         var direction = ListSortDirection.Ascending;
 
-        if (element.StartsWith("-"))
+        if (name.StartsWith("-"))
         {
             direction = ListSortDirection.Descending;
             name = name.Substring(1);

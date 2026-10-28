@@ -65,12 +65,11 @@ public class OrderByExtensionsTests
     }
 
     [Test]
-    public void OrderByFilter_None_SortsDescending()
+    public void OrderByFilter_None_ReturnsSameQuery()
     {
-        // BUG: SortDirection.None is treated like Desc (anything that is not Asc prefixes "-").
-        // Expected "None" to mean no sorting (or the default ascending order); actual is descending.
-        var result = Query().OrderBy(new PaginationFilter { SortColumn = "Age", SortDirection = SortDirection.None }).Select(x => x.Age).ToList();
-        Assert.That(result, Is.EqualTo(new[] { 30, 30, 25, 20 }));
+        var q = Query();
+        var result = q.OrderBy(new PaginationFilter { SortColumn = "Age", SortDirection = SortDirection.None });
+        Assert.That(result, Is.SameAs(q));
     }
 
     [Test]
@@ -117,12 +116,14 @@ public class OrderByExtensionsTests
     }
 
     [Test]
-    public void OrderByString_WhitespaceBeforeDash_IsIgnored()
+    public void OrderByString_WhitespaceBeforeDash_IsRecognized()
     {
-        // BUG: Parse() checks StartsWith("-") on the untrimmed element, so " -Age" (e.g. "Name, -Age") is looked up
-        // as property "-Age", which does not exist, and the sort is silently dropped. Expected: descending by Age.
         var sorts = new SortCollection<Person>("Name, -Age");
-        Assert.That(sorts.Sorts.Select(x => x.PropertyName), Is.EqualTo(new[] { "Name" }));
+        Assert.Multiple(() =>
+        {
+            Assert.That(sorts.Sorts.Select(x => x.PropertyName), Is.EqualTo(new[] { "Name", "Age" }));
+            Assert.That(sorts.Sorts.Select(x => x.Direction), Is.EqualTo(new[] { ListSortDirection.Ascending, ListSortDirection.Descending }));
+        });
     }
 
     [Test]
