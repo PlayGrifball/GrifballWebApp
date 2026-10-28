@@ -387,8 +387,7 @@ public class BracketServiceQueryTests
         Assert.That((BracketService.SeedPlaceholderID(3), BracketService.SeedPlaceholderID((int?)null)), Is.EqualTo(((int?)-3, (int?)null)));
     }
 
-    [TestCase(Bracket.Winner)]
-    [TestCase(Bracket.Loser)]
+    // Winner and loser bracket BYE slots are null opponents, see GetViewerDataAsync_Byes_AreNullOpponents
     [TestCase(Bracket.GrandFinal)]
     [TestCase(Bracket.GrandFinalSuddenDeath)]
     public async Task GetViewerDataAsync_ByeResult_MapsToLossWithForfeit(Bracket kind)
@@ -407,6 +406,61 @@ public class BracketServiceQueryTests
         {
             Assert.That(mapped.Opponent2.Result, Is.EqualTo(Result.loss));
             Assert.That(mapped.Opponent2.Forfeit, Is.True);
+        });
+    }
+
+    [Test]
+    public async Task GetViewerDataAsync_Byes_AreNullOpponents()
+    {
+        var seasonID = await CreateSeason();
+        await _service.CreateBracket(5, seasonID, true, 1);
+        var bracket = await LoadTrackedBracket(seasonID);
+        int Sm(Bracket kind, int number) => bracket.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID;
+        _context.ChangeTracker.Clear();
+
+        var data = await _service.GetViewerDataAsync(seasonID);
+
+        var byId = data!.Matches.ToDictionary(m => m.Id);
+        Assert.Multiple(() =>
+        {
+            // W1-W4 are (1, 8), (5, 4), (3, 6), (7, 2); seeds 6-8 are BYEs and not participants
+            Assert.That(data.Participants.Select(p => p.Name), Is.EqualTo(new[] { "Seed 1", "Seed 5", "Seed 4", "Seed 3", "Seed 2" }));
+            Assert.That(data.Stages.Single().Settings.Size, Is.EqualTo(8), "the size counts the BYEs");
+
+            // brackets-viewer shows a null opponent as a BYE
+            var w1 = byId[Sm(Bracket.Winner, 1)];
+            Assert.That(w1.Opponent1!.Id, Is.EqualTo(-1));
+            Assert.That(w1.Opponent2, Is.Null);
+            Assert.That(w1.Status, Is.EqualTo(Status.Locked));
+            Assert.That(byId[Sm(Bracket.Winner, 4)].Opponent1, Is.Null);
+            Assert.That(byId[Sm(Bracket.Winner, 4)].Opponent2, Is.Not.Null);
+
+            // The BYEs flow on into the loser bracket
+            Assert.That(byId[Sm(Bracket.Loser, 1)].Opponent1, Is.Null);
+            Assert.That(byId[Sm(Bracket.Loser, 1)].Opponent2, Is.Not.Null);
+            Assert.That((byId[Sm(Bracket.Loser, 2)].Opponent1, byId[Sm(Bracket.Loser, 2)].Opponent2), Is.EqualTo(((ParticpantResult?)null, (ParticpantResult?)null)));
+            Assert.That(byId[Sm(Bracket.Loser, 4)].Opponent2, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task GetBracketsAsync_WithByes_LabelsByes()
+    {
+        var seasonID = await CreateSeason();
+        await _service.CreateBracket(3, seasonID, true, 1);
+        _context.ChangeTracker.Clear();
+
+        var dto = await _service.GetBracketsAsync(seasonID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto.WinnerRounds[0].Matches.Select(m => (m.MatchNumber, m.HomeTeam, m.AwayTeam)), Is.EqualTo(new[]
+            {
+                ("W1", "Seed 1", "BYE"),
+                ("W2", "Seed 3", "Seed 2"),
+            }));
+            var l1 = dto.LoserRounds[0].Matches.Single();
+            Assert.That((l1.MatchNumber, l1.HomeTeam, l1.AwayTeam), Is.EqualTo(("L1", "BYE", "Loser of W2")));
         });
     }
 
@@ -524,6 +578,28 @@ public class BracketServiceQueryTests
     }
 
     [Test]
+    public async Task SetSeeds_WithByes_AdvancesTopSeedsPastTheirByes()
+    {
+        var seasonID = await CreateSeason();
+        var (a, b, c, d) = await CreateTeamsWithStandings(seasonID);
+        await _service.CreateBracket(3, seasonID, false, 1);
+
+        await _service.SetSeeds(seasonID);
+
+        var bracket = await LoadTrackedBracket(seasonID);
+        SeasonMatch W(int n) => bracket.Single(x => x.Bracket == Bracket.Winner && x.MatchNumber == n).SeasonMatch;
+        Assert.Multiple(() =>
+        {
+            // W1 = seed 1 (C) vs BYE; W2 = seed 3 (D) vs seed 2 (A); B (4th) is not in the bracket
+            Assert.That((W(1).HomeTeamID, W(1).AwayTeamID, W(1).AwayTeamResult), Is.EqualTo(((int?)c.TeamID, (int?)null, (SeasonMatchResult?)SeasonMatchResult.Bye)));
+            Assert.That((W(2).HomeTeamID, W(2).AwayTeamID), Is.EqualTo(((int?)d.TeamID, (int?)a.TeamID)));
+            // C wins its BYE match, so it counts in the standings, and goes straight to the final
+            Assert.That((W(3).HomeTeamID, W(3).AwayTeamID), Is.EqualTo(((int?)c.TeamID, (int?)null)));
+            Assert.That(W(1).HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
+        });
+    }
+
+    [Test]
     public async Task SetSeeds_WithoutCustomSeeds_NotEnoughTeams_Throws()
     {
         var seasonID = await CreateSeason();
@@ -532,7 +608,7 @@ public class BracketServiceQueryTests
 
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID));
 
-        Assert.That(ex!.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
+        Assert.That(ex!.Message, Is.EqualTo("Missing home or away team"));
     }
 
     // ---------------- DetermineNextMatches ----------------

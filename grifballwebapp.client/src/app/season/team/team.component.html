@@ -29,7 +29,11 @@
             <ng-container matColumnDef="otherTeam">
                 <th mat-header-cell *matHeaderCellDef> Opposing Team </th>
                 <td mat-cell *matCellDef="let row">
-                    <span [routerLink]="['/season', seasonID(), 'team', row.otherTeamID]">{{row.otherTeamName}}</span>
+                    @if (row.otherResult == 'Bye' && row.otherTeamID == undefined) {
+                        BYE
+                    } @else {
+                        <span [routerLink]="['/season', seasonID(), 'team', row.otherTeamID]">{{row.otherTeamName}}</span>
+                    }
                 </td>
             </ng-container>
 

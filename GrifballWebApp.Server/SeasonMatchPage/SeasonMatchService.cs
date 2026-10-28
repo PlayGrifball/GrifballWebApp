@@ -293,6 +293,8 @@ public class SeasonMatchService
         if ((seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null) && seasonMatch.BracketMatch is not null)
         {
             HandleSettingNextMatchesInBracket(seasonMatch);
+            // A team that lands opposite a BYE goes straight on to its next match
+            await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
         }
 
         await _context.SaveChangesAsync(ct);
@@ -399,6 +401,8 @@ public class SeasonMatchService
         if (seasonMatch.BracketMatch is not null)
         {
             HandleSettingNextMatchesInBracket(seasonMatch);
+            // A team that lands opposite a BYE goes straight on to its next match
+            await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
         }
 
         await _context.SaveChangesAsync(ct);
@@ -426,6 +430,8 @@ public class SeasonMatchService
         if (seasonMatch.BracketMatch is not null)
         {
             HandleSettingNextMatchesInBracket(seasonMatch);
+            // A team that lands opposite a BYE goes straight on to its next match
+            await _bracketService.AdvanceByesAsync(seasonMatch.SeasonID, ct);
         }
 
         await _context.SaveChangesAsync(ct);

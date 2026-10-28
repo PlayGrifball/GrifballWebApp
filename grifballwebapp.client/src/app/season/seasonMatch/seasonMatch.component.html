@@ -1,8 +1,16 @@
 <mat-grid-list cols="3" rowHeight="40px" style="width: 600px; margin: auto">
   <mat-grid-tile colspan="3"><h1 [routerLink]="['/season', seasonMatch()?.seasonID]">{{seasonMatch()?.seasonName}}</h1></mat-grid-tile>
-  <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.homeTeamID]">{{seasonMatch()?.homeTeamName}}</mat-grid-tile>
+  @if (seasonMatch()?.homeTeamResult === 'Bye' && seasonMatch()?.homeTeamID == null) {
+    <mat-grid-tile>BYE</mat-grid-tile>
+  } @else {
+    <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.homeTeamID]">{{seasonMatch()?.homeTeamName}}</mat-grid-tile>
+  }
   <mat-grid-tile>vs</mat-grid-tile>
-  <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.awayTeamID]">{{seasonMatch()?.awayTeamName}}</mat-grid-tile>
+  @if (seasonMatch()?.awayTeamResult === 'Bye' && seasonMatch()?.awayTeamID == null) {
+    <mat-grid-tile>BYE</mat-grid-tile>
+  } @else {
+    <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.awayTeamID]">{{seasonMatch()?.awayTeamName}}</mat-grid-tile>
+  }
   <mat-grid-tile>{{seasonMatch()?.homeTeamScore}}</mat-grid-tile>
   <mat-grid-tile>-</mat-grid-tile>
   <mat-grid-tile>{{seasonMatch()?.awayTeamScore}}</mat-grid-tile>
