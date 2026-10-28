@@ -1,4 +1,4 @@
-using System.Reflection;
+using DiscordInterfaces;
 using System.Text.Json;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
@@ -13,11 +13,10 @@ using NetCord.Services.ComponentInteractions;
 using NSubstitute;
 using User = GrifballWebApp.Database.Models.User;
 using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
-using TeamsStringMenuInteractions = GrifballWebApp.Server.Teams.StringMenuInteractions;
 
 namespace GrifballWebApp.Test;
 
-/// <summary>Tests for the draft-pick string menu (GrifballWebApp.Server.Teams.StringMenuInteractions).</summary>
+/// <summary>Tests for the draft-pick string menu (GrifballWebApp.Server.Teams.DraftStringMenuHandler, behind Teams.StringMenuInteractions).</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
@@ -27,7 +26,7 @@ public class DraftStringMenuInteractionsTests
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
     private RestClient _rest = null!;
-    private RecordingLogger<TeamsStringMenuInteractions> _logger = null!;
+    private RecordingLogger<DraftStringMenuHandler> _logger = null!;
     private readonly List<InteractionCallbackProperties> _callbacks = [];
 
     [SetUp]
@@ -35,7 +34,7 @@ public class DraftStringMenuInteractionsTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _rest = FakeRestRequestHandler.CreateClient(out _handler);
-        _logger = new RecordingLogger<TeamsStringMenuInteractions>();
+        _logger = new RecordingLogger<DraftStringMenuHandler>();
     }
 
     [TearDown]
@@ -44,7 +43,7 @@ public class DraftStringMenuInteractionsTests
         await _context.DropDatabaseAndDispose();
     }
 
-    private TeamsStringMenuInteractions CreateModule(TeamService teamService, string selectedValue, ulong discordId = DiscordId)
+    private (DraftStringMenuHandler Handler, IDiscordStringMenuInteractionContext Context) CreateHandler(TeamService teamService, string selectedValue, ulong discordId = DiscordId)
     {
         var json = $$"""
         {"id":"1","application_id":"2","type":3,"data":{"custom_id":"draftpick:1:2:0","component_type":3,"values":["{{selectedValue}}"]},
@@ -58,11 +57,7 @@ public class DraftStringMenuInteractionsTests
         var interaction = new StringMenuInteraction(model, null!, (_, cb, _, _, _) => { lock (_callbacks) _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); }, _rest);
         var context = new StringMenuInteractionContext(interaction, null!);
 
-        var module = new TeamsStringMenuInteractions(_context, teamService, _logger);
-        typeof(BaseComponentInteractionModule<StringMenuInteractionContext>)
-            .GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .SetValue(module, context);
-        return module;
+        return (new DraftStringMenuHandler(_context, teamService, _logger), context.ToDiscordContext());
     }
 
     private List<string?> ModifiedContents() => _handler.Requests
@@ -87,13 +82,13 @@ public class DraftStringMenuInteractionsTests
         // User exists with this discord id but has no Xbox account linked
         var user = await _context.AddUser("nogt", "No GT", discordName: "nogt");
         var discordId = (ulong)user.DiscordUserID!.Value;
-        var module = CreateModule(new TeamService(_context, Substitute.For<IPublisher>()), "1", discordId);
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>()), "1", discordId);
 
-        await module.DraftPick(1, 2, 0); // includes the app's 5s temp-response delay
+        await handler.DraftPick(discordContext, 1, 2); // includes the app's 5s temp-response delay
 
         var cb = _callbacks.Single();
         Assert.That(cb.Type, Is.EqualTo(InteractionCallbackType.Message));
-        var data = (InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!;
+        var data = ((InteractionCallbackProperties<InteractionMessageProperties>)cb).Data;
         Assert.That(data.Content, Is.EqualTo("You must set your gamertag first"));
         Assert.That(_handler.Requests.Any(r => r.Method == HttpMethod.Delete), Is.True, "temp response is deleted afterwards");
         Assert.That(ModifiedContents(), Is.Empty);
@@ -105,9 +100,9 @@ public class DraftStringMenuInteractionsTests
         var (season, captain, player) = await SeedDraft();
         await _context.AddSignup(season, player);
         var publisher = Substitute.For<IPublisher>();
-        var module = CreateModule(new TeamService(_context, publisher), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, publisher), player.Id.ToString());
 
-        await module.DraftPick(season.SeasonID, captain.Id, 0);
+        await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
         Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"<@{DiscordId}>, your pick was made successfully" }));
@@ -121,9 +116,9 @@ public class DraftStringMenuInteractionsTests
     public async Task DraftPick_Should_ReportTeamServiceErrors()
     {
         var (season, captain, player) = await SeedDraft(); // player not signed up
-        var module = CreateModule(new TeamService(_context, Substitute.For<IPublisher>()), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(_context, Substitute.For<IPublisher>()), player.Id.ToString());
 
-        await module.DraftPick(season.SeasonID, captain.Id, 0);
+        await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, This player has not signed up" }));
         Assert.That(await _context.NewContextLike().TeamPlayers.AnyAsync(x => x.UserID == player.Id), Is.False);
@@ -136,9 +131,9 @@ public class DraftStringMenuInteractionsTests
         await _context.AddSignup(season, player);
         var broken = _context.NewContextLike();
         await broken.DisposeAsync();
-        var module = CreateModule(new TeamService(broken, Substitute.For<IPublisher>()), player.Id.ToString());
+        var (handler, discordContext) = CreateHandler(new TeamService(broken, Substitute.For<IPublisher>()), player.Id.ToString());
 
-        await module.DraftPick(season.SeasonID, captain.Id, 0);
+        await handler.DraftPick(discordContext, season.SeasonID, captain.Id);
 
         Assert.That(ModifiedContents(), Is.EqualTo(new[] { $"Hey <@{DiscordId}>, something bad happened. Please try again and contact sysadmin if problem persists" }));
         var entry = _logger.Entries.Single();

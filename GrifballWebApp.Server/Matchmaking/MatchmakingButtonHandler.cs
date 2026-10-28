@@ -1,0 +1,179 @@
+﻿using DiscordInterface.Generated;
+using DiscordInterfaces;
+using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Notifications;
+using Microsoft.EntityFrameworkCore;
+using NetCord;
+using NetCord.Rest;
+
+namespace GrifballWebApp.Server.Matchmaking;
+
+/// <summary>
+/// The matchmaking buttons. <see cref="ButtonInteractions"/> is the NetCord module; it only wraps its context and calls these,
+/// so they take our <see cref="IDiscordButtonInteractionContext"/> and tests can pass a substitute.
+/// </summary>
+public class MatchmakingButtonHandler
+{
+    private readonly IQueueRepository _queryService;
+    private readonly IPublisher _publisher;
+    private readonly GrifballContext _context;
+    private readonly IDiscordRestClient _discordClient;
+    private readonly QueueService _displayQueueService;
+
+    public MatchmakingButtonHandler(IQueueRepository queryService, IPublisher publisher, GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService)
+    {
+        _queryService = queryService;
+        _publisher = publisher;
+        _context = context;
+        _discordClient = discordClient;
+        _displayQueueService = displayQueueService;
+    }
+
+    private async Task<Database.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
+    {
+        var user = await _context.Users
+                    .Include(x => x.XboxUser)
+                    .Where(x => x.DiscordUserID == (long)discordContext.User.Id)
+                    .FirstOrDefaultAsync();
+        if (user is null || user.XboxUser is null)
+        {
+            await discordContext.TempResponse("You must set your gamertag first");
+            return null;
+        }
+
+        return user;
+    }
+
+    public async Task SetGamertag(IDiscordButtonInteractionContext discordContext)
+    {
+        var modal = new ModalProperties(DiscordModalsContants.SetGamertag, "Set Gamertag")
+        {
+            new LabelProperties("Gamertag", new TextInputProperties("gamertag", TextInputStyle.Short)
+            {
+                Required = true,
+                MaxLength = 20,
+            }),
+        };
+
+        await discordContext.Interaction.SendResponseAsync(InteractionCallback.Modal(modal));
+    }
+
+
+    public async Task JoinQueue(IDiscordButtonInteractionContext discordContext)
+    {
+        var user = await UserGuard(discordContext);
+        if (user is null) return;
+
+        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
+        var inMatch = await _queryService.IsInMatch(user.Id);
+
+        if (queuePlayer is not null || inMatch)
+        {
+            await discordContext.TempResponse(queuePlayer is not null ? "You are already in the queue!" : "You are already in a match!");
+        }
+        else
+        {
+            await _queryService.AddPlayerToQueue(user.Id);
+
+            _ = _publisher.Publish(new UpdateDisplayNotification());
+            await discordContext.TempResponse("You have joined the queue! 🎉");
+        }
+    }
+
+    public async Task LeaveQueue(IDiscordButtonInteractionContext discordContext)
+    {
+        var user = await UserGuard(discordContext);
+        if (user is null) return;
+
+        var queuePlayer = await _queryService.GetQueuePlayer(user.Id);
+
+        if (queuePlayer is null)
+        {
+            await discordContext.TempResponse("You are not in the matchmaking queue.");
+        }
+        else
+        {
+            await _queryService.RemovePlayerToQueue(user.Id);
+            _ = _publisher.Publish(new UpdateDisplayNotification());
+            await discordContext.TempResponse("You have left the queue");
+        }
+    }
+
+    public async Task VoteForWinner(IDiscordButtonInteractionContext discordContext, int matchId, string winner)
+    {
+        var user = await UserGuard(discordContext);
+        if (user is null) return;
+
+        var parsed = Enum.TryParse<WinnerVote>(winner, out var outValue);
+        if (parsed is false)
+        {
+            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"I could not parse the value {winner}. Contact developer, expected values are {string.Join(',', Enum.GetValues<WinnerVote>())}",
+            }));
+            return;
+        }
+
+        var match = await _context.MatchedMatches
+            .Include(x => x.HomeTeam)
+                .ThenInclude(x => x.Players)
+                    .ThenInclude(x => x.User)
+            .Include(x => x.AwayTeam)
+                .ThenInclude(x => x.Players)
+                    .ThenInclude(x => x.User)
+            .Where(x => x.Active)
+            .FirstOrDefaultAsync(x => x.Id == matchId);
+
+        if (match is null)
+        {
+            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"Match does not exist or it is no longer active",
+                Flags = MessageFlags.Ephemeral,
+            }));
+            return;
+        }
+
+        var me = match.HomeTeam.Players
+            .Union(match.AwayTeam.Players)
+            .FirstOrDefault(x => x.UserID == user.Id);
+
+        if (me is null)
+        {
+            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"You are not allowed to vote since you are not in this match",
+                Flags = MessageFlags.Ephemeral,
+            }));
+            return;
+        }
+        else if (me.Kicked)
+        {
+            await discordContext.Interaction.SendResponseAsync(InteractionCallback.Message(new()
+            {
+                Content = $"You are not allowed to vote since you have been kicked",
+                Flags = MessageFlags.Ephemeral,
+            }));
+            return;
+        }
+
+        var vote = await _context.MatchedWinnerVotes
+            .FirstOrDefaultAsync(x => x.MatchedPlayerId == me.Id && x.MatchId == matchId);
+
+        if (vote is null)
+        {
+            vote = new MatchedWinnerVote();
+            _context.MatchedWinnerVotes.Add(vote);
+        }
+        vote.MatchedPlayerId = me.Id;
+        vote.MatchId = matchId;
+        vote.WinnerVote = outValue;
+        await _context.SaveChangesAsync();
+
+        await _displayQueueService.UpdateThreadMessage(match, _context, _discordClient);
+
+        await discordContext.TempResponse($"Thanks for voting! You voted for {outValue}");
+    }
+}

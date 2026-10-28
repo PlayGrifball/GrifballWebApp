@@ -25,7 +25,7 @@ public class MatchmakingButtonVoteTests
 {
     private GrifballContext _context;
     private IDiscordButtonInteractionContext _discordContext;
-    private ButtonInteractions _buttons;
+    private MatchmakingButtonHandler _buttons;
 
     [SetUp]
     public async Task SetUp()
@@ -35,10 +35,8 @@ public class MatchmakingButtonVoteTests
         var options = Options.Create(new DiscordOptions { QueueChannel = 1 });
         var repo = Substitute.For<IQueueRepository>();
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), options, repo, discordClient, _context, Substitute.For<IDataPullService>());
-        _buttons = new ButtonInteractions(repo, Substitute.For<IPublisher>(), _context, discordClient, options, queueService);
+        _buttons = new MatchmakingButtonHandler(repo, Substitute.For<IPublisher>(), _context, discordClient, queueService);
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
-        typeof(ButtonInteractions).GetField("_discordContext", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .SetValue(_buttons, _discordContext);
     }
 
     [TearDown]
@@ -54,7 +52,7 @@ public class MatchmakingButtonVoteTests
         await _context.SaveChangesAsync();
         _discordContext.User.Id.Returns(42ul);
 
-        await _buttons.VoteForWinner(1, "Nobody");
+        await _buttons.VoteForWinner(_discordContext, 1, "Nobody");
 
         await _discordContext.AssertSendResponse("I could not parse the value Nobody. Contact developer, expected values are Home,Away,Cancel");
         Assert.That(await _context.MatchedWinnerVotes.AnyAsync(), Is.False);

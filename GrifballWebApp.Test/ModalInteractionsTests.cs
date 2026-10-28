@@ -1,4 +1,4 @@
-using System.Reflection;
+using DiscordInterfaces;
 using System.Text.Json;
 using GrifballWebApp.Database;
 using GrifballWebApp.Server;
@@ -55,7 +55,7 @@ public class ModalInteractionsTests
         await TestDatabase.DropDatabase(connectionString);
     }
 
-    private ModalInteractions CreateModule(string gamertag)
+    private (DiscordSetGamertag Handler, IDiscordModalInteractionContext Context) CreateHandler(string gamertag)
     {
         // The text input arrives wrapped in a Label (type 18), as the Set Gamertag modal now sends it
         var json = $$$"""
@@ -75,17 +75,14 @@ public class ModalInteractionsTests
             Substitute.For<ILogger<DiscordSetGamertag>>(),
             _scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
             _setGamertagService);
-        var module = new ModalInteractions(discordSetGamertag);
-        typeof(BaseComponentInteractionModule<ModalInteractionContext>)
-            .GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .SetValue(module, context);
-        return module;
+        return (discordSetGamertag, context.ToDiscordContext());
     }
 
     [Test]
     public async Task SetGamertag_ReadsTextInputInsideLabel()
     {
-        await CreateModule("Grunt Padre").SetGamertag();
+        var (handler, context) = CreateHandler("Grunt Padre");
+        await handler.SetGamertag(context);
 
         await _setGamertagService.Received(1).SetGamertag(Arg.Any<int>(), "Grunt Padre", Arg.Any<CancellationToken>());
         Assert.That(_callbacks.Single().Type, Is.EqualTo(InteractionCallbackType.DeferredMessage));

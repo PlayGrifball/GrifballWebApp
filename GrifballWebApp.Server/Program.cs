@@ -256,6 +256,11 @@ public class Program
         builder.Services.AddTransient<ScheduleService>();
         builder.Services.AddTransient<AvailabilityService>();
         builder.Services.AddTransient<DiscordSetGamertag>();
+        builder.Services.AddTransient<MatchmakingButtonHandler>();
+        builder.Services.AddTransient<MatchmakingStringMenuHandler>();
+        builder.Services.AddTransient<SignupButtonHandler>();
+        builder.Services.AddTransient<DraftStringMenuHandler>();
+        builder.Services.AddTransient<DiscordCommandsHandler>();
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
         builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();

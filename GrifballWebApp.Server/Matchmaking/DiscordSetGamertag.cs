@@ -1,4 +1,5 @@
 ﻿using DiscordInterface.Generated;
+using DiscordInterfaces;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
@@ -28,6 +29,14 @@ public class DiscordSetGamertag
         _userManager = userManager;
         _setGamertagService = setGamertagService;
     }
+
+    /// <summary>The Set Gamertag modal (<see cref="ModalInteractions"/>): reads the gamertag text input, which arrives wrapped in a Label.</summary>
+    public async Task SetGamertag(IDiscordModalInteractionContext context)
+    {
+        var gamertag = ((TextInput)((Label)context.Components[0]).Component).Value;
+        await SetGamertag(context, gamertag);
+    }
+
     public async Task SetGamertag(IDiscordInteractionContext Context, string gamertag)
     {
         await Context.Interaction.SendResponseAsync(InteractionCallback.DeferredMessage(MessageFlags.Ephemeral));

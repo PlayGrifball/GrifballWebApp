@@ -15,7 +15,6 @@ using NetCord.Hosting.Gateway;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
-using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services;
 using NetCord.Services.ApplicationCommands;
@@ -44,14 +43,6 @@ public class DiscordInteractionPipelineTests
             await _context.DropDatabaseAndDispose();
     }
 
-    private static void FillNullArrays(params object[] models)
-    {
-        foreach (var o in models)
-            foreach (var p in o.GetType().GetProperties())
-                if (p.PropertyType.IsArray && p.CanWrite && p.GetValue(o) is null)
-                    p.SetValue(o, Array.CreateInstance(p.PropertyType.GetElementType()!, 0));
-    }
-
     private Task<InteractionCallbackResponse?> SendResponse(IInteraction _, InteractionCallbackProperties callback, bool __, RestRequestProperties? ___, CancellationToken ____)
     {
         if (_responseError is not null)
@@ -62,41 +53,20 @@ public class DiscordInteractionPipelineTests
 
     private ButtonInteractionContext Button(string customId = "signup:1", ulong userId = DiscordId)
     {
-        var json = new JsonInteraction
-        {
-            Id = 1,
-            ApplicationId = 2,
-            Type = InteractionType.MessageComponent,
-            Token = "tok",
-            User = new JsonUser { Id = userId, Username = "u" },
-            Data = new JsonInteractionData { CustomId = customId, ComponentType = ComponentType.Button },
-            Message = new JsonMessage { Id = 5, ChannelId = 6, Author = new JsonUser { Id = 7, Username = "bot" } },
-            Channel = new JsonChannel { Id = 6, Type = ChannelType.TextGuildChannel },
-        };
-        FillNullArrays(json, json.Message);
+        var json = DiscordInteractionJson.Button(customId, userId);
         var interaction = new ButtonInteraction(json, null, SendResponse, new RestClient(new RestClientConfiguration { RequestHandler = _rest }));
         return new ButtonInteractionContext(interaction, null!);
     }
 
     private ApplicationCommandContext SlashCommand(string name = "setgamertag")
     {
-        var json = new JsonInteraction
-        {
-            Id = 1,
-            ApplicationId = 2,
-            Type = InteractionType.ApplicationCommand,
-            Token = "tok",
-            User = new JsonUser { Id = DiscordId, Username = "u" },
-            Data = new JsonInteractionData { Id = 9, Name = name, Type = ApplicationCommandType.ChatInput },
-            Channel = new JsonChannel { Id = 6, Type = ChannelType.TextGuildChannel },
-        };
-        FillNullArrays(json);
+        var json = DiscordInteractionJson.SlashCommand(name, DiscordId);
         var interaction = new SlashCommandInteraction(json, null, SendResponse, new RestClient(new RestClientConfiguration { RequestHandler = _rest }));
         return new ApplicationCommandContext(interaction, null!);
     }
 
     private InteractionMessageProperties SentMessage() =>
-        (InteractionMessageProperties)_callbacks.Single().GetType().GetProperty("Data")!.GetValue(_callbacks.Single())!;
+        ((InteractionCallbackProperties<InteractionMessageProperties>)_callbacks.Single()).Data;
 
     private static Season NewSeason() => new()
     {
