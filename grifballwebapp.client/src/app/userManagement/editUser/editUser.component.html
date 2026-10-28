@@ -46,3 +46,7 @@
     Update User
   </button>
 </form>
+
+@if (model.userID) {
+<app-linked-accounts [userID]="model.userID" />
+}

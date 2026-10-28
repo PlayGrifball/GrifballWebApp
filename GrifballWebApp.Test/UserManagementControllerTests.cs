@@ -123,4 +123,28 @@ public class UserManagementControllerTests
         Assert.That(result, Is.TypeOf<OkResult>());
         await _mergeService.Received(1).Merge(1, 2, options, Arg.Any<CancellationToken>());
     }
+
+    [Test]
+    public async Task MergeUser_MissingUser_ReturnsNotFoundWithMessage()
+    {
+        // A second click after the first merge deleted the source used to surface as a 500.
+        _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new UserNotFoundException(2)));
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+
+        var result = await _controller.MergeUser(req, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<NotFoundObjectResult>());
+        Assert.That(((NotFoundObjectResult)result).Value, Is.EqualTo("Did not find user 2. It may already have been merged or deleted."));
+    }
+
+    [Test]
+    public async Task MergeUser_InvalidRequest_ReturnsBadRequest()
+    {
+        _mergeService.Merge(1, 1, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new ArgumentException("Cannot merge a user into itself")));
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 1, MergeOptions = new MergeOptions() };
+
+        var result = await _controller.MergeUser(req, CancellationToken.None);
+
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Cannot merge a user into itself"));
+    }
 }

@@ -13,3 +13,7 @@
 } @else {
 <p>Gamertag: {{gamertag}}</p>
 }
+
+@if (accountService.personID() === userID) {
+<app-linked-accounts />
+}

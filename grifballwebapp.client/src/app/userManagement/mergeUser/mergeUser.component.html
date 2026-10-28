@@ -21,12 +21,16 @@
 
 <div class="flex flex-col gap-4">
     <mat-slide-toggle [(ngModel)]="transferDiscord">Transfer Discord</mat-slide-toggle>
+    <mat-slide-toggle [(ngModel)]="transferLogins">Transfer Sign-in Logins (Discord and other providers)</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="transferXbox">Transfer Xbox</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="transferTeamPlayers">Transfer Team Players</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="transferExperiences">Transfer Experiences</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="transferSignups">Transfer Signups</mat-slide-toggle>
     <mat-slide-toggle [(ngModel)]="deleteMergeFrom">Delete Merge From</mat-slide-toggle>
     <div>
-        <button mat-flat-button (click)="submit()" [disabled]="mergeToUser() == null || mergeFromUser() == null || (mergeFromId() == mergeToId())">Merge Users</button>
+        <button mat-flat-button (click)="submit()" [disabled]="submitting() || mergeToUser() == null || mergeFromUser() == null || (mergeFromId() == mergeToId())">Merge Users</button>
     </div>
+    @if (result(); as r) {
+      <p [class.merge-error]="!r.ok" [attr.role]="r.ok ? 'status' : 'alert'">{{ r.text }}</p>
+    }
 </div>

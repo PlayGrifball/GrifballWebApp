@@ -127,6 +127,7 @@ describe('MergeUserComponent merging', () => {
       mergeFromId: 5,
       mergeOptions: {
         transferDiscord: true,
+        transferLogins: true,
         transferXbox: false,
         transferTeamPlayers: true,
         transferExperiences: true,
@@ -142,5 +143,47 @@ describe('MergeUserComponent merging', () => {
     component.submit();
     httpMock.expectOne('/api/usermanagement/MergeUser/').flush('x', { status: 400, statusText: 'Bad Request' });
     expect(console.log).not.toHaveBeenCalledWith('Merged user');
+  });
+
+  it('disables the button while the merge is in flight, so a double click sends one request', async () => {
+    mergeButton().click();
+    fixture.detectChanges();
+    expect(component.submitting()).toBeTrue();
+    expect(mergeButton().disabled).toBeTrue();
+    mergeButton().click();
+
+    const req = httpMock.expectOne('/api/usermanagement/MergeUser/');
+    req.flush({});
+    fixture.detectChanges();
+
+    expect(component.submitting()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="status"]')!.textContent).toContain('Merged user 5 into 6');
+  });
+
+  it('sends transferLogins off when toggled off', () => {
+    component.transferLogins.set(false);
+    component.submit();
+    const req = httpMock.expectOne('/api/usermanagement/MergeUser/');
+    expect(req.request.body.mergeOptions.transferLogins).toBeFalse();
+    req.flush({});
+  });
+
+  it("shows the server's message when the source is already gone", () => {
+    component.submit();
+    httpMock.expectOne('/api/usermanagement/MergeUser/')
+      .flush('Did not find user 5. It may already have been merged or deleted.', { status: 404, statusText: 'Not Found' });
+    fixture.detectChanges();
+
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('Did not find user 5. It may already have been merged or deleted.');
+    expect(mergeButton().disabled).toBeFalse();
+  });
+
+  it('falls back to a generic message without one from the server', () => {
+    component.submit();
+    httpMock.expectOne('/api/usermanagement/MergeUser/').flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.result()).toEqual({ ok: false, text: 'Merge failed' });
   });
 });
