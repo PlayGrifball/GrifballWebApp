@@ -228,10 +228,11 @@ public class Program
                                   NetCord.Gateway.GatewayIntents.DirectMessages;
             })
             .AddGatewayHandlers(typeof(Program).Assembly)
-            .AddApplicationCommands()
-            .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
-            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
-            .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>();
+            // DiscordInteractionPipeline sets the audit user and handles exceptions for every command and component
+            .AddApplicationCommands(options => DiscordInteractionPipeline.Use(options))
+            .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>(options => DiscordInteractionPipeline.Use(options))
+            .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(options => DiscordInteractionPipeline.Use(options))
+            .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
         }
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
