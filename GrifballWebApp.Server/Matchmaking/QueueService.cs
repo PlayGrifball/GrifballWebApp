@@ -561,7 +561,7 @@ public class QueueService
         {
             sb.Append(player.User.DiscordUser?.DiscordUsername ?? player.User.XboxUser?.Gamertag);
             sb.Append(": ");
-            var found = oldMMR.TryGetValue(player.Id, out var oldMmr);
+            var found = oldMMR.TryGetValue(player.UserID, out var oldMmr);
             int? OLDMMR = found ? oldMmr : null;
             if (OLDMMR is not null)
                 sb.Append(OLDMMR);
