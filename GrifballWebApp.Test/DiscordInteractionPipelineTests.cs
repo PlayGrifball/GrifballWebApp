@@ -215,11 +215,11 @@ public class DiscordInteractionPipelineTests
     }
 
     [Test]
-    public void Result_OtherRestError_IsNotSwallowed()
+    public async Task Result_OtherRestError_IsNotSwallowed()
     {
         _responseError = new RestException(HttpStatusCode.NotFound, "Not Found", new RestError(10062, "Unknown interaction", null));
 
-        var thrown = Assert.ThrowsAsync<RestException>(async () =>
+        var thrown = await Assert.ThrowsAsync<RestException>(async () =>
             await new ComponentInteractionPipeline<ButtonInteractionContext>().HandleResultAsync(new ExecutionExceptionResult(new Exception()), Button(), null, _logger, null!));
         Assert.That(thrown?.Error?.Code, Is.EqualTo(10062));
         Assert.That(_rest.Requests, Is.Empty);
