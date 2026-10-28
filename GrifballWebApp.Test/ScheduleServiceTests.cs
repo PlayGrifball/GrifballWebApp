@@ -146,4 +146,18 @@ public class ScheduleServiceTests
 
         Assert.That(genes, Has.Count.EqualTo(3));
     }
+
+    [Test]
+    public async Task GetTimeRecommendations_SchedulesEachMatchExactlyOnce()
+    {
+        await Arrange();
+        var expectedIDs = await _context.SeasonMatches
+            .Where(x => x.BracketMatch == null && x.HomeTeamID != null && x.AwayTeamID != null)
+            .Select(x => x.SeasonMatchID).ToListAsync();
+
+        var genes = await _service.GetTimeRecommendations();
+
+        // OrderedCrossover used to copy one match twice and drop another (#175).
+        Assert.That(genes.Select(g => g.SeasonMatchID), Is.Unique.And.EquivalentTo(expectedIDs));
+    }
 }

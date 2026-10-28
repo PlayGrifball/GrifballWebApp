@@ -38,8 +38,8 @@ public class ScheduleService
             .ToArrayAsync(ct);
 
         var selection = new EliteSelection();
-        var crossover = new OrderedCrossover();
-        var mutation = new InsertionMutation();
+        var crossover = CreateCrossover();
+        var mutation = CreateMutation();
         var fitness = new SeasonScheduleEvaluator(timeSlotsWithTeams);
         var adam = new SeasonScheduleChromosome(matches, matches.Count, start, end, timeSlots);
         var population = new Population(10, 100, adam);
@@ -83,6 +83,24 @@ public class ScheduleService
 
         return genes;
     }
+
+    /// <summary>
+    /// A schedule is "a time for each of N fixed matches" (gene i is always match i), not an ordering
+    /// of matches, so order-based operators don't fit. OrderedCrossover assumes the genes are a
+    /// permutation of distinct values and, because SeasonMatchGene equality includes ScheduledTime,
+    /// could copy one match twice and drop another (#175). UniformCrossover takes each index from one
+    /// parent or the other, so it only exchanges times between the two parents' copies of a match.
+    /// </summary>
+    public static ICrossover CreateCrossover() => new UniformCrossover();
+
+    /// <summary>
+    /// Regenerates each gene with the GA's mutation probability through
+    /// <see cref="SeasonScheduleChromosome.GenerateGene"/>, giving that match a new random time.
+    /// InsertionMutation only moved genes around, which never changes a match's time, so the GA could
+    /// only recombine the times of its initial population. Create one per run: UniformMutation caches
+    /// the gene indexes on first use.
+    /// </summary>
+    public static IMutation CreateMutation() => new UniformMutation(allGenesMutable: true);
 
 
 }

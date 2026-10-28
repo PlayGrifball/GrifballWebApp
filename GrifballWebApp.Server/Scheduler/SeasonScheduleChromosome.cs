@@ -11,7 +11,7 @@ public class SeasonScheduleChromosome : ChromosomeBase
     private readonly DateTime _start;
     private readonly DateTime _end;
     private readonly AvailabilityOption[] _options;
-    static Random Random = new Random();
+    private Random Random { get; }
 
     /// <summary>
     /// 
@@ -21,8 +21,9 @@ public class SeasonScheduleChromosome : ChromosomeBase
     /// <param name="start">Start time in Eastern Standard Time</param>
     /// <param name="end">End time in Eastern Standard Time</param>
     /// <param name="options"></param>
+    /// <param name="random">Source of random times, shared with chromosomes made by <see cref="CreateNew"/>. Pass a seeded one for reproducible runs.</param>
     /// <exception cref="ArgumentException"></exception>
-    public SeasonScheduleChromosome(List<SeasonMatch> matches, int geneCount, DateTime start, DateTime end, AvailabilityOption[] options) : base(geneCount)
+    public SeasonScheduleChromosome(List<SeasonMatch> matches, int geneCount, DateTime start, DateTime end, AvailabilityOption[] options, Random? random = null) : base(geneCount)
     {
         if (geneCount != matches.Count)
         {
@@ -33,14 +34,20 @@ public class SeasonScheduleChromosome : ChromosomeBase
         _start = start;
         _end = end;
         _options = options;
+        Random = random ?? new Random();
         CreateGenes();
     }
 
     public override IChromosome CreateNew()
     {
-        return new SeasonScheduleChromosome(_matches, _geneCount, _start, _end, _options);
+        return new SeasonScheduleChromosome(_matches, _geneCount, _start, _end, _options, Random);
     }
 
+    /// <summary>
+    /// Gene <paramref name="geneIndex"/> is always match <paramref name="geneIndex"/>, with a random time.
+    /// The GA's operators keep it that way (see <see cref="ScheduleService.CreateCrossover"/> and
+    /// <see cref="ScheduleService.CreateMutation"/>), so every chromosome holds each match exactly once.
+    /// </summary>
     public override Gene GenerateGene(int geneIndex)
     {
         var match = _matches.Skip(geneIndex).FirstOrDefault() ?? throw new Exception($"Missing course with index {geneIndex}");

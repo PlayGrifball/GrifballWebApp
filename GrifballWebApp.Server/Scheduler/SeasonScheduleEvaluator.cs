@@ -20,10 +20,10 @@ public class SeasonScheduleEvaluator : IFitness
 
         var genes = chromosome.GetGenes().Select(x => (SeasonMatchGene)x.Value).ToList();
 
-        // A chromosome should contain exactly one gene per match. GeneticSharp's OrderedCrossover
-        // compares genes by value equality (including ScheduledTime) when deciding which genes a
-        // parent already contributed, so it can duplicate a match's gene while dropping another
-        // match's gene entirely. That must never score better than a complete schedule, no matter
+        // A chromosome should contain exactly one gene per match. ScheduleService's operators keep
+        // gene i = match i, so this can't happen today; it stays as a safety net in case an
+        // order-based operator comes back (OrderedCrossover duplicated one match's gene while
+        // dropping another's, #175). That must never score better than a complete schedule, no matter
         // how many overlap/availability penalties the complete schedule racks up (e.g. dropping an
         // unschedulable match is not an improvement), so treat it as the worst possible fitness
         // rather than folding it into the same penalty count below.
