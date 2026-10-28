@@ -133,6 +133,60 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
   await expect(page).toHaveURL(/\/seasonmatch\/102$/);
 });
 
+test('a double-elimination bracket draws its losers bracket and grand final', async ({ page }) => {
+  const team = (id: number, name: string) => ({ id, tournament_id: 3, name });
+  const match = (id: number, group_id: number, round_id: number, number: number, status: number, opponent1: object | null, opponent2: object | null) =>
+    ({ id, stage_id: 3, group_id, round_id, number, child_count: 0, status, opponent1, opponent2 });
+  // Shaped like BracketService.GetViewerData: winners in group 1, losers in group 2 with round ids
+  // continuing after the last winners round, grand final and its reset in group 3 at round 0.
+  const bracket = {
+    stages: [{
+      id: 3, tournament_id: 3, name: 'Winter Playoffs', type: 'double_elimination', number: 1,
+      settings: { size: 4, seedOrdering: ['inner_outer', 'natural', 'reverse_half_shift', 'reverse'], grandFinal: 'double', consolationFinal: false },
+    }],
+    matches: [
+      match(201, 1, 1, 1, 4, { id: 1, position: 1, score: 3, result: 'win' }, { id: 4, position: 4, score: 1, result: 'loss' }),
+      match(202, 1, 1, 2, 4, { id: 2, position: 2, score: 2, result: 'loss' }, { id: 3, position: 3, score: 3, result: 'win' }),
+      match(203, 1, 2, 1, 2, { id: 1 }, { id: 3 }),
+      match(204, 2, 3, 1, 4, { id: 4, position: 1, score: 3, result: 'win' }, { id: 2, position: 2, score: 0, result: 'loss' }),
+      match(205, 2, 4, 1, 1, { id: 4 }, { id: null, position: 1 }),
+      match(206, 3, 0, 1, 0, { id: null }, { id: null, position: 1 }),
+      match(207, 3, 0, 2, 0, { id: null }, { id: null }),
+    ],
+    matchGames: [],
+    participants: [team(1, 'Alpha'), team(2, 'Bravo'), team(3, 'Charlie'), team(4, 'Delta')],
+  };
+
+  await mockBackend(page, {
+    '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
+    '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
+    '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
+    '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
+    '/api/Brackets/GetViewerData': route => json(route, bracket),
+  });
+
+  await page.goto('/season/3');
+
+  const viewer = page.locator('app-playoff-bracket .brackets-viewer');
+  // The component's locale names the winners and losers brackets after the stage.
+  const [winners, losers] = [viewer.locator('.bracket').nth(0), viewer.locator('.bracket').nth(1)];
+  await expect(viewer.locator('.bracket h2')).toHaveText(['Winter Playoffs', 'Winter Playoffs - Losers']);
+  await expect(losers.locator('.round h3')).toHaveText(['LB Round 1', 'LB Final Round']);
+  // The viewer draws the grand final as the last rounds of the winners bracket.
+  await expect(winners.locator('.round h3').nth(2)).toHaveText('Grand Final');
+  await expect(winners.locator('.round').nth(2).locator('.match[data-match-id="206"]')).toHaveCount(1);
+  await expect(winners.locator('.match[data-match-id="207"]')).toHaveCount(1);
+  await expect(winners.locator('.match')).toHaveCount(5);
+  await expect(losers.locator('.match')).toHaveCount(2);
+
+  const losersFirst = losers.locator('.match').first();
+  await expect(losersFirst.locator('.participant.win')).toContainText('Delta');
+  await expect(losersFirst.locator('.participant.loss')).toContainText('Bravo');
+
+  await losersFirst.click();
+  await expect(page).toHaveURL(/\/seasonmatch\/204$/);
+});
+
 test('processing a reschedule in the dialog refreshes the commissioner dashboard', async ({ page }) => {
   const reschedule = {
     matchRescheduleID: 8, seasonMatchID: 80, homeCaptain: 'Red Cap', awayCaptain: 'Blue Cap',
