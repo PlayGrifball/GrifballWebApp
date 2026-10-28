@@ -61,17 +61,19 @@ public class MatchPlannerService
         var seasonMatches = await _grifballContext.SeasonMatches.AsSplitQuery().AsNoTracking()
             .Include(x => x.HomeTeam.Captain.User.XboxUser)
             .Include(x => x.AwayTeam.Captain.User.XboxUser)
+            .Include(x => x.HomeTeam.Captain.User.DiscordUser)
+            .Include(x => x.AwayTeam.Captain.User.DiscordUser)
             .Where(sm => sm.SeasonID == seasonID && sm.BracketMatch == null && sm.ScheduledTime == null)
             .ToListAsync(ct);
 
         var ordered = seasonMatches
-            .OrderBy(x => x.HomeTeam.Captain.User.XboxUser.Gamertag)
-            .ThenBy(x => x.AwayTeam.Captain.User.XboxUser.Gamertag)
+            .OrderBy(x => CaptainName(x.HomeTeam))
+            .ThenBy(x => CaptainName(x.AwayTeam))
             .Select(x => new UnscheduledMatchDto()
             {
                 SeasonMatchID = x.SeasonMatchID,
-                HomeCaptain = x.HomeTeam.Captain.User.XboxUser.Gamertag,
-                AwayCaptain = x.AwayTeam.Captain.User.XboxUser.Gamertag,
+                HomeCaptain = CaptainName(x.HomeTeam),
+                AwayCaptain = CaptainName(x.AwayTeam),
                 Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
             });
         return ordered.ToList();
@@ -82,6 +84,8 @@ public class MatchPlannerService
         var seasonMatches = await _grifballContext.SeasonMatches.AsSplitQuery().AsNoTracking()
             .Include(x => x.HomeTeam.Captain.User.XboxUser)
             .Include(x => x.AwayTeam.Captain.User.XboxUser)
+            .Include(x => x.HomeTeam.Captain.User.DiscordUser)
+            .Include(x => x.AwayTeam.Captain.User.DiscordUser)
             .Where(sm => sm.SeasonID == seasonID && sm.BracketMatch == null && sm.ScheduledTime != null)
             .ToListAsync(ct);
 
@@ -90,12 +94,22 @@ public class MatchPlannerService
             .Select(x => new ScheduledMatchDto()
             {
                 SeasonMatchID = x.SeasonMatchID,
-                HomeCaptain = x.HomeTeam.Captain.User.XboxUser.Gamertag,
-                AwayCaptain = x.AwayTeam.Captain.User.XboxUser.Gamertag,
+                HomeCaptain = CaptainName(x.HomeTeam),
+                AwayCaptain = CaptainName(x.AwayTeam),
                 Complete = x.HomeTeamResult is not null || x.AwayTeamResult is not null,
                 Time = x.ScheduledTime ?? throw new Exception("No time on season match")
             });
         return ordered.ToList();
+    }
+
+    /// <summary>
+    /// What the app calls a captain elsewhere (TeamService): gamertag, else Discord name, display name or user name. A captain
+    /// without an Xbox account used to make the whole list fail.
+    /// </summary>
+    private static string CaptainName(Team team)
+    {
+        var user = team.Captain?.User;
+        return user?.XboxUser?.Gamertag ?? user?.DiscordUser?.DiscordUsername ?? user?.DisplayName ?? user?.UserName ?? "";
     }
 
     public async Task UpdateMatchTime(UpdateMatchTimeDto dto, CancellationToken ct = default)

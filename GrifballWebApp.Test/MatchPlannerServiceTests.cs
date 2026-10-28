@@ -189,4 +189,48 @@ public class MatchPlannerServiceTests
         // Act & Assert - Should not throw
         await Assert.DoesNotThrowAsync(() => _service.UpdateMatchTime(dto, CancellationToken.None));
     }
+
+    /// <summary>Captains named each way the app names people, and a team without a captain.</summary>
+    private async Task<Season> SeasonWithMatchesOfCaptainsWithoutGamertags()
+    {
+        var season = await _context.AddSeason();
+        await _context.AddTeam(season, "Xbox", await _context.AddUser("xbox-user", gamertag: "Gamer Tag"), 1);
+        await _context.AddTeam(season, "Discord", await _context.AddUser("discord-user", discordName: "discord name"), 2);
+        await _context.AddTeam(season, "Display", await _context.AddUser("display-user", displayName: "Display Name"), 3);
+        await _context.AddTeam(season, "Plain", await _context.AddUser("plain-user"), 4);
+        _context.Teams.Add(new Team { SeasonID = season.SeasonID, TeamName = "No captain" });
+        await _context.SaveChangesAsync();
+        await _service.CreateSeasonMatches(season.SeasonID, 1, 1, CancellationToken.None);
+        _context.ChangeTracker.Clear();
+        return season;
+    }
+
+    private static readonly string[] CaptainNames = ["", "discord name", "Display Name", "Gamer Tag", "plain-user"];
+
+    [Test]
+    public async Task GetUnscheduledMatches_Should_NameCaptainsWithoutAGamertag()
+    {
+        var season = await SeasonWithMatchesOfCaptainsWithoutGamertags();
+
+        var result = await _service.GetUnscheduledMatches(season.SeasonID, CancellationToken.None);
+
+        Assert.That(result, Has.Count.EqualTo(20));
+        Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+        Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+        Assert.That(result.Select(m => m.HomeCaptain), Is.Ordered, "ordered by home captain");
+    }
+
+    [Test]
+    public async Task GetScheduledMatches_Should_NameCaptainsWithoutAGamertag()
+    {
+        var season = await SeasonWithMatchesOfCaptainsWithoutGamertags();
+        await _context.SeasonMatches.Where(m => m.SeasonID == season.SeasonID)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.ScheduledTime, new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc)));
+
+        var result = await _service.GetScheduledMatches(season.SeasonID, CancellationToken.None);
+
+        Assert.That(result, Has.Count.EqualTo(20));
+        Assert.That(result.Select(m => m.HomeCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+        Assert.That(result.Select(m => m.AwayCaptain).Distinct(), Is.EquivalentTo(CaptainNames));
+    }
 }
