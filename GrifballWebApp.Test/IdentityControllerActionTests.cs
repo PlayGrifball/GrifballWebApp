@@ -136,11 +136,24 @@ public class IdentityControllerActionTests
     public async Task Register_Success_CreatesUserWithUsername()
     {
         _userManager.CreateAsync(Arg.Any<User>(), "Secret123!").Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
 
         var result = await _controller.Register(new RegisterDto { Username = "bob", Password = "Secret123!" }, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<OkResult>());
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.UserName == "bob"), "Secret123!");
+        await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "bob"), "Player");
+    }
+
+    [Test]
+    public async Task Register_AddRoleFails_ReturnsFailedToAddRole()
+    {
+        _userManager.CreateAsync(Arg.Any<User>(), "Secret123!").Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Failed(new IdentityError { Code = "x", Description = "y" }));
+
+        var result = await _controller.Register(new RegisterDto { Username = "bob", Password = "Secret123!" }, CancellationToken.None);
+
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
     }
 
     // ---------- ExternalLogin ----------
@@ -326,10 +339,8 @@ public class IdentityControllerActionTests
     }
 
     [Test]
-    public async Task ExternalLoginCallback_RoleAddFailureIsIgnored()
+    public async Task ExternalLoginCallback_AddRoleFails_ReturnsFailedToAddRole()
     {
-        // BUG-ish: the AddToRoleAsync result is overwritten by AddLoginAsync, so a failure to grant the
-        // "Player" role is silently ignored and the user is still signed in (IdentityController.cs ExternalLoginCallback).
         var info = Info();
         _signInManager.GetExternalLoginInfoAsync().Returns(info);
         ExternalResult(IdentitySignInResult.Failed);
@@ -339,7 +350,9 @@ public class IdentityControllerActionTests
 
         var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
 
-        Assert.That(((OkObjectResult)result).Value, Is.EqualTo("Signed In"));
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
+        await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
+        await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
     }
 
     // ---------- Refresh ----------
