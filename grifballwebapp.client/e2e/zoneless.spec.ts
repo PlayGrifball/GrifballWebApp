@@ -22,7 +22,7 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
     localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 }));
   });
 
-  // Keep the run hermetic (Google Fonts, jsDelivr).
+  // Keep the run hermetic (Google Fonts).
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
 
@@ -85,6 +85,52 @@ test('a season page reached by an in-app link renders the data it loads', async 
   await expect(page.locator('app-team-standings tr.mat-mdc-row')).toHaveText([/Alpha\s*4\s*1/]);
   await expect(page.locator('app-schedule-list')).toContainText('Home Cap vs Away Cap');
   await expect(page.locator('app-playoff-bracket')).toContainText('No bracket created');
+});
+
+test('a season with a bracket draws it with the bundled viewer and links its matches', async ({ page }) => {
+  const team = (id: number, name: string) => ({ id, tournament_id: 3, name });
+  const side = (id: number, position: number, extra: object = {}) => ({ id, position, ...extra });
+  // Four teams, single elimination: one semifinal played, the other ready, the final waiting.
+  const bracket = {
+    stages: [{
+      id: 1, tournament_id: 3, name: 'Winter Playoffs', type: 'single_elimination', number: 1,
+      settings: { size: 4, seedOrdering: ['natural'], grandFinal: 'none', consolationFinal: false },
+    }],
+    matches: [
+      { id: 101, stage_id: 1, group_id: 1, round_id: 1, number: 1, child_count: 0, status: 4,
+        opponent1: side(1, 1, { score: 3, result: 'win' }), opponent2: side(2, 2, { score: 1, result: 'loss' }) },
+      { id: 102, stage_id: 1, group_id: 1, round_id: 1, number: 2, child_count: 0, status: 2,
+        opponent1: side(3, 3), opponent2: side(4, 4) },
+      { id: 103, stage_id: 1, group_id: 1, round_id: 2, number: 1, child_count: 0, status: 1,
+        opponent1: { id: 1 }, opponent2: { id: null } },
+    ],
+    matchGames: [],
+    participants: [team(1, 'Alpha'), team(2, 'Bravo'), team(3, 'Charlie'), team(4, 'Delta')],
+  };
+
+  await mockBackend(page, {
+    '/api/Season/getSeasonName/3': route => text(route, 'Winter Season'),
+    '/api/TeamStandings/GetTeamStandings/3': route => json(route, []),
+    '/api/MatchPlanner/GetUnscheduledMatches/3': route => json(route, []),
+    '/api/MatchPlanner/GetScheduledMatches/3': route => json(route, []),
+    '/api/Brackets/GetViewerData': route => json(route, bracket),
+  });
+
+  await page.goto('/season/3');
+
+  const viewer = page.locator('app-playoff-bracket .brackets-viewer');
+  await expect(viewer.locator('.match')).toHaveCount(3);
+  await expect(viewer.locator('.round')).toHaveCount(2);
+  for (const name of ['Alpha', 'Bravo', 'Charlie', 'Delta']) {
+    await expect(viewer.locator('.participant .name', { hasText: name }).first()).toBeVisible();
+  }
+  await expect(viewer.locator('.participant.win')).toContainText('Alpha');
+  await expect(page.locator('app-playoff-bracket')).not.toContainText('No bracket created');
+  // The viewer's own stylesheet is bundled too: matches are laid out by it, not stacked as plain divs.
+  await expect(viewer.locator('.round').first()).toHaveCSS('display', 'flex');
+
+  await viewer.locator('.match', { hasText: 'Charlie' }).click();
+  await expect(page).toHaveURL(/\/seasonmatch\/102$/);
 });
 
 test('processing a reschedule in the dialog refreshes the commissioner dashboard', async ({ page }) => {
