@@ -5,7 +5,7 @@ namespace GrifballWebApp.Server.Signups;
 
 /// <summary>
 /// NetCord entry point for the season signup button: wraps the context and hands off to <see cref="SignupButtonHandler"/>.
-/// Keep logic out of here, it is excluded from coverage (coverlet.runsettings).
+/// Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionContext>
 {

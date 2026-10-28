@@ -5,7 +5,7 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 /// <summary>
 /// NetCord entry point for the matchmaking buttons: wraps the context and hands off to <see cref="MatchmakingButtonHandler"/>.
-/// Keep logic out of here, it is excluded from coverage (coverlet.runsettings).
+/// Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 public class ButtonInteractions : ComponentInteractionModule<ButtonInteractionContext>
 {

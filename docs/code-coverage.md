@@ -18,6 +18,9 @@ dotnet test GrifballWebApp.Test/GrifballWebApp.Test.csproj --collect:"XPlat Code
 
 The code coverage is configured in `coverlet.runsettings` with the following exclusions:
 - Database migrations, generated, for both databases (file pattern `**/GrifballWebApp.Migrations.*/Migrations/*.cs`)
+- The generated NetCord wrappers and their generator (`**/DiscordInterfaces/*.cs`, `**/DiscordInterfaceSourceGen/*.cs`)
+
+The thin NetCord modules (`DiscordCommands`, the `*Interactions` classes) are not excluded: `DiscordTransportTests` runs every one of their entry points through NetCord with only the HTTP transport faked.
 
 ## Coverage Output
 
