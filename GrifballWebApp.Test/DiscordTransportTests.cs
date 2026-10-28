@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,25 @@ public class DiscordTransportTests
     public async Task StopServer() => await _host.DisposeAsync();
 
     private static string[] Routes(IEnumerable<DiscordRequest> requests) => requests.Select(r => $"{r.Method} {r.Route}").ToArray();
+
+    /// <summary>The labels of the kick menu in a vote message edit: one per player still in the match.</summary>
+    private static string[] KickMenuLabels(JsonElement message) => Descendants(message.GetProperty("components"))
+        .Where(e => e.ValueKind == JsonValueKind.Object && e.TryGetProperty("options", out _))
+        .SelectMany(menu => menu.GetProperty("options").EnumerateArray().Select(o => o.GetProperty("label").GetString()!))
+        .ToArray();
+
+    private static IEnumerable<JsonElement> Descendants(JsonElement element)
+    {
+        yield return element;
+        var children = element.ValueKind switch
+        {
+            JsonValueKind.Array => element.EnumerateArray().ToList(),
+            JsonValueKind.Object => element.EnumerateObject().Select(p => p.Value).ToList(),
+            _ => [],
+        };
+        foreach (var descendant in children.SelectMany(Descendants))
+            yield return descendant;
+    }
 
     /// <summary>A user linked to Discord user <paramref name="discordId"/>, with gamertag <paramref name="gamertag"/> set.</summary>
     private Task<User> LinkedUser(ulong discordId, string gamertag) => _host.WithContextAsync(async context =>
@@ -86,6 +106,7 @@ public class DiscordTransportTests
         {
             Assert.That(threadEdit.GetProperty("content").GetString(), Does.StartWith("This match can be now be started in game."));
             Assert.That(embeds, Is.EqualTo(new[] { "Votes: You need a majority of at least 2 votes", "Home (1): VoteHome" }));
+            Assert.That(KickMenuLabels(threadEdit), Is.EquivalentTo(new[] { "VoteHome", "VoteAway" }));
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
             Assert.That(reply.Content, Is.EqualTo("Thanks for voting! You voted for Home"));
             Assert.That(reply.Flags, Is.EqualTo(MessageFlags.Ephemeral));
@@ -147,8 +168,10 @@ public class DiscordTransportTests
         Assert.Multiple(() =>
         {
             Assert.That(reply.CallbackType, Is.EqualTo(DiscordRequest.ChannelMessage));
+            // The target's gamertag was blank before their XboxUser was loaded (only the voter's was, by the user check)
             Assert.That(reply.Content, Is.EqualTo("KickVoter has voted to kick KickTarget"));
             Assert.That(reply.Flags, Is.EqualTo((MessageFlags)0), "announced to the whole thread");
+            Assert.That(KickMenuLabels(requests[0].Body), Is.EquivalentTo(new[] { "KickVoter", "KickTarget" }));
         });
     }
 

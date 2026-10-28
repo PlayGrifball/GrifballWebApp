@@ -47,11 +47,16 @@ public class MatchmakingStringMenuHandler
 
         var value = discordContext.SelectedValues.Select(long.Parse).First();
 
+        // The players' gamertags and Discord names, for their display names in the replies and the vote message
         var match = await _context.MatchedMatches
             .Include(x => x.HomeTeam.Players)
-                .ThenInclude(x => x.User)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(x => x.HomeTeam.Players)
+                .ThenInclude(x => x.User.DiscordUser)
             .Include(x => x.AwayTeam.Players)
-                .ThenInclude(x => x.User)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(x => x.AwayTeam.Players)
+                .ThenInclude(x => x.User.DiscordUser)
             .Where(m => m.Id == matchId)
             .FirstOrDefaultAsync();
 

@@ -116,13 +116,16 @@ public class MatchmakingButtonHandler
             return;
         }
 
+        // The players' gamertags and Discord names, for the kick menu in the vote message
         var match = await _context.MatchedMatches
-            .Include(x => x.HomeTeam)
-                .ThenInclude(x => x.Players)
-                    .ThenInclude(x => x.User)
-            .Include(x => x.AwayTeam)
-                .ThenInclude(x => x.Players)
-                    .ThenInclude(x => x.User)
+            .Include(x => x.HomeTeam.Players)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(x => x.HomeTeam.Players)
+                .ThenInclude(x => x.User.DiscordUser)
+            .Include(x => x.AwayTeam.Players)
+                .ThenInclude(x => x.User.XboxUser)
+            .Include(x => x.AwayTeam.Players)
+                .ThenInclude(x => x.User.DiscordUser)
             .Where(x => x.Active)
             .FirstOrDefaultAsync(x => x.Id == matchId);
 
