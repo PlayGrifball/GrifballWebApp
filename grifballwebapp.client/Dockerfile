@@ -11,7 +11,7 @@ COPY angular.json ./
 COPY tsconfig.json ./
 COPY tsconfig.app.json ./
 COPY m3-theme.scss ./
-COPY tailwind.config.js ./
+COPY .postcssrc.json ./
 COPY src src
 RUN npm run build
 

@@ -33,7 +33,7 @@
             ],
             "styles": [
               "node_modules/brackets-viewer/dist/brackets-viewer.min.css",
-              "src/tailwind.scss",
+              "src/tailwind.css",
               "src/styles.scss"
             ],
             "scripts": [
@@ -99,7 +99,7 @@
               "src/assets"
             ],
             "styles": [
-              "src/tailwind.scss",
+              "src/tailwind.css",
               "src/styles.scss"
             ],
             "scripts": [],
