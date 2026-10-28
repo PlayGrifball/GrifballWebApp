@@ -99,6 +99,14 @@ describe('AppComponent behaviour', () => {
   let linkWidth: number;
   let hiddenMissing: boolean;
   let resizeHandler: (() => void) | undefined;
+  let mobileListeners: Map<string, Function>;
+  let removedMobileListeners: Function[];
+  let frames: FrameRequestCallback[];
+
+  const resize = () => {
+    resizeHandler!();
+    frames.splice(0).forEach(frame => frame(0));
+  };
 
   beforeEach(async () => {
     mobile = false;
@@ -133,13 +141,20 @@ describe('AppComponent behaviour', () => {
       setTertiaryShade: jasmine.createSpy('setTertiaryShade')
     };
 
+    mobileListeners = new Map();
+    removedMobileListeners = [];
     const media = {
       matchMedia: () => ({
         get matches() { return mobile; },
-        addEventListener: () => {},
-        removeEventListener: () => {},
+        addEventListener: (type: string, fn: Function) => mobileListeners.set(type, fn),
+        removeEventListener: (type: string, fn: Function) => removedMobileListeners.push(fn),
       })
     };
+
+    // Resizes are measured once per animation frame; the specs run the queued frames by hand.
+    frames = [];
+    spyOn(window, 'requestAnimationFrame').and.callFake(((cb: FrameRequestCallback) => frames.push(cb)) as any);
+    spyOn(window, 'cancelAnimationFrame');
 
     // Capture the resize handler instead of registering it on the real window, so a real
     // listener cannot leak out of this test.
@@ -255,7 +270,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
     toolbarWidth = 10000;
     expect(resizeHandler).toBeDefined();
-    resizeHandler!();
+    resize();
 
     expect(component.visibleNavLinks().length).toBe(component.navLinks().length);
     expect(component.overflowNavLinks()).toEqual([]);
@@ -305,7 +320,7 @@ describe('AppComponent behaviour', () => {
     expect(component.visibleNavLinks().length).toBe(2);
 
     mobile = true;
-    resizeHandler!();
+    resize();
 
     expect(component.visibleNavLinks()).toEqual([]);
     expect(component.overflowNavLinks().length).toBe(component.navLinks().length);
@@ -313,13 +328,42 @@ describe('AppComponent behaviour', () => {
 
   it('lays out the links from measured widths without touching the DOM while computing', () => {
     fixture.detectChanges();
-    resizeHandler!(); // measures, and invalidates the layout
+    resize(); // measures, and invalidates the layout
     (document.getElementById as jasmine.Spy).calls.reset();
     (document.querySelector as jasmine.Spy).calls.reset();
 
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
     expect(document.getElementById).not.toHaveBeenCalled();
     expect(document.querySelector).not.toHaveBeenCalled();
+  });
+
+  it('measures at most once per animation frame however many resize events come', () => {
+    fixture.detectChanges();
+    toolbarWidth = 10000;
+    const queued = frames.length;
+    resizeHandler!();
+    resizeHandler!();
+    resizeHandler!();
+    expect(frames.length).toBe(queued + 1);
+    expect(component.visibleNavLinks().length).toBe(2); // not measured yet
+
+    frames.splice(0).forEach(frame => frame(0));
+    expect(component.visibleNavLinks().length).toBe(component.navLinks().length);
+  });
+
+  it('re-measures when the mobile breakpoint is crossed, and stops listening once destroyed', () => {
+    fixture.detectChanges();
+    const onChange = mobileListeners.get('change')!;
+    expect(onChange).toBeDefined();
+
+    mobile = true;
+    onChange();
+    expect(component.visibleNavLinks()).toEqual([]);
+
+    resizeHandler!(); // a frame is pending
+    fixture.destroy();
+    expect(removedMobileListeners).toContain(onChange);
+    expect(window.cancelAnimationFrame).toHaveBeenCalled();
   });
 
   it('stops listening for resizes once destroyed', () => {

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl } from '@angular/forms';
 import { By } from '@angular/platform-browser';
@@ -11,6 +11,15 @@ import { MatchFieldsValidatorDirective } from './matchFieldsValidator.directive'
 class HostComponent {
   password = new FormControl('secret');
   confirm = new FormControl('secret');
+}
+
+@Component({
+  imports: [MatchFieldsValidatorDirective],
+  template: `<div matchFields [field1]="password" [field2]="confirm()"></div>`,
+})
+class SwitchingHostComponent {
+  password = new FormControl('secret');
+  confirm = signal(new FormControl('secret'));
 }
 
 describe('MatchFieldsValidatorDirective', () => {
@@ -34,5 +43,19 @@ describe('MatchFieldsValidatorDirective', () => {
     const { host, bound } = setup();
     host.confirm.setValue('other');
     expect(bound.validate(new FormControl())).toEqual({ matchOtherValidator: { otherControlName: null } });
+  });
+
+  it('asks the form to validate again when the bound fields change', async () => {
+    const fixture = TestBed.createComponent(SwitchingHostComponent);
+    const directive = fixture.debugElement.query(By.directive(MatchFieldsValidatorDirective)).injector.get(MatchFieldsValidatorDirective);
+    const revalidate = jasmine.createSpy('onValidatorChange');
+    directive.registerOnValidatorChange(revalidate);
+    await fixture.whenStable();
+    revalidate.calls.reset();
+
+    fixture.componentInstance.confirm.set(new FormControl('other'));
+    await fixture.whenStable();
+
+    expect(revalidate).toHaveBeenCalled();
   });
 });

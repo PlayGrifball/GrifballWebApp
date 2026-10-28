@@ -34,7 +34,18 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   private themingService = inject(ThemingService);
 
   readonly mobileQuery = inject(MediaMatcher).matchMedia('(max-width: 600px)');
-  private readonly onResize = () => this.measureToolbar();
+  // Resize events come many times a frame: measure at most once per animation frame.
+  private resizeFrame: number | null = null;
+  private readonly onResize = () => {
+    if (this.resizeFrame !== null)
+      return;
+    this.resizeFrame = requestAnimationFrame(() => {
+      this.resizeFrame = null;
+      this.measureToolbar();
+    });
+  };
+  // Crossing the mobile breakpoint changes the layout even without a window resize (e.g. zoom).
+  private readonly onMobileChange = () => this.measureToolbar();
 
   // Layout inputs, measured from the DOM after rendering (when the links change) and on every resize.
   private readonly isMobile = signal(false);
@@ -91,10 +102,14 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     window.addEventListener('resize', this.onResize);
+    this.mobileQuery.addEventListener('change', this.onMobileChange);
   }
 
   ngOnDestroy(): void {
     window.removeEventListener('resize', this.onResize);
+    this.mobileQuery.removeEventListener('change', this.onMobileChange);
+    if (this.resizeFrame !== null)
+      cancelAnimationFrame(this.resizeFrame);
   }
 
   private measureToolbar(): void {
