@@ -96,7 +96,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context);
         var first = await _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "one" }, s.Requester.Id);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<RescheduleAlreadyActiveException>(() =>
             _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "two" }, s.Requester.Id));
 
         Assert.That(ex!.Message, Does.Contain("already an active reschedule request"));

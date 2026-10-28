@@ -30,7 +30,7 @@ public class RescheduleController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (RescheduleAlreadyActiveException ex)
         {
             return BadRequest(ex.Message);
         }
