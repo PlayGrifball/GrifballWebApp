@@ -136,12 +136,42 @@ public class SeasonMatchControllerTests
     }
 
     [Test]
-    public void Forfeits_ArePosts()
+    public async Task UndoResult_ReturnsOk_AndClearsTheResult()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _context.ChangeTracker.Clear();
+        await _controller.HomeForfeit(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
+        _context.ChangeTracker.Clear();
+
+        var result = await _controller.UndoResult(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
+
+        _context.ChangeTracker.Clear();
+        var sm = await _context.SeasonMatches.SingleAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.InstanceOf<OkResult>());
+            Assert.That((sm.HomeTeamResult, sm.AwayTeamResult), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+        });
+    }
+
+    [Test]
+    public async Task UndoResult_ReturnsBadRequest_WithNothingToUndo()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        _context.ChangeTracker.Clear();
+
+        var result = await _controller.UndoResult(seeded.SeasonMatch.SeasonMatchID, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("This match has no result to undo"));
+    }
+
+    [Test]
+    public void CommissionerActions_ArePosts()
     {
         var type = typeof(SeasonMatchController);
         Assert.Multiple(() =>
         {
-            foreach (var name in new[] { nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit) })
+            foreach (var name in new[] { nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
             {
                 Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpPostAttribute>(), Is.Not.Null, name);
                 Assert.That(ControllerTestHelpers.Action(type, name).GetCustomAttribute<HttpGetAttribute>(), Is.Null, name);
@@ -164,7 +194,7 @@ public class SeasonMatchControllerTests
         var type = typeof(SeasonMatchController);
         Assert.Multiple(() =>
         {
-            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit) })
+            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
             foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);

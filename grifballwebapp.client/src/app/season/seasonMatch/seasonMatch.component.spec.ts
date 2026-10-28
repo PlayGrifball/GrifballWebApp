@@ -337,20 +337,20 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
   });
 
-  function forfeit(label: string): void {
+  function press(label: string): void {
     button(label)!.click();
     fixture.detectChanges();
   }
 
   it('asks for confirmation before recording a home forfeit', () => {
     load(page());
-    forfeit('Home Team Forfeit');
+    press('Home Team Forfeit');
 
     httpMock.expectNone('/api/SeasonMatch/HomeForfeit/7');
     expect(text()).toContain('The home team forfeits and the away team wins.');
     expect(button('Home Team Forfeit')).toBeUndefined();
 
-    forfeit('Confirm Forfeit');
+    press('Confirm');
     expect(component.isSubmittingMatch()).toBeTrue();
 
     const req = httpMock.expectOne('/api/SeasonMatch/HomeForfeit/7');
@@ -362,22 +362,25 @@ describe('SeasonMatchComponent reporting', () => {
 
   it('records an away forfeit, reloading even on failure', () => {
     load(page());
-    forfeit('Away Team Forfeit');
+    press('Away Team Forfeit');
     expect(text()).toContain('The away team forfeits and the home team wins.');
-    forfeit('Confirm Forfeit');
+    press('Confirm');
 
     const req = httpMock.expectOne('/api/SeasonMatch/AwayForfeit/7');
     expect(req.request.method).toBe('POST');
     req.flush('no', { status: 500, statusText: 'Server Error' });
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
     expect(component.isSubmittingMatch()).toBeFalse();
+    fixture.detectChanges();
+    expect(component.actionError()).toBe('no');
+    expect(text()).toContain('no');
   });
 
   it('records a forfeit by both teams once confirmed', () => {
     load(page({ isPlayoff: true, bracketInfo: bracket() }));
-    forfeit('Both Teams Forfeit');
+    press('Both Teams Forfeit');
     expect(text()).toContain('Both teams forfeit and take a loss.');
-    forfeit('Confirm Forfeit');
+    press('Confirm');
 
     const req = httpMock.expectOne('/api/SeasonMatch/DoubleForfeit/7');
     expect(req.request.method).toBe('POST');
@@ -387,17 +390,17 @@ describe('SeasonMatchComponent reporting', () => {
 
   it('records nothing when a forfeit is cancelled', () => {
     load(page());
-    forfeit('Both Teams Forfeit');
-    forfeit('Cancel');
+    press('Both Teams Forfeit');
+    press('Cancel');
 
     httpMock.expectNone('/api/SeasonMatch/DoubleForfeit/7');
-    expect(component.pendingForfeit()).toBeNull();
+    expect(component.pendingAction()).toBeNull();
     expect(button('Both Teams Forfeit')).toBeDefined();
   });
 
-  it('confirming does nothing when no forfeit is pending', () => {
+  it('confirming does nothing when no action is pending', () => {
     load(page());
-    component.confirmForfeit();
+    component.confirmAction();
     expect(component.isSubmittingMatch()).toBeFalse();
   });
 
@@ -406,6 +409,50 @@ describe('SeasonMatchComponent reporting', () => {
 
     expect(text()).not.toContain('Forfeit');
     expect(text()).toContain('Enter Match ID');
+  });
+
+  it('undoes a result once confirmed', () => {
+    load(page({ homeTeamResult: 'Forfeit', awayTeamResult: 'Won' }));
+    press('Undo Result');
+
+    httpMock.expectNone('/api/SeasonMatch/UndoResult/7');
+    expect(text()).toContain('This match goes back to undecided');
+    press('Confirm');
+
+    const req = httpMock.expectOne('/api/SeasonMatch/UndoResult/7');
+    expect(req.request.method).toBe('POST');
+    req.flush(null);
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    fixture.detectChanges();
+    expect(button('Undo Result')).toBeUndefined();
+    expect(button('Home Team Forfeit')).toBeDefined();
+  });
+
+  it('shows why the server would not undo a result', () => {
+    load(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    press('Undo Result');
+    press('Confirm');
+
+    httpMock.expectOne('/api/SeasonMatch/UndoResult/7').flush('Undo that match first.', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    fixture.detectChanges();
+    expect(text()).toContain('Undo that match first.');
+  });
+
+  it('offers undo for reported games of an undecided series', () => {
+    load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }] }));
+    expect(button('Undo Result')).toBeDefined();
+    expect(button('Home Team Forfeit')).toBeDefined();
+  });
+
+  it('offers no undo without a result, or for a match with a BYE', () => {
+    load(page());
+    expect(button('Undo Result')).toBeUndefined();
+
+    component.seasonMatch.set(page({ isPlayoff: true, homeTeamResult: 'Won', awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye' }));
+    fixture.detectChanges();
+    expect(button('Undo Result')).toBeUndefined();
+    expect(text()).toContain('This match has been completed.');
   });
 
   it('only accepts a GUID as a match id', async () => {

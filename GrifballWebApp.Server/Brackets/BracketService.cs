@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.TeamStandings;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,7 @@ public interface IBracketService
     NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
     Task AdvanceByesAsync(int seasonID, CancellationToken ct = default);
     void SendByesToNextMatches(SeasonMatch seasonMatch);
+    Task UndoAdvancementAsync(SeasonMatch seasonMatch, CancellationToken ct = default);
 }
 
 public class BracketService : IBracketService
@@ -971,6 +973,86 @@ public class BracketService : IBracketService
         var next = DetermineNextMatches(seasonMatch);
         MoveIntoNextMatch(next.Winner, teamID: null);
         MoveIntoNextMatch(next.Loser, teamID: null);
+    }
+
+    /// <summary>
+    /// Takes back everything a decided match sent on through the bracket: the teams, or the BYEs after a double
+    /// forfeit, it put in its next matches, and the wins and moves <see cref="AdvanceByesAsync"/> made from there.
+    /// Throws <see cref="SeasonMatchActionNotAllowedException"/>, changing nothing, when one of those matches has a
+    /// result of its own that a BYE did not create. Loads the season's bracket into the context; the caller clears
+    /// the match itself and saves.
+    /// </summary>
+    public async Task UndoAdvancementAsync(SeasonMatch seasonMatch, CancellationToken ct = default)
+    {
+        // Loading every bracket match of the season lets EF fix up the navigations DetermineNextMatches walks
+        await _grifballContext.SeasonMatches
+            .Include(x => x.BracketMatch)
+            .Where(x => x.SeasonID == seasonMatch.SeasonID && x.BracketMatch != null)
+            .LoadAsync(ct);
+
+        // The home team winning the grand final ends the bracket, so it sent nobody on
+        var next = seasonMatch.BracketMatch!.Bracket is Bracket.GrandFinal && seasonMatch.HomeTeamResult is SeasonMatchResult.Won
+            ? new NextMatchesDto() { Winner = null, Loser = null }
+            : DetermineNextMatches(seasonMatch);
+        var slots = new[] { next.Winner, next.Loser }.OfType<NextGame>().ToList();
+
+        // Check everything first so a rejected undo leaves the bracket as it was
+        foreach (var slot in slots)
+            TakeBack(slot, apply: false);
+        foreach (var slot in slots)
+            TakeBack(slot, apply: true);
+    }
+
+    /// <summary>
+    /// Empties a slot an earlier match filled, after taking back what <see cref="AdvanceByesAsync"/> sent on from
+    /// the match the slot is in because of it. With <paramref name="apply"/> false it only checks.
+    /// </summary>
+    private void TakeBack(NextGame slot, bool apply)
+    {
+        var game = slot.Game;
+        var (teamID, result, otherTeamID, otherResult) = slot.IsHomeTeam
+            ? (game.HomeTeamID, game.HomeTeamResult, game.AwayTeamID, game.AwayTeamResult)
+            : (game.AwayTeamID, game.AwayTeamResult, game.HomeTeamID, game.HomeTeamResult);
+        var bye = IsByeSlot(teamID, result);
+        var otherBye = IsByeSlot(otherTeamID, otherResult);
+
+        // The only results AdvanceByesAsync gives out: the BYEs themselves and the win of a team facing one
+        static bool Automatic(SeasonMatchResult? r, bool facingBye) => r is null or SeasonMatchResult.Bye || (r is SeasonMatchResult.Won && facingBye);
+        if (Automatic(result, otherBye) is false || Automatic(otherResult, bye) is false)
+            throw new SeasonMatchActionNotAllowedException($"Season match {game.SeasonMatchID} that this result fed into already has a result of its own. Undo that match first.");
+
+        // A grand final decided by a BYE sends nobody on (see AdvanceByesAsync)
+        if ((bye || otherBye) && game.BracketMatch!.Bracket is not Bracket.GrandFinal)
+        {
+            var next = DetermineNextMatches(game);
+            // Before this slot was filled the match sent nothing to its winner slot, and a BYE to its loser slot
+            // only if the other side was a BYE already
+            var sentWinner = bye ? otherBye || otherTeamID is not null : teamID is not null;
+            var sentLoserBye = bye && otherBye is false;
+            if (sentWinner && next.Winner is not null)
+                TakeBack(next.Winner, apply);
+            if (sentLoserBye && next.Loser is not null)
+                TakeBack(next.Loser, apply);
+        }
+
+        if (apply is false)
+            return;
+
+        // The other side keeps a BYE, but loses a win it only had because of this slot
+        if (slot.IsHomeTeam)
+        {
+            game.HomeTeamID = null;
+            game.HomeTeamResult = null;
+            if (game.AwayTeamResult is SeasonMatchResult.Won)
+                game.AwayTeamResult = null;
+        }
+        else
+        {
+            game.AwayTeamID = null;
+            game.AwayTeamResult = null;
+            if (game.HomeTeamResult is SeasonMatchResult.Won)
+                game.HomeTeamResult = null;
+        }
     }
 
     /// <summary>
