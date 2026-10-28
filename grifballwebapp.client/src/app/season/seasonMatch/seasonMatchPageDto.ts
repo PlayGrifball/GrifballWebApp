@@ -26,7 +26,9 @@ export interface BracketInfoDto {
   homeTeamPreviousMatchID: number | null,
   awayTeamPreviousMatchID: number | null,
   winnerNextMatchID: number | null,
-  loserNextMatchID: number | null, 
+  loserNextMatchID: number | null,
+  /** The grand final or its sudden death: these cannot be forfeited. */
+  isGrandFinal: boolean,
 }
 
 export interface ReportedGameDto {
