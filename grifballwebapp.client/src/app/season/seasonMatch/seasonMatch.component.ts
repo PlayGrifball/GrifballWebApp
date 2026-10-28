@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Component, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { MatGridListModule } from '@angular/material/grid-list';
@@ -19,14 +19,17 @@ import { AccountService } from '../../account.service';
 import { map } from 'rxjs';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
+import { errorText } from '../../shared/errorText';
 
-export type ForfeitAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit';
+/** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
+export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
 
-/** What confirming each forfeit does. */
-export const forfeitPrompts: Record<ForfeitAction, string> = {
-  HomeForfeit: 'The home team forfeits and the away team wins. This cannot be undone.',
-  AwayForfeit: 'The away team forfeits and the home team wins. This cannot be undone.',
-  DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead. This cannot be undone.',
+/** What confirming each action does. */
+export const actionPrompts: Record<MatchAction, string> = {
+  HomeForfeit: 'The home team forfeits and the away team wins.',
+  AwayForfeit: 'The away team forfeits and the home team wins.',
+  DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead.',
+  UndoResult: 'This match goes back to undecided: its result, score and reported games are cleared, and any team or BYE it sent on to later matches is taken back out. Not possible once one of those later matches has a result of its own.',
 };
 
 @Component({
@@ -60,9 +63,19 @@ export class SeasonMatchComponent {
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
 
-  /** The forfeit waiting for the commissioner to confirm it. */
-  pendingForfeit: WritableSignal<ForfeitAction | null> = signal(null);
-  readonly forfeitPrompts = forfeitPrompts;
+  /** The action waiting for the commissioner to confirm it. */
+  pendingAction: WritableSignal<MatchAction | null> = signal(null);
+  readonly actionPrompts = actionPrompts;
+  /** Why the server turned the last action down. */
+  actionError: WritableSignal<string | null> = signal(null);
+
+  /** A result or reported games to clear. A match with a BYE is decided by the bracket. */
+  canUndo: Signal<boolean> = computed(() => {
+    const match = this.seasonMatch();
+    if (match === null || match.homeTeamResult === 'Bye' || match.awayTeamResult === 'Bye')
+      return false;
+    return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
+  });
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
 
@@ -128,27 +141,28 @@ export class SeasonMatchComponent {
         }).add(() => this.finishedReportingMatch());
   }
 
-  /** Asks the commissioner to confirm a forfeit before it is recorded. */
-  requestForfeit(action: ForfeitAction): void {
-    this.pendingForfeit.set(action);
+  /** Asks the commissioner to confirm an action before it is sent. */
+  requestAction(action: MatchAction): void {
+    this.pendingAction.set(action);
   }
 
-  cancelForfeit(): void {
-    this.pendingForfeit.set(null);
+  cancelAction(): void {
+    this.pendingAction.set(null);
   }
 
-  confirmForfeit(): void {
-    const action = this.pendingForfeit();
+  confirmAction(): void {
+    const action = this.pendingAction();
     if (action === null)
       return;
 
-    this.pendingForfeit.set(null);
+    this.pendingAction.set(null);
+    this.actionError.set(null);
     this.isSubmittingMatch.set(true);
 
     this.http.post<string>('/api/SeasonMatch/' + action + '/' + this.seasonMatchID(), null)
       .subscribe({
         next: result => console.log(result),
-        error: result => console.log(result),
+        error: (e: HttpErrorResponse) => this.actionError.set(errorText(e, 'The server could not do that.')),
       }).add(() => this.finishedReportingMatch());
   }
 

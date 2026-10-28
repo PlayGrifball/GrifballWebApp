@@ -478,4 +478,215 @@ public class SeasonMatchServiceBracketTests
             Assert.That(suddenDeath!.BracketInfo!.IsGrandFinal, Is.True);
         });
     }
+
+    /// <summary>Every bracket match of the season with its slots, in a fixed order.</summary>
+    private async Task<List<(int SeasonMatchID, int? HomeTeamID, SeasonMatchResult? HomeTeamResult, int? AwayTeamID, SeasonMatchResult? AwayTeamResult)>> Snapshot(int seasonID)
+    {
+        await using var ctx = _context.NewContextLike();
+        var matches = await ctx.SeasonMatches.AsNoTracking()
+            .Where(x => x.SeasonID == seasonID && x.BracketMatch != null)
+            .OrderBy(x => x.SeasonMatchID)
+            .ToListAsync();
+        return matches.Select(x => (x.SeasonMatchID, x.HomeTeamID, x.HomeTeamResult, x.AwayTeamID, x.AwayTeamResult)).ToList();
+    }
+
+    [Test]
+    public async Task UndoResult_OfASingleForfeit_TakesBothTeamsBackOut()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        var before = await Snapshot(b.SeasonID);
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 1));
+
+        await _service.UndoResult(b.Sm(Bracket.Winner, 1));
+
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_OfADoubleForfeit_TakesBackTheByesAndEveryAutomaticWin()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 2));
+        var before = await Snapshot(b.SeasonID);
+        // Sends seed 3 through W3 and seed 2 through L1 and L2, both into the grand final
+        await _service.DoubleForfeit(b.Sm(Bracket.Winner, 1));
+
+        await _service.UndoResult(b.Sm(Bracket.Winner, 1));
+
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_OfADoubleForfeit_ThatChainedThroughExistingByes_KeepsTheByesTheBracketStartedWith()
+    {
+        var b = await CreateBracket(3, doubleElimination: true);
+        var before = await Snapshot(b.SeasonID);
+        await _service.DoubleForfeit(b.Sm(Bracket.Winner, 2));
+
+        await _service.UndoResult(b.Sm(Bracket.Winner, 2));
+
+        var after = await Snapshot(b.SeasonID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(after, Is.EqualTo(before));
+            // Seed 1's walkover in W1 and the BYE it gave L1 came from the seeding, not the forfeit
+            Assert.That(after.Single(x => x.SeasonMatchID == b.Sm(Bracket.Winner, 1)).HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
+            Assert.That(after.Single(x => x.SeasonMatchID == b.Sm(Bracket.Loser, 1)).HomeTeamResult, Is.EqualTo(SeasonMatchResult.Bye));
+        });
+    }
+
+    [Test]
+    public async Task UndoResult_TakesBackALoserThatWentStraightPastABye()
+    {
+        var b = await CreateBracket(3, doubleElimination: true);
+        var before = await Snapshot(b.SeasonID);
+        await _service.HomeForfeit(b.Sm(Bracket.Winner, 2)); // seed 3 drops into L1 opposite a BYE and walks on to L2
+
+        await _service.UndoResult(b.Sm(Bracket.Winner, 2));
+
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_OfALoserFinalDoubleForfeit_TakesBackTheGrandFinalWalkover()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 1));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 2));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 3));
+        await _service.AwayForfeit(b.Sm(Bracket.Loser, 1));
+        var before = await Snapshot(b.SeasonID);
+        await _service.DoubleForfeit(b.Sm(Bracket.Loser, 2)); // seed 1 wins the grand final against a BYE
+
+        await _service.UndoResult(b.Sm(Bracket.Loser, 2));
+
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_OfAnAwayGrandFinalWin_EmptiesTheSuddenDeath()
+    {
+        var (seeded, sd) = await SeedGrandFinal();
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Lost, SeasonMatchTestData.AwayXbox, Outcomes.Won);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
+        Assert.That(Slots(await Load(seeded.SeasonMatch.SeasonMatchID)), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
+    }
+
+    [Test]
+    public async Task UndoResult_OfAHomeGrandFinalWin_LeavesTheEmptySuddenDeath()
+    {
+        var (seeded, sd) = await SeedGrandFinal();
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        var gf = await Load(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That(Slots(gf), Is.EqualTo(Expect(seeded.Home.TeamID, null, seeded.Away.TeamID, null)));
+        Assert.That(Slots(await Load(sd.SeasonMatchID)), Is.EqualTo(Expect(null, null, null, null)));
+    }
+
+    [Test]
+    public async Task UndoResult_IsRejected_WhenANextMatchHasItsOwnResult()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 1));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 2));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 3));
+        var before = await Snapshot(b.SeasonID);
+
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 1)));
+
+        Assert.That(ex!.Message, Is.EqualTo($"Season match {b.Sm(Bracket.Winner, 3)} that this result fed into already has a result of its own. Undo that match first."));
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_IsRejected_WhenAMatchReachedThroughByesHasItsOwnResult()
+    {
+        var b = await CreateBracket(4, doubleElimination: true);
+        await _service.DoubleForfeit(b.Sm(Bracket.Winner, 1));
+        await _service.AwayForfeit(b.Sm(Bracket.Winner, 2)); // both teams walk past BYEs into the grand final
+        var gfID = b.Sm(Bracket.GrandFinal, 4);
+        await using (var ctx = _context.NewContextLike())
+        {
+            // As if the grand final had been reported
+            var gf = await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == gfID);
+            gf.HomeTeamResult = SeasonMatchResult.Won;
+            gf.AwayTeamResult = SeasonMatchResult.Loss;
+            await ctx.SaveChangesAsync();
+        }
+        _context.ChangeTracker.Clear();
+        var before = await Snapshot(b.SeasonID);
+
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 2)));
+
+        Assert.That(ex!.Message, Does.StartWith($"Season match {gfID} "));
+        Assert.That(await Snapshot(b.SeasonID), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task UndoResult_IsRejected_ForAMatchDecidedByABye()
+    {
+        var b = await CreateBracket(3, doubleElimination: true);
+
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(b.Sm(Bracket.Winner, 1)));
+
+        Assert.That(ex!.Message, Is.EqualTo("This match has a BYE, so its result is decided by the bracket and cannot be undone"));
+    }
+
+    [Test]
+    public async Task UndoResult_IsRejected_WithNothingToUndo()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        _context.ChangeTracker.Clear();
+
+        var ex = await Assert.ThrowsAsync<SeasonMatchActionNotAllowedException>(() => _service.UndoResult(seeded.SeasonMatch.SeasonMatchID));
+
+        Assert.That(ex!.Message, Is.EqualTo("This match has no result to undo"));
+    }
+
+    [Test]
+    public async Task UndoResult_InRegularSeason_ClearsTheResultAndFreesTheGameToBeReportedAgain()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Lost, SeasonMatchTestData.AwayXbox, Outcomes.Won);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+        _context.ChangeTracker.Clear();
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
+        await using var ctx = _context.NewContextLike();
+        Assert.That((sm.HomeTeamResult, sm.AwayTeamResult, sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null, (int?)null, (int?)null)));
+        Assert.That(await ctx.MatchLinks.CountAsync(x => x.SeasonMatchID == seeded.SeasonMatch.SeasonMatchID), Is.Zero);
+
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+        Assert.That((await Load(seeded.SeasonMatch.SeasonMatchID)).AwayTeamResult, Is.EqualTo(SeasonMatchResult.Won));
+    }
+
+    [Test]
+    public async Task UndoResult_OfAPartlyReportedSeries_ClearsTheReportedGames()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 3);
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.ChangeTracker.Clear();
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+        _context.ChangeTracker.Clear();
+
+        await _service.UndoResult(seeded.SeasonMatch.SeasonMatchID);
+
+        var sm = await Load(seeded.SeasonMatch.SeasonMatchID);
+        await using var ctx = _context.NewContextLike();
+        Assert.That((sm.HomeTeamScore, sm.AwayTeamScore), Is.EqualTo(((int?)null, (int?)null)));
+        Assert.That(await ctx.MatchLinks.CountAsync(), Is.Zero);
+    }
 }
