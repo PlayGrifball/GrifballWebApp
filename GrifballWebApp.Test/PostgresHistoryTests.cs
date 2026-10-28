@@ -303,17 +303,17 @@ public class PostgresHistoryTests
 
             await using var connection = new NpgsqlConnection(appConnection);
             await connection.OpenAsync();
-            PostgresException Refused(string sql)
+            async Task<PostgresException> Refused(string sql)
             {
-                using var command = new NpgsqlCommand(sql, connection);
-                return Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync())!;
+                await using var command = new NpgsqlCommand(sql, connection);
+                return (await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync()))!;
             }
 
-            var insert = Refused("INSERT INTO \"Event\".\"SeasonsHistory\" (\"SeasonID\", \"PeriodStart\", \"PeriodEnd\") VALUES (99, now(), now())");
-            var update = Refused("UPDATE \"Event\".\"SeasonsHistory\" SET \"SeasonName\" = 'tampered'");
-            var delete = Refused("DELETE FROM \"Event\".\"SeasonsHistory\"");
-            var truncate = Refused("TRUNCATE \"Event\".\"SeasonsHistory\"");
-            var disable = Refused("ALTER TABLE \"Event\".\"Seasons\" DISABLE TRIGGER versioning_update");
+            var insert = await Refused("INSERT INTO \"Event\".\"SeasonsHistory\" (\"SeasonID\", \"PeriodStart\", \"PeriodEnd\") VALUES (99, now(), now())");
+            var update = await Refused("UPDATE \"Event\".\"SeasonsHistory\" SET \"SeasonName\" = 'tampered'");
+            var delete = await Refused("DELETE FROM \"Event\".\"SeasonsHistory\"");
+            var truncate = await Refused("TRUNCATE \"Event\".\"SeasonsHistory\"");
+            var disable = await Refused("ALTER TABLE \"Event\".\"Seasons\" DISABLE TRIGGER versioning_update");
             await using var read = new NpgsqlCommand("SELECT \"SeasonName\" FROM \"Event\".\"SeasonsHistory\"", connection);
             var kept = await read.ExecuteScalarAsync();
 

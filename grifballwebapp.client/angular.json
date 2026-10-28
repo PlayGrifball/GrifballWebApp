@@ -32,10 +32,13 @@
               "src/assets"
             ],
             "styles": [
+              "node_modules/brackets-viewer/dist/brackets-viewer.min.css",
               "src/tailwind.css",
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [
+              "node_modules/brackets-viewer/dist/brackets-viewer.min.js"
+            ]
           },
           "configurations": {
             "production": {

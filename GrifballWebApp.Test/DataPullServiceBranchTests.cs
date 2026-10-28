@@ -100,9 +100,9 @@ public class DataPullServiceBranchTests
     }
 
     [Test]
-    public void SaveMatchStats_UnknownOutcome_Throws()
+    public async Task SaveMatchStats_UnknownOutcome_Throws()
     {
-        var ex = Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.SaveMatchStats(Stats(Guid.NewGuid(), [(0, 7)])));
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.SaveMatchStats(Stats(Guid.NewGuid(), [(0, 7)])));
         Assert.That(ex!.ActualValue, Is.EqualTo(7));
     }
 
@@ -116,22 +116,22 @@ public class DataPullServiceBranchTests
     }
 
     [Test]
-    public void SaveMatchStats_NonNumericXuid_Throws()
+    public async Task SaveMatchStats_NonNumericXuid_Throws()
     {
         var stats = Stats(Guid.NewGuid(), [(0, 2)], Player("xuid(abc)", 0, (0, 1)));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
 
         Assert.That(ex!.Message, Is.EqualTo("XUID not long"));
         Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Could not parse abc, not long"));
     }
 
     [Test]
-    public void SaveMatchStats_PlayerWithoutLastTeamStats_Throws()
+    public async Task SaveMatchStats_PlayerWithoutLastTeamStats_Throws()
     {
         var stats = Stats(Guid.NewGuid(), [(0, 2), (1, 3)], Player("xuid(5)", 1, (0, 1)));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.SaveMatchStats(stats));
 
         Assert.That(ex!.Message, Is.EqualTo("Failed to find last team stats"));
     }
@@ -171,11 +171,11 @@ public class DataPullServiceBranchTests
     }
 
     [Test]
-    public void DownloadMedals_NullResult_Throws()
+    public async Task DownloadMedals_NullResult_Throws()
     {
         _factory.Medals().Returns(new HaloApiResultContainer<MedalMetadataResponse, HaloApiErrorContainer>(null, null));
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.DownloadMedals());
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.DownloadMedals());
 
         Assert.That(ex!.Message, Is.EqualTo("Result null. Failed to get medals"));
     }
@@ -189,12 +189,12 @@ public class DataPullServiceBranchTests
     }
 
     [Test]
-    public void DownloadRecentMatchesForPlayers_CancelledToken_Throws()
+    public async Task DownloadRecentMatchesForPlayers_CancelledToken_Throws()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Assert.ThrowsAsync<OperationCanceledException>(() => _service.DownloadRecentMatchesForPlayers([1], ct: cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _service.DownloadRecentMatchesForPlayers([1], ct: cts.Token));
         Assert.That(_factory.ReceivedCalls(), Is.Empty);
     }
 

@@ -65,12 +65,12 @@ public class HubFilterTests
     }
 
     [Test]
-    public void ExceptionLogHubFilter_AsyncFault_IsNotLogged()
+    public async Task ExceptionLogHubFilter_AsyncFault_IsNotLogged()
     {
         var logger = new RecordingLogger<ExceptionLogHubFilter>();
         var filter = new ExceptionLogHubFilter(logger);
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await filter.InvokeMethodAsync(Invocation(), async _ => { await Task.Yield(); throw new InvalidOperationException("async"); }));
 
         // BUG: ExceptionLogHubFilter.cs:20 returns next(...) without awaiting it, so exceptions thrown by async hub methods

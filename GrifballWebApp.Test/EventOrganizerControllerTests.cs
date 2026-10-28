@@ -69,12 +69,12 @@ public class EventOrganizerControllerTests
     }
 
     [Test]
-    public void UpsertSeason_CopyFromMissingSeason_Throws()
+    public async Task UpsertSeason_CopyFromMissingSeason_Throws()
     {
         var dto = Dto("New");
         dto.CopyFrom = "Does Not Exist";
 
-        var ex = Assert.ThrowsAsync<Exception>(() => _controller.UpsertSeason(dto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _controller.UpsertSeason(dto, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Cannot copy from season Does Not Exist, it was not found"));
     }
 

@@ -83,7 +83,7 @@ public class BracketsControllerTests
             .ThrowsAsync(expectedException);
 
         // Act & Assert
-        var actualException = Assert.ThrowsAsync<Exception>(
+        var actualException = await Assert.ThrowsAsync<Exception>(
             () => _controller.SetCustomSeeds(seasonID, customSeeds, CancellationToken.None));
         
         Assert.That(actualException, Is.EqualTo(expectedException));

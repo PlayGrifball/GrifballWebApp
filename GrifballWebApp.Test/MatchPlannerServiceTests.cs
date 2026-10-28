@@ -187,6 +187,6 @@ public class MatchPlannerServiceTests
         };
 
         // Act & Assert - Should not throw
-        Assert.DoesNotThrowAsync(() => _service.UpdateMatchTime(dto, CancellationToken.None));
+        await Assert.DoesNotThrowAsync(() => _service.UpdateMatchTime(dto, CancellationToken.None));
     }
 }

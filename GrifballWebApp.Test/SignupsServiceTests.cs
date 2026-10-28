@@ -325,7 +325,7 @@ public class SignupsServiceTests
     }
 
     [Test]
-    public void UpsertSignup_Should_ThrowException_When_SeasonDoesNotExist()
+    public async Task UpsertSignup_Should_ThrowException_When_SeasonDoesNotExist()
     {
         // Arrange
         var dto = new SignupRequestDto
@@ -339,7 +339,7 @@ public class SignupsServiceTests
         };
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<Exception>(() => _service.UpsertSignup(dto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.UpsertSignup(dto, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
     }
 
@@ -373,7 +373,7 @@ public class SignupsServiceTests
         };
 
         // Act & Assert
-        Assert.ThrowsAsync<SignupsClosedException>(() => _service.UpsertSignup(dto, CancellationToken.None));
+        await Assert.ThrowsAsync<SignupsClosedException>(() => _service.UpsertSignup(dto, CancellationToken.None));
     }
 
     [Test]
@@ -406,6 +406,6 @@ public class SignupsServiceTests
         };
 
         // Act & Assert
-        Assert.ThrowsAsync<SignupsClosedException>(() => _service.UpsertSignup(dto, CancellationToken.None));
+        await Assert.ThrowsAsync<SignupsClosedException>(() => _service.UpsertSignup(dto, CancellationToken.None));
     }
 }

@@ -172,7 +172,7 @@ public class ProgramStartupTests
         await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
         using var client = factory.CreateClient();
 
-        Assert.Multiple(() =>
+        await Assert.MultipleAsync(async () =>
         {
             Assert.That(factory.GatewayClientRegistered, Is.False, "Discord gateway must not be registered in preview mode");
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty, "NetCord hosted services must not be registered in preview mode");
@@ -191,7 +191,7 @@ public class ProgramStartupTests
         AssertControllersResolve(factory.Services);
 
         var discord = factory.Services.GetRequiredService<IDiscordRestClient>();
-        var ex = Assert.ThrowsAsync<PreviewDiscordDisabledException>(()
+        var ex = await Assert.ThrowsAsync<PreviewDiscordDisabledException>(()
             => discord.SendMessageAsync(1234, new MessageProperties { Content = "hello" }));
         Assert.That(ex!.Message, Does.StartWith("Discord is disabled in preview mode"));
 
@@ -336,7 +336,7 @@ public class ProgramStartupTests
     }
 
     [Test]
-    public void PreviewModeWithBotToken_Should_FailStartup_When_DiscordSettingsAreMissing()
+    public async Task PreviewModeWithBotToken_Should_FailStartup_When_DiscordSettingsAreMissing()
     {
         // A bot token turns Discord on in a preview, so the rest of the Discord settings are required as in normal mode.
         var settings = CommonSettings();
@@ -347,12 +347,12 @@ public class ProgramStartupTests
             .Append("--urls=http://127.0.0.1:0")
             .ToArray();
 
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
         Assert.That(ex!.Message, Is.EqualTo("ClientId is required, ClientSecret is required, DraftChannel is required"));
     }
 
     [Test]
-    public void NormalMode_Should_FailStartup_When_DiscordSettingsAreMissing()
+    public async Task NormalMode_Should_FailStartup_When_DiscordSettingsAreMissing()
     {
         // Preview off and only a bot token (NetCord needs one to build the gateway client): DiscordOptions validation
         // must stop the host before it starts serving.
@@ -363,7 +363,7 @@ public class ProgramStartupTests
             .Append("--urls=http://127.0.0.1:0")
             .ToArray();
 
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
         Assert.That(ex!.Message, Is.EqualTo("ClientId is required, ClientSecret is required, DraftChannel is required"));
     }
 }

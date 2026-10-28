@@ -207,7 +207,7 @@ public class PostgresTemporalQueriesTests
             Assert.That(new ExpressionPrinter().PrintExpression(root), Is.EqualTo($"DbSet<Season>().{operation}(@p)"));
             var times = root switch
             {
-                TemporalAsOfQueryRootExpression asOf => new TestDelegate[] { () => _ = asOf.PointInTime },
+                TemporalAsOfQueryRootExpression asOf => new Action[] { () => _ = asOf.PointInTime },
                 TemporalRangeQueryRootExpression range => [() => _ = range.From, () => _ = range.To],
                 _ => [],
             };
