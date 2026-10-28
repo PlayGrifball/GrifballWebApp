@@ -7,7 +7,6 @@ using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -25,7 +24,11 @@ public class GrifballContextFactoryTests
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString, ["Database:Provider"] = provider }).Build();
-        return new ServiceCollection().AddSingleton<IConfiguration>(config).BuildServiceProvider();
+        return new ServiceCollection()
+            .AddSingleton<IConfiguration>(config)
+            .AddHttpContextAccessor()
+            .AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>()
+            .BuildServiceProvider();
     }
 
     [Test]
@@ -67,8 +70,13 @@ public class GrifballContextFactoryTests
         Assert.That(ex!.Message, Is.EqualTo("GrifballContext failed to configure"));
     }
 
-    // GrifballContextFactory's contexts are not audited (they're for reads). FactoryFor, the test stand-in for it
-    // that handler tests use, guards against that: these tests pin the guard itself.
+    [Test]
+    public void CreateDbContext_AttachesOneAuditInterceptor()
+    {
+        using var context = new GrifballContextFactory(Provider("Server=example;Database=Grif;Trusted_Connection=True;")).CreateDbContext();
+
+        Assert.That(context.Interceptors().OfType<AuditInterceptor>().Count(), Is.EqualTo(1));
+    }
 
     private static Season NewSeason() => new()
     {
@@ -82,58 +90,61 @@ public class GrifballContextFactoryTests
     };
 
     [Test]
-    public async Task FactoryContext_AddingAuditableEntity_FailsTheGuard()
+    public async Task CreateDbContext_SavingThroughIt_RecordsTheAmbientUser()
     {
         var context = await SetUpFixture.NewGrifballContext();
+        var ambient = new AmbientCurrentUser();
         try
         {
-            using var factoryContext = await GrifballContextTestExtensions.FactoryFor(context).CreateDbContextAsync();
-            factoryContext.Seasons.Add(NewSeason());
-
-            await Assert.ThrowsAsync<UnauditedWriteException>(() => factoryContext.SaveChangesAsync());
-        }
-        finally
-        {
-            await context.DropDatabaseAndDispose();
-        }
-    }
-
-    [Test]
-    public async Task FactoryContext_ModifyingAuditableEntity_FailsTheGuard()
-    {
-        var context = await SetUpFixture.NewGrifballContext(new AuditInterceptor(new CurrentUserService(new HttpContextAccessor())));
-        try
-        {
-            context.Seasons.Add(NewSeason());
+            var user = new Database.Models.User { UserName = "ambient" };
+            context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            using var factoryContext = GrifballContextTestExtensions.FactoryFor(context).CreateDbContext();
-            var season = await factoryContext.Seasons.SingleAsync();
-            season.SeasonName = "Renamed";
+            ambient.Begin();
+            ambient.UserId = user.Id;
+            using var factoryContext = await GrifballContextTestExtensions.FactoryFor(context).CreateDbContextAsync();
+            var season = NewSeason();
+            factoryContext.Seasons.Add(season);
+            await factoryContext.SaveChangesAsync();
 
-            Assert.Throws<UnauditedWriteException>(() => factoryContext.SaveChanges());
+            Assert.Multiple(() =>
+            {
+                Assert.That(season.CreatedAt, Is.Not.EqualTo(default(DateTime)));
+                Assert.That(season.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
+                Assert.That(season.CreatedByID, Is.EqualTo(user.Id));
+                Assert.That(season.ModifiedByID, Is.EqualTo(user.Id));
+            });
         }
         finally
         {
+            ambient.End();
             await context.DropDatabaseAndDispose();
         }
     }
 
     [Test]
-    public async Task Guard_AllowsAuditedWrites()
+    public async Task CreateDbContext_NoAmbientOrHttpUser_UpdatesModifiedAtWithNoUser()
     {
         var context = await SetUpFixture.NewGrifballContext();
         try
         {
-            using var audited = context.NewContextLike(new AuditInterceptor(new CurrentUserService(new HttpContextAccessor())), new UnauditedWriteGuard());
+            using var factoryContext = GrifballContextTestExtensions.FactoryFor(context).CreateDbContext();
             var season = NewSeason();
-            audited.Seasons.Add(season);
-            await audited.SaveChangesAsync();
-            season.SeasonName = "Renamed";
-            await audited.SaveChangesAsync();
-            audited.Seasons.Remove(season);
+            factoryContext.Seasons.Add(season);
+            factoryContext.SaveChanges();
+            var createdAt = season.CreatedAt;
 
-            Assert.DoesNotThrow(() => audited.SaveChanges());
+            await Task.Delay(50);
+            season.SeasonName = "Renamed";
+            factoryContext.SaveChanges();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(season.CreatedAt, Is.EqualTo(createdAt));
+                Assert.That(season.ModifiedAt, Is.GreaterThan(createdAt));
+                Assert.That(season.CreatedByID, Is.Null);
+                Assert.That(season.ModifiedByID, Is.Null);
+            });
         }
         finally
         {

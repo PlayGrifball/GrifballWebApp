@@ -285,6 +285,24 @@ public class ProgramStartupTests
     }
 
     [Test]
+    public async Task NormalMode_Should_AuditScopedAndFactoryContexts_WithOneInterceptorEach()
+    {
+        // The scoped context gets its AuditInterceptor from DI, the factory's contexts from GrifballContextFactory: neither may get both
+        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        using var scope = factory.Services.CreateScope();
+        var scoped = scope.ServiceProvider.GetRequiredService<GrifballWebApp.Database.GrifballContext>();
+        using var fromFactory = factory.Services.GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<GrifballWebApp.Database.GrifballContext>>().CreateDbContext();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(scoped.Interceptors().OfType<GrifballWebApp.Database.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
+            Assert.That(fromFactory.Interceptors().OfType<GrifballWebApp.Database.Interceptors.AuditInterceptor>().Count(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
     {
         // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every

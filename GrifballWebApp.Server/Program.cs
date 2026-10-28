@@ -127,6 +127,7 @@ public class Program
 
         // Add HTTP context accessor for audit interceptor
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<IAmbientCurrentUser, AmbientCurrentUser>();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddScoped<Database.Interceptors.AuditInterceptor>();
 

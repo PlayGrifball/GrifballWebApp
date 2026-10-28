@@ -13,11 +13,13 @@ public interface ICurrentUserService
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IAmbientCurrentUser _ambientCurrentUser;
     private int? _currentUserId;
 
-    public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+    public CurrentUserService(IHttpContextAccessor httpContextAccessor, IAmbientCurrentUser ambientCurrentUser)
     {
         _httpContextAccessor = httpContextAccessor;
+        _ambientCurrentUser = ambientCurrentUser;
     }
 
     public void SetCurrentUserIdFromClaims(ClaimsPrincipal? user)
@@ -47,6 +49,11 @@ public class CurrentUserService : ICurrentUserService
         if (_currentUserId.HasValue)
         {
             return _currentUserId;
+        }
+        // Then the ambient user of this async flow (a Discord interaction or message), for contexts with no scope of their own
+        if (_ambientCurrentUser.UserId is { } ambientUserId)
+        {
+            return ambientUserId;
         }
         SetCurrentUserIdFromClaims(_httpContextAccessor.HttpContext?.User);
         return _currentUserId;
