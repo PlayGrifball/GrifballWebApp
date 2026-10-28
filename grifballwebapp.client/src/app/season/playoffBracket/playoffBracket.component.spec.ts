@@ -167,6 +167,19 @@ describe('PlayoffBracketComponent behaviour', () => {
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
   });
 
+  it('reloads the bracket each time it is created again from the same dialog', () => {
+    fixture.detectChanges();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    const created = new Subject<void>();
+    dialog.open.and.returnValue({ componentInstance: { bracketCreated: created } } as any);
+    component.openDialog();
+
+    created.next();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+    created.next();
+    http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+  });
+
   it('reloads the bracket after custom seeds are saved', () => {
     fixture.detectChanges();
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));

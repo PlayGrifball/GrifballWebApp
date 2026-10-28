@@ -76,6 +76,19 @@ describe('CreateRegularMatchesDialogComponent', () => {
     expect(created).toHaveBeenCalledTimes(1);
   });
 
+  it('notifies for every successful submit while the dialog stays open', () => {
+    const created = jasmine.createSpy('regularMatchesCreated');
+    component.regularMatchesCreated.subscribe(created);
+
+    component.onSubmit();
+    http.expectOne(r => r.url.startsWith('api/MatchPlanner/CreateSeasonMatches')).flush({});
+    component.homeMatchesPerTeam = 2; // changed and submitted again: the server recreates the matches
+    component.onSubmit();
+    http.expectOne(r => r.url.startsWith('api/MatchPlanner/CreateSeasonMatches') && r.url.includes('homeMatchesPerTeam=2')).flush({});
+
+    expect(created).toHaveBeenCalledTimes(2);
+  });
+
   it('reports a failure and does not emit', () => {
     spyOn(console, 'log');
     const created = jasmine.createSpy('regularMatchesCreated');

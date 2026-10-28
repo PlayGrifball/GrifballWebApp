@@ -39,15 +39,13 @@ export class CreateBracketDialogComponent {
 
   // A Subject rather than an output(): the request can finish after the dialog was closed
   // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
+  // It is not completed: the dialog stays open, and each submit (re)creates on the server.
   readonly bracketCreated = new Subject<void>();
 
   onSubmit() {
     this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => {
-          this.bracketCreated.next();
-          this.bracketCreated.complete();
-        },
+        next: r => this.bracketCreated.next(),
         error: e => {
           console.log(e);
           this.snackBar.open("Failed to create bracket", "Close");

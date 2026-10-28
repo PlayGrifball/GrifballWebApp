@@ -12,7 +12,7 @@ import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter
 import { DateTime } from 'luxon';
 import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
@@ -185,6 +185,19 @@ describe('ScheduleListComponent behaviour', () => {
     http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
     http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
     expect(component.unscheduledMatches()).toEqual([]);
+  });
+
+  it('reloads each time matches are created again from the same dialog', () => {
+    load([], []);
+    const created = new Subject<void>();
+    dialog.open.and.returnValue({ componentInstance: { regularMatchesCreated: created } } as any);
+    component.createRegularSeasonMatches();
+
+    for (let i = 0; i < 2; i++) {
+      created.next();
+      http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush([]);
+      http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush([]);
+    }
   });
 
   it('opens the create-matches dialog for this season and reloads when matches are created', () => {

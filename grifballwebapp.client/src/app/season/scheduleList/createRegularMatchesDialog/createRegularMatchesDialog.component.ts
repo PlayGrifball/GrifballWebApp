@@ -36,15 +36,13 @@ export class CreateRegularMatchesDialogComponent {
 
   // A Subject rather than an output(): the request can finish after the dialog was closed
   // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
+  // It is not completed: the dialog stays open, and each submit (re)creates on the server.
   readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
     this.http.get("api/MatchPlanner/CreateSeasonMatches?seasonID=" + this.seasonID + "&homeMatchesPerTeam=" + this.homeMatchesPerTeam + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => {
-          this.regularMatchesCreated.next();
-          this.regularMatchesCreated.complete();
-        },
+        next: r => this.regularMatchesCreated.next(),
         error: e => {
           console.log(e);
           this.snackBar.open("Failed to create regular matches", "Close");
