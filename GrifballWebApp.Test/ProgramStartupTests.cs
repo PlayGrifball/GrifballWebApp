@@ -18,6 +18,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetCord.Gateway;
 using NetCord.Rest;
+using NetCord.Services.ApplicationCommands;
+using NetCord.Services.ComponentInteractions;
 using NSubstitute;
 using System.Net;
 using System.Net.Http.Json;
@@ -281,6 +283,52 @@ public class ProgramStartupTests
                 Assert.That(resolved, Does.Contain(handler),
                     $"{handler.Name} is not registered for {service.GenericTypeArguments[0].Name}");
             }
+        });
+    }
+
+    /// <summary>Every NetCord module and autocomplete provider in the server, which NetCord builds per interaction from the container.</summary>
+    private static List<Type> DiscordModules()
+        => typeof(ServerProgram).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false })
+            .Where(t => IsSubclassOfGeneric(t, typeof(ComponentInteractionModule<>))
+                || IsSubclassOfGeneric(t, typeof(ApplicationCommandModule<>))
+                || t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAutocompleteProvider<>)))
+            .ToList();
+
+    private static bool IsSubclassOfGeneric(Type type, Type genericBase)
+    {
+        for (var t = type.BaseType; t is not null; t = t.BaseType)
+            if (t.IsGenericType && t.GetGenericTypeDefinition() == genericBase)
+                return true;
+        return false;
+    }
+
+    [Test]
+    public async Task NormalMode_Should_ConstructEveryDiscordModule()
+    {
+        // NetCord builds each module from the interaction's DI scope, so a dependency that isn't registered only fails when
+        // someone uses the command or clicks the button. The unit tests build the handlers by hand and can't catch it.
+        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var modules = DiscordModules();
+        Assert.That(modules.Select(m => m.FullName), Is.EquivalentTo(new[]
+        {
+            "GrifballWebApp.Server.DiscordCommands",
+            "GrifballWebApp.Server.GamertagAutocomplete",
+            "GrifballWebApp.Server.Matchmaking.ButtonInteractions",
+            "GrifballWebApp.Server.Matchmaking.ModalInteractions",
+            "GrifballWebApp.Server.Matchmaking.StringMenuInteractions",
+            "GrifballWebApp.Server.Signups.ButtonInteractions",
+            "GrifballWebApp.Server.Teams.StringMenuInteractions",
+        }));
+
+        using var scope = factory.Services.CreateScope();
+        Assert.Multiple(() =>
+        {
+            foreach (var module in modules)
+                Assert.DoesNotThrow(() => ActivatorUtilities.CreateInstance(scope.ServiceProvider, module),
+                    $"{module.FullName} could not be constructed from the container");
         });
     }
 
