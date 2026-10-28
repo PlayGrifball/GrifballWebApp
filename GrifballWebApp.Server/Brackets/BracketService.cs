@@ -764,7 +764,7 @@ public class BracketService : IBracketService
 
     public async Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default)
     {
-        var transaction = await _grifballContext.Database.BeginTransactionAsync(ct);
+        await using var transaction = await _grifballContext.Database.BeginTransactionAsync(ct);
 
         // If custom seeds are not provided, use the current standings
         var standings = await _teamStandingsService.GetTeamStandings(seasonID, ct);

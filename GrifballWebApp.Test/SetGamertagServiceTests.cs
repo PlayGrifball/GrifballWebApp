@@ -107,6 +107,7 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(2, "Grunt Padre");
 
         Assert.That(result, Is.EqualTo("That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect"));
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
     [Test]
@@ -116,6 +117,7 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(1, "Grunt Padre");
 
         Assert.That(result, Is.EqualTo("User does not exist"));
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
     [Test]
@@ -141,6 +143,7 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(1, "New Example Tag - Doesn't matter for test");
 
         Assert.That(result, Is.EqualTo("Gamertag is already set for this user. Contact sysadmin if it needs to be changed"));
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
     [Test]
@@ -163,6 +166,7 @@ public class SetGamertagServiceTests
         var result = await _setGamertagService.SetGamertag(1, "New Example Tag - Doesn't matter for test");
 
         Assert.That(result, Is.EqualTo("Failed to set gamertag, reason: foobar"));
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
     [Test]

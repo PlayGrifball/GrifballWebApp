@@ -46,7 +46,7 @@ public class EventOrganizerService
 
     public async Task<int> UpsertSeason(SeasonDto dto, CancellationToken ct = default)
     {
-        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         Season? season = null;
 
         if (dto.SeasonID is not 0)

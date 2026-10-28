@@ -31,15 +31,22 @@ public class SetGamertagService : ISetGamertagService
             .FirstOrDefaultAsync(ct);
 
         if (user is null)
+        {
+            await _context.RollbackTransactionAsync(ct);
             return "User does not exist";
+        }
 
         if (user.XboxUser is not null)
+        {
+            await _context.RollbackTransactionAsync(ct);
             return "Gamertag is already set for this user. Contact sysadmin if it needs to be changed";
+        }
 
         var (xboxUser, result) = await _getsertXboxUserService.GetsertXboxUserByGamertag(gamertag, ct);
 
         if (xboxUser is null)
         {
+            await _context.RollbackTransactionAsync(ct);
             return "Failed to set gamertag, reason: " + result;
         }
 
@@ -53,6 +60,7 @@ public class SetGamertagService : ISetGamertagService
 
             if (existingUser.IsDummyUser is false)
             {
+                await _context.RollbackTransactionAsync(ct);
                 return "That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect";
             }
 
