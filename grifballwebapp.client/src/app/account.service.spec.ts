@@ -277,6 +277,7 @@ describe('AccountService session handling', () => {
       expect(service.isSysAdmin()).toBeTrue();
       expect(service.isEventOrganizer()).toBeTrue();
       expect(service.isPlayer()).toBeFalse();
+      expect(service.personID()).toBe(42);
       expect(service.displayName()).toBe('Commish');
       expect(JSON.parse(localStorage.getItem('metaInfo')!)).toEqual(meta);
     });
