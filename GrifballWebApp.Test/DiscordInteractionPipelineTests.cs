@@ -46,7 +46,7 @@ public class DiscordInteractionPipelineTests
                     p.SetValue(o, Array.CreateInstance(p.PropertyType.GetElementType()!, 0));
     }
 
-    private Task<InteractionCallbackResponse?> SendResponse(Interaction _, InteractionCallbackProperties callback, bool __, RestRequestProperties? ___, CancellationToken ____)
+    private Task<InteractionCallbackResponse?> SendResponse(IInteraction _, InteractionCallbackProperties callback, bool __, RestRequestProperties? ___, CancellationToken ____)
     {
         if (_responseError is not null)
             throw _responseError;
@@ -118,7 +118,7 @@ public class DiscordInteractionPipelineTests
     public async Task PreExecution_LinkedDiscordUser_SetsAuditUserOnWrites()
     {
         var services = await ScopeWithDatabase();
-        var user = new User { UserName = "linked", DiscordUser = new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "linked" } };
+        var user = new Database.Models.User { UserName = "linked", DiscordUser = new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "linked" } };
         _context!.Users.Add(user);
         await _context.SaveChangesAsync();
 
