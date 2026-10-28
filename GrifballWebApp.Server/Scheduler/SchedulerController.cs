@@ -18,9 +18,9 @@ public class SchedulerController : ControllerBase
         _scheduleService = scheduleService;
     }
 
-    [HttpGet(Name = "GetTimeRecommendations")]
-    public Task<List<SeasonMatchGene>> GetTimeRecommendations(CancellationToken ct)
+    [HttpGet("{seasonID:int}", Name = "GetTimeRecommendations")]
+    public Task<List<SeasonMatchGene>> GetTimeRecommendations([FromRoute] int seasonID, CancellationToken ct)
     {
-        return _scheduleService.GetTimeRecommendations(ct);
+        return _scheduleService.GetTimeRecommendations(seasonID, ct);
     }
 }

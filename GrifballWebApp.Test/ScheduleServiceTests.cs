@@ -13,7 +13,7 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class ScheduleServiceTests
 {
-    private const int SeasonID = 4; // ScheduleService is hardcoded to season 4
+    private const int SeasonID = 4;
     private GrifballContext _context;
     private ScheduleService _service;
 
@@ -76,9 +76,9 @@ public class ScheduleServiceTests
     }
 
     [Test]
-    public async Task GetTimeRecommendations_NoSeason4_Throws()
+    public async Task GetTimeRecommendations_NoSuchSeason_Throws()
     {
-        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetTimeRecommendations());
+        var ex = await Assert.ThrowsAsync<Exception>(() => _service.GetTimeRecommendations(SeasonID));
         Assert.That(ex!.Message, Is.EqualTo("Season not found"));
     }
 
@@ -87,10 +87,10 @@ public class ScheduleServiceTests
     {
         var teams = await Arrange();
         var expectedIDs = await _context.SeasonMatches
-            .Where(x => x.BracketMatch == null && x.HomeTeamID != null && x.AwayTeamID != null)
+            .Where(x => x.SeasonID == SeasonID && x.BracketMatch == null && x.HomeTeamID != null && x.AwayTeamID != null)
             .Select(x => x.SeasonMatchID).ToListAsync();
 
-        var genes = await _service.GetTimeRecommendations();
+        var genes = await _service.GetTimeRecommendations(SeasonID);
 
         var eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
         var start = TimeZoneInfo.ConvertTimeFromUtc(new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc), eastern);
@@ -108,7 +108,7 @@ public class ScheduleServiceTests
     }
 
     [Test]
-    public async Task GetTimeRecommendations_IncludesMatchesFromOtherSeasons()
+    public async Task GetTimeRecommendations_ExcludesMatchesFromOtherSeasons()
     {
         await Arrange();
         var otherSeason = new Season { SeasonName = "Other" };
@@ -123,12 +123,10 @@ public class ScheduleServiceTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        var genes = await _service.GetTimeRecommendations();
+        var genes = await _service.GetTimeRecommendations(SeasonID);
 
-        // BUG: ScheduleService.GetTimeRecommendations loads season 4 but does not filter SeasonMatches by SeasonID,
-        // so regular season matches from every season are scheduled. Expected: only season 4 matches.
-        Assert.That(genes.Select(g => g.SeasonMatchID), Does.Contain(other.SeasonMatchID));
-        Assert.That(genes, Has.Count.EqualTo(4));
+        Assert.That(genes.Select(g => g.SeasonMatchID), Does.Not.Contain(other.SeasonMatchID));
+        Assert.That(genes, Has.Count.EqualTo(3));
     }
 
     [Test]
@@ -138,7 +136,7 @@ public class ScheduleServiceTests
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Assert.That(async () => await _service.GetTimeRecommendations(cts.Token), Throws.InstanceOf<OperationCanceledException>());
+        Assert.That(async () => await _service.GetTimeRecommendations(SeasonID, cts.Token), Throws.InstanceOf<OperationCanceledException>());
     }
 
     [Test]
@@ -147,7 +145,7 @@ public class ScheduleServiceTests
         await Arrange();
         var controller = new SchedulerController(_context, _service);
 
-        var genes = await controller.GetTimeRecommendations(CancellationToken.None);
+        var genes = await controller.GetTimeRecommendations(SeasonID, CancellationToken.None);
 
         Assert.That(genes, Has.Count.EqualTo(3));
     }
