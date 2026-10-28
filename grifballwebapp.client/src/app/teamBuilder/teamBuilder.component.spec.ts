@@ -7,7 +7,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../account.service';
 import { SignalRService } from '../api/signalR.service';
-import { of, Subject, throwError } from 'rxjs';
+import { config as rxjsConfig, of, Subject, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
@@ -490,21 +490,60 @@ describe('TeamBuilderComponent', () => {
       expect(component.captainLocked()).toBeFalse();
     });
 
-    it('keeps what it shows and says so when a reload fails, updating the parts that loaded', () => {
+    it('keeps teams and pool together when part of a reload fails, and still takes the lock state', () => {
       mockApiClient.getTeams.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
       mockApiClient.getPlayerPool.and.returnValue(of([player(9)]));
+      mockApiClient.areCaptainsLocked.and.returnValue(of(false));
       const teams = component.teams();
+      const playerPool = component.playerPool();
 
       component.load();
 
       expect(component.teams()).toBe(teams);
-      expect(pool()).toEqual([9]);
+      expect(component.playerPool()).toBe(playerPool); // not the pool without its teams
+      expect(component.captainLocked()).toBeFalse();
       expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to load the draft', 'Close');
 
-      // and the next reload still works
+      // the same when the pool is the part that fails
       mockApiClient.getTeams.and.returnValue(of([]));
+      mockApiClient.getPlayerPool.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+      component.load();
+      expect(component.teams()).toBe(teams);
+
+      // and the next full reload still works
+      mockApiClient.getPlayerPool.and.returnValue(of([player(9)]));
       component.load();
       expect(component.teams()).toEqual([]);
+      expect(pool()).toEqual([9]);
+    });
+
+    it('settles a save even when handling its answer throws', async () => {
+      const unhandled = jasmine.createSpy('onUnhandledError');
+      const previous = rxjsConfig.onUnhandledError;
+      rxjsConfig.onUnhandledError = unhandled;
+      try {
+        // A null AddCaptain answer makes the name lookup throw inside the save's callback.
+        mockApiClient.addCaptain.and.returnValue(of(null as any));
+        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } })));
+        const pending = new Subject<Object>();
+        mockApiClient.addPlayerToTeam.and.returnValue(pending);
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]); // stays in flight
+        grab(component.playerPool()[1], GrabbedThing.AvailablePlayer);
+        component.onDropInTeam(drop(component.playerPool()[1], 1)); // its answer throws
+        grab(component.teams()[0], GrabbedThing.Team);
+        component.onDropInTeam(drop(component.teams()[0], 2)); // refused: wants a reload
+        const loads = mockApiClient.getTeams.calls.count();
+
+        pending.next({});
+        pending.complete();
+        await new Promise(resolve => setTimeout(resolve)); // RxJS reports the thrown error asynchronously
+
+        expect(unhandled).toHaveBeenCalled();
+        expect(mockApiClient.getTeams.calls.count()).toBe(loads + 1); // the count got back to 0
+      } finally {
+        rxjsConfig.onUnhandledError = previous;
+      }
     });
 
     it('does not reload again because of updates that land while a reload is loading', () => {

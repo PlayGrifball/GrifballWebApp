@@ -6,7 +6,7 @@ import { ApiClientService } from '../api/apiClient.service';
 import { TeamResponseDto } from '../api/dtos/teamResponseDto';
 import { PlayerDto } from '../api/dtos/playerDto';
 import { DndDropEvent, DndModule } from 'ngx-drag-drop';
-import { catchError, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
+import { catchError, finalize, forkJoin, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { GrabbedPlayer, GrabbedThing, GrabbedThingTypes } from './personStatus';
@@ -80,8 +80,9 @@ export class TeamBuilderComponent {
 
   constructor() {
     // The server's draft is the truth: the latest load replaces what the page shows, and later
-    // SignalR updates apply on top of it. Each part is taken on its own, so one failed request
-    // keeps the current value for that part only.
+    // SignalR updates apply on top of it. Teams and pool go together (one without the other could
+    // show a player twice or nowhere), so if either fails neither is applied; the lock state is
+    // taken on its own.
     const part = <T>(request: Observable<T>) => request.pipe(catchError(() => of(undefined)));
     this.reloads.pipe(
       switchMap(() => {
@@ -101,10 +102,10 @@ export class TeamBuilderComponent {
         this.reloadIfSettled();
         return;
       }
-      if (teams !== undefined)
+      if (teams !== undefined && pool !== undefined) {
         this.teams.set(teams);
-      if (pool !== undefined)
         this.playerPool.set(pool);
+      }
       if (locked !== undefined)
         this.captainLocked.set(locked);
       if (teams === undefined || pool === undefined || locked === undefined)
@@ -222,25 +223,23 @@ export class TeamBuilderComponent {
   private save<T>(request: Observable<T>, saved?: (response: T) => void): void {
     this.savesInFlight++;
     this.savesStarted++;
-    request.subscribe({
+    // finalize settles the count however the save ends, even if `saved` throws.
+    request.pipe(finalize(() => {
+      this.savesInFlight--;
+      this.reloadIfSettled();
+    })).subscribe({
       next: r => {
         console.log(r);
         if (saved && !this.destroyed)
           saved(r);
       },
       error: e => {
-        this.savesInFlight--;
         if (this.destroyed)
           return;
         this.snackBarService.open(`Draft change not saved: ${TeamBuilderComponent.refusalReason(e)}`, 'Close');
         // Reload once no other save from this page is on its way: an earlier snapshot could miss
         // one of them, and the server does not echo our own changes back.
         this.reloadAfterSaves = true;
-        this.reloadIfSettled();
-      },
-      complete: () => {
-        this.savesInFlight--;
-        this.reloadIfSettled();
       },
     });
   }
