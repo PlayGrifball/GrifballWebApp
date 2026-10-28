@@ -15,6 +15,7 @@ public interface IBracketService
     Task SetSeeds(int seasonID, CustomSeedDto[]? customSeeds = null, CancellationToken ct = default);
     NextMatchesDto DetermineNextMatches(SeasonMatch seasonMatch);
     Task AdvanceByesAsync(int seasonID, CancellationToken ct = default);
+    void SendByesToNextMatches(SeasonMatch seasonMatch);
 }
 
 public class BracketService : IBracketService
@@ -932,7 +933,11 @@ public class BracketService : IBracketService
                 if (homeBye is false && awayBye is false)
                     continue;
 
-                var next = DetermineNextMatches(match);
+                // A grand final decided by a BYE ends the bracket: the sudden death only replays a grand final
+                // the winner bracket champion lost to a team that was actually there
+                var next = match.BracketMatch.Bracket is Bracket.GrandFinal
+                    ? new NextMatchesDto() { Winner = null, Loser = null }
+                    : DetermineNextMatches(match);
 
                 changed |= MoveIntoNextMatch(next.Loser, teamID: null);
 
@@ -954,6 +959,18 @@ public class BracketService : IBracketService
                 }
             }
         } while (changed);
+    }
+
+    /// <summary>
+    /// Puts a BYE in every slot a match feeds, for its winner and its loser, when nobody won it (both teams
+    /// forfeited). Run <see cref="AdvanceByesAsync"/> afterwards to move the teams now facing those BYEs on.
+    /// Caller must include what <see cref="DetermineNextMatches"/> walks.
+    /// </summary>
+    public void SendByesToNextMatches(SeasonMatch seasonMatch)
+    {
+        var next = DetermineNextMatches(seasonMatch);
+        MoveIntoNextMatch(next.Winner, teamID: null);
+        MoveIntoNextMatch(next.Loser, teamID: null);
     }
 
     /// <summary>

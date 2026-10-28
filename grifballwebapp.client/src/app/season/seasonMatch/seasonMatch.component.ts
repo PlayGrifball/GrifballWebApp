@@ -19,6 +19,16 @@ import { AccountService } from '../../account.service';
 import { map } from 'rxjs';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
+
+export type ForfeitAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit';
+
+/** What confirming each forfeit does. */
+export const forfeitPrompts: Record<ForfeitAction, string> = {
+  HomeForfeit: 'The home team forfeits and the away team wins. This cannot be undone.',
+  AwayForfeit: 'The away team forfeits and the home team wins. This cannot be undone.',
+  DoubleForfeit: 'Both teams forfeit and take a loss. In the playoffs nobody advances: the matches waiting on this one get a BYE instead. This cannot be undone.',
+};
+
 @Component({
     selector: 'app-season-match',
     imports: [
@@ -49,6 +59,10 @@ export class SeasonMatchComponent {
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
 
   isSubmittingMatch: WritableSignal<boolean> = signal(false);
+
+  /** The forfeit waiting for the commissioner to confirm it. */
+  pendingForfeit: WritableSignal<ForfeitAction | null> = signal(null);
+  readonly forfeitPrompts = forfeitPrompts;
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
 
@@ -114,20 +128,24 @@ export class SeasonMatchComponent {
         }).add(() => this.finishedReportingMatch());
   }
 
-  homeForfeit(): void {
-    this.isSubmittingMatch.set(true);
-
-    this.http.get<string>('/api/SeasonMatch/HomeForfeit/' + this.seasonMatchID())
-      .subscribe({
-        next: result => console.log(result),
-        error: result => console.log(result),
-      }).add(() => this.finishedReportingMatch());
+  /** Asks the commissioner to confirm a forfeit before it is recorded. */
+  requestForfeit(action: ForfeitAction): void {
+    this.pendingForfeit.set(action);
   }
 
-  awayForfeit(): void {
+  cancelForfeit(): void {
+    this.pendingForfeit.set(null);
+  }
+
+  confirmForfeit(): void {
+    const action = this.pendingForfeit();
+    if (action === null)
+      return;
+
+    this.pendingForfeit.set(null);
     this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/AwayForfeit/' + this.seasonMatchID())
+    this.http.post<string>('/api/SeasonMatch/' + action + '/' + this.seasonMatchID(), null)
       .subscribe({
         next: result => console.log(result),
         error: result => console.log(result),
