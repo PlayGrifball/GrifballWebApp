@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 
 @Component({
     selector: 'app-create-regular-matches-dialog',
@@ -41,7 +41,11 @@ export class CreateRegularMatchesDialogComponent {
   readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
-    this.http.get("api/MatchPlanner/CreateSeasonMatches?seasonID=" + this.seasonID + "&homeMatchesPerTeam=" + this.homeMatchesPerTeam + "&bestOf=" + this.bestOf)
+    const params = new HttpParams()
+      .set('seasonID', this.seasonID)
+      .set('homeMatchesPerTeam', this.homeMatchesPerTeam!)
+      .set('bestOf', this.bestOf!);
+    this.http.get("api/MatchPlanner/CreateSeasonMatches", { params })
       .subscribe({
         next: r => {
           this.regularMatchesCreated.next();

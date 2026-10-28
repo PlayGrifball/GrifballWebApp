@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -39,7 +39,8 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   setCode() {
-    this.http.get("api/Admin/SetCode?code=" + this.code).subscribe({
+    const params = new HttpParams().set('code', this.code);
+    this.http.get("api/Admin/SetCode", { params }).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);

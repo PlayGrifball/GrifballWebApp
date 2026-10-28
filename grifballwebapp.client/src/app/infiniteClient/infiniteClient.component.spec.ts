@@ -99,6 +99,14 @@ describe('InfiniteClientComponent', () => {
     expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
   });
 
+  it('URL-encodes a code with a space, &, and +', () => {
+    init('ok');
+    component.code = 'a b&c+d';
+    component.setCode();
+    http.expectOne('api/Admin/SetCode?code=a%20b%26c%2Bd').flush({});
+    expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
+  });
+
   it('reports a failure to set the code', () => {
     init('ok');
     spyOn(console, 'log');

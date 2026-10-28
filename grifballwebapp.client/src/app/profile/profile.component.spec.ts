@@ -108,6 +108,17 @@ describe('ProfileComponent', () => {
     expect(text()).toContain('Gamertag: NewTag');
   });
 
+  it('URL-encodes a gamertag with a space, &, and +', () => {
+    personID.set(21);
+    load({ gamertag: null });
+    component.gamertag.set('Sgt Grif & Co+');
+    component.setGamertag();
+
+    http.expectOne('api/profile/setgamertag/21?gamertag=Sgt%20Grif%20%26%20Co%2B').flush({});
+    fixture.detectChanges();
+    expect(component.settingGamertag()).toBeFalse();
+  });
+
   it('stays in edit mode when saving fails', () => {
     spyOn(console, 'log');
     personID.set(21);
