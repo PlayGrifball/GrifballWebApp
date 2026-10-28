@@ -308,7 +308,10 @@ public class ProgramStartupTests
     {
         // NetCord builds each module from the interaction's DI scope, so a dependency that isn't registered only fails when
         // someone uses the command or clicks the button. The unit tests build the handlers by hand and can't catch it.
-        await using var factory = new StartupFactory(NormalModeSettings(), removeDiscordHostedServices: true);
+        var settings = NormalModeSettings();
+        // UrlService (the signup button's) refuses to be built without it.
+        settings["BaseUrl"] = "https://grif.test";
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
         using var client = factory.CreateClient();
 
         var modules = DiscordModules();

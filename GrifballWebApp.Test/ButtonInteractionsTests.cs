@@ -24,7 +24,7 @@ public class ButtonInteractionsTests
     private IDiscordRestClient _discordClient;
     private IOptions<DiscordOptions> _discordOptions;
     private QueueService _queueService;
-    private ButtonInteractions _buttonInteractions;
+    private MatchmakingButtonHandler _handler;
     private ILogger<QueueService> _logger;
     private IDataPullService _dataPullService;
     private IDiscordButtonInteractionContext _discordContext;
@@ -41,12 +41,9 @@ public class ButtonInteractionsTests
         _logger = Substitute.For<ILogger<QueueService>>();
         _dataPullService = Substitute.For<IDataPullService>();
         _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
-        _buttonInteractions = new ButtonInteractions(_queueRepository, _publisher, _context, _discordClient, _discordOptions, _queueService);
+        _handler = new MatchmakingButtonHandler(_queueRepository, _publisher, _context, _discordClient, _queueService);
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
-        var type = _buttonInteractions.GetType();
-        var field = type.GetField("_discordContext", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        field!.SetValue(_buttonInteractions, _discordContext);
     }
 
     [TearDown]
@@ -59,7 +56,7 @@ public class ButtonInteractionsTests
     public async Task SetGamertag_Should_SendModal()
     {
         // Act
-        await _buttonInteractions.SetGamertag();
+        await _handler.SetGamertag(_discordContext);
 
         // Assert
         await _discordContext.Received(1).Interaction.SendResponseAsync(Arg.Is<InteractionCallbackProperties>(cb =>
@@ -75,7 +72,7 @@ public class ButtonInteractionsTests
 
         // No user in DB
         // Act
-        await _buttonInteractions.JoinQueue();
+        await _handler.JoinQueue(_discordContext);
 
         // Assert
         await _discordContext.AssertSendResponse("You must set your gamertag first");
@@ -95,7 +92,7 @@ public class ButtonInteractionsTests
         _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
 
         // Act
-        await _buttonInteractions.JoinQueue();
+        await _handler.JoinQueue(_discordContext);
 
         // Assert
         await _discordContext.AssertSendResponse("You are already in the queue!");
@@ -120,7 +117,7 @@ public class ButtonInteractionsTests
         _queueRepository.IsInMatch(user.Id).Returns(false);
 
         // Act
-        await _buttonInteractions.JoinQueue();
+        await _handler.JoinQueue(_discordContext);
 
         // Assert
         await _queueRepository.Received(1).AddPlayerToQueue(user.Id);
@@ -145,7 +142,7 @@ public class ButtonInteractionsTests
         _queueRepository.GetQueuePlayer(user.Id).Returns((QueuedPlayer)null);
 
         // Act
-        await _buttonInteractions.LeaveQueue();
+        await _handler.LeaveQueue(_discordContext);
 
         // Assert
         await _discordContext.AssertSendResponse("You are not in the matchmaking queue.");
@@ -169,7 +166,7 @@ public class ButtonInteractionsTests
         _queueRepository.GetQueuePlayer(user.Id).Returns(new QueuedPlayer { User = user });
 
         // Act
-        await _buttonInteractions.LeaveQueue();
+        await _handler.LeaveQueue(_discordContext);
 
         // Assert
         await _queueRepository.Received(1).RemovePlayerToQueue(user.Id);
@@ -208,7 +205,7 @@ public class ButtonInteractionsTests
         _discordContext.User.Id.Returns(discordUserId);
 
         // Act
-        await _buttonInteractions.VoteForWinner(match.Id, voteFor.ToString());
+        await _handler.VoteForWinner(_discordContext, match.Id, voteFor.ToString());
 
         // Assert
         // Vote is saved
@@ -250,7 +247,7 @@ public class ButtonInteractionsTests
         _discordContext.User.Id.Returns(discordUserId);
 
         // Act
-        await _buttonInteractions.VoteForWinner(match.Id, WinnerVote.Home.ToString());
+        await _handler.VoteForWinner(_discordContext, match.Id, WinnerVote.Home.ToString());
 
         // Assert
         // Vote is saved
@@ -287,7 +284,7 @@ public class ButtonInteractionsTests
         _discordContext.User.Id.Returns(discordUserId);
 
         // Act
-        await _buttonInteractions.VoteForWinner(match.Id, WinnerVote.Home.ToString());
+        await _handler.VoteForWinner(_discordContext, match.Id, WinnerVote.Home.ToString());
 
         // Assert
         // Vote is saved
@@ -310,7 +307,7 @@ public class ButtonInteractionsTests
         _discordContext.User.Id.Returns(discordUserId);
 
         // Act
-        await _buttonInteractions.VoteForWinner(11, WinnerVote.Home.ToString());
+        await _handler.VoteForWinner(_discordContext, 11, WinnerVote.Home.ToString());
 
         // Assert
         // Vote is not saved

@@ -20,7 +20,7 @@ public class StringMenuInteractionsTests
     private GrifballContext _context;
     private IDiscordRestClient _discordClient;
     private QueueService _queueService;
-    private StringMenuInteractions _stringMenuInteractions;
+    private MatchmakingStringMenuHandler _handler;
     private IDiscordStringMenuInteractionContext _discordContext;
 
     [SetUp]
@@ -34,11 +34,8 @@ public class StringMenuInteractionsTests
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<QueueService>>();
         var dataPull = Substitute.For<IDataPullService>();
         _queueService = new QueueService(logger, options, queueRepo, _discordClient, _context, dataPull);
-        _stringMenuInteractions = new StringMenuInteractions(_context, _discordClient, _queueService);
+        _handler = new MatchmakingStringMenuHandler(_context, _discordClient, _queueService);
         _discordContext = Substitute.For<IDiscordStringMenuInteractionContext>();
-        var type = _stringMenuInteractions.GetType();
-        var field = type.GetField("_discordContext", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        field!.SetValue(_stringMenuInteractions, _discordContext);
     }
 
     [TearDown]
@@ -53,7 +50,7 @@ public class StringMenuInteractionsTests
         // Arrange
         _discordContext.User.Id.Returns(123UL);
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse("You must set your gamertag first");
     }
@@ -68,7 +65,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(999); // No such match
+        await _handler.VoteToKick(_discordContext, 999); // No such match
         // Assert
         await _discordContext.AssertSendResponse("This match does not exist");
     }
@@ -86,7 +83,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse("This match is over");
     }
@@ -105,7 +102,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse("You are not in this match");
     }
@@ -134,7 +131,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse("You have been kicked. You cannot vote.");
     }
@@ -156,7 +153,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "999" }); // Not in match
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse("They are not in this match");
     }
@@ -184,7 +181,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse($"{them.ToDisplayName()} has already been kicked");
     }
@@ -214,7 +211,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL);
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse($"{me.ToDisplayName()} has voted to kick {them.ToDisplayName()}");
     }
@@ -248,7 +245,7 @@ public class StringMenuInteractionsTests
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
 
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert
         await _discordContext.AssertSendResponse($"You have already voted to kick {them.ToDisplayName()}");
     }
@@ -279,7 +276,7 @@ public class StringMenuInteractionsTests
         _discordContext.User.Id.Returns(123UL); // user 1
         _discordContext.SelectedValues.Returns(new List<string> { "2" });
         // Act
-        await _stringMenuInteractions.VoteToKick(1);
+        await _handler.VoteToKick(_discordContext, 1);
         // Assert: Target should be kicked
         var kicked = await _context.MatchedPlayers.FindAsync(20);
         Assert.That(kicked, Is.Not.Null);
