@@ -296,6 +296,19 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
+    public async Task GetOverdue_UsesUnknown_When_TeamHasNoCaptain()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
+        s.Home.CaptainID = null;
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetOverdueMatchesAsync();
+
+        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("GT_awaycap"));
+    }
+
+    [Test]
     public async Task GetOverdue_ReturnsEmpty_When_NothingOverdue()
     {
         await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(1));

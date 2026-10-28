@@ -171,8 +171,8 @@ public class RescheduleService
         return overdueMatches.Select(sm => new OverdueMatchDto
         {
             SeasonMatchID = sm.SeasonMatchID,
-            HomeCaptain = sm.HomeTeam.Captain.User.XboxUser.Gamertag,
-            AwayCaptain = sm.AwayTeam.Captain.User.XboxUser.Gamertag,
+            HomeCaptain = sm.HomeTeam.Captain?.User.ToDisplayName() ?? "UNKNOWN",
+            AwayCaptain = sm.AwayTeam.Captain?.User.ToDisplayName() ?? "UNKNOWN",
             ScheduledTime = sm.ScheduledTime.Value,
             HoursOverdue = (int)Math.Floor((DateTime.UtcNow - sm.ScheduledTime.Value).TotalHours)
         }).ToList();
