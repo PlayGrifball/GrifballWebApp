@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AccountService } from '../account.service';
@@ -59,7 +59,8 @@ export class ProfileComponent implements OnInit {
   }
 
   setGamertag(): void {
-    this.http.get("api/profile/setgamertag/" + this.userID + "?gamertag=" + this.gamertag())
+    const params = new HttpParams().set('gamertag', this.gamertag() ?? '');
+    this.http.get("api/profile/setgamertag/" + this.userID, { params })
       .subscribe({
         next: r => {
           this.settingGamertag.set(false);

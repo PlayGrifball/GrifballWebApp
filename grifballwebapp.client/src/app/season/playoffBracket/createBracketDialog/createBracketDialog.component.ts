@@ -7,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 @Component({
@@ -44,7 +44,12 @@ export class CreateBracketDialogComponent {
   readonly bracketCreated = new Subject<void>();
 
   onSubmit() {
-    this.http.get("api/Brackets/CreateBracket?seasonID=" + this.seasonID + "&participantsCount=" + this.participantsCount + "&doubleElimination=" + this.doubleElimination + "&bestOf=" + this.bestOf)
+    const params = new HttpParams()
+      .set('seasonID', this.seasonID)
+      .set('participantsCount', this.participantsCount!)
+      .set('doubleElimination', this.doubleElimination)
+      .set('bestOf', this.bestOf!);
+    this.http.get("api/Brackets/CreateBracket", { params })
       .subscribe({
         next: r => {
           this.bracketCreated.next();
