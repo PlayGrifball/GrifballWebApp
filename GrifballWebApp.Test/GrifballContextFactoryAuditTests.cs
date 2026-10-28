@@ -2,6 +2,7 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Interceptors;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Database.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,7 +18,9 @@ namespace GrifballWebApp.Test;
 public class GrifballContextFactoryAuditTests
 {
     private string _dbName = null!;
-    private GrifballContextFactory _factory = null!;
+    // IDbContextFactory<T>.CreateDbContextAsync is a default interface method, only reachable through
+    // the interface type (not through GrifballContextFactory directly).
+    private IDbContextFactory<GrifballContext> _factory = null!;
 
     [SetUp]
     public async Task SetUp()

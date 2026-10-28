@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using NetCord.Rest;
 using NSubstitute;
 
@@ -73,6 +74,14 @@ public class GrifballContextFactoryTests
         Assert.That(ex!.Message, Is.EqualTo("GrifballContext failed to configure"));
     }
 
+    // DbContext implements IInfrastructure<IServiceProvider> explicitly, so the EF internal service
+    // provider (and from it, the configured interceptors) is only reachable through that interface.
+    private static IReadOnlyList<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>? InterceptorsOf(GrifballContext context)
+    {
+        var internalProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
+        return internalProvider.GetService<IDbContextOptions>()?.FindExtension<CoreOptionsExtension>()?.Interceptors;
+    }
+
     [Test]
     public void CreateDbContext_AttachesAuditInterceptor()
     {
@@ -80,10 +89,7 @@ public class GrifballContextFactoryTests
 
         using var context = new GrifballContextFactory(Provider(cs)).CreateDbContext();
 
-        var interceptors = context.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
-            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
-            .Interceptors;
-        Assert.That(interceptors?.OfType<AuditInterceptor>().Any(), Is.True,
+        Assert.That(InterceptorsOf(context)?.OfType<AuditInterceptor>().Any(), Is.True,
             "Contexts the factory creates (used by Discord handlers) must be audited the same as request-scoped contexts, see #26/#28");
     }
 
@@ -98,12 +104,8 @@ public class GrifballContextFactoryTests
         using var context1 = factory.CreateDbContext();
         using var context2 = factory.CreateDbContext();
 
-        var interceptor1 = context1.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
-            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
-            .Interceptors!.OfType<AuditInterceptor>().Single();
-        var interceptor2 = context2.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
-            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
-            .Interceptors!.OfType<AuditInterceptor>().Single();
+        var interceptor1 = InterceptorsOf(context1)!.OfType<AuditInterceptor>().Single();
+        var interceptor2 = InterceptorsOf(context2)!.OfType<AuditInterceptor>().Single();
 
         Assert.That(interceptor1, Is.Not.SameAs(interceptor2));
     }
