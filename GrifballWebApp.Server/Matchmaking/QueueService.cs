@@ -600,8 +600,8 @@ public class QueueService
     private async Task<MessageProperties> CreateQueueMessage(QueuedPlayer[] queuePlayers, MatchedMatch[] activeMatches, GrifballContext grifballContext)
     {
         //var join = new ButtonProperties("join_queue", "Join Queue", new EmojiProperties(1365830914873098341), ButtonStyle.Success);
-        var join = new ButtonProperties(DiscordButtonContants.JoinQueue, "Join Queue", new EmojiProperties("✅"), ButtonStyle.Success);
-        var leave = new ButtonProperties(DiscordButtonContants.LeaveQueue, "Leave Queue", new EmojiProperties("❌"), ButtonStyle.Danger);
+        var join = new ButtonProperties(DiscordButtonContants.JoinQueue, "Join Queue", EmojiProperties.Standard("✅"), ButtonStyle.Success);
+        var leave = new ButtonProperties(DiscordButtonContants.LeaveQueue, "Leave Queue", EmojiProperties.Standard("❌"), ButtonStyle.Danger);
         var gt = new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary);
 
         ActionRowProperties actionRow = new([join, leave, gt]);

@@ -13,8 +13,7 @@ using System.Threading.Channels;
 
 namespace GrifballWebApp.Server;
 
-[GatewayEvent(nameof(GatewayClient.MessageCreate))]
-public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IGatewayEventHandler<Message>
+public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 

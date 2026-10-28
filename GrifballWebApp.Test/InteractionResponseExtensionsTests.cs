@@ -18,7 +18,7 @@ namespace GrifballWebApp.Test;
 [Parallelizable(ParallelScope.All)]
 public class InteractionResponseExtensionsTests
 {
-    private readonly List<InteractionCallback> _callbacks = [];
+    private readonly List<InteractionCallbackProperties> _callbacks = [];
     private FakeRestRequestHandler _rest;
     private ButtonInteractionContext _ctx;
 
@@ -41,7 +41,7 @@ public class InteractionResponseExtensionsTests
             foreach (var p in o.GetType().GetProperties())
                 if (p.PropertyType.IsArray && p.CanWrite && p.GetValue(o) is null)
                     p.SetValue(o, Array.CreateInstance(p.PropertyType.GetElementType()!, 0));
-        var interaction = new ButtonInteraction(json, null, (_, cb, _, _) => { _callbacks.Add(cb); return Task.CompletedTask; },
+        var interaction = new ButtonInteraction(json, null, (_, cb, _, _, _) => { _callbacks.Add(cb); return Task.FromResult<InteractionCallbackResponse?>(null); },
             new RestClient(new RestClientConfiguration { RequestHandler = _rest }));
         _ctx = new ButtonInteractionContext(interaction, null!);
     }
@@ -87,7 +87,7 @@ public class InteractionResponseExtensionsTests
 
         await ctx.EphemeralResponse("hi there");
 
-        await ctx.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallback>(cb =>
+        await ctx.Interaction.Received(1).SendResponseAsync(Arg.Is<InteractionCallbackProperties>(cb =>
             ((InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!).Content == "hi there" &&
             ((InteractionMessageProperties)cb.GetType().GetProperty("Data")!.GetValue(cb)!).Flags == MessageFlags.Ephemeral));
     }

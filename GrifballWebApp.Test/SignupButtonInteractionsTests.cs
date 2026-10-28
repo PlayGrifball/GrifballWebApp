@@ -25,7 +25,7 @@ public class SignupButtonInteractionsTests
     private GrifballContext _context;
     private SignupButtonInteractions _module;
     private FakeRestRequestHandler _rest;
-    private readonly List<InteractionCallback> _callbacks = [];
+    private readonly List<InteractionCallbackProperties> _callbacks = [];
     private const ulong DiscordId = 9876;
 
     [SetUp]
@@ -64,10 +64,10 @@ public class SignupButtonInteractionsTests
         FillArrays(json);
         FillArrays(json.Message);
         var restClient = new RestClient(new RestClientConfiguration { RequestHandler = _rest });
-        var interaction = new ButtonInteraction(json, null, (_, cb, _, _) =>
+        var interaction = new ButtonInteraction(json, null, (_, cb, _, _, _) =>
         {
             lock (_callbacks) _callbacks.Add(cb);
-            return Task.CompletedTask;
+            return Task.FromResult<InteractionCallbackResponse?>(null);
         }, restClient);
         return new ButtonInteractionContext(interaction, null!);
     }

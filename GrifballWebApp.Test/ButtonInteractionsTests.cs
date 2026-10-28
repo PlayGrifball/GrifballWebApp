@@ -62,7 +62,7 @@ public class ButtonInteractionsTests
         await _buttonInteractions.SetGamertag();
 
         // Assert
-        await _discordContext.Received(1).Interaction.SendResponseAsync(Arg.Is<InteractionCallback>(cb =>
+        await _discordContext.Received(1).Interaction.SendResponseAsync(Arg.Is<InteractionCallbackProperties>(cb =>
             cb.Type == InteractionCallbackType.Modal
         ));
     }

@@ -15,7 +15,7 @@ public class ModalInteractions : ComponentInteractionModule<ModalInteractionCont
     [ComponentInteraction(DiscordModalsContants.SetGamertag)]
     public async Task SetGamertag()
     {
-        var gamertag = ((TextInput)Context.Components[0]).Value;
+        var gamertag = ((TextInput)((Label)Context.Components[0]).Component).Value;
         await _discordSetGamertag.SetGamertag(Context.ToDiscordContext(), gamertag);
     }
 }

@@ -554,7 +554,7 @@ public class QueueServiceBranchTests
         var message = QueueService.CreateVoteMessage(5, users);
 
         var menu = message.Components!.OfType<StringMenuProperties>().Single();
-        var buttons = message.Components!.OfType<ActionRowProperties>().Single().Buttons.OfType<ButtonProperties>().ToList();
+        var buttons = message.Components!.OfType<ActionRowProperties>().Single().Components.OfType<ButtonProperties>().ToList();
         Assert.Multiple(() =>
         {
             Assert.That(menu.Options.Select(o => o.Label), Is.EqualTo(new[] { "xbox", "disc", "display", "4" }));

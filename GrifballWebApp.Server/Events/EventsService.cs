@@ -78,15 +78,15 @@ public class EventsService
             matchEmbeds.Add(matchesSummaryEmbed);
 
             
-            //var leave = new ButtonProperties("leave_queue", "Leave Queue", new EmojiProperties("❌"), ButtonStyle.Danger);
+            //var leave = new ButtonProperties("leave_queue", "Leave Queue", EmojiProperties.Standard("❌"), ButtonStyle.Danger);
             var gt = new ButtonProperties(DiscordButtonContants.SetGamertag, "Set Gamertag", ButtonStyle.Primary);
 
             ActionRowProperties actionRow = new([gt]);
 
             if (signupStatus is SignupStatus.Open)
             {
-                var signup = new ButtonProperties(DiscordButtonContants.SignupWithParams(season.SeasonID), "Signup", new EmojiProperties("✅"), ButtonStyle.Success);
-                actionRow.AddButtons(signup);
+                var signup = new ButtonProperties(DiscordButtonContants.SignupWithParams(season.SeasonID), "Signup", EmojiProperties.Standard("✅"), ButtonStyle.Success);
+                actionRow.Add(signup);
             }
 
             var mp = new MessageProperties()

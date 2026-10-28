@@ -226,7 +226,7 @@ public class Program
                                   NetCord.Gateway.GatewayIntents.GuildMessages |
                                   NetCord.Gateway.GatewayIntents.DirectMessages;
             })
-            .AddGatewayEventHandlers(typeof(Program).Assembly)
+            .AddGatewayHandlers(typeof(Program).Assembly)
             .AddApplicationCommands()
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>()
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>()
@@ -391,7 +391,6 @@ public class Program
         if (!discordOff)
         {
             app.AddModules(typeof(Program).Assembly);
-            app.UseGatewayEventHandlers();
         }
 
         app.Run();

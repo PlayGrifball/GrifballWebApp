@@ -25,21 +25,23 @@ public partial interface IDiscordInteraction
     IDiscordTextChannel Channel { get; }
     IDiscordUser User { get; }
     string Token { get; }
+    int Version { get; }
     NetCord.Permissions AppPermissions { get; }
     string UserLocale { get; }
     string? GuildLocale { get; }
     IReadOnlyList<IDiscordEntitlement> Entitlements { get; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners { get; }
     NetCord.InteractionContextType Context { get; }
+    long AttachmentSizeLimit { get; }
     IDiscordInteractionData Data { get; }
     System.DateTimeOffset CreatedAt { get; }
-    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallback, NetCord.Rest.RestRequestProperties?, System.Threading.CancellationToken, Task> sendResponseAsync, IDiscordRestClient client)
+    static IDiscordInteraction CreateFromJson(IDiscordJsonInteraction jsonModel, IDiscordGuild? guild, Func<IDiscordInteraction, NetCord.Rest.InteractionCallbackProperties, bool, NetCord.Rest.RestRequestProperties?, System.Threading.CancellationToken, Task<NetCord.Rest.InteractionCallbackResponse?>> sendResponseAsync, IDiscordRestClient client)
     {
-        Task converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)
+        Task<NetCord.Rest.InteractionCallbackResponse?> converted(NetCord.IInteraction interaction, NetCord.Rest.InteractionCallbackProperties callback, bool withResponse, NetCord.Rest.RestRequestProperties? properties, CancellationToken cancellationToken)
         {
             NetCord.Interaction casted = (NetCord.Interaction)interaction ?? throw new Exception("Cast failed");
             IDiscordInteraction discordInteraction = new DiscordInteraction(casted);
-            return sendResponseAsync(discordInteraction, callback, properties, cancellationToken);
+            return sendResponseAsync(discordInteraction, callback, withResponse, properties, cancellationToken);
         }
         return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, guild?.Original, converted, client.Original));
     }
@@ -47,7 +49,7 @@ public partial interface IDiscordInteraction
     {
         return new DiscordInteraction(NetCord.Interaction.CreateFromJson(jsonModel.Original, cache.Original, client.Original));
     }
-    Task SendResponseAsync(NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordInteractionCallbackResponse?> SendResponseAsync(NetCord.Rest.InteractionCallbackProperties callback, bool withResponse = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetResponseAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyResponseAsync(Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteResponseAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -75,13 +77,13 @@ public partial interface IDiscordGuild
     bool IsLarge { get; }
     bool IsUnavailable { get; }
     int UserCount { get; }
-    ImmutableDictionary<ulong, IDiscordVoiceState> VoiceStates { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildUser> Users { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildChannel> Channels { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildThread> ActiveThreads { get; set; }
-    ImmutableDictionary<ulong, IDiscordPresence> Presences { get; set; }
-    ImmutableDictionary<ulong, IDiscordStageInstance> StageInstances { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildScheduledEvent> ScheduledEvents { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordVoiceState> VoiceStates { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildUser> Users { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildChannel> Channels { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildThread> ActiveThreads { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordPresence> Presences { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordStageInstance> StageInstances { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildScheduledEvent> ScheduledEvents { get; set; }
     bool IsOwner { get; }
     ulong Id { get; }
     string Name { get; }
@@ -100,8 +102,8 @@ public partial interface IDiscordGuild
     NetCord.VerificationLevel VerificationLevel { get; }
     NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; }
     NetCord.ContentFilter ContentFilter { get; }
-    ImmutableDictionary<ulong, IDiscordRole> Roles { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordRole> Roles { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis { get; set; }
     IReadOnlyList<string> Features { get; }
     NetCord.MfaLevel MfaLevel { get; }
     ulong? ApplicationId { get; }
@@ -124,24 +126,24 @@ public partial interface IDiscordGuild
     int? ApproximatePresenceCount { get; }
     IDiscordGuildWelcomeScreen? WelcomeScreen { get; }
     NetCord.NsfwLevel NsfwLevel { get; }
-    ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers { get; set; }
     bool PremiumProgressBarEnabled { get; }
     ulong? SafetyAlertsChannelId { get; }
     IDiscordRole? EveryoneRole { get; }
     System.DateTimeOffset CreatedAt { get; }
-    IDiscordGuild With(Action<IDiscordGuild> action);
     int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y);
     IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat? format = default);
     IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format);
     IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format);
     IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default);
+    IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string hostname = "discord.com", NetCord.ApiVersion? version = default);
     IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchMessagesAsync(IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -245,18 +247,18 @@ public partial interface IDiscordTextChannel
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
@@ -285,6 +287,8 @@ public partial interface IDiscordUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    IDiscordCollectibles Collectibles { get; }
+    IDiscordUserPrimaryGuild PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -335,6 +339,7 @@ public partial interface IDiscordJsonInteraction
     IDiscordJsonGuildUser? GuildUser { get; set; }
     IDiscordJsonUser? User { get; set; }
     string Token { get; set; }
+    int Version { get; set; }
     IDiscordJsonMessage? Message { get; set; }
     NetCord.Permissions AppPermissions { get; set; }
     string? UserLocale { get; set; }
@@ -342,6 +347,7 @@ public partial interface IDiscordJsonInteraction
     IDiscordJsonEntitlement[] Entitlements { get; set; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong>? AuthorizingIntegrationOwners { get; set; }
     NetCord.InteractionContextType? Context { get; set; }
+    long AttachmentSizeLimit { get; set; }
     ulong Id { get; set; }
 }
 
@@ -353,19 +359,19 @@ public partial interface IDiscordGatewayClientCache
     IReadOnlyDictionary<ulong, IDiscordGuild> Guilds { get; }
     IDiscordGatewayClientCache CacheGuild(IDiscordGuild guild);
     IDiscordGatewayClientCache CacheGuildUser(IDiscordGuildUser user);
-    IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IEnumerable<IDiscordGuildUser> users);
-    IDiscordGatewayClientCache CachePresences(ulong guildId, IEnumerable<IDiscordPresence> presences);
+    IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IReadOnlyList<IDiscordGuildUser> users);
+    IDiscordGatewayClientCache CachePresences(ulong guildId, IReadOnlyList<IDiscordPresence> presences);
     IDiscordGatewayClientCache CacheRole(IDiscordRole role);
     IDiscordGatewayClientCache CacheGuildScheduledEvent(IDiscordGuildScheduledEvent scheduledEvent);
-    IDiscordGatewayClientCache CacheGuildEmojis(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildEmoji> emojis);
-    IDiscordGatewayClientCache CacheGuildStickers(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildSticker> stickers);
     IDiscordGatewayClientCache CacheGuildThread(IDiscordGuildThread thread);
     IDiscordGatewayClientCache CacheGuildChannel(IDiscordGuildChannel channel);
     IDiscordGatewayClientCache CacheStageInstance(IDiscordStageInstance stageInstance);
     IDiscordGatewayClientCache CacheCurrentUser(IDiscordCurrentUser user);
     IDiscordGatewayClientCache CacheVoiceState(IDiscordVoiceState voiceState);
     IDiscordGatewayClientCache CachePresence(IDiscordPresence presence);
-    IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildThread> threads);
+    IDiscordGatewayClientCache SyncGuildEmojis(ulong guildId, IReadOnlyDictionary<ulong, IDiscordGuildEmoji> emojis);
+    IDiscordGatewayClientCache SyncGuildStickers(ulong guildId, IReadOnlyDictionary<ulong, IDiscordGuildSticker> stickers);
+    IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, IReadOnlyList<ulong>? channelIds, IReadOnlyDictionary<ulong, IDiscordGuildThread> threads);
     IDiscordGatewayClientCache SyncGuilds(IReadOnlyList<ulong> guildIds);
     IDiscordGatewayClientCache RemoveGuild(ulong guildId);
     IDiscordGatewayClientCache RemoveGuildUser(ulong guildId, ulong userId);
@@ -395,30 +401,32 @@ public partial interface IDiscordRestClient
     Task<IDiscordChannel> GetChannelAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordChannel> ModifyGroupDMChannelAsync(ulong channelId, Action<IDiscordGroupDMChannelOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordChannel> ModifyGuildChannelAsync(ulong channelId, Action<IDiscordGuildChannelOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task SetVoiceGuildChannelStatusAsync(ulong channelId, IDiscordVoiceGuildChannelStatusProperties statusProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordRestMessage> GetMessagesAsync(ulong channelId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchGuildMessagesAsync(ulong guildId, IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(ulong channelId, NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> CrosspostMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(ulong channelId, IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteGuildChannelPermissionAsync(ulong channelId, ulong overwriteId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordFollowedChannel> FollowAnnouncementGuildChannelAsync(ulong channelId, ulong webhookChannelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(ulong channelId, IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(ulong channelId, IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetChannelPinsAsync(ulong channelId, NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task GroupDMChannelAddUserAsync(ulong channelId, ulong userId, IDiscordGroupDMChannelUserAddProperties groupDMChannelUserAddProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -522,7 +530,7 @@ public partial interface IDiscordRestClient
     Task<IReadOnlyList<IDiscordApplicationCommandGuildPermissions>> GetApplicationCommandsGuildPermissionsAsync(ulong applicationId, ulong guildId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationCommandGuildPermissions> GetApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationCommandGuildPermissions> OverwriteApplicationCommandGuildPermissionsAsync(ulong applicationId, ulong guildId, ulong commandId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordInteractionCallbackResponse?> SendInteractionResponseAsync(ulong interactionId, string interactionToken, NetCord.Rest.InteractionCallbackProperties callback, bool withResponse = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyInteractionResponseAsync(ulong applicationId, string interactionToken, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteInteractionResponseAsync(ulong applicationId, string interactionToken, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -530,8 +538,11 @@ public partial interface IDiscordRestClient
     Task<IDiscordRestMessage> GetInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteInteractionFollowupMessageAsync(ulong applicationId, string interactionToken, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> GetInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> DeleteInviteAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ulong> GetInviteTargetUsersAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task UpdateInviteTargetUsersAsync(string inviteCode, IDiscordInviteTargetUsersProperties inviteTargetUsersProperties, NetCord.Rest.RestRequestProperties? requestProperties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordInviteTargetUsersJobStatus> GetInviteTargetUsersJobStatusAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IDiscordEntitlement> GetEntitlementAsync(ulong applicationId, ulong entitlementId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ConsumeEntitlementAsync(ulong applicationId, ulong entitlementId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -585,9 +596,17 @@ public partial interface IDiscordRestClient
     Task DeleteWebhookAsync(ulong webhookId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWebhookWithTokenAsync(ulong webhookId, string webhookToken, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage?> ExecuteWebhookAsync(ulong webhookId, string webhookToken, IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public partial interface IDiscordInteractionCallbackResponse  
+{
+    NetCord.Rest.InteractionCallbackResponse Original { get; }
+    IDiscordInteractionCallbackResponseInteraction Interaction { get; }
+    IDiscordInteractionCallbackResponseResource Resource { get; }
 }
 
 
@@ -620,24 +639,25 @@ public partial interface IDiscordRestMessage
     IDiscordRestMessage? ReferencedMessage { get; }
     IDiscordMessageInteractionMetadata? InteractionMetadata { get; }
     IDiscordGuildThread? StartedThread { get; }
-    IReadOnlyList<IDiscordComponent> Components { get; }
+    IReadOnlyList<IDiscordMessageComponent> Components { get; }
     IReadOnlyList<IDiscordMessageSticker> Stickers { get; }
     int? Position { get; }
     IDiscordRoleSubscriptionData? RoleSubscriptionData { get; }
     IDiscordInteractionResolvedData? ResolvedData { get; }
     IDiscordMessagePoll? Poll { get; }
     IDiscordMessageCall? Call { get; }
+    IDiscordSharedClientTheme? SharedClientTheme { get; }
     System.DateTimeOffset CreatedAt { get; }
     Task<IDiscordRestMessage> ReplyAsync(IDiscordReplyMessageProperties replyMessage, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> GetAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> CrosspostAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddReactionAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserReactionAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetReactionsAsync(IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllReactionsAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllReactionsAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllReactionsForEmojiAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyAsync(Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -655,21 +675,18 @@ public partial interface IDiscordMessageOptions
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<NetCord.Rest.IComponentProperties>? Components { get; set; }
+    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     HttpContent Serialize();
     IDiscordMessageOptions WithContent(string content);
     IDiscordMessageOptions WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordMessageOptions AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
-    IDiscordMessageOptions AddEmbeds(NetCord.Rest.EmbedProperties[] embeds);
     IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags);
     IDiscordMessageOptions WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordMessageOptions WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components);
-    IDiscordMessageOptions AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components);
-    IDiscordMessageOptions AddComponents(NetCord.Rest.IComponentProperties[] components);
+    IDiscordMessageOptions WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
+    IDiscordMessageOptions AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
     IDiscordMessageOptions WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordMessageOptions AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
-    IDiscordMessageOptions AddAttachments(NetCord.Rest.AttachmentProperties[] attachments);
 }
 
 
@@ -681,7 +698,7 @@ public partial interface IDiscordInteractionMessageProperties
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
-    IEnumerable<NetCord.Rest.IComponentProperties>? Components { get; set; }
+    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     IDiscordMessagePollProperties? Poll { get; set; }
     HttpContent Serialize();
@@ -689,15 +706,12 @@ public partial interface IDiscordInteractionMessageProperties
     IDiscordInteractionMessageProperties WithContent(string content);
     IDiscordInteractionMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordInteractionMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
-    IDiscordInteractionMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds);
     IDiscordInteractionMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
     IDiscordInteractionMessageProperties WithFlags(NetCord.MessageFlags? flags);
-    IDiscordInteractionMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components);
-    IDiscordInteractionMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components);
-    IDiscordInteractionMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components);
+    IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
+    IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
     IDiscordInteractionMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordInteractionMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
-    IDiscordInteractionMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments);
     IDiscordInteractionMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
 }
 
@@ -729,8 +743,7 @@ public partial interface IDiscordGuildUser
     string? GuildAvatarHash { get; }
     string? GuildBannerHash { get; }
     IReadOnlyList<ulong> RoleIds { get; }
-    ulong? HoistedRoleId { get; }
-    System.DateTimeOffset JoinedAt { get; }
+    System.DateTimeOffset? JoinedAt { get; }
     System.DateTimeOffset? GuildBoostStart { get; }
     bool Deafened { get; }
     bool Muted { get; }
@@ -758,6 +771,8 @@ public partial interface IDiscordGuildUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    IDiscordCollectibles Collectibles { get; }
+    IDiscordUserPrimaryGuild PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -796,7 +811,7 @@ public partial interface IDiscordGuildChannel
     }
     Task<IDiscordGuildChannel> ModifyAsync(Action<IDiscordGuildChannelOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -805,11 +820,12 @@ public partial interface IDiscordGuildChannel
 public partial interface IDiscordGuildThread  
 {
     NetCord.GuildThread Original { get; }
+    ulong ParentId { get; }
     ulong OwnerId { get; }
     int MessageCount { get; }
     int UserCount { get; }
     IDiscordGuildThreadMetadata Metadata { get; }
-    IDiscordThreadCurrentUser? CurrentUser { get; }
+    IDiscordThreadCurrentUser? CurrentUser { get; set; }
     int TotalMessageSent { get; }
     ulong GuildId { get; }
     int? Position { get; }
@@ -818,7 +834,6 @@ public partial interface IDiscordGuildThread
     string? Topic { get; }
     bool Nsfw { get; }
     int Slowmode { get; }
-    ulong? ParentId { get; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
     int DefaultThreadSlowmode { get; }
     ulong? LastMessageId { get; }
@@ -840,7 +855,7 @@ public partial interface IDiscordGuildThread
     Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, NetCord.Rest.GuildThreadFromMessageProperties threadFromMessageProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -855,18 +870,18 @@ public partial interface IDiscordGuildThread
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
@@ -937,11 +952,12 @@ public partial interface IDiscordRole
     NetCord.Role Original { get; }
     ulong Id { get; }
     string Name { get; }
-    NetCord.Color Color { get; }
+    IDiscordRoleColors Colors { get; }
     bool Hoist { get; }
     string? IconHash { get; }
     string? UnicodeEmoji { get; }
-    int Position { get; }
+    int RawPosition { get; }
+    NetCord.RolePosition Position { get; }
     NetCord.Permissions Permissions { get; }
     bool Managed { get; }
     bool Mentionable { get; }
@@ -950,7 +966,6 @@ public partial interface IDiscordRole
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
     IDiscordImageUrl? GetIconUrl(NetCord.ImageFormat format);
-    int CompareTo(IDiscordRole other);
     Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -979,7 +994,7 @@ public partial interface IDiscordGuildWelcomeScreen
 {
     NetCord.GuildWelcomeScreen Original { get; }
     string? Description { get; }
-    ImmutableDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels { get; }
+    IReadOnlyDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels { get; }
 }
 
 
@@ -1009,8 +1024,7 @@ public partial interface IDiscordPartialGuildUser
     string? GuildAvatarHash { get; }
     string? GuildBannerHash { get; }
     IReadOnlyList<ulong> RoleIds { get; }
-    ulong? HoistedRoleId { get; }
-    System.DateTimeOffset JoinedAt { get; }
+    System.DateTimeOffset? JoinedAt { get; }
     System.DateTimeOffset? GuildBoostStart { get; }
     bool Deafened { get; }
     bool Muted { get; }
@@ -1038,6 +1052,8 @@ public partial interface IDiscordPartialGuildUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    IDiscordCollectibles Collectibles { get; }
+    IDiscordUserPrimaryGuild PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -1055,6 +1071,7 @@ public partial interface IDiscordPartialGuildUser
 public partial interface IDiscordImageUrl  
 {
     NetCord.ImageUrl Original { get; }
+    bool SupportsSize { get; }
     static IDiscordImageUrl CustomEmoji(ulong emojiId, NetCord.ImageFormat format)
     {
         return new DiscordImageUrl(NetCord.ImageUrl.CustomEmoji(emojiId, format));
@@ -1127,9 +1144,9 @@ public partial interface IDiscordImageUrl
     {
         return new DiscordImageUrl(NetCord.ImageUrl.TeamIcon(teamId, iconHash, format));
     }
-    static IDiscordImageUrl Sticker(ulong stickerId, NetCord.ImageFormat format)
+    static IDiscordImageUrl Sticker(ulong stickerId, NetCord.StickerFormat stickerFormat, NetCord.ImageFormat format)
     {
-        return new DiscordImageUrl(NetCord.ImageUrl.Sticker(stickerId, format));
+        return new DiscordImageUrl(NetCord.ImageUrl.Sticker(stickerId, stickerFormat, format));
     }
     static IDiscordImageUrl RoleIcon(ulong roleId, string iconHash, NetCord.ImageFormat format)
     {
@@ -1143,7 +1160,11 @@ public partial interface IDiscordImageUrl
     {
         return new DiscordImageUrl(NetCord.ImageUrl.GuildUserBanner(guildId, userId, bannerHash, format));
     }
-    static IDiscordImageUrl GuildWidget(ulong guildId, NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default)
+    static IDiscordImageUrl GuildTagBadge(ulong guildId, string badgeHash, NetCord.ImageFormat format)
+    {
+        return new DiscordImageUrl(NetCord.ImageUrl.GuildTagBadge(guildId, badgeHash, format));
+    }
+    static IDiscordImageUrl GuildWidget(ulong guildId, NetCord.GuildWidgetStyle? style = default, string hostname = "discord.com", NetCord.ApiVersion? version = default)
     {
         return new DiscordImageUrl(NetCord.ImageUrl.GuildWidget(guildId, style, hostname, version));
     }
@@ -1164,10 +1185,10 @@ public partial interface IDiscordRestAuditLogEntry
     string? Reason { get; }
     ulong GuildId { get; }
     System.DateTimeOffset CreatedAt { get; }
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change)where TObjectParam : NetCord.JsonModels.JsonEntity;
-    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo)where TObjectParam : NetCord.JsonModels.JsonEntity;
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change);
+    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression);
+    bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change);
+    IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo);
 }
 
 
@@ -1225,14 +1246,11 @@ public partial interface IDiscordAutoModerationRuleProperties
     IDiscordAutoModerationRuleProperties WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties? triggerMetadata);
     IDiscordAutoModerationRuleProperties WithActions(IEnumerable<IDiscordAutoModerationActionProperties> actions);
     IDiscordAutoModerationRuleProperties AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions);
-    IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions);
     IDiscordAutoModerationRuleProperties WithEnabled(bool enabled = true);
     IDiscordAutoModerationRuleProperties WithExemptRoles(IEnumerable<ulong>? exemptRoles);
     IDiscordAutoModerationRuleProperties AddExemptRoles(IEnumerable<ulong> exemptRoles);
-    IDiscordAutoModerationRuleProperties AddExemptRoles(ulong[] exemptRoles);
     IDiscordAutoModerationRuleProperties WithExemptChannels(IEnumerable<ulong>? exemptChannels);
     IDiscordAutoModerationRuleProperties AddExemptChannels(IEnumerable<ulong> exemptChannels);
-    IDiscordAutoModerationRuleProperties AddExemptChannels(ulong[] exemptChannels);
 }
 
 
@@ -1251,14 +1269,87 @@ public partial interface IDiscordAutoModerationRuleOptions
     IDiscordAutoModerationRuleOptions WithTriggerMetadata(IDiscordAutoModerationRuleTriggerMetadataProperties? triggerMetadata);
     IDiscordAutoModerationRuleOptions WithActions(IEnumerable<IDiscordAutoModerationActionProperties>? actions);
     IDiscordAutoModerationRuleOptions AddActions(IEnumerable<IDiscordAutoModerationActionProperties> actions);
-    IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions);
     IDiscordAutoModerationRuleOptions WithEnabled(bool? enabled = true);
     IDiscordAutoModerationRuleOptions WithExemptRoles(IEnumerable<ulong>? exemptRoles);
     IDiscordAutoModerationRuleOptions AddExemptRoles(IEnumerable<ulong> exemptRoles);
-    IDiscordAutoModerationRuleOptions AddExemptRoles(ulong[] exemptRoles);
     IDiscordAutoModerationRuleOptions WithExemptChannels(IEnumerable<ulong>? exemptChannels);
     IDiscordAutoModerationRuleOptions AddExemptChannels(IEnumerable<ulong> exemptChannels);
-    IDiscordAutoModerationRuleOptions AddExemptChannels(ulong[] exemptChannels);
+}
+
+
+public partial interface IDiscordGuildMessageSearchResult  
+{
+    NetCord.Rest.GuildMessageSearchResult Original { get; }
+}
+
+
+public partial interface IDiscordGuildMessagesSearchPaginationProperties  
+{
+    NetCord.Rest.GuildMessagesSearchPaginationProperties Original { get; }
+    NetCord.Rest.GuildMessagesSearchSortingMode? SortBy { get; set; }
+    string? Content { get; set; }
+    int? Slop { get; set; }
+    IEnumerable<string>? Contents { get; set; }
+    IEnumerable<ulong>? AuthorIds { get; set; }
+    NetCord.Rest.GuildMessagesSearchAuthorTypes? AuthorTypes { get; set; }
+    IEnumerable<ulong>? Mentions { get; set; }
+    bool? MentionEveryone { get; set; }
+    ulong? MinId { get; set; }
+    ulong? MaxId { get; set; }
+    NetCord.Rest.GuildMessagesSearchHasOptions? Has { get; set; }
+    IEnumerable<string>? LinkHostnames { get; set; }
+    IEnumerable<string>? EmbedProviders { get; set; }
+    NetCord.Rest.GuildMessagesSearchEmbedTypes? EmbedTypes { get; set; }
+    IEnumerable<string>? AttachmentExtensions { get; set; }
+    IEnumerable<string>? AttachmentFilenames { get; set; }
+    bool? Pinned { get; set; }
+    ulong? CommandId { get; set; }
+    string? CommandName { get; set; }
+    bool? IncludeNsfw { get; set; }
+    IEnumerable<ulong>? ChannelIds { get; set; }
+    int? From { get; set; }
+    NetCord.Rest.PaginationDirection? Direction { get; set; }
+    int? BatchSize { get; set; }
+    static IDiscordGuildMessagesSearchPaginationProperties Create()
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(NetCord.Rest.GuildMessagesSearchPaginationProperties.Create());
+    }
+    static IDiscordGuildMessagesSearchPaginationProperties Create(IDiscordGuildMessagesSearchPaginationProperties properties)
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(NetCord.Rest.GuildMessagesSearchPaginationProperties.Create(properties.Original));
+    }
+    IDiscordGuildMessagesSearchPaginationProperties WithSortBy(NetCord.Rest.GuildMessagesSearchSortingMode? sortBy);
+    IDiscordGuildMessagesSearchPaginationProperties WithContent(string content);
+    IDiscordGuildMessagesSearchPaginationProperties WithSlop(int? slop);
+    IDiscordGuildMessagesSearchPaginationProperties WithContents(IEnumerable<string>? contents);
+    IDiscordGuildMessagesSearchPaginationProperties AddContents(IEnumerable<string> contents);
+    IDiscordGuildMessagesSearchPaginationProperties WithAuthorIds(IEnumerable<ulong>? authorIds);
+    IDiscordGuildMessagesSearchPaginationProperties AddAuthorIds(IEnumerable<ulong> authorIds);
+    IDiscordGuildMessagesSearchPaginationProperties WithAuthorTypes(NetCord.Rest.GuildMessagesSearchAuthorTypes? authorTypes);
+    IDiscordGuildMessagesSearchPaginationProperties WithMentions(IEnumerable<ulong>? mentions);
+    IDiscordGuildMessagesSearchPaginationProperties AddMentions(IEnumerable<ulong> mentions);
+    IDiscordGuildMessagesSearchPaginationProperties WithMentionEveryone(bool? mentionEveryone = true);
+    IDiscordGuildMessagesSearchPaginationProperties WithMinId(ulong? minId);
+    IDiscordGuildMessagesSearchPaginationProperties WithMaxId(ulong? maxId);
+    IDiscordGuildMessagesSearchPaginationProperties WithHas(NetCord.Rest.GuildMessagesSearchHasOptions? has);
+    IDiscordGuildMessagesSearchPaginationProperties WithLinkHostnames(IEnumerable<string>? linkHostnames);
+    IDiscordGuildMessagesSearchPaginationProperties AddLinkHostnames(IEnumerable<string> linkHostnames);
+    IDiscordGuildMessagesSearchPaginationProperties WithEmbedProviders(IEnumerable<string>? embedProviders);
+    IDiscordGuildMessagesSearchPaginationProperties AddEmbedProviders(IEnumerable<string> embedProviders);
+    IDiscordGuildMessagesSearchPaginationProperties WithEmbedTypes(NetCord.Rest.GuildMessagesSearchEmbedTypes? embedTypes);
+    IDiscordGuildMessagesSearchPaginationProperties WithAttachmentExtensions(IEnumerable<string>? attachmentExtensions);
+    IDiscordGuildMessagesSearchPaginationProperties AddAttachmentExtensions(IEnumerable<string> attachmentExtensions);
+    IDiscordGuildMessagesSearchPaginationProperties WithAttachmentFilenames(IEnumerable<string>? attachmentFilenames);
+    IDiscordGuildMessagesSearchPaginationProperties AddAttachmentFilenames(IEnumerable<string> attachmentFilenames);
+    IDiscordGuildMessagesSearchPaginationProperties WithPinned(bool? pinned = true);
+    IDiscordGuildMessagesSearchPaginationProperties WithCommandId(ulong? commandId);
+    IDiscordGuildMessagesSearchPaginationProperties WithCommandName(string commandName);
+    IDiscordGuildMessagesSearchPaginationProperties WithIncludeNsfw(bool? includeNsfw = true);
+    IDiscordGuildMessagesSearchPaginationProperties WithChannelIds(IEnumerable<ulong>? channelIds);
+    IDiscordGuildMessagesSearchPaginationProperties AddChannelIds(IEnumerable<ulong> channelIds);
+    IDiscordGuildMessagesSearchPaginationProperties WithFrom(int? from);
+    IDiscordGuildMessagesSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
+    IDiscordGuildMessagesSearchPaginationProperties WithBatchSize(int? batchSize);
 }
 
 
@@ -1272,7 +1363,6 @@ public partial interface IDiscordGuildEmojiProperties
     IDiscordGuildEmojiProperties WithImage(NetCord.Rest.ImageProperties image);
     IDiscordGuildEmojiProperties WithAllowedRoles(IEnumerable<ulong>? allowedRoles);
     IDiscordGuildEmojiProperties AddAllowedRoles(IEnumerable<ulong> allowedRoles);
-    IDiscordGuildEmojiProperties AddAllowedRoles(ulong[] allowedRoles);
 }
 
 
@@ -1284,7 +1374,6 @@ public partial interface IDiscordGuildEmojiOptions
     IDiscordGuildEmojiOptions WithName(string name);
     IDiscordGuildEmojiOptions WithAllowedRoles(IEnumerable<ulong>? allowedRoles);
     IDiscordGuildEmojiOptions AddAllowedRoles(IEnumerable<ulong> allowedRoles);
-    IDiscordGuildEmojiOptions AddAllowedRoles(ulong[] allowedRoles);
 }
 
 
@@ -1309,8 +1398,8 @@ public partial interface IDiscordRestGuild
     NetCord.VerificationLevel VerificationLevel { get; }
     NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; }
     NetCord.ContentFilter ContentFilter { get; }
-    ImmutableDictionary<ulong, IDiscordRole> Roles { get; set; }
-    ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordRole> Roles { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis { get; set; }
     IReadOnlyList<string> Features { get; }
     NetCord.MfaLevel MfaLevel { get; }
     ulong? ApplicationId { get; }
@@ -1333,7 +1422,7 @@ public partial interface IDiscordRestGuild
     int? ApproximatePresenceCount { get; }
     IDiscordGuildWelcomeScreen? WelcomeScreen { get; }
     NetCord.NsfwLevel NsfwLevel { get; }
-    ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get; set; }
+    IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers { get; set; }
     bool PremiumProgressBarEnabled { get; }
     ulong? SafetyAlertsChannelId { get; }
     IDiscordRole? EveryoneRole { get; }
@@ -1343,13 +1432,14 @@ public partial interface IDiscordRestGuild
     IDiscordImageUrl? GetSplashUrl(NetCord.ImageFormat format);
     IDiscordImageUrl? GetDiscoverySplashUrl(NetCord.ImageFormat format);
     IDiscordImageUrl? GetBannerUrl(NetCord.ImageFormat? format = default);
-    IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default);
+    IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string hostname = "discord.com", NetCord.ApiVersion? version = default);
     IAsyncEnumerable<IDiscordRestAuditLogEntry> GetAuditLogAsync(IDiscordGuildAuditLogPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordAutoModerationRule>> GetAutoModerationRulesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> GetAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> CreateAutoModerationRuleAsync(IDiscordAutoModerationRuleProperties autoModerationRuleProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordAutoModerationRule> ModifyAutoModerationRuleAsync(ulong autoModerationRuleId, Action<IDiscordAutoModerationRuleOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchMessagesAsync(IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> GetEmojiAsync(ulong emojiId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildEmoji> CreateEmojiAsync(IDiscordGuildEmojiProperties guildEmojiProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -1442,11 +1532,12 @@ public partial interface IDiscordGuildPreview
     string? IconHash { get; }
     string? SplashHash { get; }
     string? DiscoverySplashHash { get; }
-    ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get; }
+    IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis { get; }
     IReadOnlyList<string> Features { get; }
     int ApproximateUserCount { get; }
     int ApproximatePresenceCount { get; }
     string? Description { get; }
+    IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -1492,7 +1583,6 @@ public partial interface IDiscordGuildOptions
     IDiscordGuildOptions WithPreferredLocale(string preferredLocale);
     IDiscordGuildOptions WithFeatures(IEnumerable<string>? features);
     IDiscordGuildOptions AddFeatures(IEnumerable<string> features);
-    IDiscordGuildOptions AddFeatures(string[] features);
     IDiscordGuildOptions WithDescription(string description);
     IDiscordGuildOptions WithPremiumProgressBarEnabled(bool? premiumProgressBarEnabled = true);
     IDiscordGuildOptions WithSafetyAlertsChannelId(ulong? safetyAlertsChannelId);
@@ -1515,7 +1605,7 @@ public partial interface IDiscordGuildChannelProperties
     string? RtcRegion { get; set; }
     NetCord.VideoQualityMode? VideoQualityMode { get; set; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; set; }
-    NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get; set; }
+    IDiscordEmojiProperties? DefaultReactionEmoji { get; set; }
     IEnumerable<IDiscordForumTagProperties>? AvailableTags { get; set; }
     NetCord.SortOrderType? DefaultSortOrder { get; set; }
     NetCord.ForumLayoutType? DefaultForumLayout { get; set; }
@@ -1529,16 +1619,14 @@ public partial interface IDiscordGuildChannelProperties
     IDiscordGuildChannelProperties WithPosition(int? position);
     IDiscordGuildChannelProperties WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites);
     IDiscordGuildChannelProperties AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites);
-    IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites);
     IDiscordGuildChannelProperties WithParentId(ulong? parentId);
     IDiscordGuildChannelProperties WithNsfw(bool? nsfw = true);
     IDiscordGuildChannelProperties WithRtcRegion(string rtcRegion);
     IDiscordGuildChannelProperties WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode);
     IDiscordGuildChannelProperties WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration);
-    IDiscordGuildChannelProperties WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji);
+    IDiscordGuildChannelProperties WithDefaultReactionEmoji(IDiscordEmojiProperties? defaultReactionEmoji);
     IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags);
     IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags);
-    IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags);
     IDiscordGuildChannelProperties WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder);
     IDiscordGuildChannelProperties WithDefaultForumLayout(NetCord.ForumLayoutType? defaultForumLayout);
     IDiscordGuildChannelProperties WithDefaultThreadSlowmode(int? defaultThreadSlowmode);
@@ -1571,7 +1659,6 @@ public partial interface IDiscordGuildUserProperties
     IDiscordGuildUserProperties WithNickname(string nickname);
     IDiscordGuildUserProperties WithRolesIds(IEnumerable<ulong>? rolesIds);
     IDiscordGuildUserProperties AddRolesIds(IEnumerable<ulong> rolesIds);
-    IDiscordGuildUserProperties AddRolesIds(ulong[] rolesIds);
     IDiscordGuildUserProperties WithMuted(bool? muted = true);
     IDiscordGuildUserProperties WithDeafened(bool? deafened = true);
 }
@@ -1587,15 +1674,20 @@ public partial interface IDiscordGuildUserOptions
     System.DateTimeOffset? TimeOutUntil { get; set; }
     NetCord.GuildUserFlags? GuildFlags { get; set; }
     string? Nickname { get; set; }
+    NetCord.Rest.ImageProperties? Banner { get; set; }
+    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    string? Bio { get; set; }
     IDiscordGuildUserOptions WithRoleIds(IEnumerable<ulong>? roleIds);
     IDiscordGuildUserOptions AddRoleIds(IEnumerable<ulong> roleIds);
-    IDiscordGuildUserOptions AddRoleIds(ulong[] roleIds);
     IDiscordGuildUserOptions WithMuted(bool? muted = true);
     IDiscordGuildUserOptions WithDeafened(bool? deafened = true);
     IDiscordGuildUserOptions WithChannelId(ulong? channelId);
     IDiscordGuildUserOptions WithTimeOutUntil(System.DateTimeOffset? timeOutUntil);
     IDiscordGuildUserOptions WithGuildFlags(NetCord.GuildUserFlags? guildFlags);
     IDiscordGuildUserOptions WithNickname(string nickname);
+    IDiscordGuildUserOptions WithBanner(NetCord.Rest.ImageProperties? banner);
+    IDiscordGuildUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
+    IDiscordGuildUserOptions WithBio(string bio);
 }
 
 
@@ -1603,7 +1695,13 @@ public partial interface IDiscordCurrentGuildUserOptions
 {
     NetCord.Rest.CurrentGuildUserOptions Original { get; }
     string? Nickname { get; set; }
+    NetCord.Rest.ImageProperties? Banner { get; set; }
+    NetCord.Rest.ImageProperties? Avatar { get; set; }
+    string? Bio { get; set; }
     IDiscordCurrentGuildUserOptions WithNickname(string nickname);
+    IDiscordCurrentGuildUserOptions WithBanner(NetCord.Rest.ImageProperties? banner);
+    IDiscordCurrentGuildUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar);
+    IDiscordCurrentGuildUserOptions WithBio(string bio);
 }
 
 
@@ -1630,14 +1728,14 @@ public partial interface IDiscordRoleProperties
     NetCord.Rest.RoleProperties Original { get; }
     string? Name { get; set; }
     NetCord.Permissions? Permissions { get; set; }
-    NetCord.Color? Color { get; set; }
+    IDiscordRoleColorsProperties? Colors { get; set; }
     bool? Hoist { get; set; }
     NetCord.Rest.ImageProperties? Icon { get; set; }
     string? UnicodeIcon { get; set; }
     bool? Mentionable { get; set; }
     IDiscordRoleProperties WithName(string name);
     IDiscordRoleProperties WithPermissions(NetCord.Permissions? permissions);
-    IDiscordRoleProperties WithColor(NetCord.Color? color);
+    IDiscordRoleProperties WithColors(IDiscordRoleColorsProperties? colors);
     IDiscordRoleProperties WithHoist(bool? hoist = true);
     IDiscordRoleProperties WithIcon(NetCord.Rest.ImageProperties? icon);
     IDiscordRoleProperties WithUnicodeIcon(string unicodeIcon);
@@ -1660,14 +1758,14 @@ public partial interface IDiscordRoleOptions
     NetCord.Rest.RoleOptions Original { get; }
     string? Name { get; set; }
     NetCord.Permissions? Permissions { get; set; }
-    NetCord.Color? Color { get; set; }
+    IDiscordRoleColorsProperties? Colors { get; set; }
     bool? Hoist { get; set; }
     NetCord.Rest.ImageProperties? Icon { get; set; }
     string? UnicodeIcon { get; set; }
     bool? Mentionable { get; set; }
     IDiscordRoleOptions WithName(string name);
     IDiscordRoleOptions WithPermissions(NetCord.Permissions? permissions);
-    IDiscordRoleOptions WithColor(NetCord.Color? color);
+    IDiscordRoleOptions WithColors(IDiscordRoleColorsProperties? colors);
     IDiscordRoleOptions WithHoist(bool? hoist = true);
     IDiscordRoleOptions WithIcon(NetCord.Rest.ImageProperties? icon);
     IDiscordRoleOptions WithUnicodeIcon(string unicodeIcon);
@@ -1685,7 +1783,6 @@ public partial interface IDiscordGuildPruneProperties
     IDiscordGuildPruneProperties WithComputePruneCount(bool computePruneCount = true);
     IDiscordGuildPruneProperties WithRoles(IEnumerable<ulong>? roles);
     IDiscordGuildPruneProperties AddRoles(IEnumerable<ulong> roles);
-    IDiscordGuildPruneProperties AddRoles(ulong[] roles);
 }
 
 
@@ -1714,15 +1811,17 @@ public partial interface IDiscordRestInvite
     int? ApproximatePresenceCount { get; }
     int? ApproximateUserCount { get; }
     System.DateTimeOffset? ExpiresAt { get; }
-    IDiscordStageInstance? StageInstance { get; }
     IDiscordGuildScheduledEvent? GuildScheduledEvent { get; }
+    NetCord.InviteFlags? Flags { get; }
+    IReadOnlyList<IDiscordRole>? Roles { get; }
     int? Uses { get; }
     int? MaxUses { get; }
     int? MaxAge { get; }
     bool? Temporary { get; }
     System.DateTimeOffset? CreatedAt { get; }
-    Task<IDiscordRestInvite> GetGuildAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestInvite> DeleteGuildAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> GetAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestInvite> DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IAsyncEnumerable<ulong> GetTargetUsersAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
 
 
@@ -1739,7 +1838,7 @@ public partial interface IDiscordIntegration
     NetCord.IntegrationExpireBehavior? ExpireBehavior { get; }
     int? ExpireGracePeriod { get; }
     IDiscordUser? User { get; }
-    IDiscordAccount Account { get; }
+    IDiscordIntegrationAccount Account { get; }
     System.DateTimeOffset? SyncedAt { get; }
     int? SubscriberCount { get; }
     bool? Revoked { get; }
@@ -1772,8 +1871,8 @@ public partial interface IDiscordGuildWidget
     ulong Id { get; }
     string Name { get; }
     string? InstantInvite { get; }
-    ImmutableDictionary<ulong, IDiscordGuildWidgetChannel> Channels { get; }
-    ImmutableDictionary<ulong, IDiscordUser> Users { get; }
+    IReadOnlyDictionary<ulong, IDiscordGuildWidgetChannel> Channels { get; }
+    IReadOnlyDictionary<ulong, IDiscordUser> Users { get; }
     int PresenceCount { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
@@ -1796,7 +1895,6 @@ public partial interface IDiscordGuildWelcomeScreenOptions
     IDiscordGuildWelcomeScreenOptions WithEnabled(bool? enabled = true);
     IDiscordGuildWelcomeScreenOptions WithWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties>? welcomeChannels);
     IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels);
-    IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels);
     IDiscordGuildWelcomeScreenOptions WithDescription(string description);
 }
 
@@ -1821,10 +1919,8 @@ public partial interface IDiscordGuildOnboardingOptions
     NetCord.Rest.GuildOnboardingMode? Mode { get; set; }
     IDiscordGuildOnboardingOptions WithPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties>? prompts);
     IDiscordGuildOnboardingOptions AddPrompts(IEnumerable<IDiscordGuildOnboardingPromptProperties> prompts);
-    IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts);
     IDiscordGuildOnboardingOptions WithDefaultChannelIds(IEnumerable<ulong>? defaultChannelIds);
     IDiscordGuildOnboardingOptions AddDefaultChannelIds(IEnumerable<ulong> defaultChannelIds);
-    IDiscordGuildOnboardingOptions AddDefaultChannelIds(ulong[] defaultChannelIds);
     IDiscordGuildOnboardingOptions WithEnabled(bool? enabled = true);
     IDiscordGuildOnboardingOptions WithMode(NetCord.Rest.GuildOnboardingMode? mode);
 }
@@ -1955,7 +2051,7 @@ public partial interface IDiscordGuildApplicationCommand
     IReadOnlyDictionary<string, string>? NameLocalizations { get; }
     string Description { get; }
     IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
-    NetCord.Permissions? DefaultGuildUserPermissions { get; }
+    NetCord.Permissions? DefaultGuildPermissions { get; }
     IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
     bool Nsfw { get; }
     IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
@@ -1978,19 +2074,17 @@ public partial interface IDiscordApplicationCommandProperties
     NetCord.ApplicationCommandType Type { get; }
     string Name { get; set; }
     IReadOnlyDictionary<string, string>? NameLocalizations { get; set; }
-    NetCord.Permissions? DefaultGuildUserPermissions { get; set; }
+    NetCord.Permissions? DefaultGuildPermissions { get; set; }
     IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; set; }
     IEnumerable<NetCord.InteractionContextType>? Contexts { get; set; }
     bool Nsfw { get; set; }
     IDiscordApplicationCommandProperties WithName(string name);
     IDiscordApplicationCommandProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
-    IDiscordApplicationCommandProperties WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions);
+    IDiscordApplicationCommandProperties WithDefaultGuildPermissions(NetCord.Permissions? defaultGuildPermissions);
     IDiscordApplicationCommandProperties WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType>? integrationTypes);
     IDiscordApplicationCommandProperties AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes);
-    IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes);
     IDiscordApplicationCommandProperties WithContexts(IEnumerable<NetCord.InteractionContextType>? contexts);
     IDiscordApplicationCommandProperties AddContexts(IEnumerable<NetCord.InteractionContextType> contexts);
-    IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts);
     IDiscordApplicationCommandProperties WithNsfw(bool nsfw = true);
 }
 
@@ -2003,7 +2097,7 @@ public partial interface IDiscordApplicationCommandOptions
     string? Description { get; set; }
     IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; set; }
     IEnumerable<IDiscordApplicationCommandOptionProperties>? Options { get; set; }
-    NetCord.Permissions? DefaultGuildUserPermissions { get; set; }
+    NetCord.Permissions? DefaultGuildPermissions { get; set; }
     IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; set; }
     IEnumerable<NetCord.InteractionContextType>? Contexts { get; set; }
     bool? Nsfw { get; set; }
@@ -2013,25 +2107,22 @@ public partial interface IDiscordApplicationCommandOptions
     IDiscordApplicationCommandOptions WithDescriptionLocalizations(IReadOnlyDictionary<string, string>? descriptionLocalizations);
     IDiscordApplicationCommandOptions WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties>? options);
     IDiscordApplicationCommandOptions AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options);
-    IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options);
-    IDiscordApplicationCommandOptions WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions);
+    IDiscordApplicationCommandOptions WithDefaultGuildPermissions(NetCord.Permissions? defaultGuildPermissions);
     IDiscordApplicationCommandOptions WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType>? integrationTypes);
     IDiscordApplicationCommandOptions AddIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType> integrationTypes);
-    IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes);
     IDiscordApplicationCommandOptions WithContexts(IEnumerable<NetCord.InteractionContextType>? contexts);
     IDiscordApplicationCommandOptions AddContexts(IEnumerable<NetCord.InteractionContextType> contexts);
-    IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts);
     IDiscordApplicationCommandOptions WithNsfw(bool? nsfw = true);
 }
 
 
 public partial interface IDiscordApplicationCommandGuildPermissions  
 {
-    NetCord.Rest.ApplicationCommandGuildPermissions Original { get; }
+    NetCord.ApplicationCommandGuildPermissions Original { get; }
     ulong CommandId { get; }
     ulong ApplicationId { get; }
     ulong GuildId { get; }
-    IReadOnlyDictionary<ulong, IDiscordApplicationCommandPermission> Permissions { get; }
+    IReadOnlyDictionary<ulong, IDiscordApplicationCommandGuildPermission> Permissions { get; }
 }
 
 
@@ -2058,7 +2149,6 @@ public partial interface IDiscordGuildStickerProperties
     IDiscordGuildStickerProperties WithFormat(NetCord.StickerFormat format);
     IDiscordGuildStickerProperties WithTags(IEnumerable<string> tags);
     IDiscordGuildStickerProperties AddTags(IEnumerable<string> tags);
-    IDiscordGuildStickerProperties AddTags(string[] tags);
 }
 
 
@@ -2094,10 +2184,8 @@ public partial interface IDiscordGuildUsersSearchPaginationProperties
     int? BatchSize { get; set; }
     IDiscordGuildUsersSearchPaginationProperties WithOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery>? orQuery);
     IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IEnumerable<IDiscordGuildUsersSearchQuery> orQuery);
-    IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery);
     IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery>? andQuery);
     IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery);
-    IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery);
     IDiscordGuildUsersSearchPaginationProperties WithFrom(NetCord.Rest.GuildUsersSearchTimestamp? from);
     IDiscordGuildUsersSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
     IDiscordGuildUsersSearchPaginationProperties WithBatchSize(int? batchSize);
@@ -2217,6 +2305,24 @@ public partial interface IDiscordMessageReactionsPaginationProperties
 }
 
 
+public partial interface IDiscordTypingScopeProperties  
+{
+    NetCord.Rest.TypingScopeProperties Original { get; }
+    System.TimeSpan? Interval { get; set; }
+    TimeProvider TimeProvider { get; set; }
+    IDiscordTypingScopeProperties WithInterval(System.TimeSpan? interval);
+    IDiscordTypingScopeProperties WithTimeProvider(TimeProvider? timeProvider);
+}
+
+
+public partial interface IDiscordMessagePin  
+{
+    NetCord.Rest.MessagePin Original { get; }
+    System.DateTimeOffset PinnedAt { get; }
+    IDiscordRestMessage Message { get; }
+}
+
+
 public partial interface IDiscordGoogleCloudPlatformStorageBucket  
 {
     NetCord.Rest.GoogleCloudPlatformStorageBucket Original { get; }
@@ -2246,6 +2352,25 @@ public partial interface IDiscordAvatarDecorationData
 }
 
 
+public partial interface IDiscordCollectibles  
+{
+    NetCord.Collectibles Original { get; }
+    IDiscordNameplate? Nameplate { get; }
+}
+
+
+public partial interface IDiscordUserPrimaryGuild  
+{
+    NetCord.UserPrimaryGuild Original { get; }
+    ulong? IdentityGuildId { get; }
+    bool? IdentityEnabled { get; }
+    string Tag { get; }
+    string BadgeHash { get; }
+    bool HasBadge { get; }
+    IDiscordImageUrl GetBadgeUrl(NetCord.ImageFormat format);
+}
+
+
 public partial interface IDiscordDMChannel  
 {
     NetCord.DMChannel Original { get; }
@@ -2266,18 +2391,18 @@ public partial interface IDiscordDMChannel
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
@@ -2294,6 +2419,7 @@ public partial interface IDiscordJsonInteractionData
     NetCord.ApplicationCommandType? Type { get; set; }
     IDiscordJsonInteractionResolvedData? ResolvedData { get; set; }
     IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get; set; }
+    ulong? GuildId { get; set; }
     string? CustomId { get; set; }
     NetCord.ComponentType? ComponentType { get; set; }
     string[]? SelectedValues { get; set; }
@@ -2319,8 +2445,7 @@ public partial interface IDiscordJsonGuildUser
     string? GuildAvatarHash { get; set; }
     string? GuildBannerHash { get; set; }
     ulong[] RoleIds { get; set; }
-    ulong? HoistedRoleId { get; set; }
-    System.DateTimeOffset JoinedAt { get; set; }
+    System.DateTimeOffset? JoinedAt { get; set; }
     System.DateTimeOffset? GuildBoostStart { get; set; }
     bool Deafened { get; set; }
     bool Muted { get; set; }
@@ -2351,6 +2476,8 @@ public partial interface IDiscordJsonUser
     NetCord.PremiumType? PremiumType { get; set; }
     NetCord.UserFlags? PublicFlags { get; set; }
     IDiscordJsonAvatarDecorationData? AvatarDecorationData { get; set; }
+    IDiscordJsonCollectibles Collectibles { get; set; }
+    IDiscordJsonUserPrimaryGuild PrimaryGuild { get; set; }
     IDiscordJsonGuildUser? GuildUser { get; set; }
     ulong Id { get; set; }
 }
@@ -2393,6 +2520,7 @@ public partial interface IDiscordJsonMessage
     IDiscordJsonInteractionResolvedData? ResolvedData { get; set; }
     IDiscordJsonMessagePoll? Poll { get; set; }
     IDiscordJsonMessageCall? Call { get; set; }
+    IDiscordJsonSharedClientTheme SharedClientTheme { get; set; }
     ulong Id { get; set; }
 }
 
@@ -2433,6 +2561,8 @@ public partial interface IDiscordCurrentUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    IDiscordCollectibles Collectibles { get; }
+    IDiscordUserPrimaryGuild PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -2488,6 +2618,9 @@ public partial interface IDiscordCurrentApplication
     IReadOnlyList<string>? RedirectUris { get; }
     string? InteractionsEndpointUrl { get; }
     string? RoleConnectionsVerificationUrl { get; }
+    string EventWebhooksUrl { get; }
+    NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; }
+    IReadOnlyList<string>? EventWebhooksTypes { get; }
     IReadOnlyList<string>? Tags { get; }
     IDiscordApplicationInstallParams? InstallParams { get; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration { get; }
@@ -2529,6 +2662,9 @@ public partial interface IDiscordCurrentApplicationOptions
     NetCord.Rest.ImageProperties? CoverImage { get; set; }
     string? InteractionsEndpointUrl { get; set; }
     IEnumerable<string>? Tags { get; set; }
+    string? EventWebhooksUrl { get; set; }
+    NetCord.ApplicationEventWebhooksStatus? EventWebhooksStatus { get; set; }
+    IEnumerable<string>? EventWebhooksTypes { get; set; }
     IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl);
     IDiscordCurrentApplicationOptions WithDescription(string description);
     IDiscordCurrentApplicationOptions WithRoleConnectionsVerificationUrl(string roleConnectionsVerificationUrl);
@@ -2540,7 +2676,10 @@ public partial interface IDiscordCurrentApplicationOptions
     IDiscordCurrentApplicationOptions WithInteractionsEndpointUrl(string interactionsEndpointUrl);
     IDiscordCurrentApplicationOptions WithTags(IEnumerable<string>? tags);
     IDiscordCurrentApplicationOptions AddTags(IEnumerable<string> tags);
-    IDiscordCurrentApplicationOptions AddTags(string[] tags);
+    IDiscordCurrentApplicationOptions WithEventWebhooksUrl(string eventWebhooksUrl);
+    IDiscordCurrentApplicationOptions WithEventWebhooksStatus(NetCord.ApplicationEventWebhooksStatus? eventWebhooksStatus);
+    IDiscordCurrentApplicationOptions WithEventWebhooksTypes(IEnumerable<string>? eventWebhooksTypes);
+    IDiscordCurrentApplicationOptions AddEventWebhooksTypes(IEnumerable<string> eventWebhooksTypes);
 }
 
 
@@ -2617,7 +2756,7 @@ public partial interface IDiscordGuildChannelOptions
     NetCord.VideoQualityMode? VideoQualityMode { get; set; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; set; }
     IEnumerable<IDiscordForumTagProperties>? AvailableTags { get; set; }
-    NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get; set; }
+    IDiscordEmojiProperties? DefaultReactionEmoji { get; set; }
     int? DefaultThreadSlowmode { get; set; }
     NetCord.ChannelFlags? Flags { get; set; }
     NetCord.SortOrderType? DefaultSortOrder { get; set; }
@@ -2637,15 +2776,13 @@ public partial interface IDiscordGuildChannelOptions
     IDiscordGuildChannelOptions WithUserLimit(int? userLimit);
     IDiscordGuildChannelOptions WithPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties>? permissionOverwrites);
     IDiscordGuildChannelOptions AddPermissionOverwrites(IEnumerable<IDiscordPermissionOverwriteProperties> permissionOverwrites);
-    IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites);
     IDiscordGuildChannelOptions WithParentId(ulong? parentId);
     IDiscordGuildChannelOptions WithRtcRegion(string rtcRegion);
     IDiscordGuildChannelOptions WithVideoQualityMode(NetCord.VideoQualityMode? videoQualityMode);
     IDiscordGuildChannelOptions WithDefaultAutoArchiveDuration(NetCord.ThreadArchiveDuration? defaultAutoArchiveDuration);
     IDiscordGuildChannelOptions WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags);
     IDiscordGuildChannelOptions AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags);
-    IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags);
-    IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji);
+    IDiscordGuildChannelOptions WithDefaultReactionEmoji(IDiscordEmojiProperties? defaultReactionEmoji);
     IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode);
     IDiscordGuildChannelOptions WithFlags(NetCord.ChannelFlags? flags);
     IDiscordGuildChannelOptions WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder);
@@ -2656,7 +2793,14 @@ public partial interface IDiscordGuildChannelOptions
     IDiscordGuildChannelOptions WithInvitable(bool? invitable = true);
     IDiscordGuildChannelOptions WithAppliedTags(IEnumerable<ulong>? appliedTags);
     IDiscordGuildChannelOptions AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags);
+}
+
+
+public partial interface IDiscordVoiceGuildChannelStatusProperties  
+{
+    NetCord.Rest.VoiceGuildChannelStatusProperties Original { get; }
+    string? Status { get; set; }
+    IDiscordVoiceGuildChannelStatusProperties WithStatus(string status);
 }
 
 
@@ -2684,6 +2828,8 @@ public partial interface IDiscordInviteProperties
     NetCord.InviteTargetType? TargetType { get; set; }
     ulong? TargetUserId { get; set; }
     ulong? TargetApplicationId { get; set; }
+    IDiscordInviteTargetUsersProperties? TargetUsers { get; set; }
+    IEnumerable<ulong>? RoleIds { get; set; }
     IDiscordInviteProperties WithMaxAge(int? maxAge);
     IDiscordInviteProperties WithMaxUses(int? maxUses);
     IDiscordInviteProperties WithTemporary(bool? temporary = true);
@@ -2691,6 +2837,9 @@ public partial interface IDiscordInviteProperties
     IDiscordInviteProperties WithTargetType(NetCord.InviteTargetType? targetType);
     IDiscordInviteProperties WithTargetUserId(ulong? targetUserId);
     IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId);
+    IDiscordInviteProperties WithTargetUsers(IDiscordInviteTargetUsersProperties? targetUsers);
+    IDiscordInviteProperties WithRoleIds(IEnumerable<ulong>? roleIds);
+    IDiscordInviteProperties AddRoleIds(IEnumerable<ulong> roleIds);
 }
 
 
@@ -2734,11 +2883,12 @@ public partial interface IDiscordForumGuildThread
     NetCord.ForumGuildThread Original { get; }
     IDiscordRestMessage Message { get; }
     IReadOnlyList<ulong>? AppliedTags { get; }
+    ulong ParentId { get; }
     ulong OwnerId { get; }
     int MessageCount { get; }
     int UserCount { get; }
     IDiscordGuildThreadMetadata Metadata { get; }
-    IDiscordThreadCurrentUser? CurrentUser { get; }
+    IDiscordThreadCurrentUser? CurrentUser { get; set; }
     int TotalMessageSent { get; }
     ulong GuildId { get; }
     int? Position { get; }
@@ -2747,7 +2897,6 @@ public partial interface IDiscordForumGuildThread
     string? Topic { get; }
     bool Nsfw { get; }
     int Slowmode { get; }
-    ulong? ParentId { get; }
     NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get; }
     int DefaultThreadSlowmode { get; }
     ulong? LastMessageId { get; }
@@ -2765,7 +2914,7 @@ public partial interface IDiscordForumGuildThread
     Task<IDiscordThreadUser> GetUserAsync(ulong userId, bool withGuildUser = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordThreadUser> GetUsersAsync(IDiscordOptionalGuildUsersPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task ModifyPermissionsAsync(IDiscordPermissionOverwriteProperties permissionOverwrite, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeletePermissionAsync(ulong overwriteId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordGuildThread> CreateGuildThreadAsync(ulong messageId, NetCord.Rest.GuildThreadFromMessageProperties threadFromMessageProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -2780,18 +2929,18 @@ public partial interface IDiscordForumGuildThread
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
@@ -2812,7 +2961,6 @@ public partial interface IDiscordForumGuildThreadProperties
     IDiscordForumGuildThreadProperties WithMessage(IDiscordForumGuildThreadMessageProperties message);
     IDiscordForumGuildThreadProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
     IDiscordForumGuildThreadProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags);
     IDiscordForumGuildThreadProperties WithName(string name);
     IDiscordForumGuildThreadProperties WithAutoArchiveDuration(NetCord.ThreadArchiveDuration? autoArchiveDuration);
     IDiscordForumGuildThreadProperties WithSlowmode(int? slowmode);
@@ -2825,7 +2973,7 @@ public partial interface IDiscordThreadUser
     ulong Id { get; }
     ulong ThreadId { get; }
     System.DateTimeOffset JoinTimestamp { get; }
-    int Flags { get; }
+    NetCord.ThreadUserFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
 }
 
@@ -2896,10 +3044,8 @@ public partial interface IDiscordGuildProperties
     IDiscordGuildProperties WithContentFilter(NetCord.ContentFilter? contentFilter);
     IDiscordGuildProperties WithRoles(IEnumerable<IDiscordRoleProperties>? roles);
     IDiscordGuildProperties AddRoles(IEnumerable<IDiscordRoleProperties> roles);
-    IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles);
     IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties>? channels);
     IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels);
-    IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels);
     IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId);
     IDiscordGuildProperties WithAfkTimeout(int? afkTimeout);
     IDiscordGuildProperties WithSystemChannelId(ulong? systemChannelId);
@@ -2927,7 +3073,7 @@ public partial interface IDiscordApplicationCommand
     IReadOnlyDictionary<string, string>? NameLocalizations { get; }
     string Description { get; }
     IReadOnlyDictionary<string, string>? DescriptionLocalizations { get; }
-    NetCord.Permissions? DefaultGuildUserPermissions { get; }
+    NetCord.Permissions? DefaultGuildPermissions { get; }
     IReadOnlyList<IDiscordApplicationCommandOption> Options { get; }
     bool Nsfw { get; }
     IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes { get; }
@@ -2939,6 +3085,32 @@ public partial interface IDiscordApplicationCommand
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationCommandGuildPermissions> GetGuildPermissionsAsync(ulong guildId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordApplicationCommandGuildPermissions> OverwriteGuildPermissionsAsync(ulong guildId, IEnumerable<IDiscordApplicationCommandGuildPermissionProperties> newPermissions, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+}
+
+
+public partial interface IDiscordInviteTargetUsersProperties  
+{
+    NetCord.Rest.InviteTargetUsersProperties Original { get; }
+    static IDiscordInviteTargetUsersProperties FromStream(Stream stream)
+    {
+        return new DiscordInviteTargetUsersProperties(NetCord.Rest.InviteTargetUsersProperties.FromStream(stream));
+    }
+    static IDiscordInviteTargetUsersProperties FromEnumerable(IEnumerable<ulong> userIds)
+    {
+        return new DiscordInviteTargetUsersProperties(NetCord.Rest.InviteTargetUsersProperties.FromEnumerable(userIds));
+    }
+}
+
+
+public partial interface IDiscordInviteTargetUsersJobStatus  
+{
+    NetCord.Rest.InviteTargetUsersJobStatus Original { get; }
+    NetCord.Rest.InviteTargetUsersJobStatusCode Status { get; }
+    int TotalUsers { get; }
+    int ProcessedUsers { get; }
+    System.DateTimeOffset CreatedAt { get; }
+    System.DateTimeOffset? CompletedAt { get; }
+    string? ErrorMessage { get; }
 }
 
 
@@ -2955,7 +3127,6 @@ public partial interface IDiscordEntitlementsPaginationProperties
     IDiscordEntitlementsPaginationProperties WithUserId(ulong? userId);
     IDiscordEntitlementsPaginationProperties WithSkuIds(IEnumerable<ulong>? skuIds);
     IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds);
-    IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds);
     IDiscordEntitlementsPaginationProperties WithGuildId(ulong? guildId);
     IDiscordEntitlementsPaginationProperties WithExcludeEnded(bool? excludeEnded = true);
     IDiscordEntitlementsPaginationProperties WithFrom(ulong? from);
@@ -3120,6 +3291,9 @@ public partial interface IDiscordApplication
     IReadOnlyList<string>? RedirectUris { get; }
     string? InteractionsEndpointUrl { get; }
     string? RoleConnectionsVerificationUrl { get; }
+    string EventWebhooksUrl { get; }
+    NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; }
+    IReadOnlyList<string>? EventWebhooksTypes { get; }
     IReadOnlyList<string>? Tags { get; }
     IDiscordApplicationInstallParams? InstallParams { get; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration { get; }
@@ -3154,10 +3328,12 @@ public partial interface IDiscordCurrentUserOptions
 public partial interface IDiscordGuildsPaginationProperties  
 {
     NetCord.Rest.GuildsPaginationProperties Original { get; }
+    int? Shard { get; set; }
     bool WithCounts { get; set; }
     ulong? From { get; set; }
     NetCord.Rest.PaginationDirection? Direction { get; set; }
     int? BatchSize { get; set; }
+    IDiscordGuildsPaginationProperties WithShard(int? shard);
     IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true);
     IDiscordGuildsPaginationProperties WithFrom(ulong? from);
     IDiscordGuildsPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction);
@@ -3189,18 +3365,18 @@ public partial interface IDiscordGroupDMChannel
     Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> SendMessageAsync(NetCord.Rest.MessageProperties message, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task AddMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
     Task DeleteAllMessageReactionsAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessagesAsync(IEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
+    IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task UnpinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     IAsyncEnumerable<IDiscordUser> GetMessagePollAnswerVotersAsync(ulong messageId, int answerId, NetCord.Rest.PaginationProperties<ulong>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null);
@@ -3216,7 +3392,6 @@ public partial interface IDiscordGroupDMChannelProperties
     IReadOnlyDictionary<ulong, string>? Nicknames { get; set; }
     IDiscordGroupDMChannelProperties WithAccessTokens(IEnumerable<string> accessTokens);
     IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens);
-    IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens);
     IDiscordGroupDMChannelProperties WithNicknames(IReadOnlyDictionary<ulong, string>? nicknames);
 }
 
@@ -3281,7 +3456,7 @@ public partial interface IDiscordIncomingWebhook
     Task<IDiscordIncomingWebhook> ModifyWithTokenAsync(Action<IDiscordWebhookOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteWithTokenAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
@@ -3319,7 +3494,7 @@ public partial interface IDiscordWebhookMessageProperties
     bool Tts { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<NetCord.Rest.IComponentProperties>? Components { get; set; }
+    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     string? ThreadName { get; set; }
@@ -3332,20 +3507,38 @@ public partial interface IDiscordWebhookMessageProperties
     IDiscordWebhookMessageProperties WithTts(bool tts = true);
     IDiscordWebhookMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordWebhookMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
-    IDiscordWebhookMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds);
     IDiscordWebhookMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordWebhookMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components);
-    IDiscordWebhookMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components);
-    IDiscordWebhookMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components);
+    IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
+    IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
     IDiscordWebhookMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordWebhookMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
-    IDiscordWebhookMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments);
     IDiscordWebhookMessageProperties WithFlags(NetCord.MessageFlags? flags);
     IDiscordWebhookMessageProperties WithThreadName(string threadName);
     IDiscordWebhookMessageProperties WithAppliedTags(IEnumerable<ulong>? appliedTags);
     IDiscordWebhookMessageProperties AddAppliedTags(IEnumerable<ulong> appliedTags);
-    IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags);
     IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
+}
+
+
+public partial interface IDiscordInteractionCallbackResponseInteraction  
+{
+    NetCord.Rest.InteractionCallbackResponseInteraction Original { get; }
+    ulong Id { get; }
+    NetCord.InteractionType Type { get; }
+    string? ActivityInstanceId { get; }
+    ulong? ResponseMessageId { get; }
+    bool? ResponseMessageLoading { get; }
+    bool? ResponseMessageEphemeral { get; }
+    System.DateTimeOffset CreatedAt { get; }
+}
+
+
+public partial interface IDiscordInteractionCallbackResponseResource  
+{
+    NetCord.Rest.InteractionCallbackResponseResource Original { get; }
+    NetCord.Rest.InteractionCallbackType Type { get; }
+    IDiscordActivityInstance ActivityInstance { get; }
+    IDiscordRestMessage Message { get; }
 }
 
 
@@ -3368,16 +3561,16 @@ public partial interface IDiscordAttachment
     string? Title { get; }
     string? Description { get; }
     string? ContentType { get; }
-    int Size { get; }
+    long Size { get; }
     string Url { get; }
     string ProxyUrl { get; }
     bool Ephemeral { get; }
     NetCord.AttachmentFlags Flags { get; }
     System.DateTimeOffset CreatedAt { get; }
     IDiscordAttachmentExpirationInfo GetExpirationInfo();
-    static IDiscordAttachment CreateFromJson(IDiscordJsonAttachment jsonModel)
+    static IDiscordAttachment CreateFromJson(IDiscordJsonAttachment jsonModel, IDiscordRestClient client)
     {
-        return new DiscordAttachment(NetCord.Attachment.CreateFromJson(jsonModel.Original));
+        return new DiscordAttachment(NetCord.Attachment.CreateFromJson(jsonModel.Original, client.Original));
     }
 }
 
@@ -3424,6 +3617,7 @@ public partial interface IDiscordMessageActivity
 public partial interface IDiscordMessageReference  
 {
     NetCord.MessageReference Original { get; }
+    NetCord.MessageReferenceType Type { get; }
     ulong MessageId { get; }
     ulong ChannelId { get; }
     ulong? GuildId { get; }
@@ -3452,13 +3646,12 @@ public partial interface IDiscordMessageInteractionMetadata
 }
 
 
-public partial interface IDiscordComponent  
+public partial interface IDiscordMessageComponent  
 {
-    NetCord.IComponent Original { get; }
-    int Id { get; }
-    static IDiscordComponent CreateFromJson(IDiscordJsonComponent jsonModel)
+    NetCord.IMessageComponent Original { get; }
+    static IDiscordMessageComponent CreateFromJson(IDiscordJsonComponent jsonModel)
     {
-        return new DiscordComponent(NetCord.IComponent.CreateFromJson(jsonModel.Original));
+        return new DiscordMessageComponent(NetCord.IMessageComponent.CreateFromJson(jsonModel.Original));
     }
 }
 
@@ -3489,6 +3682,7 @@ public partial interface IDiscordInteractionResolvedData
     IReadOnlyDictionary<ulong, IDiscordUser>? Users { get; }
     IReadOnlyDictionary<ulong, IDiscordRole>? Roles { get; }
     IReadOnlyDictionary<ulong, IDiscordChannel>? Channels { get; }
+    IReadOnlyDictionary<ulong, IDiscordRestMessage>? Messages { get; }
     IReadOnlyDictionary<ulong, IDiscordAttachment>? Attachments { get; }
 }
 
@@ -3513,40 +3707,53 @@ public partial interface IDiscordMessageCall
 }
 
 
+public partial interface IDiscordSharedClientTheme  
+{
+    NetCord.SharedClientTheme Original { get; }
+    IDiscordJsonSharedClientTheme JsonModel { get; }
+    IReadOnlyList<NetCord.Color> Colors { get; }
+    int GradientAngle { get; }
+    int BaseMix { get; }
+    NetCord.SharedClientThemeBase BaseTheme { get; }
+}
+
+
 public partial interface IDiscordReplyMessageProperties  
 {
     NetCord.Rest.ReplyMessageProperties Original { get; }
-    string? Content { get; set; }
-    IDiscordNonceProperties? Nonce { get; set; }
+    string Content { get; set; }
+    IDiscordNonceProperties Nonce { get; set; }
     bool Tts { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
-    NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
+    NetCord.Rest.AllowedMentionsProperties AllowedMentions { get; set; }
     bool? FailIfNotExists { get; set; }
-    IEnumerable<NetCord.Rest.IComponentProperties>? Components { get; set; }
-    IEnumerable<ulong>? StickerIds { get; set; }
+    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
+    IEnumerable<ulong> StickerIds { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
-    IDiscordMessagePollProperties? Poll { get; set; }
+    IDiscordMessagePollProperties Poll { get; set; }
     NetCord.Rest.MessageProperties ToMessageProperties(ulong messageReferenceId);
     IDiscordReplyMessageProperties WithContent(string content);
     IDiscordReplyMessageProperties WithNonce(IDiscordNonceProperties? nonce);
     IDiscordReplyMessageProperties WithTts(bool tts = true);
     IDiscordReplyMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordReplyMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
-    IDiscordReplyMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments);
     IDiscordReplyMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordReplyMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
-    IDiscordReplyMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds);
     IDiscordReplyMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
     IDiscordReplyMessageProperties WithFailIfNotExists(bool? failIfNotExists = true);
-    IDiscordReplyMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components);
-    IDiscordReplyMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components);
-    IDiscordReplyMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components);
+    IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
+    IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
     IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
     IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
-    IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds);
     IDiscordReplyMessageProperties WithFlags(NetCord.MessageFlags? flags);
     IDiscordReplyMessageProperties WithPoll(IDiscordMessagePollProperties? poll);
+}
+
+
+public partial interface IDiscordMessageComponentProperties  
+{
+    NetCord.Rest.IMessageComponentProperties Original { get; }
 }
 
 
@@ -3561,7 +3768,6 @@ public partial interface IDiscordMessagePollProperties
     IDiscordMessagePollProperties WithQuestion(IDiscordMessagePollMediaProperties question);
     IDiscordMessagePollProperties WithAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers);
     IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers);
-    IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers);
     IDiscordMessagePollProperties WithDurationInHours(int? durationInHours);
     IDiscordMessagePollProperties WithAllowMultiselect(bool allowMultiselect = true);
     IDiscordMessagePollProperties WithLayoutType(NetCord.MessagePollLayoutType? layoutType);
@@ -3587,6 +3793,7 @@ public partial interface IDiscordGuildThreadMetadata
     System.DateTimeOffset ArchiveTimestamp { get; }
     bool Locked { get; }
     bool? Invitable { get; }
+    System.DateTimeOffset CreateTimestamp { get; }
 }
 
 
@@ -3594,7 +3801,7 @@ public partial interface IDiscordThreadCurrentUser
 {
     NetCord.ThreadCurrentUser Original { get; }
     System.DateTimeOffset JoinTimestamp { get; }
-    int Flags { get; }
+    NetCord.ThreadUserFlags Flags { get; }
 }
 
 
@@ -3633,6 +3840,15 @@ public partial interface IDiscordGuildScheduledEventRecurrenceRule
     IReadOnlyList<int>? ByMonthDay { get; }
     IReadOnlyList<int>? ByYearDay { get; }
     int? Count { get; }
+}
+
+
+public partial interface IDiscordRoleColors  
+{
+    NetCord.RoleColors Original { get; }
+    NetCord.Color PrimaryColor { get; }
+    NetCord.Color? SecondaryColor { get; }
+    NetCord.Color? TertiaryColor { get; }
 }
 
 
@@ -3745,16 +3961,12 @@ public partial interface IDiscordAutoModerationRuleTriggerMetadataProperties
     bool MentionRaidProtectionEnabled { get; set; }
     IDiscordAutoModerationRuleTriggerMetadataProperties WithKeywordFilter(IEnumerable<string>? keywordFilter);
     IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(IEnumerable<string> keywordFilter);
-    IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter);
     IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string>? regexPatterns);
     IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns);
-    IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns);
     IDiscordAutoModerationRuleTriggerMetadataProperties WithPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType>? presets);
     IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(IEnumerable<NetCord.AutoModerationRuleKeywordPresetType> presets);
-    IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets);
     IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string>? allowList);
     IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList);
-    IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList);
     IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionTotalLimit(int? mentionTotalLimit);
     IDiscordAutoModerationRuleTriggerMetadataProperties WithMentionRaidProtectionEnabled(bool mentionRaidProtectionEnabled = true);
 }
@@ -3767,6 +3979,24 @@ public partial interface IDiscordAutoModerationActionProperties
     IDiscordAutoModerationActionMetadataProperties? Metadata { get; set; }
     IDiscordAutoModerationActionProperties WithType(NetCord.AutoModerationActionType type);
     IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties? metadata);
+}
+
+
+public partial interface IDiscordEmojiProperties  
+{
+    NetCord.EmojiProperties Original { get; }
+    ulong? Id { get; set; }
+    string? Name { get; set; }
+    static IDiscordEmojiProperties Custom(ulong id)
+    {
+        return new DiscordEmojiProperties(NetCord.EmojiProperties.Custom(id));
+    }
+    static IDiscordEmojiProperties Standard(string name)
+    {
+        return new DiscordEmojiProperties(NetCord.EmojiProperties.Standard(name));
+    }
+    IDiscordEmojiProperties WithId(ulong? id);
+    IDiscordEmojiProperties WithName(string name);
 }
 
 
@@ -3786,12 +4016,23 @@ public partial interface IDiscordForumTagProperties
 }
 
 
-public partial interface IDiscordAccount  
+public partial interface IDiscordRoleColorsProperties  
 {
-    NetCord.Account Original { get; }
-    ulong Id { get; }
+    NetCord.Rest.RoleColorsProperties Original { get; }
+    NetCord.Color PrimaryColor { get; set; }
+    NetCord.Color? SecondaryColor { get; set; }
+    NetCord.Color? TertiaryColor { get; set; }
+    IDiscordRoleColorsProperties WithPrimaryColor(NetCord.Color primaryColor);
+    IDiscordRoleColorsProperties WithSecondaryColor(NetCord.Color? secondaryColor);
+    IDiscordRoleColorsProperties WithTertiaryColor(NetCord.Color? tertiaryColor);
+}
+
+
+public partial interface IDiscordIntegrationAccount  
+{
+    NetCord.IntegrationAccount Original { get; }
+    string Id { get; }
     string Name { get; }
-    System.DateTimeOffset CreatedAt { get; }
 }
 
 
@@ -3823,10 +4064,12 @@ public partial interface IDiscordGuildWelcomeScreenChannelProperties
     NetCord.Rest.GuildWelcomeScreenChannelProperties Original { get; }
     ulong ChannelId { get; set; }
     string Description { get; set; }
-    IDiscordEmojiProperties? Emoji { get; set; }
+    ulong? EmojiId { get; set; }
+    string? EmojiName { get; set; }
     IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId);
     IDiscordGuildWelcomeScreenChannelProperties WithDescription(string description);
-    IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties? emoji);
+    IDiscordGuildWelcomeScreenChannelProperties WithEmojiId(ulong? emojiId);
+    IDiscordGuildWelcomeScreenChannelProperties WithEmojiName(string emojiName);
 }
 
 
@@ -3858,7 +4101,6 @@ public partial interface IDiscordGuildOnboardingPromptProperties
     IDiscordGuildOnboardingPromptProperties WithType(NetCord.Rest.GuildOnboardingPromptType type);
     IDiscordGuildOnboardingPromptProperties WithOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options);
     IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options);
-    IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options);
     IDiscordGuildOnboardingPromptProperties WithTitle(string title);
     IDiscordGuildOnboardingPromptProperties WithSingleSelect(bool singleSelect = true);
     IDiscordGuildOnboardingPromptProperties WithRequired(bool required = true);
@@ -3910,6 +4152,7 @@ public partial interface IDiscordApplicationCommandOption
     int? MinLength { get; }
     int? MaxLength { get; }
     bool Autocomplete { get; }
+    IReadOnlyList<string>? FileTypes { get; }
 }
 
 
@@ -3930,6 +4173,7 @@ public partial interface IDiscordApplicationCommandOptionProperties
     int? MinLength { get; set; }
     int? MaxLength { get; set; }
     bool? Autocomplete { get; set; }
+    IEnumerable<string>? FileTypes { get; set; }
     IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type);
     IDiscordApplicationCommandOptionProperties WithName(string name);
     IDiscordApplicationCommandOptionProperties WithNameLocalizations(IReadOnlyDictionary<string, string>? nameLocalizations);
@@ -3938,24 +4182,23 @@ public partial interface IDiscordApplicationCommandOptionProperties
     IDiscordApplicationCommandOptionProperties WithRequired(bool? required = true);
     IDiscordApplicationCommandOptionProperties WithChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties>? choices);
     IDiscordApplicationCommandOptionProperties AddChoices(IEnumerable<IDiscordApplicationCommandOptionChoiceProperties> choices);
-    IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices);
     IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties>? options);
     IDiscordApplicationCommandOptionProperties AddOptions(IEnumerable<IDiscordApplicationCommandOptionProperties> options);
-    IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options);
     IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType>? channelTypes);
     IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes);
-    IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes);
     IDiscordApplicationCommandOptionProperties WithMinValue(double? minValue);
     IDiscordApplicationCommandOptionProperties WithMaxValue(double? maxValue);
     IDiscordApplicationCommandOptionProperties WithMinLength(int? minLength);
     IDiscordApplicationCommandOptionProperties WithMaxLength(int? maxLength);
     IDiscordApplicationCommandOptionProperties WithAutocomplete(bool? autocomplete = true);
+    IDiscordApplicationCommandOptionProperties WithFileTypes(IEnumerable<string>? fileTypes);
+    IDiscordApplicationCommandOptionProperties AddFileTypes(IEnumerable<string> fileTypes);
 }
 
 
-public partial interface IDiscordApplicationCommandPermission  
+public partial interface IDiscordApplicationCommandGuildPermission  
 {
-    NetCord.ApplicationCommandPermission Original { get; }
+    NetCord.ApplicationCommandGuildPermission Original { get; }
     ulong Id { get; }
     NetCord.ApplicationCommandGuildPermissionType Type { get; }
     bool Permission { get; }
@@ -4006,6 +4249,7 @@ public partial interface IDiscordJsonGuildThreadMetadata
     System.DateTimeOffset ArchiveTimestamp { get; set; }
     bool Locked { get; set; }
     bool? Invitable { get; set; }
+    System.DateTimeOffset? CreatedAt { get; set; }
 }
 
 
@@ -4013,7 +4257,7 @@ public partial interface IDiscordJsonThreadCurrentUser
 {
     NetCord.JsonModels.JsonThreadCurrentUser Original { get; }
     System.DateTimeOffset JoinTimestamp { get; set; }
-    int Flags { get; set; }
+    NetCord.ThreadUserFlags Flags { get; set; }
 }
 
 
@@ -4036,15 +4280,25 @@ public partial interface IDiscordJsonForumGuildChannelDefaultReaction
 }
 
 
+public partial interface IDiscordNameplate  
+{
+    NetCord.Nameplate Original { get; }
+    ulong SkuId { get; }
+    string Asset { get; }
+    string Label { get; }
+    string Palette { get; }
+}
+
+
 public partial interface IDiscordJsonInteractionResolvedData  
 {
     NetCord.JsonModels.JsonInteractionResolvedData Original { get; }
-    IReadOnlyDictionary<ulong, IDiscordJsonUser>? Users { get; set; }
-    IReadOnlyDictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get; set; }
-    IReadOnlyDictionary<ulong, IDiscordJsonRole>? Roles { get; set; }
-    IReadOnlyDictionary<ulong, IDiscordJsonChannel>? Channels { get; set; }
-    IReadOnlyDictionary<ulong, IDiscordJsonMessage>? Messages { get; set; }
-    IReadOnlyDictionary<ulong, IDiscordJsonAttachment>? Attachments { get; set; }
+    Dictionary<ulong, IDiscordJsonUser>? Users { get; set; }
+    Dictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get; set; }
+    Dictionary<ulong, IDiscordJsonRole>? Roles { get; set; }
+    Dictionary<ulong, IDiscordJsonChannel>? Channels { get; set; }
+    Dictionary<ulong, IDiscordJsonMessage>? Messages { get; set; }
+    Dictionary<ulong, IDiscordJsonAttachment>? Attachments { get; set; }
 }
 
 
@@ -4062,36 +4316,8 @@ public partial interface IDiscordJsonApplicationCommandInteractionDataOption
 public partial interface IDiscordJsonComponent  
 {
     NetCord.JsonModels.JsonComponent Original { get; }
-    int Id { get; set; }
     NetCord.ComponentType Type { get; set; }
-    string? CustomId { get; set; }
-    bool? Disabled { get; set; }
-    NetCord.ButtonStyle? Style { get; set; }
-    string? Label { get; set; }
-    IDiscordJsonEmoji? Emoji { get; set; }
-    string? Url { get; set; }
-    ulong? SkuId { get; set; }
-    IDiscordJsonMenuSelectOption[] Options { get; set; }
-    NetCord.ChannelType[]? ChannelTypes { get; set; }
-    string? Placeholder { get; set; }
-    IDiscordJsonSelectMenuDefaultValue[]? DefaultValues { get; set; }
-    int? MinValues { get; set; }
-    int? MaxValues { get; set; }
-    IDiscordJsonComponent[]? Components { get; set; }
-    int? MinLength { get; set; }
-    int? MaxLength { get; set; }
-    bool? Required { get; set; }
-    string? Value { get; set; }
-    IDiscordJsonComponent? Accessory { get; set; }
-    string? Content { get; set; }
-    IDiscordJsonComponentMedia? Media { get; set; }
-    IDiscordJsonComponentMedia? File { get; set; }
-    bool? Spoiler { get; set; }
-    string? Description { get; set; }
-    bool? Divider { get; set; }
-    NetCord.ComponentSeparatorSpacingSize? Spacing { get; set; }
-    NetCord.Color? AccentColor { get; set; }
-    IDiscordJsonComponent[]? Items { get; set; }
+    int Id { get; set; }
 }
 
 
@@ -4100,6 +4326,23 @@ public partial interface IDiscordJsonAvatarDecorationData
     NetCord.JsonModels.JsonAvatarDecorationData Original { get; }
     string Hash { get; set; }
     ulong SkuId { get; set; }
+}
+
+
+public partial interface IDiscordJsonCollectibles  
+{
+    NetCord.JsonModels.JsonCollectibles Original { get; }
+    IDiscordJsonNameplate Nameplate { get; set; }
+}
+
+
+public partial interface IDiscordJsonUserPrimaryGuild  
+{
+    NetCord.JsonModels.JsonUserPrimaryGuild Original { get; }
+    ulong? IdentityGuildId { get; set; }
+    bool? IdentityEnabled { get; set; }
+    string Tag { get; set; }
+    string BadgeHash { get; set; }
 }
 
 
@@ -4120,15 +4363,20 @@ public partial interface IDiscordJsonAttachment
     string? Title { get; set; }
     string? Description { get; set; }
     string? ContentType { get; set; }
-    int Size { get; set; }
+    long Size { get; set; }
     string Url { get; set; }
     string ProxyUrl { get; set; }
     int? Height { get; set; }
     int? Width { get; set; }
+    string Placeholder { get; set; }
+    int? PlaceholderVersion { get; set; }
     bool Ephemeral { get; set; }
     double? DurationSeconds { get; set; }
     byte[]? Waveform { get; set; }
     NetCord.AttachmentFlags Flags { get; set; }
+    IDiscordJsonUser[]? ClipParticipants { get; set; }
+    System.DateTimeOffset? ClipCreatedAt { get; set; }
+    IDiscordJsonApplication Application { get; set; }
     ulong Id { get; set; }
 }
 
@@ -4198,6 +4446,9 @@ public partial interface IDiscordJsonApplication
     string[]? RedirectUris { get; set; }
     string? InteractionsEndpointUrl { get; set; }
     string? RoleConnectionsVerificationUrl { get; set; }
+    string EventWebhooksUrl { get; set; }
+    NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get; set; }
+    string[]? EventWebhooksTypes { get; set; }
     string[]? Tags { get; set; }
     IDiscordJsonApplicationInstallParams? InstallParams { get; set; }
     IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordJsonApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration { get; set; }
@@ -4209,6 +4460,7 @@ public partial interface IDiscordJsonApplication
 public partial interface IDiscordJsonMessageReference  
 {
     NetCord.JsonModels.JsonMessageReference Original { get; }
+    NetCord.MessageReferenceType? Type { get; set; }
     ulong? MessageId { get; set; }
     ulong? ChannelId { get; set; }
     ulong? GuildId { get; set; }
@@ -4276,6 +4528,16 @@ public partial interface IDiscordJsonMessageCall
 }
 
 
+public partial interface IDiscordJsonSharedClientTheme  
+{
+    NetCord.JsonModels.JsonSharedClientTheme Original { get; }
+    NetCord.Color[] Colors { get; set; }
+    int GradientAngle { get; set; }
+    int BaseMix { get; set; }
+    NetCord.SharedClientThemeBase? BaseTheme { get; set; }
+}
+
+
 public partial interface IDiscordTeam  
 {
     NetCord.Team Original { get; }
@@ -4311,7 +4573,6 @@ public partial interface IDiscordApplicationInstallParamsProperties
     NetCord.Permissions? Permissions { get; set; }
     IDiscordApplicationInstallParamsProperties WithScopes(IEnumerable<string>? scopes);
     IDiscordApplicationInstallParamsProperties AddScopes(IEnumerable<string> scopes);
-    IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes);
     IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions);
 }
 
@@ -4330,24 +4591,20 @@ public partial interface IDiscordForumGuildThreadMessageProperties
     string? Content { get; set; }
     IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get; set; }
     NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get; set; }
-    IEnumerable<NetCord.Rest.IComponentProperties>? Components { get; set; }
+    IEnumerable<IDiscordMessageComponentProperties>? Components { get; set; }
     IEnumerable<ulong>? StickerIds { get; set; }
     IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get; set; }
     NetCord.MessageFlags? Flags { get; set; }
     IDiscordForumGuildThreadMessageProperties WithContent(string content);
     IDiscordForumGuildThreadMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds);
     IDiscordForumGuildThreadMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds);
-    IDiscordForumGuildThreadMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds);
     IDiscordForumGuildThreadMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions);
-    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components);
-    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components);
-    IDiscordForumGuildThreadMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components);
+    IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components);
+    IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components);
     IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds);
     IDiscordForumGuildThreadMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds);
-    IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds);
     IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments);
     IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments);
-    IDiscordForumGuildThreadMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments);
     IDiscordForumGuildThreadMessageProperties WithFlags(NetCord.MessageFlags? flags);
 }
 
@@ -4385,7 +4642,7 @@ public partial interface IDiscordWebhookClient
     Task<IDiscordWebhook> ModifyAsync(Action<IDiscordWebhookOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage?> ExecuteAsync(IDiscordWebhookMessageProperties message, bool wait = false, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
-    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
+    Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
     Task DeleteMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default);
 }
@@ -4395,6 +4652,13 @@ public partial interface IDiscordWebhookClientConfiguration
 {
     NetCord.Rest.WebhookClientConfiguration Original { get; }
     IDiscordRestClient? Client { get; set; }
+}
+
+
+public partial interface IDiscordActivityInstance  
+{
+    NetCord.Rest.ActivityInstance Original { get; }
+    string Id { get; }
 }
 
 
@@ -4501,6 +4765,8 @@ public partial interface IDiscordMessageSnapshotMessage
     NetCord.MessageFlags Flags { get; }
     IReadOnlyList<IDiscordUser> MentionedUsers { get; }
     IReadOnlyList<ulong> MentionedRoleIds { get; }
+    IReadOnlyList<IDiscordMessageComponent> Components { get; }
+    IReadOnlyList<IDiscordMessageSticker> Stickers { get; }
 }
 
 
@@ -4577,9 +4843,8 @@ public partial interface IDiscordEmoji
 public partial interface IDiscordParty  
 {
     NetCord.Gateway.Party Original { get; }
-    string? Id { get; }
-    int? CurrentSize { get; }
-    int? MaxSize { get; }
+    string Id { get; }
+    IDiscordPartySize Size { get; }
 }
 
 
@@ -4638,16 +4903,6 @@ public partial interface IDiscordAutoModerationActionMetadataProperties
 }
 
 
-public partial interface IDiscordEmojiProperties  
-{
-    NetCord.EmojiProperties Original { get; }
-    ulong? Id { get; set; }
-    string? Unicode { get; set; }
-    IDiscordEmojiProperties WithId(ulong? id);
-    IDiscordEmojiProperties WithUnicode(string unicode);
-}
-
-
 public partial interface IDiscordGuildOnboardingPromptOption  
 {
     NetCord.Rest.GuildOnboardingPromptOption Original { get; }
@@ -4675,10 +4930,8 @@ public partial interface IDiscordGuildOnboardingPromptOptionProperties
     IDiscordGuildOnboardingPromptOptionProperties WithId(ulong? id);
     IDiscordGuildOnboardingPromptOptionProperties WithChannelIds(IEnumerable<ulong>? channelIds);
     IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(IEnumerable<ulong> channelIds);
-    IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds);
     IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong>? roleIds);
     IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds);
-    IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds);
     IDiscordGuildOnboardingPromptOptionProperties WithEmojiId(ulong? emojiId);
     IDiscordGuildOnboardingPromptOptionProperties WithEmojiName(string emojiName);
     IDiscordGuildOnboardingPromptOptionProperties WithEmojiAnimated(bool? emojiAnimated = true);
@@ -4732,8 +4985,8 @@ public partial interface IDiscordJsonGuild
     NetCord.VerificationLevel VerificationLevel { get; set; }
     NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get; set; }
     NetCord.ContentFilter ContentFilter { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonRole> Roles { get; set; }
-    ImmutableArray<IDiscordJsonEmoji> Emojis { get; set; }
+    IDiscordJsonRole[] Roles { get; set; }
+    IDiscordJsonEmoji[] Emojis { get; set; }
     string[] Features { get; set; }
     NetCord.MfaLevel MfaLevel { get; set; }
     ulong? ApplicationId { get; set; }
@@ -4744,11 +4997,11 @@ public partial interface IDiscordJsonGuild
     bool IsLarge { get; set; }
     bool IsUnavailable { get; set; }
     int UserCount { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonVoiceState> VoiceStates { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonGuildUser> Users { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonChannel> Channels { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonChannel> ActiveThreads { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonPresence> Presences { get; set; }
+    IDiscordJsonVoiceState[] VoiceStates { get; set; }
+    IDiscordJsonGuildUser[] Users { get; set; }
+    IDiscordJsonChannel[] Channels { get; set; }
+    IDiscordJsonChannel[] ActiveThreads { get; set; }
+    IDiscordJsonPresence[] Presences { get; set; }
     int? MaxPresences { get; set; }
     int? MaxUsers { get; set; }
     string? VanityUrlCode { get; set; }
@@ -4764,9 +5017,9 @@ public partial interface IDiscordJsonGuild
     int? ApproximatePresenceCount { get; set; }
     IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get; set; }
     NetCord.NsfwLevel NsfwLevel { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonStageInstance> StageInstances { get; set; }
-    ImmutableArray<IDiscordJsonSticker> Stickers { get; set; }
-    ImmutableDictionary<ulong, IDiscordJsonGuildScheduledEvent> ScheduledEvents { get; set; }
+    IDiscordJsonStageInstance[] StageInstances { get; set; }
+    IDiscordJsonSticker[] Stickers { get; set; }
+    IDiscordJsonGuildScheduledEvent[] ScheduledEvents { get; set; }
     bool PremiumProgressBarEnabled { get; set; }
     ulong? SafetyAlertsChannelId { get; set; }
     ulong Id { get; set; }
@@ -4777,7 +5030,7 @@ public partial interface IDiscordJsonRole
 {
     NetCord.JsonModels.JsonRole Original { get; }
     string Name { get; set; }
-    NetCord.Color Color { get; set; }
+    IDiscordJsonRoleColors Colors { get; set; }
     bool Hoist { get; set; }
     string? IconHash { get; set; }
     string? UnicodeEmoji { get; set; }
@@ -4791,48 +5044,13 @@ public partial interface IDiscordJsonRole
 }
 
 
-public partial interface IDiscordJsonEmoji  
+public partial interface IDiscordJsonNameplate  
 {
-    NetCord.JsonModels.JsonEmoji Original { get; }
-    ulong? Id { get; set; }
-    string? Name { get; set; }
-    ulong[]? AllowedRoles { get; set; }
-    IDiscordJsonUser? Creator { get; set; }
-    bool? RequireColons { get; set; }
-    bool? Managed { get; set; }
-    bool Animated { get; set; }
-    bool? Available { get; set; }
-}
-
-
-public partial interface IDiscordJsonMenuSelectOption  
-{
-    NetCord.JsonModels.JsonMenuSelectOption Original { get; }
+    NetCord.JsonModels.JsonNameplate Original { get; }
+    ulong SkuId { get; set; }
+    string Asset { get; set; }
     string Label { get; set; }
-    string Value { get; set; }
-    string? Description { get; set; }
-    IDiscordJsonEmoji? Emoji { get; set; }
-    bool Default { get; set; }
-}
-
-
-public partial interface IDiscordJsonSelectMenuDefaultValue  
-{
-    NetCord.JsonModels.JsonSelectMenuDefaultValue Original { get; }
-    NetCord.JsonModels.JsonSelectMenuDefaultValueType Type { get; set; }
-    ulong Id { get; set; }
-}
-
-
-public partial interface IDiscordJsonComponentMedia  
-{
-    NetCord.JsonModels.JsonComponentMedia Original { get; }
-    string Url { get; set; }
-    string? ProxyUrl { get; set; }
-    int? Height { get; set; }
-    int? Width { get; set; }
-    string? ContentType { get; set; }
-    NetCord.ComponentMediaLoadingState? LoadingState { get; set; }
+    string Palette { get; set; }
 }
 
 
@@ -4910,6 +5128,20 @@ public partial interface IDiscordJsonMessageReactionCountDetails
 }
 
 
+public partial interface IDiscordJsonEmoji  
+{
+    NetCord.JsonModels.JsonEmoji Original { get; }
+    ulong? Id { get; set; }
+    string? Name { get; set; }
+    ulong[]? AllowedRoles { get; set; }
+    IDiscordJsonUser? Creator { get; set; }
+    bool? RequireColons { get; set; }
+    bool? Managed { get; set; }
+    bool Animated { get; set; }
+    bool? Available { get; set; }
+}
+
+
 public partial interface IDiscordJsonTeam  
 {
     NetCord.JsonModels.JsonTeam Original { get; }
@@ -4948,6 +5180,8 @@ public partial interface IDiscordJsonMessageSnapshotMessage
     NetCord.MessageFlags? Flags { get; set; }
     IDiscordJsonUser[] MentionedUsers { get; set; }
     ulong[] MentionedRoleIds { get; set; }
+    IDiscordJsonComponent[]? Components { get; set; }
+    IDiscordJsonMessageSticker[]? Stickers { get; set; }
 }
 
 
@@ -5000,6 +5234,8 @@ public partial interface IDiscordTeamUser
     NetCord.PremiumType? PremiumType { get; }
     NetCord.UserFlags? PublicFlags { get; }
     IDiscordAvatarDecorationData? AvatarDecorationData { get; }
+    IDiscordCollectibles Collectibles { get; }
+    IDiscordUserPrimaryGuild PrimaryGuild { get; }
     bool HasAvatar { get; }
     bool HasBanner { get; }
     bool HasAvatarDecoration { get; }
@@ -5028,6 +5264,14 @@ public partial interface IDiscordMessagePollAnswerCount
     int AnswerId { get; }
     int Count { get; }
     bool MeVoted { get; }
+}
+
+
+public partial interface IDiscordPartySize  
+{
+    NetCord.Gateway.PartySize Original { get; }
+    long CurrentSize { get; }
+    long MaxSize { get; }
 }
 
 
@@ -5120,6 +5364,15 @@ public partial interface IDiscordJsonGuildScheduledEvent
 }
 
 
+public partial interface IDiscordJsonRoleColors  
+{
+    NetCord.JsonModels.JsonRoleColors Original { get; }
+    NetCord.Color PrimaryColor { get; set; }
+    NetCord.Color? SecondaryColor { get; set; }
+    NetCord.Color? TertiaryColor { get; set; }
+}
+
+
 public partial interface IDiscordJsonRoleTags  
 {
     NetCord.JsonModels.JsonRoleTags Original { get; }
@@ -5201,7 +5454,7 @@ public partial interface IDiscordJsonGuildScheduledEventRecurrenceRule
     NetCord.GuildScheduledEventRecurrenceRuleMonth[]? ByMonth { get; set; }
     int[]? ByMonthDay { get; set; }
     int[]? ByYearDay { get; set; }
-    int? Count { get; }
+    int? Count { get; set; }
 }
 
 
@@ -5217,7 +5470,7 @@ public partial interface IDiscordJsonParty
 {
     NetCord.Gateway.JsonModels.JsonParty Original { get; }
     string? Id { get; set; }
-    int[]? Size { get; set; }
+    long[]? Size { get; set; }
 }
 
 
@@ -5276,17 +5529,20 @@ public partial class DiscordInteraction : IDiscordInteraction
     public IDiscordTextChannel Channel => new DiscordTextChannel(_original.Channel);
     public IDiscordUser User => new DiscordUser(_original.User);
     public string Token => _original.Token;
+    public int Version => _original.Version;
     public NetCord.Permissions AppPermissions => _original.AppPermissions;
     public string UserLocale => _original.UserLocale;
     public string? GuildLocale => _original.GuildLocale;
     public IReadOnlyList<IDiscordEntitlement> Entitlements => _original.Entitlements.Select(x => new DiscordEntitlement(x)).ToList();
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong> AuthorizingIntegrationOwners => _original.AuthorizingIntegrationOwners;
     public NetCord.InteractionContextType Context => _original.Context;
+    public long AttachmentSizeLimit => _original.AttachmentSizeLimit;
     public IDiscordInteractionData Data => new DiscordInteractionData(_original.Data);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public Task SendResponseAsync(NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordInteractionCallbackResponse?> SendResponseAsync(NetCord.Rest.InteractionCallbackProperties callback, bool withResponse = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.SendResponseAsync(callback, properties, cancellationToken);
+        var temp = await _original.SendResponseAsync(callback, withResponse, properties, cancellationToken);
+        return temp is null ? null : new DiscordInteractionCallbackResponse(temp);
     }
     public async Task<IDiscordRestMessage> GetResponseAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5346,13 +5602,13 @@ public partial class DiscordGuild : IDiscordGuild
     public bool IsLarge => _original.IsLarge;
     public bool IsUnavailable => _original.IsUnavailable;
     public int UserCount => _original.UserCount;
-    public ImmutableDictionary<ulong, IDiscordVoiceState> VoiceStates { get { return _original.VoiceStates.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordVoiceState)new DiscordVoiceState(kv.Value)); } set { _original.VoiceStates = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildUser> Users { get { return _original.Users.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildUser)new DiscordGuildUser(kv.Value)); } set { _original.Users = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildChannel> Channels { get { return _original.Channels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildChannel)new DiscordGuildChannel(kv.Value)); } set { _original.Channels = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildThread> ActiveThreads { get { return _original.ActiveThreads.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildThread)new DiscordGuildThread(kv.Value)); } set { _original.ActiveThreads = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordPresence> Presences { get { return _original.Presences.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordPresence)new DiscordPresence(kv.Value)); } set { _original.Presences = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordStageInstance> StageInstances { get { return _original.StageInstances.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordStageInstance)new DiscordStageInstance(kv.Value)); } set { _original.StageInstances = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildScheduledEvent> ScheduledEvents { get { return _original.ScheduledEvents.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildScheduledEvent)new DiscordGuildScheduledEvent(kv.Value)); } set { _original.ScheduledEvents = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordVoiceState> VoiceStates { get { return _original.VoiceStates.ToDictionary(kv => kv.Key, kv => (IDiscordVoiceState)new DiscordVoiceState(kv.Value)); } set { _original.VoiceStates = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildUser> Users { get { return _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordGuildUser)new DiscordGuildUser(kv.Value)); } set { _original.Users = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildChannel> Channels { get { return _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordGuildChannel)new DiscordGuildChannel(kv.Value)); } set { _original.Channels = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildThread> ActiveThreads { get { return _original.ActiveThreads.ToDictionary(kv => kv.Key, kv => (IDiscordGuildThread)new DiscordGuildThread(kv.Value)); } set { _original.ActiveThreads = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordPresence> Presences { get { return _original.Presences.ToDictionary(kv => kv.Key, kv => (IDiscordPresence)new DiscordPresence(kv.Value)); } set { _original.Presences = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordStageInstance> StageInstances { get { return _original.StageInstances.ToDictionary(kv => kv.Key, kv => (IDiscordStageInstance)new DiscordStageInstance(kv.Value)); } set { _original.StageInstances = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildScheduledEvent> ScheduledEvents { get { return _original.ScheduledEvents.ToDictionary(kv => kv.Key, kv => (IDiscordGuildScheduledEvent)new DiscordGuildScheduledEvent(kv.Value)); } set { _original.ScheduledEvents = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
     public bool IsOwner => _original.IsOwner;
     public ulong Id => _original.Id;
     public string Name => _original.Name;
@@ -5371,8 +5627,8 @@ public partial class DiscordGuild : IDiscordGuild
     public NetCord.VerificationLevel VerificationLevel => _original.VerificationLevel;
     public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
     public NetCord.ContentFilter ContentFilter => _original.ContentFilter;
-    public ImmutableDictionary<ulong, IDiscordRole> Roles { get { return _original.Roles.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value)); } set { _original.Roles = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get { return _original.Emojis.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value)); } set { _original.Emojis = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordRole> Roles { get { return _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value)); } set { _original.Roles = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis { get { return _original.Emojis.ToDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value)); } set { _original.Emojis = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
     public IReadOnlyList<string> Features => _original.Features;
     public NetCord.MfaLevel MfaLevel => _original.MfaLevel;
     public ulong? ApplicationId => _original.ApplicationId;
@@ -5395,15 +5651,11 @@ public partial class DiscordGuild : IDiscordGuild
     public int? ApproximatePresenceCount => _original.ApproximatePresenceCount;
     public IDiscordGuildWelcomeScreen? WelcomeScreen => _original.WelcomeScreen is null ? null : new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
     public NetCord.NsfwLevel NsfwLevel => _original.NsfwLevel;
-    public ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get { return _original.Stickers.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value)); } set { _original.Stickers = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers { get { return _original.Stickers.ToDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value)); } set { _original.Stickers = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
     public bool PremiumProgressBarEnabled => _original.PremiumProgressBarEnabled;
     public ulong? SafetyAlertsChannelId => _original.SafetyAlertsChannelId;
     public IDiscordRole? EveryoneRole => _original.EveryoneRole is null ? null : new DiscordRole(_original.EveryoneRole);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public IDiscordGuild With(Action<IDiscordGuild> action) 
-    {
-        return new DiscordGuild(_original.With(x => action(new DiscordGuild(x))));
-    }
     public int Compare(IDiscordPartialGuildUser x, IDiscordPartialGuildUser y) 
     {
         return _original.Compare(x.Original, y.Original);
@@ -5428,7 +5680,7 @@ public partial class DiscordGuild : IDiscordGuild
         var temp = _original.GetBannerUrl(format);
         return temp is null ? null : new DiscordImageUrl(temp);
     }
-    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) 
+    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string hostname = "discord.com", NetCord.ApiVersion? version = default) 
     {
         return new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
     }
@@ -5458,6 +5710,13 @@ public partial class DiscordGuild : IDiscordGuild
     public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchMessagesAsync(IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.SearchMessagesAsync(paginationProperties?.Original, properties))
+        {
+            yield return new DiscordGuildMessageSearchResult(original);
+        }
     }
     public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5843,13 +6102,13 @@ public partial class DiscordTextChannel : IDiscordTextChannel
     {
         return _original.AddMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -5862,9 +6121,9 @@ public partial class DiscordTextChannel : IDiscordTextChannel
     {
         return _original.DeleteAllMessageReactionsAsync(messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5878,21 +6137,24 @@ public partial class DiscordTextChannel : IDiscordTextChannel
     {
         return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
+        return _original.TriggerTypingAsync(properties, cancellationToken);
     }
-    public Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(scopeProperties?.Original, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return _original.EnterTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetPinnedMessagesAsync(properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -5945,6 +6207,8 @@ public partial class DiscordUser : IDiscordUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -6034,6 +6298,7 @@ public partial class DiscordJsonInteraction : IDiscordJsonInteraction
     public IDiscordJsonGuildUser? GuildUser { get { return _original.GuildUser is null ? null : new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value?.Original; } }
     public IDiscordJsonUser? User { get { return _original.User is null ? null : new DiscordJsonUser(_original.User); } set { _original.User = value?.Original; } }
     public string Token { get { return _original.Token; } set { _original.Token = value; } }
+    public int Version { get { return _original.Version; } set { _original.Version = value; } }
     public IDiscordJsonMessage? Message { get { return _original.Message is null ? null : new DiscordJsonMessage(_original.Message); } set { _original.Message = value?.Original; } }
     public NetCord.Permissions AppPermissions { get { return _original.AppPermissions; } set { _original.AppPermissions = value; } }
     public string? UserLocale { get { return _original.UserLocale; } set { _original.UserLocale = value; } }
@@ -6041,6 +6306,7 @@ public partial class DiscordJsonInteraction : IDiscordJsonInteraction
     public IDiscordJsonEntitlement[] Entitlements { get { return _original.Entitlements.Select(x => new DiscordJsonEntitlement(x)).ToArray(); } set { _original.Entitlements = value.Select(x => x.Original).ToArray(); } }
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, ulong>? AuthorizingIntegrationOwners { get { return _original.AuthorizingIntegrationOwners; } set { _original.AuthorizingIntegrationOwners = value; } }
     public NetCord.InteractionContextType? Context { get { return _original.Context; } set { _original.Context = value; } }
+    public long AttachmentSizeLimit { get { return _original.AttachmentSizeLimit; } set { _original.AttachmentSizeLimit = value; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -6063,13 +6329,13 @@ public partial class DiscordGatewayClientCache : IDiscordGatewayClientCache
     {
         return new DiscordGatewayClientCache(_original.CacheGuildUser(user.Original));
     }
-    public IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IEnumerable<IDiscordGuildUser> users) 
+    public IDiscordGatewayClientCache CacheGuildUsers(ulong guildId, IReadOnlyList<IDiscordGuildUser> users) 
     {
-        return new DiscordGatewayClientCache(_original.CacheGuildUsers(guildId, users.Select(x => x.Original)));
+        return new DiscordGatewayClientCache(_original.CacheGuildUsers(guildId, users));
     }
-    public IDiscordGatewayClientCache CachePresences(ulong guildId, IEnumerable<IDiscordPresence> presences) 
+    public IDiscordGatewayClientCache CachePresences(ulong guildId, IReadOnlyList<IDiscordPresence> presences) 
     {
-        return new DiscordGatewayClientCache(_original.CachePresences(guildId, presences.Select(x => x.Original)));
+        return new DiscordGatewayClientCache(_original.CachePresences(guildId, presences));
     }
     public IDiscordGatewayClientCache CacheRole(IDiscordRole role) 
     {
@@ -6078,14 +6344,6 @@ public partial class DiscordGatewayClientCache : IDiscordGatewayClientCache
     public IDiscordGatewayClientCache CacheGuildScheduledEvent(IDiscordGuildScheduledEvent scheduledEvent) 
     {
         return new DiscordGatewayClientCache(_original.CacheGuildScheduledEvent(scheduledEvent.Original));
-    }
-    public IDiscordGatewayClientCache CacheGuildEmojis(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildEmoji> emojis) 
-    {
-        return new DiscordGatewayClientCache(_original.CacheGuildEmojis(guildId, emojis.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
-    }
-    public IDiscordGatewayClientCache CacheGuildStickers(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildSticker> stickers) 
-    {
-        return new DiscordGatewayClientCache(_original.CacheGuildStickers(guildId, stickers.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
     }
     public IDiscordGatewayClientCache CacheGuildThread(IDiscordGuildThread thread) 
     {
@@ -6111,9 +6369,17 @@ public partial class DiscordGatewayClientCache : IDiscordGatewayClientCache
     {
         return new DiscordGatewayClientCache(_original.CachePresence(presence.Original));
     }
-    public IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, ImmutableDictionary<ulong, IDiscordGuildThread> threads) 
+    public IDiscordGatewayClientCache SyncGuildEmojis(ulong guildId, IReadOnlyDictionary<ulong, IDiscordGuildEmoji> emojis) 
     {
-        return new DiscordGatewayClientCache(_original.SyncGuildActiveThreads(guildId, threads.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original)));
+        return new DiscordGatewayClientCache(_original.SyncGuildEmojis(guildId, emojis.ToDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordGatewayClientCache SyncGuildStickers(ulong guildId, IReadOnlyDictionary<ulong, IDiscordGuildSticker> stickers) 
+    {
+        return new DiscordGatewayClientCache(_original.SyncGuildStickers(guildId, stickers.ToDictionary(kv => kv.Key, kv => kv.Value.Original)));
+    }
+    public IDiscordGatewayClientCache SyncGuildActiveThreads(ulong guildId, IReadOnlyList<ulong>? channelIds, IReadOnlyDictionary<ulong, IDiscordGuildThread> threads) 
+    {
+        return new DiscordGatewayClientCache(_original.SyncGuildActiveThreads(guildId, channelIds, threads.ToDictionary(kv => kv.Key, kv => kv.Value.Original)));
     }
     public IDiscordGatewayClientCache SyncGuilds(IReadOnlyList<ulong> guildIds) 
     {
@@ -6218,6 +6484,10 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return new DiscordChannel(await _original.ModifyGuildChannelAsync(channelId, x => action(new DiscordGuildChannelOptions(x)), properties, cancellationToken));
     }
+    public Task SetVoiceGuildChannelStatusAsync(ulong channelId, IDiscordVoiceGuildChannelStatusProperties statusProperties, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.SetVoiceGuildChannelStatusAsync(channelId, statusProperties.Original, properties, cancellationToken);
+    }
     public async Task<IDiscordChannel> DeleteChannelAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return new DiscordChannel(await _original.DeleteChannelAsync(channelId, properties, cancellationToken));
@@ -6232,6 +6502,13 @@ public partial class DiscordRestClient : IDiscordRestClient
     public async Task<IReadOnlyList<IDiscordRestMessage>> GetMessagesAroundAsync(ulong channelId, ulong messageId, int? limit = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return (await _original.GetMessagesAroundAsync(channelId, messageId, limit, properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+    }
+    public async IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchGuildMessagesAsync(ulong guildId, IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.SearchGuildMessagesAsync(guildId, paginationProperties?.Original, properties))
+        {
+            yield return new DiscordGuildMessageSearchResult(original);
+        }
     }
     public async Task<IDiscordRestMessage> GetMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6249,13 +6526,13 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.AddMessageReactionAsync(channelId, messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(channelId, messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(channelId, messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -6268,9 +6545,9 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.DeleteAllMessageReactionsAsync(channelId, messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong channelId, ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(channelId, messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(channelId, messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong channelId, ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6284,17 +6561,13 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.DeleteMessagesAsync(channelId, messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(ulong channelId, IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
-    {
-        return _original.DeleteMessagesAsync(channelId, messageIds, properties, cancellationToken);
-    }
     public Task ModifyGuildChannelPermissionsAsync(ulong channelId, IDiscordPermissionOverwriteProperties permissionOverwrite, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return _original.ModifyGuildChannelPermissionsAsync(channelId, permissionOverwrite.Original, properties, cancellationToken);
     }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IReadOnlyList<IDiscordRestInvite>> GetGuildChannelInvitesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetGuildChannelInvitesAsync(channelId, properties, cancellationToken)).Select(x => new DiscordRestInvite(x));
+        return (await _original.GetGuildChannelInvitesAsync(channelId, properties, cancellationToken)).Select(x => new DiscordRestInvite(x)).ToList();
     }
     public async Task<IDiscordRestInvite> CreateGuildChannelInviteAsync(ulong channelId, IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6308,17 +6581,24 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return new DiscordFollowedChannel(await _original.FollowAnnouncementGuildChannelAsync(channelId, webhookChannelId, properties, cancellationToken));
     }
-    public Task TriggerTypingStateAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(channelId, properties, cancellationToken);
+        return _original.TriggerTypingAsync(channelId, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(ulong channelId, IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.EnterTypingStateAsync(channelId, properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(channelId, scopeProperties?.Original, properties, cancellationToken);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(ulong channelId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(ulong channelId, IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return (await _original.GetPinnedMessagesAsync(channelId, properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        return _original.EnterTypingScope(channelId, scopeProperties?.Original, properties);
+    }
+    public async IAsyncEnumerable<IDiscordMessagePin> GetChannelPinsAsync(ulong channelId, NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        await foreach(var original in _original.GetChannelPinsAsync(channelId, paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong channelId, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6754,9 +7034,10 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return new DiscordApplicationCommandGuildPermissions(await _original.OverwriteApplicationCommandGuildPermissionsAsync(applicationId, guildId, commandId, newPermissions.Select(x => x.Original), properties, cancellationToken));
     }
-    public Task SendInteractionResponseAsync(ulong interactionId, string interactionToken, NetCord.Rest.InteractionCallback callback, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordInteractionCallbackResponse?> SendInteractionResponseAsync(ulong interactionId, string interactionToken, NetCord.Rest.InteractionCallbackProperties callback, bool withResponse = false, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.SendInteractionResponseAsync(interactionId, interactionToken, callback, properties, cancellationToken);
+        var temp = await _original.SendInteractionResponseAsync(interactionId, interactionToken, callback, withResponse, properties, cancellationToken);
+        return temp is null ? null : new DiscordInteractionCallbackResponse(temp);
     }
     public async Task<IDiscordRestMessage> GetInteractionResponseAsync(ulong applicationId, string interactionToken, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -6786,13 +7067,25 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.DeleteInteractionFollowupMessageAsync(applicationId, interactionToken, messageId, properties, cancellationToken);
     }
-    public async Task<IDiscordRestInvite> GetGuildInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestInvite> GetInviteAsync(string inviteCode, bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.GetGuildInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties, cancellationToken));
+        return new DiscordRestInvite(await _original.GetInviteAsync(inviteCode, withCounts, withExpiration, guildScheduledEventId, properties, cancellationToken));
     }
-    public async Task<IDiscordRestInvite> DeleteGuildInviteAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestInvite> DeleteInviteAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.DeleteGuildInviteAsync(inviteCode, properties, cancellationToken));
+        return new DiscordRestInvite(await _original.DeleteInviteAsync(inviteCode, properties, cancellationToken));
+    }
+    public IAsyncEnumerable<ulong> GetInviteTargetUsersAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetInviteTargetUsersAsync(inviteCode, properties, cancellationToken);
+    }
+    public Task UpdateInviteTargetUsersAsync(string inviteCode, IDiscordInviteTargetUsersProperties inviteTargetUsersProperties, NetCord.Rest.RestRequestProperties? requestProperties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.UpdateInviteTargetUsersAsync(inviteCode, inviteTargetUsersProperties.Original, requestProperties, cancellationToken);
+    }
+    public async Task<IDiscordInviteTargetUsersJobStatus> GetInviteTargetUsersJobStatusAsync(string inviteCode, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return new DiscordInviteTargetUsersJobStatus(await _original.GetInviteTargetUsersJobStatusAsync(inviteCode, properties, cancellationToken));
     }
     public async IAsyncEnumerable<IDiscordEntitlement> GetEntitlementsAsync(ulong applicationId, IDiscordEntitlementsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -7022,9 +7315,9 @@ public partial class DiscordRestClient : IDiscordRestClient
         var temp = await _original.ExecuteWebhookAsync(webhookId, webhookToken, message.Original, wait, threadId, withComponents, properties, cancellationToken);
         return temp is null ? null : new DiscordRestMessage(temp);
     }
-    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage> GetWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, properties, cancellationToken));
+        return new DiscordRestMessage(await _original.GetWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties, cancellationToken));
     }
     public async Task<IDiscordRestMessage> ModifyWebhookMessageAsync(ulong webhookId, string webhookToken, ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7034,6 +7327,19 @@ public partial class DiscordRestClient : IDiscordRestClient
     {
         return _original.DeleteWebhookMessageAsync(webhookId, webhookToken, messageId, threadId, properties, cancellationToken);
     }
+}
+
+
+public partial class DiscordInteractionCallbackResponse : IDiscordInteractionCallbackResponse 
+{
+    private readonly NetCord.Rest.InteractionCallbackResponse _original;
+    public DiscordInteractionCallbackResponse(NetCord.Rest.InteractionCallbackResponse original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InteractionCallbackResponse Original => _original;
+    public IDiscordInteractionCallbackResponseInteraction Interaction => new DiscordInteractionCallbackResponseInteraction(_original.Interaction);
+    public IDiscordInteractionCallbackResponseResource Resource => new DiscordInteractionCallbackResponseResource(_original.Resource);
 }
 
 
@@ -7071,13 +7377,14 @@ public partial class DiscordRestMessage : IDiscordRestMessage
     public IDiscordRestMessage? ReferencedMessage => _original.ReferencedMessage is null ? null : new DiscordRestMessage(_original.ReferencedMessage);
     public IDiscordMessageInteractionMetadata? InteractionMetadata => _original.InteractionMetadata is null ? null : new DiscordMessageInteractionMetadata(_original.InteractionMetadata);
     public IDiscordGuildThread? StartedThread => _original.StartedThread is null ? null : new DiscordGuildThread(_original.StartedThread);
-    public IReadOnlyList<IDiscordComponent> Components => _original.Components.Select(x => new DiscordComponent(x)).ToList();
+    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Select(x => new DiscordMessageComponent(x)).ToList();
     public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Select(x => new DiscordMessageSticker(x)).ToList();
     public int? Position => _original.Position;
     public IDiscordRoleSubscriptionData? RoleSubscriptionData => _original.RoleSubscriptionData is null ? null : new DiscordRoleSubscriptionData(_original.RoleSubscriptionData);
     public IDiscordInteractionResolvedData? ResolvedData => _original.ResolvedData is null ? null : new DiscordInteractionResolvedData(_original.ResolvedData);
     public IDiscordMessagePoll? Poll => _original.Poll is null ? null : new DiscordMessagePoll(_original.Poll);
     public IDiscordMessageCall? Call => _original.Call is null ? null : new DiscordMessageCall(_original.Call);
+    public IDiscordSharedClientTheme? SharedClientTheme => _original.SharedClientTheme is null ? null : new DiscordSharedClientTheme(_original.SharedClientTheme);
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
     public async Task<IDiscordRestMessage> ReplyAsync(IDiscordReplyMessageProperties replyMessage, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7099,13 +7406,13 @@ public partial class DiscordRestMessage : IDiscordRestMessage
     {
         return _original.AddReactionAsync(emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserReactionAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteReactionAsync(emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserReactionAsync(emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserReactionAsync(IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteReactionAsync(emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserReactionAsync(emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetReactionsAsync(IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -7118,9 +7425,9 @@ public partial class DiscordRestMessage : IDiscordRestMessage
     {
         return _original.DeleteAllReactionsAsync(properties, cancellationToken);
     }
-    public Task DeleteAllReactionsAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllReactionsForEmojiAsync(IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllReactionsAsync(emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllReactionsForEmojiAsync(emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyAsync(Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7168,7 +7475,7 @@ public partial class DiscordMessageOptions : IDiscordMessageOptions
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<NetCord.Rest.IComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
+    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public HttpContent Serialize() 
     {
@@ -7186,10 +7493,6 @@ public partial class DiscordMessageOptions : IDiscordMessageOptions
     {
         return new DiscordMessageOptions(_original.AddEmbeds(embeds));
     }
-    public IDiscordMessageOptions AddEmbeds(NetCord.Rest.EmbedProperties[] embeds) 
-    {
-        return new DiscordMessageOptions(_original.AddEmbeds(embeds));
-    }
     public IDiscordMessageOptions WithFlags(NetCord.MessageFlags? flags) 
     {
         return new DiscordMessageOptions(_original.WithFlags(flags));
@@ -7198,27 +7501,19 @@ public partial class DiscordMessageOptions : IDiscordMessageOptions
     {
         return new DiscordMessageOptions(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordMessageOptions WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components) 
+    public IDiscordMessageOptions WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
     {
-        return new DiscordMessageOptions(_original.WithComponents(components));
+        return new DiscordMessageOptions(_original.WithComponents(components?.Select(x => x.Original)));
     }
-    public IDiscordMessageOptions AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components) 
+    public IDiscordMessageOptions AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
     {
-        return new DiscordMessageOptions(_original.AddComponents(components));
-    }
-    public IDiscordMessageOptions AddComponents(NetCord.Rest.IComponentProperties[] components) 
-    {
-        return new DiscordMessageOptions(_original.AddComponents(components));
+        return new DiscordMessageOptions(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordMessageOptions WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
         return new DiscordMessageOptions(_original.WithAttachments(attachments));
     }
     public IDiscordMessageOptions AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments) 
-    {
-        return new DiscordMessageOptions(_original.AddAttachments(attachments));
-    }
-    public IDiscordMessageOptions AddAttachments(NetCord.Rest.AttachmentProperties[] attachments) 
     {
         return new DiscordMessageOptions(_original.AddAttachments(attachments));
     }
@@ -7238,7 +7533,7 @@ public partial class DiscordInteractionMessageProperties : IDiscordInteractionMe
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IEnumerable<NetCord.Rest.IComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
+    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
     public HttpContent Serialize() 
@@ -7261,10 +7556,6 @@ public partial class DiscordInteractionMessageProperties : IDiscordInteractionMe
     {
         return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds));
     }
-    public IDiscordInteractionMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds) 
-    {
-        return new DiscordInteractionMessageProperties(_original.AddEmbeds(embeds));
-    }
     public IDiscordInteractionMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions) 
     {
         return new DiscordInteractionMessageProperties(_original.WithAllowedMentions(allowedMentions));
@@ -7273,27 +7564,19 @@ public partial class DiscordInteractionMessageProperties : IDiscordInteractionMe
     {
         return new DiscordInteractionMessageProperties(_original.WithFlags(flags));
     }
-    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components) 
+    public IDiscordInteractionMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
     {
-        return new DiscordInteractionMessageProperties(_original.WithComponents(components));
+        return new DiscordInteractionMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     }
-    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components) 
+    public IDiscordInteractionMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
     {
-        return new DiscordInteractionMessageProperties(_original.AddComponents(components));
-    }
-    public IDiscordInteractionMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components) 
-    {
-        return new DiscordInteractionMessageProperties(_original.AddComponents(components));
+        return new DiscordInteractionMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordInteractionMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
         return new DiscordInteractionMessageProperties(_original.WithAttachments(attachments));
     }
     public IDiscordInteractionMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments) 
-    {
-        return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments));
-    }
-    public IDiscordInteractionMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments) 
     {
         return new DiscordInteractionMessageProperties(_original.AddAttachments(attachments));
     }
@@ -7341,8 +7624,7 @@ public partial class DiscordGuildUser : IDiscordGuildUser
     public string? GuildAvatarHash => _original.GuildAvatarHash;
     public string? GuildBannerHash => _original.GuildBannerHash;
     public IReadOnlyList<ulong> RoleIds => _original.RoleIds;
-    public ulong? HoistedRoleId => _original.HoistedRoleId;
-    public System.DateTimeOffset JoinedAt => _original.JoinedAt;
+    public System.DateTimeOffset? JoinedAt => _original.JoinedAt;
     public System.DateTimeOffset? GuildBoostStart => _original.GuildBoostStart;
     public bool Deafened => _original.Deafened;
     public bool Muted => _original.Muted;
@@ -7370,6 +7652,8 @@ public partial class DiscordGuildUser : IDiscordGuildUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -7475,9 +7759,9 @@ public partial class DiscordGuildChannel : IDiscordGuildChannel
     {
         return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties, cancellationToken);
     }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x));
+        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x)).ToList();
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7498,11 +7782,12 @@ public partial class DiscordGuildThread : IDiscordGuildThread
         _original = original;
     }
     public NetCord.GuildThread Original => _original;
+    public ulong ParentId => _original.ParentId;
     public ulong OwnerId => _original.OwnerId;
     public int MessageCount => _original.MessageCount;
     public int UserCount => _original.UserCount;
     public IDiscordGuildThreadMetadata Metadata => new DiscordGuildThreadMetadata(_original.Metadata);
-    public IDiscordThreadCurrentUser? CurrentUser => _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser);
+    public IDiscordThreadCurrentUser? CurrentUser { get { return _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser); } set { _original.CurrentUser = value?.Original; } }
     public int TotalMessageSent => _original.TotalMessageSent;
     public ulong GuildId => _original.GuildId;
     public int? Position => _original.Position;
@@ -7511,7 +7796,6 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     public string? Topic => _original.Topic;
     public bool Nsfw => _original.Nsfw;
     public int Slowmode => _original.Slowmode;
-    public ulong? ParentId => _original.ParentId;
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration => _original.DefaultAutoArchiveDuration;
     public int DefaultThreadSlowmode => _original.DefaultThreadSlowmode;
     public ulong? LastMessageId => _original.LastMessageId;
@@ -7562,9 +7846,9 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     {
         return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties, cancellationToken);
     }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x));
+        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x)).ToList();
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7634,13 +7918,13 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     {
         return _original.AddMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -7653,9 +7937,9 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     {
         return _original.DeleteAllMessageReactionsAsync(messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7669,21 +7953,24 @@ public partial class DiscordGuildThread : IDiscordGuildThread
     {
         return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
+        return _original.TriggerTypingAsync(properties, cancellationToken);
     }
-    public Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(scopeProperties?.Original, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return _original.EnterTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetPinnedMessagesAsync(properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7821,11 +8108,12 @@ public partial class DiscordRole : IDiscordRole
     public NetCord.Role Original => _original;
     public ulong Id => _original.Id;
     public string Name => _original.Name;
-    public NetCord.Color Color => _original.Color;
+    public IDiscordRoleColors Colors => new DiscordRoleColors(_original.Colors);
     public bool Hoist => _original.Hoist;
     public string? IconHash => _original.IconHash;
     public string? UnicodeEmoji => _original.UnicodeEmoji;
-    public int Position => _original.Position;
+    public int RawPosition => _original.RawPosition;
+    public NetCord.RolePosition Position => _original.Position;
     public NetCord.Permissions Permissions => _original.Permissions;
     public bool Managed => _original.Managed;
     public bool Mentionable => _original.Mentionable;
@@ -7837,10 +8125,6 @@ public partial class DiscordRole : IDiscordRole
     {
         var temp = _original.GetIconUrl(format);
         return temp is null ? null : new DiscordImageUrl(temp);
-    }
-    public int CompareTo(IDiscordRole other) 
-    {
-        return _original.CompareTo(other.Original);
     }
     public async Task<IDiscordRole> ModifyAsync(Action<IDiscordRoleOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -7898,7 +8182,7 @@ public partial class DiscordGuildWelcomeScreen : IDiscordGuildWelcomeScreen
     }
     public NetCord.GuildWelcomeScreen Original => _original;
     public string? Description => _original.Description;
-    public ImmutableDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels => _original.WelcomeChannels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildWelcomeScreenChannel)new DiscordGuildWelcomeScreenChannel(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildWelcomeScreenChannel> WelcomeChannels => _original.WelcomeChannels.ToDictionary(kv => kv.Key, kv => (IDiscordGuildWelcomeScreenChannel)new DiscordGuildWelcomeScreenChannel(kv.Value));
 }
 
 
@@ -7950,8 +8234,7 @@ public partial class DiscordPartialGuildUser : IDiscordPartialGuildUser
     public string? GuildAvatarHash => _original.GuildAvatarHash;
     public string? GuildBannerHash => _original.GuildBannerHash;
     public IReadOnlyList<ulong> RoleIds => _original.RoleIds;
-    public ulong? HoistedRoleId => _original.HoistedRoleId;
-    public System.DateTimeOffset JoinedAt => _original.JoinedAt;
+    public System.DateTimeOffset? JoinedAt => _original.JoinedAt;
     public System.DateTimeOffset? GuildBoostStart => _original.GuildBoostStart;
     public bool Deafened => _original.Deafened;
     public bool Muted => _original.Muted;
@@ -7979,6 +8262,8 @@ public partial class DiscordPartialGuildUser : IDiscordPartialGuildUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -8023,6 +8308,7 @@ public partial class DiscordImageUrl : IDiscordImageUrl
         _original = original;
     }
     public NetCord.ImageUrl Original => _original;
+    public bool SupportsSize => _original.SupportsSize;
 }
 
 
@@ -8045,23 +8331,23 @@ public partial class DiscordRestAuditLogEntry : IDiscordRestAuditLogEntry
     public string? Reason => _original.Reason;
     public ulong GuildId => _original.GuildId;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, out IDiscordAuditLogChange change) 
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, out var changeTemp);
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression) 
     {
         return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression));
     }
-    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public bool TryGetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo, out IDiscordAuditLogChange change) 
     {
         var result = _original.TryGetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo, out var changeTemp);
         change = new DiscordAuditLogChange(changeTemp);
         return result;
     }
-    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) where TObjectParam : NetCord.JsonModels.JsonEntity
+    public IDiscordAuditLogChange<TValueParam> GetChange<TObjectParam, TValueParam>(Expression<Func<TObjectParam, TValueParam?>> expression, JsonTypeInfo<TValueParam> jsonTypeInfo) 
     {
         return new DiscordAuditLogChange<TValueParam>(_original.GetChange<TObjectParam, TValueParam>(expression, jsonTypeInfo));
     }
@@ -8179,10 +8465,6 @@ public partial class DiscordAutoModerationRuleProperties : IDiscordAutoModeratio
     {
         return new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original)));
     }
-    public IDiscordAutoModerationRuleProperties AddActions(IDiscordAutoModerationActionProperties[] actions) 
-    {
-        return new DiscordAutoModerationRuleProperties(_original.AddActions(actions.Select(x => x.Original).ToArray()));
-    }
     public IDiscordAutoModerationRuleProperties WithEnabled(bool enabled = true) 
     {
         return new DiscordAutoModerationRuleProperties(_original.WithEnabled(enabled));
@@ -8195,19 +8477,11 @@ public partial class DiscordAutoModerationRuleProperties : IDiscordAutoModeratio
     {
         return new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
     }
-    public IDiscordAutoModerationRuleProperties AddExemptRoles(ulong[] exemptRoles) 
-    {
-        return new DiscordAutoModerationRuleProperties(_original.AddExemptRoles(exemptRoles));
-    }
     public IDiscordAutoModerationRuleProperties WithExemptChannels(IEnumerable<ulong>? exemptChannels) 
     {
         return new DiscordAutoModerationRuleProperties(_original.WithExemptChannels(exemptChannels));
     }
     public IDiscordAutoModerationRuleProperties AddExemptChannels(IEnumerable<ulong> exemptChannels) 
-    {
-        return new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
-    }
-    public IDiscordAutoModerationRuleProperties AddExemptChannels(ulong[] exemptChannels) 
     {
         return new DiscordAutoModerationRuleProperties(_original.AddExemptChannels(exemptChannels));
     }
@@ -8249,10 +8523,6 @@ public partial class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRu
     {
         return new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original)));
     }
-    public IDiscordAutoModerationRuleOptions AddActions(IDiscordAutoModerationActionProperties[] actions) 
-    {
-        return new DiscordAutoModerationRuleOptions(_original.AddActions(actions.Select(x => x.Original).ToArray()));
-    }
     public IDiscordAutoModerationRuleOptions WithEnabled(bool? enabled = true) 
     {
         return new DiscordAutoModerationRuleOptions(_original.WithEnabled(enabled));
@@ -8265,10 +8535,6 @@ public partial class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRu
     {
         return new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
     }
-    public IDiscordAutoModerationRuleOptions AddExemptRoles(ulong[] exemptRoles) 
-    {
-        return new DiscordAutoModerationRuleOptions(_original.AddExemptRoles(exemptRoles));
-    }
     public IDiscordAutoModerationRuleOptions WithExemptChannels(IEnumerable<ulong>? exemptChannels) 
     {
         return new DiscordAutoModerationRuleOptions(_original.WithExemptChannels(exemptChannels));
@@ -8277,9 +8543,179 @@ public partial class DiscordAutoModerationRuleOptions : IDiscordAutoModerationRu
     {
         return new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
     }
-    public IDiscordAutoModerationRuleOptions AddExemptChannels(ulong[] exemptChannels) 
+}
+
+
+public partial class DiscordGuildMessageSearchResult : IDiscordGuildMessageSearchResult 
+{
+    private readonly NetCord.Rest.GuildMessageSearchResult _original;
+    public DiscordGuildMessageSearchResult(NetCord.Rest.GuildMessageSearchResult original)
     {
-        return new DiscordAutoModerationRuleOptions(_original.AddExemptChannels(exemptChannels));
+        _original = original;
+    }
+    public NetCord.Rest.GuildMessageSearchResult Original => _original;
+}
+
+
+public partial class DiscordGuildMessagesSearchPaginationProperties : IDiscordGuildMessagesSearchPaginationProperties 
+{
+    private readonly NetCord.Rest.GuildMessagesSearchPaginationProperties _original;
+    public DiscordGuildMessagesSearchPaginationProperties(NetCord.Rest.GuildMessagesSearchPaginationProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.GuildMessagesSearchPaginationProperties Original => _original;
+    public NetCord.Rest.GuildMessagesSearchSortingMode? SortBy { get { return _original.SortBy; } set { _original.SortBy = value; } }
+    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
+    public int? Slop { get { return _original.Slop; } set { _original.Slop = value; } }
+    public IEnumerable<string>? Contents { get { return _original.Contents; } set { _original.Contents = value; } }
+    public IEnumerable<ulong>? AuthorIds { get { return _original.AuthorIds; } set { _original.AuthorIds = value; } }
+    public NetCord.Rest.GuildMessagesSearchAuthorTypes? AuthorTypes { get { return _original.AuthorTypes; } set { _original.AuthorTypes = value; } }
+    public IEnumerable<ulong>? Mentions { get { return _original.Mentions; } set { _original.Mentions = value; } }
+    public bool? MentionEveryone { get { return _original.MentionEveryone; } set { _original.MentionEveryone = value; } }
+    public ulong? MinId { get { return _original.MinId; } set { _original.MinId = value; } }
+    public ulong? MaxId { get { return _original.MaxId; } set { _original.MaxId = value; } }
+    public NetCord.Rest.GuildMessagesSearchHasOptions? Has { get { return _original.Has; } set { _original.Has = value; } }
+    public IEnumerable<string>? LinkHostnames { get { return _original.LinkHostnames; } set { _original.LinkHostnames = value; } }
+    public IEnumerable<string>? EmbedProviders { get { return _original.EmbedProviders; } set { _original.EmbedProviders = value; } }
+    public NetCord.Rest.GuildMessagesSearchEmbedTypes? EmbedTypes { get { return _original.EmbedTypes; } set { _original.EmbedTypes = value; } }
+    public IEnumerable<string>? AttachmentExtensions { get { return _original.AttachmentExtensions; } set { _original.AttachmentExtensions = value; } }
+    public IEnumerable<string>? AttachmentFilenames { get { return _original.AttachmentFilenames; } set { _original.AttachmentFilenames = value; } }
+    public bool? Pinned { get { return _original.Pinned; } set { _original.Pinned = value; } }
+    public ulong? CommandId { get { return _original.CommandId; } set { _original.CommandId = value; } }
+    public string? CommandName { get { return _original.CommandName; } set { _original.CommandName = value; } }
+    public bool? IncludeNsfw { get { return _original.IncludeNsfw; } set { _original.IncludeNsfw = value; } }
+    public IEnumerable<ulong>? ChannelIds { get { return _original.ChannelIds; } set { _original.ChannelIds = value; } }
+    public int? From { get { return _original.From; } set { _original.From = value; } }
+    public NetCord.Rest.PaginationDirection? Direction { get { return _original.Direction; } set { _original.Direction = value; } }
+    public int? BatchSize { get { return _original.BatchSize; } set { _original.BatchSize = value; } }
+    public IDiscordGuildMessagesSearchPaginationProperties WithSortBy(NetCord.Rest.GuildMessagesSearchSortingMode? sortBy) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithSortBy(sortBy));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithContent(string content) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithContent(content));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithSlop(int? slop) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithSlop(slop));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithContents(IEnumerable<string>? contents) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithContents(contents));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddContents(IEnumerable<string> contents) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddContents(contents));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithAuthorIds(IEnumerable<ulong>? authorIds) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithAuthorIds(authorIds));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddAuthorIds(IEnumerable<ulong> authorIds) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddAuthorIds(authorIds));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithAuthorTypes(NetCord.Rest.GuildMessagesSearchAuthorTypes? authorTypes) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithAuthorTypes(authorTypes));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithMentions(IEnumerable<ulong>? mentions) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithMentions(mentions));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddMentions(IEnumerable<ulong> mentions) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddMentions(mentions));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithMentionEveryone(bool? mentionEveryone = true) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithMentionEveryone(mentionEveryone));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithMinId(ulong? minId) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithMinId(minId));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithMaxId(ulong? maxId) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithMaxId(maxId));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithHas(NetCord.Rest.GuildMessagesSearchHasOptions? has) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithHas(has));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithLinkHostnames(IEnumerable<string>? linkHostnames) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithLinkHostnames(linkHostnames));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddLinkHostnames(IEnumerable<string> linkHostnames) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddLinkHostnames(linkHostnames));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithEmbedProviders(IEnumerable<string>? embedProviders) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithEmbedProviders(embedProviders));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddEmbedProviders(IEnumerable<string> embedProviders) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddEmbedProviders(embedProviders));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithEmbedTypes(NetCord.Rest.GuildMessagesSearchEmbedTypes? embedTypes) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithEmbedTypes(embedTypes));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithAttachmentExtensions(IEnumerable<string>? attachmentExtensions) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithAttachmentExtensions(attachmentExtensions));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddAttachmentExtensions(IEnumerable<string> attachmentExtensions) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddAttachmentExtensions(attachmentExtensions));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithAttachmentFilenames(IEnumerable<string>? attachmentFilenames) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithAttachmentFilenames(attachmentFilenames));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddAttachmentFilenames(IEnumerable<string> attachmentFilenames) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddAttachmentFilenames(attachmentFilenames));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithPinned(bool? pinned = true) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithPinned(pinned));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithCommandId(ulong? commandId) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithCommandId(commandId));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithCommandName(string commandName) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithCommandName(commandName));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithIncludeNsfw(bool? includeNsfw = true) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithIncludeNsfw(includeNsfw));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithChannelIds(IEnumerable<ulong>? channelIds) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithChannelIds(channelIds));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties AddChannelIds(IEnumerable<ulong> channelIds) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.AddChannelIds(channelIds));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithFrom(int? from) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithFrom(from));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithDirection(NetCord.Rest.PaginationDirection? direction) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithDirection(direction));
+    }
+    public IDiscordGuildMessagesSearchPaginationProperties WithBatchSize(int? batchSize) 
+    {
+        return new DiscordGuildMessagesSearchPaginationProperties(_original.WithBatchSize(batchSize));
     }
 }
 
@@ -8311,10 +8747,6 @@ public partial class DiscordGuildEmojiProperties : IDiscordGuildEmojiProperties
     {
         return new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
     }
-    public IDiscordGuildEmojiProperties AddAllowedRoles(ulong[] allowedRoles) 
-    {
-        return new DiscordGuildEmojiProperties(_original.AddAllowedRoles(allowedRoles));
-    }
 }
 
 
@@ -8337,10 +8769,6 @@ public partial class DiscordGuildEmojiOptions : IDiscordGuildEmojiOptions
         return new DiscordGuildEmojiOptions(_original.WithAllowedRoles(allowedRoles));
     }
     public IDiscordGuildEmojiOptions AddAllowedRoles(IEnumerable<ulong> allowedRoles) 
-    {
-        return new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
-    }
-    public IDiscordGuildEmojiOptions AddAllowedRoles(ulong[] allowedRoles) 
     {
         return new DiscordGuildEmojiOptions(_original.AddAllowedRoles(allowedRoles));
     }
@@ -8373,8 +8801,8 @@ public partial class DiscordRestGuild : IDiscordRestGuild
     public NetCord.VerificationLevel VerificationLevel => _original.VerificationLevel;
     public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel => _original.DefaultMessageNotificationLevel;
     public NetCord.ContentFilter ContentFilter => _original.ContentFilter;
-    public ImmutableDictionary<ulong, IDiscordRole> Roles { get { return _original.Roles.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value)); } set { _original.Roles = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis { get { return _original.Emojis.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value)); } set { _original.Emojis = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordRole> Roles { get { return _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value)); } set { _original.Roles = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis { get { return _original.Emojis.ToDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value)); } set { _original.Emojis = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
     public IReadOnlyList<string> Features => _original.Features;
     public NetCord.MfaLevel MfaLevel => _original.MfaLevel;
     public ulong? ApplicationId => _original.ApplicationId;
@@ -8397,7 +8825,7 @@ public partial class DiscordRestGuild : IDiscordRestGuild
     public int? ApproximatePresenceCount => _original.ApproximatePresenceCount;
     public IDiscordGuildWelcomeScreen? WelcomeScreen => _original.WelcomeScreen is null ? null : new DiscordGuildWelcomeScreen(_original.WelcomeScreen);
     public NetCord.NsfwLevel NsfwLevel => _original.NsfwLevel;
-    public ImmutableDictionary<ulong, IDiscordGuildSticker> Stickers { get { return _original.Stickers.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value)); } set { _original.Stickers = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers { get { return _original.Stickers.ToDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value)); } set { _original.Stickers = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
     public bool PremiumProgressBarEnabled => _original.PremiumProgressBarEnabled;
     public ulong? SafetyAlertsChannelId => _original.SafetyAlertsChannelId;
     public IDiscordRole? EveryoneRole => _original.EveryoneRole is null ? null : new DiscordRole(_original.EveryoneRole);
@@ -8426,7 +8854,7 @@ public partial class DiscordRestGuild : IDiscordRestGuild
         var temp = _original.GetBannerUrl(format);
         return temp is null ? null : new DiscordImageUrl(temp);
     }
-    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string? hostname = null, NetCord.ApiVersion? version = default) 
+    public IDiscordImageUrl GetWidgetUrl(NetCord.GuildWidgetStyle? style = default, string hostname = "discord.com", NetCord.ApiVersion? version = default) 
     {
         return new DiscordImageUrl(_original.GetWidgetUrl(style, hostname, version));
     }
@@ -8456,6 +8884,13 @@ public partial class DiscordRestGuild : IDiscordRestGuild
     public Task DeleteAutoModerationRuleAsync(ulong autoModerationRuleId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
         return _original.DeleteAutoModerationRuleAsync(autoModerationRuleId, properties, cancellationToken);
+    }
+    public async IAsyncEnumerable<IDiscordGuildMessageSearchResult> SearchMessagesAsync(IDiscordGuildMessagesSearchPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
+    {
+        await foreach(var original in _original.SearchMessagesAsync(paginationProperties?.Original, properties))
+        {
+            yield return new DiscordGuildMessageSearchResult(original);
+        }
     }
     public async Task<IReadOnlyList<IDiscordGuildEmoji>> GetEmojisAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -8810,11 +9245,12 @@ public partial class DiscordGuildPreview : IDiscordGuildPreview
     public string? IconHash => _original.IconHash;
     public string? SplashHash => _original.SplashHash;
     public string? DiscoverySplashHash => _original.DiscoverySplashHash;
-    public ImmutableDictionary<ulong, IDiscordGuildEmoji> Emojis => _original.Emojis.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildEmoji> Emojis => _original.Emojis.ToDictionary(kv => kv.Key, kv => (IDiscordGuildEmoji)new DiscordGuildEmoji(kv.Value));
     public IReadOnlyList<string> Features => _original.Features;
     public int ApproximateUserCount => _original.ApproximateUserCount;
     public int ApproximatePresenceCount => _original.ApproximatePresenceCount;
     public string? Description => _original.Description;
+    public IReadOnlyDictionary<ulong, IDiscordGuildSticker> Stickers => _original.Stickers.ToDictionary(kv => kv.Key, kv => (IDiscordGuildSticker)new DiscordGuildSticker(kv.Value));
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -8919,10 +9355,6 @@ public partial class DiscordGuildOptions : IDiscordGuildOptions
     {
         return new DiscordGuildOptions(_original.AddFeatures(features));
     }
-    public IDiscordGuildOptions AddFeatures(string[] features) 
-    {
-        return new DiscordGuildOptions(_original.AddFeatures(features));
-    }
     public IDiscordGuildOptions WithDescription(string description) 
     {
         return new DiscordGuildOptions(_original.WithDescription(description));
@@ -8959,7 +9391,7 @@ public partial class DiscordGuildChannelProperties : IDiscordGuildChannelPropert
     public string? RtcRegion { get { return _original.RtcRegion; } set { _original.RtcRegion = value; } }
     public NetCord.VideoQualityMode? VideoQualityMode { get { return _original.VideoQualityMode; } set { _original.VideoQualityMode = value; } }
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get { return _original.DefaultAutoArchiveDuration; } set { _original.DefaultAutoArchiveDuration = value; } }
-    public NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji; } set { _original.DefaultReactionEmoji = value; } }
+    public IDiscordEmojiProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji is null ? null : new DiscordEmojiProperties(_original.DefaultReactionEmoji); } set { _original.DefaultReactionEmoji = value?.Original; } }
     public IEnumerable<IDiscordForumTagProperties>? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordForumTagProperties(x)); } set { _original.AvailableTags = value?.Select(x => x.Original); } }
     public NetCord.SortOrderType? DefaultSortOrder { get { return _original.DefaultSortOrder; } set { _original.DefaultSortOrder = value; } }
     public NetCord.ForumLayoutType? DefaultForumLayout { get { return _original.DefaultForumLayout; } set { _original.DefaultForumLayout = value; } }
@@ -9000,10 +9432,6 @@ public partial class DiscordGuildChannelProperties : IDiscordGuildChannelPropert
     {
         return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
-    public IDiscordGuildChannelProperties AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
-    {
-        return new DiscordGuildChannelProperties(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
-    }
     public IDiscordGuildChannelProperties WithParentId(ulong? parentId) 
     {
         return new DiscordGuildChannelProperties(_original.WithParentId(parentId));
@@ -9024,9 +9452,9 @@ public partial class DiscordGuildChannelProperties : IDiscordGuildChannelPropert
     {
         return new DiscordGuildChannelProperties(_original.WithDefaultAutoArchiveDuration(defaultAutoArchiveDuration));
     }
-    public IDiscordGuildChannelProperties WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
+    public IDiscordGuildChannelProperties WithDefaultReactionEmoji(IDiscordEmojiProperties? defaultReactionEmoji) 
     {
-        return new DiscordGuildChannelProperties(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
+        return new DiscordGuildChannelProperties(_original.WithDefaultReactionEmoji(defaultReactionEmoji?.Original));
     }
     public IDiscordGuildChannelProperties WithAvailableTags(IEnumerable<IDiscordForumTagProperties>? availableTags) 
     {
@@ -9035,10 +9463,6 @@ public partial class DiscordGuildChannelProperties : IDiscordGuildChannelPropert
     public IDiscordGuildChannelProperties AddAvailableTags(IEnumerable<IDiscordForumTagProperties> availableTags) 
     {
         return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
-    }
-    public IDiscordGuildChannelProperties AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
-    {
-        return new DiscordGuildChannelProperties(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
     }
     public IDiscordGuildChannelProperties WithDefaultSortOrder(NetCord.SortOrderType? defaultSortOrder) 
     {
@@ -9115,10 +9539,6 @@ public partial class DiscordGuildUserProperties : IDiscordGuildUserProperties
     {
         return new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
     }
-    public IDiscordGuildUserProperties AddRolesIds(ulong[] rolesIds) 
-    {
-        return new DiscordGuildUserProperties(_original.AddRolesIds(rolesIds));
-    }
     public IDiscordGuildUserProperties WithMuted(bool? muted = true) 
     {
         return new DiscordGuildUserProperties(_original.WithMuted(muted));
@@ -9145,15 +9565,14 @@ public partial class DiscordGuildUserOptions : IDiscordGuildUserOptions
     public System.DateTimeOffset? TimeOutUntil { get { return _original.TimeOutUntil; } set { _original.TimeOutUntil = value; } }
     public NetCord.GuildUserFlags? GuildFlags { get { return _original.GuildFlags; } set { _original.GuildFlags = value; } }
     public string? Nickname { get { return _original.Nickname; } set { _original.Nickname = value; } }
+    public NetCord.Rest.ImageProperties? Banner { get { return _original.Banner; } set { _original.Banner = value; } }
+    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
+    public string? Bio { get { return _original.Bio; } set { _original.Bio = value; } }
     public IDiscordGuildUserOptions WithRoleIds(IEnumerable<ulong>? roleIds) 
     {
         return new DiscordGuildUserOptions(_original.WithRoleIds(roleIds));
     }
     public IDiscordGuildUserOptions AddRoleIds(IEnumerable<ulong> roleIds) 
-    {
-        return new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
-    }
-    public IDiscordGuildUserOptions AddRoleIds(ulong[] roleIds) 
     {
         return new DiscordGuildUserOptions(_original.AddRoleIds(roleIds));
     }
@@ -9181,6 +9600,18 @@ public partial class DiscordGuildUserOptions : IDiscordGuildUserOptions
     {
         return new DiscordGuildUserOptions(_original.WithNickname(nickname));
     }
+    public IDiscordGuildUserOptions WithBanner(NetCord.Rest.ImageProperties? banner) 
+    {
+        return new DiscordGuildUserOptions(_original.WithBanner(banner));
+    }
+    public IDiscordGuildUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordGuildUserOptions(_original.WithAvatar(avatar));
+    }
+    public IDiscordGuildUserOptions WithBio(string bio) 
+    {
+        return new DiscordGuildUserOptions(_original.WithBio(bio));
+    }
 }
 
 
@@ -9193,9 +9624,24 @@ public partial class DiscordCurrentGuildUserOptions : IDiscordCurrentGuildUserOp
     }
     public NetCord.Rest.CurrentGuildUserOptions Original => _original;
     public string? Nickname { get { return _original.Nickname; } set { _original.Nickname = value; } }
+    public NetCord.Rest.ImageProperties? Banner { get { return _original.Banner; } set { _original.Banner = value; } }
+    public NetCord.Rest.ImageProperties? Avatar { get { return _original.Avatar; } set { _original.Avatar = value; } }
+    public string? Bio { get { return _original.Bio; } set { _original.Bio = value; } }
     public IDiscordCurrentGuildUserOptions WithNickname(string nickname) 
     {
         return new DiscordCurrentGuildUserOptions(_original.WithNickname(nickname));
+    }
+    public IDiscordCurrentGuildUserOptions WithBanner(NetCord.Rest.ImageProperties? banner) 
+    {
+        return new DiscordCurrentGuildUserOptions(_original.WithBanner(banner));
+    }
+    public IDiscordCurrentGuildUserOptions WithAvatar(NetCord.Rest.ImageProperties? avatar) 
+    {
+        return new DiscordCurrentGuildUserOptions(_original.WithAvatar(avatar));
+    }
+    public IDiscordCurrentGuildUserOptions WithBio(string bio) 
+    {
+        return new DiscordCurrentGuildUserOptions(_original.WithBio(bio));
     }
 }
 
@@ -9241,7 +9687,7 @@ public partial class DiscordRoleProperties : IDiscordRoleProperties
     public NetCord.Rest.RoleProperties Original => _original;
     public string? Name { get { return _original.Name; } set { _original.Name = value; } }
     public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
-    public NetCord.Color? Color { get { return _original.Color; } set { _original.Color = value; } }
+    public IDiscordRoleColorsProperties? Colors { get { return _original.Colors is null ? null : new DiscordRoleColorsProperties(_original.Colors); } set { _original.Colors = value?.Original; } }
     public bool? Hoist { get { return _original.Hoist; } set { _original.Hoist = value; } }
     public NetCord.Rest.ImageProperties? Icon { get { return _original.Icon; } set { _original.Icon = value; } }
     public string? UnicodeIcon { get { return _original.UnicodeIcon; } set { _original.UnicodeIcon = value; } }
@@ -9254,9 +9700,9 @@ public partial class DiscordRoleProperties : IDiscordRoleProperties
     {
         return new DiscordRoleProperties(_original.WithPermissions(permissions));
     }
-    public IDiscordRoleProperties WithColor(NetCord.Color? color) 
+    public IDiscordRoleProperties WithColors(IDiscordRoleColorsProperties? colors) 
     {
-        return new DiscordRoleProperties(_original.WithColor(color));
+        return new DiscordRoleProperties(_original.WithColors(colors?.Original));
     }
     public IDiscordRoleProperties WithHoist(bool? hoist = true) 
     {
@@ -9308,7 +9754,7 @@ public partial class DiscordRoleOptions : IDiscordRoleOptions
     public NetCord.Rest.RoleOptions Original => _original;
     public string? Name { get { return _original.Name; } set { _original.Name = value; } }
     public NetCord.Permissions? Permissions { get { return _original.Permissions; } set { _original.Permissions = value; } }
-    public NetCord.Color? Color { get { return _original.Color; } set { _original.Color = value; } }
+    public IDiscordRoleColorsProperties? Colors { get { return _original.Colors is null ? null : new DiscordRoleColorsProperties(_original.Colors); } set { _original.Colors = value?.Original; } }
     public bool? Hoist { get { return _original.Hoist; } set { _original.Hoist = value; } }
     public NetCord.Rest.ImageProperties? Icon { get { return _original.Icon; } set { _original.Icon = value; } }
     public string? UnicodeIcon { get { return _original.UnicodeIcon; } set { _original.UnicodeIcon = value; } }
@@ -9321,9 +9767,9 @@ public partial class DiscordRoleOptions : IDiscordRoleOptions
     {
         return new DiscordRoleOptions(_original.WithPermissions(permissions));
     }
-    public IDiscordRoleOptions WithColor(NetCord.Color? color) 
+    public IDiscordRoleOptions WithColors(IDiscordRoleColorsProperties? colors) 
     {
-        return new DiscordRoleOptions(_original.WithColor(color));
+        return new DiscordRoleOptions(_original.WithColors(colors?.Original));
     }
     public IDiscordRoleOptions WithHoist(bool? hoist = true) 
     {
@@ -9371,10 +9817,6 @@ public partial class DiscordGuildPruneProperties : IDiscordGuildPruneProperties
     {
         return new DiscordGuildPruneProperties(_original.AddRoles(roles));
     }
-    public IDiscordGuildPruneProperties AddRoles(ulong[] roles) 
-    {
-        return new DiscordGuildPruneProperties(_original.AddRoles(roles));
-    }
 }
 
 
@@ -9413,20 +9855,25 @@ public partial class DiscordRestInvite : IDiscordRestInvite
     public int? ApproximatePresenceCount => _original.ApproximatePresenceCount;
     public int? ApproximateUserCount => _original.ApproximateUserCount;
     public System.DateTimeOffset? ExpiresAt => _original.ExpiresAt;
-    public IDiscordStageInstance? StageInstance => _original.StageInstance is null ? null : new DiscordStageInstance(_original.StageInstance);
     public IDiscordGuildScheduledEvent? GuildScheduledEvent => _original.GuildScheduledEvent is null ? null : new DiscordGuildScheduledEvent(_original.GuildScheduledEvent);
+    public NetCord.InviteFlags? Flags => _original.Flags;
+    public IReadOnlyList<IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.Select(x => new DiscordRole(x)).ToList();
     public int? Uses => _original.Uses;
     public int? MaxUses => _original.MaxUses;
     public int? MaxAge => _original.MaxAge;
     public bool? Temporary => _original.Temporary;
     public System.DateTimeOffset? CreatedAt => _original.CreatedAt;
-    public async Task<IDiscordRestInvite> GetGuildAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestInvite> GetAsync(bool withCounts = false, bool withExpiration = false, ulong? guildScheduledEventId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.GetGuildAsync(withCounts, withExpiration, guildScheduledEventId, properties, cancellationToken));
+        return new DiscordRestInvite(await _original.GetAsync(withCounts, withExpiration, guildScheduledEventId, properties, cancellationToken));
     }
-    public async Task<IDiscordRestInvite> DeleteGuildAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestInvite> DeleteAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestInvite(await _original.DeleteGuildAsync(properties, cancellationToken));
+        return new DiscordRestInvite(await _original.DeleteAsync(properties, cancellationToken));
+    }
+    public IAsyncEnumerable<ulong> GetTargetUsersAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    {
+        return _original.GetTargetUsersAsync(properties, cancellationToken);
     }
 }
 
@@ -9449,7 +9896,7 @@ public partial class DiscordIntegration : IDiscordIntegration
     public NetCord.IntegrationExpireBehavior? ExpireBehavior => _original.ExpireBehavior;
     public int? ExpireGracePeriod => _original.ExpireGracePeriod;
     public IDiscordUser? User => _original.User is null ? null : new DiscordUser(_original.User);
-    public IDiscordAccount Account => new DiscordAccount(_original.Account);
+    public IDiscordIntegrationAccount Account => new DiscordIntegrationAccount(_original.Account);
     public System.DateTimeOffset? SyncedAt => _original.SyncedAt;
     public int? SubscriberCount => _original.SubscriberCount;
     public bool? Revoked => _original.Revoked;
@@ -9503,8 +9950,8 @@ public partial class DiscordGuildWidget : IDiscordGuildWidget
     public ulong Id => _original.Id;
     public string Name => _original.Name;
     public string? InstantInvite => _original.InstantInvite;
-    public ImmutableDictionary<ulong, IDiscordGuildWidgetChannel> Channels => _original.Channels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordGuildWidgetChannel)new DiscordGuildWidgetChannel(kv.Value));
-    public ImmutableDictionary<ulong, IDiscordUser> Users => _original.Users.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordGuildWidgetChannel> Channels => _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordGuildWidgetChannel)new DiscordGuildWidgetChannel(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordUser> Users => _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
     public int PresenceCount => _original.PresenceCount;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
@@ -9545,10 +9992,6 @@ public partial class DiscordGuildWelcomeScreenOptions : IDiscordGuildWelcomeScre
     public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IEnumerable<IDiscordGuildWelcomeScreenChannelProperties> welcomeChannels) 
     {
         return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original)));
-    }
-    public IDiscordGuildWelcomeScreenOptions AddWelcomeChannels(IDiscordGuildWelcomeScreenChannelProperties[] welcomeChannels) 
-    {
-        return new DiscordGuildWelcomeScreenOptions(_original.AddWelcomeChannels(welcomeChannels.Select(x => x.Original).ToArray()));
     }
     public IDiscordGuildWelcomeScreenOptions WithDescription(string description) 
     {
@@ -9593,19 +10036,11 @@ public partial class DiscordGuildOnboardingOptions : IDiscordGuildOnboardingOpti
     {
         return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original)));
     }
-    public IDiscordGuildOnboardingOptions AddPrompts(IDiscordGuildOnboardingPromptProperties[] prompts) 
-    {
-        return new DiscordGuildOnboardingOptions(_original.AddPrompts(prompts.Select(x => x.Original).ToArray()));
-    }
     public IDiscordGuildOnboardingOptions WithDefaultChannelIds(IEnumerable<ulong>? defaultChannelIds) 
     {
         return new DiscordGuildOnboardingOptions(_original.WithDefaultChannelIds(defaultChannelIds));
     }
     public IDiscordGuildOnboardingOptions AddDefaultChannelIds(IEnumerable<ulong> defaultChannelIds) 
-    {
-        return new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
-    }
-    public IDiscordGuildOnboardingOptions AddDefaultChannelIds(ulong[] defaultChannelIds) 
     {
         return new DiscordGuildOnboardingOptions(_original.AddDefaultChannelIds(defaultChannelIds));
     }
@@ -9881,7 +10316,7 @@ public partial class DiscordGuildApplicationCommand : IDiscordGuildApplicationCo
     public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
-    public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
+    public NetCord.Permissions? DefaultGuildPermissions => _original.DefaultGuildPermissions;
     public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
     public bool Nsfw => _original.Nsfw;
     public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
@@ -9930,7 +10365,7 @@ public partial class DiscordApplicationCommandProperties : IDiscordApplicationCo
     public NetCord.ApplicationCommandType Type => _original.Type;
     public string Name { get { return _original.Name; } set { _original.Name = value; } }
     public IReadOnlyDictionary<string, string>? NameLocalizations { get { return _original.NameLocalizations; } set { _original.NameLocalizations = value; } }
-    public NetCord.Permissions? DefaultGuildUserPermissions { get { return _original.DefaultGuildUserPermissions; } set { _original.DefaultGuildUserPermissions = value; } }
+    public NetCord.Permissions? DefaultGuildPermissions { get { return _original.DefaultGuildPermissions; } set { _original.DefaultGuildPermissions = value; } }
     public IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get { return _original.IntegrationTypes; } set { _original.IntegrationTypes = value; } }
     public IEnumerable<NetCord.InteractionContextType>? Contexts { get { return _original.Contexts; } set { _original.Contexts = value; } }
     public bool Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
@@ -9942,9 +10377,9 @@ public partial class DiscordApplicationCommandProperties : IDiscordApplicationCo
     {
         return new DiscordApplicationCommandProperties(_original.WithNameLocalizations(nameLocalizations));
     }
-    public IDiscordApplicationCommandProperties WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) 
+    public IDiscordApplicationCommandProperties WithDefaultGuildPermissions(NetCord.Permissions? defaultGuildPermissions) 
     {
-        return new DiscordApplicationCommandProperties(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
+        return new DiscordApplicationCommandProperties(_original.WithDefaultGuildPermissions(defaultGuildPermissions));
     }
     public IDiscordApplicationCommandProperties WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType>? integrationTypes) 
     {
@@ -9954,19 +10389,11 @@ public partial class DiscordApplicationCommandProperties : IDiscordApplicationCo
     {
         return new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
     }
-    public IDiscordApplicationCommandProperties AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) 
-    {
-        return new DiscordApplicationCommandProperties(_original.AddIntegrationTypes(integrationTypes));
-    }
     public IDiscordApplicationCommandProperties WithContexts(IEnumerable<NetCord.InteractionContextType>? contexts) 
     {
         return new DiscordApplicationCommandProperties(_original.WithContexts(contexts));
     }
     public IDiscordApplicationCommandProperties AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
-    {
-        return new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
-    }
-    public IDiscordApplicationCommandProperties AddContexts(NetCord.InteractionContextType[] contexts) 
     {
         return new DiscordApplicationCommandProperties(_original.AddContexts(contexts));
     }
@@ -9990,7 +10417,7 @@ public partial class DiscordApplicationCommandOptions : IDiscordApplicationComma
     public string? Description { get { return _original.Description; } set { _original.Description = value; } }
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations { get { return _original.DescriptionLocalizations; } set { _original.DescriptionLocalizations = value; } }
     public IEnumerable<IDiscordApplicationCommandOptionProperties>? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordApplicationCommandOptionProperties(x)); } set { _original.Options = value?.Select(x => x.Original); } }
-    public NetCord.Permissions? DefaultGuildUserPermissions { get { return _original.DefaultGuildUserPermissions; } set { _original.DefaultGuildUserPermissions = value; } }
+    public NetCord.Permissions? DefaultGuildPermissions { get { return _original.DefaultGuildPermissions; } set { _original.DefaultGuildPermissions = value; } }
     public IEnumerable<NetCord.ApplicationIntegrationType>? IntegrationTypes { get { return _original.IntegrationTypes; } set { _original.IntegrationTypes = value; } }
     public IEnumerable<NetCord.InteractionContextType>? Contexts { get { return _original.Contexts; } set { _original.Contexts = value; } }
     public bool? Nsfw { get { return _original.Nsfw; } set { _original.Nsfw = value; } }
@@ -10018,13 +10445,9 @@ public partial class DiscordApplicationCommandOptions : IDiscordApplicationComma
     {
         return new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original)));
     }
-    public IDiscordApplicationCommandOptions AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
+    public IDiscordApplicationCommandOptions WithDefaultGuildPermissions(NetCord.Permissions? defaultGuildPermissions) 
     {
-        return new DiscordApplicationCommandOptions(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordApplicationCommandOptions WithDefaultGuildUserPermissions(NetCord.Permissions? defaultGuildUserPermissions) 
-    {
-        return new DiscordApplicationCommandOptions(_original.WithDefaultGuildUserPermissions(defaultGuildUserPermissions));
+        return new DiscordApplicationCommandOptions(_original.WithDefaultGuildPermissions(defaultGuildPermissions));
     }
     public IDiscordApplicationCommandOptions WithIntegrationTypes(IEnumerable<NetCord.ApplicationIntegrationType>? integrationTypes) 
     {
@@ -10034,19 +10457,11 @@ public partial class DiscordApplicationCommandOptions : IDiscordApplicationComma
     {
         return new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
     }
-    public IDiscordApplicationCommandOptions AddIntegrationTypes(NetCord.ApplicationIntegrationType[] integrationTypes) 
-    {
-        return new DiscordApplicationCommandOptions(_original.AddIntegrationTypes(integrationTypes));
-    }
     public IDiscordApplicationCommandOptions WithContexts(IEnumerable<NetCord.InteractionContextType>? contexts) 
     {
         return new DiscordApplicationCommandOptions(_original.WithContexts(contexts));
     }
     public IDiscordApplicationCommandOptions AddContexts(IEnumerable<NetCord.InteractionContextType> contexts) 
-    {
-        return new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
-    }
-    public IDiscordApplicationCommandOptions AddContexts(NetCord.InteractionContextType[] contexts) 
     {
         return new DiscordApplicationCommandOptions(_original.AddContexts(contexts));
     }
@@ -10059,16 +10474,16 @@ public partial class DiscordApplicationCommandOptions : IDiscordApplicationComma
 
 public partial class DiscordApplicationCommandGuildPermissions : IDiscordApplicationCommandGuildPermissions 
 {
-    private readonly NetCord.Rest.ApplicationCommandGuildPermissions _original;
-    public DiscordApplicationCommandGuildPermissions(NetCord.Rest.ApplicationCommandGuildPermissions original)
+    private readonly NetCord.ApplicationCommandGuildPermissions _original;
+    public DiscordApplicationCommandGuildPermissions(NetCord.ApplicationCommandGuildPermissions original)
     {
         _original = original;
     }
-    public NetCord.Rest.ApplicationCommandGuildPermissions Original => _original;
+    public NetCord.ApplicationCommandGuildPermissions Original => _original;
     public ulong CommandId => _original.CommandId;
     public ulong ApplicationId => _original.ApplicationId;
     public ulong GuildId => _original.GuildId;
-    public IReadOnlyDictionary<ulong, IDiscordApplicationCommandPermission> Permissions => _original.Permissions.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationCommandPermission)new DiscordApplicationCommandPermission(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordApplicationCommandGuildPermission> Permissions => _original.Permissions.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationCommandGuildPermission)new DiscordApplicationCommandGuildPermission(kv.Value));
 }
 
 
@@ -10126,10 +10541,6 @@ public partial class DiscordGuildStickerProperties : IDiscordGuildStickerPropert
         return new DiscordGuildStickerProperties(_original.WithTags(tags));
     }
     public IDiscordGuildStickerProperties AddTags(IEnumerable<string> tags) 
-    {
-        return new DiscordGuildStickerProperties(_original.AddTags(tags));
-    }
-    public IDiscordGuildStickerProperties AddTags(string[] tags) 
     {
         return new DiscordGuildStickerProperties(_original.AddTags(tags));
     }
@@ -10198,10 +10609,6 @@ public partial class DiscordGuildUsersSearchPaginationProperties : IDiscordGuild
     {
         return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original)));
     }
-    public IDiscordGuildUsersSearchPaginationProperties AddOrQuery(IDiscordGuildUsersSearchQuery[] orQuery) 
-    {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.AddOrQuery(orQuery.Select(x => x.Original).ToArray()));
-    }
     public IDiscordGuildUsersSearchPaginationProperties WithAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery>? andQuery) 
     {
         return new DiscordGuildUsersSearchPaginationProperties(_original.WithAndQuery(andQuery?.Select(x => x.Original)));
@@ -10209,10 +10616,6 @@ public partial class DiscordGuildUsersSearchPaginationProperties : IDiscordGuild
     public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IEnumerable<IDiscordGuildUsersSearchQuery> andQuery) 
     {
         return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original)));
-    }
-    public IDiscordGuildUsersSearchPaginationProperties AddAndQuery(IDiscordGuildUsersSearchQuery[] andQuery) 
-    {
-        return new DiscordGuildUsersSearchPaginationProperties(_original.AddAndQuery(andQuery.Select(x => x.Original).ToArray()));
     }
     public IDiscordGuildUsersSearchPaginationProperties WithFrom(NetCord.Rest.GuildUsersSearchTimestamp? from) 
     {
@@ -10407,6 +10810,40 @@ public partial class DiscordMessageReactionsPaginationProperties : IDiscordMessa
 }
 
 
+public partial class DiscordTypingScopeProperties : IDiscordTypingScopeProperties 
+{
+    private readonly NetCord.Rest.TypingScopeProperties _original;
+    public DiscordTypingScopeProperties(NetCord.Rest.TypingScopeProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.TypingScopeProperties Original => _original;
+    public System.TimeSpan? Interval { get { return _original.Interval; } set { _original.Interval = value; } }
+    public TimeProvider TimeProvider { get { return _original.TimeProvider; } set { _original.TimeProvider = value; } }
+    public IDiscordTypingScopeProperties WithInterval(System.TimeSpan? interval) 
+    {
+        return new DiscordTypingScopeProperties(_original.WithInterval(interval));
+    }
+    public IDiscordTypingScopeProperties WithTimeProvider(TimeProvider? timeProvider) 
+    {
+        return new DiscordTypingScopeProperties(_original.WithTimeProvider(timeProvider));
+    }
+}
+
+
+public partial class DiscordMessagePin : IDiscordMessagePin 
+{
+    private readonly NetCord.Rest.MessagePin _original;
+    public DiscordMessagePin(NetCord.Rest.MessagePin original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.MessagePin Original => _original;
+    public System.DateTimeOffset PinnedAt => _original.PinnedAt;
+    public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
+}
+
+
 public partial class DiscordGoogleCloudPlatformStorageBucket : IDiscordGoogleCloudPlatformStorageBucket 
 {
     private readonly NetCord.Rest.GoogleCloudPlatformStorageBucket _original;
@@ -10460,6 +10897,38 @@ public partial class DiscordAvatarDecorationData : IDiscordAvatarDecorationData
 }
 
 
+public partial class DiscordCollectibles : IDiscordCollectibles 
+{
+    private readonly NetCord.Collectibles _original;
+    public DiscordCollectibles(NetCord.Collectibles original)
+    {
+        _original = original;
+    }
+    public NetCord.Collectibles Original => _original;
+    public IDiscordNameplate? Nameplate => _original.Nameplate is null ? null : new DiscordNameplate(_original.Nameplate);
+}
+
+
+public partial class DiscordUserPrimaryGuild : IDiscordUserPrimaryGuild 
+{
+    private readonly NetCord.UserPrimaryGuild _original;
+    public DiscordUserPrimaryGuild(NetCord.UserPrimaryGuild original)
+    {
+        _original = original;
+    }
+    public NetCord.UserPrimaryGuild Original => _original;
+    public ulong? IdentityGuildId => _original.IdentityGuildId;
+    public bool? IdentityEnabled => _original.IdentityEnabled;
+    public string Tag => _original.Tag;
+    public string BadgeHash => _original.BadgeHash;
+    public bool HasBadge => _original.HasBadge;
+    public IDiscordImageUrl GetBadgeUrl(NetCord.ImageFormat format) 
+    {
+        return new DiscordImageUrl(_original.GetBadgeUrl(format));
+    }
+}
+
+
 public partial class DiscordDMChannel : IDiscordDMChannel 
 {
     private readonly NetCord.DMChannel _original;
@@ -10505,13 +10974,13 @@ public partial class DiscordDMChannel : IDiscordDMChannel
     {
         return _original.AddMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -10524,9 +10993,9 @@ public partial class DiscordDMChannel : IDiscordDMChannel
     {
         return _original.DeleteAllMessageReactionsAsync(messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -10540,21 +11009,24 @@ public partial class DiscordDMChannel : IDiscordDMChannel
     {
         return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
+        return _original.TriggerTypingAsync(properties, cancellationToken);
     }
-    public Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(scopeProperties?.Original, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return _original.EnterTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetPinnedMessagesAsync(properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -10595,6 +11067,7 @@ public partial class DiscordJsonInteractionData : IDiscordJsonInteractionData
     public NetCord.ApplicationCommandType? Type { get { return _original.Type; } set { _original.Type = value; } }
     public IDiscordJsonInteractionResolvedData? ResolvedData { get { return _original.ResolvedData is null ? null : new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value?.Original; } }
     public IDiscordJsonApplicationCommandInteractionDataOption[]? Options { get { return _original.Options is null ? null : _original.Options.Select(x => new DiscordJsonApplicationCommandInteractionDataOption(x)).ToArray(); } set { _original.Options = value?.Select(x => x.Original).ToArray(); } }
+    public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
     public string? CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
     public NetCord.ComponentType? ComponentType { get { return _original.ComponentType; } set { _original.ComponentType = value; } }
     public string[]? SelectedValues { get { return _original.SelectedValues; } set { _original.SelectedValues = value; } }
@@ -10630,8 +11103,7 @@ public partial class DiscordJsonGuildUser : IDiscordJsonGuildUser
     public string? GuildAvatarHash { get { return _original.GuildAvatarHash; } set { _original.GuildAvatarHash = value; } }
     public string? GuildBannerHash { get { return _original.GuildBannerHash; } set { _original.GuildBannerHash = value; } }
     public ulong[] RoleIds { get { return _original.RoleIds; } set { _original.RoleIds = value; } }
-    public ulong? HoistedRoleId { get { return _original.HoistedRoleId; } set { _original.HoistedRoleId = value; } }
-    public System.DateTimeOffset JoinedAt { get { return _original.JoinedAt; } set { _original.JoinedAt = value; } }
+    public System.DateTimeOffset? JoinedAt { get { return _original.JoinedAt; } set { _original.JoinedAt = value; } }
     public System.DateTimeOffset? GuildBoostStart { get { return _original.GuildBoostStart; } set { _original.GuildBoostStart = value; } }
     public bool Deafened { get { return _original.Deafened; } set { _original.Deafened = value; } }
     public bool Muted { get { return _original.Muted; } set { _original.Muted = value; } }
@@ -10667,6 +11139,8 @@ public partial class DiscordJsonUser : IDiscordJsonUser
     public NetCord.PremiumType? PremiumType { get { return _original.PremiumType; } set { _original.PremiumType = value; } }
     public NetCord.UserFlags? PublicFlags { get { return _original.PublicFlags; } set { _original.PublicFlags = value; } }
     public IDiscordJsonAvatarDecorationData? AvatarDecorationData { get { return _original.AvatarDecorationData is null ? null : new DiscordJsonAvatarDecorationData(_original.AvatarDecorationData); } set { _original.AvatarDecorationData = value?.Original; } }
+    public IDiscordJsonCollectibles Collectibles { get { return new DiscordJsonCollectibles(_original.Collectibles); } set { _original.Collectibles = value.Original; } }
+    public IDiscordJsonUserPrimaryGuild PrimaryGuild { get { return new DiscordJsonUserPrimaryGuild(_original.PrimaryGuild); } set { _original.PrimaryGuild = value.Original; } }
     public IDiscordJsonGuildUser? GuildUser { get { return _original.GuildUser is null ? null : new DiscordJsonGuildUser(_original.GuildUser); } set { _original.GuildUser = value?.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
@@ -10714,6 +11188,7 @@ public partial class DiscordJsonMessage : IDiscordJsonMessage
     public IDiscordJsonInteractionResolvedData? ResolvedData { get { return _original.ResolvedData is null ? null : new DiscordJsonInteractionResolvedData(_original.ResolvedData); } set { _original.ResolvedData = value?.Original; } }
     public IDiscordJsonMessagePoll? Poll { get { return _original.Poll is null ? null : new DiscordJsonMessagePoll(_original.Poll); } set { _original.Poll = value?.Original; } }
     public IDiscordJsonMessageCall? Call { get { return _original.Call is null ? null : new DiscordJsonMessageCall(_original.Call); } set { _original.Call = value?.Original; } }
+    public IDiscordJsonSharedClientTheme SharedClientTheme { get { return new DiscordJsonSharedClientTheme(_original.SharedClientTheme); } set { _original.SharedClientTheme = value.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -10764,6 +11239,8 @@ public partial class DiscordCurrentUser : IDiscordCurrentUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -10871,6 +11348,9 @@ public partial class DiscordCurrentApplication : IDiscordCurrentApplication
     public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
     public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
     public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
+    public string EventWebhooksUrl => _original.EventWebhooksUrl;
+    public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus => _original.EventWebhooksStatus;
+    public IReadOnlyList<string>? EventWebhooksTypes => _original.EventWebhooksTypes;
     public IReadOnlyList<string>? Tags => _original.Tags;
     public IDiscordApplicationInstallParams? InstallParams => _original.InstallParams is null ? null : new DiscordApplicationInstallParams(_original.InstallParams);
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration is null ? null : _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
@@ -10985,6 +11465,9 @@ public partial class DiscordCurrentApplicationOptions : IDiscordCurrentApplicati
     public NetCord.Rest.ImageProperties? CoverImage { get { return _original.CoverImage; } set { _original.CoverImage = value; } }
     public string? InteractionsEndpointUrl { get { return _original.InteractionsEndpointUrl; } set { _original.InteractionsEndpointUrl = value; } }
     public IEnumerable<string>? Tags { get { return _original.Tags; } set { _original.Tags = value; } }
+    public string? EventWebhooksUrl { get { return _original.EventWebhooksUrl; } set { _original.EventWebhooksUrl = value; } }
+    public NetCord.ApplicationEventWebhooksStatus? EventWebhooksStatus { get { return _original.EventWebhooksStatus; } set { _original.EventWebhooksStatus = value; } }
+    public IEnumerable<string>? EventWebhooksTypes { get { return _original.EventWebhooksTypes; } set { _original.EventWebhooksTypes = value; } }
     public IDiscordCurrentApplicationOptions WithCustomInstallUrl(string customInstallUrl) 
     {
         return new DiscordCurrentApplicationOptions(_original.WithCustomInstallUrl(customInstallUrl));
@@ -11029,9 +11512,21 @@ public partial class DiscordCurrentApplicationOptions : IDiscordCurrentApplicati
     {
         return new DiscordCurrentApplicationOptions(_original.AddTags(tags));
     }
-    public IDiscordCurrentApplicationOptions AddTags(string[] tags) 
+    public IDiscordCurrentApplicationOptions WithEventWebhooksUrl(string eventWebhooksUrl) 
     {
-        return new DiscordCurrentApplicationOptions(_original.AddTags(tags));
+        return new DiscordCurrentApplicationOptions(_original.WithEventWebhooksUrl(eventWebhooksUrl));
+    }
+    public IDiscordCurrentApplicationOptions WithEventWebhooksStatus(NetCord.ApplicationEventWebhooksStatus? eventWebhooksStatus) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithEventWebhooksStatus(eventWebhooksStatus));
+    }
+    public IDiscordCurrentApplicationOptions WithEventWebhooksTypes(IEnumerable<string>? eventWebhooksTypes) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.WithEventWebhooksTypes(eventWebhooksTypes));
+    }
+    public IDiscordCurrentApplicationOptions AddEventWebhooksTypes(IEnumerable<string> eventWebhooksTypes) 
+    {
+        return new DiscordCurrentApplicationOptions(_original.AddEventWebhooksTypes(eventWebhooksTypes));
     }
 }
 
@@ -11163,7 +11658,7 @@ public partial class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     public NetCord.VideoQualityMode? VideoQualityMode { get { return _original.VideoQualityMode; } set { _original.VideoQualityMode = value; } }
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration { get { return _original.DefaultAutoArchiveDuration; } set { _original.DefaultAutoArchiveDuration = value; } }
     public IEnumerable<IDiscordForumTagProperties>? AvailableTags { get { return _original.AvailableTags is null ? null : _original.AvailableTags.Select(x => new DiscordForumTagProperties(x)); } set { _original.AvailableTags = value?.Select(x => x.Original); } }
-    public NetCord.Rest.ForumGuildChannelDefaultReactionProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji; } set { _original.DefaultReactionEmoji = value; } }
+    public IDiscordEmojiProperties? DefaultReactionEmoji { get { return _original.DefaultReactionEmoji is null ? null : new DiscordEmojiProperties(_original.DefaultReactionEmoji); } set { _original.DefaultReactionEmoji = value?.Original; } }
     public int? DefaultThreadSlowmode { get { return _original.DefaultThreadSlowmode; } set { _original.DefaultThreadSlowmode = value; } }
     public NetCord.ChannelFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public NetCord.SortOrderType? DefaultSortOrder { get { return _original.DefaultSortOrder; } set { _original.DefaultSortOrder = value; } }
@@ -11213,10 +11708,6 @@ public partial class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     {
         return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original)));
     }
-    public IDiscordGuildChannelOptions AddPermissionOverwrites(IDiscordPermissionOverwriteProperties[] permissionOverwrites) 
-    {
-        return new DiscordGuildChannelOptions(_original.AddPermissionOverwrites(permissionOverwrites.Select(x => x.Original).ToArray()));
-    }
     public IDiscordGuildChannelOptions WithParentId(ulong? parentId) 
     {
         return new DiscordGuildChannelOptions(_original.WithParentId(parentId));
@@ -11241,13 +11732,9 @@ public partial class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     {
         return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original)));
     }
-    public IDiscordGuildChannelOptions AddAvailableTags(IDiscordForumTagProperties[] availableTags) 
+    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(IDiscordEmojiProperties? defaultReactionEmoji) 
     {
-        return new DiscordGuildChannelOptions(_original.AddAvailableTags(availableTags.Select(x => x.Original).ToArray()));
-    }
-    public IDiscordGuildChannelOptions WithDefaultReactionEmoji(NetCord.Rest.ForumGuildChannelDefaultReactionProperties? defaultReactionEmoji) 
-    {
-        return new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji));
+        return new DiscordGuildChannelOptions(_original.WithDefaultReactionEmoji(defaultReactionEmoji?.Original));
     }
     public IDiscordGuildChannelOptions WithDefaultThreadSlowmode(int? defaultThreadSlowmode) 
     {
@@ -11289,9 +11776,21 @@ public partial class DiscordGuildChannelOptions : IDiscordGuildChannelOptions
     {
         return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
     }
-    public IDiscordGuildChannelOptions AddAppliedTags(ulong[] appliedTags) 
+}
+
+
+public partial class DiscordVoiceGuildChannelStatusProperties : IDiscordVoiceGuildChannelStatusProperties 
+{
+    private readonly NetCord.Rest.VoiceGuildChannelStatusProperties _original;
+    public DiscordVoiceGuildChannelStatusProperties(NetCord.Rest.VoiceGuildChannelStatusProperties original)
     {
-        return new DiscordGuildChannelOptions(_original.AddAppliedTags(appliedTags));
+        _original = original;
+    }
+    public NetCord.Rest.VoiceGuildChannelStatusProperties Original => _original;
+    public string? Status { get { return _original.Status; } set { _original.Status = value; } }
+    public IDiscordVoiceGuildChannelStatusProperties WithStatus(string status) 
+    {
+        return new DiscordVoiceGuildChannelStatusProperties(_original.WithStatus(status));
     }
 }
 
@@ -11342,6 +11841,8 @@ public partial class DiscordInviteProperties : IDiscordInviteProperties
     public NetCord.InviteTargetType? TargetType { get { return _original.TargetType; } set { _original.TargetType = value; } }
     public ulong? TargetUserId { get { return _original.TargetUserId; } set { _original.TargetUserId = value; } }
     public ulong? TargetApplicationId { get { return _original.TargetApplicationId; } set { _original.TargetApplicationId = value; } }
+    public IDiscordInviteTargetUsersProperties? TargetUsers { get { return _original.TargetUsers is null ? null : new DiscordInviteTargetUsersProperties(_original.TargetUsers); } set { _original.TargetUsers = value?.Original; } }
+    public IEnumerable<ulong>? RoleIds { get { return _original.RoleIds; } set { _original.RoleIds = value; } }
     public IDiscordInviteProperties WithMaxAge(int? maxAge) 
     {
         return new DiscordInviteProperties(_original.WithMaxAge(maxAge));
@@ -11369,6 +11870,18 @@ public partial class DiscordInviteProperties : IDiscordInviteProperties
     public IDiscordInviteProperties WithTargetApplicationId(ulong? targetApplicationId) 
     {
         return new DiscordInviteProperties(_original.WithTargetApplicationId(targetApplicationId));
+    }
+    public IDiscordInviteProperties WithTargetUsers(IDiscordInviteTargetUsersProperties? targetUsers) 
+    {
+        return new DiscordInviteProperties(_original.WithTargetUsers(targetUsers?.Original));
+    }
+    public IDiscordInviteProperties WithRoleIds(IEnumerable<ulong>? roleIds) 
+    {
+        return new DiscordInviteProperties(_original.WithRoleIds(roleIds));
+    }
+    public IDiscordInviteProperties AddRoleIds(IEnumerable<ulong> roleIds) 
+    {
+        return new DiscordInviteProperties(_original.AddRoleIds(roleIds));
     }
 }
 
@@ -11454,11 +11967,12 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     public NetCord.ForumGuildThread Original => _original;
     public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
     public IReadOnlyList<ulong>? AppliedTags => _original.AppliedTags;
+    public ulong ParentId => _original.ParentId;
     public ulong OwnerId => _original.OwnerId;
     public int MessageCount => _original.MessageCount;
     public int UserCount => _original.UserCount;
     public IDiscordGuildThreadMetadata Metadata => new DiscordGuildThreadMetadata(_original.Metadata);
-    public IDiscordThreadCurrentUser? CurrentUser => _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser);
+    public IDiscordThreadCurrentUser? CurrentUser { get { return _original.CurrentUser is null ? null : new DiscordThreadCurrentUser(_original.CurrentUser); } set { _original.CurrentUser = value?.Original; } }
     public int TotalMessageSent => _original.TotalMessageSent;
     public ulong GuildId => _original.GuildId;
     public int? Position => _original.Position;
@@ -11467,7 +11981,6 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     public string? Topic => _original.Topic;
     public bool Nsfw => _original.Nsfw;
     public int Slowmode => _original.Slowmode;
-    public ulong? ParentId => _original.ParentId;
     public NetCord.ThreadArchiveDuration? DefaultAutoArchiveDuration => _original.DefaultAutoArchiveDuration;
     public int DefaultThreadSlowmode => _original.DefaultThreadSlowmode;
     public ulong? LastMessageId => _original.LastMessageId;
@@ -11518,9 +12031,9 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     {
         return _original.ModifyPermissionsAsync(permissionOverwrite.Original, properties, cancellationToken);
     }
-    public async Task<IEnumerable<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IReadOnlyList<IDiscordRestInvite>> GetInvitesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x));
+        return (await _original.GetInvitesAsync(properties, cancellationToken)).Select(x => new DiscordRestInvite(x)).ToList();
     }
     public async Task<IDiscordRestInvite> CreateInviteAsync(IDiscordInviteProperties? inviteProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -11590,13 +12103,13 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     {
         return _original.AddMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -11609,9 +12122,9 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     {
         return _original.DeleteAllMessageReactionsAsync(messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -11625,21 +12138,24 @@ public partial class DiscordForumGuildThread : IDiscordForumGuildThread
     {
         return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
+        return _original.TriggerTypingAsync(properties, cancellationToken);
     }
-    public Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(scopeProperties?.Original, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return _original.EnterTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetPinnedMessagesAsync(properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -11696,10 +12212,6 @@ public partial class DiscordForumGuildThreadProperties : IDiscordForumGuildThrea
     {
         return new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
     }
-    public IDiscordForumGuildThreadProperties AddAppliedTags(ulong[] appliedTags) 
-    {
-        return new DiscordForumGuildThreadProperties(_original.AddAppliedTags(appliedTags));
-    }
     public IDiscordForumGuildThreadProperties WithName(string name) 
     {
         return new DiscordForumGuildThreadProperties(_original.WithName(name));
@@ -11726,7 +12238,7 @@ public partial class DiscordThreadUser : IDiscordThreadUser
     public ulong Id => _original.Id;
     public ulong ThreadId => _original.ThreadId;
     public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
-    public int Flags => _original.Flags;
+    public NetCord.ThreadUserFlags Flags => _original.Flags;
     public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
@@ -11864,10 +12376,6 @@ public partial class DiscordGuildProperties : IDiscordGuildProperties
     {
         return new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original)));
     }
-    public IDiscordGuildProperties AddRoles(IDiscordRoleProperties[] roles) 
-    {
-        return new DiscordGuildProperties(_original.AddRoles(roles.Select(x => x.Original).ToArray()));
-    }
     public IDiscordGuildProperties WithChannels(IEnumerable<IDiscordGuildChannelProperties>? channels) 
     {
         return new DiscordGuildProperties(_original.WithChannels(channels?.Select(x => x.Original)));
@@ -11875,10 +12383,6 @@ public partial class DiscordGuildProperties : IDiscordGuildProperties
     public IDiscordGuildProperties AddChannels(IEnumerable<IDiscordGuildChannelProperties> channels) 
     {
         return new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original)));
-    }
-    public IDiscordGuildProperties AddChannels(IDiscordGuildChannelProperties[] channels) 
-    {
-        return new DiscordGuildProperties(_original.AddChannels(channels.Select(x => x.Original).ToArray()));
     }
     public IDiscordGuildProperties WithAfkChannelId(ulong? afkChannelId) 
     {
@@ -11935,7 +12439,7 @@ public partial class DiscordApplicationCommand : IDiscordApplicationCommand
     public IReadOnlyDictionary<string, string>? NameLocalizations => _original.NameLocalizations;
     public string Description => _original.Description;
     public IReadOnlyDictionary<string, string>? DescriptionLocalizations => _original.DescriptionLocalizations;
-    public NetCord.Permissions? DefaultGuildUserPermissions => _original.DefaultGuildUserPermissions;
+    public NetCord.Permissions? DefaultGuildPermissions => _original.DefaultGuildPermissions;
     public IReadOnlyList<IDiscordApplicationCommandOption> Options => _original.Options.Select(x => new DiscordApplicationCommandOption(x)).ToList();
     public bool Nsfw => _original.Nsfw;
     public IReadOnlyList<NetCord.ApplicationIntegrationType>? IntegrationTypes => _original.IntegrationTypes;
@@ -11965,6 +12469,34 @@ public partial class DiscordApplicationCommand : IDiscordApplicationCommand
 }
 
 
+public partial class DiscordInviteTargetUsersProperties : IDiscordInviteTargetUsersProperties 
+{
+    private readonly NetCord.Rest.InviteTargetUsersProperties _original;
+    public DiscordInviteTargetUsersProperties(NetCord.Rest.InviteTargetUsersProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InviteTargetUsersProperties Original => _original;
+}
+
+
+public partial class DiscordInviteTargetUsersJobStatus : IDiscordInviteTargetUsersJobStatus 
+{
+    private readonly NetCord.Rest.InviteTargetUsersJobStatus _original;
+    public DiscordInviteTargetUsersJobStatus(NetCord.Rest.InviteTargetUsersJobStatus original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InviteTargetUsersJobStatus Original => _original;
+    public NetCord.Rest.InviteTargetUsersJobStatusCode Status => _original.Status;
+    public int TotalUsers => _original.TotalUsers;
+    public int ProcessedUsers => _original.ProcessedUsers;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+    public System.DateTimeOffset? CompletedAt => _original.CompletedAt;
+    public string? ErrorMessage => _original.ErrorMessage;
+}
+
+
 public partial class DiscordEntitlementsPaginationProperties : IDiscordEntitlementsPaginationProperties 
 {
     private readonly NetCord.Rest.EntitlementsPaginationProperties _original;
@@ -11989,10 +12521,6 @@ public partial class DiscordEntitlementsPaginationProperties : IDiscordEntitleme
         return new DiscordEntitlementsPaginationProperties(_original.WithSkuIds(skuIds));
     }
     public IDiscordEntitlementsPaginationProperties AddSkuIds(IEnumerable<ulong> skuIds) 
-    {
-        return new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
-    }
-    public IDiscordEntitlementsPaginationProperties AddSkuIds(ulong[] skuIds) 
     {
         return new DiscordEntitlementsPaginationProperties(_original.AddSkuIds(skuIds));
     }
@@ -12271,6 +12799,9 @@ public partial class DiscordApplication : IDiscordApplication
     public IReadOnlyList<string>? RedirectUris => _original.RedirectUris;
     public string? InteractionsEndpointUrl => _original.InteractionsEndpointUrl;
     public string? RoleConnectionsVerificationUrl => _original.RoleConnectionsVerificationUrl;
+    public string EventWebhooksUrl => _original.EventWebhooksUrl;
+    public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus => _original.EventWebhooksStatus;
+    public IReadOnlyList<string>? EventWebhooksTypes => _original.EventWebhooksTypes;
     public IReadOnlyList<string>? Tags => _original.Tags;
     public IDiscordApplicationInstallParams? InstallParams => _original.InstallParams is null ? null : new DiscordApplicationInstallParams(_original.InstallParams);
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordApplicationIntegrationTypeConfiguration>? IntegrationTypesConfiguration => _original.IntegrationTypesConfiguration is null ? null : _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordApplicationIntegrationTypeConfiguration)new DiscordApplicationIntegrationTypeConfiguration(kv.Value));
@@ -12362,10 +12893,15 @@ public partial class DiscordGuildsPaginationProperties : IDiscordGuildsPaginatio
         _original = original;
     }
     public NetCord.Rest.GuildsPaginationProperties Original => _original;
+    public int? Shard { get { return _original.Shard; } set { _original.Shard = value; } }
     public bool WithCounts { get { return _original.WithCounts; } set { _original.WithCounts = value; } }
     public ulong? From { get { return _original.From; } set { _original.From = value; } }
     public NetCord.Rest.PaginationDirection? Direction { get { return _original.Direction; } set { _original.Direction = value; } }
     public int? BatchSize { get { return _original.BatchSize; } set { _original.BatchSize = value; } }
+    public IDiscordGuildsPaginationProperties WithShard(int? shard) 
+    {
+        return new DiscordGuildsPaginationProperties(_original.WithShard(shard));
+    }
     public IDiscordGuildsPaginationProperties WithWithCounts(bool withCounts = true) 
     {
         return new DiscordGuildsPaginationProperties(_original.WithWithCounts(withCounts));
@@ -12447,13 +12983,13 @@ public partial class DiscordGroupDMChannel : IDiscordGroupDMChannel
     {
         return _original.AddMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteCurrentUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteCurrentUserMessageReactionAsync(messageId, emoji.Original, properties, cancellationToken);
     }
-    public Task DeleteMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteUserMessageReactionAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, ulong userId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
+        return _original.DeleteUserMessageReactionAsync(messageId, emoji.Original, userId, properties, cancellationToken);
     }
     public async IAsyncEnumerable<IDiscordUser> GetMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, IDiscordMessageReactionsPaginationProperties? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
@@ -12466,9 +13002,9 @@ public partial class DiscordGroupDMChannel : IDiscordGroupDMChannel
     {
         return _original.DeleteAllMessageReactionsAsync(messageId, properties, cancellationToken);
     }
-    public Task DeleteAllMessageReactionsAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task DeleteAllMessageReactionsForEmojiAsync(ulong messageId, IDiscordReactionEmojiProperties emoji, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteAllMessageReactionsAsync(messageId, emoji.Original, properties, cancellationToken);
+        return _original.DeleteAllMessageReactionsForEmojiAsync(messageId, emoji.Original, properties, cancellationToken);
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12482,21 +13018,24 @@ public partial class DiscordGroupDMChannel : IDiscordGroupDMChannel
     {
         return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
     }
-    public Task DeleteMessagesAsync(IAsyncEnumerable<ulong> messageIds, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public Task TriggerTypingAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.DeleteMessagesAsync(messageIds, properties, cancellationToken);
+        return _original.TriggerTypingAsync(properties, cancellationToken);
     }
-    public Task TriggerTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public ValueTask<IDisposable> EnterTypingScopeAsync(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return _original.TriggerTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScopeAsync(scopeProperties?.Original, properties, cancellationToken);
     }
-    public Task<IDisposable> EnterTypingStateAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public IDisposable EnterTypingScope(IDiscordTypingScopeProperties? scopeProperties = null, NetCord.Rest.RestRequestProperties? properties = null) 
     {
-        return _original.EnterTypingStateAsync(properties, cancellationToken);
+        return _original.EnterTypingScope(scopeProperties?.Original, properties);
     }
-    public async Task<IReadOnlyList<IDiscordRestMessage>> GetPinnedMessagesAsync(NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async IAsyncEnumerable<IDiscordMessagePin> GetPinsAsync(NetCord.Rest.PaginationProperties<System.DateTimeOffset>? paginationProperties = null, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return (await _original.GetPinnedMessagesAsync(properties, cancellationToken)).Select(x => new DiscordRestMessage(x)).ToList();
+        await foreach(var original in _original.GetPinsAsync(paginationProperties, properties, cancellationToken))
+        {
+            yield return new DiscordMessagePin(original);
+        }
     }
     public Task PinMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12539,10 +13078,6 @@ public partial class DiscordGroupDMChannelProperties : IDiscordGroupDMChannelPro
         return new DiscordGroupDMChannelProperties(_original.WithAccessTokens(accessTokens));
     }
     public IDiscordGroupDMChannelProperties AddAccessTokens(IEnumerable<string> accessTokens) 
-    {
-        return new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
-    }
-    public IDiscordGroupDMChannelProperties AddAccessTokens(string[] accessTokens) 
     {
         return new DiscordGroupDMChannelProperties(_original.AddAccessTokens(accessTokens));
     }
@@ -12664,9 +13199,9 @@ public partial class DiscordIncomingWebhook : IDiscordIncomingWebhook
         var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties, cancellationToken);
         return temp is null ? null : new DiscordRestMessage(temp);
     }
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties, cancellationToken));
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, threadId, properties, cancellationToken));
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -12744,7 +13279,7 @@ public partial class DiscordWebhookMessageProperties : IDiscordWebhookMessagePro
     public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<NetCord.Rest.IComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
+    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public string? ThreadName { get { return _original.ThreadName; } set { _original.ThreadName = value; } }
@@ -12778,35 +13313,23 @@ public partial class DiscordWebhookMessageProperties : IDiscordWebhookMessagePro
     {
         return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds));
     }
-    public IDiscordWebhookMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddEmbeds(embeds));
-    }
     public IDiscordWebhookMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions) 
     {
         return new DiscordWebhookMessageProperties(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components) 
+    public IDiscordWebhookMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
     {
-        return new DiscordWebhookMessageProperties(_original.WithComponents(components));
+        return new DiscordWebhookMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     }
-    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components) 
+    public IDiscordWebhookMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
     {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components));
-    }
-    public IDiscordWebhookMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddComponents(components));
+        return new DiscordWebhookMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordWebhookMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
         return new DiscordWebhookMessageProperties(_original.WithAttachments(attachments));
     }
     public IDiscordWebhookMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments));
-    }
-    public IDiscordWebhookMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments) 
     {
         return new DiscordWebhookMessageProperties(_original.AddAttachments(attachments));
     }
@@ -12826,14 +13349,42 @@ public partial class DiscordWebhookMessageProperties : IDiscordWebhookMessagePro
     {
         return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
     }
-    public IDiscordWebhookMessageProperties AddAppliedTags(ulong[] appliedTags) 
-    {
-        return new DiscordWebhookMessageProperties(_original.AddAppliedTags(appliedTags));
-    }
     public IDiscordWebhookMessageProperties WithPoll(IDiscordMessagePollProperties? poll) 
     {
         return new DiscordWebhookMessageProperties(_original.WithPoll(poll?.Original));
     }
+}
+
+
+public partial class DiscordInteractionCallbackResponseInteraction : IDiscordInteractionCallbackResponseInteraction 
+{
+    private readonly NetCord.Rest.InteractionCallbackResponseInteraction _original;
+    public DiscordInteractionCallbackResponseInteraction(NetCord.Rest.InteractionCallbackResponseInteraction original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InteractionCallbackResponseInteraction Original => _original;
+    public ulong Id => _original.Id;
+    public NetCord.InteractionType Type => _original.Type;
+    public string? ActivityInstanceId => _original.ActivityInstanceId;
+    public ulong? ResponseMessageId => _original.ResponseMessageId;
+    public bool? ResponseMessageLoading => _original.ResponseMessageLoading;
+    public bool? ResponseMessageEphemeral => _original.ResponseMessageEphemeral;
+    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
+}
+
+
+public partial class DiscordInteractionCallbackResponseResource : IDiscordInteractionCallbackResponseResource 
+{
+    private readonly NetCord.Rest.InteractionCallbackResponseResource _original;
+    public DiscordInteractionCallbackResponseResource(NetCord.Rest.InteractionCallbackResponseResource original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.InteractionCallbackResponseResource Original => _original;
+    public NetCord.Rest.InteractionCallbackType Type => _original.Type;
+    public IDiscordActivityInstance ActivityInstance => new DiscordActivityInstance(_original.ActivityInstance);
+    public IDiscordRestMessage Message => new DiscordRestMessage(_original.Message);
 }
 
 
@@ -12866,7 +13417,7 @@ public partial class DiscordAttachment : IDiscordAttachment
     public string? Title => _original.Title;
     public string? Description => _original.Description;
     public string? ContentType => _original.ContentType;
-    public int Size => _original.Size;
+    public long Size => _original.Size;
     public string Url => _original.Url;
     public string ProxyUrl => _original.ProxyUrl;
     public bool Ephemeral => _original.Ephemeral;
@@ -12941,6 +13492,7 @@ public partial class DiscordMessageReference : IDiscordMessageReference
         _original = original;
     }
     public NetCord.MessageReference Original => _original;
+    public NetCord.MessageReferenceType Type => _original.Type;
     public ulong MessageId => _original.MessageId;
     public ulong ChannelId => _original.ChannelId;
     public ulong? GuildId => _original.GuildId;
@@ -12979,15 +13531,14 @@ public partial class DiscordMessageInteractionMetadata : IDiscordMessageInteract
 }
 
 
-public partial class DiscordComponent : IDiscordComponent 
+public partial class DiscordMessageComponent : IDiscordMessageComponent 
 {
-    private readonly NetCord.IComponent _original;
-    public DiscordComponent(NetCord.IComponent original)
+    private readonly NetCord.IMessageComponent _original;
+    public DiscordMessageComponent(NetCord.IMessageComponent original)
     {
         _original = original;
     }
-    public NetCord.IComponent Original => _original;
-    public int Id => _original.Id;
+    public NetCord.IMessageComponent Original => _original;
 }
 
 
@@ -13032,6 +13583,7 @@ public partial class DiscordInteractionResolvedData : IDiscordInteractionResolve
     public IReadOnlyDictionary<ulong, IDiscordUser>? Users => _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordUser)new DiscordUser(kv.Value));
     public IReadOnlyDictionary<ulong, IDiscordRole>? Roles => _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordRole)new DiscordRole(kv.Value));
     public IReadOnlyDictionary<ulong, IDiscordChannel>? Channels => _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordChannel)new DiscordChannel(kv.Value));
+    public IReadOnlyDictionary<ulong, IDiscordRestMessage>? Messages => _original.Messages is null ? null : _original.Messages.ToDictionary(kv => kv.Key, kv => (IDiscordRestMessage)new DiscordRestMessage(kv.Value));
     public IReadOnlyDictionary<ulong, IDiscordAttachment>? Attachments => _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordAttachment)new DiscordAttachment(kv.Value));
 }
 
@@ -13066,6 +13618,22 @@ public partial class DiscordMessageCall : IDiscordMessageCall
 }
 
 
+public partial class DiscordSharedClientTheme : IDiscordSharedClientTheme 
+{
+    private readonly NetCord.SharedClientTheme _original;
+    public DiscordSharedClientTheme(NetCord.SharedClientTheme original)
+    {
+        _original = original;
+    }
+    public NetCord.SharedClientTheme Original => _original;
+    public IDiscordJsonSharedClientTheme JsonModel => new DiscordJsonSharedClientTheme(_original.JsonModel);
+    public IReadOnlyList<NetCord.Color> Colors => _original.Colors;
+    public int GradientAngle => _original.GradientAngle;
+    public int BaseMix => _original.BaseMix;
+    public NetCord.SharedClientThemeBase BaseTheme => _original.BaseTheme;
+}
+
+
 public partial class DiscordReplyMessageProperties : IDiscordReplyMessageProperties 
 {
     private readonly NetCord.Rest.ReplyMessageProperties _original;
@@ -13074,17 +13642,17 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
         _original = original;
     }
     public NetCord.Rest.ReplyMessageProperties Original => _original;
-    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
-    public IDiscordNonceProperties? Nonce { get { return _original.Nonce is null ? null : new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value?.Original; } }
+    public string Content { get { return _original.Content; } set { _original.Content = value; } }
+    public IDiscordNonceProperties Nonce { get { return new DiscordNonceProperties(_original.Nonce); } set { _original.Nonce = value.Original; } }
     public bool Tts { get { return _original.Tts; } set { _original.Tts = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
-    public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
+    public NetCord.Rest.AllowedMentionsProperties AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
     public bool? FailIfNotExists { get { return _original.FailIfNotExists; } set { _original.FailIfNotExists = value; } }
-    public IEnumerable<NetCord.Rest.IComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
-    public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
+    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
+    public IEnumerable<ulong> StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
-    public IDiscordMessagePollProperties? Poll { get { return _original.Poll is null ? null : new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value?.Original; } }
+    public IDiscordMessagePollProperties Poll { get { return new DiscordMessagePollProperties(_original.Poll); } set { _original.Poll = value.Original; } }
     public NetCord.Rest.MessageProperties ToMessageProperties(ulong messageReferenceId) 
     {
         return _original.ToMessageProperties(messageReferenceId);
@@ -13109,19 +13677,11 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     {
         return new DiscordReplyMessageProperties(_original.AddAttachments(attachments));
     }
-    public IDiscordReplyMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddAttachments(attachments));
-    }
     public IDiscordReplyMessageProperties WithEmbeds(IEnumerable<NetCord.Rest.EmbedProperties>? embeds) 
     {
         return new DiscordReplyMessageProperties(_original.WithEmbeds(embeds));
     }
     public IDiscordReplyMessageProperties AddEmbeds(IEnumerable<NetCord.Rest.EmbedProperties> embeds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds));
-    }
-    public IDiscordReplyMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds) 
     {
         return new DiscordReplyMessageProperties(_original.AddEmbeds(embeds));
     }
@@ -13133,27 +13693,19 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     {
         return new DiscordReplyMessageProperties(_original.WithFailIfNotExists(failIfNotExists));
     }
-    public IDiscordReplyMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components) 
+    public IDiscordReplyMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
     {
-        return new DiscordReplyMessageProperties(_original.WithComponents(components));
+        return new DiscordReplyMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     }
-    public IDiscordReplyMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components) 
+    public IDiscordReplyMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
     {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components));
-    }
-    public IDiscordReplyMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddComponents(components));
+        return new DiscordReplyMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordReplyMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
     {
         return new DiscordReplyMessageProperties(_original.WithStickerIds(stickerIds));
     }
     public IDiscordReplyMessageProperties AddStickerIds(IEnumerable<ulong> stickerIds) 
-    {
-        return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
-    }
-    public IDiscordReplyMessageProperties AddStickerIds(ulong[] stickerIds) 
     {
         return new DiscordReplyMessageProperties(_original.AddStickerIds(stickerIds));
     }
@@ -13165,6 +13717,17 @@ public partial class DiscordReplyMessageProperties : IDiscordReplyMessagePropert
     {
         return new DiscordReplyMessageProperties(_original.WithPoll(poll?.Original));
     }
+}
+
+
+public partial class DiscordMessageComponentProperties : IDiscordMessageComponentProperties 
+{
+    private readonly NetCord.Rest.IMessageComponentProperties _original;
+    public DiscordMessageComponentProperties(NetCord.Rest.IMessageComponentProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.IMessageComponentProperties Original => _original;
 }
 
 
@@ -13192,10 +13755,6 @@ public partial class DiscordMessagePollProperties : IDiscordMessagePollPropertie
     public IDiscordMessagePollProperties AddAnswers(IEnumerable<IDiscordMessagePollAnswerProperties> answers) 
     {
         return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original)));
-    }
-    public IDiscordMessagePollProperties AddAnswers(IDiscordMessagePollAnswerProperties[] answers) 
-    {
-        return new DiscordMessagePollProperties(_original.AddAnswers(answers.Select(x => x.Original).ToArray()));
     }
     public IDiscordMessagePollProperties WithDurationInHours(int? durationInHours) 
     {
@@ -13241,6 +13800,7 @@ public partial class DiscordGuildThreadMetadata : IDiscordGuildThreadMetadata
     public System.DateTimeOffset ArchiveTimestamp => _original.ArchiveTimestamp;
     public bool Locked => _original.Locked;
     public bool? Invitable => _original.Invitable;
+    public System.DateTimeOffset CreateTimestamp => _original.CreateTimestamp;
 }
 
 
@@ -13253,7 +13813,7 @@ public partial class DiscordThreadCurrentUser : IDiscordThreadCurrentUser
     }
     public NetCord.ThreadCurrentUser Original => _original;
     public System.DateTimeOffset JoinTimestamp => _original.JoinTimestamp;
-    public int Flags => _original.Flags;
+    public NetCord.ThreadUserFlags Flags => _original.Flags;
 }
 
 
@@ -13302,6 +13862,20 @@ public partial class DiscordGuildScheduledEventRecurrenceRule : IDiscordGuildSch
     public IReadOnlyList<int>? ByMonthDay => _original.ByMonthDay;
     public IReadOnlyList<int>? ByYearDay => _original.ByYearDay;
     public int? Count => _original.Count;
+}
+
+
+public partial class DiscordRoleColors : IDiscordRoleColors 
+{
+    private readonly NetCord.RoleColors _original;
+    public DiscordRoleColors(NetCord.RoleColors original)
+    {
+        _original = original;
+    }
+    public NetCord.RoleColors Original => _original;
+    public NetCord.Color PrimaryColor => _original.PrimaryColor;
+    public NetCord.Color? SecondaryColor => _original.SecondaryColor;
+    public NetCord.Color? TertiaryColor => _original.TertiaryColor;
 }
 
 
@@ -13477,19 +14051,11 @@ public partial class DiscordAutoModerationRuleTriggerMetadataProperties : IDisco
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
     }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddKeywordFilter(string[] keywordFilter) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddKeywordFilter(keywordFilter));
-    }
     public IDiscordAutoModerationRuleTriggerMetadataProperties WithRegexPatterns(IEnumerable<string>? regexPatterns) 
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithRegexPatterns(regexPatterns));
     }
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(IEnumerable<string> regexPatterns) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddRegexPatterns(string[] regexPatterns) 
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddRegexPatterns(regexPatterns));
     }
@@ -13501,19 +14067,11 @@ public partial class DiscordAutoModerationRuleTriggerMetadataProperties : IDisco
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
     }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddPresets(NetCord.AutoModerationRuleKeywordPresetType[] presets) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddPresets(presets));
-    }
     public IDiscordAutoModerationRuleTriggerMetadataProperties WithAllowList(IEnumerable<string>? allowList) 
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.WithAllowList(allowList));
     }
     public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(IEnumerable<string> allowList) 
-    {
-        return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
-    }
-    public IDiscordAutoModerationRuleTriggerMetadataProperties AddAllowList(string[] allowList) 
     {
         return new DiscordAutoModerationRuleTriggerMetadataProperties(_original.AddAllowList(allowList));
     }
@@ -13545,6 +14103,27 @@ public partial class DiscordAutoModerationActionProperties : IDiscordAutoModerat
     public IDiscordAutoModerationActionProperties WithMetadata(IDiscordAutoModerationActionMetadataProperties? metadata) 
     {
         return new DiscordAutoModerationActionProperties(_original.WithMetadata(metadata?.Original));
+    }
+}
+
+
+public partial class DiscordEmojiProperties : IDiscordEmojiProperties 
+{
+    private readonly NetCord.EmojiProperties _original;
+    public DiscordEmojiProperties(NetCord.EmojiProperties original)
+    {
+        _original = original;
+    }
+    public NetCord.EmojiProperties Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public IDiscordEmojiProperties WithId(ulong? id) 
+    {
+        return new DiscordEmojiProperties(_original.WithId(id));
+    }
+    public IDiscordEmojiProperties WithName(string name) 
+    {
+        return new DiscordEmojiProperties(_original.WithName(name));
     }
 }
 
@@ -13585,17 +14164,42 @@ public partial class DiscordForumTagProperties : IDiscordForumTagProperties
 }
 
 
-public partial class DiscordAccount : IDiscordAccount 
+public partial class DiscordRoleColorsProperties : IDiscordRoleColorsProperties 
 {
-    private readonly NetCord.Account _original;
-    public DiscordAccount(NetCord.Account original)
+    private readonly NetCord.Rest.RoleColorsProperties _original;
+    public DiscordRoleColorsProperties(NetCord.Rest.RoleColorsProperties original)
     {
         _original = original;
     }
-    public NetCord.Account Original => _original;
-    public ulong Id => _original.Id;
+    public NetCord.Rest.RoleColorsProperties Original => _original;
+    public NetCord.Color PrimaryColor { get { return _original.PrimaryColor; } set { _original.PrimaryColor = value; } }
+    public NetCord.Color? SecondaryColor { get { return _original.SecondaryColor; } set { _original.SecondaryColor = value; } }
+    public NetCord.Color? TertiaryColor { get { return _original.TertiaryColor; } set { _original.TertiaryColor = value; } }
+    public IDiscordRoleColorsProperties WithPrimaryColor(NetCord.Color primaryColor) 
+    {
+        return new DiscordRoleColorsProperties(_original.WithPrimaryColor(primaryColor));
+    }
+    public IDiscordRoleColorsProperties WithSecondaryColor(NetCord.Color? secondaryColor) 
+    {
+        return new DiscordRoleColorsProperties(_original.WithSecondaryColor(secondaryColor));
+    }
+    public IDiscordRoleColorsProperties WithTertiaryColor(NetCord.Color? tertiaryColor) 
+    {
+        return new DiscordRoleColorsProperties(_original.WithTertiaryColor(tertiaryColor));
+    }
+}
+
+
+public partial class DiscordIntegrationAccount : IDiscordIntegrationAccount 
+{
+    private readonly NetCord.IntegrationAccount _original;
+    public DiscordIntegrationAccount(NetCord.IntegrationAccount original)
+    {
+        _original = original;
+    }
+    public NetCord.IntegrationAccount Original => _original;
+    public string Id => _original.Id;
     public string Name => _original.Name;
-    public System.DateTimeOffset CreatedAt => _original.CreatedAt;
 }
 
 
@@ -13642,7 +14246,8 @@ public partial class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildW
     public NetCord.Rest.GuildWelcomeScreenChannelProperties Original => _original;
     public ulong ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
     public string Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IDiscordEmojiProperties? Emoji { get { return _original.Emoji is null ? null : new DiscordEmojiProperties(_original.Emoji); } set { _original.Emoji = value?.Original; } }
+    public ulong? EmojiId { get { return _original.EmojiId; } set { _original.EmojiId = value; } }
+    public string? EmojiName { get { return _original.EmojiName; } set { _original.EmojiName = value; } }
     public IDiscordGuildWelcomeScreenChannelProperties WithChannelId(ulong channelId) 
     {
         return new DiscordGuildWelcomeScreenChannelProperties(_original.WithChannelId(channelId));
@@ -13651,9 +14256,13 @@ public partial class DiscordGuildWelcomeScreenChannelProperties : IDiscordGuildW
     {
         return new DiscordGuildWelcomeScreenChannelProperties(_original.WithDescription(description));
     }
-    public IDiscordGuildWelcomeScreenChannelProperties WithEmoji(IDiscordEmojiProperties? emoji) 
+    public IDiscordGuildWelcomeScreenChannelProperties WithEmojiId(ulong? emojiId) 
     {
-        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmoji(emoji?.Original));
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmojiId(emojiId));
+    }
+    public IDiscordGuildWelcomeScreenChannelProperties WithEmojiName(string emojiName) 
+    {
+        return new DiscordGuildWelcomeScreenChannelProperties(_original.WithEmojiName(emojiName));
     }
 }
 
@@ -13707,10 +14316,6 @@ public partial class DiscordGuildOnboardingPromptProperties : IDiscordGuildOnboa
     public IDiscordGuildOnboardingPromptProperties AddOptions(IEnumerable<IDiscordGuildOnboardingPromptOptionProperties> options) 
     {
         return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original)));
-    }
-    public IDiscordGuildOnboardingPromptProperties AddOptions(IDiscordGuildOnboardingPromptOptionProperties[] options) 
-    {
-        return new DiscordGuildOnboardingPromptProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
     }
     public IDiscordGuildOnboardingPromptProperties WithTitle(string title) 
     {
@@ -13793,6 +14398,7 @@ public partial class DiscordApplicationCommandOption : IDiscordApplicationComman
     public int? MinLength => _original.MinLength;
     public int? MaxLength => _original.MaxLength;
     public bool Autocomplete => _original.Autocomplete;
+    public IReadOnlyList<string>? FileTypes => _original.FileTypes;
 }
 
 
@@ -13818,6 +14424,7 @@ public partial class DiscordApplicationCommandOptionProperties : IDiscordApplica
     public int? MinLength { get { return _original.MinLength; } set { _original.MinLength = value; } }
     public int? MaxLength { get { return _original.MaxLength; } set { _original.MaxLength = value; } }
     public bool? Autocomplete { get { return _original.Autocomplete; } set { _original.Autocomplete = value; } }
+    public IEnumerable<string>? FileTypes { get { return _original.FileTypes; } set { _original.FileTypes = value; } }
     public IDiscordApplicationCommandOptionProperties WithType(NetCord.ApplicationCommandOptionType type) 
     {
         return new DiscordApplicationCommandOptionProperties(_original.WithType(type));
@@ -13850,10 +14457,6 @@ public partial class DiscordApplicationCommandOptionProperties : IDiscordApplica
     {
         return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original)));
     }
-    public IDiscordApplicationCommandOptionProperties AddChoices(IDiscordApplicationCommandOptionChoiceProperties[] choices) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChoices(choices.Select(x => x.Original).ToArray()));
-    }
     public IDiscordApplicationCommandOptionProperties WithOptions(IEnumerable<IDiscordApplicationCommandOptionProperties>? options) 
     {
         return new DiscordApplicationCommandOptionProperties(_original.WithOptions(options?.Select(x => x.Original)));
@@ -13862,19 +14465,11 @@ public partial class DiscordApplicationCommandOptionProperties : IDiscordApplica
     {
         return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original)));
     }
-    public IDiscordApplicationCommandOptionProperties AddOptions(IDiscordApplicationCommandOptionProperties[] options) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddOptions(options.Select(x => x.Original).ToArray()));
-    }
     public IDiscordApplicationCommandOptionProperties WithChannelTypes(IEnumerable<NetCord.ChannelType>? channelTypes) 
     {
         return new DiscordApplicationCommandOptionProperties(_original.WithChannelTypes(channelTypes));
     }
     public IDiscordApplicationCommandOptionProperties AddChannelTypes(IEnumerable<NetCord.ChannelType> channelTypes) 
-    {
-        return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
-    }
-    public IDiscordApplicationCommandOptionProperties AddChannelTypes(NetCord.ChannelType[] channelTypes) 
     {
         return new DiscordApplicationCommandOptionProperties(_original.AddChannelTypes(channelTypes));
     }
@@ -13898,17 +14493,25 @@ public partial class DiscordApplicationCommandOptionProperties : IDiscordApplica
     {
         return new DiscordApplicationCommandOptionProperties(_original.WithAutocomplete(autocomplete));
     }
+    public IDiscordApplicationCommandOptionProperties WithFileTypes(IEnumerable<string>? fileTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.WithFileTypes(fileTypes));
+    }
+    public IDiscordApplicationCommandOptionProperties AddFileTypes(IEnumerable<string> fileTypes) 
+    {
+        return new DiscordApplicationCommandOptionProperties(_original.AddFileTypes(fileTypes));
+    }
 }
 
 
-public partial class DiscordApplicationCommandPermission : IDiscordApplicationCommandPermission 
+public partial class DiscordApplicationCommandGuildPermission : IDiscordApplicationCommandGuildPermission 
 {
-    private readonly NetCord.ApplicationCommandPermission _original;
-    public DiscordApplicationCommandPermission(NetCord.ApplicationCommandPermission original)
+    private readonly NetCord.ApplicationCommandGuildPermission _original;
+    public DiscordApplicationCommandGuildPermission(NetCord.ApplicationCommandGuildPermission original)
     {
         _original = original;
     }
-    public NetCord.ApplicationCommandPermission Original => _original;
+    public NetCord.ApplicationCommandGuildPermission Original => _original;
     public ulong Id => _original.Id;
     public NetCord.ApplicationCommandGuildPermissionType Type => _original.Type;
     public bool Permission => _original.Permission;
@@ -13982,6 +14585,7 @@ public partial class DiscordJsonGuildThreadMetadata : IDiscordJsonGuildThreadMet
     public System.DateTimeOffset ArchiveTimestamp { get { return _original.ArchiveTimestamp; } set { _original.ArchiveTimestamp = value; } }
     public bool Locked { get { return _original.Locked; } set { _original.Locked = value; } }
     public bool? Invitable { get { return _original.Invitable; } set { _original.Invitable = value; } }
+    public System.DateTimeOffset? CreatedAt { get { return _original.CreatedAt; } set { _original.CreatedAt = value; } }
 }
 
 
@@ -13994,7 +14598,7 @@ public partial class DiscordJsonThreadCurrentUser : IDiscordJsonThreadCurrentUse
     }
     public NetCord.JsonModels.JsonThreadCurrentUser Original => _original;
     public System.DateTimeOffset JoinTimestamp { get { return _original.JoinTimestamp; } set { _original.JoinTimestamp = value; } }
-    public int Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public NetCord.ThreadUserFlags Flags { get { return _original.Flags; } set { _original.Flags = value; } }
 }
 
 
@@ -14027,6 +14631,21 @@ public partial class DiscordJsonForumGuildChannelDefaultReaction : IDiscordJsonF
 }
 
 
+public partial class DiscordNameplate : IDiscordNameplate 
+{
+    private readonly NetCord.Nameplate _original;
+    public DiscordNameplate(NetCord.Nameplate original)
+    {
+        _original = original;
+    }
+    public NetCord.Nameplate Original => _original;
+    public ulong SkuId => _original.SkuId;
+    public string Asset => _original.Asset;
+    public string Label => _original.Label;
+    public string Palette => _original.Palette;
+}
+
+
 public partial class DiscordJsonInteractionResolvedData : IDiscordJsonInteractionResolvedData 
 {
     private readonly NetCord.JsonModels.JsonInteractionResolvedData _original;
@@ -14035,12 +14654,12 @@ public partial class DiscordJsonInteractionResolvedData : IDiscordJsonInteractio
         _original = original;
     }
     public NetCord.JsonModels.JsonInteractionResolvedData Original => _original;
-    public IReadOnlyDictionary<ulong, IDiscordJsonUser>? Users { get { return _original.Users is null ? null : _original.Users.ToDictionary(kv => kv.Key, kv => (IDiscordJsonUser)new DiscordJsonUser(kv.Value)); } set { _original.Users = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public IReadOnlyDictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get { return _original.GuildUsers is null ? null : _original.GuildUsers.ToDictionary(kv => kv.Key, kv => (IDiscordJsonGuildUser)new DiscordJsonGuildUser(kv.Value)); } set { _original.GuildUsers = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public IReadOnlyDictionary<ulong, IDiscordJsonRole>? Roles { get { return _original.Roles is null ? null : _original.Roles.ToDictionary(kv => kv.Key, kv => (IDiscordJsonRole)new DiscordJsonRole(kv.Value)); } set { _original.Roles = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public IReadOnlyDictionary<ulong, IDiscordJsonChannel>? Channels { get { return _original.Channels is null ? null : _original.Channels.ToDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.Channels = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public IReadOnlyDictionary<ulong, IDiscordJsonMessage>? Messages { get { return _original.Messages is null ? null : _original.Messages.ToDictionary(kv => kv.Key, kv => (IDiscordJsonMessage)new DiscordJsonMessage(kv.Value)); } set { _original.Messages = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public IReadOnlyDictionary<ulong, IDiscordJsonAttachment>? Attachments { get { return _original.Attachments is null ? null : _original.Attachments.ToDictionary(kv => kv.Key, kv => (IDiscordJsonAttachment)new DiscordJsonAttachment(kv.Value)); } set { _original.Attachments = value?.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public Dictionary<ulong, IDiscordJsonUser>? Users { get { return _original.Users; } set { _original.Users = value; } }
+    public Dictionary<ulong, IDiscordJsonGuildUser>? GuildUsers { get { return _original.GuildUsers; } set { _original.GuildUsers = value; } }
+    public Dictionary<ulong, IDiscordJsonRole>? Roles { get { return _original.Roles; } set { _original.Roles = value; } }
+    public Dictionary<ulong, IDiscordJsonChannel>? Channels { get { return _original.Channels; } set { _original.Channels = value; } }
+    public Dictionary<ulong, IDiscordJsonMessage>? Messages { get { return _original.Messages; } set { _original.Messages = value; } }
+    public Dictionary<ulong, IDiscordJsonAttachment>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
 }
 
 
@@ -14068,36 +14687,8 @@ public partial class DiscordJsonComponent : IDiscordJsonComponent
         _original = original;
     }
     public NetCord.JsonModels.JsonComponent Original => _original;
-    public int Id { get { return _original.Id; } set { _original.Id = value; } }
     public NetCord.ComponentType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public string? CustomId { get { return _original.CustomId; } set { _original.CustomId = value; } }
-    public bool? Disabled { get { return _original.Disabled; } set { _original.Disabled = value; } }
-    public NetCord.ButtonStyle? Style { get { return _original.Style; } set { _original.Style = value; } }
-    public string? Label { get { return _original.Label; } set { _original.Label = value; } }
-    public IDiscordJsonEmoji? Emoji { get { return _original.Emoji is null ? null : new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value?.Original; } }
-    public string? Url { get { return _original.Url; } set { _original.Url = value; } }
-    public ulong? SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
-    public IDiscordJsonMenuSelectOption[] Options { get { return _original.Options.Select(x => new DiscordJsonMenuSelectOption(x)).ToArray(); } set { _original.Options = value.Select(x => x.Original).ToArray(); } }
-    public NetCord.ChannelType[]? ChannelTypes { get { return _original.ChannelTypes; } set { _original.ChannelTypes = value; } }
-    public string? Placeholder { get { return _original.Placeholder; } set { _original.Placeholder = value; } }
-    public IDiscordJsonSelectMenuDefaultValue[]? DefaultValues { get { return _original.DefaultValues is null ? null : _original.DefaultValues.Select(x => new DiscordJsonSelectMenuDefaultValue(x)).ToArray(); } set { _original.DefaultValues = value?.Select(x => x.Original).ToArray(); } }
-    public int? MinValues { get { return _original.MinValues; } set { _original.MinValues = value; } }
-    public int? MaxValues { get { return _original.MaxValues; } set { _original.MaxValues = value; } }
-    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
-    public int? MinLength { get { return _original.MinLength; } set { _original.MinLength = value; } }
-    public int? MaxLength { get { return _original.MaxLength; } set { _original.MaxLength = value; } }
-    public bool? Required { get { return _original.Required; } set { _original.Required = value; } }
-    public string? Value { get { return _original.Value; } set { _original.Value = value; } }
-    public IDiscordJsonComponent? Accessory { get { return _original.Accessory is null ? null : new DiscordJsonComponent(_original.Accessory); } set { _original.Accessory = value?.Original; } }
-    public string? Content { get { return _original.Content; } set { _original.Content = value; } }
-    public IDiscordJsonComponentMedia? Media { get { return _original.Media is null ? null : new DiscordJsonComponentMedia(_original.Media); } set { _original.Media = value?.Original; } }
-    public IDiscordJsonComponentMedia? File { get { return _original.File is null ? null : new DiscordJsonComponentMedia(_original.File); } set { _original.File = value?.Original; } }
-    public bool? Spoiler { get { return _original.Spoiler; } set { _original.Spoiler = value; } }
-    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public bool? Divider { get { return _original.Divider; } set { _original.Divider = value; } }
-    public NetCord.ComponentSeparatorSpacingSize? Spacing { get { return _original.Spacing; } set { _original.Spacing = value; } }
-    public NetCord.Color? AccentColor { get { return _original.AccentColor; } set { _original.AccentColor = value; } }
-    public IDiscordJsonComponent[]? Items { get { return _original.Items is null ? null : _original.Items.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Items = value?.Select(x => x.Original).ToArray(); } }
+    public int Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
 
@@ -14111,6 +14702,33 @@ public partial class DiscordJsonAvatarDecorationData : IDiscordJsonAvatarDecorat
     public NetCord.JsonModels.JsonAvatarDecorationData Original => _original;
     public string Hash { get { return _original.Hash; } set { _original.Hash = value; } }
     public ulong SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
+}
+
+
+public partial class DiscordJsonCollectibles : IDiscordJsonCollectibles 
+{
+    private readonly NetCord.JsonModels.JsonCollectibles _original;
+    public DiscordJsonCollectibles(NetCord.JsonModels.JsonCollectibles original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonCollectibles Original => _original;
+    public IDiscordJsonNameplate Nameplate { get { return new DiscordJsonNameplate(_original.Nameplate); } set { _original.Nameplate = value.Original; } }
+}
+
+
+public partial class DiscordJsonUserPrimaryGuild : IDiscordJsonUserPrimaryGuild 
+{
+    private readonly NetCord.JsonModels.JsonUserPrimaryGuild _original;
+    public DiscordJsonUserPrimaryGuild(NetCord.JsonModels.JsonUserPrimaryGuild original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonUserPrimaryGuild Original => _original;
+    public ulong? IdentityGuildId { get { return _original.IdentityGuildId; } set { _original.IdentityGuildId = value; } }
+    public bool? IdentityEnabled { get { return _original.IdentityEnabled; } set { _original.IdentityEnabled = value; } }
+    public string Tag { get { return _original.Tag; } set { _original.Tag = value; } }
+    public string BadgeHash { get { return _original.BadgeHash; } set { _original.BadgeHash = value; } }
 }
 
 
@@ -14141,15 +14759,20 @@ public partial class DiscordJsonAttachment : IDiscordJsonAttachment
     public string? Title { get { return _original.Title; } set { _original.Title = value; } }
     public string? Description { get { return _original.Description; } set { _original.Description = value; } }
     public string? ContentType { get { return _original.ContentType; } set { _original.ContentType = value; } }
-    public int Size { get { return _original.Size; } set { _original.Size = value; } }
+    public long Size { get { return _original.Size; } set { _original.Size = value; } }
     public string Url { get { return _original.Url; } set { _original.Url = value; } }
     public string ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
     public int? Height { get { return _original.Height; } set { _original.Height = value; } }
     public int? Width { get { return _original.Width; } set { _original.Width = value; } }
+    public string Placeholder { get { return _original.Placeholder; } set { _original.Placeholder = value; } }
+    public int? PlaceholderVersion { get { return _original.PlaceholderVersion; } set { _original.PlaceholderVersion = value; } }
     public bool Ephemeral { get { return _original.Ephemeral; } set { _original.Ephemeral = value; } }
     public double? DurationSeconds { get { return _original.DurationSeconds; } set { _original.DurationSeconds = value; } }
     public byte[]? Waveform { get { return _original.Waveform; } set { _original.Waveform = value; } }
     public NetCord.AttachmentFlags Flags { get { return _original.Flags; } set { _original.Flags = value; } }
+    public IDiscordJsonUser[]? ClipParticipants { get { return _original.ClipParticipants is null ? null : _original.ClipParticipants.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.ClipParticipants = value?.Select(x => x.Original).ToArray(); } }
+    public System.DateTimeOffset? ClipCreatedAt { get { return _original.ClipCreatedAt; } set { _original.ClipCreatedAt = value; } }
+    public IDiscordJsonApplication Application { get { return new DiscordJsonApplication(_original.Application); } set { _original.Application = value.Original; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
 }
 
@@ -14239,6 +14862,9 @@ public partial class DiscordJsonApplication : IDiscordJsonApplication
     public string[]? RedirectUris { get { return _original.RedirectUris; } set { _original.RedirectUris = value; } }
     public string? InteractionsEndpointUrl { get { return _original.InteractionsEndpointUrl; } set { _original.InteractionsEndpointUrl = value; } }
     public string? RoleConnectionsVerificationUrl { get { return _original.RoleConnectionsVerificationUrl; } set { _original.RoleConnectionsVerificationUrl = value; } }
+    public string EventWebhooksUrl { get { return _original.EventWebhooksUrl; } set { _original.EventWebhooksUrl = value; } }
+    public NetCord.ApplicationEventWebhooksStatus EventWebhooksStatus { get { return _original.EventWebhooksStatus; } set { _original.EventWebhooksStatus = value; } }
+    public string[]? EventWebhooksTypes { get { return _original.EventWebhooksTypes; } set { _original.EventWebhooksTypes = value; } }
     public string[]? Tags { get { return _original.Tags; } set { _original.Tags = value; } }
     public IDiscordJsonApplicationInstallParams? InstallParams { get { return _original.InstallParams is null ? null : new DiscordJsonApplicationInstallParams(_original.InstallParams); } set { _original.InstallParams = value?.Original; } }
     public IReadOnlyDictionary<NetCord.ApplicationIntegrationType, IDiscordJsonApplicationIntegrationTypeConfiguration> IntegrationTypesConfiguration { get { return _original.IntegrationTypesConfiguration.ToDictionary(kv => kv.Key, kv => (IDiscordJsonApplicationIntegrationTypeConfiguration)new DiscordJsonApplicationIntegrationTypeConfiguration(kv.Value)); } set { _original.IntegrationTypesConfiguration = value.ToDictionary(kv => kv.Key, kv => kv.Value.Original); } }
@@ -14255,6 +14881,7 @@ public partial class DiscordJsonMessageReference : IDiscordJsonMessageReference
         _original = original;
     }
     public NetCord.JsonModels.JsonMessageReference Original => _original;
+    public NetCord.MessageReferenceType? Type { get { return _original.Type; } set { _original.Type = value; } }
     public ulong? MessageId { get { return _original.MessageId; } set { _original.MessageId = value; } }
     public ulong? ChannelId { get { return _original.ChannelId; } set { _original.ChannelId = value; } }
     public ulong? GuildId { get { return _original.GuildId; } set { _original.GuildId = value; } }
@@ -14352,6 +14979,21 @@ public partial class DiscordJsonMessageCall : IDiscordJsonMessageCall
 }
 
 
+public partial class DiscordJsonSharedClientTheme : IDiscordJsonSharedClientTheme 
+{
+    private readonly NetCord.JsonModels.JsonSharedClientTheme _original;
+    public DiscordJsonSharedClientTheme(NetCord.JsonModels.JsonSharedClientTheme original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonSharedClientTheme Original => _original;
+    public NetCord.Color[] Colors { get { return _original.Colors; } set { _original.Colors = value; } }
+    public int GradientAngle { get { return _original.GradientAngle; } set { _original.GradientAngle = value; } }
+    public int BaseMix { get { return _original.BaseMix; } set { _original.BaseMix = value; } }
+    public NetCord.SharedClientThemeBase? BaseTheme { get { return _original.BaseTheme; } set { _original.BaseTheme = value; } }
+}
+
+
 public partial class DiscordTeam : IDiscordTeam 
 {
     private readonly NetCord.Team _original;
@@ -14417,10 +15059,6 @@ public partial class DiscordApplicationInstallParamsProperties : IDiscordApplica
     {
         return new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
     }
-    public IDiscordApplicationInstallParamsProperties AddScopes(string[] scopes) 
-    {
-        return new DiscordApplicationInstallParamsProperties(_original.AddScopes(scopes));
-    }
     public IDiscordApplicationInstallParamsProperties WithPermissions(NetCord.Permissions? permissions) 
     {
         return new DiscordApplicationInstallParamsProperties(_original.WithPermissions(permissions));
@@ -14455,7 +15093,7 @@ public partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGui
     public string? Content { get { return _original.Content; } set { _original.Content = value; } }
     public IEnumerable<NetCord.Rest.EmbedProperties>? Embeds { get { return _original.Embeds; } set { _original.Embeds = value; } }
     public NetCord.Rest.AllowedMentionsProperties? AllowedMentions { get { return _original.AllowedMentions; } set { _original.AllowedMentions = value; } }
-    public IEnumerable<NetCord.Rest.IComponentProperties>? Components { get { return _original.Components; } set { _original.Components = value; } }
+    public IEnumerable<IDiscordMessageComponentProperties>? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordMessageComponentProperties(x)); } set { _original.Components = value?.Select(x => x.Original); } }
     public IEnumerable<ulong>? StickerIds { get { return _original.StickerIds; } set { _original.StickerIds = value; } }
     public IEnumerable<NetCord.Rest.AttachmentProperties>? Attachments { get { return _original.Attachments; } set { _original.Attachments = value; } }
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
@@ -14471,25 +15109,17 @@ public partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGui
     {
         return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds));
     }
-    public IDiscordForumGuildThreadMessageProperties AddEmbeds(NetCord.Rest.EmbedProperties[] embeds) 
-    {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddEmbeds(embeds));
-    }
     public IDiscordForumGuildThreadMessageProperties WithAllowedMentions(NetCord.Rest.AllowedMentionsProperties? allowedMentions) 
     {
         return new DiscordForumGuildThreadMessageProperties(_original.WithAllowedMentions(allowedMentions));
     }
-    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<NetCord.Rest.IComponentProperties>? components) 
+    public IDiscordForumGuildThreadMessageProperties WithComponents(IEnumerable<IDiscordMessageComponentProperties>? components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components));
+        return new DiscordForumGuildThreadMessageProperties(_original.WithComponents(components?.Select(x => x.Original)));
     }
-    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<NetCord.Rest.IComponentProperties> components) 
+    public IDiscordForumGuildThreadMessageProperties AddComponents(IEnumerable<IDiscordMessageComponentProperties> components) 
     {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components));
-    }
-    public IDiscordForumGuildThreadMessageProperties AddComponents(NetCord.Rest.IComponentProperties[] components) 
-    {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components));
+        return new DiscordForumGuildThreadMessageProperties(_original.AddComponents(components.Select(x => x.Original)));
     }
     public IDiscordForumGuildThreadMessageProperties WithStickerIds(IEnumerable<ulong>? stickerIds) 
     {
@@ -14499,19 +15129,11 @@ public partial class DiscordForumGuildThreadMessageProperties : IDiscordForumGui
     {
         return new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
     }
-    public IDiscordForumGuildThreadMessageProperties AddStickerIds(ulong[] stickerIds) 
-    {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddStickerIds(stickerIds));
-    }
     public IDiscordForumGuildThreadMessageProperties WithAttachments(IEnumerable<NetCord.Rest.AttachmentProperties>? attachments) 
     {
         return new DiscordForumGuildThreadMessageProperties(_original.WithAttachments(attachments));
     }
     public IDiscordForumGuildThreadMessageProperties AddAttachments(IEnumerable<NetCord.Rest.AttachmentProperties> attachments) 
-    {
-        return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments));
-    }
-    public IDiscordForumGuildThreadMessageProperties AddAttachments(NetCord.Rest.AttachmentProperties[] attachments) 
     {
         return new DiscordForumGuildThreadMessageProperties(_original.AddAttachments(attachments));
     }
@@ -14589,9 +15211,9 @@ public partial class DiscordWebhookClient : IDiscordWebhookClient
         var temp = await _original.ExecuteAsync(message.Original, wait, threadId, withComponents, properties, cancellationToken);
         return temp is null ? null : new DiscordRestMessage(temp);
     }
-    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
+    public async Task<IDiscordRestMessage> GetMessageAsync(ulong messageId, ulong? threadId = default, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
-        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, properties, cancellationToken));
+        return new DiscordRestMessage(await _original.GetMessageAsync(messageId, threadId, properties, cancellationToken));
     }
     public async Task<IDiscordRestMessage> ModifyMessageAsync(ulong messageId, Action<IDiscordMessageOptions> action, ulong? threadId = default, bool withComponents = true, NetCord.Rest.RestRequestProperties? properties = null, System.Threading.CancellationToken cancellationToken = default) 
     {
@@ -14613,6 +15235,18 @@ public partial class DiscordWebhookClientConfiguration : IDiscordWebhookClientCo
     }
     public NetCord.Rest.WebhookClientConfiguration Original => _original;
     public IDiscordRestClient? Client { get { return _original.Client is null ? null : new DiscordRestClient(_original.Client); } set { _original.Client = value?.Original; } }
+}
+
+
+public partial class DiscordActivityInstance : IDiscordActivityInstance 
+{
+    private readonly NetCord.Rest.ActivityInstance _original;
+    public DiscordActivityInstance(NetCord.Rest.ActivityInstance original)
+    {
+        _original = original;
+    }
+    public NetCord.Rest.ActivityInstance Original => _original;
+    public string Id => _original.Id;
 }
 
 
@@ -14774,6 +15408,8 @@ public partial class DiscordMessageSnapshotMessage : IDiscordMessageSnapshotMess
     public NetCord.MessageFlags Flags => _original.Flags;
     public IReadOnlyList<IDiscordUser> MentionedUsers => _original.MentionedUsers.Select(x => new DiscordUser(x)).ToList();
     public IReadOnlyList<ulong> MentionedRoleIds => _original.MentionedRoleIds;
+    public IReadOnlyList<IDiscordMessageComponent> Components => _original.Components.Select(x => new DiscordMessageComponent(x)).ToList();
+    public IReadOnlyList<IDiscordMessageSticker> Stickers => _original.Stickers.Select(x => new DiscordMessageSticker(x)).ToList();
 }
 
 
@@ -14903,9 +15539,8 @@ public partial class DiscordParty : IDiscordParty
         _original = original;
     }
     public NetCord.Gateway.Party Original => _original;
-    public string? Id => _original.Id;
-    public int? CurrentSize => _original.CurrentSize;
-    public int? MaxSize => _original.MaxSize;
+    public string Id => _original.Id;
+    public IDiscordPartySize Size => new DiscordPartySize(_original.Size);
 }
 
 
@@ -15003,27 +15638,6 @@ public partial class DiscordAutoModerationActionMetadataProperties : IDiscordAut
 }
 
 
-public partial class DiscordEmojiProperties : IDiscordEmojiProperties 
-{
-    private readonly NetCord.EmojiProperties _original;
-    public DiscordEmojiProperties(NetCord.EmojiProperties original)
-    {
-        _original = original;
-    }
-    public NetCord.EmojiProperties Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public string? Unicode { get { return _original.Unicode; } set { _original.Unicode = value; } }
-    public IDiscordEmojiProperties WithId(ulong? id) 
-    {
-        return new DiscordEmojiProperties(_original.WithId(id));
-    }
-    public IDiscordEmojiProperties WithUnicode(string unicode) 
-    {
-        return new DiscordEmojiProperties(_original.WithUnicode(unicode));
-    }
-}
-
-
 public partial class DiscordGuildOnboardingPromptOption : IDiscordGuildOnboardingPromptOption 
 {
     private readonly NetCord.Rest.GuildOnboardingPromptOption _original;
@@ -15070,19 +15684,11 @@ public partial class DiscordGuildOnboardingPromptOptionProperties : IDiscordGuil
     {
         return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
     }
-    public IDiscordGuildOnboardingPromptOptionProperties AddChannelIds(ulong[] channelIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddChannelIds(channelIds));
-    }
     public IDiscordGuildOnboardingPromptOptionProperties WithRoleIds(IEnumerable<ulong>? roleIds) 
     {
         return new DiscordGuildOnboardingPromptOptionProperties(_original.WithRoleIds(roleIds));
     }
     public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(IEnumerable<ulong> roleIds) 
-    {
-        return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
-    }
-    public IDiscordGuildOnboardingPromptOptionProperties AddRoleIds(ulong[] roleIds) 
     {
         return new DiscordGuildOnboardingPromptOptionProperties(_original.AddRoleIds(roleIds));
     }
@@ -15184,8 +15790,8 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public NetCord.VerificationLevel VerificationLevel { get { return _original.VerificationLevel; } set { _original.VerificationLevel = value; } }
     public NetCord.DefaultMessageNotificationLevel DefaultMessageNotificationLevel { get { return _original.DefaultMessageNotificationLevel; } set { _original.DefaultMessageNotificationLevel = value; } }
     public NetCord.ContentFilter ContentFilter { get { return _original.ContentFilter; } set { _original.ContentFilter = value; } }
-    public ImmutableDictionary<ulong, IDiscordJsonRole> Roles { get { return _original.Roles.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonRole)new DiscordJsonRole(kv.Value)); } set { _original.Roles = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableArray<IDiscordJsonEmoji> Emojis { get { return _original.Emojis.Select(x => new DiscordJsonEmoji(x) as IDiscordJsonEmoji).ToImmutableArray(); } set { _original.Emojis = value.Select(x => x.Original).ToImmutableArray(); } }
+    public IDiscordJsonRole[] Roles { get { return _original.Roles.Select(x => new DiscordJsonRole(x)).ToArray(); } set { _original.Roles = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonEmoji[] Emojis { get { return _original.Emojis.Select(x => new DiscordJsonEmoji(x)).ToArray(); } set { _original.Emojis = value.Select(x => x.Original).ToArray(); } }
     public string[] Features { get { return _original.Features; } set { _original.Features = value; } }
     public NetCord.MfaLevel MfaLevel { get { return _original.MfaLevel; } set { _original.MfaLevel = value; } }
     public ulong? ApplicationId { get { return _original.ApplicationId; } set { _original.ApplicationId = value; } }
@@ -15196,11 +15802,11 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public bool IsLarge { get { return _original.IsLarge; } set { _original.IsLarge = value; } }
     public bool IsUnavailable { get { return _original.IsUnavailable; } set { _original.IsUnavailable = value; } }
     public int UserCount { get { return _original.UserCount; } set { _original.UserCount = value; } }
-    public ImmutableDictionary<ulong, IDiscordJsonVoiceState> VoiceStates { get { return _original.VoiceStates.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonVoiceState)new DiscordJsonVoiceState(kv.Value)); } set { _original.VoiceStates = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordJsonGuildUser> Users { get { return _original.Users.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonGuildUser)new DiscordJsonGuildUser(kv.Value)); } set { _original.Users = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordJsonChannel> Channels { get { return _original.Channels.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.Channels = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordJsonChannel> ActiveThreads { get { return _original.ActiveThreads.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonChannel)new DiscordJsonChannel(kv.Value)); } set { _original.ActiveThreads = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableDictionary<ulong, IDiscordJsonPresence> Presences { get { return _original.Presences.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonPresence)new DiscordJsonPresence(kv.Value)); } set { _original.Presences = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IDiscordJsonVoiceState[] VoiceStates { get { return _original.VoiceStates.Select(x => new DiscordJsonVoiceState(x)).ToArray(); } set { _original.VoiceStates = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonGuildUser[] Users { get { return _original.Users.Select(x => new DiscordJsonGuildUser(x)).ToArray(); } set { _original.Users = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonChannel[] Channels { get { return _original.Channels.Select(x => new DiscordJsonChannel(x)).ToArray(); } set { _original.Channels = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonChannel[] ActiveThreads { get { return _original.ActiveThreads.Select(x => new DiscordJsonChannel(x)).ToArray(); } set { _original.ActiveThreads = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonPresence[] Presences { get { return _original.Presences.Select(x => new DiscordJsonPresence(x)).ToArray(); } set { _original.Presences = value.Select(x => x.Original).ToArray(); } }
     public int? MaxPresences { get { return _original.MaxPresences; } set { _original.MaxPresences = value; } }
     public int? MaxUsers { get { return _original.MaxUsers; } set { _original.MaxUsers = value; } }
     public string? VanityUrlCode { get { return _original.VanityUrlCode; } set { _original.VanityUrlCode = value; } }
@@ -15216,9 +15822,9 @@ public partial class DiscordJsonGuild : IDiscordJsonGuild
     public int? ApproximatePresenceCount { get { return _original.ApproximatePresenceCount; } set { _original.ApproximatePresenceCount = value; } }
     public IDiscordJsonGuildWelcomeScreen? WelcomeScreen { get { return _original.WelcomeScreen is null ? null : new DiscordJsonGuildWelcomeScreen(_original.WelcomeScreen); } set { _original.WelcomeScreen = value?.Original; } }
     public NetCord.NsfwLevel NsfwLevel { get { return _original.NsfwLevel; } set { _original.NsfwLevel = value; } }
-    public ImmutableDictionary<ulong, IDiscordJsonStageInstance> StageInstances { get { return _original.StageInstances.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonStageInstance)new DiscordJsonStageInstance(kv.Value)); } set { _original.StageInstances = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
-    public ImmutableArray<IDiscordJsonSticker> Stickers { get { return _original.Stickers.Select(x => new DiscordJsonSticker(x) as IDiscordJsonSticker).ToImmutableArray(); } set { _original.Stickers = value.Select(x => x.Original).ToImmutableArray(); } }
-    public ImmutableDictionary<ulong, IDiscordJsonGuildScheduledEvent> ScheduledEvents { get { return _original.ScheduledEvents.ToImmutableDictionary(kv => kv.Key, kv => (IDiscordJsonGuildScheduledEvent)new DiscordJsonGuildScheduledEvent(kv.Value)); } set { _original.ScheduledEvents = value.ToImmutableDictionary(kv => kv.Key, kv => kv.Value.Original); } }
+    public IDiscordJsonStageInstance[] StageInstances { get { return _original.StageInstances.Select(x => new DiscordJsonStageInstance(x)).ToArray(); } set { _original.StageInstances = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonSticker[] Stickers { get { return _original.Stickers.Select(x => new DiscordJsonSticker(x)).ToArray(); } set { _original.Stickers = value.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonGuildScheduledEvent[] ScheduledEvents { get { return _original.ScheduledEvents.Select(x => new DiscordJsonGuildScheduledEvent(x)).ToArray(); } set { _original.ScheduledEvents = value.Select(x => x.Original).ToArray(); } }
     public bool PremiumProgressBarEnabled { get { return _original.PremiumProgressBarEnabled; } set { _original.PremiumProgressBarEnabled = value; } }
     public ulong? SafetyAlertsChannelId { get { return _original.SafetyAlertsChannelId; } set { _original.SafetyAlertsChannelId = value; } }
     public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
@@ -15234,7 +15840,7 @@ public partial class DiscordJsonRole : IDiscordJsonRole
     }
     public NetCord.JsonModels.JsonRole Original => _original;
     public string Name { get { return _original.Name; } set { _original.Name = value; } }
-    public NetCord.Color Color { get { return _original.Color; } set { _original.Color = value; } }
+    public IDiscordJsonRoleColors Colors { get { return new DiscordJsonRoleColors(_original.Colors); } set { _original.Colors = value.Original; } }
     public bool Hoist { get { return _original.Hoist; } set { _original.Hoist = value; } }
     public string? IconHash { get { return _original.IconHash; } set { _original.IconHash = value; } }
     public string? UnicodeEmoji { get { return _original.UnicodeEmoji; } set { _original.UnicodeEmoji = value; } }
@@ -15248,68 +15854,18 @@ public partial class DiscordJsonRole : IDiscordJsonRole
 }
 
 
-public partial class DiscordJsonEmoji : IDiscordJsonEmoji 
+public partial class DiscordJsonNameplate : IDiscordJsonNameplate 
 {
-    private readonly NetCord.JsonModels.JsonEmoji _original;
-    public DiscordJsonEmoji(NetCord.JsonModels.JsonEmoji original)
+    private readonly NetCord.JsonModels.JsonNameplate _original;
+    public DiscordJsonNameplate(NetCord.JsonModels.JsonNameplate original)
     {
         _original = original;
     }
-    public NetCord.JsonModels.JsonEmoji Original => _original;
-    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
-    public ulong[]? AllowedRoles { get { return _original.AllowedRoles; } set { _original.AllowedRoles = value; } }
-    public IDiscordJsonUser? Creator { get { return _original.Creator is null ? null : new DiscordJsonUser(_original.Creator); } set { _original.Creator = value?.Original; } }
-    public bool? RequireColons { get { return _original.RequireColons; } set { _original.RequireColons = value; } }
-    public bool? Managed { get { return _original.Managed; } set { _original.Managed = value; } }
-    public bool Animated { get { return _original.Animated; } set { _original.Animated = value; } }
-    public bool? Available { get { return _original.Available; } set { _original.Available = value; } }
-}
-
-
-public partial class DiscordJsonMenuSelectOption : IDiscordJsonMenuSelectOption 
-{
-    private readonly NetCord.JsonModels.JsonMenuSelectOption _original;
-    public DiscordJsonMenuSelectOption(NetCord.JsonModels.JsonMenuSelectOption original)
-    {
-        _original = original;
-    }
-    public NetCord.JsonModels.JsonMenuSelectOption Original => _original;
+    public NetCord.JsonModels.JsonNameplate Original => _original;
+    public ulong SkuId { get { return _original.SkuId; } set { _original.SkuId = value; } }
+    public string Asset { get { return _original.Asset; } set { _original.Asset = value; } }
     public string Label { get { return _original.Label; } set { _original.Label = value; } }
-    public string Value { get { return _original.Value; } set { _original.Value = value; } }
-    public string? Description { get { return _original.Description; } set { _original.Description = value; } }
-    public IDiscordJsonEmoji? Emoji { get { return _original.Emoji is null ? null : new DiscordJsonEmoji(_original.Emoji); } set { _original.Emoji = value?.Original; } }
-    public bool Default { get { return _original.Default; } set { _original.Default = value; } }
-}
-
-
-public partial class DiscordJsonSelectMenuDefaultValue : IDiscordJsonSelectMenuDefaultValue 
-{
-    private readonly NetCord.JsonModels.JsonSelectMenuDefaultValue _original;
-    public DiscordJsonSelectMenuDefaultValue(NetCord.JsonModels.JsonSelectMenuDefaultValue original)
-    {
-        _original = original;
-    }
-    public NetCord.JsonModels.JsonSelectMenuDefaultValue Original => _original;
-    public NetCord.JsonModels.JsonSelectMenuDefaultValueType Type { get { return _original.Type; } set { _original.Type = value; } }
-    public ulong Id { get { return _original.Id; } set { _original.Id = value; } }
-}
-
-
-public partial class DiscordJsonComponentMedia : IDiscordJsonComponentMedia 
-{
-    private readonly NetCord.JsonModels.JsonComponentMedia _original;
-    public DiscordJsonComponentMedia(NetCord.JsonModels.JsonComponentMedia original)
-    {
-        _original = original;
-    }
-    public NetCord.JsonModels.JsonComponentMedia Original => _original;
-    public string Url { get { return _original.Url; } set { _original.Url = value; } }
-    public string? ProxyUrl { get { return _original.ProxyUrl; } set { _original.ProxyUrl = value; } }
-    public int? Height { get { return _original.Height; } set { _original.Height = value; } }
-    public int? Width { get { return _original.Width; } set { _original.Width = value; } }
-    public string? ContentType { get { return _original.ContentType; } set { _original.ContentType = value; } }
-    public NetCord.ComponentMediaLoadingState? LoadingState { get { return _original.LoadingState; } set { _original.LoadingState = value; } }
+    public string Palette { get { return _original.Palette; } set { _original.Palette = value; } }
 }
 
 
@@ -15427,6 +15983,25 @@ public partial class DiscordJsonMessageReactionCountDetails : IDiscordJsonMessag
 }
 
 
+public partial class DiscordJsonEmoji : IDiscordJsonEmoji 
+{
+    private readonly NetCord.JsonModels.JsonEmoji _original;
+    public DiscordJsonEmoji(NetCord.JsonModels.JsonEmoji original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonEmoji Original => _original;
+    public ulong? Id { get { return _original.Id; } set { _original.Id = value; } }
+    public string? Name { get { return _original.Name; } set { _original.Name = value; } }
+    public ulong[]? AllowedRoles { get { return _original.AllowedRoles; } set { _original.AllowedRoles = value; } }
+    public IDiscordJsonUser? Creator { get { return _original.Creator is null ? null : new DiscordJsonUser(_original.Creator); } set { _original.Creator = value?.Original; } }
+    public bool? RequireColons { get { return _original.RequireColons; } set { _original.RequireColons = value; } }
+    public bool? Managed { get { return _original.Managed; } set { _original.Managed = value; } }
+    public bool Animated { get { return _original.Animated; } set { _original.Animated = value; } }
+    public bool? Available { get { return _original.Available; } set { _original.Available = value; } }
+}
+
+
 public partial class DiscordJsonTeam : IDiscordJsonTeam 
 {
     private readonly NetCord.JsonModels.JsonTeam _original;
@@ -15485,6 +16060,8 @@ public partial class DiscordJsonMessageSnapshotMessage : IDiscordJsonMessageSnap
     public NetCord.MessageFlags? Flags { get { return _original.Flags; } set { _original.Flags = value; } }
     public IDiscordJsonUser[] MentionedUsers { get { return _original.MentionedUsers.Select(x => new DiscordJsonUser(x)).ToArray(); } set { _original.MentionedUsers = value.Select(x => x.Original).ToArray(); } }
     public ulong[] MentionedRoleIds { get { return _original.MentionedRoleIds; } set { _original.MentionedRoleIds = value; } }
+    public IDiscordJsonComponent[]? Components { get { return _original.Components is null ? null : _original.Components.Select(x => new DiscordJsonComponent(x)).ToArray(); } set { _original.Components = value?.Select(x => x.Original).ToArray(); } }
+    public IDiscordJsonMessageSticker[]? Stickers { get { return _original.Stickers is null ? null : _original.Stickers.Select(x => new DiscordJsonMessageSticker(x)).ToArray(); } set { _original.Stickers = value?.Select(x => x.Original).ToArray(); } }
 }
 
 
@@ -15557,6 +16134,8 @@ public partial class DiscordTeamUser : IDiscordTeamUser
     public NetCord.PremiumType? PremiumType => _original.PremiumType;
     public NetCord.UserFlags? PublicFlags => _original.PublicFlags;
     public IDiscordAvatarDecorationData? AvatarDecorationData => _original.AvatarDecorationData is null ? null : new DiscordAvatarDecorationData(_original.AvatarDecorationData);
+    public IDiscordCollectibles Collectibles => new DiscordCollectibles(_original.Collectibles);
+    public IDiscordUserPrimaryGuild PrimaryGuild => new DiscordUserPrimaryGuild(_original.PrimaryGuild);
     public bool HasAvatar => _original.HasAvatar;
     public bool HasBanner => _original.HasBanner;
     public bool HasAvatarDecoration => _original.HasAvatarDecoration;
@@ -15613,6 +16192,19 @@ public partial class DiscordMessagePollAnswerCount : IDiscordMessagePollAnswerCo
     public int AnswerId => _original.AnswerId;
     public int Count => _original.Count;
     public bool MeVoted => _original.MeVoted;
+}
+
+
+public partial class DiscordPartySize : IDiscordPartySize 
+{
+    private readonly NetCord.Gateway.PartySize _original;
+    public DiscordPartySize(NetCord.Gateway.PartySize original)
+    {
+        _original = original;
+    }
+    public NetCord.Gateway.PartySize Original => _original;
+    public long CurrentSize => _original.CurrentSize;
+    public long MaxSize => _original.MaxSize;
 }
 
 
@@ -15735,6 +16327,20 @@ public partial class DiscordJsonGuildScheduledEvent : IDiscordJsonGuildScheduled
 }
 
 
+public partial class DiscordJsonRoleColors : IDiscordJsonRoleColors 
+{
+    private readonly NetCord.JsonModels.JsonRoleColors _original;
+    public DiscordJsonRoleColors(NetCord.JsonModels.JsonRoleColors original)
+    {
+        _original = original;
+    }
+    public NetCord.JsonModels.JsonRoleColors Original => _original;
+    public NetCord.Color PrimaryColor { get { return _original.PrimaryColor; } set { _original.PrimaryColor = value; } }
+    public NetCord.Color? SecondaryColor { get { return _original.SecondaryColor; } set { _original.SecondaryColor = value; } }
+    public NetCord.Color? TertiaryColor { get { return _original.TertiaryColor; } set { _original.TertiaryColor = value; } }
+}
+
+
 public partial class DiscordJsonRoleTags : IDiscordJsonRoleTags 
 {
     private readonly NetCord.JsonModels.JsonRoleTags _original;
@@ -15851,7 +16457,7 @@ public partial class DiscordJsonGuildScheduledEventRecurrenceRule : IDiscordJson
     public NetCord.GuildScheduledEventRecurrenceRuleMonth[]? ByMonth { get { return _original.ByMonth; } set { _original.ByMonth = value; } }
     public int[]? ByMonthDay { get { return _original.ByMonthDay; } set { _original.ByMonthDay = value; } }
     public int[]? ByYearDay { get { return _original.ByYearDay; } set { _original.ByYearDay = value; } }
-    public int? Count => _original.Count;
+    public int? Count { get { return _original.Count; } set { _original.Count = value; } }
 }
 
 
@@ -15877,7 +16483,7 @@ public partial class DiscordJsonParty : IDiscordJsonParty
     }
     public NetCord.Gateway.JsonModels.JsonParty Original => _original;
     public string? Id { get { return _original.Id; } set { _original.Id = value; } }
-    public int[]? Size { get { return _original.Size; } set { _original.Size = value; } }
+    public long[]? Size { get { return _original.Size; } set { _original.Size = value; } }
 }
 
 
