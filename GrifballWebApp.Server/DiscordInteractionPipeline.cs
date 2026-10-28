@@ -92,7 +92,9 @@ public static class DiscordInteractionPipeline
             if (userId.HasValue)
             {
                 services.GetRequiredService<ICurrentUserService>().SetCurrentUserId(userId.Value);
-                services.GetRequiredService<IAmbientCurrentUser>().UserId = userId.Value;
+                var ambientCurrentUser = services.GetRequiredService<IAmbientCurrentUser>();
+                if (ambientCurrentUser.IsActive)
+                    ambientCurrentUser.UserId = userId.Value;
             }
         }
         catch (Exception ex)

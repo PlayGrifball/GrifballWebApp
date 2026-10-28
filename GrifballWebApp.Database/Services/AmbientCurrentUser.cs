@@ -8,9 +8,13 @@ public interface IAmbientCurrentUser
 {
     /// <summary>
     /// The user, or null. Setting it inside a slot started by <see cref="Begin"/> is seen by everything in that slot,
-    /// even when set from an awaited async method.
+    /// even when set from an awaited async method. Setting it with no slot throws: the value would silently be lost
+    /// as soon as the setting async method returned.
     /// </summary>
     int? UserId { get; set; }
+
+    /// <summary>Whether this async flow is inside a slot started by <see cref="Begin"/>, so <see cref="UserId"/> can be set.</summary>
+    bool IsActive { get; }
 
     /// <summary>
     /// Starts a new, empty slot for this async flow and everything it awaits or starts from here on.
@@ -41,13 +45,13 @@ public class AmbientCurrentUser : IAmbientCurrentUser
         get => Current.Value?.UserId;
         set
         {
-            if (Current.Value is { } slot)
-                slot.UserId = value;
-            else
-                // No enclosing slot: only this flow (until its async method returns) and what it starts see it
-                Current.Value = new Slot { UserId = value };
+            if (Current.Value is not { } slot)
+                throw new InvalidOperationException($"Call {nameof(Begin)}() before setting the ambient user, from the method whose callees should see it.");
+            slot.UserId = value;
         }
     }
+
+    public bool IsActive => Current.Value is not null;
 
     public void Begin() => Current.Value = new Slot();
 

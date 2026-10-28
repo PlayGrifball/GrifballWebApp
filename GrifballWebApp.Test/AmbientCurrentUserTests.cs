@@ -30,12 +30,30 @@ public class AmbientCurrentUserTests
     }
 
     [Test]
-    public async Task UserSetByAnAwaitedMethod_IsLost_WithoutBegin()
+    public void SettingTheUser_WithoutBegin_Throws()
     {
-        // Why Begin exists: an AsyncLocal assigned inside an async method doesn't flow back to its caller
-        await SetAfterAwait(7);
+        // Why Begin exists: an AsyncLocal assigned inside an async method doesn't flow back to its caller, so a value
+        // set without an enclosing slot would silently be lost. Fail loudly instead.
+        Assert.Multiple(() =>
+        {
+            Assert.That(_ambient.IsActive, Is.False);
+            Assert.That(() => _ambient.UserId = 7, Throws.InvalidOperationException);
+            Assert.That(_ambient.UserId, Is.Null);
+        });
+    }
 
-        Assert.That(_ambient.UserId, Is.Null);
+    [Test]
+    public void IsActive_FromBeginUntilEnd()
+    {
+        _ambient.Begin();
+        var afterBegin = _ambient.IsActive;
+        _ambient.End();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(afterBegin, Is.True);
+            Assert.That(_ambient.IsActive, Is.False);
+        });
     }
 
     [Test]

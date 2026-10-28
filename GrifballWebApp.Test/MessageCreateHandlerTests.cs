@@ -35,6 +35,7 @@ public class MessageCreateHandlerTests
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
         _logger = new RecordingLogger<MessageCreateHandler>();
         _ambient = Substitute.For<IAmbientCurrentUser>();
+        _ambient.IsActive.Returns(true);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger);
     }

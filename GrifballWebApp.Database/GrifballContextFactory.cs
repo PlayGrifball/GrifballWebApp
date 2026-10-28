@@ -1,6 +1,5 @@
 ﻿using GrifballWebApp.Database.Interceptors;
 using GrifballWebApp.Database.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,12 +23,10 @@ public class GrifballContextFactory : IDbContextFactory<GrifballContext>
     public virtual GrifballContext CreateDbContext()
     {
         // A CurrentUserService per context, not a shared one: it caches the first user it finds in claims
-        var currentUserService = new CurrentUserService(
-            _serviceProvider.GetRequiredService<IHttpContextAccessor>(),
-            _serviceProvider.GetRequiredService<IAmbientCurrentUser>());
+        var currentUserService = ActivatorUtilities.CreateInstance<CurrentUserService>(_serviceProvider);
         var options = new DbContextOptionsBuilder<GrifballContext>()
             .UseGrifballDatabase(_serviceProvider.GetRequiredService<IConfiguration>())
-            .AddInterceptors(new AuditInterceptor(currentUserService))
+            .AddInterceptors(ActivatorUtilities.CreateInstance<AuditInterceptor>(_serviceProvider, currentUserService))
             .Options;
         return new GrifballContext(options);
     }
