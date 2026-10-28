@@ -160,8 +160,10 @@ public class MessageCreateHandlerTests
     [TearDown]
     public async Task TearDown()
     {
+        // One fixture instance runs every test, and only some use a database
         if (_db is not null)
             await _db.DropDatabaseAndDispose();
+        _db = null;
     }
 
     private async Task<MessageCreateHandler> HandlerWithDatabase()
