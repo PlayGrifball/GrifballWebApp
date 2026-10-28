@@ -120,7 +120,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, status);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
+        var ex = await Assert.ThrowsAsync<RescheduleAlreadyProcessedException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
         Assert.That(ex!.Message, Is.EqualTo("Reschedule request has already been processed"));
     }
 

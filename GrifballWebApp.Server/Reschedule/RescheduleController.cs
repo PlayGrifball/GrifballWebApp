@@ -51,7 +51,7 @@ public class RescheduleController : ControllerBase
         {
             return NotFound(ex.Message);
         }
-        catch (InvalidOperationException ex)
+        catch (RescheduleAlreadyProcessedException ex)
         {
             return BadRequest(ex.Message);
         }

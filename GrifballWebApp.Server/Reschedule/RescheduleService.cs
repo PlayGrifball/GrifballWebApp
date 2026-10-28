@@ -87,7 +87,7 @@ public class RescheduleService
                 throw new ArgumentException("Reschedule request not found");
 
             if (reschedule.Status != RescheduleStatus.Pending)
-                throw new InvalidOperationException("Reschedule request has already been processed");
+                throw new RescheduleAlreadyProcessedException();
 
             reschedule.Status = dto.Approved ? RescheduleStatus.Approved : RescheduleStatus.Rejected;
             reschedule.ApprovedByUserID = commissionerUserId;
