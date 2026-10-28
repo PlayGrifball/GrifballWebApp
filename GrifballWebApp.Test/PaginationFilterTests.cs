@@ -30,12 +30,36 @@ public class PaginationFilterTests
     [TestCase(7, 250, 7, 250)]
     [TestCase(2, 251, 2, 250)]
     [TestCase(2, 10000, 2, 250)]
-    // BUG: there is no lower bound on page size; 0 and negative values are passed through to Take().
-    [TestCase(1, 0, 1, 0)]
-    [TestCase(1, -3, 1, -3)]
+    [TestCase(1, 0, 1, 1)]
+    [TestCase(1, -3, 1, 1)]
     public void Constructor_ClampsValues(int pageNumber, int pageSize, int expectedPage, int expectedSize)
     {
         var f = new PaginationFilter(pageNumber, pageSize);
+        Assert.Multiple(() =>
+        {
+            Assert.That(f.PageNumber, Is.EqualTo(expectedPage));
+            Assert.That(f.PageSize, Is.EqualTo(expectedSize));
+        });
+    }
+
+    [TestCase(1, 10, 1, 10)]
+    [TestCase(0, 10, 1, 10)]
+    [TestCase(-5, 10, 1, 10)]
+    [TestCase(7, 250, 7, 250)]
+    [TestCase(2, 251, 2, 250)]
+    [TestCase(2, 10000, 2, 250)]
+    [TestCase(1, 0, 1, 1)]
+    [TestCase(1, -3, 1, 1)]
+    public void PropertySetters_ClampValues(int pageNumber, int pageSize, int expectedPage, int expectedSize)
+    {
+        // [FromQuery] model binding uses the parameterless constructor and then
+        // sets PageNumber/PageSize via their setters, bypassing the two-arg
+        // constructor above. The setters must clamp too.
+        var f = new PaginationFilter
+        {
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+        };
         Assert.Multiple(() =>
         {
             Assert.That(f.PageNumber, Is.EqualTo(expectedPage));
