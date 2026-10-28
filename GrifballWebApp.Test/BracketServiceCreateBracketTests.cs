@@ -286,18 +286,66 @@ public class BracketServiceCreateBracketTests
     }
 
     [TestCase(3)]
+    [TestCase(5)]
     [TestCase(6)]
-    public async Task CreateBracket_NonPowerOfTwo_ByesViolateCheckConstraint(int participants)
+    [TestCase(7)]
+    public async Task CreateBracket_NonPowerOfTwo_TopSeedsGetByes(int participants)
     {
         var seasonID = await CreateSeason();
 
-        // BUG: GetSeedMatchUps turns missing seeds into byes (null seed) but the match has no previous match either,
-        // which violates CK_Event_MatchBracketInfo_Require{Home,Away}SeedOrPreviousMatch. Expected: a bracket with byes is
-        // created; actual: SaveChanges throws and nothing is persisted.
-        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => _service.CreateBracket(participants, seasonID, false, 1));
+        await _service.CreateBracket(participants, seasonID, false, 1);
 
-        Assert.That(ex!.InnerException?.Message, Does.Contain("CK_Event_MatchBracketInfo_Require"));
-        _context.ChangeTracker.Clear();
-        Assert.That(await _context.SeasonMatches.CountAsync(), Is.Zero);
+        var bracket = await LoadBracket(seasonID);
+        var size = (int)Math.Pow(2, Math.Ceiling(Math.Log2(participants)));
+        var round1 = bracket.Where(x => x.RoundNumber == 1).ToList();
+        // Every seed slot of the full bracket exists; the ones past the participant count are BYEs
+        var slots = round1.SelectMany(x => new[]
+        {
+            (Seed: x.HomeTeamSeedNumber!.Value, Result: x.SeasonMatch.HomeTeamResult, Opponent: x.AwayTeamSeedNumber!.Value),
+            (Seed: x.AwayTeamSeedNumber!.Value, Result: x.SeasonMatch.AwayTeamResult, Opponent: x.HomeTeamSeedNumber!.Value),
+        }).ToList();
+        var byes = slots.Where(x => x.Result == SeasonMatchResult.Bye).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(bracket, Has.Count.EqualTo(size - 1));
+            Assert.That(slots.Select(x => x.Seed).OrderBy(x => x), Is.EqualTo(Enumerable.Range(1, size)));
+            Assert.That(byes.Select(x => x.Seed).OrderBy(x => x), Is.EqualTo(Enumerable.Range(participants + 1, size - participants)));
+            // The top seeds face the BYEs
+            Assert.That(byes.Select(x => x.Opponent).OrderBy(x => x), Is.EqualTo(Enumerable.Range(1, size - participants)));
+            Assert.That(slots.Where(x => x.Seed <= participants).All(x => x.Result is null), Is.True);
+            Assert.That(bracket.Where(x => x.RoundNumber > 1)
+                .All(x => x.SeasonMatch.HomeTeamResult is null && x.SeasonMatch.AwayTeamResult is null), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task CreateBracket_DoubleElimination_FiveTeams_ByesFlowIntoLoserBracket()
+    {
+        var seasonID = await CreateSeason();
+
+        await _service.CreateBracket(5, seasonID, doubleElimination: true, bestOf: 1);
+
+        var bracket = await LoadBracket(seasonID);
+        (SeasonMatchResult? Home, SeasonMatchResult? Away) Results(Bracket kind, int n)
+        {
+            var sm = bracket.Single(x => x.Bracket == kind && x.MatchNumber == n).SeasonMatch;
+            return (sm.HomeTeamResult, sm.AwayTeamResult);
+        }
+        const SeasonMatchResult Bye = SeasonMatchResult.Bye;
+        Assert.Multiple(() =>
+        {
+            // W1-W4: (1, 8), (5, 4), (3, 6), (7, 2) with seeds 6-8 as BYEs
+            Assert.That(Results(Bracket.Winner, 1), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)Bye)));
+            Assert.That(Results(Bracket.Winner, 2), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+            Assert.That(Results(Bracket.Winner, 3), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)Bye)));
+            Assert.That(Results(Bracket.Winner, 4), Is.EqualTo(((SeasonMatchResult?)Bye, (SeasonMatchResult?)null)));
+            // A BYE match has no loser: L1 gets a BYE from W1, L2 gets two (from W3 and W4)
+            Assert.That(Results(Bracket.Loser, 1), Is.EqualTo(((SeasonMatchResult?)Bye, (SeasonMatchResult?)null)));
+            Assert.That(Results(Bracket.Loser, 2), Is.EqualTo(((SeasonMatchResult?)Bye, (SeasonMatchResult?)Bye)));
+            // L2 has two BYEs, so its winner slot in L4 is a BYE too
+            Assert.That(Results(Bracket.Loser, 3), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)null)));
+            Assert.That(Results(Bracket.Loser, 4), Is.EqualTo(((SeasonMatchResult?)null, (SeasonMatchResult?)Bye)));
+            Assert.That(bracket.Count(x => x.SeasonMatch.HomeTeamResult == Bye || x.SeasonMatch.AwayTeamResult == Bye), Is.EqualTo(6));
+        });
     }
 }

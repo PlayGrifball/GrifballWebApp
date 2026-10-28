@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
+using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.TeamStandings;
@@ -17,6 +18,7 @@ public class SeasonMatchServiceBracketTests
 {
     private GrifballContext _context;
     private IDataPullService _dataPullService;
+    private BracketService _bracketService;
     private SeasonMatchService _service;
 
     [SetUp]
@@ -25,8 +27,8 @@ public class SeasonMatchServiceBracketTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         // Real bracket service so that DetermineNextMatches runs against the entities loaded by SeasonMatchService
-        var bracketService = new BracketService(_context, new TeamStandingsService(_context));
-        _service = new SeasonMatchService(_context, _dataPullService, bracketService);
+        _bracketService = new BracketService(_context, new TeamStandingsService(_context));
+        _service = new SeasonMatchService(_context, _dataPullService, _bracketService);
     }
 
     [TearDown]
@@ -190,6 +192,39 @@ public class SeasonMatchServiceBracketTests
         {
             Assert.That(sdLoaded.HomeTeamID, Is.EqualTo(seeded.Away.TeamID));
             Assert.That(sdLoaded.AwayTeamID, Is.EqualTo(seeded.Home.TeamID));
+        });
+    }
+
+    [Test]
+    public async Task HomeForfeit_LoserDropsOppositeABye_GoesStraightToTheNextLoserMatch()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var third = new Team { SeasonID = seeded.Season.SeasonID, TeamName = "Third Team" };
+        _context.Teams.Add(third);
+        await _context.SaveChangesAsync();
+        // Three teams: W1 = seed 1 vs BYE, W2 = seed 3 vs seed 2, L1 = BYE (W1 has no loser) vs loser of W2
+        await _bracketService.CreateBracket(3, seeded.Season.SeasonID, doubleElimination: true, bestOf: 1);
+        await _bracketService.SetSeeds(seeded.Season.SeasonID, new CustomSeedDto[]
+        {
+            new() { Seed = 1, TeamID = third.TeamID },
+            new() { Seed = 2, TeamID = seeded.Away.TeamID },
+            new() { Seed = 3, TeamID = seeded.Home.TeamID },
+        });
+        var infos = await _context.MatchBracketInfo.AsNoTracking().Where(x => x.SeasonMatch.SeasonID == seeded.Season.SeasonID).ToListAsync();
+        int Sm(Bracket kind, int number) => infos.Single(x => x.Bracket == kind && x.MatchNumber == number).SeasonMatchID;
+        _context.ChangeTracker.Clear();
+
+        await _service.HomeForfeit(Sm(Bracket.Winner, 2)); // seed 3 forfeits to seed 2
+
+        var final = await Load(Sm(Bracket.Winner, 3));
+        var l1 = await Load(Sm(Bracket.Loser, 1));
+        var l2 = await Load(Sm(Bracket.Loser, 2));
+        Assert.Multiple(() =>
+        {
+            Assert.That((final.HomeTeamID, final.AwayTeamID), Is.EqualTo(((int?)third.TeamID, (int?)seeded.Away.TeamID)));
+            Assert.That((l1.HomeTeamResult, l1.AwayTeamID), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Bye, (int?)seeded.Home.TeamID)));
+            // L1 has a BYE, so the team that dropped into it goes straight on to L2
+            Assert.That((l2.HomeTeamID, l2.AwayTeamID), Is.EqualTo(((int?)null, (int?)seeded.Home.TeamID)));
         });
     }
 
