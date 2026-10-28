@@ -84,4 +84,31 @@ public class SeasonScheduleChromosomeTests
         var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(matches, 2, Start, End, EveryDay(20)));
         Assert.That(ex!.Message, Is.EqualTo("Cannot create gene with away team"));
     }
+
+    [Test]
+    public void GenerateGene_OnlyPicksTimesInsideTheWindow()
+    {
+        var start = new DateTime(2024, 1, 1, 21, 30, 0);
+        var end = new DateTime(2024, 1, 2, 20, 30, 0);
+        var options = EveryDay(20, 21);
+
+        var chromosome = new SeasonScheduleChromosome(Matches(1), 1, start, end, options);
+
+        var gene = (SeasonMatchGene)chromosome.GetGenes()[0].Value;
+
+        // Only Jan 2 20:00 falls inside [start, end]: Jan 1's 20:00/21:00 options are before
+        // start and Jan 2's 21:00 is after end (GenerateGene; reported in #149).
+        Assert.That(gene.ScheduledTime, Is.EqualTo(new DateTime(2024, 1, 2, 20, 0, 0)));
+    }
+
+    [Test]
+    public void GenerateGene_NoOptionFallsInsideTheWindow_Throws()
+    {
+        var start = new DateTime(2024, 1, 1, 21, 30, 0);
+        var end = new DateTime(2024, 1, 1, 21, 45, 0);
+        var options = EveryDay(20, 21);
+
+        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(Matches(1), 1, start, end, options));
+        Assert.That(ex!.Message, Is.EqualTo("No availability options fall within the season window"));
+    }
 }
