@@ -152,10 +152,10 @@ public class ScheduleServiceTests
     {
         await Arrange();
         var expectedIDs = await _context.SeasonMatches
-            .Where(x => x.BracketMatch == null && x.HomeTeamID != null && x.AwayTeamID != null)
+            .Where(x => x.SeasonID == SeasonID && x.BracketMatch == null && x.HomeTeamID != null && x.AwayTeamID != null)
             .Select(x => x.SeasonMatchID).ToListAsync();
 
-        var genes = await _service.GetTimeRecommendations();
+        var genes = await _service.GetTimeRecommendations(SeasonID);
 
         // OrderedCrossover used to copy one match twice and drop another (#175).
         Assert.That(genes.Select(g => g.SeasonMatchID), Is.Unique.And.EquivalentTo(expectedIDs));
