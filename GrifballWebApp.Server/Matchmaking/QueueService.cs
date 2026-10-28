@@ -389,12 +389,12 @@ public class QueueService
             player.LossStreak++;
 
             var streakModifier = 0;
-            if (player.Losses >= discordOptions.Value.LossThreshold)
+            if (player.LossStreak >= discordOptions.Value.LossThreshold)
             {
                 streakModifier = Math.Min(discordOptions.Value.MaxPenalty, (player.LossStreak - discordOptions.Value.LossThreshold + 1) * discordOptions.Value.PenaltyPerLoss);
             }
 
-            player.MMR -= mmrGain - streakModifier;
+            player.MMR -= mmrLoss + streakModifier;
             if (player.MMR < 0)
             {
                 player.MMR = 0; // Prevent negative MMR

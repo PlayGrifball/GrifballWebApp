@@ -168,8 +168,7 @@ public class QueueServiceBranchTests
             Assert.That(winners.Select(x => x.MMR), Is.All.EqualTo(1024), "KFactor 32 * 0.75 = 24 gained");
             Assert.That(winners.Select(x => x.Wins), Is.All.EqualTo(1));
             Assert.That(winners.Select(x => x.WinStreak), Is.All.EqualTo(1));
-            // BUG: QueueService.cs:397 subtracts mmrGain (24) instead of the computed mmrLoss (KFactor * 0.625 = 20).
-            Assert.That(losers.Select(x => x.MMR), Is.All.EqualTo(976));
+            Assert.That(losers.Select(x => x.MMR), Is.All.EqualTo(980), "KFactor 32 * 0.625 = 20 lost");
             Assert.That(losers.Select(x => x.Losses), Is.All.EqualTo(1));
             Assert.That(losers.Select(x => x.LossStreak), Is.All.EqualTo(1));
             Assert.That(embed.Title, Is.EqualTo("Match Ended"));
@@ -179,7 +178,7 @@ public class QueueServiceBranchTests
             // BUG: GetMMRChanges (QueueService.cs:564) looks up the old MMR by MatchedPlayer.Id but the dictionary is keyed by User.Id,
             // so the old MMR is reported as UNK whenever the two ids differ.
             Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("UNK -> 1024 (UNK)"));
-            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("UNK -> 976 (UNK)"));
+            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("UNK -> 980 (UNK)"));
         });
         Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."), "Thread should be told it will be deleted");
     }
@@ -206,7 +205,7 @@ public class QueueServiceBranchTests
             Assert.That(awayUsers.Select(x => x.Wins), Is.All.EqualTo(1));
             Assert.That(log.Embeds!.Single().Description, Does.EndWith("Team 1 is the winner"));
             Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
-            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 976 (-24)"));
+            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
             Assert.That(Field(log, "Home Team MMR Changes").Split('\n'), Has.Length.EqualTo(2), "One line per player");
         });
     }
@@ -238,9 +237,7 @@ public class QueueServiceBranchTests
             Assert.That(h1.MMR, Is.EqualTo(1000 + 24 + 20), "Bonus is capped at MaxBonus");
             Assert.That(a0.LossStreak, Is.EqualTo(3));
             Assert.That(a0.WinStreak, Is.EqualTo(0));
-            // BUG: QueueService.cs:392-397 checks total Losses instead of LossStreak, and the "penalty" is subtracted from the
-            // loss (MMR -= gain - penalty), so a loss streak makes players lose LESS MMR (24 - 10 = 14) instead of more.
-            Assert.That(a0.MMR, Is.EqualTo(1000 - 14));
+            Assert.That(a0.MMR, Is.EqualTo(1000 - 20 - 10), "LossStreak of 3 hits the threshold: mmrLoss + PenaltyPerLoss");
             Assert.That(a1.MMR, Is.EqualTo(0), "MMR is clamped at zero");
         });
     }
