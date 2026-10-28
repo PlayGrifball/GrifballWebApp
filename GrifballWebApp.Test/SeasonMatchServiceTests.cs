@@ -260,6 +260,16 @@ public class SeasonMatchServiceTests
     }
 
     [Test]
+    public async Task HomeForfeit_DisposesTransaction_When_Throws()
+    {
+        // Act & Assert
+        const int nonExistentSeasonMatchId = 999;
+        await Assert.ThrowsAsync<Exception>(() => _service.HomeForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
+    }
+
+    [Test]
     public async Task HomeForfeit_Should_SetCorrectResults_When_ValidSeasonMatch()
     {
         // Arrange
@@ -379,6 +389,16 @@ public class SeasonMatchServiceTests
         // Act & Assert
         var ex = await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(seasonMatch.SeasonMatchID, CancellationToken.None));
         Assert.That(ex!.Message, Is.EqualTo("Results for this match have already been decided"));
+    }
+
+    [Test]
+    public async Task AwayForfeit_DisposesTransaction_When_Throws()
+    {
+        // Act & Assert
+        const int nonExistentSeasonMatchId = 999;
+        await Assert.ThrowsAsync<Exception>(() => _service.AwayForfeit(nonExistentSeasonMatchId, CancellationToken.None));
+
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
     }
 
     [Test]

@@ -51,6 +51,17 @@ public class SeasonMatchServiceReportMatchTests
     }
 
     [Test]
+    public async Task ReportMatch_DisposesTransaction_When_Throws()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var matchID = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<Exception>(() => _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, matchID));
+
+        Assert.That(_context.Database.CurrentTransaction, Is.Null);
+    }
+
+    [Test]
     public async Task ReportMatch_Throws_When_MatchAlreadyLinked()
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);

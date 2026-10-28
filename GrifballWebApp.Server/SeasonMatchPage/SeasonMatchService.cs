@@ -214,7 +214,7 @@ public class SeasonMatchService
     {
         await _dataPullService.GetAndSaveMatch(matchID);
 
-        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var match = await _context.Matches.Where(m => m.MatchID == matchID)
             .Include(m => m.MatchLink)
@@ -380,7 +380,7 @@ public class SeasonMatchService
 
     public async Task HomeForfeit(int seasonMatchID, CancellationToken ct = default)
     {
-        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 
@@ -407,7 +407,7 @@ public class SeasonMatchService
 
     public async Task AwayForfeit(int seasonMatchID, CancellationToken ct = default)
     {
-        var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         var seasonMatch = await GetSeasonMatch(seasonMatchID, ct);
 

@@ -45,7 +45,7 @@ public class QueueService
         try
         {
             // Start transaction here since we are going to be doing multiple db calls
-            var transaction = await _context.Database.BeginTransactionAsync(ct);
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
             var queuePlayers = await _queueRepository.GetQueuePlayersWithInfo(ct);
             var activeMatches = await _queueRepository.GetActiveMatches(ct);
