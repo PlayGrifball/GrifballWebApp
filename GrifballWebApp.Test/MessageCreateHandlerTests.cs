@@ -34,6 +34,7 @@ public class MessageCreateHandlerTests
         _discordClient = Substitute.For<IDiscordRestClient>();
         _scopeFactory = Substitute.For<IServiceScopeFactory>();
         _logger = new RecordingLogger<MessageCreateHandler>();
+        _ambient = Substitute.For<IAmbientCurrentUser>();
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Discord:ClientId"] = BotId.ToString() }).Build();
         _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger);
     }
@@ -156,7 +157,7 @@ public class MessageCreateHandlerTests
 
     // Registered like Program.cs: a scoped GrifballContext with the scope's AuditInterceptor and ICurrentUserService
     private GrifballContext? _db;
-    private readonly IAmbientCurrentUser _ambient = Substitute.For<IAmbientCurrentUser>();
+    private IAmbientCurrentUser _ambient = null!;
 
     [TearDown]
     public async Task TearDown()
