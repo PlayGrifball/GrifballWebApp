@@ -84,9 +84,9 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
-    public void Request_Throws_When_SeasonMatchNotFound()
+    public async Task Request_Throws_When_SeasonMatchNotFound()
     {
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = 4242, Reason = "x" }, 1));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = 4242, Reason = "x" }, 1));
         Assert.That(ex!.Message, Is.EqualTo("Season match not found"));
     }
 
@@ -96,7 +96,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context);
         var first = await _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "one" }, s.Requester.Id);
 
-        var ex = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "two" }, s.Requester.Id));
 
         Assert.That(ex!.Message, Does.Contain("already an active reschedule request"));
@@ -107,9 +107,9 @@ public class RescheduleServiceWorkflowTests
     // ---------- ProcessRescheduleAsync ----------
 
     [Test]
-    public void Process_Throws_When_NotFound()
+    public async Task Process_Throws_When_NotFound()
     {
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => _service.ProcessRescheduleAsync(999, new ProcessRescheduleDto { Approved = true }, 1));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.ProcessRescheduleAsync(999, new ProcessRescheduleDto { Approved = true }, 1));
         Assert.That(ex!.Message, Is.EqualTo("Reschedule request not found"));
     }
 
@@ -120,7 +120,7 @@ public class RescheduleServiceWorkflowTests
         var s = await RescheduleTestData.SeedAsync(_context);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, status);
 
-        var ex = Assert.ThrowsAsync<InvalidOperationException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
         Assert.That(ex!.Message, Is.EqualTo("Reschedule request has already been processed"));
     }
 
@@ -261,7 +261,7 @@ public class RescheduleServiceWorkflowTests
 
         // BUG: RescheduleService.cs:144 uses `HomeTeam?.Captain.User` - a team without a captain (CaptainID is nullable)
         // causes a NullReferenceException instead of falling back to "UNKNOWN".
-        Assert.ThrowsAsync<NullReferenceException>(() => _service.GetPendingReschedulesAsync());
+        await Assert.ThrowsAsync<NullReferenceException>(() => _service.GetPendingReschedulesAsync());
     }
 
     // ---------- GetOverdueMatchesAsync ----------
@@ -304,9 +304,9 @@ public class RescheduleServiceWorkflowTests
     // ---------- CreateDiscordThreadAsync ----------
 
     [Test]
-    public void CreateThread_Throws_When_NotFound()
+    public async Task CreateThread_Throws_When_NotFound()
     {
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDiscordThreadAsync(12345));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateDiscordThreadAsync(12345));
         Assert.That(ex!.Message, Is.EqualTo("Reschedule request not found"));
     }
 

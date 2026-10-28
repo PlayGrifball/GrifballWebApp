@@ -27,7 +27,7 @@ public class UserMergeServiceTests
     }
 
     [Test]
-    public void Merge_Should_ThrowException_When_MergeToUserDoesNotExist()
+    public async Task Merge_Should_ThrowException_When_MergeToUserDoesNotExist()
     {
         // Arrange
         var mergeFromUser = new User { UserName = "mergefrom", DisplayName = "Merge From" };
@@ -35,12 +35,12 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(999, mergeFromUser.Id, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 
     [Test]
-    public void Merge_Should_ThrowException_When_MergeFromUserDoesNotExist()
+    public async Task Merge_Should_ThrowException_When_MergeFromUserDoesNotExist()
     {
         // Arrange
         var mergeToUser = new User { UserName = "mergeto", DisplayName = "Merge To" };
@@ -48,7 +48,7 @@ public class UserMergeServiceTests
         _context.SaveChanges();
 
         // Act & Assert
-        var ex = Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(mergeToUser.Id, 999, null, CancellationToken.None));
         Assert.That(ex!.Message, Does.Contain("Did not find user 999"));
     }
 
@@ -413,9 +413,9 @@ public class UserMergeServiceTests
     }
 
     [Test]
-    public void Merge_IntoItself_Throws()
+    public async Task Merge_IntoItself_Throws()
     {
-        var ex = Assert.ThrowsAsync<ArgumentException>(() => _service.Merge(5, 5));
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => _service.Merge(5, 5));
         Assert.That(ex!.Message, Does.Contain("itself"));
     }
 
@@ -425,7 +425,7 @@ public class UserMergeServiceTests
         var (to, from) = await TwoUsers();
         await _service.Merge(to.Id, from.Id);
 
-        var ex = Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(to.Id, from.Id));
+        var ex = await Assert.ThrowsAsync<UserNotFoundException>(() => _service.Merge(to.Id, from.Id));
         Assert.That(ex!.UserId, Is.EqualTo(from.Id));
     }
 }

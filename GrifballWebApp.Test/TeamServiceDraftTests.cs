@@ -106,7 +106,7 @@ public class TeamServiceDraftTests
         var season = await _context.AddSeason();
         var user = await _context.AddUser("u1", "U1");
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = user.Id, OrderNumber = 1 }, resortOnly: false));
 
         Assert.That(ex!.Message, Is.EqualTo("Player is not signed up"));
@@ -122,7 +122,7 @@ public class TeamServiceDraftTests
         await _context.AddSignup(season, cap);
         await _context.AddTeam(season, "Cap Team", cap, 1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = cap.Id, OrderNumber = 1 }, resortOnly: false));
 
         Assert.That(ex!.Message, Is.EqualTo("Player is already a captain"));
@@ -137,7 +137,7 @@ public class TeamServiceDraftTests
         await _context.AddSignup(season, player);
         await _context.AddTeam(season, "Cap Team", cap, 1, player);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = player.Id, OrderNumber = 2 }, resortOnly: false));
 
         Assert.That(ex!.Message, Is.EqualTo("Player is already on a team"));
@@ -241,7 +241,7 @@ public class TeamServiceDraftTests
         var user = await _context.AddUser("u", "U");
         await _context.AddSignup(season, user);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddCaptain(new CaptainPlacementDto { SeasonID = season.SeasonID, PersonID = user.Id, OrderNumber = 1 }, resortOnly: true));
         Assert.That(ex!.Message, Is.EqualTo("Player is not a captain"));
     }
@@ -276,7 +276,7 @@ public class TeamServiceDraftTests
         var season = await _context.AddSeason();
         var user = await _context.AddUser("u", "U");
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = user.Id }));
         Assert.That(ex!.Message, Is.EqualTo("Player is not a captain"));
         Assert.That(_publisher.ReceivedCalls(), Is.Empty);
@@ -313,7 +313,7 @@ public class TeamServiceDraftTests
         var p1 = await _context.AddUser("p1", "P1");
         await _context.AddTeam(season, "T", cap, 1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = cap.Id, PersonID = p1.Id }));
         Assert.That(ex!.Message, Is.EqualTo("Player is not on this team"));
     }
@@ -325,7 +325,7 @@ public class TeamServiceDraftTests
         var cap = await _context.AddUser("cap", "Cap");
         await _context.AddTeam(season, "T", cap, 1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = cap.Id, PersonID = cap.Id }));
         Assert.That(ex!.Message, Is.EqualTo("Player is not on this team"));
     }
@@ -348,7 +348,7 @@ public class TeamServiceDraftTests
         var (season, capA, capB, _, _) = await TwoTeamDraft();
         var commish = await _context.AddUser("commish", "Commish", commissioner: true);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = capB.Id }, commish.Id));
         Assert.That(ex!.Message, Is.EqualTo("This player is already on a team"));
     }
@@ -360,7 +360,7 @@ public class TeamServiceDraftTests
         var commish = await _context.AddUser("commish", "Commish", commissioner: true);
         var p = await _context.AddUser("p", "P");
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, commish.Id));
         Assert.That(ex!.Message, Is.EqualTo("This player has not signed up"));
     }
@@ -373,7 +373,7 @@ public class TeamServiceDraftTests
         var p = await _context.AddUser("p", "P");
         await _context.AddSignup(season, p);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = commish.Id, PersonID = p.Id }, commish.Id));
         Assert.That(ex!.Message, Is.EqualTo("Team not found"));
     }
@@ -386,7 +386,7 @@ public class TeamServiceDraftTests
         var p = await _context.AddUser("p", "P");
         await _context.AddSignup(season, p);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capA.Id, PersonID = p.Id }, rando.Id));
         Assert.That(ex!.Message, Is.EqualTo("You cannot make picks on behalf of another captain unless you are the commissioner"));
         Assert.That(await TeamPlayersOf(teamA.TeamID), Has.Count.EqualTo(1));
@@ -404,7 +404,7 @@ public class TeamServiceDraftTests
         var onDeck = await _service.OnDeck(season.SeasonID, CancellationToken.None);
         Assert.That(onDeck!.Captain.UserID, Is.EqualTo(capA.Id));
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = capB.Id, PersonID = p.Id }, capB.Id));
         Assert.That(ex!.Message, Is.EqualTo($"It is not your turn to be making a draft pick. It is {capA.Id}'s turn"));
         Assert.That(await TeamPlayersOf(teamB.TeamID), Has.Count.EqualTo(1));
@@ -526,7 +526,7 @@ public class TeamServiceDraftTests
         var p1 = await _context.AddUser("p1");
         await _context.AddTeam(season, "A", cap, 1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = cap.Id, NewCaptainID = cap.Id, PersonID = p1.Id, RoundNumber = 1 }));
         Assert.That(ex!.Message, Is.EqualTo("Player is not on that team"));
     }
@@ -541,7 +541,7 @@ public class TeamServiceDraftTests
         await _context.AddTeam(season, "A", capA, 1);
         await _context.AddTeam(season, "B", capB, 2, p1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = capB.Id, PersonID = p1.Id, RoundNumber = 1 }));
         Assert.That(ex!.Message, Is.EqualTo("Player was not on that team"));
     }
@@ -555,7 +555,7 @@ public class TeamServiceDraftTests
         var p1 = await _context.AddUser("p1");
         var team = await _context.AddTeam(season, "A", capA, 1, p1);
 
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() =>
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() =>
             _service.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = capA.Id, NewCaptainID = notCap.Id, PersonID = p1.Id, RoundNumber = 1 }));
         Assert.That(ex!.Message, Is.EqualTo("New team does not exist"));
         Assert.That((await TeamPlayersOf(team.TeamID)).Any(tp => tp.UserID == p1.Id), Is.True);
@@ -565,16 +565,16 @@ public class TeamServiceDraftTests
     // ---------------- Lock ----------------
 
     [Test]
-    public void LockCaptains_Should_Throw_When_SeasonMissing()
+    public async Task LockCaptains_Should_Throw_When_SeasonMissing()
     {
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() => _service.LockCaptains(9999, true));
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.LockCaptains(9999, true));
         Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
     }
 
     [Test]
-    public void AreCaptainsLocked_Should_Throw_When_SeasonMissing()
+    public async Task AreCaptainsLocked_Should_Throw_When_SeasonMissing()
     {
-        var ex = Assert.ThrowsAsync<TeamServiceException>(() => _service.AreCaptainsLocked(9999));
+        var ex = await Assert.ThrowsAsync<TeamServiceException>(() => _service.AreCaptainsLocked(9999));
         Assert.That(ex!.Message, Is.EqualTo("Season does not exist"));
     }
 

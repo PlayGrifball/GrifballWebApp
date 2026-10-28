@@ -48,3 +48,5 @@ Thumbs.db
 # Playwright
 /e2e-results
 /playwright-report
+/smoke/report
+/smoke/results

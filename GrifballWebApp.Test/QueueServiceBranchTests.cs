@@ -339,7 +339,7 @@ public class QueueServiceBranchTests
         await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
         _context.ChangeTracker.Clear();
 
-        Assert.DoesNotThrowAsync(() => _service.Go(CancellationToken.None));
+        await Assert.DoesNotThrowAsync(() => _service.Go(CancellationToken.None));
 
         var warning = _logger.Entries.Single(x => x.Level == LogLevel.Warning);
         Assert.Multiple(() =>

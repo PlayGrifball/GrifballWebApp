@@ -362,6 +362,9 @@ public class Program
 
             var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
             await legacyTransferService.TransferAllAsync();
+
+            // Preview mode only (it checks): the smoke suite's accounts.
+            await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
         }
 
         // Forwarded headers first: everything after sees the real client address and scheme.

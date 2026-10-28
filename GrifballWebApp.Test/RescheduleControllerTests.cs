@@ -76,7 +76,7 @@ public class RescheduleControllerTests
         await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
 
         // Only ArgumentException is mapped to 400; the "already active" InvalidOperationException escapes the action (500).
-        Assert.ThrowsAsync<InvalidOperationException>(() => _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None));
     }
 
     [TestCase(true, "approved")]

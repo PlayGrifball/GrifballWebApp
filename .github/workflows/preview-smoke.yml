@@ -1,0 +1,213 @@
+name: Preview smoke tests
+
+# Runs the post-deploy smoke suite (grifballwebapp.client/smoke, Playwright) against a PR's live preview environment
+# (https://grif-preview<slot>.grifball.xyz, see preview-label.yml) once it serves the PR's head commit: the real app,
+# server and database, nothing mocked. The suite signs in as the preview's smoke-test users (made at startup from
+# Preview:SmokeUserPassword, see GrifballWebApp.Server/Preview/PreviewSmokeUsers.cs) and works only on data it creates
+# itself, named smoke-<run>-...
+#
+# - PRs with the `preview` label, from branches of this repository only: fork PRs get no preview and no secrets.
+# - The PREVIEW_SMOKE_PASSWORD secret holds the same value as the previews' Preview:SmokeUserPassword. Until it is set
+#   the job is skipped with a notice, not failed.
+# - A PR still waiting for a preview slot when the wait runs out is skipped with a notice too; a preview that has a slot
+#   but never serves the head commit fails.
+# - Run by hand (workflow_dispatch) against any preview URL, without waiting for a commit.
+on:
+  pull_request:
+    branches: [ "master" ]
+    types: [ opened, synchronize, reopened, labeled ]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Preview to test, e.g. https://grif-preview1.grifball.xyz'
+        required: true
+        type: string
+
+permissions: {}
+
+# One run per PR: a newer push replaces the run still waiting for the older commit.
+concurrency:
+  group: preview-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24.x'
+  # Image builds take about 6 minutes; a preview's first deploy also restores the database.
+  WAIT_MINUTES: 25
+
+jobs:
+  smoke:
+    name: smoke (Playwright, live preview)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       contains(github.event.pull_request.labels.*.name, 'preview') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'preview'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      # Read the preview comments, and write this job's own result comment (PR comments go through the issues API).
+      pull-requests: write
+      issues: write
+
+    defaults:
+      run:
+        working-directory: ./grifballwebapp.client
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      INPUT_BASE_URL: ${{ inputs.base_url }}
+      SMOKE_PASSWORD: ${{ secrets.PREVIEW_SMOKE_PASSWORD }}
+
+    steps:
+    - name: Check the smoke-test password is configured
+      id: secret
+      working-directory: .
+      run: |
+        if [ -z "$SMOKE_PASSWORD" ]; then
+          msg="PREVIEW_SMOKE_PASSWORD is not set: skipping the preview smoke tests. Set it to the previews' Preview:SmokeUserPassword."
+          echo "::notice::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          echo "run=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "run=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Wait for the preview to serve this commit
+      id: preview
+      if: steps.secret.outputs.run == 'true'
+      working-directory: .
+      run: |
+        set -euo pipefail
+        if [ -n "$INPUT_BASE_URL" ]; then
+          echo "url=$INPUT_BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        short=${HEAD_SHA:0:7}
+        deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
+        url="" state=""
+        while :; do
+          # preview-label.yml's comment says which slot (URL) the PR has, or that it waits for one; the homelab's
+          # comment (### Preview: <state>) says how far its deploy got. Both are edited in place.
+          comments=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[].body')
+          slot_comment=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '[.[] | select(.body | contains("<!-- preview-environment-url -->"))][0].body // ""')
+          url=$(grep -oE 'https://grif-preview[0-9]+\.grifball\.xyz' <<< "$slot_comment" | head -n 1 || true)
+          state=$(grep -oE '^### Preview: .*' <<< "$comments" | tail -n 1 || true)
+
+          if [ -n "$url" ]; then
+            served=$(curl -fsS --max-time 10 "$url/api/CommitHash" 2>/dev/null | tr -d '"[:space:]' || true)
+            if [ -n "$served" ] && [ "${#served}" -ge 7 ] && [[ "$HEAD_SHA" == "$served"* ]]; then
+              echo "$url serves $short"
+              echo "url=$url" >> "$GITHUB_OUTPUT"
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$(date -u +%H:%M:%S) $url serves '${served:-nothing}', waiting for $short (${state:-no deploy status yet})"
+          else
+            echo "$(date -u +%H:%M:%S) no preview slot yet (${state:-no deploy status yet})"
+          fi
+
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            if [ -z "$url" ]; then
+              msg="No preview slot for #$PR after $WAIT_MINUTES minutes (all slots in use?): skipping the smoke tests. They run once the preview serves this commit, on the next push or by hand."
+              echo "::notice::$msg"
+              echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::$url did not serve $short within $WAIT_MINUTES minutes (last deploy status: ${state:-none}). Check the preview's deploy (the grif-preview comment and commit status)."
+            exit 1
+          fi
+          sleep 20
+        done
+
+    - name: Checkout code
+      if: steps.preview.outputs.run == 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      if: steps.preview.outputs.run == 'true'
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    - name: Install dependencies
+      if: steps.preview.outputs.run == 'true'
+      run: npm ci
+
+    - name: Install Playwright Chromium
+      if: steps.preview.outputs.run == 'true'
+      run: npx playwright install --with-deps chromium
+
+    - name: Run the smoke tests
+      id: smoke
+      if: steps.preview.outputs.run == 'true'
+      env:
+        SMOKE_BASE_URL: ${{ steps.preview.outputs.url }}
+        # Shortened to base 36 by the suite (smoke/env.ts); names also get a random part, so reruns never clash.
+        SMOKE_RUN_ID: ${{ github.run_id }}
+      run: npm run smoke
+
+    - name: Upload the report and traces
+      if: always() && steps.preview.outputs.run == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: preview-smoke-report
+        path: |
+          grifballwebapp.client/smoke/report/
+          grifballwebapp.client/smoke/results/
+        retention-days: 14
+
+    - name: Summary and PR comment
+      if: always() && steps.preview.outputs.run == 'true'
+      env:
+        URL: ${{ steps.preview.outputs.url }}
+        OUTCOME: ${{ steps.smoke.outcome }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        results=smoke/results/results.json
+        if [ -f "$results" ]; then
+          counts=$(jq -r '.stats | "\(.expected) passed, \(.unexpected) failed, \(.flaky) flaky, \(.skipped) skipped"' "$results")
+          failed=$(jq -r '[.. | objects | select(has("specs")) | .specs[] | select(.ok == false) | "- " + .title] | unique | .[]' "$results")
+        else
+          counts="no results (the suite did not run to the end)"
+          failed=""
+        fi
+        if [ "$OUTCOME" = success ]; then verdict=passed; else verdict=failed; fi
+        commit=${HEAD_SHA:0:7}
+        body=$(cat <<EOF
+        <!-- preview-smoke -->
+        ### Preview smoke tests: $verdict
+        | | |
+        | --- | --- |
+        | Commit | \`${commit:-n/a}\` |
+        | App | $URL |
+        | Result | $counts |
+        | Report | [run]($RUN_URL), artifact \`preview-smoke-report\` (HTML report and traces) |
+        ${failed:+
+        Failed:
+        $failed}
+        EOF
+        )
+        echo "$body" | sed '1d' >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$PR" ]; then
+          existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.body | contains("<!-- preview-smoke -->")) | .id' | head -n 1)
+          if [ -z "$existing" ]; then
+            gh api "repos/$REPO/issues/$PR/comments" -f body="$body" > /dev/null
+          else
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
+          fi
+        fi

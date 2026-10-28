@@ -268,7 +268,7 @@ public class HealthCheckExtensionsTests
         await check.SetConnected(false);
         Assert.That((await check.CheckHealthAsync(context)).Status, Is.EqualTo(HealthStatus.Degraded));
 
-        Assert.DoesNotThrowAsync(() => check.StartAsync(CancellationToken.None));
-        Assert.DoesNotThrowAsync(() => check.StopAsync(CancellationToken.None));
+        await Assert.DoesNotThrowAsync(() => check.StartAsync(CancellationToken.None));
+        await Assert.DoesNotThrowAsync(() => check.StopAsync(CancellationToken.None));
     }
 }
