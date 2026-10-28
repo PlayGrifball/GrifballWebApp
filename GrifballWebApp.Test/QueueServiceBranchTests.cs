@@ -312,7 +312,7 @@ public class QueueServiceBranchTests
     }
 
     [Test]
-    public async Task Go_StaleMatchStartedHoursAgo_IsNotCanceled()
+    public async Task Go_StaleMatchStartedHoursAgo_IsCanceled()
     {
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
@@ -322,9 +322,7 @@ public class QueueServiceBranchTests
         await _service.Go(CancellationToken.None);
 
         await using var fresh = Fresh();
-        // BUG: QueueService.cs:134 computes StartedAt - UtcNow (negative for past matches), so matches older than
-        // 2 hours are never auto-canceled. Expected: canceled. Actual: still active.
-        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
     }
 
     [Test]
