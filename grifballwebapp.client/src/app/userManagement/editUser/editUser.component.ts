@@ -72,7 +72,11 @@ export class EditUserComponent {
 
   onSubmit() {
     const user = this.model();
-    const lockoutEnd = user.lockoutEnd === this.loadedLockoutEnd.parsed ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
+    const loaded = this.loadedLockoutEnd.parsed;
+    // Same instant as loaded (also when the picker hands back an equal but new DateTime): send the original string.
+    const unchanged = user.lockoutEnd === loaded
+      || (user.lockoutEnd !== null && loaded !== null && user.lockoutEnd.toMillis() === loaded.toMillis());
+    const lockoutEnd = unchanged ? this.loadedLockoutEnd.raw : toApiDate(user.lockoutEnd);
     this.http.post('/api/usermanagement/edituser/', { ...user, lockoutEnd }).subscribe({
       next: (result) => console.log('Updated user'),
       error: (result) => console.log(result),

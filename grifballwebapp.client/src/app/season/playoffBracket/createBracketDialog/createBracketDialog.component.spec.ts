@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { CreateBracketDialogComponent } from './createBracketDialog.component';
 
@@ -11,7 +11,10 @@ describe('CreateBracketDialogComponent', () => {
   let http: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
 
+  let dialogRef: jasmine.SpyObj<MatDialogRef<unknown>>;
+
   beforeEach(async () => {
+    dialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     await TestBed.configureTestingModule({
       imports: [CreateBracketDialogComponent],
@@ -19,6 +22,7 @@ describe('CreateBracketDialogComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         { provide: MAT_DIALOG_DATA, useValue: 3 },
+        { provide: MatDialogRef, useValue: dialogRef },
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })
@@ -81,16 +85,18 @@ describe('CreateBracketDialogComponent', () => {
     expect(created).toHaveBeenCalledTimes(1);
   });
 
-  it('notifies for every successful submit while the dialog stays open', () => {
+  it('notifies and closes itself on success, and a second submit (double-click) still notifies', () => {
     const created = jasmine.createSpy('bracketCreated');
     component.bracketCreated.subscribe(created);
 
     component.onSubmit();
-    http.expectOne(r => r.url.startsWith('api/Brackets/CreateBracket')).flush({});
-    component.participantsCount = 4; // changed and submitted again: the server recreates the bracket
     component.onSubmit();
-    http.expectOne(r => r.url.startsWith('api/Brackets/CreateBracket') && r.url.includes('participantsCount=4')).flush({});
+    const [first, second] = http.match(r => r.url.startsWith('api/Brackets/CreateBracket'));
+    first.flush({});
+    expect(created).toHaveBeenCalledTimes(1);
+    expect(dialogRef.close).toHaveBeenCalledWith(true);
 
+    second.flush({});
     expect(created).toHaveBeenCalledTimes(2);
   });
 
@@ -104,5 +110,6 @@ describe('CreateBracketDialogComponent', () => {
 
     expect(created).not.toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to create bracket', 'Close');
+    expect(dialogRef.close).not.toHaveBeenCalled();
   });
 });

@@ -153,6 +153,18 @@ describe('EditUserComponent', () => {
     expect(body.displayName).toBe('Renamed');
   });
 
+  it('sends the original string when the same instant is picked again', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: '2026-03-04T05:06:07.1234567+00:00' });
+    await fixture.whenStable();
+    // A new DateTime for the same instant, in another zone, as a picker might hand back.
+    component.patch({ lockoutEnd: component.model().lockoutEnd!.setZone('Europe/Berlin') });
+
+    spyOn(console, 'log');
+    component.onSubmit();
+    expect(http.expectOne('/api/usermanagement/edituser/').request.body.lockoutEnd).toBe('2026-03-04T05:06:07.1234567+00:00');
+  });
+
   it('sends a changed lockout as ISO 8601 in UTC', async () => {
     fixture.detectChanges();
     http.expectOne('/api/usermanagement/getuser/15').flush({ ...structuredClone(user), lockoutEnd: null });

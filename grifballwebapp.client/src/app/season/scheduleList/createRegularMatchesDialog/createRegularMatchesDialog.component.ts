@@ -4,7 +4,7 @@ import { ErrorMessageComponent } from '../../../validation/errorMessage.componen
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
@@ -28,6 +28,7 @@ export class CreateRegularMatchesDialogComponent {
   private http = inject(HttpClient);
   data = inject(MAT_DIALOG_DATA);
   private snackBar = inject(MatSnackBar);
+  private dialogRef = inject(MatDialogRef);
 
   readonly seasonID: number = this.data;
 
@@ -36,13 +37,16 @@ export class CreateRegularMatchesDialogComponent {
 
   // A Subject rather than an output(): the request can finish after the dialog was closed
   // (Esc, backdrop, Cancel), and an output() stops delivering once the dialog is destroyed.
-  // It is not completed: the dialog stays open, and each submit (re)creates on the server.
+  // It is not completed: a second submit (a double-click) can still answer after the first.
   readonly regularMatchesCreated = new Subject<void>();
 
   onSubmit() {
     this.http.get("api/MatchPlanner/CreateSeasonMatches?seasonID=" + this.seasonID + "&homeMatchesPerTeam=" + this.homeMatchesPerTeam + "&bestOf=" + this.bestOf)
       .subscribe({
-        next: r => this.regularMatchesCreated.next(),
+        next: r => {
+          this.regularMatchesCreated.next();
+          this.dialogRef.close(true);
+        },
         error: e => {
           console.log(e);
           this.snackBar.open("Failed to create regular matches", "Close");
