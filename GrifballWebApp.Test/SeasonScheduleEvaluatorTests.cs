@@ -74,6 +74,17 @@ public class SeasonScheduleEvaluatorTests
     }
 
     [Test]
+    public void Evaluate_DuplicateMatchID_IsPenalized()
+    {
+        // Same SeasonMatchID twice (as GeneticSharp's OrderedCrossover can produce), no overlaps
+        // and everyone available: a corrupted, incomplete schedule must still score below perfect.
+        var options = OptionsAvailableFor(1, 2, 3, 4);
+        var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
+
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 2).Within(1e-9));
+    }
+
+    [Test]
     public void Evaluate_OtherChromosome_Throws()
     {
         var other = Substitute.For<IChromosome>();

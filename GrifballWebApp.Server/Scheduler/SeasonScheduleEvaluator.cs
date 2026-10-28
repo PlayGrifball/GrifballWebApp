@@ -41,6 +41,14 @@ public class SeasonScheduleEvaluator : IFitness
                 penalties += 1;
         }
 
+        // A chromosome should contain exactly one gene per match. GeneticSharp's OrderedCrossover
+        // compares genes by value equality (including ScheduledTime) when deciding which genes a
+        // parent already contributed, so it can duplicate a match's gene while dropping another
+        // match's gene entirely. Penalize that so a corrupted chromosome never outscores a complete,
+        // conflict-free one.
+        var duplicateMatches = genes.Count - genes.Select(x => x.SeasonMatchID).Distinct().Count();
+        penalties += duplicateMatches;
+
         // Fitness must stay on a 0-1 scale where 1.0 is a perfect, conflict-free schedule
         // (GeneticSharp's FitnessThresholdTermination defaults to an expected fitness of
         // 1.00) and must decrease monotonically as penalties increase, so that EliteSelection
