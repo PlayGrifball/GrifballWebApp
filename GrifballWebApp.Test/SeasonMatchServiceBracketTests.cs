@@ -201,7 +201,7 @@ public class SeasonMatchServiceBracketTests
         [Values("Home", "Away", "Double")] string forfeit)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 5, Bracket = bracket });
+        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 5, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = bracket });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;

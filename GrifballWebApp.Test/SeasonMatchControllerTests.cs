@@ -120,7 +120,7 @@ public class SeasonMatchControllerTests
     public async Task Forfeits_ReturnBadRequest_ForTheGrandFinal(string action)
     {
         var seeded = await SeasonMatchTestData.SeedAsync(_context);
-        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 4, Bracket = Bracket.GrandFinal });
+        _context.Add(new MatchBracketInfo { SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, RoundNumber = 3, MatchNumber = 4, HomeTeamSeedNumber = 1, AwayTeamSeedNumber = 2, Bracket = Bracket.GrandFinal });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var id = seeded.SeasonMatch.SeasonMatchID;
