@@ -391,7 +391,7 @@ public class BracketServiceQueryTests
     [TestCase(Bracket.Loser)]
     [TestCase(Bracket.GrandFinal)]
     [TestCase(Bracket.GrandFinalSuddenDeath)]
-    public async Task GetViewerDataAsync_ByeResult_ThrowsArgumentOutOfRange(Bracket kind)
+    public async Task GetViewerDataAsync_ByeResult_MapsToLossWithForfeit(Bracket kind)
     {
         var seasonID = await CreateSeason();
         await _service.CreateBracket(4, seasonID, true, 1);
@@ -400,11 +400,14 @@ public class BracketServiceQueryTests
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
-        // BUG: BracketService.MapResult has no case for SeasonMatchResult.Bye, although the same code treats Bye as
-        // forfeit-like (Forfeit = result is Forfeit or Bye). Expected: a bye maps to a result (e.g. loss with forfeit=true);
-        // actual: the whole viewer request fails with ArgumentOutOfRangeException.
-        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.GetViewerDataAsync(seasonID));
-        Assert.That(ex!.ParamName, Is.EqualTo("r"));
+        var data = await _service.GetViewerDataAsync(seasonID);
+
+        var mapped = data!.Matches.Single(m => m.Id == match.SeasonMatchID);
+        Assert.Multiple(() =>
+        {
+            Assert.That(mapped.Opponent2.Result, Is.EqualTo(Result.loss));
+            Assert.That(mapped.Opponent2.Forfeit, Is.True);
+        });
     }
 
     [Test]
