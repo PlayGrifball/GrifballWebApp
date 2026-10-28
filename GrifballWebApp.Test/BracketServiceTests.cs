@@ -203,7 +203,7 @@ public class BracketServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<Exception>(() => _service.SetSeeds(seasonID, customSeeds));
-        Assert.That(exception.Message, Is.EqualTo("Missing home or away team. Byes are currently not supported"));
+        Assert.That(exception.Message, Is.EqualTo("Missing home or away team"));
     }
 
     [Test]
