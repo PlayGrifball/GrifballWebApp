@@ -10,7 +10,7 @@ public class RemovePlayerHandler(IHubContext<TeamsHub, ITeamsHubClient> hubConte
 {
     public override async Task Handle(Notification<RemovePlayerFromTeamRequestDto> request, CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.AllExcept(request.ConnectionId!).RemovePlayerFromTeam(request.Value);
+        await Others(request.ConnectionId).RemovePlayerFromTeam(request.Value);
     }
 }
 

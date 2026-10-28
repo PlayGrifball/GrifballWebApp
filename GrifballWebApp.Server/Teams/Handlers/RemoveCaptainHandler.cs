@@ -10,7 +10,7 @@ public class RemoveCaptainHandler(IHubContext<TeamsHub, ITeamsHubClient> hubCont
 {
     public override async Task Handle(Notification<RemoveCaptainDto> request, CancellationToken cancellationToken)
     {
-        await _hubContext.Clients.AllExcept(request.ConnectionId!).RemoveCaptain(request.Value);
+        await Others(request.ConnectionId).RemoveCaptain(request.Value);
     }
 }
 

@@ -288,6 +288,18 @@ describe('ApiClientService', () => {
   });
 
   describe('captain operations with SignalR connection', () => {
+    it('sends no connection header while the hub has no connection id (undefined or empty)', () => {
+      const dto = { seasonID: 1, personID: 1, orderNumber: 1 } as any;
+      service.addCaptain(dto, undefined as any).subscribe();
+      service.resortCaptain(dto, '').subscribe();
+
+      for (const url of ['/api/Teams/AddCaptain/', '/api/Teams/ResortCaptain/']) {
+        const req = httpTestingController.expectOne(url);
+        expect(req.request.headers.has('SignalRConnectionID')).toBe(false);
+        req.flush({});
+      }
+    });
+
     it('should add captain without connection ID', (done) => {
       const dto = { seasonID: 1, playerID: 1 } as any;
 

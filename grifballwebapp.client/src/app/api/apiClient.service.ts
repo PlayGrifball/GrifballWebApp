@@ -83,8 +83,9 @@ export class ApiClientService {
     return this.http.get<PlayerDto[]>('/api/Teams/GetPlayerPool/' + seasonID);
   }
 
-  private prepareHeaders(connectionID: string | null) : Object | undefined {
-    if (connectionID === null)
+  // The hub connection's id is null (or undefined/empty) until it has connected: send no header then.
+  private prepareHeaders(connectionID: string | null | undefined) : Object | undefined {
+    if (!connectionID)
       return undefined;
     let headers = new HttpHeaders();
     headers = headers.append('SignalRConnectionID', connectionID);
