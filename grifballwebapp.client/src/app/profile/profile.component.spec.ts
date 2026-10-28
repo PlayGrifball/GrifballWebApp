@@ -115,8 +115,22 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush('x', { status: 400, statusText: 'Bad Request' });
+    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush(null, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
+    expect(component.settingGamertag()).toBeTrue();
+  });
+
+  it("shows the server's error message when saving fails", () => {
+    spyOn(console, 'log');
+    personID.set(21);
+    load({ gamertag: null });
+    component.gamertag.set('NewTag');
+    component.setGamertag();
+
+    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag')
+      .flush('Gamertag is already set for this user. Contact sysadmin if it needs to be changed', { status: 400, statusText: 'Bad Request' });
+    expect(snackBar.open).toHaveBeenCalledWith(
+      'Gamertag is already set for this user. Contact sysadmin if it needs to be changed', 'Close');
     expect(component.settingGamertag()).toBeTrue();
   });
 

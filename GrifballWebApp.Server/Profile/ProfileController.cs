@@ -33,13 +33,18 @@ public class ProfileController : ControllerBase
 
     [Authorize(Roles = "Player")]
     [HttpGet("{userID:int}", Name = "SetGamertag")]
-    public Task SetGamertag([FromRoute] int userID, [FromQuery] string gamertag, CancellationToken ct)
+    public async Task<IActionResult> SetGamertag([FromRoute] int userID, [FromQuery] string gamertag, CancellationToken ct)
     {
         var id = GetUserID();
         if (id != userID)
-            throw new Exception("Cannot set another user's gamertag");
+            return Forbid();
 
-        return _setGamertagService.SetGamertag(userID, gamertag, ct);
+        var errorMessage = await _setGamertagService.SetGamertag(userID, gamertag, ct);
+
+        if (errorMessage is not null)
+            return BadRequest(errorMessage);
+
+        return Ok();
     }
 
     private int? GetUserID()

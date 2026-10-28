@@ -44,27 +44,43 @@ public class ProfileControllerSetGamertagTests
         _controller.WithUser("42", "me", "Player");
         _setGamertag.SetGamertag(42, "NewGT", Arg.Any<CancellationToken>()).Returns((string?)null);
 
-        await _controller.SetGamertag(42, "NewGT", CancellationToken.None);
+        var result = await _controller.SetGamertag(42, "NewGT", CancellationToken.None);
 
+        Assert.That(result, Is.TypeOf<OkResult>());
         await _setGamertag.Received(1).SetGamertag(42, "NewGT", Arg.Any<CancellationToken>());
     }
 
     [Test]
-    public void SetGamertag_OtherUser_Throws()
+    public async Task SetGamertag_ServiceReturnsError_ReturnsBadRequestWithMessage()
+    {
+        _controller.WithUser("42", "me", "Player");
+        _setGamertag.SetGamertag(42, "NewGT", Arg.Any<CancellationToken>()).Returns("User does not exist");
+
+        var result = await _controller.SetGamertag(42, "NewGT", CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("User does not exist"));
+    }
+
+    [Test]
+    public async Task SetGamertag_OtherUser_ReturnsForbid()
     {
         _controller.WithUser("42", "me", "Player");
 
-        var ex = Assert.Throws<Exception>(() => _controller.SetGamertag(43, "NewGT", CancellationToken.None));
-        Assert.That(ex!.Message, Is.EqualTo("Cannot set another user's gamertag"));
+        var result = await _controller.SetGamertag(43, "NewGT", CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<ForbidResult>());
         _setGamertag.DidNotReceiveWithAnyArgs().SetGamertag(default, default!, default);
     }
 
     [TestCase(null)]
     [TestCase("garbage")]
-    public void SetGamertag_NoOrInvalidId_Throws(string? claim)
+    public async Task SetGamertag_NoOrInvalidId_ReturnsForbid(string? claim)
     {
         if (claim is null) _controller.WithAnonymousUser(); else _controller.WithUser(claim);
 
-        Assert.Throws<Exception>(() => _controller.SetGamertag(1, "NewGT", CancellationToken.None));
+        var result = await _controller.SetGamertag(1, "NewGT", CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<ForbidResult>());
     }
 }
