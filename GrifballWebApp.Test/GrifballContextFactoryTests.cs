@@ -1,6 +1,8 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Interceptors;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Services;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
@@ -18,11 +20,18 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class GrifballContextFactoryTests
 {
+    // Registers AuditInterceptor's own dependency chain (ICurrentUserService, IHttpContextAccessor)
+    // scoped, like Program.cs, so GrifballContextFactory.CreateDbContext's scope resolves it.
     private static IServiceProvider Provider(string? connectionString, string? provider = null)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString, ["Database:Provider"] = provider }).Build();
-        return new ServiceCollection().AddSingleton<IConfiguration>(config).BuildServiceProvider();
+        return new ServiceCollection()
+            .AddSingleton<IConfiguration>(config)
+            .AddHttpContextAccessor()
+            .AddScoped<ICurrentUserService, CurrentUserService>()
+            .AddScoped<AuditInterceptor>()
+            .BuildServiceProvider();
     }
 
     [Test]
@@ -62,5 +71,40 @@ public class GrifballContextFactoryTests
         var ex = Assert.Throws<Exception>(() => new GrifballContextFactory(Provider(null)).CreateDbContext());
 
         Assert.That(ex!.Message, Is.EqualTo("GrifballContext failed to configure"));
+    }
+
+    [Test]
+    public void CreateDbContext_AttachesAuditInterceptor()
+    {
+        const string cs = "Server=example;Database=Grif;Trusted_Connection=True;";
+
+        using var context = new GrifballContextFactory(Provider(cs)).CreateDbContext();
+
+        var interceptors = context.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
+            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
+            .Interceptors;
+        Assert.That(interceptors?.OfType<AuditInterceptor>().Any(), Is.True,
+            "Contexts the factory creates (used by Discord handlers) must be audited the same as request-scoped contexts, see #26/#28");
+    }
+
+    [Test]
+    public void CreateDbContext_CalledTwice_ResolvesInterceptorFromItsOwnScope()
+    {
+        // Each call must get its own scope, not a captive AuditInterceptor shared by every context
+        // this (singleton-registered) factory ever creates.
+        var provider = Provider("Server=example;Database=Grif;Trusted_Connection=True;");
+        var factory = new GrifballContextFactory(provider);
+
+        using var context1 = factory.CreateDbContext();
+        using var context2 = factory.CreateDbContext();
+
+        var interceptor1 = context1.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
+            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
+            .Interceptors!.OfType<AuditInterceptor>().Single();
+        var interceptor2 = context2.GetService<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptions>()
+            .FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>()!
+            .Interceptors!.OfType<AuditInterceptor>().Single();
+
+        Assert.That(interceptor1, Is.Not.SameAs(interceptor2));
     }
 }
