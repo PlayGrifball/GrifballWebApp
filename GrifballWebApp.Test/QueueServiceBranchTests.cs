@@ -175,10 +175,8 @@ public class QueueServiceBranchTests
             Assert.That(embed.Description, Is.EqualTo($"Match #{match.Id} has ended. Team 0 is the winner"));
             Assert.That(Field(log, "Winning Team"), Is.EqualTo("0"));
             Assert.That(Field(log, "Duration"), Is.EqualTo("Unknown"));
-            // BUG: GetMMRChanges (QueueService.cs:564) looks up the old MMR by MatchedPlayer.Id but the dictionary is keyed by User.Id,
-            // so the old MMR is reported as UNK whenever the two ids differ.
-            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("UNK -> 1024 (UNK)"));
-            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("UNK -> 980 (UNK)"));
+            Assert.That(Field(log, "Home Team MMR Changes"), Does.Contain("1000 -> 1024 (+24)"));
+            Assert.That(Field(log, "Away Team MMR Changes"), Does.Contain("1000 -> 980 (-20)"));
         });
         Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."), "Thread should be told it will be deleted");
     }

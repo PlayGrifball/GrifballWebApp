@@ -11,13 +11,13 @@ public class ExceptionLogHubFilter : IHubFilter
         _logger = logger;
     }
 
-    public ValueTask<object?> InvokeMethodAsync(
+    public async ValueTask<object?> InvokeMethodAsync(
         HubInvocationContext invocationContext,
         Func<HubInvocationContext, ValueTask<object?>> next)
     {
         try
         {
-            return next(invocationContext);
+            return await next(invocationContext);
         }
         catch (Exception ex)
         {

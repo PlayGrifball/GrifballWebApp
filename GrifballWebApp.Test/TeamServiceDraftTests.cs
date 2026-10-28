@@ -197,7 +197,7 @@ public class TeamServiceDraftTests
     }
 
     [Test]
-    public async Task AddCaptain_FallbackTeamName_IgnoresGamertag_CurrentBehaviour()
+    public async Task AddCaptain_FallbackTeamName_PrefersGamertag_OverDisplayName()
     {
         var season = await _context.AddSeason();
         var cap = await _context.AddUser("capuser", "Disp", gamertag: "RealGT", discordName: "disc");
@@ -210,10 +210,7 @@ public class TeamServiceDraftTests
 
         await using var ctx = _context.NewContextLike();
         var names = await ctx.Teams.Include(t => t.Captain).OrderBy(t => t.Captain.DraftCaptainOrder).Select(t => t.TeamName).ToListAsync();
-        // BUG: TeamService.AddCaptain uses `name = ...DisplayName` instead of `name ??= ...DisplayName`, which discards the
-        // gamertag/discord name looked up just before. Expected "RealGT's Team" and "OtherGT's Team"; actual uses DisplayName,
-        // or UserName when DisplayName is null.
-        Assert.That(names, Is.EqualTo(new[] { "Disp's Team", "capuser2's Team" }));
+        Assert.That(names, Is.EqualTo(new[] { "RealGT's Team", "OtherGT's Team" }));
     }
 
     [Test]

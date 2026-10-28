@@ -726,6 +726,7 @@ public class BracketService : IBracketService
             SeasonMatchResult.Won => Result.win,
             SeasonMatchResult.Loss => Result.loss,
             SeasonMatchResult.Forfeit => Result.loss,
+            SeasonMatchResult.Bye => Result.loss,
             null => null,
             _ => throw new ArgumentOutOfRangeException(nameof(r), r, "Season match result of range"),
         };
