@@ -251,7 +251,7 @@ public class RescheduleServiceWorkflowTests
     }
 
     [Test]
-    public async Task GetPending_Throws_When_TeamHasNoCaptain()
+    public async Task GetPending_UsesUnknown_When_TeamHasNoCaptain()
     {
         var s = await RescheduleTestData.SeedAsync(_context);
         s.Home.CaptainID = null;
@@ -259,9 +259,10 @@ public class RescheduleServiceWorkflowTests
         await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
         _context.ChangeTracker.Clear();
 
-        // BUG: RescheduleService.cs:144 uses `HomeTeam?.Captain.User` - a team without a captain (CaptainID is nullable)
-        // causes a NullReferenceException instead of falling back to "UNKNOWN".
-        await Assert.ThrowsAsync<NullReferenceException>(() => _service.GetPendingReschedulesAsync());
+        var result = await _service.GetPendingReschedulesAsync();
+
+        Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
+        Assert.That(result[0].AwayCaptain, Is.EqualTo("GT_awaycap"));
     }
 
     // ---------- GetOverdueMatchesAsync ----------
@@ -385,5 +386,26 @@ public class RescheduleServiceWorkflowTests
             Assert.That(errors, Does.Contain("Could not add awaycap to thread, missing discord id."));
             Assert.That(errors, Does.Contain("Could not add commish to thread, exception thrown"));
         });
+    }
+
+    [Test]
+    public async Task CreateThread_UsesUnknown_And_ReportsMissingCaptain_When_TeamHasNoCaptain()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        s.Home.CaptainID = null;
+        await _context.SaveChangesAsync();
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+
+        var channelMessage = SentContents(Channel).Single();
+        Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs GT_awaycap"));
+        await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
+            Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs GT_awaycap"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        var errors = SentContents(888UL).Single();
+        Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
+        await _thread.DidNotReceive().AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
+        await _thread.Received(1).AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
     }
 }

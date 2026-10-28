@@ -141,8 +141,8 @@ public class RescheduleService
         {
             MatchRescheduleID = mr.MatchRescheduleID,
             SeasonMatchID = mr.SeasonMatchID,
-            HomeCaptain = mr.SeasonMatch.HomeTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
-            AwayCaptain = mr.SeasonMatch.AwayTeam?.Captain.User.ToDisplayName() ?? "UNKNOWN",
+            HomeCaptain = mr.SeasonMatch.HomeTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
+            AwayCaptain = mr.SeasonMatch.AwayTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
             OriginalScheduledTime = mr.OriginalScheduledTime,
             NewScheduledTime = mr.NewScheduledTime,
             Reason = mr.Reason,
@@ -198,7 +198,7 @@ public class RescheduleService
 
         // Create a message first to create thread from
         var messageContent = $"🔄 **Match Reschedule Request**\n" +
-                            $"**Match:** {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser?.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser?.Gamertag}\n" +
+                            $"**Match:** {reschedule.SeasonMatch.HomeTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}\n" +
                             $"**Original Time:** {reschedule.OriginalScheduledTime?.DiscordTimeEmbed() ?? "Not scheduled"}\n" +
                             $"**Requested New Time:** {reschedule.NewScheduledTime?.DiscordTimeEmbed() ?? "TBD"}\n" +
                             $"**Requested By:** {reschedule.RequestedByUser.XboxUser?.Gamertag}\n" +
@@ -206,7 +206,7 @@ public class RescheduleService
 
         var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, cancellationToken: ct);
 
-        var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain.User.XboxUser?.Gamertag} vs {reschedule.SeasonMatch.AwayTeam.Captain.User.XboxUser?.Gamertag}";
+        var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}";
         var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id,
             new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
 
@@ -219,8 +219,8 @@ public class RescheduleService
     private async Task AddUsersToThread(MatchReschedule reschedule, IDiscordGuildThread thread, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        await AddUserToThread(reschedule.SeasonMatch.HomeTeam.Captain.User, thread, sb, ct);
-        await AddUserToThread(reschedule.SeasonMatch.AwayTeam.Captain.User, thread, sb, ct);
+        await AddCaptainToThread(reschedule.SeasonMatch.HomeTeam, thread, sb, ct);
+        await AddCaptainToThread(reschedule.SeasonMatch.AwayTeam, thread, sb, ct);
 
         var commisioners = await _context.Users
             .Where(u => u.UserRoles.Any(ur => ur.Role.Name == "Commissioner"))
@@ -236,6 +236,17 @@ public class RescheduleService
                 new NetCord.Rest.MessageProperties { Content = finalErrors },
                 cancellationToken: ct);
         }
+    }
+
+    private async Task AddCaptainToThread(Team team, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
+    {
+        if (team.Captain is null)
+        {
+            sb.AppendLine($"Could not add {team.TeamName} captain to thread, team has no captain.");
+            return;
+        }
+
+        await AddUserToThread(team.Captain.User, thread, sb, ct);
     }
 
     private async Task AddUserToThread(User user, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
