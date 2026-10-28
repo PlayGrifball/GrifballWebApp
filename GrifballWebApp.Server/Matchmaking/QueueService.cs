@@ -131,7 +131,7 @@ public class QueueService
                 var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
                 await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
             }
-            else if (voteResult is { Key: WinnerVote.Cancel } || match.StartedAt - DateTime.UtcNow > TimeSpan.FromHours(2))
+            else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
             {
                 // Cancel the match
                 match.Active = false;
