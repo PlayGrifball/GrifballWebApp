@@ -7,12 +7,12 @@ using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using NetCord.Rest;
 using NSubstitute;
 
@@ -21,18 +21,11 @@ namespace GrifballWebApp.Test;
 [TestFixture]
 public class GrifballContextFactoryTests
 {
-    // Registers AuditInterceptor's own dependency chain (ICurrentUserService, IHttpContextAccessor)
-    // scoped, like Program.cs, so GrifballContextFactory.CreateDbContext's scope resolves it.
     private static IServiceProvider Provider(string? connectionString, string? provider = null)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GrifballWebApp"] = connectionString, ["Database:Provider"] = provider }).Build();
-        return new ServiceCollection()
-            .AddSingleton<IConfiguration>(config)
-            .AddHttpContextAccessor()
-            .AddScoped<ICurrentUserService, CurrentUserService>()
-            .AddScoped<AuditInterceptor>()
-            .BuildServiceProvider();
+        return new ServiceCollection().AddSingleton<IConfiguration>(config).BuildServiceProvider();
     }
 
     [Test]
@@ -74,39 +67,77 @@ public class GrifballContextFactoryTests
         Assert.That(ex!.Message, Is.EqualTo("GrifballContext failed to configure"));
     }
 
-    // DbContext implements IInfrastructure<IServiceProvider> explicitly, so the EF internal service
-    // provider (and from it, the configured interceptors) is only reachable through that interface.
-    private static IEnumerable<Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor>? InterceptorsOf(GrifballContext context)
+    // GrifballContextFactory's contexts are not audited (they're for reads). FactoryFor, the test stand-in for it
+    // that handler tests use, guards against that: these tests pin the guard itself.
+
+    private static Season NewSeason() => new()
     {
-        var internalProvider = ((IInfrastructure<IServiceProvider>)context).Instance;
-        return internalProvider.GetService<IDbContextOptions>()?.FindExtension<CoreOptionsExtension>()?.Interceptors;
+        SeasonName = "Factory Season",
+        PublicAt = DateTime.UtcNow,
+        SignupsOpen = DateTime.UtcNow,
+        SignupsClose = DateTime.UtcNow.AddDays(7),
+        DraftStart = DateTime.UtcNow.AddDays(8),
+        SeasonStart = DateTime.UtcNow.AddDays(14),
+        SeasonEnd = DateTime.UtcNow.AddDays(60),
+    };
+
+    [Test]
+    public async Task FactoryContext_AddingAuditableEntity_FailsTheGuard()
+    {
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            using var factoryContext = await GrifballContextTestExtensions.FactoryFor(context).CreateDbContextAsync();
+            factoryContext.Seasons.Add(NewSeason());
+
+            Assert.ThrowsAsync<UnauditedWriteException>(() => factoryContext.SaveChangesAsync());
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
     }
 
     [Test]
-    public void CreateDbContext_AttachesAuditInterceptor()
+    public async Task FactoryContext_ModifyingAuditableEntity_FailsTheGuard()
     {
-        const string cs = "Server=example;Database=Grif;Trusted_Connection=True;";
+        var context = await SetUpFixture.NewGrifballContext(new AuditInterceptor(new CurrentUserService(new HttpContextAccessor())));
+        try
+        {
+            context.Seasons.Add(NewSeason());
+            await context.SaveChangesAsync();
 
-        using var context = new GrifballContextFactory(Provider(cs)).CreateDbContext();
+            using var factoryContext = GrifballContextTestExtensions.FactoryFor(context).CreateDbContext();
+            var season = await factoryContext.Seasons.SingleAsync();
+            season.SeasonName = "Renamed";
 
-        Assert.That(InterceptorsOf(context)?.OfType<AuditInterceptor>().Any(), Is.True,
-            "Contexts the factory creates (used by Discord handlers) must be audited the same as request-scoped contexts, see #26/#28");
+            Assert.Throws<UnauditedWriteException>(() => factoryContext.SaveChanges());
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
     }
 
     [Test]
-    public void CreateDbContext_CalledTwice_ResolvesInterceptorFromItsOwnScope()
+    public async Task Guard_AllowsAuditedWrites()
     {
-        // Each call must get its own scope, not a captive AuditInterceptor shared by every context
-        // this (singleton-registered) factory ever creates.
-        var provider = Provider("Server=example;Database=Grif;Trusted_Connection=True;");
-        var factory = new GrifballContextFactory(provider);
+        var context = await SetUpFixture.NewGrifballContext();
+        try
+        {
+            using var audited = context.NewContextLike(new AuditInterceptor(new CurrentUserService(new HttpContextAccessor())), new UnauditedWriteGuard());
+            var season = NewSeason();
+            audited.Seasons.Add(season);
+            await audited.SaveChangesAsync();
+            season.SeasonName = "Renamed";
+            await audited.SaveChangesAsync();
+            audited.Seasons.Remove(season);
 
-        using var context1 = factory.CreateDbContext();
-        using var context2 = factory.CreateDbContext();
-
-        var interceptor1 = InterceptorsOf(context1)!.OfType<AuditInterceptor>().Single();
-        var interceptor2 = InterceptorsOf(context2)!.OfType<AuditInterceptor>().Single();
-
-        Assert.That(interceptor1, Is.Not.SameAs(interceptor2));
+            Assert.DoesNotThrow(() => audited.SaveChanges());
+        }
+        finally
+        {
+            await context.DropDatabaseAndDispose();
+        }
     }
 }

@@ -13,7 +13,7 @@ using System.Threading.Channels;
 
 namespace GrifballWebApp.Server;
 
-public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFactory<GrifballContext> contextFactory, IConfiguration configuration, IServiceScopeFactory scopeFactory, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
+public class MessageCreateHandler(IDiscordRestClient discordClient, IConfiguration configuration, IServiceScopeFactory scopeFactory, ILogger<MessageCreateHandler> logger) : IMessageCreateGatewayHandler
 {
     private ulong BotId { get; } = ulong.Parse(configuration["Discord:ClientId"] ?? "0");
 
@@ -70,7 +70,11 @@ public class MessageCreateHandler(IDiscordRestClient discordClient, IDbContextFa
 
         var UserId = (long)message.Author.Id;
         var BotID = (long)BotId;
-        using var context = await contextFactory.CreateDbContextAsync();
+        // The scoped context has the AuditInterceptor (IDbContextFactory contexts are not audited), and the
+        // author's linked app user, if any, is the audit user for the scope's writes.
+        using var scope = scopeFactory.CreateScope();
+        await DiscordInteractionPipeline.SetCurrentUserAsync(message.Author.Id, logger, scope.ServiceProvider);
+        var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
 
         // Ensure the user exists in the database
         if (!await context.DiscordUsers.AnyAsync(x => x.DiscordUserID == UserId))
