@@ -517,7 +517,8 @@ public class QueueService
                 .ToArray();
             var message = CreateVoteMessage(match.Id, kickable);
             var votes = await _context.MatchedWinnerVotes
-                .Include(x => x.MatchedPlayer.User)
+                .Include(x => x.MatchedPlayer.User.XboxUser)
+                .Include(x => x.MatchedPlayer.User.DiscordUser)
                 .Where(x => x.MatchId == match.Id)
                 .Where(x => x.MatchedPlayer.Kicked == false)
                 .GroupBy(x => x.WinnerVote)
