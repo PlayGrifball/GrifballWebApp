@@ -20,6 +20,16 @@ public class SeasonScheduleEvaluator : IFitness
 
         var genes = chromosome.GetGenes().Select(x => (SeasonMatchGene)x.Value).ToList();
 
+        // A chromosome should contain exactly one gene per match. GeneticSharp's OrderedCrossover
+        // compares genes by value equality (including ScheduledTime) when deciding which genes a
+        // parent already contributed, so it can duplicate a match's gene while dropping another
+        // match's gene entirely. That must never score better than a complete schedule, no matter
+        // how many overlap/availability penalties the complete schedule racks up (e.g. dropping an
+        // unschedulable match is not an improvement), so treat it as the worst possible fitness
+        // rather than folding it into the same penalty count below.
+        if (genes.Select(x => x.SeasonMatchID).Distinct().Count() != genes.Count)
+            return 0;
+
         //var GetoverLaps = new Func<SeasonMatchGene, List<SeasonMatchGene>>(current => genes
         //    .Except(new[] { current })
         //    //.Where(other => current.SameTeamPlaying(other))
@@ -40,14 +50,6 @@ public class SeasonScheduleEvaluator : IFitness
             if (!gene.AwayTeamAvailable(_options))
                 penalties += 1;
         }
-
-        // A chromosome should contain exactly one gene per match. GeneticSharp's OrderedCrossover
-        // compares genes by value equality (including ScheduledTime) when deciding which genes a
-        // parent already contributed, so it can duplicate a match's gene while dropping another
-        // match's gene entirely. Penalize that so a corrupted chromosome never outscores a complete,
-        // conflict-free one.
-        var duplicateMatches = genes.Count - genes.Select(x => x.SeasonMatchID).Distinct().Count();
-        penalties += duplicateMatches;
 
         // Fitness must stay on a 0-1 scale where 1.0 is a perfect, conflict-free schedule
         // (GeneticSharp's FitnessThresholdTermination defaults to an expected fitness of

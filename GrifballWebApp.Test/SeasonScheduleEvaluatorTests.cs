@@ -74,14 +74,30 @@ public class SeasonScheduleEvaluatorTests
     }
 
     [Test]
-    public void Evaluate_DuplicateMatchID_IsPenalized()
+    public void Evaluate_DuplicateMatchID_ScoresZero()
     {
         // Same SeasonMatchID twice (as GeneticSharp's OrderedCrossover can produce), no overlaps
-        // and everyone available: a corrupted, incomplete schedule must still score below perfect.
+        // and everyone available: a corrupted, incomplete schedule scores zero, not a merely-reduced
+        // fitness, so it can never outscore a complete schedule no matter how many overlap/
+        // availability penalties that complete schedule has (dropping an unschedulable match is
+        // not an improvement).
         var options = OptionsAvailableFor(1, 2, 3, 4);
         var chromosome = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
 
-        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(1d / 2).Within(1e-9));
+        Assert.That(new SeasonScheduleEvaluator(options).Evaluate(chromosome), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void Evaluate_DuplicateMatchID_ScoresWorseThanAnyCompleteSchedule()
+    {
+        // A complete schedule with every possible overlap/availability penalty still beats a
+        // corrupted (duplicate-match) one.
+        var options = OptionsAvailableFor();
+        var worstComplete = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(2, 2, 3, Monday20));
+        var duplicated = WithGenes(options, Gene(1, 1, 2, Monday20), Gene(1, 3, 4, Monday20.AddDays(1)));
+
+        var evaluator = new SeasonScheduleEvaluator(options);
+        Assert.That(evaluator.Evaluate(worstComplete), Is.GreaterThan(evaluator.Evaluate(duplicated)));
     }
 
     [Test]
