@@ -92,13 +92,13 @@ public class SeasonScheduleChromosomeTests
         var end = new DateTime(2024, 1, 2, 20, 30, 0);
         var options = EveryDay(20, 21);
 
-        var chromosome = new SeasonScheduleChromosome(Matches(1), 1, start, end, options);
+        var chromosome = new SeasonScheduleChromosome(Matches(2), 2, start, end, options);
 
-        var gene = (SeasonMatchGene)chromosome.GetGenes()[0].Value;
+        var genes = chromosome.GetGenes().Select(g => (SeasonMatchGene)g.Value);
 
         // Only Jan 2 20:00 falls inside [start, end]: Jan 1's 20:00/21:00 options are before
         // start and Jan 2's 21:00 is after end (GenerateGene; reported in #149).
-        Assert.That(gene.ScheduledTime, Is.EqualTo(new DateTime(2024, 1, 2, 20, 0, 0)));
+        Assert.That(genes.Select(g => g.ScheduledTime), Is.All.EqualTo(new DateTime(2024, 1, 2, 20, 0, 0)));
     }
 
     [Test]
@@ -108,7 +108,7 @@ public class SeasonScheduleChromosomeTests
         var end = new DateTime(2024, 1, 1, 21, 45, 0);
         var options = EveryDay(20, 21);
 
-        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(Matches(1), 1, start, end, options));
+        var ex = Assert.Throws<Exception>(() => new SeasonScheduleChromosome(Matches(2), 2, start, end, options));
         Assert.That(ex!.Message, Is.EqualTo("No availability options fall within the season window"));
     }
 }
