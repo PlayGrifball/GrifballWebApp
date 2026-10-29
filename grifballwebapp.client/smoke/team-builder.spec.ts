@@ -32,10 +32,11 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
   return { titles: await titles(page), rosters, pool: await pool(page) };
 }
 
-async function openTeamBuilder(page: Page, league: League): Promise<void> {
+/** Opens the team builder; `hub: false` for a page whose Teams hub is cut off on purpose. */
+async function openTeamBuilder(page: Page, league: League, { hub = true } = {}): Promise<void> {
   // Changes reach the other browser over the Teams hub: one made before its connection is up is
   // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
-  const connected = page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
+  const connected = hub && page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
   await page.goto(`/season/${league.seasonID}/teams`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
@@ -101,7 +102,7 @@ test.describe('team builder', () => {
       // The refused save: the browser logs the failed request.
       staleErrors.allow(/status of (400|409|500).*Teams\/addPlayerToTeam/i);
       await stale.route('**/hub/**', route => route.abort());
-      await openTeamBuilder(stale, league);
+      await openTeamBuilder(stale, league, { hub: false });
 
       // Saved before the stale browser tries: otherwise its request could win the race.
       const saved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
