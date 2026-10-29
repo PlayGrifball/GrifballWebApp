@@ -96,6 +96,9 @@ export class SeasonMatchComponent {
     && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
+  /** Where the search for possible matches is: under way (also while the page is drawn on the
+   * server, which never asks), done (the list, or none), or failed. */
+  readonly possibleMatchesState = signal<'loading' | 'loaded' | 'error'>('loading');
 
   public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
 
@@ -162,11 +165,19 @@ export class SeasonMatchComponent {
   getPossibleMatches(): void {
     // Slow (the server first pulls the players' recent games from Halo Infinite): never while the
     // page is rendered on the server, which would wait for it. The browser asks once it has the page.
+    this.possibleMatchesState.set('loading');
     if (!this.isBrowser)
       return;
     this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID())
       .subscribe({
-        next: result => this.possibleMatches.set(result),
+        next: result => {
+          this.possibleMatches.set(result ?? []);
+          this.possibleMatchesState.set('loaded');
+        },
+        error: () => {
+          this.possibleMatches.set([]);
+          this.possibleMatchesState.set('error');
+        },
       });
   }
 

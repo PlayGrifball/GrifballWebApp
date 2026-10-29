@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { TeamResponseDto } from './api';
-import { drag, expect, secondBrowser, test, watchConsole } from './fixtures';
+import { drag, expect, hydrated, secondBrowser, test, watchConsole } from './fixtures';
 import { createLeague, teamName, type League } from './league';
 
 // The team builder (/season/:id/teams) against the real server, from two signed-in browsers at
@@ -38,6 +38,8 @@ async function openTeamBuilder(page: Page, league: League): Promise<void> {
   // The last player is never drafted: the pool has loaded.
   await expect(poolItem(page, league.players[league.players.length - 1].name)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Lock Captains' })).toBeVisible(); // i.e. unlocked
+  // The server drew the board too; drags only work once the app has drawn it again.
+  await hydrated(page);
 }
 
 test.describe('team builder', () => {

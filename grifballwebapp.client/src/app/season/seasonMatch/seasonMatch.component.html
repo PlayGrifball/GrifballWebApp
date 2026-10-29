@@ -168,7 +168,20 @@
     </form>
     }
     }
-    <h3 class="hud-label">Possible Matches</h3>
+  </section>
+  }
+
+  <!-- The games the teams' players have played together, for everyone; reporting one is for the organizers -->
+  <section class="hud-section lobby-possibles hud-panel hud-panel--soft" aria-labelledby="lobby-possible-matches" [attr.aria-busy]="possibleMatchesState() === 'loading'">
+    <h2 id="lobby-possible-matches" class="hud-h2">Possible Matches</h2>
+    @switch (possibleMatchesState()) {
+    @case ('loading') {
+    <p class="hud-muted" role="status">Looking for games…</p>
+    }
+    @case ('error') {
+    <p class="hud-muted" role="alert">Could not look for games right now.</p>
+    }
+    @default {
     @for (possible of possibleMatches(); track possible.matchID) {
     <div class="lobby-possible">
       <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
@@ -192,14 +205,17 @@
         </div>
         }
       </div>
+      @if (accountService.isEventOrganizer()) {
       <div class="hud-actions">
-        <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">SUBMIT</button>
+        <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="isSubmittingMatch()">SUBMIT</button>
       </div>
+      }
     </div>
     } @empty {
     <p class="hud-muted">No games found for these teams yet.</p>
     }
+    }
+    }
   </section>
-  }
 
 </div>

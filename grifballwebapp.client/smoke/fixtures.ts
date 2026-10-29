@@ -55,6 +55,22 @@ export async function login(page: Page, user: Credentials): Promise<void> {
 }
 
 /**
+ * Waits until the app has taken over the page the server rendered (hydration). Until then, with
+ * event replay, elements with listeners carry a jsaction attribute, which Angular removes once the
+ * app is stable. Typing into a field before that is lost when the app writes its model into it.
+ */
+export async function hydrated(page: Page): Promise<void> {
+  await expect(page.locator('[jsaction]')).toHaveCount(0);
+}
+
+/** The display name in the header of a page's HTML (as the server drew it), or null for a visitor's. */
+export const headerName = (html: string): string | null =>
+  /class="hud-user__name"[^>]*>\s*([^<]*?)\s*</.exec(html)?.[1] ?? null;
+
+/** A page's HTML without its scripts (the transfer cache repeats the API's answers there). */
+export const withoutScripts = (html: string): string => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+
+/**
  * Real pointer drag: press on the source, move in small steps, release over the target (its
  * centre, or `at` from its top-left corner). ngx-drag-drop only accepts drags it started itself,
  * from a native dragstart; synthetic DragEvents are ignored as "external" drags.

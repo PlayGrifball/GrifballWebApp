@@ -2,6 +2,12 @@ import { request, type APIRequestContext, type APIResponse } from '@playwright/t
 import type { Credentials } from './env';
 
 /**
+ * How long one API call may take. Signing in and registering hash a password, which on a small
+ * preview busy with both workers' setup has taken over 15 seconds (the suite's action timeout).
+ */
+const API_TIMEOUT = 60_000;
+
+/**
  * The app's API (/api/...) as one signed-in user, with a bearer token: the browser signs in with
  * a cookie, but the API still gives scripts a token (Login?useCookies=false), and a request with
  * one needs no antiforgery token.
@@ -15,7 +21,7 @@ export class Api {
   ) {}
 
   static async login(baseURL: string, credentials: Credentials): Promise<Api> {
-    const http = await request.newContext({ baseURL });
+    const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
     const token = await Api.token(http, credentials);
     const meta = await http.get('/api/Identity/MetaInfo', { headers: { Authorization: `Bearer ${token}` } });
     await ok(meta, `MetaInfo for ${credentials.username}`);
@@ -57,7 +63,7 @@ export class Api {
 
 /** Anyone may register; used for the throwaway players. */
 export async function register(baseURL: string, credentials: Credentials): Promise<void> {
-  const http = await request.newContext({ baseURL });
+  const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
   try {
     await ok(await http.post('/api/Identity/Register', { data: credentials }), `register ${credentials.username}`);
   } finally {

@@ -328,6 +328,55 @@ describe('SeasonMatchComponent reporting', () => {
     expect(text()).toContain('This match has been completed.');
   });
 
+  it('shows the possible matches to everyone, the SUBMIT buttons to organizers only', () => {
+    isEventOrganizer.set(false);
+    load(page(), [possible]);
+    expect(text()).toContain('Possible Matches');
+    expect(text()).toContain('abc-123: 50 - 49');
+    expect(text()).not.toContain('Report Game');
+    expect(button('SUBMIT')).toBeUndefined();
+  });
+
+  it('says it is looking for games until the search answers, then lists them', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    fixture.detectChanges();
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
+    const section = () => (fixture.nativeElement as HTMLElement).querySelector('.lobby-possibles')!;
+    expect(section().textContent).toContain('Looking for games…');
+    expect(section().getAttribute('aria-busy')).toBe('true');
+
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+    fixture.detectChanges();
+    expect(section().textContent).not.toContain('Looking for games…');
+    expect(section().textContent).toContain('abc-123: 50 - 49');
+    expect(section().getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('says when no games were found', () => {
+    load(page(), []);
+    expect(text()).toContain('No games found for these teams yet.');
+  });
+
+  it('says the search failed when it does, with no list', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
+    expect(component.possibleMatchesState()).toBe('error');
+    expect(text()).toContain('Could not look for games right now.');
+    expect(text()).not.toContain('No games found');
+  });
+
+  it('treats an empty answer as no games', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(null);
+    expect(component.possibleMatches()).toEqual([]);
+    expect(component.possibleMatchesState()).toBe('loaded');
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+  });
+
   it('clears the submitting state and reloads even when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
@@ -607,6 +656,8 @@ describe('SeasonMatchComponent on the server', () => {
 
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7');
     httpMock.expectNone('/api/SeasonMatch/GetPossibleMatches/7');
+    // The page drawn on the server says the search is under way; the browser does it
+    expect(fixture.componentInstance.possibleMatchesState()).toBe('loading');
     httpMock.verify();
   });
 });
