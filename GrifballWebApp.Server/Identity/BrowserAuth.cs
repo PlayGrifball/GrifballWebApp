@@ -58,14 +58,12 @@ public static class BrowserAuth
         {
             OnRedirectToLogin = ctx =>
             {
-                if (ctx.Response.StatusCode == StatusCodes.Status200OK)
-                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return Task.CompletedTask;
             },
             OnRedirectToAccessDenied = ctx =>
             {
-                if (ctx.Response.StatusCode == StatusCodes.Status200OK)
-                    ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
                 return Task.CompletedTask;
             },
         };

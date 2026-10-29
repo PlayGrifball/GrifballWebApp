@@ -526,6 +526,14 @@ public class IdentityControllerActionTests
         Assert.That(_controller.Me(), Is.Null);
     }
 
+    [Test]
+    public void Me_NoIdentity_ReturnsNull()
+    {
+        _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal() } };
+
+        Assert.That(_controller.Me(), Is.Null);
+    }
+
     // ---------- Antiforgery ----------
 
     [Test]

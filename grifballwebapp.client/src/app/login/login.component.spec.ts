@@ -77,6 +77,18 @@ describe('LoginComponent', () => {
       expect(mockRouter.navigate).toHaveBeenCalledWith(['/dashboard']);
     });
 
+    it('sends a visitor to Discord\'s sign-in, with the follow-up', () => {
+      fixture.componentRef.setInput('callback', undefined);
+      fixture.componentRef.setInput('followUp', '/dashboard');
+      mockAccountService.isLoggedIn.and.returnValue(false);
+      const leaveFor = spyOn(component as unknown as { leaveFor: (url: string) => void }, 'leaveFor');
+
+      component.ngOnInit();
+
+      expect(leaveFor).toHaveBeenCalledOnceWith('/api/identity/externallogin?followUp=/dashboard');
+      expect(mockRouter.navigate).not.toHaveBeenCalled();
+    });
+
     it('waits until the API has said who is signed in before going on', () => {
       fixture.componentRef.setInput('callback', undefined);
       fixture.componentRef.setInput('followUp', '/dashboard');

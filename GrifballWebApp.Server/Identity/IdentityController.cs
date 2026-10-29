@@ -271,7 +271,7 @@ public class IdentityController : ControllerBase
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [HttpGet(Name = "Me")]
     public MetaInfoResponse? Me()
-        => User?.Identity?.IsAuthenticated is true ? MetaInfo() : null;
+        => User.Identity?.IsAuthenticated is true ? MetaInfo() : null;
 
     /// <summary>
     /// The antiforgery request token, which the browser sends in <see cref="BrowserAuth.AntiforgeryHeader"/> with

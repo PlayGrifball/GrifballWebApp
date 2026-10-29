@@ -57,11 +57,16 @@ export class LoginComponent implements OnInit {
             this.router.navigate([this.followUp()!]);
           } else {
             console.log('Not logged in, must log in before going to follow-up');
-            window.location.href = `/api/identity/externallogin?followUp=${this.followUp()}`;
+            this.leaveFor(`/api/identity/externallogin?followUp=${this.followUp()}`);
           }
         });
       }
     }
+  }
+
+  /** Leaves the app for `url` (Discord's sign-in, through the API). */
+  protected leaveFor(url: string): void {
+    window.location.href = url;
   }
 
   onSubmit() {

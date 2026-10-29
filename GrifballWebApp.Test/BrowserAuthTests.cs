@@ -162,6 +162,22 @@ public class BrowserAuthTests
     }
 
     [Test]
+    public async Task SignedIn_WithoutTheRole_Is403NotARedirect()
+    {
+        using var client = Browser();
+        var userName = "player-" + Guid.NewGuid().ToString("N")[..8];
+        using (var register = await client.PostAsJsonAsync("/Identity/Register", new { Username = userName, Password }))
+            Assert.That(register.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        using (var login = await client.PostAsJsonAsync("/Identity/Login", new { Username = userName, Password }))
+            Assert.That(login.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        using var response = await client.SendAsync(Post(AdminPost, await AntiforgeryToken(client)));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(response.Headers.Location, Is.Null);
+    }
+
+    [Test]
     public async Task CookiePost_WithoutAntiforgeryToken_IsRefused()
     {
         using var client = Browser();
@@ -300,6 +316,9 @@ public class BrowserAuthTests
             Assert.That(CookieAntiforgeryFilter.RequiresToken(Context("POST", authorization: "bearer abc"), []), Is.False);
             Assert.That(CookieAntiforgeryFilter.RequiresToken(Context("POST", authorization: "Basic abc"), []), Is.True);
             Assert.That(CookieAntiforgeryFilter.RequiresToken(Context("POST", signedIn: false), []), Is.False);
+            var noIdentity = Context("POST");
+            noIdentity.User = new ClaimsPrincipal();
+            Assert.That(CookieAntiforgeryFilter.RequiresToken(noIdentity, []), Is.False);
             Assert.That(CookieAntiforgeryFilter.RequiresToken(Context("POST"), [new IgnoreAntiforgeryTokenAttribute()]), Is.False);
             Assert.That(CookieAntiforgeryFilter.RequiresToken(Context("POST"), [new HttpPostAttribute()]), Is.True);
         });
