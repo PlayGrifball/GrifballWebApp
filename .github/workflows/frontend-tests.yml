@@ -268,17 +268,20 @@ jobs:
         retention-days: 7
 
   # Lighthouse on the production build, run by its own server (pages rendered on the server) with the
-  # mocked API (e2e/mockApi.mts, e2e/serve.mjs) as a visitor who is not logged in, with the mobile and the desktop settings. Accessibility, best practices and
-  # SEO must score 90; performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and
-  # warns under 90.
+  # mocked API (e2e/mockApi.mts, e2e/serve.mjs), with the mobile and the desktop settings: as a
+  # visitor who is not logged in, and, side by side, signed in as a commissioner and admin (their
+  # pages too; see lighthouserc.cjs). Accessibility, best practices and SEO must score 90;
+  # performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and warns under 90.
   lighthouse:
-    name: Lighthouse
+    name: ${{ matrix.session == 'signed-in' && 'Lighthouse (signed in)' || 'Lighthouse' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
-    outputs:
-      scores: ${{ steps.lighthouse.outputs.markdown }}
+    strategy:
+      fail-fast: false
+      matrix:
+        session: [signed-out, signed-in]
 
     defaults:
       run:
@@ -303,35 +306,46 @@ jobs:
     - name: Build
       run: npx ng build
 
+    # Else the signed-in scores would be a visitor's: the server must render every page for the user
+    - name: Check the pages render signed in
+      if: ${{ matrix.session == 'signed-in' }}
+      run: node e2e/lighthouse-signed-in.mjs
+
     # Configured in lighthouserc.cjs. The reports go to Lighthouse's temporary public storage
     # (kept for a few days), linked from the scores.
     - name: Run Lighthouse
-      id: lighthouse
+      env:
+        LIGHTHOUSE_SESSION: ${{ matrix.session }}
       run: |
         lhci="npx --yes @lhci/cli@${{ env.LIGHTHOUSE_CI_VERSION }}"
+        session="${LIGHTHOUSE_SESSION/-/ }"
         failed=0
-        echo "### Lighthouse" > lighthouse.md
+        : > lighthouse.md
         for preset in mobile desktop; do
           LIGHTHOUSE_PRESET=$preset $lhci collect
           $lhci upload || echo "::warning::The $preset reports could not be uploaded"
           # The table to the file; the warnings (stderr) to the log, where GitHub picks them up
           { node e2e/lighthouse-summary.mjs "${preset^}" >> lighthouse.md; } 2>&1
           LIGHTHOUSE_PRESET=$preset $lhci assert || failed=1
-          mv .lighthouseci "lighthouse-$preset"
+          mv .lighthouseci "lighthouse-$LIGHTHOUSE_SESSION-$preset"
         done
-        cat lighthouse.md >> "$GITHUB_STEP_SUMMARY"
-        {
-          echo "markdown<<END_OF_LIGHTHOUSE"
-          cat lighthouse.md
-          echo "END_OF_LIGHTHOUSE"
-        } >> "$GITHUB_OUTPUT"
+        { echo "### Lighthouse, ${session}"; echo; cat lighthouse.md; } >> "$GITHUB_STEP_SUMMARY"
         exit $failed
+
+    # The tables, for the PR comment (the report job)
+    - name: Upload the Lighthouse scores
+      if: ${{ !cancelled() && hashFiles('grifballwebapp.client/lighthouse.md') != '' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: lighthouse-scores-${{ matrix.session }}
+        path: grifballwebapp.client/lighthouse.md
+        retention-days: 1
 
     - name: Upload the Lighthouse reports
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       if: ${{ !cancelled() }}
       with:
-        name: lighthouse
+        name: lighthouse-${{ matrix.session }}
         path: grifballwebapp.client/lighthouse-*/
         retention-days: 30
 
@@ -347,14 +361,30 @@ jobs:
       pull-requests: write
 
     steps:
+    # The Lighthouse tables, signed out and signed in (none when that job did not get that far)
+    - name: Download the Lighthouse scores
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      continue-on-error: true
+      with:
+        pattern: lighthouse-scores-*
+        path: lighthouse
+
     - name: Comment on the PR
       env:
         GH_TOKEN: ${{ github.token }}
         PR: ${{ github.event.pull_request.number }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         SCREENSHOTS: ${{ needs.e2e.outputs.screenshots }}
-        SCORES: ${{ needs.lighthouse.outputs.scores }}
       run: |
+        # The Lighthouse jobs' tables, signed out then signed in
+        scores=""
+        for session in signed-out signed-in; do
+          file="lighthouse/lighthouse-scores-$session/lighthouse.md"
+          if [ -s "$file" ]; then
+            label="${session/-/ }"
+            scores="$scores#### ${label^}"$'\n\n'"$(sed "s/^#### /##### /" "$file")"$'\n\n'
+          fi
+        done
         marker='<!-- layout-screenshots -->'
         body="$marker
         ### Screenshots
@@ -364,8 +394,9 @@ jobs:
 
         Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
 
-        ${SCORES:-### Lighthouse
-        _No scores: see the Lighthouse job._}"
+        ### Lighthouse
+
+        ${scores:-_No scores: see the Lighthouse jobs._}"
         # Only on PRs from this repo: a fork's PR gets a read-only token
         if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
           echo "$body" >> "$GITHUB_STEP_SUMMARY"

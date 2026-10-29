@@ -105,6 +105,24 @@ const users = [['admin', 'Commander Grif', 'CommanderGrif', 'grif#0001'], ['chie
   .map(([userName, displayName, gamertag, discord], i) => ({ userID: i + 1, userName, lockoutEnd: null, lockoutEnabled: true, isDummyUser: false,
     accessFailedCount: 0, region: 'NA', displayName, gamertag, discord, externalAuthCount: 1, hasPassword: true, roles: [] }));
 
+// The team builder's board for the Winter Campaign draft (/season/13/teams): two captains with
+// their first picks, the rest of the signups in the pool.
+const draftPlayer = (personID: number, name: string, round: number | null = null) => ({ name, personID, pick: round, round });
+const draftTeams = [
+  { teamID: 1, teamName: "Sarge Prime's Crew", captain: { name: 'Sarge Prime', personID: 201, order: 1 }, players: [draftPlayer(301, 'Plasma Pete', 1)] },
+  { teamID: 2, teamName: "Caboose42's Crew", captain: { name: 'Caboose42', personID: 202, order: 2 }, players: [draftPlayer(302, 'Banshee Bri', 1)] },
+];
+const draftPool = ['Warthog Wes', 'Needler Nan', 'Spartan Sam', 'Elite Eli', 'Grunt Gus', 'Jackal Jo'].map((name, i) => draftPlayer(401 + i, name));
+
+// The commissioner dashboard: a reschedule waiting for a decision and a match past its time.
+const commissionerDashboard = {
+  pendingReschedules: [{ matchRescheduleID: 7, seasonMatchID: 32, homeCaptain: 'Hammer Bros', awayCaptain: 'Sword Swallowers',
+    originalScheduledTime: '2026-10-29T01:00:00Z', newScheduledTime: '2026-10-31T01:00:00Z', reason: 'Half the team is at a LAN that night',
+    requestedByGamertag: 'Grifmeister', requestedAt: '2026-10-27T15:20:00Z', status: 'Pending', discordThreadID: null }],
+  overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'Gravity Wells', awayCaptain: 'Sticky Situation', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 65 }],
+  summary: { pendingRescheduleCount: 1, overdueMatchCount: 1, criticalOverdueCount: 1 },
+};
+
 const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Brawl', 13: 'Winter Campaign' };
 
 /** The mocked endpoints, by path (without the query string). */
@@ -148,6 +166,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonMatchID: 31, scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3, score: null, result: null, otherTeamID: 2, otherTeamName: 'Blue Bombers', otherScore: null, otherResult: null },
     ],
     '/api/profile/getgamertag/117': { gamertag: 'MasterChief117' },
+    '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/Signups/getSignup/13': null,
     '/api/Signups/getTimeslots/13': timeslots,
@@ -157,6 +176,10 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(seasonID => ({ seasonID, name: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
       signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24 })),
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
+    '/api/Teams/GetTeams/13': draftTeams,
+    '/api/Teams/GetPlayerPool/13': draftPool,
+    '/api/Teams/areCaptainsLocked/13': true,
+    '/api/CommissionerDashboard/GetDashboardData': commissionerDashboard,
   };
 }
 

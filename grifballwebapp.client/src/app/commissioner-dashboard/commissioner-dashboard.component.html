@@ -154,7 +154,8 @@
                     @if (!reschedule.discordThreadID) {
                     <button mat-icon-button 
                             (click)="createDiscordThread(reschedule)"
-                            matTooltip="Create Discord Thread">
+                            matTooltip="Create Discord Thread"
+                            aria-label="Create Discord thread">
                       <mat-icon>forum</mat-icon>
                     </button>
                     } @else {
