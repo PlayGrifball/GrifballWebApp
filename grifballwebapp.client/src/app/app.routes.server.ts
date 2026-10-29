@@ -1,17 +1,30 @@
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
 /**
- * How each page is served. Rendered on the server: the public pages, as a visitor who is not
- * signed in (the access token lives in the browser), so they show their content before the app's
- * scripts have loaded. A signed-in user's parts (their name, the commissioner tools) are added in
- * the browser. Rendered in the browser only: pages for signed-in users or with a form of their
- * own, which have nothing to show a visitor.
+ * How each page is served. Rendered on the server, as whoever the visitor is: the session cookie
+ * goes with the server's API calls (ServerApiBackend), so a signed-in user gets their own page
+ * (their name, the commissioner tools, the admin pages) before the app's scripts have loaded. Such a
+ * page is never cached (server.ts). Rendered in the browser only: the theme page, which reads and
+ * sets the visitor's own colours (localStorage, the document's styles) and has nothing to draw
+ * without them.
  */
 export const serverRoutes: ServerRoute[] = [
+  { path: 'theme', renderMode: RenderMode.Client },
   ...[
-    'theme',
+    '',
+    'season/:seasonID',
+    'season/:seasonID/signups',
     'season/:seasonID/signupForm',
     'season/:seasonID/teams',
+    'season/:seasonID/team/:teamID',
+    'season/:seasonID/playergrades',
+    'seasonmatch/:seasonMatchID',
+    'topstats',
+    'lateLeague',
+    'profile/:userID',
+    'login',
+    'register',
+    'reset-password',
     'seasonManager',
     'seasonEdit/:seasonID',
     'seasonAvailability/:seasonID',
@@ -22,19 +35,7 @@ export const serverRoutes: ServerRoute[] = [
     'excel/**',
     'commissioner-dashboard',
     'reschedule-request/:seasonMatchID',
-  ].map((path): ServerRoute => ({ path, renderMode: RenderMode.Client })),
-  { path: '', renderMode: RenderMode.Server },
-  { path: 'season/:seasonID', renderMode: RenderMode.Server },
-  { path: 'season/:seasonID/signups', renderMode: RenderMode.Server },
-  { path: 'season/:seasonID/team/:teamID', renderMode: RenderMode.Server },
-  { path: 'season/:seasonID/playergrades', renderMode: RenderMode.Server },
-  { path: 'seasonmatch/:seasonMatchID', renderMode: RenderMode.Server },
-  { path: 'topstats', renderMode: RenderMode.Server },
-  { path: 'lateLeague', renderMode: RenderMode.Server },
-  { path: 'profile/:userID', renderMode: RenderMode.Server },
-  { path: 'login', renderMode: RenderMode.Server },
-  { path: 'register', renderMode: RenderMode.Server },
-  { path: 'reset-password', renderMode: RenderMode.Server },
+  ].map((path): ServerRoute => ({ path, renderMode: RenderMode.Server })),
   // Anything else is the not-found page
   { path: '**', renderMode: RenderMode.Server, status: 404 },
 ];

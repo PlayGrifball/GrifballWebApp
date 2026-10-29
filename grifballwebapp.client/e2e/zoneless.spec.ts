@@ -17,11 +17,6 @@ const text = (route: Route, body: string) => route.fulfill({ status: 200, conten
 async function mockBackend(page: Page, handlers: Record<string, Handler>): Promise<string[]> {
   const requests: string[] = [];
 
-  await page.addInitScript(() => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 }));
-  });
-
   // Keep the run hermetic (Google Fonts).
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
@@ -29,9 +24,14 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     requests.push(`${route.request().method()} ${url.pathname}${url.search}`);
-    if (url.pathname === '/api/identity/metaInfo') {
+    // Signed in (the session cookie the browser would have)
+    if (url.pathname === '/api/Identity/Me') {
       return json(route, { isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 });
     }
+    if (url.pathname === '/api/Identity/Antiforgery') return json(route, { token: 'e2e-xsrf' });
+    // As the API: every change from a cookie session carries the antiforgery token
+    if (route.request().method() !== 'GET' && route.request().headers()['x-xsrf-token'] !== 'e2e-xsrf')
+      return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (url.pathname === '/api/CommitHash') return text(route, 'e2ehash');
     if (url.pathname === '/api/CommitDate') return text(route, '2026-01-02T03:04:05Z');
     if (url.pathname === '/api/Season/getCurrentSeasonID/') return json(route, 0);

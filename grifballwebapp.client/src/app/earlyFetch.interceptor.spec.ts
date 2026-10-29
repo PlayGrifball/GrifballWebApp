@@ -1,21 +1,18 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import { AccountService } from './account.service';
+import { AuthSession } from './authSession.service';
 import { EARLY_FETCH_MAX_AGE_MS, EarlyResponse, earlyFetchInterceptor } from './earlyFetch.interceptor';
 
 describe('earlyFetchInterceptor', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
-  const accessToken = signal<string | undefined>(undefined);
 
   /** Stands in for the inline script in index.html. */
-  function early(responses: Record<string, EarlyResponse | null>, { token = null as string | null, at = Date.now() } = {}): void {
+  function early(responses: Record<string, EarlyResponse | null>, { at = Date.now() } = {}): void {
     window.grifEarly = {
       at,
-      token,
       responses: Object.fromEntries(Object.entries(responses).map(([url, r]) => [url, Promise.resolve(r)])),
     };
   }
@@ -23,12 +20,10 @@ describe('earlyFetchInterceptor', () => {
   const json = (body: unknown, status = 200): EarlyResponse => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
   beforeEach(() => {
-    accessToken.set(undefined);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([earlyFetchInterceptor])),
         provideHttpClientTesting(),
-        { provide: AccountService, useValue: { accessToken } },
       ],
     });
     http = TestBed.inject(HttpClient);
@@ -133,19 +128,18 @@ describe('earlyFetchInterceptor', () => {
     backend.expectOne('/api/Season/getCurrentSeasonID/').flush(12);
   });
 
-  it('does not use an early response fetched for another user', () => {
-    accessToken.set('token-of-now');
-    early({ '/api/identity/metaInfo': json({ userID: 1 }) }, { token: 'token-at-load' });
+  it('uses the early answer of who is signed in (fetched with this browser\'s own cookie)', async () => {
+    early({ '/api/Identity/Me': json({ userID: 1 }) });
 
-    http.get('/api/identity/metaInfo').subscribe();
-    backend.expectOne('/api/identity/metaInfo').flush({ userID: 2 });
+    expect(await firstValueFrom(http.get('/api/Identity/Me'))).toEqual({ userID: 1 });
   });
 
-  it('uses an early response fetched with the same access token', async () => {
-    accessToken.set('token-1');
-    early({ '/api/identity/metaInfo': json({ userID: 1 }) }, { token: 'token-1' });
+  it('does not use early responses once someone has signed in or out', () => {
+    early({ '/api/Identity/Me': { status: 204, contentType: null, body: '' } });
+    TestBed.inject(AuthSession).signedInOrOut();
 
-    expect(await firstValueFrom(http.get('/api/identity/metaInfo'))).toEqual({ userID: 1 });
+    http.get('/api/Identity/Me').subscribe();
+    backend.expectOne('/api/Identity/Me').flush({ userID: 2 });
   });
 
   it('never answers a request that is not a GET', () => {

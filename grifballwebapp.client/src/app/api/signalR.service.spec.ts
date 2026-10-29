@@ -1,12 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { PLATFORM_ID } from '@angular/core';
 import { HubConnectionBuilder } from '@microsoft/signalr';
 import { SignalRService } from './signalR.service';
-import { AccountService } from '../account.service';
+import { AuthSession } from '../authSession.service';
 
 describe('SignalRService', () => {
   let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; off: jasmine.Spy };
-  let accessToken: ReturnType<typeof signal<string | undefined>>;
   let withUrl: jasmine.Spy;
   let service: SignalRService;
 
@@ -27,10 +26,6 @@ describe('SignalRService', () => {
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
     spyOn(console, 'log');
 
-    accessToken = signal<string | undefined>('token-1');
-    TestBed.configureTestingModule({
-      providers: [{ provide: AccountService, useValue: { accessToken } }]
-    });
     service = TestBed.inject(SignalRService);
   });
 
@@ -40,34 +35,22 @@ describe('SignalRService', () => {
     expect(connection.start).toHaveBeenCalledTimes(1);
   });
 
-  it('supplies the current access token, or an empty string when logged out', () => {
-    const options = withUrl.calls.mostRecent().args[1];
-    expect(options.accessTokenFactory()).toBe('token-1');
-
-    accessToken.set(undefined);
-    expect(options.accessTokenFactory()).toBe('');
+  it('sends no token: the session cookie goes with the connection', () => {
+    expect(withUrl.calls.mostRecent().args[1]).toBeUndefined();
   });
 
-  it('restarts the connection when the access token changes', async () => {
-    TestBed.tick();
+  it('connects again when someone signs in or out', async () => {
+    TestBed.inject(AuthSession).signedInOrOut();
     await Promise.resolve();
     await Promise.resolve();
     expect(connection.stop).toHaveBeenCalledTimes(1);
     expect(connection.start).toHaveBeenCalledTimes(2);
-
-    accessToken.set('token-2');
-    TestBed.tick();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(connection.stop).toHaveBeenCalledTimes(2);
-    expect(connection.start).toHaveBeenCalledTimes(3);
   });
 
   it('logs instead of throwing when restarting fails', async () => {
     connection.stop.and.callFake(() => Promise.reject('stuck'));
 
-    accessToken.set('token-3');
-    TestBed.tick();
+    TestBed.inject(AuthSession).signedInOrOut();
     await new Promise(r => setTimeout(r));
 
     expect(console.log).toHaveBeenCalledWith('Error while trying to restart the connection: stuck');
@@ -111,4 +94,27 @@ describe('SignalRService', () => {
       expect(connection.off).toHaveBeenCalledOnceWith(event, handlerFor(event));
     });
   }
+
+  describe('on the server', () => {
+    beforeEach(() => {
+      TestBed.resetTestingModule();
+      connection.start.calls.reset();
+      TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: 'server' }] });
+      service = TestBed.inject(SignalRService);
+    });
+
+    it('never connects, and never restarts on a sign-in', async () => {
+      TestBed.inject(AuthSession).signedInOrOut();
+      await Promise.resolve();
+      expect(connection.start).not.toHaveBeenCalled();
+      expect(connection.stop).not.toHaveBeenCalled();
+      // An absolute URL: SignalR cannot resolve a relative one outside a browser
+      expect(withUrl.calls.mostRecent().args[0]).toBe('http://localhost/hub/TeamsHub');
+    });
+
+    it('still takes handlers (the team builder registers them while rendering)', () => {
+      service.lockCaptains(() => {})();
+      expect(connection.on).toHaveBeenCalledWith('LockCaptains', jasmine.any(Function));
+    });
+  });
 });

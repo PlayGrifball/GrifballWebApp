@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.UserManagement;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -34,10 +35,15 @@ public class IdentityController : ControllerBase
         _userManagementService = userManagementService;
     }
 
+    /// <summary>
+    /// Signs in with a password. A browser gets the session cookie (<see cref="BrowserAuth.CookieName"/>) and an
+    /// empty 200. With <paramref name="useCookies"/> false the answer is a bearer token instead
+    /// (<see cref="AccessTokenResponse"/>), for clients that are not browsers.
+    /// </summary>
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct)
+    public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct, [FromQuery] bool useCookies = true)
     {
         if (string.IsNullOrEmpty(loginDto?.Username))
             return BadRequest("Username is required");
@@ -45,7 +51,7 @@ public class IdentityController : ControllerBase
         if (string.IsNullOrEmpty(loginDto?.Password))
             return BadRequest("Password is required");
 
-        _signInManager.AuthenticationScheme = IdentityConstants.BearerScheme;
+        _signInManager.AuthenticationScheme = useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
 
         var result = await _signInManager.PasswordSignInAsync(loginDto.Username, loginDto.Password, true, lockoutOnFailure: true);
         //var foo = await _signInManager.
@@ -111,9 +117,10 @@ public class IdentityController : ControllerBase
         return Challenge(properties, provider);
     }
 
+    /// <summary>Finishes a Discord sign-in: the session cookie, or with <paramref name="useCookies"/> false a bearer token.</summary>
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpGet(Name = "ExternalLoginCallback")]
-    public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies, CancellationToken ct)
+    public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies = true, CancellationToken ct = default)
     {
         var info = await _signInManager.GetExternalLoginInfoAsync();
 
@@ -202,7 +209,7 @@ public class IdentityController : ControllerBase
 
 
                 // Add role
-                await _signInManager.SignInAsync(user, isPersistent: false);
+                await _signInManager.SignInAsync(user, isPersistent: true);
                 return Ok("Signed In");
             }
 
@@ -217,6 +224,7 @@ public class IdentityController : ControllerBase
         }
     }
 
+    /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Refresh")]
@@ -251,6 +259,43 @@ public class IdentityController : ControllerBase
             DisplayName = User?.Identity?.Name ?? "Friend",
             UserID = GetUserID() ?? 0,
         };
+    }
+
+    /// <summary>
+    /// Who is signed in, for the client (in the browser, and on the server while it renders a page with the
+    /// visitor's cookie): <see cref="MetaInfo"/>, or 204 No Content for a visitor. Unlike MetaInfo, a visitor is
+    /// not an error, so the client asks on every first load without logging a failed request.
+    /// </summary>
+    [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [HttpGet(Name = "Me")]
+    public MetaInfoResponse? Me()
+        => User?.Identity?.IsAuthenticated is true ? MetaInfo() : null;
+
+    /// <summary>
+    /// The antiforgery request token, which the browser sends in <see cref="BrowserAuth.AntiforgeryHeader"/> with
+    /// every change (<see cref="CookieAntiforgeryFilter"/>). Also sets the antiforgery cookie it pairs with. The
+    /// token belongs to the user signed in when it was made, so the client asks again after signing in or out.
+    /// </summary>
+    [ProducesResponseType(typeof(AntiforgeryTokenResponse), StatusCodes.Status200OK)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [HttpGet(Name = "Antiforgery")]
+    public AntiforgeryTokenResponse Antiforgery([FromServices] IAntiforgery antiforgery)
+        => new() { Token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken! };
+
+    /// <summary>
+    /// Ends the browser's session: clears the session cookie (and any half-finished Discord sign-in). No
+    /// antiforgery token needed: signing someone out is all a forged request could do, and SameSite=Lax already
+    /// keeps the cookie off cross-site POSTs.
+    /// </summary>
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [IgnoreAntiforgeryToken]
+    [HttpPost(Name = "Logout")]
+    public async Task<IActionResult> Logout()
+    {
+        await _signInManager.SignOutAsync();
+        return NoContent();
     }
 
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]

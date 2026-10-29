@@ -31,7 +31,11 @@ import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    // ngx-drag-drop takes its placeholders (dndPlaceholderRef) out of the DOM, so the browser's DOM
+    // no longer matches what the server drew: the browser draws this page again instead of taking
+    // the server's over (the rest of the page, the header with the user, still is).
+    host: { ngSkipHydration: 'true' },
 })
 export class TeamBuilderComponent {
   private route = inject(ActivatedRoute);

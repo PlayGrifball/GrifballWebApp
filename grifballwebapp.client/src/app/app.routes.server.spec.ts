@@ -10,9 +10,13 @@ describe('serverRoutes', () => {
       expect(modeOf(path)).withContext(path).toBe(RenderMode.Server);
   });
 
-  it('leaves the pages for signed-in users to the browser', () => {
-    for (const path of ['seasonManager', 'usermanagement', 'usermanagement/**', 'commissioner-dashboard', 'season/:seasonID/signupForm', 'season/:seasonID/teams'])
-      expect(modeOf(path)).withContext(path).toBe(RenderMode.Client);
+  it('renders the pages for signed-in users on the server too (as that user)', () => {
+    for (const path of ['seasonManager', 'usermanagement', 'usermanagement/**', 'commissioner-dashboard', 'season/:seasonID/signupForm', 'season/:seasonID/teams', 'excel', 'infiniteclient'])
+      expect(modeOf(path)).withContext(path).toBe(RenderMode.Server);
+  });
+
+  it('leaves only the theme page to the browser', () => {
+    expect(serverRoutes.filter(route => route.renderMode === RenderMode.Client).map(route => route.path)).toEqual(['theme']);
   });
 
   it('renders the not-found page with status 404', () => {

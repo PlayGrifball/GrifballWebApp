@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { META, MOCK_NOW, mockResponse, type Role } from './mockApi.mts';
+import { MOCK_NOW, mockResponse, signIn, type Role } from './mockApi.mts';
 
 // Every key page at every screen size: no sideways scrolling, its main parts on screen and not on
 // top of one another, the navigation reachable, and big enough touch targets on phones. Pages
@@ -77,12 +77,9 @@ const TOUCH_TARGETS = [
 
 /** Logs in as `role` (nothing for a visitor), freezes the clock and mocks the backend. */
 async function mockBackend(page: Page, role: Role): Promise<void> {
-  if (role !== 'anon') {
-    await page.addInitScript(meta => {
-      localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-      localStorage.setItem('metaInfo', JSON.stringify(meta));
-    }, META[role]);
-  }
+  // The session cookie: the server renders the page as this role (e2e/serve.mjs), and the API
+  // answers below are this role's too.
+  await signIn(page.context(), role);
   await page.clock.setFixedTime(new Date(MOCK_NOW));
   // Hermetic: the app and its fonts are all served locally.
   await page.route(url => url.hostname !== 'localhost', route => route.abort());

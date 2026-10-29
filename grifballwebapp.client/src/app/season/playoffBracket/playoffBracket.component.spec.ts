@@ -11,7 +11,6 @@ import { CreateBracketDialogComponent } from './createBracketDialog/createBracke
 import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDialog.component';
 import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
 describe('PlayoffBracketComponent', () => {
   let component: PlayoffBracketComponent;
@@ -24,8 +23,6 @@ describe('PlayoffBracketComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        { provide: JWT_OPTIONS, useValue: {} },
-        JwtHelperService,
         {
           provide: ActivatedRoute,
           useValue: {

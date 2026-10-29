@@ -1,7 +1,11 @@
 import { request, type APIRequestContext, type APIResponse } from '@playwright/test';
 import type { Credentials } from './env';
 
-/** The app's API (/api/...) as one signed-in user, with a bearer token like the client uses. */
+/**
+ * The app's API (/api/...) as one signed-in user, with a bearer token: the browser signs in with
+ * a cookie, but the API still gives scripts a token (Login?useCookies=false), and a request with
+ * one needs no antiforgery token.
+ */
 export class Api {
   private constructor(
     private readonly http: APIRequestContext,
@@ -20,7 +24,7 @@ export class Api {
   }
 
   private static async token(http: APIRequestContext, credentials: Credentials): Promise<string> {
-    const res = await http.post('/api/Identity/Login', { data: credentials });
+    const res = await http.post('/api/Identity/Login?useCookies=false', { data: credentials });
     await ok(res, `login as ${credentials.username}`);
     return (await res.json() as { accessToken: string }).accessToken;
   }

@@ -10,6 +10,10 @@ The password reset feature allows system administrators to generate secure, time
 
 ### Admin Endpoints (Sysadmin Only)
 
+The site itself calls these with the browser's session cookie (and an antiforgery token). From a script, sign in for a
+bearer token instead: `POST /Identity/Login?useCookies=false` with `{ "username": ..., "password": ... }` answers
+`{ "accessToken": ..., "refreshToken": ..., "expiresIn": ... }`; send the access token as below.
+
 #### Generate Password Reset Link
 ```http
 POST /Admin/GeneratePasswordResetLink

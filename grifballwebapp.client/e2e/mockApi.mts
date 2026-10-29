@@ -10,6 +10,30 @@ export type MockBody = unknown;
 /** The fixed "now" the data is written around (a Thursday in week 3 of the Autumn Brawl season). */
 export const MOCK_NOW = '2026-10-29T18:00:00Z';
 
+/**
+ * The session cookie (BrowserAuth.CookieName on the API, SESSION_COOKIE in src/app/pageCache.ts).
+ * Its value here is the role it signs in as, for the mock backend of e2e/serve.mjs.
+ */
+export const SESSION_COOKIE = '__Host-Grifball';
+
+/** The role a Cookie header signs in as: its session cookie's value, or a visitor. */
+export function roleOf(cookieHeader: string | undefined): Role {
+  const value = (cookieHeader ?? '').split(';').map(c => c.trim()).find(c => c.startsWith(SESSION_COOKIE + '='))?.slice(SESSION_COOKIE.length + 1);
+  return value === 'player' || value === 'admin' ? value : 'anon';
+}
+
+/**
+ * Signs a browser context in as `role`, as the API's login would: the session cookie, for both of
+ * the hosts the tests open (localhost renders on the server, which sends it to the mock backend;
+ * 127.0.0.1 renders in the browser, where the tests answer the API themselves).
+ */
+export async function signIn(context: { addCookies(cookies: object[]): Promise<void> }, role: Role): Promise<void> {
+  if (role === 'anon')
+    return;
+  await context.addCookies(['localhost', '127.0.0.1'].map(domain =>
+    ({ name: SESSION_COOKIE, value: role, domain, path: '/', httpOnly: true, secure: true, sameSite: 'Lax' })));
+}
+
 export const META = {
   player: { isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'MasterChief117', userID: 117 },
   admin: { isSysAdmin: true, isCommissioner: true, isPlayer: true, displayName: 'Commander Grif', userID: 999 },
@@ -86,7 +110,9 @@ const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Br
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
-    ...(role === 'anon' ? {} : { '/api/identity/metaInfo': META[role] }),
+    // Who is signed in: a visitor gets 204 No Content
+    '/api/Identity/Me': role === 'anon' ? null : META[role],
+    '/api/Identity/Antiforgery': { token: `e2e-xsrf-${role}` },
     '/api/CommitHash': { text: '9f3c2ab' },
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
     '/api/Season/getCurrentSeasonID/': 12,

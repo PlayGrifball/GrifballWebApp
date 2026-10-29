@@ -38,11 +38,6 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
   const data = seed();
   const calls: Call[] = [];
 
-  await page.addInitScript(() => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 }));
-  });
-
   // Keep the run hermetic: index.html pulls Google Fonts and a jsDelivr script that the
   // team builder doesn't need, and a slow CDN would otherwise stall the page's load event.
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
@@ -56,9 +51,14 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     const path = new URL(request.url()).pathname;
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (path === '/api/identity/metaInfo') {
+    // Signed in (the session cookie the browser would have)
+    if (path === '/api/Identity/Me') {
       return json({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 });
     }
+    if (path === '/api/Identity/Antiforgery') return json({ token: 'e2e-xsrf' });
+    // As the API: every change from a cookie session carries the antiforgery token
+    if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
+      return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/Teams/GetTeams/${SEASON_ID}`) return json(data.teams);
     if (path === `/api/Teams/GetPlayerPool/${SEASON_ID}`) return json(data.pool);
     if (path === `/api/Teams/areCaptainsLocked/${SEASON_ID}`) return json(opts.captainsLocked ?? true);

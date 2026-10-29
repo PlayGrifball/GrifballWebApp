@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { META } from './mockApi.mts';
+import { META, SESSION_COOKIE, signIn } from './mockApi.mts';
 
 // The public pages are rendered on the server (src/server.ts, src/app/app.routes.server.ts) and
 // then taken over by the app in the browser (hydration). On localhost, which the server renders
-// for, with its API answered from e2e/mockApi.mts as a visitor (e2e/serve.mjs).
+// for, with its API answered from e2e/mockApi.mts (e2e/serve.mjs): as a visitor, or as the role
+// the session cookie names.
 
 const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
@@ -63,21 +64,70 @@ for (const { path, content, data } of PAGES) {
   });
 }
 
-test('a signed-in user gets the visitor\'s page, then their own parts, without errors', async ({ page }) => {
-  await page.addInitScript(meta => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify(meta));
-  }, META.admin);
+const cookie = (role: 'player' | 'admin') => ({ Cookie: `theme=x; ${SESSION_COOKIE}=${role}` });
+/** The name in the header of a rendered page, or null for a visitor's. */
+const headerName = (html: string) => /class="hud-user__name"[^>]*>\s*([^<]*?)\s*</.exec(html)?.[1] ?? null;
+
+test('a signed-in user\'s page is rendered as theirs, and is private and never cached', async ({ request }) => {
+  const response = await request.get(SITE + '/seasonmatch/31', { headers: cookie('admin') });
+
+  expect(response.status()).toBe(200);
+  const html = await response.text();
+  // Their name in the header and the commissioner tools, in the HTML itself
+  expect(headerName(html)).toBe(META.admin.displayName);
+  expect(html).toContain('Home Team Forfeit');
+  expect(response.headers()['cache-control']).toBe('private, no-store');
+  expect(response.headers()['vary']).toMatch(/(^|,\s*)Cookie(,|$)/i);
+});
+
+test('a visitor\'s page has no one\'s name, and is checked on every visit as before', async ({ request }) => {
+  const response = await request.get(SITE + '/seasonmatch/31');
+
+  const html = await response.text();
+  expect(html).toContain('Blue Bombers');
+  expect(headerName(html)).toBeNull();
+  expect(html).not.toContain(META.admin.displayName);
+  expect(html).not.toContain('Home Team Forfeit');
+  expect(response.headers()['cache-control']).toBe('no-cache');
+  expect(response.headers()['vary'] ?? '').not.toMatch(/cookie/i);
+});
+
+test('two users each get their own page', async ({ request }) => {
+  const [player, admin] = await Promise.all([
+    request.get(SITE + '/seasonmatch/31', { headers: cookie('player') }).then(r => r.text()),
+    request.get(SITE + '/seasonmatch/31', { headers: cookie('admin') }).then(r => r.text()),
+  ]);
+
+  expect(headerName(player)).toBe(META.player.displayName);
+  expect(player).not.toContain(META.admin.displayName);
+  expect(player).not.toContain('Home Team Forfeit');
+  expect(headerName(admin)).toBe(META.admin.displayName);
+  expect(admin).toContain('Home Team Forfeit');
+});
+
+test('a signed-in user\'s page is taken over without the header changing, asking again or errors', async ({ page }) => {
+  await signIn(page.context(), 'admin');
+  // Notes any time the signed-in header leaves the page (as it would if the app drew a visitor's first)
+  await page.addInitScript(() => {
+    const seen = { removed: 0 };
+    (window as unknown as { userHeader: typeof seen }).userHeader = seen;
+    new MutationObserver(records => {
+      for (const record of records)
+        for (const node of record.removedNodes)
+          if (node instanceof Element && (node.matches('.hud-user') || node.querySelector('.hud-user')))
+            seen.removed++;
+    }).observe(document, { childList: true, subtree: true });
+  });
   const { calls, errors } = await watch(page);
-  await page.route('**/api/identity/metaInfo', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(META.admin) }));
 
   await page.goto(SITE + '/seasonmatch/31');
 
-  // Their name in the header and the commissioner tools, which the server left out
   await expect(page.locator('.hud-user__name')).toHaveText(META.admin.displayName);
   await expect(page.getByRole('button', { name: 'Home Team Forfeit' })).toBeVisible();
   await page.waitForLoadState('networkidle');
-  expect(calls).toContain('/api/identity/metaInfo');
+  expect(await page.evaluate(() => (window as unknown as { userHeader: { removed: number } }).userHeader.removed)).toBe(0);
+  // Who is signed in came with the page, as did the page's data
+  expect(calls).not.toContain('/api/Identity/Me');
   expect(calls).not.toContain('/api/SeasonMatch/GetSeasonMatchPage/31');
   expect(errors).toEqual([]);
 });
@@ -87,13 +137,53 @@ test('an unknown page is the not-found page, with status 404', async ({ page }) 
   expect(response?.status()).toBe(404);
 });
 
-test('pages for signed-in users only render in the browser', async ({ browser }) => {
+test('pages for signed-in users are rendered on the server too, as that user', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  await signIn(context, 'admin');
+  const page = await context.newPage();
+
+  const response = await page.goto(SITE + '/usermanagement');
+
+  await expect(page.locator('app-user-management')).toBeAttached();
+  await expect(page.locator('app-user-management')).toContainText('MasterChief117');
+  expect(response?.headers()['cache-control']).toBe('private, no-store');
+  await context.close();
+});
+
+for (const path of ['/seasonManager', '/usermanagement', '/usermanagement/createuser', '/season/13/signupForm', '/season/12/teams', '/reschedule-request/31']) {
+  test(`${path} is rendered for a signed-in commissioner and taken over without errors`, async ({ page }) => {
+    await signIn(page.context(), 'admin');
+    const { errors } = await watch(page);
+
+    const response = await page.goto(SITE + path);
+
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()['cache-control']).toBe('private, no-store');
+    expect(await response!.text()).toMatch(/<app-root[^>]*ng-server-context/);
+    await expect(page.locator('.hud-user__name')).toHaveText(META.admin.displayName);
+    await page.waitForLoadState('networkidle');
+    // Only what the mock API leaves out (answers it has no data for, the SignalR hub); no hydration
+    // mismatch (NG05xx) or other error
+    expect(errors.filter(e => !/Failed to load resource|negotiation|Failed to start the connection/.test(e))).toEqual([]);
+  });
+}
+
+test('a visitor gets no signed-in page, and nothing private', async ({ request }) => {
+  const response = await request.get(SITE + '/usermanagement');
+
+  expect(response.headers()['cache-control']).toBe('no-cache');
+  const html = await response.text();
+  expect(headerName(html)).toBeNull();
+  expect(html).not.toContain('MasterChief117');
+});
+
+test('the theme page renders in the browser', async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
-  await page.goto(SITE + '/usermanagement');
+  await page.goto(SITE + '/theme');
   // The page that loads the app: the boot shell, no content
   await expect(page.locator('.boot-shell')).toBeAttached();
-  await expect(page.locator('app-user-management')).toHaveCount(0);
+  await expect(page.locator('app-theme')).toHaveCount(0);
   await context.close();
 });
 

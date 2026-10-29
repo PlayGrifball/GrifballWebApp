@@ -5,7 +5,6 @@ import { SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
@@ -25,8 +24,6 @@ describe('SeasonMatchComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        { provide: JWT_OPTIONS, useValue: {} },
-        JwtHelperService,
         {
           provide: ActivatedRoute,
           useValue: {

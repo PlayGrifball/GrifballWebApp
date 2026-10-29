@@ -1,264 +1,44 @@
-import { PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, TransferState } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { Notifier } from './shared/notifier.service';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
-import { JwtHelperService } from '@auth0/angular-jwt';
+import { firstValueFrom } from 'rxjs';
+import { Notifier } from './shared/notifier.service';
+import { AccountService, LEGACY_STORAGE_KEYS, ME_URL, USER_STATE_KEY } from './account.service';
+import { MetaInfoResponse } from './accessTokenResponse';
+import { ANTIFORGERY_URL, AuthSession } from './authSession.service';
+import { authInterceptor } from './auth.interceptor';
 
-import { AccountService } from './account.service';
-import { ApiClientService } from './api/apiClient.service';
-import { AccessTokenResponse, MetaInfoResponse } from './accessTokenResponse';
-import { LoginDto } from './api/dtos/loginDto';
-import { RegisterDto } from './api/dtos/registerDto';
+const commish: MetaInfoResponse = { isSysAdmin: true, isCommissioner: true, isPlayer: false, userID: 42, displayName: 'Commish' };
+const player: MetaInfoResponse = { isSysAdmin: false, isCommissioner: false, isPlayer: true, userID: 7, displayName: 'Chief' };
 
 describe('AccountService', () => {
-  let service: AccountService;
-  let httpTestingController: HttpTestingController;
-  let mockSnackBar: jasmine.SpyObj<Notifier>;
-  let mockRouter: jasmine.SpyObj<Router>;
-  let mockJwtHelper: jasmine.SpyObj<JwtHelperService>;
-  let mockApiClient: jasmine.SpyObj<ApiClientService>;
-
-  beforeEach(() => {
-    // Clear localStorage before each test
-    localStorage.clear();
-
-    // Create spies
-    mockSnackBar = jasmine.createSpyObj('Notifier', ['open']);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
-    mockJwtHelper = jasmine.createSpyObj('JwtHelperService', ['isTokenExpired', 'decodeToken']);
-    mockApiClient = jasmine.createSpyObj('ApiClientService', ['get', 'post']);
-
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        AccountService,
-        { provide: Notifier, useValue: mockSnackBar },
-        { provide: Router, useValue: mockRouter },
-        { provide: JwtHelperService, useValue: mockJwtHelper },
-        { provide: ApiClientService, useValue: mockApiClient }
-      ]
-    });
-
-    service = TestBed.inject(AccountService);
-    httpTestingController = TestBed.inject(HttpTestingController);
-  });
-
-  afterEach(() => {
-    // Verify that no unmatched requests are outstanding
-    httpTestingController.verify();
-    localStorage.clear();
-  });
-
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
-  it('should initialize with no user logged in', () => {
-    expect(service.isLoggedIn()).toBeFalsy();
-    expect(service.accessToken()).toBeUndefined();
-    expect(service.isSysAdmin()).toBeFalsy();
-    expect(service.isEventOrganizer()).toBeFalsy();
-    expect(service.isPlayer()).toBeFalsy();
-    expect(service.personID()).toBeNull();
-    expect(service.displayName()).toBeNull();
-  });
-
-  it('should load access token from localStorage on initialization', () => {
-    // Setup localStorage with a mock token BEFORE creating service
-    const mockAccessToken: AccessTokenResponse = {
-      tokenType: 'Bearer',
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-      expiresIn: 3600
-    };
-    localStorage.setItem('access_token', JSON.stringify(mockAccessToken));
-
-    // Create a fresh TestBed with new service instance
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        AccountService,
-        { provide: Notifier, useValue: mockSnackBar },
-        { provide: Router, useValue: mockRouter },
-        { provide: JwtHelperService, useValue: mockJwtHelper },
-        { provide: ApiClientService, useValue: mockApiClient }
-      ]
-    });
-    
-    const newService = TestBed.inject(AccountService);
-    
-    expect(newService.accessToken()).toBe('mock-access-token');
-    expect(newService.isLoggedIn()).toBeTruthy();
-  });
-
-  it('should load meta info from localStorage on initialization', () => {
-    const mockMetaInfo: MetaInfoResponse = {
-      isSysAdmin: true,
-      isCommissioner: false,
-      isPlayer: true,
-      userID: 123,
-      displayName: 'Test User'
-    };
-    localStorage.setItem('metaInfo', JSON.stringify(mockMetaInfo));
-
-    // Create a fresh TestBed with new service instance
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        AccountService,
-        { provide: Notifier, useValue: mockSnackBar },
-        { provide: Router, useValue: mockRouter },
-        { provide: JwtHelperService, useValue: mockJwtHelper },
-        { provide: ApiClientService, useValue: mockApiClient }
-      ]
-    });
-
-    const newService = TestBed.inject(AccountService);
-
-    expect(newService.isSysAdmin()).toBeTruthy();
-    expect(newService.isEventOrganizer()).toBeFalsy(); // isCommissioner is false in mockMetaInfo
-    expect(newService.isPlayer()).toBeTruthy();
-    expect(newService.personID()).toBe(123);
-    expect(newService.displayName()).toBe('Test User');
-  });
-
-  it('should register a user', () => {
-    const registerDto: RegisterDto = {
-      username: 'testuser',
-      password: 'password123'
-    };
-
-    service.register(registerDto).subscribe();
-
-    const req = httpTestingController.expectOne('/api/identity/register');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual(registerDto);
-
-    req.flush({});
-  });
-
-  it('should handle successful login', () => {
-    const loginDto: LoginDto = {
-      username: 'testuser',
-      password: 'password123'
-    };
-
-    const mockResponse: AccessTokenResponse = {
-      tokenType: 'Bearer',
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-      expiresIn: 3600
-    };
-
-    service.login(loginDto);
-
-    const req = httpTestingController.expectOne('/api/identity/login');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual(loginDto);
-
-    req.flush(mockResponse);
-
-    expect(service.accessToken()).toBe('mock-access-token');
-    expect(service.isLoggedIn()).toBeTruthy();
-    expect(localStorage.getItem('access_token')).toBe(JSON.stringify(mockResponse));
-  });
-
-  it('should handle failed login', () => {
-    const loginDto: LoginDto = {
-      username: 'testuser',
-      password: 'wrongpassword'
-    };
-
-    service.login(loginDto);
-
-    const req = httpTestingController.expectOne('/api/identity/login');
-    req.flush('Login failed', { status: 401, statusText: 'Unauthorized' });
-
-    expect(mockSnackBar.open).toHaveBeenCalledWith('Login failed', 'Close');
-    expect(service.isLoggedIn()).toBeFalsy();
-  });
-
-  it('should logout user', () => {
-    // First set up a logged in state
-    const mockAccessToken: AccessTokenResponse = {
-      tokenType: 'Bearer',
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-      expiresIn: 3600
-    };
-    service.accessTokenResponse.set(mockAccessToken);
-
-    expect(service.isLoggedIn()).toBeTruthy();
-
-    // Now logout
-    service.logout();
-
-    expect(service.isLoggedIn()).toBeFalsy();
-    expect(service.accessToken()).toBeUndefined();
-    expect(localStorage.getItem('access_token')).toBeNull();
-  });
-
-  it('should handle external login callback', () => {
-    const mockResponse: AccessTokenResponse = {
-      tokenType: 'Bearer',
-      accessToken: 'external-token',
-      refreshToken: 'external-refresh',
-      expiresIn: 3600
-    };
-
-    const followUpUrl = '/dashboard';
-    service.loginExternal(followUpUrl);
-
-    const req = httpTestingController.expectOne('/api/Identity/ExternalLoginCallback');
-    expect(req.request.method).toBe('GET');
-
-    req.flush(mockResponse);
-
-    expect(service.accessToken()).toBe('external-token');
-    expect(service.isLoggedIn()).toBeTruthy();
-    expect(mockRouter.navigate).toHaveBeenCalledWith([followUpUrl]);
-  });
-});
-describe('AccountService session handling', () => {
-  let service: AccountService;
   let http: HttpTestingController;
-  let snackBar: jasmine.SpyObj<Notifier>;
+  let notifier: jasmine.SpyObj<Notifier>;
   let router: jasmine.SpyObj<Router>;
 
-  const token = (overrides: Partial<AccessTokenResponse> = {}): AccessTokenResponse => ({
-    tokenType: 'Bearer',
-    accessToken: 'access-1',
-    refreshToken: 'refresh-1',
-    expiresIn: 3600,
-    ...overrides
-  });
-
-  const meta: MetaInfoResponse = {
-    isSysAdmin: true,
-    isCommissioner: true,
-    isPlayer: false,
-    userID: 42,
-    displayName: 'Commish'
-  };
-
-  function create(): void {
-    snackBar = jasmine.createSpyObj('Notifier', ['open']);
+  function configure(platform = 'browser'): void {
+    notifier = jasmine.createSpyObj('Notifier', ['open']);
     router = jasmine.createSpyObj('Router', ['navigate']);
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
       providers: [
-        AccountService,
-        { provide: Notifier, useValue: snackBar },
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        { provide: PLATFORM_ID, useValue: platform },
+        { provide: Notifier, useValue: notifier },
         { provide: Router, useValue: router },
-        { provide: JwtHelperService, useValue: {} },
-        { provide: ApiClientService, useValue: {} }
-      ]
+      ],
     });
-    service = TestBed.inject(AccountService);
     http = TestBed.inject(HttpTestingController);
+  }
+
+  /** The service, after the API has said who is signed in. */
+  function signedInAs(user: MetaInfoResponse | null): AccountService {
+    const service = TestBed.inject(AccountService);
+    const me = http.expectOne(ME_URL);
+    me.flush(user, user === null ? { status: 204, statusText: 'No Content' } : undefined);
+    return service;
   }
 
   beforeEach(() => localStorage.clear());
@@ -267,122 +47,223 @@ describe('AccountService session handling', () => {
     localStorage.clear();
   });
 
-  describe('role lookup', () => {
-    it('fetches the roles once logged in and caches them in localStorage', () => {
-      localStorage.setItem('access_token', JSON.stringify(token()));
-      create();
-      TestBed.tick();
+  describe('who is signed in', () => {
+    beforeEach(() => configure());
 
-      http.expectOne('/api/identity/metaInfo').flush(meta);
+    it('is not known until the API has said', () => {
+      const service = TestBed.inject(AccountService);
+      const known: (MetaInfoResponse | null)[] = [];
+      service.whenKnown().subscribe(user => known.push(user));
 
+      expect(service.user()).toBeUndefined();
+      expect(service.isLoggedIn()).toBeFalse();
+      expect(known).toEqual([]);
+
+      const me = http.expectOne(ME_URL);
+      expect(me.request.method).toBe('GET');
+      expect(me.request.headers.has('Authorization')).toBeFalse();
+      // The user goes with the page under its own key, not in the HTTP transfer cache
+      expect(me.request.transferCache).toBeFalse();
+      me.flush(commish);
+      expect(known).toEqual([commish]);
+    });
+
+    it('takes the roles, id and name from the API', () => {
+      const service = signedInAs(commish);
+
+      expect(service.isLoggedIn()).toBeTrue();
       expect(service.isSysAdmin()).toBeTrue();
       expect(service.isEventOrganizer()).toBeTrue();
       expect(service.isPlayer()).toBeFalse();
       expect(service.personID()).toBe(42);
       expect(service.displayName()).toBe('Commish');
-      expect(JSON.parse(localStorage.getItem('metaInfo')!)).toEqual(meta);
     });
 
-    it('clears every role when the role lookup fails', () => {
-      localStorage.setItem('access_token', JSON.stringify(token()));
-      localStorage.setItem('metaInfo', JSON.stringify({ ...meta, isPlayer: true }));
-      spyOn(console, 'log');
-      create();
-      expect(service.isSysAdmin()).toBeTrue();
-      TestBed.tick();
+    it('is a visitor when the API answers 204 No Content', async () => {
+      const service = signedInAs(null);
 
-      http.expectOne('/api/identity/metaInfo').flush('no', { status: 500, statusText: 'Server Error' });
-
+      expect(service.isLoggedIn()).toBeFalse();
       expect(service.isSysAdmin()).toBeFalse();
       expect(service.isEventOrganizer()).toBeFalse();
       expect(service.isPlayer()).toBeFalse();
       expect(service.personID()).toBeNull();
       expect(service.displayName()).toBeNull();
+      expect(await firstValueFrom(service.whenKnown())).toBeNull();
     });
 
-    it('clears every role on logout without calling the server', () => {
-      localStorage.setItem('access_token', JSON.stringify(token()));
-      create();
-      TestBed.tick();
-      http.expectOne('/api/identity/metaInfo').flush(meta);
+    it('is a visitor when the API cannot be reached', () => {
+      const service = TestBed.inject(AccountService);
+      http.expectOne(ME_URL).flush('down', { status: 502, statusText: 'Bad Gateway' });
 
-      service.logout();
-      TestBed.tick();
-
-      http.expectNone('/api/identity/metaInfo');
-      expect(service.isSysAdmin()).toBeFalse();
-      expect(service.isEventOrganizer()).toBeFalse();
-      expect(service.displayName()).toBeNull();
-    });
-  });
-
-  describe('refresh', () => {
-    it('returns null when there is no session to refresh', () => {
-      create();
-      expect(service.refresh()).toBeNull();
-    });
-
-    it('posts the refresh token and stores the new session', () => {
-      create();
-      service.accessTokenResponse.set(token());
-      let result: AccessTokenResponse | undefined;
-
-      service.refresh()!.subscribe(r => result = r);
-      const req = http.expectOne('/api/Identity/Refresh');
-      expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual({ refreshToken: 'refresh-1' });
-      req.flush(token({ accessToken: 'access-2', refreshToken: 'refresh-2' }));
-
-      expect(result?.accessToken).toBe('access-2');
-      expect(service.accessToken()).toBe('access-2');
-      expect(JSON.parse(localStorage.getItem('access_token')!).refreshToken).toBe('refresh-2');
-    });
-
-    it('logs the user out and rethrows when the refresh is rejected', () => {
-      create();
-      spyOn(console, 'log');
-      service.accessTokenResponse.set(token());
-      localStorage.setItem('access_token', JSON.stringify(token()));
-      let error: any;
-
-      service.refresh()!.subscribe({ error: e => error = e });
-      http.expectOne('/api/Identity/Refresh').flush('expired', { status: 401, statusText: 'Unauthorized' });
-
-      expect(error.status).toBe(401);
+      expect(service.user()).toBeNull();
       expect(service.isLoggedIn()).toBeFalse();
-      expect(localStorage.getItem('access_token')).toBeNull();
     });
   });
 
-  describe('external login', () => {
-    it('does not navigate when there is no follow-up page', () => {
-      create();
+  describe('tokens from earlier versions', () => {
+    it('removes the access token and user kept in localStorage, and does not use them', () => {
+      localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'old', refreshToken: 'old-refresh', expiresIn: 3600 }));
+      localStorage.setItem('metaInfo', JSON.stringify(commish));
+      localStorage.setItem('theme', 'light-theme');
+      configure();
+
+      const service = TestBed.inject(AccountService);
+
+      for (const key of LEGACY_STORAGE_KEYS)
+        expect(localStorage.getItem(key)).withContext(key).toBeNull();
+      // Anything else stays
+      expect(localStorage.getItem('theme')).toBe('light-theme');
+      // Not signed in from what was stored: only the API says
+      expect(service.isLoggedIn()).toBeFalse();
+      http.expectOne(ME_URL).flush(null, { status: 204, statusText: 'No Content' });
+      expect(service.isLoggedIn()).toBeFalse();
+    });
+
+    it('carries on when storage is blocked', () => {
+      spyOn(localStorage, 'removeItem').and.throwError('SecurityError');
+      configure();
+
+      expect(() => TestBed.inject(AccountService)).not.toThrow();
+      http.expectOne(ME_URL).flush(null, { status: 204, statusText: 'No Content' });
+    });
+  });
+
+  describe('signing in and out', () => {
+    beforeEach(() => configure());
+
+    it('signs in with a password (the API sets the cookie), then asks who it is', () => {
+      const service = signedInAs(null);
+      const changed = jasmine.createSpy('changed');
+      TestBed.inject(AuthSession).changed$.subscribe(changed);
+
+      service.login({ username: 'chief', password: 'pw' });
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 'visitor-token' });
+      const login = http.expectOne('/api/identity/login');
+      expect(login.request.method).toBe('POST');
+      expect(login.request.body).toEqual({ username: 'chief', password: 'pw' });
+      login.flush('');
+
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(service.user()).toBeUndefined();
+      http.expectOne(ME_URL).flush(player);
+      expect(service.displayName()).toBe('Chief');
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('fetches a new antiforgery token after signing in', () => {
+      const service = signedInAs(null);
+      service.login({ username: 'chief', password: 'pw' });
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 'visitor-token' });
+      http.expectOne('/api/identity/login').flush('');
+      http.expectOne(ME_URL).flush(player);
+
+      service.cleanupExpiredPasswordResetLinks().subscribe();
+
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 'chief-token' });
+      expect(http.expectOne('/api/admin/cleanupexpiredpasswordresetlinks').request.headers.get('X-XSRF-TOKEN')).toBe('chief-token');
+    });
+
+    it('says so when the password is wrong', () => {
+      const service = signedInAs(null);
+
+      service.login({ username: 'chief', password: 'wrong' });
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+      http.expectOne('/api/identity/login').flush('', { status: 401, statusText: 'Unauthorized' });
+
+      expect(notifier.open).toHaveBeenCalledWith('Login failed', 'Close');
+      expect(service.isLoggedIn()).toBeFalse();
+      http.expectNone(ME_URL);
+    });
+
+    it('finishes a Discord sign-in, then goes to the follow-up page once it knows the user', () => {
+      const service = signedInAs(null);
+      spyOn(console, 'log');
+
+      service.loginExternal('/season/12/teams');
+      const callback = http.expectOne('/api/Identity/ExternalLoginCallback');
+      expect(callback.request.method).toBe('GET');
+      callback.flush('Signed In');
+      expect(router.navigate).not.toHaveBeenCalled();
+
+      http.expectOne(ME_URL).flush(player);
+      expect(service.isPlayer()).toBeTrue();
+      expect(router.navigate).toHaveBeenCalledOnceWith(['/season/12/teams']);
+    });
+
+    it('does not navigate after a Discord sign-in without a follow-up page', () => {
+      const service = signedInAs(null);
+
       service.loginExternal('');
-      http.expectOne('/api/Identity/ExternalLoginCallback').flush(token());
+      http.expectOne('/api/Identity/ExternalLoginCallback').flush('');
+      http.expectOne(ME_URL).flush(player);
 
       expect(service.isLoggedIn()).toBeTrue();
       expect(router.navigate).not.toHaveBeenCalled();
     });
 
-    it('shows an error when the external login fails', () => {
-      create();
-      service.loginExternal('/somewhere');
-      http.expectOne('/api/Identity/ExternalLoginCallback').flush('no', { status: 401, statusText: 'Unauthorized' });
+    it('says so when the Discord sign-in fails', () => {
+      const service = signedInAs(null);
 
-      expect(snackBar.open).toHaveBeenCalledWith('Login failed', 'Close');
+      service.loginExternal('/somewhere');
+      http.expectOne('/api/Identity/ExternalLoginCallback').flush('no', { status: 400, statusText: 'Bad Request' });
+
+      expect(notifier.open).toHaveBeenCalledWith('Login failed', 'Close');
       expect(service.isLoggedIn()).toBeFalse();
       expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('signs out on the API (which clears the cookie), then is a visitor', () => {
+      const service = signedInAs(commish);
+      const changed = jasmine.createSpy('changed');
+      TestBed.inject(AuthSession).changed$.subscribe(changed);
+
+      service.logout();
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+      const logout = http.expectOne('/api/Identity/Logout');
+      expect(logout.request.method).toBe('POST');
+      expect(service.isLoggedIn()).toBeTrue();
+      logout.flush(null, { status: 204, statusText: 'No Content' });
+
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(service.isLoggedIn()).toBeFalse();
+      expect(service.isSysAdmin()).toBeFalse();
+      expect(service.displayName()).toBeNull();
+      http.expectNone(ME_URL);
+    });
+
+    it('stays signed in, and says so, when signing out fails', () => {
+      const service = signedInAs(commish);
+
+      service.logout();
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+      http.expectOne('/api/Identity/Logout').flush('down', { status: 502, statusText: 'Bad Gateway' });
+
+      expect(notifier.open).toHaveBeenCalledWith('Logout failed', 'Close');
+      expect(service.isLoggedIn()).toBeTrue();
+    });
+
+    it('registers', () => {
+      const service = signedInAs(null);
+      service.register({ username: 'new', password: 'pw' } as never).subscribe();
+
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+      expect(http.expectOne('/api/identity/register').request.method).toBe('POST');
     });
   });
 
   describe('password reset', () => {
-    beforeEach(() => create());
+    let service: AccountService;
+    beforeEach(() => {
+      configure();
+      service = signedInAs(commish);
+    });
 
     it('generates a reset link for a user', () => {
       const request = { username: 'bob' };
       let response: any;
       service.generatePasswordResetLink(request).subscribe(r => response = r);
 
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       const req = http.expectOne('/api/admin/generatepasswordresetlink');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toBe(request);
@@ -395,6 +276,7 @@ describe('AccountService session handling', () => {
       let response: string | undefined;
       service.resetPassword(request).subscribe(r => response = r);
 
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       const req = http.expectOne('/api/identity/resetpassword');
       expect(req.request.method).toBe('POST');
       expect(req.request.responseType).toBe('text');
@@ -406,6 +288,7 @@ describe('AccountService session handling', () => {
       let response: string | undefined;
       service.cleanupExpiredPasswordResetLinks().subscribe(r => response = r);
 
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       const req = http.expectOne('/api/admin/cleanupexpiredpasswordresetlinks');
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({});
@@ -414,32 +297,62 @@ describe('AccountService session handling', () => {
       expect(response).toBe('Removed 3');
     });
   });
-});
 
-describe('AccountService rendering on the server', () => {
-  afterEach(() => localStorage.clear());
+  describe('on the server', () => {
+    beforeEach(() => configure('server'));
 
-  it('starts as a visitor, whatever this browser has stored', () => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'stored', refreshToken: 'r', expiresIn: 3600 }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: true, isCommissioner: true, isPlayer: true, userID: 7, displayName: 'Stored' }));
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [
-        AccountService,
-        { provide: PLATFORM_ID, useValue: 'server' },
-        { provide: Notifier, useValue: jasmine.createSpyObj('Notifier', ['open']) },
-        { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
-        { provide: JwtHelperService, useValue: {} },
-        { provide: ApiClientService, useValue: {} },
-      ]
+    it('asks the API with the page\'s cookie, and sends the answer with the page', () => {
+      const service = signedInAs(player);
+
+      expect(service.displayName()).toBe('Chief');
+      expect(TestBed.inject(TransferState).get(USER_STATE_KEY, undefined)).toEqual(player);
     });
 
-    const service = TestBed.inject(AccountService);
-    TestBed.tick();
+    it('sends a visitor along as null', () => {
+      signedInAs(null);
 
-    expect(service.isLoggedIn()).toBeFalse();
-    expect(service.isSysAdmin()).toBeFalse();
-    expect(service.displayName()).toBeNull();
-    TestBed.inject(HttpTestingController).expectNone('/api/identity/metaInfo');
+      expect(TestBed.inject(TransferState).hasKey(USER_STATE_KEY)).toBeTrue();
+      expect(TestBed.inject(TransferState).get(USER_STATE_KEY, undefined)).toBeNull();
+    });
+
+    it('renders as a visitor when the API does not answer, and sends nothing along (the browser asks itself)', () => {
+      const service = TestBed.inject(AccountService);
+      http.expectOne(ME_URL).flush('timeout', { status: 504, statusText: 'Gateway Timeout' });
+
+      expect(service.isLoggedIn()).toBeFalse();
+      expect(TestBed.inject(TransferState).hasKey(USER_STATE_KEY)).toBeFalse();
+    });
+
+    it('leaves the browser\'s storage alone', () => {
+      localStorage.setItem('access_token', 'kept');
+      signedInAs(null);
+      expect(localStorage.getItem('access_token')).toBe('kept');
+    });
+  });
+
+  describe('in the browser, on a page the server rendered', () => {
+    beforeEach(() => configure());
+
+    it('starts as the user the server rendered, without asking the API again', () => {
+      TestBed.inject(TransferState).set(USER_STATE_KEY, commish);
+
+      const service = TestBed.inject(AccountService);
+
+      expect(service.displayName()).toBe('Commish');
+      expect(service.isEventOrganizer()).toBeTrue();
+      http.expectNone(ME_URL);
+      // Used once: the next sign-in asks the API
+      expect(TestBed.inject(TransferState).hasKey(USER_STATE_KEY)).toBeFalse();
+    });
+
+    it('starts as a visitor when the server rendered one', async () => {
+      TestBed.inject(TransferState).set(USER_STATE_KEY, null);
+
+      const service = TestBed.inject(AccountService);
+
+      expect(service.user()).toBeNull();
+      expect(await firstValueFrom(service.whenKnown())).toBeNull();
+      http.expectNone(ME_URL);
+    });
   });
 });

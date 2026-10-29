@@ -15,11 +15,6 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
   const state = { ...start, logins: [...start.logins] };
   const calls: Call[] = [];
 
-  await page.addInitScript((userID) => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'E2E Player', userID }));
-  }, USER_ID);
-
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
 
@@ -30,8 +25,13 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
     calls.push({ method: request.method(), path, search: url.search, body: request.postData() ? request.postDataJSON() : null });
 
-    if (path === '/api/identity/metaInfo')
+    // Signed in (the session cookie the browser would have)
+    if (path === '/api/Identity/Me')
       return json({ isSysAdmin: false, isCommissioner: false, isPlayer: true, displayName: 'E2E Player', userID: USER_ID });
+    if (path === '/api/Identity/Antiforgery') return json({ token: 'e2e-xsrf' });
+    // As the API: every change from a cookie session carries the antiforgery token
+    if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
+      return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/profile/getgamertag/${USER_ID}`) return json({ gamertag: 'Sgt Grif' });
     if (path === '/api/ExternalLogins/Mine')
       return json({ ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] });

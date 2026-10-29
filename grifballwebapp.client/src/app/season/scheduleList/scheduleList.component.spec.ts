@@ -14,7 +14,6 @@ import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
 describe('ScheduleListComponent', () => {
   let component: ScheduleListComponent;
@@ -27,8 +26,6 @@ describe('ScheduleListComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        { provide: JWT_OPTIONS, useValue: {} },
-        JwtHelperService,
         {
           provide: ActivatedRoute,
           useValue: {

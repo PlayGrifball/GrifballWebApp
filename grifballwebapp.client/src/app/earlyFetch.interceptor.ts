@@ -1,7 +1,5 @@
 import { HttpHeaders, HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/http';
-import { inject } from '@angular/core';
 import { from, of, switchMap } from 'rxjs';
-import { AccountService } from './account.service';
 
 /** An API answer fetched by the inline script in index.html before the app had started. */
 export interface EarlyResponse {
@@ -14,8 +12,6 @@ export interface EarlyResponse {
 export interface EarlyFetches {
   /** When the fetches started (Date.now()). */
   at: number;
-  /** The access token they were sent with, or null for a visitor. */
-  token: string | null;
   /** Each fetch by path and query (e.g. /api/Home/PastSeasons?pageSize=10&pageNumber=1); null when it failed. */
   responses: Record<string, Promise<EarlyResponse | null> | undefined>;
 }
@@ -31,7 +27,9 @@ export const EARLY_FETCH_MAX_AGE_MS = 15_000;
  * Answers the app's first GET of a URL with the response the inline script in index.html already
  * fetched for it, while the app's scripts were downloading, so the page's data does not wait for
  * the app to start. Each early answer is used once. A failed, unsuccessful, late or mismatched
- * one (another user's token, a body that is not JSON) is dropped and the request goes out as usual.
+ * one (a body that is not JSON) is dropped and the request goes out as usual. They were fetched with
+ * this browser's own cookies, so they are this user's; signing in or out drops the rest of them
+ * (AuthSession.signedInOrOut).
  */
 export const earlyFetchInterceptor: HttpInterceptorFn = (req, next) => {
   const early = typeof window === 'undefined' ? undefined : window.grifEarly;
@@ -45,7 +43,7 @@ export const earlyFetchInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   delete early.responses[key];
 
-  if (Date.now() - early.at > EARLY_FETCH_MAX_AGE_MS || early.token !== (inject(AccountService).accessToken() ?? null))
+  if (Date.now() - early.at > EARLY_FETCH_MAX_AGE_MS)
     return next(req);
 
   return from(pending).pipe(switchMap(response => {

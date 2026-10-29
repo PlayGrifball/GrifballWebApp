@@ -32,7 +32,6 @@
     "@angular/platform-server": "^22.2.1",
     "@angular/router": "^22.2.1",
     "@angular/ssr": "^22.2.4",
-    "@auth0/angular-jwt": "^5.2.0",
     "@fontsource/material-icons": "^5.3.0",
     "@fontsource/rajdhani": "^5.3.0",
     "@fontsource/share-tech-mono": "^5.3.0",

@@ -1,162 +1,130 @@
-import { Injectable, PLATFORM_ID, Signal, WritableSignal, computed, effect, signal, inject } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-import { ApiClientService } from './api/apiClient.service';
-import { LoginDto } from './api/dtos/loginDto';
-import { JwtHelperService } from '@auth0/angular-jwt';
+import { Injectable, PLATFORM_ID, TransferState, computed, inject, makeStateKey, signal } from '@angular/core';
+import { isPlatformBrowser, isPlatformServer } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { AccessTokenResponse, MetaInfoResponse } from './accessTokenResponse';
-import { RegisterDto } from './api/dtos/registerDto';
-import { Observable, catchError, map, throwError, timer } from 'rxjs';
 import { Router } from '@angular/router';
-import { Notifier } from './shared/notifier.service';
+import { Observable, ReplaySubject, take } from 'rxjs';
+import { MetaInfoResponse } from './accessTokenResponse';
+import { LoginDto } from './api/dtos/loginDto';
+import { RegisterDto } from './api/dtos/registerDto';
 import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from './api/dtos/passwordResetDtos';
+import { AuthSession } from './authSession.service';
+import { Notifier } from './shared/notifier.service';
 
+/** Who is signed in (IdentityController.Me): the user, or 204 No Content (null) for a visitor. */
+export const ME_URL = '/api/Identity/Me';
+
+/**
+ * The user the server rendered the page for (null: a visitor), sent with the page so the browser starts
+ * with the same header the server drew, instead of a visitor's until its own call returns.
+ */
+export const USER_STATE_KEY = makeStateKey<MetaInfoResponse | null>('grifUser');
+
+/** Where earlier versions kept the session (tokens, then the user): removed on the first load. */
+export const LEGACY_STORAGE_KEYS = ['access_token', 'metaInfo'] as const;
+
+/**
+ * Who is signed in. The session is an HttpOnly cookie that scripts cannot read (so an XSS bug cannot
+ * steal it); the app asks the API who it belongs to. On the server the page's cookie goes with that
+ * call (ServerApiBackend), so a signed-in user's page is rendered as theirs.
+ */
 @Injectable({
   providedIn: 'root',
 })
 export class AccountService {
-  private apiClient = inject(ApiClientService);
-  private notifier = inject(Notifier);
-  private jwtHelper = inject(JwtHelperService);
-  private http = inject(HttpClient);
-  private router = inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly notifier = inject(Notifier);
+  private readonly router = inject(Router);
+  private readonly session = inject(AuthSession);
+  private readonly transferState = inject(TransferState);
+  private readonly isServer = isPlatformServer(inject(PLATFORM_ID));
 
-  accessTokenResponse: WritableSignal<AccessTokenResponse | undefined> = signal(undefined);
+  /** The signed-in user, null for a visitor, undefined until the API has said. */
+  readonly user = signal<MetaInfoResponse | null | undefined>(undefined);
+  private known = new ReplaySubject<MetaInfoResponse | null>(1);
 
-  accessToken: Signal<string | undefined> = computed(() => {
-    const accessTokenResponse = this.accessTokenResponse();
-    return accessTokenResponse?.accessToken;
-  })
-
-  isLoggedIn: Signal<boolean> = computed(() => {
-    let token = this.accessToken();
-    return token !== undefined;
-  })
-
-  isSysAdmin: WritableSignal<boolean> = signal(false);
-  isEventOrganizer: WritableSignal<boolean> = signal(false);
-  isPlayer: WritableSignal<boolean> = signal(false);
-  personID: WritableSignal<number | null> = signal(null);
-  displayName: WritableSignal<string | null> = signal(null);
+  readonly isLoggedIn = computed(() => !!this.user());
+  readonly isSysAdmin = computed(() => this.user()?.isSysAdmin ?? false);
+  readonly isEventOrganizer = computed(() => this.user()?.isCommissioner ?? false);
+  readonly isPlayer = computed(() => this.user()?.isPlayer ?? false);
+  readonly personID = computed(() => this.user()?.userID ?? null);
+  readonly displayName = computed(() => this.user()?.displayName ?? null);
 
   constructor() {
-    // The session is kept in the browser. On the server, pages are rendered as a visitor's.
     if (isPlatformBrowser(inject(PLATFORM_ID)))
-      this.restoreSession();
+      clearLegacyStorage();
 
-    // Danger zone, need to be careful to not cause
-    effect(() => {
-      const accessToken = this.accessToken();
-      if (accessToken === undefined) {
-        this.isSysAdmin.set(false);
-        this.isEventOrganizer.set(false);
-        this.isPlayer.set(false);
-        this.personID.set(null);
-        this.displayName.set(null);
-      } else {
-        this.http.get<MetaInfoResponse>('/api/identity/metaInfo').subscribe({
-          next: r => {
-            this.isSysAdmin.set(r.isSysAdmin);
-            this.isEventOrganizer.set(r.isCommissioner);
-            this.isPlayer.set(r.isPlayer);
-            this.personID.set(r.userID);
-            this.displayName.set(r.displayName);
-            const json = JSON.stringify(r);
-            localStorage.setItem("metaInfo", json);
-          },
-          error: e => {
-            console.log('error getting meta info');
-            this.isSysAdmin.set(false);
-            this.isEventOrganizer.set(false);
-            this.isPlayer.set(false);
-            this.personID.set(null);
-            this.displayName.set(null);
-          }
-        })
-      }
-    });
+    // The server already asked: take its answer (once; a later sign-in asks again).
+    if (this.transferState.hasKey(USER_STATE_KEY)) {
+      this.setUser(this.transferState.get(USER_STATE_KEY, null));
+      this.transferState.remove(USER_STATE_KEY);
+    } else {
+      this.refreshUser();
+    }
   }
 
-  /** The signed-in user from the last visit, as this browser kept them. */
-  private restoreSession(): void {
-    const accessToken = localStorage.getItem("access_token");
-    if (accessToken !== null) {
-      const accessT: AccessTokenResponse = JSON.parse(accessToken)
-      this.accessTokenResponse.set(accessT);
-    }
+  /** The user once known (null for a visitor): for guards, which must not decide before then. */
+  whenKnown(): Observable<MetaInfoResponse | null> {
+    return this.known.pipe(take(1));
+  }
 
-    const metaInfoJson = localStorage.getItem("metaInfo");
-    if (metaInfoJson !== null) {
-      const r: MetaInfoResponse = JSON.parse(metaInfoJson);
-      this.isSysAdmin.set(r.isSysAdmin);
-      this.isEventOrganizer.set(r.isCommissioner);
-      this.isPlayer.set(r.isPlayer);
-      this.personID.set(r.userID);
-      this.displayName.set(r.displayName);
-    }
+  /** Asks the API who is signed in. */
+  refreshUser(): void {
+    // Not in the HTTP transfer cache: the user goes with the page under USER_STATE_KEY instead.
+    this.http.get<MetaInfoResponse | null>(ME_URL, { transferCache: false }).subscribe({
+      next: user => {
+        this.setUser(user ?? null);
+        if (this.isServer)
+          this.transferState.set(USER_STATE_KEY, user ?? null);
+      },
+      // Rendered as a visitor then; with nothing sent along, the browser asks again itself.
+      error: () => this.setUser(null),
+    });
   }
 
   register(registerDto: RegisterDto) {
     return this.http.post('/api/identity/register', registerDto);
   }
 
-  login(loginDto: LoginDto) : void {
-    this.http.post<AccessTokenResponse>('/api/identity/login', loginDto).subscribe(
-      {
-        error: (e) => this.notifier.open("Login failed", "Close"),
-        next: (jwt) => this.onLoginSuccess(jwt),
-      });
+  login(loginDto: LoginDto): void {
+    this.http.post('/api/identity/login', loginDto, { responseType: 'text' }).subscribe({
+      error: () => this.notifier.open("Login failed", "Close"),
+      next: () => this.onSignedIn(),
+    });
   }
 
+  /** Back from Discord: turns its sign-in into the session cookie, then goes on to `followUp` if given. */
   loginExternal(followUp: string): void {
-    this.http.get<AccessTokenResponse>("/api/Identity/ExternalLoginCallback").subscribe(
-      {
-        error: (e) => this.notifier.open("Login failed", "Close"),
-        next: (accessToken) => this.onLoginSuccess(accessToken, followUp),
-      });
+    this.http.get('/api/Identity/ExternalLoginCallback', { responseType: 'text' }).subscribe({
+      error: () => this.notifier.open("Login failed", "Close"),
+      next: () => this.onSignedIn(followUp),
+    });
   }
 
-  refresh(): null | Observable<AccessTokenResponse> {
-    const rt = this.accessTokenResponse();
-    if (rt === undefined)
-      return null;
-
-    const body = {
-      refreshToken: rt.refreshToken
-    }
-
-    return this.http.post<AccessTokenResponse>("/api/Identity/Refresh", body)
-      .pipe(catchError((err: any) => {
-        console.log('Refresh failed, user must reauth');
-        this.logout();
-        return throwError(() => err);
-      }))
-      .pipe(map(r => {
-        this.onLoginSuccess(r);
-      return r;
-      }))
-  }
-
-  private onLoginSuccess(accessToken: AccessTokenResponse, followUp?: string): void {
-    this.accessTokenResponse.set(accessToken);
-
-    timer((accessToken.expiresIn * 1000) / 2)
-      .subscribe(() => {
-        console.log('Time to refresh');
-      });
-    const json = JSON.stringify(accessToken);
-    localStorage.setItem("access_token", json);
+  private onSignedIn(followUp?: string): void {
+    this.session.signedInOrOut();
+    this.user.set(undefined);
+    this.known = new ReplaySubject<MetaInfoResponse | null>(1);
+    this.refreshUser();
 
     if (followUp) {
-      // Naviate to the follow up page with angular router
       console.log('Navigating to follow up:', followUp);
-      this.router.navigate([followUp]);
+      this.whenKnown().subscribe(() => this.router.navigate([followUp]));
     }
   }
 
   logout(): void {
-    localStorage.removeItem("access_token");
-    this.accessTokenResponse.set(undefined);
+    this.http.post('/api/Identity/Logout', null).subscribe({
+      error: () => this.notifier.open("Logout failed", "Close"),
+      next: () => {
+        this.session.signedInOrOut();
+        this.setUser(null);
+      },
+    });
+  }
+
+  private setUser(user: MetaInfoResponse | null): void {
+    this.user.set(user);
+    this.known.next(user);
   }
 
   generatePasswordResetLink(request: GeneratePasswordResetLinkRequestDto): Observable<GeneratePasswordResetLinkResponseDto> {
@@ -169,5 +137,15 @@ export class AccountService {
 
   cleanupExpiredPasswordResetLinks(): Observable<string> {
     return this.http.post('/api/admin/cleanupexpiredpasswordresetlinks', {}, { responseType: 'text' });
+  }
+}
+
+/** Drops the tokens and user earlier versions kept in localStorage, where any script could read them. */
+function clearLegacyStorage(): void {
+  try {
+    for (const key of LEGACY_STORAGE_KEYS)
+      localStorage.removeItem(key);
+  } catch {
+    // Storage blocked: nothing was kept there either
   }
 }

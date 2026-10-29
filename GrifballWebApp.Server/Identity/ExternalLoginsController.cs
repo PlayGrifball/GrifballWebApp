@@ -13,14 +13,15 @@ namespace GrifballWebApp.Server.Identity;
 /// Linking external logins (e.g. Discord) to an existing account, and removing them.
 /// </summary>
 /// <remarks>
-/// The SPA authenticates with a bearer token, which a full-page navigation to the provider cannot carry. Linking is therefore:
+/// Linking starts with a full-page navigation to the provider, which must not act on the session cookie alone (another site could
+/// start one for a signed-in visitor). Linking is therefore:
 /// <list type="number">
-/// <item><see cref="StartLink"/> (bearer) returns a short-lived token protected with Data Protection that names the signed-in user and the provider.</item>
+/// <item><see cref="StartLink"/> (signed in, with the antiforgery token) returns a short-lived token protected with Data Protection that names the signed-in user and the provider.</item>
 /// <item>The browser navigates to <see cref="Link"/> with it. The server unprotects it (never trusting a user id from the query string)
 /// and challenges the provider with that user id stored as the XSRF key in the authentication properties.</item>
 /// <item>The provider returns to /signin-discord, which stores the external cookie and redirects to the profile page.</item>
-/// <item>The profile page calls <see cref="LinkCallback"/> (bearer). <c>GetExternalLoginInfoAsync(userId)</c> only returns the login
-/// when the XSRF key matches the bearer token's user, so the login is added to the account that started the link and nobody else.</item>
+/// <item>The profile page calls <see cref="LinkCallback"/> (signed in). <c>GetExternalLoginInfoAsync(userId)</c> only returns the login
+/// when the XSRF key matches the signed-in user, so the login is added to the account that started the link and nobody else.</item>
 /// </list>
 /// </remarks>
 [Authorize]

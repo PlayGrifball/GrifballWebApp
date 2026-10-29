@@ -20,6 +20,7 @@ import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
+import { pageCacheHeaders } from './app/pageCache';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 const apiUrl = (process.env['API_URL'] ?? 'http://grifballwebapp-server:5295').replace(/\/+$/, '');
@@ -110,15 +111,16 @@ app.use((req, res, next) => {
 
 // Every other request: the page, rendered on the server or (for the pages in
 // app.routes.server.ts that render in the browser) the page that loads the app. Should rendering
-// fail, the browser renders the page instead.
+// fail, the browser renders the page instead. A page rendered with the visitor's session cookie
+// (which its API calls carried) is theirs alone: private and no-store (app/pageCache.ts).
 app.use((req, res, next) => {
   angularApp
     .handle(req)
     .then(response => {
       if (!response)
         return sendClientPage(res, next);
-      // A page differs with each build and its data: check on every visit.
-      response.headers.set('Cache-Control', 'no-cache');
+      for (const [name, value] of Object.entries(pageCacheHeaders(req.headers.cookie)))
+        response.headers.set(name, value);
       return writeResponseToNodeResponse(response, res);
     })
     .catch(error => {

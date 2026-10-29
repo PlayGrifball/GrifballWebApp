@@ -1,45 +1,45 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { Observable, Subject, firstValueFrom } from 'rxjs';
 import { isSysAdminGuard } from './isSysAdmin.guard';
 import { AccountService } from './account.service';
+import { MetaInfoResponse } from './accessTokenResponse';
 
 describe('isSysAdminGuard', () => {
-  let mockAccountService: jasmine.SpyObj<AccountService>;
-  let mockRoute: ActivatedRouteSnapshot;
-  let mockState: RouterStateSnapshot;
+  let known: Subject<MetaInfoResponse | null>;
+  let allowed: boolean;
 
   beforeEach(() => {
-    mockAccountService = jasmine.createSpyObj('AccountService', [], {
-      isSysAdmin: jasmine.createSpy('isSysAdmin')
-    });
-
+    known = new Subject();
+    allowed = false;
     TestBed.configureTestingModule({
       providers: [
-        { provide: AccountService, useValue: mockAccountService }
-      ]
+        { provide: AccountService, useValue: { whenKnown: () => known, isSysAdmin: () => allowed } },
+      ],
     });
-
-    mockRoute = {} as ActivatedRouteSnapshot;
-    mockState = {} as RouterStateSnapshot;
   });
 
-  it('should allow access when user is sys admin', () => {
-    (mockAccountService.isSysAdmin as jasmine.Spy).and.returnValue(true);
+  const run = () => TestBed.runInInjectionContext(() =>
+    isSysAdminGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot)) as Observable<boolean>;
 
-    const result = TestBed.runInInjectionContext(() =>
-      isSysAdminGuard(mockRoute, mockState)
-    );
-
-    expect(result).toBe(true);
+  it('allows a sys admin once the user is known', async () => {
+    const result = firstValueFrom(run());
+    allowed = true;
+    known.next({ isSysAdmin: true } as MetaInfoResponse);
+    expect(await result).toBe(true);
   });
 
-  it('should deny access when user is not sys admin', () => {
-    (mockAccountService.isSysAdmin as jasmine.Spy).and.returnValue(false);
+  it('refuses anyone else', async () => {
+    const result = firstValueFrom(run());
+    known.next(null);
+    expect(await result).toBe(false);
+  });
 
-    const result = TestBed.runInInjectionContext(() =>
-      isSysAdminGuard(mockRoute, mockState)
-    );
-
-    expect(result).toBe(false);
+  it('does not decide before the API has said who is signed in', () => {
+    let decided = false;
+    run().subscribe(() => decided = true);
+    expect(decided).toBe(false);
+    known.next(null);
+    expect(decided).toBe(true);
   });
 });

@@ -69,15 +69,26 @@ public class IdentityControllerActionTests
     }
 
     [Test]
-    public async Task Login_Success_ReturnsEmptyAndUsesBearerSchemeWithLockout()
+    public async Task Login_Success_ReturnsEmptyAndUsesCookieSchemeWithLockout()
     {
         _signInManager.PasswordSignInAsync("bob", "pw", true, true).Returns(IdentitySignInResult.Success);
 
         var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
         await _signInManager.Received(1).PasswordSignInAsync("bob", "pw", true, lockoutOnFailure: true);
+    }
+
+    [Test]
+    public async Task Login_WithoutCookies_UsesBearerScheme()
+    {
+        _signInManager.PasswordSignInAsync("bob", "pw", true, true).Returns(IdentitySignInResult.Success);
+
+        var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None, useCookies: false);
+
+        Assert.That(result, Is.TypeOf<EmptyResult>());
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
     }
 
     [Test]
@@ -335,7 +346,7 @@ public class IdentityControllerActionTests
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.UserName == "discordName" && u.Email == "a@b.c"));
         await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Player");
         await _userManager.Received(1).AddClaimsAsync(Arg.Any<User>(), Arg.Is<IEnumerable<Claim>>(c => c.Count() == 3));
-        await _signInManager.Received(1).SignInAsync(Arg.Is<User>(u => u.UserName == "discordName"), false, null);
+        await _signInManager.Received(1).SignInAsync(Arg.Is<User>(u => u.UserName == "discordName"), true, null);
     }
 
     [Test]
@@ -477,6 +488,70 @@ public class IdentityControllerActionTests
         Assert.That(_controller.MetaInfo().UserID, Is.EqualTo(0));
     }
 
+    [Test]
+    public async Task ExternalLoginCallback_UsesCookiesByDefault()
+    {
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        ExternalResult(IdentitySignInResult.Success);
+
+        await _controller.ExternalLoginCallback();
+
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
+    }
+
+    // ---------- Me ----------
+
+    [Test]
+    public void Me_SignedIn_ReturnsMetaInfo()
+    {
+        _controller.WithUser("17", "Bob", "Commissioner");
+
+        var me = _controller.Me();
+
+        Assert.That(me, Is.EqualTo(new MetaInfoResponse
+        {
+            IsSysAdmin = false,
+            IsCommissioner = true,
+            IsPlayer = false,
+            DisplayName = "Bob",
+            UserID = 17,
+        }));
+    }
+
+    [Test]
+    public void Me_Visitor_ReturnsNull()
+    {
+        _controller.WithAnonymousUser();
+
+        Assert.That(_controller.Me(), Is.Null);
+    }
+
+    // ---------- Antiforgery ----------
+
+    [Test]
+    public void Antiforgery_ReturnsTheRequestToken()
+    {
+        _controller.WithAnonymousUser();
+        var antiforgery = Substitute.For<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
+        antiforgery.GetAndStoreTokens(_controller.HttpContext)
+            .Returns(new Microsoft.AspNetCore.Antiforgery.AntiforgeryTokenSet("request-token", "cookie-token", "form", "X-XSRF-TOKEN"));
+
+        var response = _controller.Antiforgery(antiforgery);
+
+        Assert.That(response.Token, Is.EqualTo("request-token"));
+    }
+
+    // ---------- Logout ----------
+
+    [Test]
+    public async Task Logout_SignsOutAndReturnsNoContent()
+    {
+        var result = await _controller.Logout();
+
+        Assert.That(result, Is.TypeOf<NoContentResult>());
+        await _signInManager.Received(1).SignOutAsync();
+    }
+
     // ---------- Authorization attributes ----------
 
     [Test]
@@ -489,7 +564,7 @@ public class IdentityControllerActionTests
             var meta = ControllerTestHelpers.ActionAuthorize(t, nameof(IdentityController.MetaInfo));
             Assert.That(meta, Is.Not.Null);
             Assert.That(meta!.Roles, Is.Null);
-            foreach (var action in new[] { "Login", "Register", "ExternalLogin", "ExternalLoginCallback", "Refresh", "ResetPassword" })
+            foreach (var action in new[] { "Login", "Register", "ExternalLogin", "ExternalLoginCallback", "Refresh", "ResetPassword", "Me", "Antiforgery", "Logout" })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(t, action), Is.Null, action);
         });
     }

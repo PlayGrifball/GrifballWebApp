@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { META, mockResponse, type Role } from './mockApi.mts';
+import { mockResponse, signIn, type Role } from './mockApi.mts';
 
 // index.html starts the first page's API calls before the app has loaded; the app then uses those
 // answers (src/app/earlyFetch.interceptor.ts). Each call must still go out only once, and a failed
@@ -8,12 +8,7 @@ import { META, mockResponse, type Role } from './mockApi.mts';
 /** Mocks the backend as `role` and counts the API calls by path and query. */
 async function mockBackend(page: Page, role: Role, failFirst: string[] = []): Promise<Map<string, number>> {
   const calls = new Map<string, number>();
-  if (role !== 'anon') {
-    await page.addInitScript(meta => {
-      localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-      localStorage.setItem('metaInfo', JSON.stringify(meta));
-    }, META[role]);
-  }
+  await signIn(page.context(), role);
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', route => {
@@ -31,7 +26,7 @@ async function mockBackend(page: Page, role: Role, failFirst: string[] = []): Pr
 
 const PAGES = [
   { path: '/', role: 'anon', ready: 'tr.mat-mdc-row', early: ['/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons?pageSize=10&pageNumber=1'] },
-  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonName/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12', '/api/identity/metaInfo'] },
+  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonName/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/MatchPlanner/GetUnscheduledMatches/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/Brackets/GetViewerData?seasonID=12'] },
   { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
@@ -44,8 +39,8 @@ for (const { path, role, ready, early } of PAGES) {
     await page.goto(path);
     await expect(page.locator(ready).first()).toBeVisible();
 
-    // The app's own calls on every page, and this page's
-    for (const url of ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate', ...early])
+    // The app's own calls on every page (who is signed in, too), and this page's
+    for (const url of ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate', '/api/Identity/Me', ...early])
       expect(calls.get(url), url).toBe(1);
     // The inline script fetched them, and the app used its answers (each is dropped once used)
     expect(await page.evaluate(() => typeof window.grifEarly?.at)).toBe('number');

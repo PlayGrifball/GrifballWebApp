@@ -1,18 +1,24 @@
-import { HttpBackend } from '@angular/common/http';
+import { HttpBackend, HttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { JWT_OPTIONS } from '@auth0/angular-jwt';
 import { appConfig } from './app.config';
 import { config as serverConfig } from './app.config.server';
 import { API_ORIGIN, ServerApiBackend } from './serverApi.backend';
 
 describe('appConfig', () => {
-  afterEach(() => localStorage.clear());
+  it('sends changes to the API with the antiforgery token, and no bearer token', () => {
+    TestBed.configureTestingModule({ providers: [...appConfig.providers, provideHttpClientTesting()] });
+    localStorage.setItem('access_token', JSON.stringify({ accessToken: 'old' }));
+    const backend = TestBed.inject(HttpTestingController);
 
-  it('gives the JWT helper the stored access token', () => {
-    TestBed.configureTestingModule({ providers: appConfig.providers });
-    localStorage.setItem('access_token', 'stored');
+    TestBed.inject(HttpClient).post('/api/Teams/AddCaptain', {}).subscribe();
+    backend.expectOne('/api/Identity/Antiforgery').flush({ token: 'xsrf' });
+    const request = backend.expectOne('/api/Teams/AddCaptain').request;
 
-    expect((TestBed.inject(JWT_OPTIONS) as { tokenGetter: () => string | null }).tokenGetter()).toBe('stored');
+    expect(request.headers.get('X-XSRF-TOKEN')).toBe('xsrf');
+    expect(request.headers.has('Authorization')).toBeFalse();
+    backend.verify();
+    localStorage.clear();
   });
 });
 

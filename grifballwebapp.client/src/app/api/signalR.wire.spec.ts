@@ -1,10 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
 import {
   HttpClient, HttpRequest, HttpResponse, HttpTransportType, HubConnectionBuilder, HubConnectionState, IHttpConnectionOptions,
 } from '@microsoft/signalr';
 import { SignalRService } from './signalR.service';
-import { AccountService } from '../account.service';
 
 /** The record separator ending every JSON hub protocol message. */
 const RS = '\x1e';
@@ -138,29 +136,26 @@ describe('SignalRService over the SignalR wire protocol', () => {
       // The service's own URL and options, over the fake server and the one transport it offers.
       return withUrl.call(this, url, { ...options, httpClient: hub, transport: HttpTransportType.LongPolling });
     } as typeof HubConnectionBuilder.prototype.withUrl);
-    // The service's and the client's logging (the first, effect-driven restart logs an aborted negotiation).
+    // The service's and the client's logging.
     spyOn(console, 'log');
     spyOn(console, 'info');
     spyOn(console, 'error');
 
-    TestBed.configureTestingModule({
-      providers: [{ provide: AccountService, useValue: { accessToken: signal<string | undefined>('token-1') } }]
-    });
     service = TestBed.inject(SignalRService);
-    // The access-token effect's first run restarts the connection; let it, before waiting for the one that stays.
-    TestBed.tick();
   });
 
   afterEach(async () => {
     await service.hubConnection.stop();
   });
 
-  it('negotiates with the access token, completes the JSON handshake and connects', async () => {
+  it('negotiates with the session cookie alone (no token), completes the JSON handshake and connects', async () => {
     await waitFor(() => service.hubConnection.state === HubConnectionState.Connected && hub.latestHandshaken, 'the connection');
 
     expect(hub.negotiations.length).toBeGreaterThan(0);
     for (const negotiation of hub.negotiations) {
-      expect(negotiation.headers?.['Authorization']).toBe('Bearer token-1');
+      expect(negotiation.headers?.['Authorization']).toBeUndefined();
+      // Cookies go along (same origin)
+      expect(negotiation.withCredentials).not.toBe(false);
     }
     expect(hub.handshakes).toContain({ protocol: 'json', version: 1 });
   });

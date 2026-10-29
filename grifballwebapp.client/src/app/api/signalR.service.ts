@@ -1,7 +1,8 @@
-import { Injectable, effect, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
-import { AccountService } from '../account.service';
+import { AuthSession } from '../authSession.service';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
@@ -10,30 +11,29 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
   providedIn: 'root'
 })
 export class SignalRService {
+  /**
+   * The Teams hub. The browser's session cookie goes with the connection (same origin), so the hub
+   * knows the user. Only in the browser: a page rendered on the server has no connection, and its
+   * handlers are registered on one that is never started.
+   */
+  public hubConnection: HubConnection = new HubConnectionBuilder()
+    .withUrl(isPlatformBrowser(inject(PLATFORM_ID)) ? 'hub/TeamsHub' : 'http://localhost/hub/TeamsHub')
+    .withAutomaticReconnect()
+    .build();
+
   constructor() {
-    const accountService = inject(AccountService);
+    if (!isPlatformBrowser(inject(PLATFORM_ID)))
+      return;
 
-    this.hubConnection = new HubConnectionBuilder()
-      .withUrl('hub/TeamsHub', {
-        accessTokenFactory: () => accountService.accessToken() ?? ""
-      })
-      .withAutomaticReconnect()
-      .build();
-
-    console.log('starting connection');
     this.startConnection();
-    console.log('finished connection');
 
-    effect(() => {
-      const accessToken = accountService.accessToken();
-      console.log("SignalR servie access token change");
+    // The connection's user is fixed when it connects: connect again as whoever signed in (or out).
+    inject(AuthSession).changed$.subscribe(() => {
       this.hubConnection.stop()
         .then(() => this.startConnection())
         .catch(err => console.log('Error while trying to restart the connection: ' + err));
     });
   }
-
-  public hubConnection: HubConnection;
 
   private startConnection = () => {
     this.hubConnection

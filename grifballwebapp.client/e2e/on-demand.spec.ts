@@ -1,17 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { META, mockResponse, type Role } from './mockApi.mts';
+import { mockResponse, signIn, type Role } from './mockApi.mts';
 
 // Code that is no longer in the app's first download but loaded when it is first needed: the theme
 // dialog, the snack bar (with its default 5 s duration) and the date-time pickers with their Luxon
 // adapter. Each must still work as before. The backend is mocked (e2e/mockApi.mts).
 
 async function mockBackend(page: Page, role: Role): Promise<void> {
-  if (role !== 'anon') {
-    await page.addInitScript(meta => {
-      localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-      localStorage.setItem('metaInfo', JSON.stringify(meta));
-    }, META[role]);
-  }
+  await signIn(page.context(), role);
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', route => {
