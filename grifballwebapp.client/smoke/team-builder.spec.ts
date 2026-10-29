@@ -33,6 +33,9 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
 }
 
 async function openTeamBuilder(page: Page, league: League): Promise<void> {
+  // Changes reach the other browser over the Teams hub: one made before its connection is up is
+  // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
+  const connected = page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
   await page.goto(`/season/${league.seasonID}/teams`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
@@ -40,6 +43,7 @@ async function openTeamBuilder(page: Page, league: League): Promise<void> {
   await expect(page.getByRole('button', { name: 'Lock Captains' })).toBeVisible(); // i.e. unlocked
   // The server drew the board too; drags only work once the app has drawn it again.
   await hydrated(page);
+  await connected;
 }
 
 test.describe('team builder', () => {
