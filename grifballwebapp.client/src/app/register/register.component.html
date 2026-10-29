@@ -1,4 +1,9 @@
-<h2>Register</h2>
+<div class="hud-page hud-page--narrow">
+<section class="hud-panel hud-panel--chamfer-lg hud-section" aria-labelledby="register-title">
+<div class="hud-page-head">
+  <span class="hud-kicker">&gt; Enlist</span>
+  <h1 id="register-title" class="hud-title hud-title--md">Register</h1>
+</div>
 
 <form class="example-form" #registerForm="ngForm" (ngSubmit)="onSubmit()"
       matchFields [field1]="registerForm.controls['password']" [field2]="registerForm.controls['confirmPassword']">
@@ -43,3 +48,6 @@
 <button mat-flat-button color="primary" [routerLink]="['/login']">
   Login
 </button>
+
+</section>
+</div>

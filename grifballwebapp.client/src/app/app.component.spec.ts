@@ -7,7 +7,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 
-import { AppComponent } from './app.component';
+import { AppComponent, MENU_BUTTON_WIDTH } from './app.component';
 import { AccountService } from './account.service';
 import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
@@ -86,6 +86,7 @@ describe('AppComponent', () => {
 @Component({ selector: 'app-toolbar', template: '<ng-content />' })
 class StubToolbarComponent {
   readonly snav = input<unknown>();
+  readonly showMenu = input<boolean>();
 }
 
 describe('AppComponent behaviour', () => {
@@ -102,6 +103,9 @@ describe('AppComponent behaviour', () => {
   let mobileListeners: Map<string, Function>;
   let removedMobileListeners: Function[];
   let frames: FrameRequestCallback[];
+
+  /** The links this (logged out) user may see. */
+  const shown = () => component.navLinks().filter(n => n.show()).length;
 
   const resize = () => {
     resizeHandler!();
@@ -122,8 +126,11 @@ describe('AppComponent behaviour', () => {
       personID: signal(null),
       displayName: signal(null)
     };
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID']);
+    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'commitHash', 'commitDate']);
     api.getCurrentSeasonID.and.returnValue(of(0));
+    // The footer shows the build.
+    api.commitHash.and.returnValue(of(''));
+    api.commitDate.and.returnValue(of(null));
     theming = {
       neutral: signal('#111111'),
       neutralVariant: signal('#222222'),
@@ -248,7 +255,7 @@ describe('AppComponent behaviour', () => {
 
     // 250px toolbar, 100px links: two fit (100, 200), the third would need 300.
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
-    expect(component.overflowNavLinks().length).toBe(component.navLinks().length - 2);
+    expect(component.overflowNavLinks().length).toBe(shown() - 2);
   });
 
   it('renders the visible links in the toolbar and all permitted links in the sidenav', () => {
@@ -263,7 +270,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     expect(component.visibleNavLinks()).toEqual([]);
-    expect(component.overflowNavLinks().length).toBe(component.navLinks().length);
+    expect(component.overflowNavLinks().length).toBe(shown());
   });
 
   it('recomputes the layout when the window is resized', () => {
@@ -272,7 +279,7 @@ describe('AppComponent behaviour', () => {
     expect(resizeHandler).toBeDefined();
     resize();
 
-    expect(component.visibleNavLinks().length).toBe(component.navLinks().length);
+    expect(component.visibleNavLinks().length).toBe(shown());
     expect(component.overflowNavLinks()).toEqual([]);
   });
 
@@ -282,7 +289,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     expect(err).toHaveBeenCalledWith('Hidden link element not found!');
-    expect(component.visibleNavLinks().length).toBe(component.navLinks().length);
+    expect(component.visibleNavLinks().length).toBe(shown());
   });
 
   it('renders a Current Season link that arrives after the first render without a manual detectChanges', async () => {
@@ -323,7 +330,7 @@ describe('AppComponent behaviour', () => {
     resize();
 
     expect(component.visibleNavLinks()).toEqual([]);
-    expect(component.overflowNavLinks().length).toBe(component.navLinks().length);
+    expect(component.overflowNavLinks().length).toBe(shown());
   });
 
   it('lays out the links from measured widths without touching the DOM while computing', () => {
@@ -348,7 +355,7 @@ describe('AppComponent behaviour', () => {
     expect(component.visibleNavLinks().length).toBe(2); // not measured yet
 
     frames.splice(0).forEach(frame => frame(0));
-    expect(component.visibleNavLinks().length).toBe(component.navLinks().length);
+    expect(component.visibleNavLinks().length).toBe(shown());
   });
 
   it('re-measures when the mobile breakpoint is crossed, and stops listening once destroyed', () => {
@@ -372,5 +379,65 @@ describe('AppComponent behaviour', () => {
     fixture.destroy();
 
     expect(remove).toHaveBeenCalledWith('resize', resizeHandler!);
+  });
+
+  it('needs no menu button when every link fits', () => {
+    toolbarWidth = 10000;
+    fixture.detectChanges();
+    expect(component.overflowNavLinks()).toEqual([]);
+    expect(component.showMenu()).toBeFalse();
+  });
+
+  it('leaves room for the menu button once some links overflow', () => {
+    // The bar is measured as rendered, with the menu button (all links overflow before the first
+    // measurement): 252px plus the button is 300px, too narrow for three 100px links (each must fit
+    // strictly), so the button stays and two links fit next to it.
+    toolbarWidth = 300 - MENU_BUTTON_WIDTH;
+    fixture.detectChanges();
+    expect(component.showMenu()).toBeTrue();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+
+    // Measured again: the same layout, it does not flip back and forth.
+    resize();
+    expect(component.showMenu()).toBeTrue();
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+  });
+
+  it('gives links hidden from this user no room in the bar', () => {
+    toolbarWidth = 350;
+    fixture.detectChanges();
+    // Home, Late League and Login fit; the organizer and admin links are neither shown nor counted.
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League', 'Login']);
+    expect(component.overflowNavLinks()).toEqual([]);
+  });
+
+  it('puts the Current Season link right after Home', () => {
+    api.getCurrentSeasonID.and.returnValue(of(4));
+    fixture.detectChanges();
+    expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Late League']);
+  });
+
+  it('measures again once the web fonts have loaded', async () => {
+    fixture.detectChanges();
+    expect(component.visibleNavLinks().length).toBe(2);
+    toolbarWidth = 10000;
+    await document.fonts.ready;
+    await Promise.resolve();
+    expect(component.visibleNavLinks().length).toBe(shown());
+  });
+
+  it('does not measure after being destroyed, even when the fonts load later', async () => {
+    fixture.detectChanges();
+    fixture.destroy();
+    toolbarWidth = 10000;
+    await document.fonts.ready;
+    await Promise.resolve();
+    expect(component.visibleNavLinks().length).toBe(2);
+  });
+
+  it('still lays out the links where the browser has no font loading API', () => {
+    spyOnProperty(document, 'fonts', 'get').and.returnValue(undefined as unknown as FontFaceSet);
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(component.visibleNavLinks().length).toBe(2);
   });
 });

@@ -1,4 +1,10 @@
-<h1>Player Grades</h1>
+<div class="hud-page">
+<div class="hud-page-head">
+  <span class="hud-kicker">&gt; Season stats</span>
+  <h1 class="hud-title">Player Grades</h1>
+</div>
+
+<app-season-tabs active="grades" />
 
 <!--<table mat-table [dataSource]="pm()" class="mat-elevation-z8">
   @for (column of pmColumns; track column) {
@@ -15,7 +21,8 @@
   <tr mat-row *matRowDef="let row; columns: pmDisplayedColumns;"></tr>
 </table>-->
 
-<table mat-table [dataSource]="letters()" class="mat-elevation-z8">
+<div class="hud-table-wrap">
+<table mat-table [dataSource]="letters()">
   @for (column of letterColumns; track column) {
   <ng-container [matColumnDef]="column.columnDef">
     <th mat-header-cell *matHeaderCellDef>
@@ -29,3 +36,6 @@
   <tr mat-header-row *matHeaderRowDef="letterDisplayedColumns"></tr>
   <tr mat-row *matRowDef="let row; columns: letterDisplayedColumns;"></tr>
 </table>
+</div>
+
+</div>

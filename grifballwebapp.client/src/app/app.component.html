@@ -1,52 +1,49 @@
 <div class="app-container">
+  <a class="skip-link" href="#main">Skip to content</a>
 
-  <app-toolbar [snav]="snav">
-    <div class="toolbar-links w-full mx-3 flex">
-      <a mat-button [routerLink]="'/'" style="visibility: hidden; position: absolute;"  id="hidden">
+  <app-toolbar [snav]="snav" [showMenu]="showMenu()">
+    <div class="toolbar-links">
+      <a class="nav-link" [routerLink]="'/'" style="visibility: hidden; position: absolute;" id="hidden" aria-hidden="true" tabindex="-1">
         Hidden
       </a>
       @for (nav of visibleNavLinks(); track nav) {
         @if (nav.show()) {
-          <a mat-button [routerLink]="nav.path" class="">
+          <a class="nav-link" [routerLink]="nav.path" routerLinkActive="nav-link--active"
+             [routerLinkActiveOptions]="{ exact: nav.path === '' }" ariaCurrentWhenActive="page">
             {{nav.title}}
           </a>
         }
       }
-      <!-- <mat-menu #overflowMenu="matMenu">
-        @for (nav of overflowNavLinks(); track nav) {
-          @if (nav.show()) {
-            <button mat-menu-item [routerLink]="nav.path">
-              {{ nav.title }}
-            </button>
-          }
-        }
-      </mat-menu>
-      @if (overflowNavLinks().length > 0) {
-        <button mat-icon-button [matMenuTriggerFor]="overflowMenu">
-          <mat-icon>more_vert</mat-icon>
-        </button>
-      } -->
     </div>
   </app-toolbar>
 
   <mat-sidenav-container class="app-sidenav-container">
 
-    <mat-sidenav #snav [mode]="'over'">
-      @for (nav of navLinks(); track nav) {
-        @if (nav.show()) {
-          <mat-nav-list>
-            <a mat-list-item [routerLink]="nav.path" (click)="snav.toggle(false)">
+    <mat-sidenav #snav [mode]="'over'" class="app-drawer">
+      <div class="app-drawer__head">
+        <span class="hud-label hud-label--accent">&gt; Navigation</span>
+        <button mat-icon-button (click)="snav.close()" aria-label="Close menu">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <mat-nav-list>
+        @for (nav of navLinks(); track nav) {
+          @if (nav.show()) {
+            <a mat-list-item [routerLink]="nav.path" routerLinkActive="app-drawer__link--active"
+               [routerLinkActiveOptions]="{ exact: nav.path === '' }" ariaCurrentWhenActive="page"
+               (click)="snav.toggle(false)">
               {{ nav.title }}
             </a>
-          </mat-nav-list>
+          }
         }
-      }
+      </mat-nav-list>
     </mat-sidenav>
 
-    <mat-sidenav-content class="bg-linear-to-r/srgb from-secondary-10 to-tertiary-10 p-4">
-      <section>
+    <mat-sidenav-content class="app-content">
+      <main id="main" tabindex="-1">
         <router-outlet />
-      </section>
+      </main>
+      <app-site-footer />
     </mat-sidenav-content>
 
   </mat-sidenav-container>

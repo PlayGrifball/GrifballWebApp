@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { PaletteComponent } from './palette/palette.component';
 import { MatFormField, MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -34,6 +34,15 @@ export class ThemeComponent implements OnInit {
     })
   }
 
-  fonts: string[] = ['Roboto', 'sans-serif'];
+  fonts: string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
+  /** Counts resets: the palette editors are rebuilt on each one. */
+  readonly resets = signal(0);
+
+  /** Back to the Spartan HUD colours and font. */
+  reset(): void {
+    this.themingService.reset();
+    this.font.setValue(this.themingService.font(), { emitEvent: false });
+    this.resets.update(n => n + 1);
+  }
   font!: FormControl<string>;
 }

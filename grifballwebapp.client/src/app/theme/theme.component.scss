@@ -1,3 +1,15 @@
 :host {
   display: block;
+  padding: 20px;
+  background: #0B1B2A;
+  border: 1px solid var(--hud-border);
+}
+
+.theme-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
 }

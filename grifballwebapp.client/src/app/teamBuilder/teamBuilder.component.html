@@ -1,12 +1,20 @@
+<div class="hud-page">
+<div class="hud-page-head">
+  <span class="hud-kicker">&gt; Draft board</span>
+  <h1 class="hud-title">Teams</h1>
+</div>
+
+<app-season-tabs active="teams" />
+
 @if (accountService.isEventOrganizer()) {
 <button mat-flat-button color="primary" (click)="lockCaptainsButtonClicked()">
   {{captainLocked() ? 'Unlock Captains' : 'Lock Captains'}}
 </button>
 }
 
-<p>{{statusText()}}</p>
+<p class="hud-label hud-label--accent" role="status">{{statusText()}}</p>
 
-<h3>Teams</h3>
+<h2 class="hud-h2">Teams</h2>
 
 <div (dndDrop)="onDropInTeam($event)"
      [dndDropzone]="['availablePlayer', 'team']"
@@ -56,7 +64,7 @@
 
 </div>
 
-<h3>Draft Pool</h3>
+<h2 class="hud-h2">Draft Pool</h2>
 
 <mat-list (dndDrop)="onDropInPool($event)"
           class="dndList flexList"
@@ -79,3 +87,5 @@
   </mat-list-item>
   }
 </mat-list>
+
+</div>

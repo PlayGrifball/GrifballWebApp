@@ -1,5 +1,8 @@
 :host {
   display: block;
+  overflow-x: auto;
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
 }
 
 .table-message {
@@ -7,8 +10,11 @@
   align-items: center;
   gap: 8px;
   padding: 16px;
+  color: var(--hud-muted);
 }
 
 .table-error {
   color: var(--mat-sys-error);
 }
+
+.mat-mdc-paginator { border-top: 1px solid var(--hud-hairline); }

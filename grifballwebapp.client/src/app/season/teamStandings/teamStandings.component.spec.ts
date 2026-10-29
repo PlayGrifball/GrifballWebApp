@@ -36,6 +36,7 @@ describe('TeamStandingsComponent', () => {
     fixture.detectChanges();
     http.expectNone(() => true);
     expect(rows()).toEqual([]);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No standings yet.');
   });
 
   it('renders one row per team', () => {
@@ -46,7 +47,12 @@ describe('TeamStandingsComponent', () => {
     ]);
     fixture.detectChanges();
 
-    expect(rows()).toEqual([['Alpha', '4', '1'], ['Bravo', '2', '3']]);
+    expect(rows()).toEqual([['1', 'Alpha', '4', '1'], ['2', 'Bravo', '2', '3']]);
+    // The leader is marked out.
+    const leaders = (fixture.nativeElement as HTMLElement).querySelectorAll('tr.standings__leader');
+    expect(leaders.length).toBe(1);
+    expect(leaders[0].textContent).toContain('Alpha');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
   });
 
   it('logs and leaves the table empty when the request fails', () => {
@@ -64,7 +70,7 @@ describe('TeamStandingsComponent', () => {
     http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
     await fixture.whenStable();
 
-    expect(rows()).toEqual([['Alpha', '4', '1']]);
+    expect(rows()).toEqual([['1', 'Alpha', '4', '1']]);
   });
 });
 

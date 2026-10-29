@@ -1,19 +1,38 @@
-@if (settingGamertag()) {
-<p>Please set your gamertag to assist with stat tracking</p>
-<form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
-  <mat-form-field class="app-full-width">
-    <mat-label>Gamertag</mat-label>
-    <input matInput required [(ngModel)]="gamertag" name="gamertag">
-    <app-error-message [control]="form.controls['gamertag']" />
-  </mat-form-field>
-  <button mat-flat-button color="primary" [disabled]="!form.form.valid">
-    Set Gamertag
-  </button>
-</form>
-} @else {
-<p>Gamertag: {{gamertag()}}</p>
-}
+<div class="hud-page profile">
 
-@if (accountService.personID() === userID) {
-<app-linked-accounts />
-}
+  <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
+    <span class="hud-kicker">&gt; Service record</span>
+    <div class="profile-emblem" aria-hidden="true">{{gamertag()?.charAt(0) ?? '?'}}</div>
+    <h1 id="profile-name" class="profile-name">{{gamertag() ?? 'Unknown Spartan'}}</h1>
+    <dl class="profile-facts">
+      <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
+      <div><dt class="hud-label">Service no.</dt><dd>{{userID}}</dd></div>
+    </dl>
+  </aside>
+
+  @if (accountService.personID() === userID) {
+  <div class="profile-main">
+    @if (settingGamertag()) {
+    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
+      <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
+      <p>Please set your gamertag to assist with stat tracking</p>
+      <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
+        <mat-form-field class="app-full-width">
+          <mat-label>Gamertag</mat-label>
+          <input matInput required [(ngModel)]="gamertag" name="gamertag">
+          <app-error-message [control]="form.controls['gamertag']" />
+        </mat-form-field>
+        <button mat-flat-button [disabled]="!form.form.valid">
+          Set Gamertag
+        </button>
+      </form>
+    </section>
+    }
+
+    <section class="hud-section hud-panel hud-panel--soft">
+      <app-linked-accounts />
+    </section>
+  </div>
+  }
+
+</div>

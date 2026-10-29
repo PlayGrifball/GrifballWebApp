@@ -1,183 +1,205 @@
-<mat-grid-list cols="3" rowHeight="40px" style="width: 600px; margin: auto">
-  <mat-grid-tile colspan="3"><h1 [routerLink]="['/season', seasonMatch()?.seasonID]">{{seasonMatch()?.seasonName}}</h1></mat-grid-tile>
-  @if (seasonMatch()?.homeTeamResult === 'Bye' && seasonMatch()?.homeTeamID == null) {
-    <mat-grid-tile>BYE</mat-grid-tile>
-  } @else {
-    <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.homeTeamID]">{{seasonMatch()?.homeTeamName}}</mat-grid-tile>
-  }
-  <mat-grid-tile>vs</mat-grid-tile>
-  @if (seasonMatch()?.awayTeamResult === 'Bye' && seasonMatch()?.awayTeamID == null) {
-    <mat-grid-tile>BYE</mat-grid-tile>
-  } @else {
-    <mat-grid-tile [routerLink]="['/season', seasonMatch()?.seasonID, 'team', seasonMatch()?.awayTeamID]">{{seasonMatch()?.awayTeamName}}</mat-grid-tile>
-  }
-  <mat-grid-tile>{{seasonMatch()?.homeTeamScore}}</mat-grid-tile>
-  <mat-grid-tile>-</mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch()?.awayTeamScore}}</mat-grid-tile>
-  <mat-grid-tile>{{seasonMatch()?.homeTeamResult}}</mat-grid-tile>
-  <mat-grid-tile />
-  <mat-grid-tile>{{seasonMatch()?.awayTeamResult}}</mat-grid-tile>
-  <mat-grid-tile colspan="3">Best of {{seasonMatch()?.bestOf}}</mat-grid-tile>
-  <mat-grid-tile colspan="3">Scheduled Date: {{ seasonMatch()?.scheduledTime | toDate | date:'short' }}</mat-grid-tile>
-</mat-grid-list>
+@let match = seasonMatch();
+<div class="hud-page">
 
-<h2>Bracket Info</h2>
-@if (seasonMatch()?.bracketInfo == null) {
-<p>Regular Season Match</p>
-} @else {
+  <div class="lobby-head">
+    <div class="hud-page-head">
+      <a class="hud-kicker lobby-head__season" [routerLink]="['/season', match?.seasonID]">&gt; {{match?.seasonName ?? 'Season'}} · {{match?.isPlayoff ? 'Playoffs' : 'Regular season'}}</a>
+      <h1 class="hud-title hud-title--md">{{isDecided() ? 'Match report' : 'Pre-game lobby'}}</h1>
+    </div>
+    <div class="hud-actions">
+      <!-- TODO: Can we lock down front end to captain or event organizer only?
+        Also this button should be disabled if the match has been completed.
+      -->
+      @if (!match?.activeRescheduleRequestId && (accountService.isPlayer() || accountService.isEventOrganizer())) {
+        <button class="hud-btn" [routerLink]="['/reschedule-request', seasonMatchID()]">Reschedule</button>
+      }
+    </div>
+  </div>
 
-  @if (seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID == null) {
-<div>Home Team Seed {{seasonMatch()?.bracketInfo?.homeTeamSeed}}</div>
-  } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.homeTeamPreviousMatchID]">Home Team Previous Match</a>
+  @if (match?.activeRescheduleRequestId) {
+    <div class="lobby-notice" role="status">
+      <span class="hud-label hud-label--gold">Reschedule requested</span>
+      <span>There is an active reschedule request for this match. Request ID: {{ match?.activeRescheduleRequestId }}</span>
+    </div>
   }
 
-  @if (seasonMatch()?.bracketInfo?.awayTeamPreviousMatchID == null) {
-<div>Away Team Seed {{seasonMatch()?.bracketInfo?.awayTeamSeed}}</div>
-  } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.awayTeamPreviousMatchID]">Away Team Previous Match</a>
-  }
-
-  @if (seasonMatch()?.bracketInfo?.winnerNextMatchID == null) {
-<div>Winner wins playoffs</div>
-  } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.winnerNextMatchID]">Winner Next Match</a>
-  }
-
-  @if (seasonMatch()?.bracketInfo?.loserNextMatchID == null) {
-<div>Loser is eliminated from playoffs</div>
-  } @else {
-<a class="block" [routerLink]="['/seasonmatch', seasonMatch()?.bracketInfo?.loserNextMatchID]">Loser Next Match</a>
-  }
-}
-
-<h2>Games Played</h2>
-
-@if (seasonMatch()?.reportedGames?.length === 0) {
-<p>There are no reported games for this season match</p>
-} @else {
-
-@for (match of seasonMatch()?.reportedGames; track match) {
-<p>Game {{match.matchNumber}} - {{match.matchID}}</p>
-}
-}
-
-@if (seasonMatch()?.activeRescheduleRequestId) {
-<div>
-  <mat-card color="warn" style="margin-bottom: 16px;">
-    <mat-card-content>
-      <strong>Reschedule Request Active:</strong>
-      There is an active reschedule request for this match.<br>
-      <span>Request ID: {{ seasonMatch()?.activeRescheduleRequestId }}</span>
-    </mat-card-content>
-  </mat-card>
-</div>
-} @else {
-  <!-- TODO: Can we lock down front end to captain or event organizer only?
-    Also this button should be disabled if the match has been completed. 
-  -->
-  @if (accountService.isPlayer() || accountService.isEventOrganizer()) {
-    <button mat-button [routerLink]="['/reschedule-request', seasonMatchID()]">Reschedule</button>
-  }
-}
-
-@if (accountService.isEventOrganizer()) {
-<h2>Report Game</h2>
-
-@if (actionError(); as error) {
-<p role="alert">{{error}}</p>
-}
-
-@if (pendingAction(); as action) {
-<p>{{actionPrompts[action]}}</p>
-
-<button mat-flat-button color="warn" (click)="confirmAction()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Confirm</button>
-
-<button mat-button (click)="cancelAction()">Cancel</button>
-} @else {
-@if (canUndo()) {
-<button mat-button (click)="requestAction('UndoResult')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Undo Result</button>
-}
-
-@if (seasonMatch()?.homeTeamResult !== 'TBD' || seasonMatch()?.awayTeamResult !== 'TBD') {
-<p>This match has been completed.</p>
-} @else {
-<!-- The grand final and its sudden death are never forfeited: the bracket ends there -->
-@if (!seasonMatch()?.bracketInfo?.isGrandFinal) {
-<h3>Forfeit</h3>
-
-<button mat-button (click)="requestAction('HomeForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Home Team Forfeit</button>
-
-<button mat-button (click)="requestAction('AwayForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Away Team Forfeit</button>
-
-<button mat-button (click)="requestAction('DoubleForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Both Teams Forfeit</button>
-}
-
-<h3>Enter Match ID</h3>
-
-<form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-  <mat-form-field class="app-full-width">
-    <mat-label>MatchID</mat-label>
-    <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
-    <app-error-message [control]="reportMatchForm.controls['MatchID']" />
-  </mat-form-field>
-
-  <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch() || !accountService.isEventOrganizer()">
-    Submit
-  </button>
-</form>
-}
-}
-
-<h3>Possible Matches</h3>
-
-@for (match of possibleMatches(); track match.matchID) {
-<mat-card style="margin: 6px">
-  <mat-card-header>
-    <mat-card-title>{{match.matchID}}: {{match.homeTeam.score}} - {{match.awayTeam.score}}</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    <div style="max-width: 50%; display: inline-block; margin: 6px">
-      <table mat-table [dataSource]="match.homeTeam.players" class="mat-elevation-z8">
-        @for (column of columns; track column) {
-        <ng-container [matColumnDef]="column.columnDef">
-          <th mat-header-cell *matHeaderCellDef>
-            {{column.header}}
-          </th>
-          <td mat-cell *matCellDef="let row">
-            {{column.cell(row)}}
-          </td>
-        </ng-container>
-        }
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
+  <section class="lobby" aria-label="Teams and score">
+    <div class="lobby-team lobby-team--home">
+      @if (match?.homeTeamResult === 'Bye' && match?.homeTeamID == null) {
+        <div class="lobby-team__banner"><span>BYE</span><span class="hud-label">Red</span></div>
+      } @else {
+        <a class="lobby-team__banner" [routerLink]="['/season', match?.seasonID, 'team', match?.homeTeamID]">
+          <span>{{match?.homeTeamName}}</span><span class="hud-label">Red</span>
+        </a>
+      }
+      @for (player of homeRoster(); track player.teamPlayerID) {
+        <div class="lobby-player">
+          <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
+          <span class="lobby-player__name">{{player.gamertag}}</span>
+          @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
+        </div>
+      }
     </div>
 
-    <div style="max-width: 50%; display: inline-block; margin: 6px">
-      <table mat-table [dataSource]="match.awayTeam.players" class="mat-elevation-z8">
-        @for (column of columns; track column) {
-        <ng-container [matColumnDef]="column.columnDef">
-          <th mat-header-cell *matHeaderCellDef>
-            {{column.header}}
-          </th>
-          <td mat-cell *matCellDef="let row">
-            {{column.cell(row)}}
-          </td>
-        </ng-container>
-        }
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
+    <div class="lobby-score hud-panel hud-panel--chamfer">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <rect x="4" y="3" width="12" height="7"></rect><path d="M10 10v11"></path><path d="M16 6.5h4"></path>
+      </svg>
+      <span class="lobby-score__mode">Grifball</span>
+      <span class="hud-label">Best of {{match?.bestOf}}</span>
+      <span class="lobby-score__value">
+        <span class="lobby-score__home">{{match?.homeTeamScore ?? '-'}}</span>
+        <span class="lobby-score__sep">:</span>
+        <span class="lobby-score__away">{{match?.awayTeamScore ?? '-'}}</span>
+      </span>
+      @if (isDecided()) {
+        <span class="lobby-score__results">
+          <span>{{match?.homeTeamResult}}</span><span>{{match?.awayTeamResult}}</span>
+        </span>
+      }
+      <span class="lobby-score__time">
+        @if (match?.scheduledTime) { Starts {{ match?.scheduledTime | toDate | date:'short' }} } @else { Not scheduled }
+      </span>
     </div>
-  </mat-card-content>
+
+    <div class="lobby-team lobby-team--away">
+      @if (match?.awayTeamResult === 'Bye' && match?.awayTeamID == null) {
+        <div class="lobby-team__banner"><span class="hud-label">Blue</span><span>BYE</span></div>
+      } @else {
+        <a class="lobby-team__banner" [routerLink]="['/season', match?.seasonID, 'team', match?.awayTeamID]">
+          <span class="hud-label">Blue</span><span>{{match?.awayTeamName}}</span>
+        </a>
+      }
+      @for (player of awayRoster(); track player.teamPlayerID) {
+        <div class="lobby-player">
+          @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
+          <span class="lobby-player__name">{{player.gamertag}}</span>
+          <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <div class="lobby-info">
+    <section class="hud-section" aria-labelledby="lobby-games">
+      <h2 id="lobby-games" class="hud-h2">Games played</h2>
+      @if (!match?.reportedGames?.length) {
+        <p class="hud-empty">There are no reported games for this season match</p>
+      } @else {
+        <ol class="lobby-games hud-well">
+          @for (game of match?.reportedGames; track game.matchID) {
+            <li><span class="hud-label">Game {{game.matchNumber}}</span> <span class="lobby-games__id">{{game.matchID}}</span></li>
+          }
+        </ol>
+      }
+    </section>
+
+    <section class="hud-section" aria-labelledby="lobby-bracket">
+      <h2 id="lobby-bracket" class="hud-h2">Bracket path</h2>
+      <div class="lobby-path hud-well">
+        @if (match?.bracketInfo == null) {
+        <p>Regular Season Match</p>
+        } @else {
+          @if (match.bracketInfo.homeTeamPreviousMatchID == null) {
+        <div>Home Team Seed {{match.bracketInfo.homeTeamSeed}}</div>
+          } @else {
+        <a class="block" [routerLink]="['/seasonmatch', match.bracketInfo.homeTeamPreviousMatchID]">Home Team Previous Match</a>
+          }
+          @if (match.bracketInfo.awayTeamPreviousMatchID == null) {
+        <div>Away Team Seed {{match.bracketInfo.awayTeamSeed}}</div>
+          } @else {
+        <a class="block" [routerLink]="['/seasonmatch', match.bracketInfo.awayTeamPreviousMatchID]">Away Team Previous Match</a>
+          }
+          @if (match.bracketInfo.winnerNextMatchID == null) {
+        <div>Winner wins playoffs</div>
+          } @else {
+        <a class="block" [routerLink]="['/seasonmatch', match.bracketInfo.winnerNextMatchID]">Winner Next Match</a>
+          }
+          @if (match.bracketInfo.loserNextMatchID == null) {
+        <div>Loser is eliminated from playoffs</div>
+          } @else {
+        <a class="block" [routerLink]="['/seasonmatch', match.bracketInfo.loserNextMatchID]">Loser Next Match</a>
+          }
+        }
+      </div>
+    </section>
+  </div>
 
   @if (accountService.isEventOrganizer()) {
-  <mat-card-actions>
-    <button mat-button (click)="onSubmit(match.matchID)" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">SUBMIT</button>
-    <!--<button mat-button [routerLink]="['/match', match?.matchID]">FULL DETAILS</button>-->
-  </mat-card-actions>
+  <section class="hud-section lobby-admin hud-panel hud-panel--soft" aria-labelledby="lobby-report">
+    <h2 id="lobby-report" class="hud-h2">Report Game</h2>
+    @if (actionError(); as error) {
+    <p role="alert" class="lobby-admin__error">{{error}}</p>
+    }
+    @if (pendingAction(); as action) {
+    <p>{{actionPrompts[action]}}</p>
+    <div class="hud-actions">
+      <button mat-flat-button (click)="confirmAction()" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Confirm</button>
+      <button mat-stroked-button (click)="cancelAction()">Cancel</button>
+    </div>
+    } @else {
+    @if (canUndo()) {
+    <div class="hud-actions">
+      <button mat-stroked-button (click)="requestAction('UndoResult')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Undo Result</button>
+    </div>
+    }
+    @if (match?.homeTeamResult !== 'TBD' || match?.awayTeamResult !== 'TBD') {
+    <p>This match has been completed.</p>
+    } @else {
+    <!-- The grand final and its sudden death are never forfeited: the bracket ends there -->
+    @if (!match?.bracketInfo?.isGrandFinal) {
+    <h3 class="hud-label">Forfeit</h3>
+    <div class="hud-actions">
+      <button mat-stroked-button (click)="requestAction('HomeForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Home Team Forfeit</button>
+      <button mat-stroked-button (click)="requestAction('AwayForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Away Team Forfeit</button>
+      <button mat-stroked-button (click)="requestAction('DoubleForfeit')" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">Both Teams Forfeit</button>
+    </div>
+    }
+    <h3 class="hud-label">Enter Match ID</h3>
+    <form class="app-form lobby-admin__form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
+      <mat-form-field class="app-full-width">
+        <mat-label>MatchID</mat-label>
+        <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
+        <app-error-message [control]="reportMatchForm.controls['MatchID']" />
+      </mat-form-field>
+      <button mat-flat-button [disabled]="!reportMatchForm.form.valid || isSubmittingMatch() || !accountService.isEventOrganizer()">
+        Submit
+      </button>
+    </form>
+    }
+    }
+    <h3 class="hud-label">Possible Matches</h3>
+    @for (possible of possibleMatches(); track possible.matchID) {
+    <div class="lobby-possible">
+      <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
+      <div class="lobby-possible__teams">
+        @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
+        <div class="hud-table-wrap">
+          <table mat-table [dataSource]="team.players">
+            @for (column of columns; track column) {
+            <ng-container [matColumnDef]="column.columnDef">
+              <th mat-header-cell *matHeaderCellDef [class.hud-num]="column.columnDef !== 'gamertag'">
+                {{column.header}}
+              </th>
+              <td mat-cell *matCellDef="let row" [class.hud-num]="column.columnDef !== 'gamertag'">
+                {{column.cell(row)}}
+              </td>
+            </ng-container>
+            }
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+        </div>
+        }
+      </div>
+      <div class="hud-actions">
+        <button mat-flat-button (click)="onSubmit(possible.matchID)" [disabled]="isSubmittingMatch() || !accountService.isEventOrganizer()">SUBMIT</button>
+      </div>
+    </div>
+    } @empty {
+    <p class="hud-muted">No games found for these teams yet.</p>
+    }
+  </section>
   }
-</mat-card>
-}
-}
+
+</div>

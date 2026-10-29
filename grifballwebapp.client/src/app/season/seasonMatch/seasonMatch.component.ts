@@ -3,7 +3,6 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
-import { MatGridListModule } from '@angular/material/grid-list';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,14 +11,13 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
-import { MatCardModule } from '@angular/material/card';
-import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
 import { map } from 'rxjs';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
+import { PlayerDto, TeamDto } from '../team/team.component';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -36,7 +34,6 @@ export const actionPrompts: Record<MatchAction, string> = {
     selector: 'app-season-match',
     imports: [
         CommonModule,
-        MatGridListModule,
         RouterModule,
         FormsModule,
         MatInputModule,
@@ -45,8 +42,6 @@ export const actionPrompts: Record<MatchAction, string> = {
         ErrorMessageComponent,
         RegexMatchValidValidatorDirective,
         MtxDatetimepickerModule,
-        MatCardModule,
-        MatListModule,
         MatTableModule,
         ToDatePipe,
     ],
@@ -76,6 +71,18 @@ export class SeasonMatchComponent {
       return false;
     return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
   });
+
+  /** A result is in (or a BYE decided the match). */
+  readonly isDecided = computed(() => {
+    const match = this.seasonMatch();
+    return match !== null && (match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD');
+  });
+
+  private readonly homeTeamID = computed(() => this.seasonMatch()?.homeTeamID ?? null);
+  private readonly awayTeamID = computed(() => this.seasonMatch()?.awayTeamID ?? null);
+  /** Each side's players, from its team page. Reloading the match page does not reload them. */
+  readonly homeRoster = signal<PlayerDto[]>([]);
+  readonly awayRoster = signal<PlayerDto[]>([]);
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
 
@@ -114,6 +121,19 @@ export class SeasonMatchComponent {
       this.getPageDto();
       this.getPossibleMatches();
     })
+    effect(() => this.loadRoster(this.homeTeamID(), this.homeRoster));
+    effect(() => this.loadRoster(this.awayTeamID(), this.awayRoster));
+  }
+
+  private loadRoster(teamID: number | null, roster: WritableSignal<PlayerDto[]>): void {
+    roster.set([]);
+    if (teamID === null)
+      return;
+    this.http.get<TeamDto | null>('/api/Team/Team/' + teamID)
+      .subscribe({
+        next: team => roster.set(team?.players ?? []),
+        error: () => roster.set([]),
+      });
   }
 
   getPageDto(): void {

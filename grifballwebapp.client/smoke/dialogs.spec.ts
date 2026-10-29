@@ -7,7 +7,7 @@ import { createLeague, teamName, type League } from './league';
 // closes the dialog before the request has finished.
 
 const isCall = (path: RegExp) => (r: { url(): string; request(): { method(): string } }) => path.test(r.url());
-const bracketLink = (page: Page, name: string) => page.locator('a', { hasText: name }); // <a> without href
+const bracketLink = (page: Page, name: string) => page.locator('app-playoff-bracket').getByRole('button', { name });
 const dialog = (page: Page) => page.locator('mat-dialog-container');
 
 async function createBracket(page: Page, thenEscape: boolean): Promise<void> {
@@ -32,7 +32,7 @@ test.describe('season page dialogs', () => {
   test.afterAll(async () => league?.close());
 
   test('Create Bracket: Esc right after submit still refreshes the bracket', async ({ adminPage: page }) => {
-    await page.goto(`/season/${league.seasonID}`);
+    await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(page.getByText('No bracket created')).toBeVisible();
 
     await createBracket(page, true);
@@ -44,7 +44,7 @@ test.describe('season page dialogs', () => {
   test('Set Seeds: submit closes and refreshes; Esc right after a second submit still refreshes', async ({ adminPage: page, admin }) => {
     const viewer = page.locator('.brackets-viewer');
     await admin.get(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
-    await page.goto(`/season/${league.seasonID}`);
+    await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(viewer).toContainText('Seed 1');
 
     // Normal submit.
@@ -78,11 +78,11 @@ test.describe('season page dialogs', () => {
   });
 
   test('Create Regular Season Matches: submit closes and refreshes; Esc right after submit refreshes once', async ({ adminPage: page }) => {
-    const unscheduled = page.locator('mat-card', { has: page.getByText('Unscheduled Matches') });
+    const unscheduled = page.locator('.sched-unscheduled');
     // Four teams, one home match against each other team: 12 matches.
-    const matches = unscheduled.locator('mat-card-content > div');
+    const matches = unscheduled.locator('.sched-match');
 
-    await page.goto(`/season/${league.seasonID}`);
+    await page.goto(`/season/${league.seasonID}?tab=schedule`);
     await expect(unscheduled).toBeVisible();
     await expect(matches).toHaveCount(0);
 

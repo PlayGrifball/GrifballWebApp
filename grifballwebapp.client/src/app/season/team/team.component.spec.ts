@@ -70,8 +70,8 @@ describe('TeamComponent', () => {
     expect(el().querySelector('h1')!.textContent).toBe('Red Team');
     expect(text).toContain('3 - 1');
     expect(text).toContain('2 matches need to be played');
-    expect(text).toMatch(/Captain Grif -\s+Captain/);
-    expect(text).toMatch(/Simmons -\s+R2/);
+    const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+    expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
   });
 
   it('hides the remaining-matches line when none are left', () => {
@@ -98,7 +98,7 @@ describe('TeamComponent', () => {
 
   it('shows a won playoff bye as a win against BYE, without a team link', () => {
     load(team, [match({ seasonMatchID: 5, score: null, otherScore: null, otherResult: 'Bye', otherTeamID: null, otherTeamName: null })]);
-    const urls = fixture.debugElement.queryAll(By.directive(RouterLink))
+    const urls = fixture.debugElement.query(By.css('table')).queryAll(By.directive(RouterLink))
       .map(d => d.injector.get(RouterLink).urlTree!.toString());
 
     expect(rows()[0].slice(0, 3)).toEqual(['BYE', 'N/A', 'Won']);
@@ -107,7 +107,7 @@ describe('TeamComponent', () => {
 
   it('links to the opposing team and the match page', () => {
     load(team, [match({ seasonMatchID: 99, otherTeamID: 20 })]);
-    const urls = fixture.debugElement.queryAll(By.directive(RouterLink))
+    const urls = fixture.debugElement.query(By.css('table')).queryAll(By.directive(RouterLink))
       .map(d => d.injector.get(RouterLink).urlTree!.toString());
 
     expect(urls).toEqual(['/season/2/team/20', '/seasonmatch/99']);

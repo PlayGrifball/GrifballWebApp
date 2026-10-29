@@ -52,7 +52,7 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
   });
 
   await page.goto(`/profile/${USER_ID}`);
-  await expect(page.getByText('Gamertag: Sgt Grif')).toBeVisible();
+  await expect(page.locator('h1')).toHaveText('Sgt Grif');
   await expect(page.getByRole('heading', { name: 'Linked accounts' })).toBeVisible();
   return calls;
 }

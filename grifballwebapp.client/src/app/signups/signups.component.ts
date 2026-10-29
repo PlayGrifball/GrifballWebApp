@@ -4,12 +4,14 @@ import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
 import { ActivatedRoute } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
+import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 
 @Component({
     selector: 'app-signups',
     imports: [
         CommonModule,
         MatTableModule,
+        SeasonTabsComponent,
     ],
     templateUrl: './signups.component.html',
     styleUrl: './signups.component.scss',

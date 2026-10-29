@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, effect, input, signal, WritableSignal, inject } from '@angular/core';
-import { MatCard, MatCardContent, MatCardHeader } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { RouterModule } from '@angular/router';
@@ -10,13 +10,13 @@ import { map, Observable } from 'rxjs';
 import { fromApiDate } from '../../shared/apiDates';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
+import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 @Component({
     selector: 'app-team',
     imports: [
         CommonModule,
-        MatCard,
-        MatCardHeader,
-        MatCardContent,
+        MatButtonModule,
+        SeasonTabsComponent,
         MatTableModule,
         RouterModule,
         MatIcon,

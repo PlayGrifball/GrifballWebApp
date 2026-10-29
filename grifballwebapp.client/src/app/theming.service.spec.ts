@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ThemingService } from './theming.service';
+import { SPARTAN_HUD, ThemingService } from './theming.service';
 
 describe('ThemingService', () => {
   let service: ThemingService;
@@ -14,16 +14,17 @@ describe('ThemingService', () => {
   });
 
   it('should have default color values', () => {
-    expect(service.primary()).toBe('#f35700');
-    expect(service.secondary()).toBe('#8e0003');
-    expect(service.tertiary()).toBe('#000582');
-    expect(service.neutral()).toBe('#919093');
-    expect(service.neutralVariant()).toBe('#8E9098');
-    expect(service.error()).toBe('#FF5449');
+    // Spartan HUD
+    expect(service.primary()).toBe('#7CCBFF');
+    expect(service.secondary()).toBe('#2A5373');
+    expect(service.tertiary()).toBe('#FFD25E');
+    expect(service.neutral()).toBe('#5F7F96');
+    expect(service.neutralVariant()).toBe('#4F7391');
+    expect(service.error()).toBe('#E5484D');
   });
 
   it('should have default font value', () => {
-    expect(service.font()).toBe('Roboto');
+    expect(service.font()).toBe('Rajdhani');
   });
 
   it('should have default shadeApplied value', () => {
@@ -34,7 +35,21 @@ describe('ThemingService', () => {
 
   it('should have defined themes', () => {
     expect(service.definedThemes.length).toBeGreaterThan(0);
-    expect(service.definedThemes[0].name).toBe('Default');
+    expect(service.definedThemes[0]).toBe(SPARTAN_HUD);
+    expect(service.definedThemes[0].name).toBe('Spartan HUD');
+  });
+
+  it('resets the picker to the Spartan HUD colours and font', () => {
+    service.applyTheme(service.definedThemes[1]);
+    service.font.set('Roboto');
+    expect(service.primary()).toBe('#FFDE03');
+
+    service.reset();
+
+    expect(service.primary()).toBe(SPARTAN_HUD.primary);
+    expect(service.tertiary()).toBe(SPARTAN_HUD.tertiary);
+    expect(service.error()).toBe(SPARTAN_HUD.error);
+    expect(service.font()).toBe('Rajdhani');
   });
 
   it('should apply theme correctly', () => {

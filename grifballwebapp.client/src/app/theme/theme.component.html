@@ -1,3 +1,8 @@
+<div class="theme-head">
+  <h2 class="hud-h2">Theme</h2>
+  <button class="hud-btn" type="button" (click)="reset()">Reset to Spartan HUD</button>
+</div>
+
 <mat-form-field>
     <mat-label>Font</mat-label>
     <mat-select [formControl]="font" name="font">
@@ -7,9 +12,12 @@
     </mat-select>
 </mat-form-field>
 
+<!-- Re-created on a reset, so each editor starts again from the reset colour. -->
+@for (generation of [resets()]; track generation) {
 <app-palette paletteName="primary" />
 <app-palette paletteName="secondary" />
 <app-palette paletteName="tertiary" />
 <app-palette paletteName="neutral" />
 <app-palette paletteName="neutral-variant" />
 <app-palette paletteName="error" />
+}

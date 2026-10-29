@@ -25,17 +25,17 @@ test.describe('playoff bracket', () => {
     consoleErrors.allow(new RegExp(`status of 404.*${missing}`));
 
     const viewer = viewerData(page);
-    await page.goto(`/season/${missing}`);
+    await page.goto(`/season/${missing}?tab=bracket`);
     expect((await viewer).status()).toBe(404);
     await expect(page.getByText('No bracket created')).toBeVisible();
     await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   });
 
   test('creating a bracket shows unseeded "Seed N" slots, locked; seeding fills in the teams', async ({ adminPage: page, admin }) => {
-    await page.goto(`/season/${league.seasonID}`);
+    await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(page.getByText('No bracket created')).toBeVisible();
 
-    await page.locator('a', { hasText: 'Create Bracket' }).click(); // an <a> without href: no link role
+    await page.getByRole('button', { name: 'Create Bracket' }).click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.locator('input[name="participantsCount"]').fill('4');
     await dialog.getByRole('checkbox', { name: 'Double Elimination' }).uncheck();

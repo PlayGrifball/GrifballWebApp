@@ -4,7 +4,8 @@
   Create New Season
 </button>
 
-<table mat-table [dataSource]="seasons()" class="mat-elevation-z8">
+<div class="hud-table-wrap">
+<table mat-table [dataSource]="seasons()">
 
   <!--- Note that these columns can be defined in any order.
         The actual rendered columns are set as a property on the row definition" -->
@@ -61,3 +62,4 @@
   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
   <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 </table>
+</div>

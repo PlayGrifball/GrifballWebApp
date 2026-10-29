@@ -1,7 +1,65 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.strike {
-  text-decoration: line-through;
+.sched-weeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
 }
+
+.sched-week {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
+}
+
+.sched-week__title {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hud-hairline);
+  font-family: var(--hud-font-mono);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--hud-muted);
+}
+
+.sched-match {
+  border-top: 1px solid var(--hud-hairline);
+
+  &:first-of-type { border-top: 0; }
+}
+
+.sched-match__link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
+
+  &:hover { background: var(--hud-accent-tint); }
+}
+
+.sched-match__teams {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--hud-heading);
+}
+
+// A played match: dimmed (the label says Final).
+.strike { color: var(--hud-muted); }
+
+.sched-match__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.sched-none { margin: 0; padding: 12px 16px; }

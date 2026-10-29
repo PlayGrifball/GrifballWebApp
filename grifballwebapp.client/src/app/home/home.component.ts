@@ -1,7 +1,7 @@
 import { animate, style, transition, trigger } from '@angular/animations';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Component, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, computed, OnInit, signal, viewChild, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort, MatSortModule, Sort, SortDirection } from '@angular/material/sort';
@@ -9,10 +9,12 @@ import { MatHeaderRow, MatRow, MatTable, MatTableDataSource, MatTableModule } fr
 import { RouterModule } from '@angular/router';
 import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
+import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
 
 @Component({
     selector: 'app-home',
     templateUrl: 'home.component.html',
+    styleUrl: 'home.component.scss',
     imports: [
         DatePipe,
         RouterModule,
@@ -40,8 +42,23 @@ export class HomeComponent implements OnInit {
   private http = inject(HttpClient);
 
 
+  private datePipe = new DatePipe('en-US');
+
   displayedColumns: string[] = ['name', 'start', 'end'];
+  readonly eventTitles = eventTitles;
+  readonly eventLink = eventLink;
+  /** When the page was opened: decides which events are under way. */
+  readonly now = signal(Date.now());
   currentAndFutureEvents: WritableSignal<Event[]> = signal([]);
+  /** The event the hero panel is about, with its status line and sentence; null without events. */
+  readonly hero = computed(() => {
+    const event = pickFeatured(this.currentAndFutureEvents(), this.now());
+    return event && {
+      event,
+      kicker: heroKicker(event, this.now()),
+      lede: heroLede(event, this.currentAndFutureEvents(), iso => this.datePipe.transform(iso, 'MMM d, h:mm a') ?? ''),
+    };
+  });
   total: WritableSignal<number> = signal(0);
   pastSeasons: MatTableDataSource<Event> = new MatTableDataSource<Event>([]);
   paginator = viewChild(MatPaginator);
@@ -89,6 +106,10 @@ export class HomeComponent implements OnInit {
       .subscribe()
   }
 
+  isActive(event: Event): boolean {
+    return isUnderWay(event, this.now());
+  }
+
   getCurrentAndFutureEvents(): Observable<Event[]> {
     return this.http.get<Event[]>('/api/Home/CurrentAndFutureEvents/');
   }
@@ -110,11 +131,50 @@ export class HomeComponent implements OnInit {
 
 }
 
-export interface Event
-{
-  seasonID: number,
-  name: string,
-  start: string,
-  end: string,
-  eventType: 'Signup' | 'Draft' | 'Season'
+/** A current, future or past season event (see shared/seasonEvents.ts). */
+export type Event = SeasonEvent;
+
+/**
+ * The event to feature on the home page: one under way if any (signups first, as they need
+ * players to act, then the draft, then the season), otherwise the next one to start.
+ */
+export function pickFeatured(events: Event[], now: number): Event | null {
+  const priority: Event['eventType'][] = ['Signup', 'Draft', 'Season'];
+  const underWay = events.filter(e => isUnderWay(e, now))
+    .sort((a, b) => priority.indexOf(a.eventType) - priority.indexOf(b.eventType));
+  if (underWay.length > 0)
+    return underWay[0];
+  const upcoming = [...events].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  return upcoming[0] ?? null;
+}
+
+/** The hero's status line for the featured event. */
+export function heroKicker(event: Event, now: number): string {
+  const active = isUnderWay(event, now);
+  switch (event.eventType) {
+    case 'Signup': return active ? 'Signups online' : 'Signups incoming';
+    case 'Draft': return active ? 'Draft in progress' : 'Draft incoming';
+    default: return active ? 'Season live' : 'Season incoming';
+  }
+}
+
+/** The hero's sentence; for signups it also gives the draft date when that is known. */
+export function heroLede(event: Event, events: Event[], format: (iso: string) => string): string {
+  switch (event.eventType) {
+    case 'Signup': {
+      const draft = events.find(e => e.seasonID === event.seasonID && e.eventType === 'Draft');
+      return `Signups close ${format(event.end)}.` + (draft ? ` Captains draft on ${format(draft.start)}.` : '') + ' Pick up a hammer.';
+    }
+    case 'Draft': return `The draft starts ${format(event.start)} and runs until all picks are made.`;
+    default: return `The season runs from ${format(event.start)} to ${format(event.end)}.`;
+  }
+}
+
+/** Where an event's card leads. */
+export function eventLink(event: Event): (string | number)[] {
+  switch (event.eventType) {
+    case 'Signup': return ['/season', event.seasonID, 'signups'];
+    case 'Draft': return ['/season', event.seasonID, 'teams'];
+    default: return ['/season', event.seasonID];
+  }
 }

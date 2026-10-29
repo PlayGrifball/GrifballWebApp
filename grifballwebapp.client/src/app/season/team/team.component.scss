@@ -1,3 +1,42 @@
 :host {
   display: block;
 }
+
+.team-kicker:hover { color: var(--hud-heading); }
+
+.team-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.team-side { flex: 1 1 300px; }
+.team-matches { flex: 3 1 520px; }
+
+.team-record {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.team-record__value {
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--hud-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.team-player {
+  padding: 8px 14px;
+  background: var(--hud-panel-soft);
+  border: 1px solid var(--hud-hairline);
+  border-left: 3px solid var(--hud-accent);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.team-player__name { flex-grow: 1; font-weight: 600; overflow-wrap: anywhere; }

@@ -123,8 +123,8 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   it('shows the regular season text, no bracket links and no date before the page loads', () => {
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
-    expect(text()).toContain('Scheduled Date:');
-    expect(text()).not.toContain('Scheduled Date: 1');
+    expect(text()).toContain('Not scheduled');
+    expect(text()).not.toContain('Starts');
   });
 
   it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
@@ -144,8 +144,8 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   });
 
   function teamTiles(): { text: string, linked: boolean }[] {
-    return fixture.debugElement.queryAll(By.css('mat-grid-tile'))
-      .map(d => ({ text: (d.nativeElement as HTMLElement).textContent?.trim() ?? '', linked: d.injector.get(RouterLink, null, { self: true }) !== null }))
+    return fixture.debugElement.queryAll(By.css('.lobby-team__banner'))
+      .map(d => ({ text: (d.nativeElement as HTMLElement).querySelector('span:not(.hud-label)')?.textContent?.trim() ?? '', linked: d.injector.get(RouterLink, null, { self: true }) !== null }))
       .filter(t => t.text === 'Home' || t.text === 'Away' || t.text === 'BYE');
   }
 
@@ -204,7 +204,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     load(page({ scheduledTime: '2026-01-02T03:04:00Z' as unknown as SeasonMatchPageDto['scheduledTime'] }));
 
     expect(fixture.componentInstance.seasonMatch()!.scheduledTime instanceof DateTime).toBeTrue();
-    expect(text()).toContain('Scheduled Date: ' + new DatePipe('en-US').transform('2026-01-02T03:04:00Z', 'short'));
+    expect(text()).toContain('Starts ' + new DatePipe('en-US').transform('2026-01-02T03:04:00Z', 'short'));
   });
 });
 
@@ -265,6 +265,9 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(matches);
     fixture.detectChanges();
+    // The rosters are not under test here.
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
   }
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -273,8 +276,8 @@ describe('SeasonMatchComponent reporting', () => {
 
   it('lists reported games', () => {
     load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }] }));
-    expect(text()).toContain('Game 1 - g-1');
-    expect(text()).toContain('Game 2 - g-2');
+    const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
+    expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
     expect(text()).not.toContain('There are no reported games');
   });
 
@@ -471,5 +474,99 @@ describe('SeasonMatchComponent reporting', () => {
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(submit.disabled).toBeFalse();
+  });
+});
+
+describe('SeasonMatchComponent lobby', () => {
+  let fixture: ComponentFixture<SeasonMatchComponent>;
+  let httpMock: HttpTestingController;
+
+  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
+    seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
+    homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
+    awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
+    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null,
+    ...overrides
+  });
+  const team = (name: string, captain: string, player: string) => ({
+    teamName: name, wins: 0, losses: 0, tbd: 0,
+    players: [
+      { teamPlayerID: 1, userID: 1, gamertag: captain, draftCaptainOrder: 1, draftRound: null },
+      { teamPlayerID: 2, userID: 2, gamertag: player, draftCaptainOrder: null, draftRound: 1 },
+    ],
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SeasonMatchComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AccountService, useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) } }
+      ]
+    }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(SeasonMatchComponent);
+    fixture.componentRef.setInput('seasonMatchID', 7);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => httpMock.verify());
+
+  function load(dto: SeasonMatchPageDto): void {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    fixture.detectChanges();
+  }
+  const el = () => fixture.nativeElement as HTMLElement;
+  const roster = (side: 'home' | 'away') => Array.from(el().querySelectorAll(`.lobby-team--${side} .lobby-player`))
+    .map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+
+  it("lists each side's players from its team, marking the captain", () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual(['G Grif Captain', 'S Simmons']);
+    expect(roster('away')).toEqual(['Captain Tucker T', 'Caboose C']);
+  });
+
+  it('does not reload the rosters when the match page is reloaded for the same teams', () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/Team/Team/20').flush(null);
+    fixture.componentInstance.finishedReportingMatch();
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
+    fixture.detectChanges();
+
+    httpMock.expectNone(r => r.url.startsWith('/api/Team/Team/'));
+    expect(roster('home').length).toBe(2);
+    expect(roster('away')).toEqual([]);
+  });
+
+  it('leaves a roster empty when it cannot be loaded, and has none for a BYE', () => {
+    load(page({ isPlayoff: true, awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye', homeTeamResult: 'Won' }));
+    httpMock.expectOne('/api/Team/Team/10').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectNone('/api/Team/Team/null');
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual([]);
+    expect(roster('away')).toEqual([]);
+  });
+
+  it('is a lobby until a result is in, then a match report with the score', () => {
+    load(page());
+    httpMock.match(() => true).forEach(r => r.flush(null));
+    expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
+    expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
+
+    fixture.componentInstance.seasonMatch.set(page({ homeTeamScore: 2, awayTeamScore: 1, homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    fixture.detectChanges();
+    expect(el().querySelector('h1')!.textContent).toBe('Match report');
+    expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
+    expect(el().querySelector('.lobby-score__results')!.textContent).toContain('Won');
+    expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
   });
 });

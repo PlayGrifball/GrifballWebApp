@@ -1,78 +1,90 @@
-<mat-card style="margin: 1em" appearance="raised">
-    <mat-card-header>
-        <h1>{{team()?.teamName}}</h1>
-    </mat-card-header>
-    <mat-card-content>
-        <div>{{team()?.wins}} - {{team()?.losses}}</div>
+<div class="hud-page">
 
-        @if (team()?.tbd != 0) {
-            <div>{{team()?.tbd}} matches need to be played</div>
-        }
-        
-        <mat-card style="margin: 1em; width: fit-content;" appearance="outlined">
-            <mat-card-header />
-            <mat-card-content>
-                @for (player of team()?.players; track player.teamPlayerID) {
-                    <div>
-                        {{player.gamertag}} - 
-                        @if (player.draftCaptainOrder != null) {
-                            Captain
-                        } @else {
-                            R{{player.draftRound}}
-                        }
-                    </div>
+    <div class="hud-page-head">
+        <a class="hud-kicker team-kicker" [routerLink]="['/season', seasonID()]">&gt; Team roster</a>
+        <h1 class="hud-title">{{team()?.teamName}}</h1>
+    </div>
+
+    <app-season-tabs [seasonID]="seasonID()" active="teams" />
+
+    <div class="team-layout">
+        <aside class="hud-section team-side">
+            <div class="team-record hud-panel hud-panel--chamfer">
+                <span class="hud-label">Record</span>
+                <span class="team-record__value">{{team()?.wins}} - {{team()?.losses}}</span>
+                @if (team()?.tbd != 0) {
+                    <span class="hud-label hud-label--gold">{{team()?.tbd}} matches need to be played</span>
                 }
-            </mat-card-content>
-        </mat-card>
-        
-        <table mat-table [dataSource]="matches">
-            <ng-container matColumnDef="otherTeam">
-                <th mat-header-cell *matHeaderCellDef> Opposing Team </th>
-                <td mat-cell *matCellDef="let row">
-                    @if (row.otherResult == 'Bye' && row.otherTeamID == undefined) {
-                        BYE
+            </div>
+
+            <h2 class="hud-h2">Roster</h2>
+            @for (player of team()?.players; track player.teamPlayerID) {
+                <div class="team-player">
+                    <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
+                    <span class="team-player__name">{{player.gamertag}}</span>
+                    @if (player.draftCaptainOrder != null) {
+                        <span class="hud-label hud-label--gold">Captain</span>
                     } @else {
-                        <span [routerLink]="['/season', seasonID(), 'team', row.otherTeamID]">{{row.otherTeamName}}</span>
+                        <span class="hud-label">R{{player.draftRound}}</span>
                     }
-                </td>
-            </ng-container>
+                </div>
+            }
+        </aside>
 
-            <ng-container matColumnDef="score">
-                <th mat-header-cell *matHeaderCellDef> Score </th>
-                <td mat-cell *matCellDef="let row">
-                    @if (row.result == undefined) {
-                        TBD
-                    }
-                    @else if (row.score == undefined && (row.result == 'Forfeit' || row.otherResult == 'Forfeit' || row.result == 'Bye' || row.otherResult == 'Bye')) {
-                        N/A
-                    }
-                    @else {
-                        {{row.score}} - {{row.otherScore}}
-                    }
-                </td>
-            </ng-container>
+        <section class="hud-section team-matches" aria-labelledby="team-matches">
+            <h2 id="team-matches" class="hud-h2">Matches</h2>
+            <div class="hud-table-wrap">
+                <table mat-table [dataSource]="matches">
+                    <ng-container matColumnDef="otherTeam">
+                        <th mat-header-cell *matHeaderCellDef> Opposing Team </th>
+                        <td mat-cell *matCellDef="let row">
+                            @if (row.otherResult == 'Bye' && row.otherTeamID == undefined) {
+                                BYE
+                            } @else {
+                                <a [routerLink]="['/season', seasonID(), 'team', row.otherTeamID]">{{row.otherTeamName}}</a>
+                            }
+                        </td>
+                    </ng-container>
 
-            <ng-container matColumnDef="result">
-                <th mat-header-cell *matHeaderCellDef> Result </th>
-                <td mat-cell *matCellDef="let row"> {{row.result ?? 'TBD'}} </td>
-            </ng-container>
+                    <ng-container matColumnDef="score">
+                        <th mat-header-cell *matHeaderCellDef> Score </th>
+                        <td mat-cell *matCellDef="let row">
+                            @if (row.result == undefined) {
+                                TBD
+                            }
+                            @else if (row.score == undefined && (row.result == 'Forfeit' || row.otherResult == 'Forfeit' || row.result == 'Bye' || row.otherResult == 'Bye')) {
+                                N/A
+                            }
+                            @else {
+                                {{row.score}} - {{row.otherScore}}
+                            }
+                        </td>
+                    </ng-container>
 
-            <ng-container matColumnDef="scheduledTime">
-                <th mat-header-cell *matHeaderCellDef> Scheduled Time </th>
-                <td mat-cell *matCellDef="let row"> {{row.scheduledTime | toDate | date: 'short'}} </td>
-            </ng-container>
+                    <ng-container matColumnDef="result">
+                        <th mat-header-cell *matHeaderCellDef> Result </th>
+                        <td mat-cell *matCellDef="let row" [class.hud-gold]="row.result == 'Won'"> {{row.result ?? 'TBD'}} </td>
+                    </ng-container>
 
-            <ng-container matColumnDef="matchPage">
-                <th mat-header-cell *matHeaderCellDef> Details </th>
-                <td mat-cell *matCellDef="let row">
-                    <button mat-fab [routerLink]="['/seasonmatch', row.seasonMatchID]">
-                        <mat-icon>link</mat-icon>
-                    </button>
-                </td>
-            </ng-container>
+                    <ng-container matColumnDef="scheduledTime">
+                        <th mat-header-cell *matHeaderCellDef> Scheduled Time </th>
+                        <td mat-cell *matCellDef="let row" class="hud-muted"> {{row.scheduledTime | toDate | date: 'short'}} </td>
+                    </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
-    </mat-card-content>
-</mat-card>
+                    <ng-container matColumnDef="matchPage">
+                        <th mat-header-cell *matHeaderCellDef> Details </th>
+                        <td mat-cell *matCellDef="let row">
+                            <a mat-icon-button [routerLink]="['/seasonmatch', row.seasonMatchID]" aria-label="Open match">
+                                <mat-icon>chevron_right</mat-icon>
+                            </a>
+                        </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                </table>
+            </div>
+        </section>
+    </div>
+
+</div>

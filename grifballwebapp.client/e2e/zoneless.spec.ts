@@ -58,7 +58,7 @@ test('home renders the events and past seasons that load after navigation', asyn
 
   await expect(page.getByText('The Spring season will run from')).toBeVisible();
   await expect(page.locator('tr.mat-mdc-row')).toHaveText([/Winter/]);
-  await expect(page.locator('mat-toolbar')).toContainText('e2ehash');
+  await expect(page.locator('app-site-footer')).toContainText('e2ehash');
 });
 
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
@@ -78,12 +78,16 @@ test('a season page reached by an in-app link renders the data it loads', async 
   });
 
   await page.goto('/');
-  await page.locator('tr.mat-mdc-row td', { hasText: 'Winter' }).click();
+  await page.locator('tr.mat-mdc-row').getByRole('link', { name: 'Winter' }).click();
 
   await expect(page).toHaveURL(/\/season\/3$/);
-  await expect(page.locator('h2')).toHaveText('Winter Season');
+  await expect(page.locator('h1')).toHaveText('Winter Season');
   await expect(page.locator('app-team-standings tr.mat-mdc-row')).toHaveText([/Alpha\s*4\s*1/]);
+  // The schedule and the bracket are tabs of the season page.
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+  await expect(page).toHaveURL(/\/season\/3\?tab=schedule$/);
   await expect(page.locator('app-schedule-list')).toContainText('Home Cap vs Away Cap');
+  await page.getByRole('link', { name: 'Bracket', exact: true }).click();
   await expect(page.locator('app-playoff-bracket')).toContainText('No bracket created');
 });
 
@@ -116,7 +120,7 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
     '/api/Brackets/GetViewerData': route => json(route, bracket),
   });
 
-  await page.goto('/season/3');
+  await page.goto('/season/3?tab=bracket');
 
   const viewer = page.locator('app-playoff-bracket .brackets-viewer');
   await expect(viewer.locator('.match')).toHaveCount(3);
@@ -165,7 +169,7 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
     '/api/Brackets/GetViewerData': route => json(route, bracket),
   });
 
-  await page.goto('/season/3');
+  await page.goto('/season/3?tab=bracket');
 
   const viewer = page.locator('app-playoff-bracket .brackets-viewer');
   // The component's locale names the winners and losers brackets after the stage.
@@ -330,12 +334,12 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
   expect(await checked(1)).toEqual([false, false]);
 
   // The day header ticks only its own row.
-  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await rows.nth(1).locator('td button', { hasText: 'Tuesday' }).click();
   await expect.poll(() => checked(1)).toEqual([true, true]);
   expect(await checked(0)).toEqual([true, true]);
 
   // Clicking it again clears that row only.
-  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await rows.nth(1).locator('td button', { hasText: 'Tuesday' }).click();
   await expect.poll(() => checked(1)).toEqual([false, false]);
 
   await boxes(1).nth(1).check(); // Tuesday 20:00

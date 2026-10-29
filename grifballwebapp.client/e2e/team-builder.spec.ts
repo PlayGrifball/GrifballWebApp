@@ -12,6 +12,10 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const SEASON_ID = 7;
 
+// The drag helper moves the raw mouse, which cannot scroll the app's inner scroll container:
+// keep the whole board (header, season tabs, teams and pool) on screen.
+test.use({ viewport: { width: 1280, height: 1200 } });
+
 interface Player { name: string; personID: number; pick: number | null; round: number | null }
 interface Team { teamID: number; teamName: string; captain: { name: string; personID: number; order: number }; players: Player[] }
 interface Call { path: string; body: unknown }

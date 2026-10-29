@@ -9,7 +9,20 @@ type Theme = {
   neutral: string;
   neutralVariant: string;
   error: string;
+  font?: string;
 };
+
+/** The default theme: the seed colours of the Spartan HUD design (see styles/_hud-tokens.scss). */
+export const SPARTAN_HUD = {
+  name: 'Spartan HUD',
+  primary: '#7CCBFF',
+  secondary: '#2A5373',
+  tertiary: '#FFD25E',
+  neutral: '#5F7F96',
+  neutralVariant: '#4F7391',
+  error: '#E5484D',
+  font: 'Rajdhani',
+} as const satisfies Theme;
 
 export type ShadeApplied = {
   name: string,
@@ -20,13 +33,15 @@ export type ShadeApplied = {
   providedIn: 'root',
 })
 export class ThemingService {
-  font = signal('Roboto');
-  primary = signal('#f35700');
-  secondary = signal('#8e0003');
-  tertiary = signal('#000582');
-  neutral = signal('#919093');
-  neutralVariant = signal('#8E9098');
-  error = signal('#FF5449');
+  // Spartan HUD is the default theme. The picker edits these seed colours: the accent
+  // (primary), gold (tertiary) and team red (error) of the HUD follow them, see styles/_hud-tokens.scss.
+  font = signal<string>(SPARTAN_HUD.font);
+  primary = signal<string>(SPARTAN_HUD.primary);
+  secondary = signal<string>(SPARTAN_HUD.secondary);
+  tertiary = signal<string>(SPARTAN_HUD.tertiary);
+  neutral = signal<string>(SPARTAN_HUD.neutral);
+  neutralVariant = signal<string>(SPARTAN_HUD.neutralVariant);
+  error = signal<string>(SPARTAN_HUD.error);
 
   shadeApplied = signal<ShadeApplied>({
     name: '',
@@ -37,8 +52,9 @@ export class ThemingService {
   }
 
   definedThemes: Theme[] = [
+    SPARTAN_HUD,
     {
-      name: 'Default',
+      name: 'Classic',
       primary: '#FFDE03',
       secondary: '#806f00',
       tertiary: '#A288A6',
@@ -48,8 +64,15 @@ export class ThemingService {
     },
   ];
 
+  /** Puts the picker back to the Spartan HUD colours and font. */
+  reset(): void {
+    this.applyTheme(SPARTAN_HUD);
+  }
+
   applyTheme(theme: Theme) {
-    const { primary, secondary, tertiary, neutral, neutralVariant, error } = theme;
+    const { primary, secondary, tertiary, neutral, neutralVariant, error, font } = theme;
+    if (font)
+      this.font.set(font);
     this.primary.set(primary);
     this.secondary.set(secondary);
     this.tertiary.set(tertiary);

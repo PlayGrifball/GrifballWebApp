@@ -23,7 +23,7 @@ export class TeamStandingsComponent implements OnInit {
 
   readonly teamStandings = signal<TeamStandingDto[]>([]);
 
-  displayedColumns: string[] = ['teamName', 'wins', 'losses'];
+  displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));

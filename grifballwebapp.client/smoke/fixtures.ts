@@ -50,8 +50,8 @@ export async function login(page: Page, user: Credentials): Promise<void> {
   await page.locator('input[name="username"]').fill(user.username);
   await page.locator('input[name="password"]').fill(user.password);
   await page.getByRole('button', { name: 'Submit' }).click();
-  // The toolbar greets the signed-in user once the MetaInfo round trip is done.
-  await expect(page.getByText(`Hello ${user.username}`).first()).toBeVisible();
+  // The toolbar shows the signed-in user once the MetaInfo round trip is done.
+  await expect(page.locator('a.hud-user')).toContainText(user.username);
 }
 
 /**
