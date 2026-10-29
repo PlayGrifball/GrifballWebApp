@@ -9,7 +9,10 @@
       <div class="hud-actions home-hero__actions">
         @switch (event.eventType) {
           @case ('Signup') {
+            <!-- Only while signups are open: before they open there is nothing to sign up for yet -->
+            @if (isActive(event)) {
             <a class="hud-btn hud-btn--primary" [routerLink]="['/season', event.seasonID, 'signupForm']">Sign up</a>
+            }
             <a class="hud-btn" [routerLink]="['/season', event.seasonID, 'signups']">View roster</a>
           }
           @case ('Draft') {

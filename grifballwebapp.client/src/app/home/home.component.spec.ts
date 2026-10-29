@@ -411,6 +411,18 @@ describe('Home page events', () => {
       expect(cards[2].textContent).toContain('Objective 03');
     });
 
+    it('offers Sign up only while the featured signups are open, not before they open', () => {
+      const upcoming = ev('Signup', '2026-03-15T00:00:00Z', '2026-03-20T00:00:00Z');
+      load([upcoming]);
+      expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups incoming');
+      const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim());
+      expect(actions).toEqual(['View roster']);
+
+      fixture.componentInstance.now.set(Date.parse('2026-03-16T00:00:00Z'));
+      fixture.detectChanges();
+      expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Sign up', 'View roster']);
+    });
+
     it('offers the draft or the season when that is the featured event', () => {
       load([draft]);
       expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);

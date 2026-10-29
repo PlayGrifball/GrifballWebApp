@@ -123,6 +123,11 @@ const commissionerDashboard = {
   summary: { pendingRescheduleCount: 1, overdueMatchCount: 1, criticalOverdueCount: 1 },
 };
 
+// The Winter Campaign's signups close on 10 November, or (the server that renders the pages goes by
+// the real clock, not MOCK_NOW) a month from now if that is later: open signups, with their Sign up
+// buttons, whenever the tests run.
+const signupsClose = new Date(Math.max(Date.parse('2026-11-10T23:59:00Z'), Date.now() + 30 * 24 * 3600 * 1000)).toISOString();
+
 const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Brawl', 13: 'Winter Campaign' };
 
 /** The mocked endpoints, by path (without the query string). */
@@ -135,7 +140,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/CommitDate': { text: '2026-10-28T21:14:00Z' },
     '/api/Season/getCurrentSeasonID/': 12,
     '/api/Home/CurrentAndFutureEvents/': [
-      { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: '2026-11-10T23:59:00Z', eventType: 'Signup' },
+      { seasonID: 13, name: 'Winter Campaign', start: '2026-10-20T00:00:00Z', end: signupsClose, eventType: 'Signup' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-14T19:00:00Z', end: '2026-11-14T23:00:00Z', eventType: 'Draft' },
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },

@@ -50,7 +50,7 @@ const PAGES: PageCase[] = [
   { name: 'home-signed-out', path: '/', role: 'anon', ready: 'tr.mat-mdc-row',
     parts: ['text:.home-hero h1', '.home-hero__actions a', 'a.hud-card'] },
   { name: 'season', path: '/season/12', role: 'player', ready: '.week-card',
-    parts: ['text:.season-head h1', '.season-head .hud-actions a', ...TABS, 'main h2', 'app-team-standings', '.week-card', '.hud-more'] },
+    parts: ['text:.season-head h1', ...TABS, 'main h2', 'app-team-standings', '.week-card', '.hud-more'] },
   { name: 'season-schedule', path: '/season/12?tab=schedule', role: 'player', ready: '.sched-match',
     parts: ['text:.season-head h1', ...TABS, '.sched-week'] },
   { name: 'season-bracket', path: '/season/12?tab=bracket', role: 'player', ready: '.brackets-viewer .match',

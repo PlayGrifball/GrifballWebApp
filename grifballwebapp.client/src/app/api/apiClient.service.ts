@@ -11,6 +11,7 @@ import { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from '
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
+import { SeasonEvent } from '../shared/seasonEvents';
 
 @Injectable({
   providedIn: 'root'
@@ -51,6 +52,11 @@ export class ApiClientService {
 
   getCurrentSeasonID(): Observable<number> {
     return this.http.get<number>('/api/Season/getCurrentSeasonID/');
+  }
+
+  /** Signups, drafts and seasons that have not ended yet (shared/seasonEvents.ts). */
+  getCurrentAndFutureEvents(): Observable<SeasonEvent[]> {
+    return this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/');
   }
 
   getSeasonName(seasonID: number): Observable<string | null> {

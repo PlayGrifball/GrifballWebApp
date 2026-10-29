@@ -1,13 +1,15 @@
-<div class="hud-page" [class.hud-waiting]="!nameLoaded()">
+<div class="hud-page" [class.hud-waiting]="!ready()">
 
   <div class="season-head">
     <div class="hud-page-head">
       <span class="hud-kicker">&gt; {{kicker()}}</span>
       <h1 class="hud-title">{{seasonName()}}</h1>
     </div>
+    @if (canSignUp()) {
     <div class="hud-actions">
       <a class="hud-btn" [routerLink]="['signupForm']">Sign up</a>
     </div>
+    }
   </div>
 
   <app-season-tabs [seasonID]="seasonID()" [active]="view()" />

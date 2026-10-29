@@ -127,6 +127,19 @@ describe('ApiClientService', () => {
     });
   });
 
+  describe('getCurrentAndFutureEvents', () => {
+    it('fetches the current and upcoming events', (done) => {
+      const events = [{ seasonID: 1, name: 'S', start: '2026-01-01T00:00:00Z', end: '2026-01-02T00:00:00Z', eventType: 'Signup' as const }];
+      service.getCurrentAndFutureEvents().subscribe(result => {
+        expect(result).toEqual(events);
+        done();
+      });
+      const req = httpTestingController.expectOne('/api/Home/CurrentAndFutureEvents/');
+      expect(req.request.method).toBe('GET');
+      req.flush(events);
+    });
+  });
+
   describe('getSeasonName', () => {
     it('should fetch season name', (done) => {
       service.getSeasonName(1).subscribe({

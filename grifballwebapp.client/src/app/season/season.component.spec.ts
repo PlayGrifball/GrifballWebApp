@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { By } from '@angular/platform-browser';
 import { SeasonComponent } from './season.component';
@@ -11,6 +11,7 @@ import { PlayoffBracketComponent } from './playoffBracket/playoffBracket.compone
 import { TeamStandingsComponent } from './teamStandings/teamStandings.component';
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
 import { input } from '@angular/core';
+import { SeasonEvent } from '../shared/seasonEvents';
 
 @Component({ selector: 'app-schedule-list', template: '' })
 class StubScheduleList {}
@@ -28,9 +29,10 @@ describe('SeasonComponent', () => {
 
   beforeEach(async () => {
     seasonID = '5';
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName']);
+    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName', 'getCurrentAndFutureEvents']);
     api.getSeasonName.and.callFake((id: number) => of(`Season ${id}`));
     api.getCurrentSeasonID.and.returnValue(of(8));
+    api.getCurrentAndFutureEvents.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [SeasonComponent],
@@ -120,6 +122,66 @@ describe('SeasonComponent', () => {
     expect(page().classList).not.toContain('hud-waiting');
   });
 
+  describe('Sign up', () => {
+    const day = 24 * 3600 * 1000;
+    const iso = (offset: number) => new Date(Date.now() + offset).toISOString();
+    const signup = (start: number, end: number, seasonID = 5): SeasonEvent =>
+      ({ seasonID, name: 'Season 5', start: iso(start), end: iso(end), eventType: 'Signup' });
+    const signUpLink = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.season-head a'))
+      .find(a => a.textContent!.trim() === 'Sign up');
+
+    it('is offered while the season\'s signups are open', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
+      fixture.detectChanges();
+      expect(signUpLink()).toBeDefined();
+    });
+
+    it('is not offered before signups open', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(of([signup(day, 2 * day)]));
+      fixture.detectChanges();
+      expect(signUpLink()).toBeUndefined();
+    });
+
+    it('is not offered once signups have closed', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-2 * day, -day)]));
+      fixture.detectChanges();
+      expect(signUpLink()).toBeUndefined();
+    });
+
+    it('is not offered without a signup window: none listed, another season\'s, or the events failing', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day, 6), { ...signup(-day, day), eventType: 'Season' }]));
+      fixture.detectChanges();
+      expect(signUpLink()).toBeUndefined();
+    });
+
+    it('is not offered when the events cannot be loaded, and the page still shows', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(throwError(() => new Error('down')));
+      fixture.detectChanges();
+      expect(signUpLink()).toBeUndefined();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+    });
+
+    it('keeps the page hidden until it is known whether to offer it', () => {
+      const events = new Subject<SeasonEvent[]>();
+      api.getCurrentAndFutureEvents.and.returnValue(events);
+      fixture.detectChanges();
+      const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
+      expect(page().classList).toContain('hud-waiting');
+      events.next([signup(-day, day)]);
+      fixture.detectChanges();
+      expect(page().classList).not.toContain('hud-waiting');
+      expect(signUpLink()).toBeDefined();
+    });
+
+    it('follows the clock: closing while the page is open takes it away', () => {
+      api.getCurrentAndFutureEvents.and.returnValue(of([signup(-day, day)]));
+      fixture.detectChanges();
+      fixture.componentInstance.now.set(Date.now() + 2 * day);
+      fixture.detectChanges();
+      expect(signUpLink()).toBeUndefined();
+    });
+  });
+
   it('falls back to the overview for an unknown tab', () => {
     fixture.componentRef.setInput('tab', 'nope');
     fixture.detectChanges();
@@ -129,8 +191,11 @@ describe('SeasonComponent', () => {
 
 describe('SeasonComponent links', () => {
   it('links to the sub-pages of the current season', async () => {
-    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName']);
+    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName', 'getCurrentAndFutureEvents']);
     api.getSeasonName.and.returnValue(of('Season 5'));
+    const day = 24 * 3600 * 1000;
+    api.getCurrentAndFutureEvents.and.returnValue(of([{ seasonID: 5, name: 'Season 5', eventType: 'Signup',
+      start: new Date(Date.now() - day).toISOString(), end: new Date(Date.now() + day).toISOString() }]));
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }]),

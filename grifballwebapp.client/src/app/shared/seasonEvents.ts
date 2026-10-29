@@ -17,3 +17,8 @@ export const eventTitles: Record<SeasonEvent['eventType'], string> = {
 export function isUnderWay(event: SeasonEvent, now: number): boolean {
   return Date.parse(event.start) <= now && now <= Date.parse(event.end);
 }
+
+/** Whether this season's signups are open at `now`: its Signup event has started and not ended. */
+export function signupsOpen(events: SeasonEvent[], seasonID: number, now: number): boolean {
+  return events.some(e => e.eventType === 'Signup' && e.seasonID === seasonID && isUnderWay(e, now));
+}

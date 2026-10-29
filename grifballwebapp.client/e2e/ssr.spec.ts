@@ -212,3 +212,19 @@ test('the build\'s files are compressed and kept for good; the page is checked o
   expect(main.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
   expect(main.headers()['content-encoding']).toBe('gzip');
 });
+
+// Sign up is offered only while a season's signups are open, the same in the page the server sends
+// and once the browser has taken it over: the Winter Campaign (13) has open signups in the mock
+// API, the Autumn Brawl (12) none.
+for (const [seasonID, offered] of [[13, true], [12, false]] as const) {
+  test(`/season/${seasonID} ${offered ? 'offers' : 'does not offer'} Sign up, on the server and in the browser`, async ({ page, request }) => {
+    const html = await (await request.get(SITE + '/season/' + seasonID)).text();
+    expect(/>\s*Sign up\s*</.test(html)).toBe(offered);
+
+    const { errors } = await watch(page);
+    await page.goto(SITE + '/season/' + seasonID);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.season-head').getByRole('link', { name: 'Sign up' })).toHaveCount(offered ? 1 : 0);
+    expect(errors.filter(e => /NG0\d|hydration/i.test(e))).toEqual([]);
+  });
+}

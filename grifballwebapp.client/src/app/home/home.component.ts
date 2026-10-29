@@ -10,6 +10,7 @@ import { RouterModule } from '@angular/router';
 import { combineLatest, Observable, of, switchMap, tap } from 'rxjs';
 import { PaginationResult } from '../shared/paginationResult';
 import { eventTitles, isUnderWay, SeasonEvent } from '../shared/seasonEvents';
+import { pageNow } from '../shared/pageNow';
 
 @Component({
     selector: 'app-home',
@@ -47,8 +48,9 @@ export class HomeComponent implements OnInit {
   displayedColumns: string[] = ['name', 'start', 'end'];
   readonly eventTitles = eventTitles;
   readonly eventLink = eventLink;
-  /** When the page was opened: decides which events are under way. */
-  readonly now = signal(Date.now());
+  /** When the page was opened (the server's time while the browser takes over its page, see
+   * pageNow): decides which events are under way, and so whether Sign up is offered. */
+  readonly now = pageNow();
   currentAndFutureEvents: WritableSignal<Event[]> = signal([]);
   /** The events have loaded (or failed to): the page is shown then, in one go. */
   readonly eventsLoaded = signal(false);
