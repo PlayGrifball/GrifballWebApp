@@ -6,7 +6,7 @@ namespace GrifballWebApp.Server;
 
 /// <summary>
 /// NetCord entry point for the slash commands: wraps the context and hands off to <see cref="DiscordCommandsHandler"/>
-/// and <see cref="DiscordSetGamertag"/>. Keep logic out of here, it is excluded from coverage (coverlet.runsettings).
+/// and <see cref="DiscordSetGamertag"/>. Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 public class DiscordCommands : ApplicationCommandModule<ApplicationCommandContext>
 {

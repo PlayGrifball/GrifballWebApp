@@ -5,7 +5,7 @@ namespace GrifballWebApp.Server.Matchmaking;
 
 /// <summary>
 /// NetCord entry point for the matchmaking string menus: wraps the context and hands off to <see cref="MatchmakingStringMenuHandler"/>.
-/// Keep logic out of here, it is excluded from coverage (coverlet.runsettings).
+/// Keep logic out of here, it is only tested end to end (DiscordTransportTests).
 /// </summary>
 public class StringMenuInteractions : ComponentInteractionModule<StringMenuInteractionContext>
 {

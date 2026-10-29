@@ -26,6 +26,12 @@ internal sealed class FakeRestRequestHandler : IRestRequestHandler
         get { lock (_requests) return _requests.ToList(); }
     }
 
+    /// <summary>Forget the requests recorded so far.</summary>
+    public void Clear()
+    {
+        lock (_requests) _requests.Clear();
+    }
+
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
         string? body = null;
