@@ -10,10 +10,16 @@ const title = process.argv[2] ?? 'Lighthouse';
 const categories = [['performance', 'Performance'], ['accessibility', 'Accessibility'], ['best-practices', 'Best practices'], ['seo', 'SEO']];
 
 const links = await readFile(join(dir, 'links.json'), 'utf8').then(JSON.parse, () => ({}));
-const reports = [];
+// Several runs of a page: the one with the median performance score, as lhci assert and upload use.
+const runs = new Map();
 for (const file of (await readdir(dir)).filter(f => /^lhr-.*\.json$/.test(f))) {
-  reports.push(JSON.parse(await readFile(join(dir, file), 'utf8')));
+  const lhr = JSON.parse(await readFile(join(dir, file), 'utf8'));
+  runs.set(lhr.requestedUrl, [...(runs.get(lhr.requestedUrl) ?? []), lhr]);
 }
+const reports = [...runs.values()].map(all => {
+  const sorted = all.sort((a, b) => (a.categories.performance?.score ?? 0) - (b.categories.performance?.score ?? 0));
+  return sorted[Math.floor(sorted.length / 2)];
+});
 reports.sort((a, b) => a.requestedUrl.localeCompare(b.requestedUrl));
 
 const score = (lhr, id) => {

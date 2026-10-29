@@ -313,9 +313,6 @@ jobs:
         lhci="npx --yes @lhci/cli@${{ env.LIGHTHOUSE_CI_VERSION }}"
         failed=0
         echo "### Lighthouse" > lighthouse.md
-        # The first Lighthouse run on a fresh runner is much slower (cold caches): one run to throw away
-        LIGHTHOUSE_PRESET=mobile $lhci collect --url="http://127.0.0.1:4300/" > /dev/null
-        rm -rf .lighthouseci
         for preset in mobile desktop; do
           LIGHTHOUSE_PRESET=$preset $lhci collect
           $lhci upload || echo "::warning::The $preset reports could not be uploaded"
