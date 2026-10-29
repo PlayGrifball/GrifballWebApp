@@ -17,7 +17,7 @@
       <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
       <p>Please set your gamertag to assist with stat tracking</p>
       <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
-        <mat-form-field class="app-full-width">
+        <mat-form-field appearance="outline" class="app-full-width">
           <mat-label>Gamertag</mat-label>
           <input matInput required [(ngModel)]="gamertag" name="gamertag">
           <app-error-message [control]="form.controls['gamertag']" />

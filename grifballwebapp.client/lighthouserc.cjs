@@ -6,6 +6,9 @@
 const port = Number(process.env.E2E_PORT ?? 4300);
 const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
 const base = `http://127.0.0.1:${port}`;
+// Performance must not drop below these on the CI runner (whose timings are noisy, so with some
+// margin below what it scores); e2e/lighthouse-summary.mjs warns below 90.
+const performanceFloor = desktop ? 0.85 : 0.55;
 
 module.exports = {
   ci: {
@@ -33,9 +36,8 @@ module.exports = {
       assertions: {
         'categories:accessibility': ['error', { minScore: 0.9 }],
         'categories:best-practices': ['error', { minScore: 0.9 }],
-        // CI runners are too noisy to fail on these
-        'categories:performance': ['warn', { minScore: 0.9 }],
-        'categories:seo': ['warn', { minScore: 0.9 }],
+        'categories:seo': ['error', { minScore: 0.9 }],
+        'categories:performance': ['error', { minScore: performanceFloor }],
       },
     },
     upload: {

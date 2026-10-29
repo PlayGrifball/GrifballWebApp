@@ -9,6 +9,7 @@
 </div>
 }
 
+<div class="sched-lists" [class.hud-waiting]="!loaded()">
 <div class="sched-weeks">
   @for (week of scheduledMatches(); track week.weekNumber) {
   <section class="sched-week" [attr.aria-label]="'Week ' + week.weekNumber">
@@ -23,7 +24,7 @@
       </a>
       @if (accountService.isEventOrganizer() && isEditing()) {
       <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">
-        <mat-form-field subscriptSizing="dynamic">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="match.time" name="time" aria-label="Match time">
           <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
           <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
@@ -49,7 +50,7 @@
     </a>
     @if (accountService.isEventOrganizer() && isEditing()) {
     <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">
-      <mat-form-field subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <input matInput [mtxDatetimepicker]="datetimePicker2" ngModel name="time" aria-label="Match time">
         <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
         <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
@@ -63,3 +64,4 @@
   <p class="hud-muted sched-none">Every match has a time.</p>
   }
 </section>
+</div>

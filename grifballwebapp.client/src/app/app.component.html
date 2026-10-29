@@ -26,17 +26,17 @@
           <mat-icon>close</mat-icon>
         </button>
       </div>
-      <mat-nav-list>
+      <nav class="app-drawer__links" aria-label="Menu">
         @for (nav of navLinks(); track nav) {
           @if (nav.show()) {
-            <a mat-list-item [routerLink]="nav.path" routerLinkActive="app-drawer__link--active"
+            <a class="app-drawer__link" [routerLink]="nav.path" routerLinkActive="app-drawer__link--active"
                [routerLinkActiveOptions]="{ exact: nav.path === '' }" ariaCurrentWhenActive="page"
                (click)="snav.toggle(false)">
               {{ nav.title }}
             </a>
           }
         }
-      </mat-nav-list>
+      </nav>
     </mat-sidenav>
 
     <mat-sidenav-content class="app-content">

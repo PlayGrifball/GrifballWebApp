@@ -80,9 +80,17 @@ export class SeasonMatchComponent {
 
   private readonly homeTeamID = computed(() => this.seasonMatch()?.homeTeamID ?? null);
   private readonly awayTeamID = computed(() => this.seasonMatch()?.awayTeamID ?? null);
-  /** Each side's players, from its team page. Reloading the match page does not reload them. */
-  readonly homeRoster = signal<PlayerDto[]>([]);
-  readonly awayRoster = signal<PlayerDto[]>([]);
+  /** Each side's players, from its team page (null while loading). Reloading the match page does not reload them. */
+  private readonly homeLoaded = signal<Roster>({ teamID: null, players: [] });
+  private readonly awayLoaded = signal<Roster>({ teamID: null, players: [] });
+  readonly homeRoster = computed(() => this.homeLoaded().players ?? []);
+  readonly awayRoster = computed(() => this.awayLoaded().players ?? []);
+  /** The page has answered (with a match or without). */
+  readonly pageLoaded = signal(false);
+  /** The match and both rosters are in: the page is shown then, in one go, so the rosters do not
+   * push the score and the rest down as they arrive. */
+  readonly ready = computed(() => this.pageLoaded()
+    && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
 
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
 
@@ -121,18 +129,18 @@ export class SeasonMatchComponent {
       this.getPageDto();
       this.getPossibleMatches();
     })
-    effect(() => this.loadRoster(this.homeTeamID(), this.homeRoster));
-    effect(() => this.loadRoster(this.awayTeamID(), this.awayRoster));
+    effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
+    effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));
   }
 
-  private loadRoster(teamID: number | null, roster: WritableSignal<PlayerDto[]>): void {
-    roster.set([]);
+  private loadRoster(teamID: number | null, roster: WritableSignal<Roster>): void {
+    roster.set({ teamID, players: teamID === null ? [] : null });
     if (teamID === null)
       return;
     this.http.get<TeamDto | null>('/api/Team/Team/' + teamID)
       .subscribe({
-        next: team => roster.set(team?.players ?? []),
-        error: () => roster.set([]),
+        next: team => roster.set({ teamID, players: team?.players ?? [] }),
+        error: () => roster.set({ teamID, players: [] }),
       });
   }
 
@@ -140,7 +148,11 @@ export class SeasonMatchComponent {
     this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
       .pipe(map(parseSeasonMatchPage))
       .subscribe({
-        next: result => this.seasonMatch.set(result),
+        next: result => {
+          this.seasonMatch.set(result);
+          this.pageLoaded.set(true);
+        },
+        error: () => this.pageLoaded.set(true),
       });
   }
 
@@ -190,4 +202,15 @@ export class SeasonMatchComponent {
     this.isSubmittingMatch.set(false);
     this.getPageDto();
   }
+}
+
+/** A side's players and the team they were loaded for; players is null while loading. */
+interface Roster {
+  teamID: number | null,
+  players: PlayerDto[] | null,
+}
+
+/** The roster of this team has arrived. */
+function isLoaded(roster: Roster, teamID: number | null): boolean {
+  return roster.teamID === teamID && roster.players !== null;
 }

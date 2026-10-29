@@ -7,13 +7,13 @@
 
 <form class="example-form" #registerForm="ngForm" (ngSubmit)="onSubmit()"
       matchFields [field1]="registerForm.controls['password']" [field2]="registerForm.controls['confirmPassword']">
-  <mat-form-field class="example-full-width">
+  <mat-form-field appearance="outline" class="example-full-width">
     <mat-label>Username</mat-label>
     <input matInput required [(ngModel)]="model.username" name="username">
     <app-error-message [control]="registerForm.controls['username']" />
   </mat-form-field>
 
-  <mat-form-field class="example-full-width">
+  <mat-form-field appearance="outline" class="example-full-width">
     <mat-label>Password</mat-label>
     <input matInput [type]="hidePassword ? 'password' : 'text'" required [regexExpression]="regex" [errorMessage]="regexErrorMessage"
            [(ngModel)]="model.password" name="password">
@@ -23,7 +23,7 @@
     <app-error-message [control]="registerForm.controls['password']" />
   </mat-form-field>
 
-  <mat-form-field class="example-full-width">
+  <mat-form-field appearance="outline" class="example-full-width">
     <mat-label>Confirm Password</mat-label>
     <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" required
            [(ngModel)]="model.confirmPassword" name="confirmPassword">

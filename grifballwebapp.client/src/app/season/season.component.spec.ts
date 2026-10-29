@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { By } from '@angular/platform-browser';
 import { SeasonComponent } from './season.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { ScheduleListComponent } from './scheduleList/scheduleList.component';
@@ -16,7 +17,7 @@ class StubScheduleList {}
 @Component({ selector: 'app-playoff-bracket', template: '' })
 class StubPlayoffBracket {}
 @Component({ selector: 'app-team-standings', template: '' })
-class StubTeamStandings {}
+class StubTeamStandings { readonly loaded = signal(false); }
 @Component({ selector: 'app-season-this-week', template: '' })
 class StubThisWeek { readonly seasonID = input<number>(); }
 
@@ -97,6 +98,27 @@ describe('SeasonComponent', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('[aria-current="page"]')!.textContent!.trim().toLowerCase()).toBe(tab);
     });
   }
+
+  it('shows this week once the standings above it are in', () => {
+    fixture.detectChanges();
+    const aside = () => (fixture.nativeElement as HTMLElement).querySelector('aside')!;
+    expect(aside().classList).toContain('hud-waiting');
+    const standings = fixture.debugElement.query(By.directive(StubTeamStandings)).componentInstance as StubTeamStandings;
+    standings.loaded.set(true);
+    fixture.detectChanges();
+    expect(aside().classList).not.toContain('hud-waiting');
+  });
+
+  it('keeps the page hidden until the season name is in, also when it fails', () => {
+    const name = new Subject<string>();
+    api.getSeasonName.and.returnValue(name);
+    fixture.detectChanges();
+    const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
+    expect(page().classList).toContain('hud-waiting');
+    name.error(new Error('down'));
+    fixture.detectChanges();
+    expect(page().classList).not.toContain('hud-waiting');
+  });
 
   it('falls back to the overview for an unknown tab', () => {
     fixture.componentRef.setInput('tab', 'nope');

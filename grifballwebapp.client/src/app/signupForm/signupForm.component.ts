@@ -58,6 +58,9 @@ export class SignupFormComponent {
   // Initialised with the class defaults (timeslots: []) because the template binds
   // model.timeslots on the first render, before getSignup has responded.
   readonly model = signal(new SignupRequestDto());
+  /** The signup and its timeslots are in (or failed to load): the form is shown then, in one go,
+   * so the availability table does not push the rest of the page down as it arrives. */
+  readonly loaded = signal(false);
 
   ngOnInit(): void {
     // May need smart way to get seasonID
@@ -77,19 +80,30 @@ export class SignupFormComponent {
               model.seasonID = seasonID;
               this.model.set(model);
               this.api.getTimeslots(seasonID, this.availabilityService.getDif()).subscribe({
-                next: (r) => this.model.update(model => ({ ...model, timeslots: r })),
-                error: () => this.snackBar.open('Failed to get timeslots'),
+                next: (r) => {
+                  this.model.update(model => ({ ...model, timeslots: r }));
+                  this.loaded.set(true);
+                },
+                error: () => {
+                  this.snackBar.open('Failed to get timeslots');
+                  this.loaded.set(true);
+                },
               })
             }
             else
             {
               this.model.set({ ...result, timeslots: result.timeslots ?? [] });
+              this.loaded.set(true);
             }
           },
-          error: () => this.snackBar.open('Failed to get signup'),
+          error: () => {
+            this.snackBar.open('Failed to get signup');
+            this.loaded.set(true);
+          },
         });
       return;
     }
+    this.loaded.set(true);
 
   }
 

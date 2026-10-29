@@ -7,13 +7,13 @@
     </div>
 
     <form class="app-form" #loginForm="ngForm" (ngSubmit)="onSubmit()">
-      <mat-form-field class="app-full-width">
+      <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Username</mat-label>
         <input matInput required [(ngModel)]="model.username" name="username" autocomplete="username">
         <app-error-message [control]="loginForm.controls['username']" />
       </mat-form-field>
 
-      <mat-form-field class="app-full-width">
+      <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Password</mat-label>
         <input matInput [type]="hide ? 'password' : 'text'" required [(ngModel)]="model.password" name="password" autocomplete="current-password">
         <button mat-icon-button matSuffix type="button" (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
@@ -38,7 +38,7 @@
     <h2 class="hud-h2">External Login Providers:</h2>
     <a class="login-discord" [href]="(followUp() !== undefined && followUp() !== '') ? '/api/identity/externallogin?followUp=' + followUp() : '/api/identity/externallogin'">
       <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5061df29d55a92d945_full_logo_blurple_RGB.svg"
-           alt="Sign in with Discord">
+           alt="Sign in with Discord" width="509" height="96">
     </a>
 
     <h2 class="hud-h2">Not registered?</h2>

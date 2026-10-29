@@ -50,6 +50,8 @@ export class HomeComponent implements OnInit {
   /** When the page was opened: decides which events are under way. */
   readonly now = signal(Date.now());
   currentAndFutureEvents: WritableSignal<Event[]> = signal([]);
+  /** The events have loaded (or failed to): the page is shown then, in one go. */
+  readonly eventsLoaded = signal(false);
   /** The event the hero panel is about, with its status line and sentence; null without events. */
   readonly hero = computed(() => {
     const event = pickFeatured(this.currentAndFutureEvents(), this.now());
@@ -74,7 +76,11 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.getCurrentAndFutureEvents().subscribe({
-      next: (result) => this.currentAndFutureEvents.set(result),
+      next: (result) => {
+        this.currentAndFutureEvents.set(result);
+        this.eventsLoaded.set(true);
+      },
+      error: () => this.eventsLoaded.set(true),
     });
     
     this.paginator$

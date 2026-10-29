@@ -533,6 +533,26 @@ describe('SeasonMatchComponent lobby', () => {
     expect(roster('away')).toEqual(['Captain Tucker T', 'Caboose C']);
   });
 
+  it('keeps the page hidden until the match and both rosters are in', () => {
+    const pageEl = () => el().querySelector('.hud-page')!;
+    expect(pageEl().classList).toContain('hud-waiting');
+    load(page());
+    expect(fixture.componentInstance.ready()).toBeFalse();
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    fixture.detectChanges();
+    expect(pageEl().classList).toContain('hud-waiting');
+    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+    expect(pageEl().classList).not.toContain('hud-waiting');
+  });
+
+  it('shows the page for a match that does not exist, or that could not be loaded', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.ready()).toBeTrue();
+  });
+
   it('does not reload the rosters when the match page is reloaded for the same teams', () => {
     load(page());
     httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));

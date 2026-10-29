@@ -1,4 +1,4 @@
-<div class="hud-page">
+<div class="hud-page" [class.hud-waiting]="!eventsLoaded()">
 
   <section class="home-hero hud-panel hud-panel--chamfer-lg" aria-labelledby="home-hero-title">
     @if (hero(); as hero) {

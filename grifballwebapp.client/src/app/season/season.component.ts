@@ -38,6 +38,8 @@ export class SeasonComponent implements OnInit {
 
   readonly seasonID = signal(0);
   readonly seasonName = signal<string | null>("Season");
+  /** The name is in: the page is shown then, as a longer name can move the Sign up button below it. */
+  readonly nameLoaded = signal(false);
 
   ngOnInit(): void {
     this.seasonID.set(Number(this.route.snapshot.paramMap.get('seasonID')));
@@ -59,7 +61,11 @@ export class SeasonComponent implements OnInit {
   getSeasonName(): void {
     this.api.getSeasonName(this.seasonID())
         .subscribe({
-          next: (result) => this.seasonName.set(result),
+          next: (result) => {
+            this.seasonName.set(result);
+            this.nameLoaded.set(true);
+          },
+          error: () => this.nameLoaded.set(true),
         });
   }
 

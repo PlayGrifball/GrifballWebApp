@@ -142,6 +142,18 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches().map(w => w.weekNumber)).toEqual([1, 2, 3]);
   });
 
+  it('shows the lists once both have loaded, also when one fails', () => {
+    fixture.detectChanges();
+    const lists = () => (fixture.nativeElement as HTMLElement).querySelector('.sched-lists')!;
+    expect(lists().classList).toContain('hud-waiting');
+    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(lists().classList).toContain('hud-waiting');
+    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(lists().classList).not.toContain('hud-waiting');
+  });
+
   it('renders weeks, matchups and unscheduled matches, striking completed ones', () => {
     load([unscheduled(9, true)], [scheduled(1, '2026-01-07T19:00:00Z')]);
 

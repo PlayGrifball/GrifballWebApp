@@ -1,5 +1,4 @@
 import { Injectable, signal } from '@angular/core';
-import { argbFromHex, hexFromArgb, TonalPalette } from '@material/material-color-utilities';
 
 type Theme = {
   name: string;
@@ -86,6 +85,7 @@ export class ThemingService {
     if (root == null) {
       return;
     }
+    loadFont(font);
     root?.style.setProperty(`--sys-body-small-font`, font);
     root?.style.setProperty(`--sys-body-medium-font`, font);
     root?.style.setProperty(`--sys-body-large-font`, font);
@@ -104,30 +104,35 @@ export class ThemingService {
   }
 
   setPrimaryShade(hex: string) {
-    this.setShade('primary', hex);
+    return this.setShade('primary', hex);
   }
 
   setSecondaryShade(hex: string) {
-    this.setShade('secondary', hex);
+    return this.setShade('secondary', hex);
   }
 
   setTertiaryShade(hex: string) {
-    this.setShade('tertiary', hex);
+    return this.setShade('tertiary', hex);
   }
 
   setNeutralShade(hex: string) {
-    this.setShade('neutral', hex);
+    return this.setShade('neutral', hex);
   }
 
   setNeutralVariantShade(hex: string) {
-    this.setShade('neutral-variant', hex);
+    return this.setShade('neutral-variant', hex);
   }
 
   setErrorShade(hex: string) {
-    this.setShade('error', hex);
+    return this.setShade('error', hex);
   }
 
-  private setShade(color: string, hex: string) {
+  /**
+   * Sets a seed colour (which the Spartan HUD accent, gold and red follow at once), then its tonal
+   * palette (--<color>-0 to -100, for the picker's tiles and Tailwind's palette classes). The colour
+   * utilities that make the palette are loaded on first use, so they are not in the initial bundle.
+   */
+  private async setShade(color: string, hex: string): Promise<void> {
     const root = document.querySelector('html');
     if (!root)
     {
@@ -136,6 +141,7 @@ export class ThemingService {
     }
 
     root.style.setProperty(`--${color}`, hex);
+    const { argbFromHex, hexFromArgb, TonalPalette } = await import('@material/material-color-utilities');
     const palette = TonalPalette.fromInt(argbFromHex(hex));
 
     let increment = 10;
@@ -152,4 +158,20 @@ export class ThemingService {
       hex: hex,
     });
   }
+}
+
+/** Fonts the picker offers that are not self-hosted: their Google Fonts stylesheet, loaded when picked. */
+const ON_DEMAND_FONTS: Record<string, string> = {
+  Roboto: 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap',
+};
+
+/** Adds the stylesheet of an on-demand font to the page, once. */
+export function loadFont(font: string): void {
+  const href = ON_DEMAND_FONTS[font];
+  if (!href || document.head.querySelector(`link[href="${href}"]`))
+    return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
 }

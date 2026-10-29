@@ -38,4 +38,4 @@
 
 .login-discord:hover { outline: 2px solid var(--hud-accent); }
 
-.login-discord img { max-width: 180px; width: 100%; }
+.login-discord img { max-width: 180px; width: 100%; height: auto; }

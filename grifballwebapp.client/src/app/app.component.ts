@@ -2,14 +2,12 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, OnInit, a
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatListModule } from '@angular/material/list';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { SideBarDto } from './sidebarDto';
 import { AccountService } from './account.service';
 import { ApiClientService } from './api/apiClient.service';
 import { ThemingService } from './theming.service';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteFooterComponent } from './siteFooter/siteFooter.component';
 
@@ -21,12 +19,10 @@ export const MENU_BUTTON_WIDTH = 48;
     imports: [
         RouterLink,
         RouterLinkActive,
-        MatListModule,
         MatSidenavModule,
         RouterOutlet,
         ToolbarComponent,
         MatButtonModule,
-        MatMenuModule,
         MatIconModule,
         SiteFooterComponent,
     ],

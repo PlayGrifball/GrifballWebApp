@@ -420,6 +420,17 @@ describe('Home page events', () => {
       expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
     });
 
+    it('keeps the page hidden until the events are in, then shows it', () => {
+      fixture.detectChanges();
+      const page = () => el().querySelector('.hud-page')!;
+      expect(page().classList).toContain('hud-waiting');
+      http.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
+      http.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      fixture.detectChanges();
+      expect(page().classList).not.toContain('hud-waiting');
+      expect(el().textContent).toContain('There are no current or upcoming events');
+    });
+
     it('says so when there are no events', () => {
       load([]);
       expect(el().textContent).toContain('There are no current or upcoming events');

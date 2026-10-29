@@ -5,13 +5,13 @@
 </div>
 }
 
-@if(!hasBracket()) {
+@if(loaded() && !hasBracket()) {
   <p class="hud-empty">No bracket created</p>
 }
 <div class="bracket-box" [hidden]="!hasBracket()">
   <div class="brackets-viewer"></div>
 </div>
-@if (hasBracket()) {
+@if (hasBracket() && drawn()) {
 <div class="bracket-legend">
   <span class="bracket-legend__key"><span class="bracket-legend__swatch" aria-hidden="true"></span>Advanced</span>
   <span>BYE = auto-advance</span>

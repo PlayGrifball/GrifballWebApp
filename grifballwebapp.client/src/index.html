@@ -25,12 +25,26 @@
   <meta name="twitter:description" content="Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.">
   <meta name="twitter:image" content="https://grifball.xyz/assets/og-image.png">
   <meta name="twitter:image:alt" content="Play Grifball logo with the text: Halo Infinite Grifball seasons, teams, schedules and match stats">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- The fonts are self-hosted (src/styles/_fonts.scss). The text fonts every page uses are
+       fetched at once rather than after the app has rendered, so the text does not reflow. -->
+  <link rel="preload" href="fonts/rajdhani-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/rajdhani-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/rajdhani-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/share-tech-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Shown until the app starts (Angular replaces what is inside <app-root>): the page background
+       and the header bar, so something is on screen while the scripts load. Matches the real header. -->
+  <style>
+    body { margin: 0; background: #060B13; }
+    .boot-shell { min-height: 100vh; background: radial-gradient(ellipse at 70% 0%, #12304A 0%, #08131F 45%, #060B13 100%); }
+    .boot-shell__bar { border-bottom: 1px solid #1E3A52; }
+    .boot-shell__brand { box-sizing: border-box; max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 68px; display: flex; align-items: center;
+      font: 700 26px Rajdhani, system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #FFFFFF; }
+    @media (max-width: 720px) { .boot-shell__brand { height: 60px; padding: 0 16px 0 68px; font-size: 20px; letter-spacing: 0.18em; } }
+  </style>
 </head>
 <body class="mat-typography mat-app-background">
-  <app-root></app-root>
+  <app-root>
+    <div class="boot-shell" aria-hidden="true"><div class="boot-shell__bar"><div class="boot-shell__brand">Grifball</div></div></div>
+  </app-root>
 </body>
 </html>

@@ -5,7 +5,6 @@ import { RouterLink } from '@angular/router';
 import { MatSidenav } from '@angular/material/sidenav';
 import { AccountService } from '../account.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { ThemeComponent } from '../theme/theme.component';
 
 @Component({
     selector: 'app-toolbar',
@@ -30,7 +29,9 @@ export class ToolbarComponent {
   /** The letter on the user's square avatar. */
   readonly initial = computed(() => this.accountService.displayName()?.trim().charAt(0).toUpperCase() || '?');
 
-  theme(): void {
+  /** Opens the theme editor. It and its colour picker load on first use, not with the app. */
+  async theme(): Promise<void> {
+    const { ThemeComponent } = await import('../theme/theme.component');
     this.dialog.open(ThemeComponent, {
       maxWidth: '100%',
       backdropClass: 'no-backdrop',

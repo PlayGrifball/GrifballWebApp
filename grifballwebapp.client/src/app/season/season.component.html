@@ -1,4 +1,4 @@
-<div class="hud-page">
+<div class="hud-page" [class.hud-waiting]="!nameLoaded()">
 
   <div class="season-head">
     <div class="hud-page-head">
@@ -29,9 +29,10 @@
       <div class="season-overview">
         <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
           <h2 id="season-standings" class="hud-h2">Standings</h2>
-          <app-team-standings />
+          <app-team-standings #standings />
         </section>
-        <aside class="hud-section season-overview__week" aria-labelledby="season-week">
+        <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
+        <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">
           <h2 id="season-week" class="hud-h2">This week</h2>
           <app-season-this-week [seasonID]="seasonID()" />
         </aside>

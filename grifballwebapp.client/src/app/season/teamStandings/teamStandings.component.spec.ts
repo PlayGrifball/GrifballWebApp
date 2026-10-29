@@ -35,6 +35,7 @@ describe('TeamStandingsComponent', () => {
     seasonID = null;
     fixture.detectChanges();
     http.expectNone(() => true);
+    expect(fixture.componentInstance.loaded()).toBeTrue();
     expect(rows()).toEqual([]);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('No standings yet.');
   });
@@ -58,10 +59,14 @@ describe('TeamStandingsComponent', () => {
   it('logs and leaves the table empty when the request fails', () => {
     const log = spyOn(console, 'log');
     fixture.detectChanges();
+    // Not "no standings" while they load
+    expect(fixture.componentInstance.loaded()).toBeFalse();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
     http.expectOne('api/TeamStandings/GetTeamStandings/2').flush('x', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
     expect(log).toHaveBeenCalled();
+    expect(fixture.componentInstance.loaded()).toBeTrue();
     expect(rows()).toEqual([]);
   });
 

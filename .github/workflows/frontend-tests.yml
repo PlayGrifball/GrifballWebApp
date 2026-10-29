@@ -268,8 +268,9 @@ jobs:
         retention-days: 7
 
   # Lighthouse on the production build, served with the mocked API (e2e/mockApi.mts) as a visitor
-  # who is not logged in, with the mobile and the desktop settings. Accessibility and best practices
-  # must score 90; performance and SEO only warn, since CI runners are too noisy for them.
+  # who is not logged in, with the mobile and the desktop settings. Accessibility, best practices and
+  # SEO must score 90; performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and
+  # warns under 90.
   lighthouse:
     name: Lighthouse
     runs-on: ubuntu-latest
@@ -315,7 +316,8 @@ jobs:
         for preset in mobile desktop; do
           LIGHTHOUSE_PRESET=$preset $lhci collect
           $lhci upload || echo "::warning::The $preset reports could not be uploaded"
-          node e2e/lighthouse-summary.mjs "${preset^}" >> lighthouse.md
+          # The table to the file; the warnings (stderr) to the log, where GitHub picks them up
+          { node e2e/lighthouse-summary.mjs "${preset^}" >> lighthouse.md; } 2>&1
           LIGHTHOUSE_PRESET=$preset $lhci assert || failed=1
           mv .lighthouseci "lighthouse-$preset"
         done

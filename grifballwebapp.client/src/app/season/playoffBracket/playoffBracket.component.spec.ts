@@ -113,10 +113,12 @@ describe('PlayoffBracketComponent behaviour', () => {
     expect(text()).toContain('No bracket created');
   });
 
-  it('renders the bracket with the custom locale when there are participants', () => {
+  it('renders the bracket with the custom locale when there are participants', async () => {
     fixture.detectChanges();
+    expect(text()).not.toContain('No bracket created'); // not known yet
     const data = viewerData([{ id: 1, name: 'Alpha' }]);
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(data);
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(component.hasBracket()).toBeTrue();
@@ -125,11 +127,13 @@ describe('PlayoffBracketComponent behaviour', () => {
       common: jasmine.objectContaining({ 'group-name-loser-bracket': '{{stage.name}} - Losers' })
     }));
     expect(viewer.render).toHaveBeenCalledWith(data, { clear: true });
+    expect(component.drawn()).toBeTrue();
+    expect(text()).toContain('BYE = auto-advance');
   });
 
-  it('navigates to the season match page when a bracket match is clicked', () => {
+  it('navigates to the season match page when a bracket match is clicked', async () => {
     const navigate = spyOn(router, 'navigate');
-    component.render(viewerData([{ id: 1 }]));
+    await component.render(viewerData([{ id: 1 }]));
 
     viewer.onMatchClicked!({ id: 77 });
     expect(navigate).toHaveBeenCalledWith(['/seasonmatch/77']);
@@ -230,5 +234,32 @@ describe('PlayoffBracketComponent behaviour', () => {
     created.next();
 
     http.expectOne('api/Brackets/GetViewerData?seasonID=6').flush(viewerData([]));
+  });
+});
+
+describe('PlayoffBracketComponent without the viewer library', () => {
+  it('says so when the bracket viewer cannot be loaded', async () => {
+    const original = (window as any).bracketsViewer;
+    delete (window as any).bracketsViewer;
+    const snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    await TestBed.configureTestingModule({
+      imports: [PlayoffBracketComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AccountService, useValue: { isEventOrganizer: signal(false) } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
+      ]
+    }).overrideProvider(MatSnackBar, { useValue: snackBar }).compileComponents();
+    const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
+
+    const rendering = component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as any);
+    const script = document.head.querySelector<HTMLScriptElement>('script[src="brackets-viewer.js"]')!;
+    script.onerror!(new Event('error'));
+    await rendering;
+
+    expect(snackBar.open).toHaveBeenCalledWith('Failed to load the bracket viewer', 'Close');
+    (window as any).bracketsViewer = original;
   });
 });

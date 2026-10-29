@@ -86,10 +86,10 @@ describe('ToolbarComponent', () => {
     expect(component.initial()).toBe('?');
   });
 
-  it('opens the theme editor as a borderless dialog', () => {
+  it('opens the theme editor as a borderless dialog', async () => {
     // The component imports MatDialogModule, so it gets its own MatDialog.
     const open = spyOn(component['dialog'], 'open');
-    component.theme();
+    await component.theme();
     expect(open).toHaveBeenCalledWith(ThemeComponent, {
       maxWidth: '100%',
       backdropClass: 'no-backdrop',

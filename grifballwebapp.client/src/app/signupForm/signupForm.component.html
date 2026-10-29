@@ -1,4 +1,4 @@
-<div class="hud-page hud-page--narrow enlist">
+<div class="hud-page hud-page--narrow enlist" [class.hud-waiting]="!loaded()">
 
   <form class="enlist-form hud-panel hud-panel--chamfer-lg" #signupForm="ngForm" (ngSubmit)="onSubmit()">
     <div class="hud-page-head">
@@ -22,7 +22,7 @@
     </div>
 
     <div class="enlist-sub">
-      <mat-form-field class="app-full-width">
+      <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Team name</mat-label>
         <input matInput required [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
         <app-error-message [control]="signupForm.controls['teamName']" />

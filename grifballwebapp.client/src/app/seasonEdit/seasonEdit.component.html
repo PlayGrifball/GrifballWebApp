@@ -1,13 +1,13 @@
 <h2>Season Edit</h2>
 
 <form class="app-form" #seasonForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>seasonName</mat-label>
     <input matInput required [ngModel]="model().seasonName" (ngModelChange)="patch({ seasonName: $event })" name="seasonName">
     <app-error-message [control]="seasonForm.controls['seasonName']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>signupsOpen</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().signupsOpen" (ngModelChange)="patch({ signupsOpen: $event })" required name="signupsOpen">
     <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
@@ -15,7 +15,7 @@
     <app-error-message [control]="seasonForm.controls['signupsOpen']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>signupsClose</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="model().signupsClose" (ngModelChange)="patch({ signupsClose: $event })" required name="signupsClose">
     <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
@@ -23,7 +23,7 @@
     <app-error-message [control]="seasonForm.controls['signupsClose']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>draftStart</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="model().draftStart" (ngModelChange)="patch({ draftStart: $event })" required name="draftStart">
     <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
@@ -31,7 +31,7 @@
     <app-error-message [control]="seasonForm.controls['draftStart']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>seasonStart</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker4" [ngModel]="model().seasonStart" (ngModelChange)="patch({ seasonStart: $event })" required name="seasonStart">
     <mtx-datetimepicker-toggle [for]="datetimePicker4" matSuffix />
@@ -39,7 +39,7 @@
     <app-error-message [control]="seasonForm.controls['seasonStart']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>seasonEnd</mat-label>
     <input matInput [mtxDatetimepicker]="datetimePicker5" [ngModel]="model().seasonEnd" (ngModelChange)="patch({ seasonEnd: $event })" required name="seasonEnd">
     <mtx-datetimepicker-toggle [for]="datetimePicker5" matSuffix />
@@ -47,7 +47,7 @@
     <app-error-message [control]="seasonForm.controls['seasonEnd']" />
   </mat-form-field>
 
-  <mat-form-field class="app-full-width">
+  <mat-form-field appearance="outline" class="app-full-width">
     <mat-label>Copy From</mat-label>
     <input matInput [ngModel]="model().copyFrom" (ngModelChange)="patch({ copyFrom: $event })" name="copyFrom">
     <app-error-message [control]="seasonForm.controls['copyFrom']" />

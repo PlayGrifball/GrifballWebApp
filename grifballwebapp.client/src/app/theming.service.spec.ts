@@ -73,72 +73,72 @@ describe('ThemingService', () => {
     expect(service.error()).toBe('#666666');
   });
 
-  it('should set primary shade', () => {
+  it('should set primary shade', async () => {
     // Create a mock HTML element
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setPrimaryShade('#ABCDEF');
+    await service.setPrimaryShade('#ABCDEF');
 
     expect(service.shadeApplied().name).toBe('primary');
     expect(service.shadeApplied().hex).toBe('#ABCDEF');
   });
 
-  it('should set secondary shade', () => {
+  it('should set secondary shade', async () => {
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setSecondaryShade('#123456');
+    await service.setSecondaryShade('#123456');
 
     expect(service.shadeApplied().name).toBe('secondary');
     expect(service.shadeApplied().hex).toBe('#123456');
   });
 
-  it('should set tertiary shade', () => {
+  it('should set tertiary shade', async () => {
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setTertiaryShade('#FEDCBA');
+    await service.setTertiaryShade('#FEDCBA');
 
     expect(service.shadeApplied().name).toBe('tertiary');
     expect(service.shadeApplied().hex).toBe('#FEDCBA');
   });
 
-  it('should set neutral shade', () => {
+  it('should set neutral shade', async () => {
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setNeutralShade('#AABBCC');
+    await service.setNeutralShade('#AABBCC');
 
     expect(service.shadeApplied().name).toBe('neutral');
     expect(service.shadeApplied().hex).toBe('#AABBCC');
   });
 
-  it('should set neutral variant shade', () => {
+  it('should set neutral variant shade', async () => {
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setNeutralVariantShade('#DDEEFF');
+    await service.setNeutralVariantShade('#DDEEFF');
 
     expect(service.shadeApplied().name).toBe('neutral-variant');
     expect(service.shadeApplied().hex).toBe('#DDEEFF');
   });
 
-  it('should set error shade', () => {
+  it('should set error shade', async () => {
     const mockRoot = document.createElement('html');
     spyOn(document, 'querySelector').and.returnValue(mockRoot);
 
-    service.setErrorShade('#FF0000');
+    await service.setErrorShade('#FF0000');
 
     expect(service.shadeApplied().name).toBe('error');
     expect(service.shadeApplied().hex).toBe('#FF0000');
   });
 
-  it('should handle missing root element when setting shade', () => {
+  it('should handle missing root element when setting shade', async () => {
     spyOn(document, 'querySelector').and.returnValue(null);
     spyOn(console, 'log');
 
-    service.setPrimaryShade('#ABCDEF');
+    await service.setPrimaryShade('#ABCDEF');
 
     expect(console.log).toHaveBeenCalledWith('root missing');
   });
@@ -159,5 +159,32 @@ describe('ThemingService', () => {
 
     // Should not throw error
     expect(() => service.setFont('Arial')).not.toThrow();
+  });
+
+  it('sets the seed colour at once and its tonal palette once the colour utilities load', async () => {
+    const mockRoot = document.createElement('html');
+    spyOn(document, 'querySelector').and.returnValue(mockRoot);
+
+    const done = service.setTertiaryShade('#FFD25E');
+    expect(mockRoot.style.getPropertyValue('--tertiary')).toBe('#FFD25E');
+    await done;
+
+    expect(mockRoot.style.getPropertyValue('--tertiary-0')).toBe('#000000');
+    expect(mockRoot.style.getPropertyValue('--tertiary-100')).toBe('#ffffff');
+    expect(mockRoot.style.getPropertyValue('--tertiary-50')).not.toBe('');
+  });
+
+  it('loads the Roboto stylesheet only when Roboto is picked, and only once', () => {
+    const links = () => document.head.querySelectorAll('link[href*="family=Roboto"]');
+    links().forEach(l => l.remove());
+
+    service.setFont('Rajdhani');
+    expect(links().length).toBe(0);
+
+    service.setFont('Roboto');
+    service.setFont('Roboto');
+    expect(links().length).toBe(1);
+    expect((links()[0] as HTMLLinkElement).rel).toBe('stylesheet');
+    links().forEach(l => l.remove());
   });
 });

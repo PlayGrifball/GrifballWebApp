@@ -22,20 +22,30 @@ export class TeamStandingsComponent implements OnInit {
   private seasonID: number = 0;
 
   readonly teamStandings = signal<TeamStandingDto[]>([]);
+  /** The standings have loaded (or failed to, or there is no season). */
+  readonly loaded = signal(false);
 
   displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
 
-    if (this.seasonID === 0)
+    if (this.seasonID === 0) {
+      this.loaded.set(true);
       return;
+    }
 
     this.http.get<TeamStandingDto[]>("api/TeamStandings/GetTeamStandings/" + this.seasonID)
       .subscribe(
         {
-          next: r => this.teamStandings.set(r),
-          error: e => console.log(e)
+          next: r => {
+            this.teamStandings.set(r);
+            this.loaded.set(true);
+          },
+          error: e => {
+            console.log(e);
+            this.loaded.set(true);
+          }
         });
   }
 }

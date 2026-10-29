@@ -79,8 +79,8 @@ async function mockBackend(page: Page, role: Role): Promise<void> {
     }, META[role]);
   }
   await page.clock.setFixedTime(new Date(MOCK_NOW));
-  // The web fonts are part of the layout, so Google Fonts may load; nothing else outside.
-  await page.route(url => !['127.0.0.1', 'fonts.googleapis.com', 'fonts.gstatic.com'].includes(url.hostname), route => route.abort());
+  // Hermetic: the app and its fonts are all served locally.
+  await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', route => {
     const mocked = mockResponse(role, new URL(route.request().url()).pathname);

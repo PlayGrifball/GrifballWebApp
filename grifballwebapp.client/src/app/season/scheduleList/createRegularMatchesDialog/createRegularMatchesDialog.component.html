@@ -1,6 +1,6 @@
 <form #regularMatchesForm="ngForm" (ngSubmit)="onSubmit()" style="margin: 20px">
   <div>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label>Home Matches Per Team</mat-label>
       <input matInput required [(ngModel)]="homeMatchesPerTeam" name="homeMatchesPerTeam" type="number">
       <app-error-message [control]="regularMatchesForm.controls['homeMatchesPerTeam']" />
@@ -8,7 +8,7 @@
   </div>
 
   <div>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label>Best Of</mat-label>
       <input matInput required [(ngModel)]="bestOf" name="bestOf" type="number">
       <app-error-message [control]="regularMatchesForm.controls['bestOf']" />

@@ -1,5 +1,5 @@
 @let match = seasonMatch();
-<div class="hud-page">
+<div class="hud-page" [class.hud-waiting]="!ready()">
 
   <div class="lobby-head">
     <div class="hud-page-head">
@@ -157,7 +157,7 @@
     }
     <h3 class="hud-label">Enter Match ID</h3>
     <form class="app-form lobby-admin__form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-      <mat-form-field class="app-full-width">
+      <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>MatchID</mat-label>
         <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
         <app-error-message [control]="reportMatchForm.controls['MatchID']" />

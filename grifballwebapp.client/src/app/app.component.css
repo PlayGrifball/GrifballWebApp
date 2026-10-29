@@ -21,10 +21,15 @@
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  /* Room for the scrollbar from the start: a scrollbar that appears once data loads would
+     narrow the page and shift everything sideways. */
+  scrollbar-gutter: stable;
 }
 
 main {
   flex: 1 0 auto;
+  /* At least a screen tall, so the footer starts below the fold and does not jump down as data loads. */
+  min-height: 100%;
   outline: none;
 }
 
@@ -88,7 +93,27 @@ main {
   border-bottom: 1px solid var(--hud-hairline);
 }
 
-.app-drawer a { text-transform: uppercase; }
+.app-drawer__links {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.app-drawer__link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-text);
+}
+
+.app-drawer__link:hover { background: var(--hud-accent-tint); color: var(--hud-heading); }
+
+.app-drawer__link:focus-visible { outline-offset: -2px; }
 
 .app-drawer__link--active {
   box-shadow: inset 3px 0 0 var(--hud-accent);
