@@ -232,3 +232,64 @@ for (const { name, path, role, ready, parts } of PAGES) {
     expect(problems).toEqual([]);
   });
 }
+
+// The theme editor (the header's palette button) as a dialog at every size: nothing wider than
+// the screen, its Close button on screen (and the header it sits in stays there as the editors
+// scroll), and closing gives the focus back to the palette button.
+test('the theme dialog fits every screen size and closes', async ({ page }) => {
+  test.setTimeout(90_000);
+  await mockBackend(page, 'anon');
+  const problems: string[] = [];
+  for (const [index, [device, width, height]] of SIZES.entries()) {
+    await page.setViewportSize({ width, height });
+    await page.goto(SITE + '/');
+    await expect(page.locator('tr.mat-mdc-row').first()).toBeVisible();
+    const opener = page.getByRole('button', { name: 'Theme icon' });
+    await opener.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('app-palette').first()).toBeVisible();
+    await expect(dialog.locator('app-tile').first()).toContainText('#');
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `screenshots/theme-dialog/${index + 1}-${device}-${width}x${height}.png` });
+
+    const found = await page.evaluate(() => {
+      const out: string[] = [];
+      const surface = document.querySelector('.mat-mdc-dialog-surface')!;
+      if (document.documentElement.scrollWidth > innerWidth + 1) out.push(`the page scrolls sideways (${document.documentElement.scrollWidth}px)`);
+      if (surface.scrollWidth > surface.clientWidth + 1) out.push(`the dialog scrolls sideways (${surface.scrollWidth}px in ${surface.clientWidth}px)`);
+      for (const el of surface.querySelectorAll('app-tile, mat-form-field, .theme-head, .theme-foot')) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && (r.left < -1 || r.right > innerWidth + 1)) out.push(`${el.tagName.toLowerCase()} sticks out (${Math.round(r.left)} to ${Math.round(r.right)})`);
+      }
+      // Each hex label fits its tile
+      for (const hex of surface.querySelectorAll('.tile__hex')) {
+        if (hex.scrollWidth > (hex as HTMLElement).clientWidth + 1) out.push(`a hex label is cut off (${hex.textContent})`);
+      }
+      return out;
+    });
+    for (const p of found) problems.push(`${width}x${height}: ${p}`);
+
+    // The close button: on screen, big enough to tap, still there after scrolling to the end
+    const close = dialog.getByRole('button', { name: 'Close' });
+    await dialog.locator('.theme-foot').scrollIntoViewIfNeeded();
+    await expect(close).toBeInViewport({ ratio: 1 });
+    const box = (await close.boundingBox())!;
+    if (box.width < 43.5 || box.height < 43.5) problems.push(`${width}x${height}: Close is ${Math.round(box.width)}x${Math.round(box.height)}`);
+
+    await close.click();
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  }
+  // Done, Esc and a click beside it close it too
+  await page.setViewportSize({ width: 1280, height: 720 });
+  for (const how of ['Done', 'Escape', 'backdrop'] as const) {
+    await page.getByRole('button', { name: 'Theme icon' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    if (how === 'Done') await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
+    else if (how === 'Escape') await page.keyboard.press('Escape');
+    else await page.mouse.click(5, 715);
+    await expect(page.getByRole('dialog'), how).toHaveCount(0);
+  }
+  expect(problems).toEqual([]);
+});

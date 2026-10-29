@@ -162,11 +162,16 @@ test.describe('session', () => {
     expect(after.displayName).toBe(displayName);
   });
 
-  test('the theme picker applies a colour, and "Reset to Spartan HUD" puts the default back', async ({ page, consoleErrors }) => {
+  test('the theme dialog applies a colour, "Reset to Spartan HUD" puts the default back, and Close closes it', async ({ page, consoleErrors }) => {
     void consoleErrors;
     const variable = (name: string) => page.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase(), name);
-    await page.goto('/theme');
-    const picker = page.locator('app-palette').first().locator('input');
+    // On a phone, where the dialog takes the whole screen
+    await page.setViewportSize({ width: 360, height: 640 });
+    await page.goto('/');
+    const opener = page.getByRole('button', { name: 'Theme icon' });
+    await opener.click();
+    const dialog = page.getByRole('dialog');
+    const picker = dialog.locator('app-palette').first().locator('input');
     await expect(picker).toBeVisible();
     await expect.poll(() => variable('--primary')).not.toBe('');
     const defaults = { seed: await variable('--primary'), shade: await variable('--primary-40') };
@@ -179,6 +184,12 @@ test.describe('session', () => {
     await page.getByRole('button', { name: 'Reset to Spartan HUD' }).click();
     await expect.poll(() => variable('--primary')).toBe(defaults.seed);
     await expect.poll(() => variable('--primary-40')).toBe(defaults.shade);
+
+    // Nothing wider than the phone, and the Close button closes it, focus back on the palette button
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(opener).toBeFocused();
   });
 
   test('a visitor sees the possible matches on a match page', async ({ page, playwright, baseUrl, consoleErrors }) => {

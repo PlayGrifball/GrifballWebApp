@@ -175,15 +175,20 @@ describe('ToolbarComponent', () => {
     expect(component.initial()).toBe('?');
   });
 
-  it('opens the theme editor as a borderless dialog', async () => {
+  it('opens the theme editor as a borderless dialog, full screen on a phone and closable every way', async () => {
     // The dialog code is loaded on the first click; the app-wide MatDialog opens it.
     const open = spyOn(TestBed.inject(MatDialog), 'open');
     await component.theme();
     expect(open).toHaveBeenCalledWith(ThemeComponent, {
-      maxWidth: '100%',
+      width: '720px',
+      maxWidth: '100vw',
+      maxHeight: '100dvh',
       backdropClass: 'no-backdrop',
-      maxHeight: '90vh',
-      panelClass: 'dialog-no-bg'
+      panelClass: ['dialog-no-bg', 'theme-dialog'],
+      ariaLabelledBy: 'theme-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      closeOnNavigation: true,
     });
   });
 });

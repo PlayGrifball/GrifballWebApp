@@ -85,11 +85,18 @@ export class ToolbarComponent {
       import('../theme/theme.component'),
       import('@angular/material/dialog'),
     ]);
+    // On a phone it takes the whole screen; its header (with Close) stays in view as it scrolls.
+    // Esc, a click beside it and going back (closeOnNavigation) close it too.
     this.injector.get(MatDialog).open(ThemeComponent, {
-      maxWidth: '100%',
+      width: '720px',
+      maxWidth: '100vw',
+      maxHeight: '100dvh',
       backdropClass: 'no-backdrop',
-      maxHeight: '90vh',
-      panelClass: 'dialog-no-bg'
+      panelClass: ['dialog-no-bg', 'theme-dialog'],
+      ariaLabelledBy: 'theme-title',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+      closeOnNavigation: true,
     });
   }
 }

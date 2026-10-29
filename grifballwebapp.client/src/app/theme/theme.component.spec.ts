@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ThemeComponent } from './theme.component';
 import { SPARTAN_HUD, ThemingService } from '../theming.service';
+import { MatDialogRef } from '@angular/material/dialog';
 
 describe('ThemeComponent', () => {
   let fixture: ComponentFixture<ThemeComponent>;
@@ -13,6 +14,12 @@ describe('ThemeComponent', () => {
     theming.font.set('sans-serif');
     fixture = TestBed.createComponent(ThemeComponent);
     fixture.detectChanges();
+  });
+
+  it('has no Close or Done on the /theme page, outside a dialog', () => {
+    const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).map(b => b.getAttribute('aria-label') ?? b.textContent!.trim());
+    expect(labels).not.toContain('Close');
+    expect(labels).not.toContain('Done');
   });
 
   it('starts with the current font selected', () => {
@@ -44,5 +51,40 @@ describe('ThemeComponent', () => {
     expect(fixture.componentInstance.font.value).toBe('Rajdhani');
     expect((fixture.nativeElement as HTMLElement).querySelector('app-palette')).not.toBe(before);
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-palette').length).toBe(6);
+  });
+});
+
+describe('ThemeComponent in the dialog', () => {
+  let fixture: ComponentFixture<ThemeComponent>;
+  let dialogRef: jasmine.SpyObj<MatDialogRef<ThemeComponent>>;
+
+  beforeEach(async () => {
+    spyOn(console, 'log');
+    dialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
+    await TestBed.configureTestingModule({
+      imports: [ThemeComponent],
+      providers: [{ provide: MatDialogRef, useValue: dialogRef }],
+    }).compileComponents();
+    fixture = TestBed.createComponent(ThemeComponent);
+    fixture.detectChanges();
+  });
+
+  const el = () => fixture.nativeElement as HTMLElement;
+
+  it('closes from the Close button in its header, which is labelled for screen readers', () => {
+    const close = el().querySelector<HTMLButtonElement>('.theme-head button[aria-label="Close"]')!;
+    expect(close).not.toBeNull();
+    close.click();
+    expect(dialogRef.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes from Done at the bottom', () => {
+    const done = Array.from(el().querySelectorAll<HTMLButtonElement>('.theme-foot button')).find(b => b.textContent!.trim() === 'Done')!;
+    done.click();
+    expect(dialogRef.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('is titled for the dialog (ariaLabelledBy)', () => {
+    expect(el().querySelector('#theme-title')!.textContent!.trim()).toBe('Theme');
   });
 });

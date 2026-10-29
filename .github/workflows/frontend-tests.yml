@@ -221,6 +221,15 @@ jobs:
         archive: false
         retention-days: 30
 
+    - name: Upload the theme-dialog screenshots
+      id: sheet_theme_dialog
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/theme-dialog.png
+        archive: false
+        retention-days: 30
+
     # The full-size originals, for a closer look
     - name: Upload all the screenshots
       id: all
@@ -246,10 +255,11 @@ jobs:
         SHEET_LOGIN: ${{ steps.sheet_login.outputs.artifact-url }}
         SHEET_USER_MANAGEMENT: ${{ steps.sheet_user_management.outputs.artifact-url }}
         SHEET_SEASON_MANAGER: ${{ steps.sheet_season_manager.outputs.artifact-url }}
+        SHEET_THEME_DIALOG: ${{ steps.sheet_theme_dialog.outputs.artifact-url }}
         ALL: ${{ steps.all.outputs.artifact-url }}
       run: |
         links=""
-        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager; do
+        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager theme-dialog; do
           var="SHEET_$(echo "$page" | tr 'a-z-' 'A-Z_')"
           links="${links}[${page}](${!var}) · "
         done

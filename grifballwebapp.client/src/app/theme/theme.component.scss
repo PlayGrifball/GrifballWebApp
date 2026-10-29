@@ -1,15 +1,55 @@
 :host {
   display: block;
-  padding: 20px;
   background: #0B1B2A;
   border: 1px solid var(--hud-border);
 }
 
+// Stays in view while the editors scroll under it (the dialog's surface scrolls).
 .theme-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px 12px;
+  padding: 12px 12px 12px 20px;
+  background: #0B1B2A;
+  border-bottom: 1px solid var(--hud-hairline);
+}
+
+.theme-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.theme-close {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+}
+
+.theme-body {
+  padding: 16px 20px;
+}
+
+.theme-font { width: 100%; max-width: 320px; }
+
+.theme-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  background: #0B1B2A;
+  border-top: 1px solid var(--hud-hairline);
+}
+
+@media (max-width: 400px) {
+  .theme-head { padding-left: 12px; }
+  .theme-body { padding: 12px; }
+  .theme-foot { padding: 12px; }
 }
