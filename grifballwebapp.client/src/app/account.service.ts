@@ -118,6 +118,8 @@ export class AccountService {
       next: () => {
         this.session.signedInOrOut();
         this.setUser(null);
+        // Home, signed out (not left on a page that was theirs)
+        this.router.navigate(['/']);
       },
     });
   }

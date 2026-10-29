@@ -51,6 +51,26 @@ test.describe('session', () => {
     expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
   });
 
+  test('logging out from the user chip\'s menu ends the session and goes home', async ({ page, smoke, consoleErrors }) => {
+    void consoleErrors;
+    await login(page, smoke[0]);
+    await page.goto(`/season/${league.seasonID}`);
+    const chip = page.locator('button.hud-user');
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Profile' })).toBeFocused();
+
+    const loggedOut = page.waitForResponse(r => /\/api\/Identity\/Logout/i.test(r.url()));
+    await page.getByRole('menuitem', { name: 'Log out' }).click();
+    expect((await loggedOut).ok()).toBe(true);
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('.hud-user')).toHaveCount(0);
+    await expect(page.locator('header').getByRole('link', { name: 'Login icon' })).toBeVisible();
+    await expect.poll(() => sessionCookie(page.context())).toBeUndefined();
+    expect((await page.request.get('/api/Identity/Me')).status()).toBe(204);
+  });
+
   test('a visitor gets the page with its content in the HTML', async ({ playwright, baseUrl }) => {
     // A plain request: no browser, no cookie
     const http = await playwright.request.newContext({ baseURL: baseUrl });

@@ -228,6 +228,8 @@ describe('AccountService', () => {
       expect(service.isLoggedIn()).toBeFalse();
       expect(service.isSysAdmin()).toBeFalse();
       expect(service.displayName()).toBeNull();
+      // Home, signed out
+      expect(router.navigate).toHaveBeenCalledWith(['/']);
       http.expectNone(ME_URL);
     });
 

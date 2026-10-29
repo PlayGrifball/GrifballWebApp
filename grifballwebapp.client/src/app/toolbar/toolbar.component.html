@@ -21,10 +21,20 @@
       </button>
 
       @if (accountService.isLoggedIn()) {
-        <a class="hud-user" [routerLink]="['/profile', accountService.personID()]" aria-label="Profile icon">
-          <span class="hud-avatar hud-avatar--accent hud-user__avatar" aria-hidden="true">{{initial()}}</span>
-          <span class="hud-user__name">{{accountService.displayName()}}</span>
-        </a>
+        <!-- The user's chip opens their menu: their profile, and logging out -->
+        <div class="hud-user-menu" (keydown)="onMenuKeydown($event)" (focusout)="onMenuFocusOut($event)">
+          <button #chip type="button" class="hud-user" aria-haspopup="menu" aria-controls="hud-user-menu"
+                  [attr.aria-expanded]="menuOpen()" (click)="toggleMenu()">
+            <span class="hud-avatar hud-avatar--accent hud-user__avatar" aria-hidden="true">{{initial()}}</span>
+            <span class="hud-user__name">{{accountService.displayName()}}</span>
+          </button>
+          @if (menuOpen()) {
+            <div id="hud-user-menu" class="hud-user-menu__panel" role="menu" [attr.aria-label]="accountService.displayName() + ' menu'">
+              <a #menuItem role="menuitem" class="hud-user-menu__item" [routerLink]="['/profile', accountService.personID()]" (click)="closeMenu()">Profile</a>
+              <button #menuItem role="menuitem" type="button" class="hud-user-menu__item" (click)="logout()">Log out</button>
+            </div>
+          }
+        </div>
       } @else {
         <a class="hud-btn hud-btn--primary hud-header__login" routerLink="/login" aria-label="Login icon">Login</a>
       }

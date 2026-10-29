@@ -57,7 +57,7 @@ test('tokens an earlier version kept in localStorage are removed, and not used',
 
   expect(await page.evaluate(() => [localStorage.getItem('access_token'), localStorage.getItem('metaInfo')])).toEqual([null, null]);
   // A visitor, as the API says: nothing from the old storage
-  await expect(page.locator('a.hud-user')).toHaveCount(0);
+  await expect(page.locator('.hud-user')).toHaveCount(0);
   expect(calls.filter(c => c.authorization)).toEqual([]);
 });
 
@@ -69,12 +69,12 @@ test('signs in with a password and out again, with the antiforgery token and no 
   await page.locator('input[name="password"]').fill('pw');
   await page.getByRole('button', { name: 'Submit' }).click();
 
-  await expect(page.locator('a.hud-user')).toContainText(META.player.displayName);
+  await expect(page.locator('.hud-user')).toContainText(META.player.displayName);
   const login = calls.find(c => c.path === '/api/identity/login')!;
   expect(login.xsrf).toBe('xsrf-visitor');
 
   await page.getByRole('button', { name: 'Logout' }).click();
-  await expect(page.locator('a.hud-user')).toHaveCount(0);
+  await expect(page.locator('.hud-user')).toHaveCount(0);
   // The token belongs to who it was made for: a new one after signing in
   const logout = calls.find(c => c.path === '/api/Identity/Logout')!;
   expect(logout.method).toBe('POST');
@@ -82,4 +82,35 @@ test('signs in with a password and out again, with the antiforgery token and no 
 
   expect(calls.filter(c => c.authorization)).toEqual([]);
   expect(calls.filter(c => c.path === '/api/Identity/Refresh')).toEqual([]);
+});
+
+test('the user chip opens a menu: Profile, and Log out, which goes home signed out', async ({ page }) => {
+  const calls = await mockBackend(page);
+  await page.goto('/login');
+  await page.locator('input[name="username"]').fill('chief');
+  await page.locator('input[name="password"]').fill('pw');
+  await page.getByRole('button', { name: 'Submit' }).click();
+
+  const chip = page.locator('button.hud-user');
+  await expect(chip).toContainText(META.player.displayName);
+  await expect(chip).toHaveAttribute('aria-haspopup', 'menu');
+  await expect(chip).toHaveAttribute('aria-expanded', 'false');
+
+  // By keyboard: opens with the focus on Profile; the arrows move; Esc closes back to the chip
+  await chip.focus();
+  await page.keyboard.press('Enter');
+  await expect(chip).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('menuitem', { name: 'Profile' })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: 'Profile' })).toHaveAttribute('href', `/profile/${META.player.userID}`);
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'Log out' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(chip).toBeFocused();
+
+  await chip.click();
+  await page.getByRole('menuitem', { name: 'Log out' }).click();
+  await expect(page.locator('.hud-user')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/);
+  expect(calls.find(c => c.path === '/api/Identity/Logout')?.xsrf).toBe('xsrf-signed-in');
 });

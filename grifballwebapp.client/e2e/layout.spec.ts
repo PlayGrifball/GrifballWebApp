@@ -209,6 +209,25 @@ for (const { name, path, role, ready, parts } of PAGES) {
         await page.getByRole('button', { name: 'Close menu' }).click();
         await expect(page.locator('mat-sidenav')).toBeHidden();
       }
+
+      // Signed in, the chip opens the user's menu with its items whole on screen, big enough to tap.
+      if (role !== 'anon') {
+        await page.locator('button.hud-user').click();
+        const items = page.getByRole('menuitem');
+        await expect(items).toHaveCount(2);
+        await expect(items.first()).toBeFocused();
+        const itemProblems = await items.evaluateAll(els => els.map(el => {
+          const r = el.getBoundingClientRect();
+          const label = (el.textContent ?? '').trim();
+          if (r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) return `${label} is off screen`;
+          if (r.height < 43.5) return `${label} is ${Math.round(r.height)}px tall, under 44`;
+          return null;
+        }).filter(p => p !== null));
+        for (const p of itemProblems) problems.push(`${width}x${height}: user menu: ${p}`);
+        await page.keyboard.press('Escape');
+        await expect(items).toHaveCount(0);
+        await expect(page.locator('button.hud-user')).toBeFocused();
+      }
     }
     expect(problems).toEqual([]);
   });

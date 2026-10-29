@@ -19,18 +19,16 @@ describe('ProfileComponent', () => {
   let http: HttpTestingController;
   let snackBar: jasmine.SpyObj<MatSnackBar>;
   let personID: WritableSignal<number | null>;
-  let logout: jasmine.Spy;
 
   beforeEach(async () => {
     personID = signal<number | null>(null);
-    logout = jasmine.createSpy('logout');
     snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
     await TestBed.configureTestingModule({
       imports: [ProfileComponent],
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
-        { provide: AccountService, useValue: { personID, logout } },
+        { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
     })
@@ -53,19 +51,6 @@ describe('ProfileComponent', () => {
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent!;
   const name = () => (fixture.nativeElement as HTMLElement).querySelector('h1')!.textContent!.trim();
-
-  it('offers to log out on your own profile only', () => {
-    const logoutButton = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button'))
-      .find(b => b.textContent!.trim() === 'Log out');
-    personID.set(4);
-    load({ gamertag: 'Grif' });
-    expect(logoutButton()).toBeUndefined();
-
-    personID.set(21);
-    fixture.detectChanges();
-    logoutButton()!.click();
-    expect(logout).toHaveBeenCalled();
-  });
 
   it('shows a placeholder service record for a user without a gamertag', () => {
     personID.set(3);
