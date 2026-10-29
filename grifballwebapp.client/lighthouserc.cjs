@@ -1,0 +1,45 @@
+// Lighthouse CI (https://github.com/GoogleChrome/lighthouse-ci), run by the lighthouse job in
+// .github/workflows/frontend-tests.yml, once per preset: LIGHTHOUSE_PRESET=mobile|desktop.
+// (Not LHCI_*: lhci reads those environment variables as its own options.)
+// It audits the production build served by e2e/serve.mjs with MOCK_API=1, which answers /api from
+// e2e/mockApi.mts, as a visitor who is not logged in (Lighthouse cannot log in).
+const port = Number(process.env.E2E_PORT ?? 4300);
+const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
+const base = `http://127.0.0.1:${port}`;
+
+module.exports = {
+  ci: {
+    collect: {
+      startServerCommand: 'node e2e/serve.mjs',
+      startServerReadyPattern: 'Serving',
+      url: [
+        '/',
+        '/season/12',
+        '/season/12?tab=schedule',
+        '/season/12?tab=bracket',
+        '/seasonmatch/31',
+        '/profile/117',
+        '/season/13/signupForm',
+        '/login',
+      ].map(path => base + path),
+      numberOfRuns: 1,
+      settings: {
+        ...(desktop ? { preset: 'desktop' } : {}),
+        // e.g. --no-sandbox when Chromium runs as root in a container
+        chromeFlags: process.env.LIGHTHOUSE_CHROME_FLAGS ?? '',
+      },
+    },
+    assert: {
+      assertions: {
+        'categories:accessibility': ['error', { minScore: 0.9 }],
+        'categories:best-practices': ['error', { minScore: 0.9 }],
+        // CI runners are too noisy to fail on these
+        'categories:performance': ['warn', { minScore: 0.9 }],
+        'categories:seo': ['warn', { minScore: 0.9 }],
+      },
+    },
+    upload: {
+      target: process.env.LIGHTHOUSE_UPLOAD_TARGET ?? 'temporary-public-storage',
+    },
+  },
+};

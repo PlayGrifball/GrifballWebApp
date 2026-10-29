@@ -91,3 +91,11 @@
   }
   .hud-header__login { padding: 0 20px; }
 }
+
+// The smallest phones: menu, wordmark, theme button and Login have to share 360px.
+@media (max-width: 400px) {
+  .hud-header__bar { gap: 8px; }
+  .hud-header__tools { gap: 4px; }
+  .hud-brand { font-size: 17px; letter-spacing: 0.12em; }
+  .hud-header__login { padding: 0 14px; letter-spacing: 0.12em; }
+}

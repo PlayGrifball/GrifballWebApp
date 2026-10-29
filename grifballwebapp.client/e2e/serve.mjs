@@ -1,7 +1,8 @@
 // Minimal static server for the production build, mirroring nginx's
 // `try_files $uri $uri/ /index.html` SPA fallback (see default.conf).
 // API and SignalR traffic is mocked in the tests with page.route, so this
-// server never proxies anything.
+// server never proxies anything. With MOCK_API=1 it answers /api itself from
+// e2e/mockApi.mts, as a visitor who is not logged in (for Lighthouse CI).
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('../dist/grifballwebapp.client/browser', import.meta.url)));
 const port = Number(process.env.E2E_PORT ?? 4300);
+const mockApi = process.env.MOCK_API ? await import('./mockApi.mts') : null;
 const types = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -31,6 +33,12 @@ async function fileFor(urlPath) {
 
 createServer(async (req, res) => {
   const path = (req.url ?? '/').split('?')[0];
+  if (mockApi && (path.startsWith('/api/') || path.startsWith('/hub/'))) {
+    const mocked = mockApi.mockResponse('anon', path);
+    res.writeHead(mocked?.status ?? 404, { 'Content-Type': mocked?.contentType ?? 'text/plain' });
+    res.end(mocked?.body ?? '');
+    return;
+  }
   const file = (await fileFor(path)) ?? join(root, 'index.html');
   try {
     const body = await readFile(file);

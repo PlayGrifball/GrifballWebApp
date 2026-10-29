@@ -392,9 +392,11 @@ body {
     tonal-label-text-tracking: 0.14em,
   ));
 
+  // 48px: big enough to tap (Material's default is 40)
   @include mat.icon-button-overrides((
     icon-color: var(--hud-text),
     container-shape: 0,
+    state-layer-size: 48px,
   ));
 
   @include mat.table-overrides((
@@ -557,7 +559,7 @@ body {
 }
 
 // Tap targets: Material's list and menu rows are at least 48px already; icon buttons too.
-.mat-mdc-paginator .mat-mdc-icon-button { width: 44px; height: 44px; }
+.mat-mdc-paginator .mat-mdc-icon-button { width: 48px; height: 48px; }
 
 // Snack bars are short notices; keep them inside a phone screen.
 .mat-mdc-snack-bar-container { margin: 8px !important; }
@@ -565,6 +567,7 @@ body {
 // A button that fills a table cell (e.g. tick a whole row or column).
 .hud-cell-btn {
   min-height: 44px;
+  min-width: 44px;
   padding: 0 6px;
   border: 0;
   background: transparent;
