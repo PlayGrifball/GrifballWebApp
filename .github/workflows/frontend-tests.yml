@@ -267,8 +267,8 @@ jobs:
           grifballwebapp.client/playwright-report/
         retention-days: 7
 
-  # Lighthouse on the production build, served with the mocked API (e2e/mockApi.mts) as a visitor
-  # who is not logged in, with the mobile and the desktop settings. Accessibility, best practices and
+  # Lighthouse on the production build, run by its own server (pages rendered on the server) with the
+  # mocked API (e2e/mockApi.mts, e2e/serve.mjs) as a visitor who is not logged in, with the mobile and the desktop settings. Accessibility, best practices and
   # SEO must score 90; performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and
   # warns under 90.
   lighthouse:
@@ -307,8 +307,6 @@ jobs:
     # (kept for a few days), linked from the scores.
     - name: Run Lighthouse
       id: lighthouse
-      env:
-        MOCK_API: '1'
       run: |
         lhci="npx --yes @lhci/cli@${{ env.LIGHTHOUSE_CI_VERSION }}"
         failed=0

@@ -7,6 +7,11 @@ import { META, MOCK_NOW, mockResponse, type Role } from './mockApi.mts';
 //
 // Each page and size is screenshotted to screenshots/<page>/<n>-<device>-<width>x<height>.png;
 // CI turns them into one contact sheet per page (e2e/contact-sheets.mjs) and links them on the PR.
+//
+// The pages are rendered on the server, as on the site: they are opened on localhost, which the
+// server renders for (e2e/serve.mjs). The browser then takes them over, with the API mocked here.
+
+const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
 // The screen sizes, by device; the name goes in each screenshot's file name, which the contact
 // sheets use for order and captions.
@@ -80,7 +85,7 @@ async function mockBackend(page: Page, role: Role): Promise<void> {
   }
   await page.clock.setFixedTime(new Date(MOCK_NOW));
   // Hermetic: the app and its fonts are all served locally.
-  await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
+  await page.route(url => url.hostname !== 'localhost', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
   await page.route('**/api/**', route => {
     const mocked = mockResponse(role, new URL(route.request().url()).pathname);
@@ -183,7 +188,7 @@ for (const { name, path, role, ready, parts } of PAGES) {
     const problems: string[] = [];
     for (const [index, [device, width, height]] of SIZES.entries()) {
       await page.setViewportSize({ width, height });
-      await page.goto(path);
+      await page.goto(SITE + path);
       await expect(page.locator(ready).first()).toBeVisible();
       // The web fonts change the layout (and the toolbar is measured again once they are in);
       // table rows fade in.

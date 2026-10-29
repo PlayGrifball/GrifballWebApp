@@ -1,3 +1,4 @@
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { Notifier } from './shared/notifier.service';
@@ -412,5 +413,33 @@ describe('AccountService session handling', () => {
       req.flush('Removed 3');
       expect(response).toBe('Removed 3');
     });
+  });
+});
+
+describe('AccountService rendering on the server', () => {
+  afterEach(() => localStorage.clear());
+
+  it('starts as a visitor, whatever this browser has stored', () => {
+    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'stored', refreshToken: 'r', expiresIn: 3600 }));
+    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: true, isCommissioner: true, isPlayer: true, userID: 7, displayName: 'Stored' }));
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        AccountService,
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: Notifier, useValue: jasmine.createSpyObj('Notifier', ['open']) },
+        { provide: Router, useValue: jasmine.createSpyObj('Router', ['navigate']) },
+        { provide: JwtHelperService, useValue: {} },
+        { provide: ApiClientService, useValue: {} },
+      ]
+    });
+
+    const service = TestBed.inject(AccountService);
+    TestBed.tick();
+
+    expect(service.isLoggedIn()).toBeFalse();
+    expect(service.isSysAdmin()).toBeFalse();
+    expect(service.displayName()).toBeNull();
+    TestBed.inject(HttpTestingController).expectNone('/api/identity/metaInfo');
   });
 });

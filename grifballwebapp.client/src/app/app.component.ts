@@ -1,4 +1,5 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, OnInit, afterRenderEffect, computed, effect, inject, signal, untracked } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, OnInit, PLATFORM_ID, afterRenderEffect, computed, effect, inject, signal, untracked } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { ToolbarComponent } from './toolbar/toolbar.component';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -34,6 +35,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   accountService = inject(AccountService);
   api = inject(ApiClientService);
   private themingService = inject(ThemingService);
+  /** In a browser, not rendering on the server: the window, its size and the theme are only there. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly mobileQuery = inject(MediaMatcher).matchMedia('(max-width: 720px)');
   // Resize events come many times a frame: measure at most once per animation frame.
@@ -73,7 +76,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   /** The sidenav (and its menu button) is only needed for links that do not fit in the toolbar. */
   readonly showMenu = computed(() => this.overflowNavLinks().length > 0);
 
-  setTheme = effect(() => {
+  // The theme is set on the document in the browser; the server renders the stylesheet's colours.
+  setTheme = this.isBrowser && effect(() => {
     this.themingService.setFont(this.themingService.font());
     this.themingService.setPrimaryShade(this.themingService.primary());
     this.themingService.setSecondaryShade(this.themingService.secondary());
@@ -107,6 +111,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
+    if (!this.isBrowser)
+      return;
     window.addEventListener('resize', this.onResize);
     this.mobileQuery.addEventListener('change', this.onMobileChange);
     // The links are first measured in the fallback font; measure again once the web fonts are in.
@@ -118,6 +124,8 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    if (!this.isBrowser)
+      return;
     window.removeEventListener('resize', this.onResize);
     this.mobileQuery.removeEventListener('change', this.onMobileChange);
     if (this.resizeFrame !== null)

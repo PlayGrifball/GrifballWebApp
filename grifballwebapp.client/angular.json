@@ -62,15 +62,20 @@
                 "bundleName": "brackets-viewer",
                 "inject": false
               }
-            ]
+            ],
+            "server": "src/main.server.ts",
+            "outputMode": "server",
+            "ssr": {
+              "entry": "src/server.ts"
+            }
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "690kb",
-                  "maximumError": "720kb"
+                  "maximumWarning": "720kb",
+                  "maximumError": "750kb"
                 },
                 {
                   "type": "anyComponentStyle",

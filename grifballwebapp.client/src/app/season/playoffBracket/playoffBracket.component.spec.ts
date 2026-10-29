@@ -3,7 +3,7 @@ import { PlayoffBracketComponent } from './playoffBracket.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ActivatedRoute, provideRouter, Router } from '@angular/router';
-import { EventEmitter, signal, WritableSignal } from '@angular/core';
+import { EventEmitter, PLATFORM_ID, signal, WritableSignal } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
@@ -260,6 +260,33 @@ describe('PlayoffBracketComponent without the viewer library', () => {
     await rendering;
 
     expect(snackBar.open).toHaveBeenCalledWith('Failed to load the bracket viewer', 'Close');
+    (window as any).bracketsViewer = original;
+  });
+});
+
+describe('PlayoffBracketComponent rendered on the server', () => {
+  it('leaves the bracket box for the browser to draw in', async () => {
+    const viewer = { addLocale: jasmine.createSpy('addLocale'), render: jasmine.createSpy('render') };
+    const original = (window as any).bracketsViewer;
+    (window as any).bracketsViewer = viewer;
+    await TestBed.configureTestingModule({
+      imports: [PlayoffBracketComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: AccountService, useValue: { isEventOrganizer: signal(false) } },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
+      ]
+    }).compileComponents();
+    const component = TestBed.createComponent(PlayoffBracketComponent).componentInstance;
+
+    await component.render({ stages: [], matches: [], matchGames: [], participants: [{ id: 1 }] } as any);
+
+    expect(component.hasBracket()).toBeTrue();
+    expect(viewer.render).not.toHaveBeenCalled();
+    expect(component.drawn()).toBeFalse();
     (window as any).bracketsViewer = original;
   });
 });

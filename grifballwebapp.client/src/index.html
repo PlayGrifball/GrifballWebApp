@@ -8,40 +8,6 @@
   <meta name="theme-color" content="#060B13">
   <meta name="description" content="Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <!-- Starts the API calls of the page being opened while the app's scripts download; the app uses
-       each answer once, instead of asking again (src/app/earlyFetch.interceptor.ts). The URLs must
-       match what the pages ask for (with the same query): a URL nobody asks for is just not used. -->
-  <script>
-    (function () {
-      if (!window.fetch || !window.Promise) return;
-      var path = location.pathname.replace(/\/+$/, '') || '/';
-      var tab = new URLSearchParams(location.search).get('tab');
-      var m, urls = ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate'];
-      var token = null;
-      try { token = JSON.parse(localStorage.getItem('access_token')).accessToken || null; } catch (e) { }
-      if (token) urls.push('/api/identity/metaInfo');
-      if (path === '/') {
-        urls.push('/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons?pageSize=10&pageNumber=1');
-      } else if ((m = /^\/season\/([1-9]\d*)$/.exec(path))) {
-        urls.push('/api/Season/getSeasonName/' + m[1]);
-        if (tab === 'schedule') urls.push('/api/MatchPlanner/GetUnscheduledMatches/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
-        else if (tab === 'bracket') urls.push('/api/Brackets/GetViewerData?seasonID=' + m[1]);
-        else urls.push('/api/TeamStandings/GetTeamStandings/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
-      } else if ((m = /^\/seasonmatch\/([1-9]\d*)$/.exec(path))) {
-        urls.push('/api/SeasonMatch/GetSeasonMatchPage/' + m[1]);
-      } else if ((m = /^\/profile\/([1-9]\d*)$/.exec(path))) {
-        urls.push('/api/profile/getgamertag/' + m[1]);
-      }
-      var headers = token ? { Authorization: 'Bearer ' + token } : {};
-      var responses = {};
-      urls.forEach(function (url) {
-        responses[url] = fetch(url, { headers: headers, credentials: 'same-origin' })
-          .then(function (r) { return r.text().then(function (body) { return { status: r.status, contentType: r.headers.get('Content-Type'), body: body }; }); })
-          .catch(function () { return null; });
-      });
-      window.grifEarly = { at: Date.now(), token: token, responses: responses };
-    })();
-  </script>
 
   <!-- Link previews (Open Graph / Twitter) -->
   <meta property="og:type" content="website">
@@ -80,5 +46,41 @@
   <app-root>
     <div class="boot-shell" aria-hidden="true"><div class="boot-shell__bar"><div class="boot-shell__brand">Grifball</div></div></div>
   </app-root>
+  <!-- Starts the API calls of the page being opened while the app's scripts download; the app uses
+       each answer once, instead of asking again (src/app/earlyFetch.interceptor.ts). The URLs must
+       match what the pages ask for (with the same query): a URL nobody asks for is just not used.
+       Not for a page the server rendered (app-root has ng-server-context then): the server sends
+       its API answers with the page, and the app uses those. -->
+  <script>
+    (function () {
+      if (!window.fetch || !window.Promise || document.querySelector('app-root[ng-server-context]')) return;
+      var path = location.pathname.replace(/\/+$/, '') || '/';
+      var tab = new URLSearchParams(location.search).get('tab');
+      var m, urls = ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate'];
+      var token = null;
+      try { token = JSON.parse(localStorage.getItem('access_token')).accessToken || null; } catch (e) { }
+      if (token) urls.push('/api/identity/metaInfo');
+      if (path === '/') {
+        urls.push('/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons?pageSize=10&pageNumber=1');
+      } else if ((m = /^\/season\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/Season/getSeasonName/' + m[1]);
+        if (tab === 'schedule') urls.push('/api/MatchPlanner/GetUnscheduledMatches/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
+        else if (tab === 'bracket') urls.push('/api/Brackets/GetViewerData?seasonID=' + m[1]);
+        else urls.push('/api/TeamStandings/GetTeamStandings/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
+      } else if ((m = /^\/seasonmatch\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/SeasonMatch/GetSeasonMatchPage/' + m[1]);
+      } else if ((m = /^\/profile\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/profile/getgamertag/' + m[1]);
+      }
+      var headers = token ? { Authorization: 'Bearer ' + token } : {};
+      var responses = {};
+      urls.forEach(function (url) {
+        responses[url] = fetch(url, { headers: headers, credentials: 'same-origin' })
+          .then(function (r) { return r.text().then(function (body) { return { status: r.status, contentType: r.headers.get('Content-Type'), body: body }; }); })
+          .catch(function () { return null; });
+      });
+      window.grifEarly = { at: Date.now(), token: token, responses: responses };
+    })();
+  </script>
 </body>
 </html>

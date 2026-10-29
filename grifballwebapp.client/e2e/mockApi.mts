@@ -1,6 +1,6 @@
 // A fake backend with realistic data, shaped like the API's DTOs. Used by the layout test
-// (layout.spec.ts, through page.route) and by e2e/serve.mjs when MOCK_API=1 (Lighthouse CI),
-// so both run without the .NET server. Plain TypeScript Node can run as is (no enums etc.).
+// (layout.spec.ts, through page.route) and by e2e/serve.mjs as the backend of the app's server
+// (pages rendered on the server, Lighthouse CI), so both run without the .NET server. Plain TypeScript Node can run as is (no enums etc.).
 
 export type Role = 'anon' | 'player' | 'admin';
 

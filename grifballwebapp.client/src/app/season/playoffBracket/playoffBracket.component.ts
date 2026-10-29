@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
@@ -31,6 +32,7 @@ export class PlayoffBracketComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private snackBar = inject(MatSnackBar);
   accountService = inject(AccountService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private seasonID: number = 0;
 
@@ -77,6 +79,9 @@ export class PlayoffBracketComponent implements OnInit {
     } else {
       this.hasBracket.set(true);
     }
+    // The viewer draws into the page in the browser; on the server the box is left for it.
+    if (!this.isBrowser)
+      return;
     try {
       await loadBracketsViewer();
     } catch {

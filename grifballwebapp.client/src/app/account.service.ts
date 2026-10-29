@@ -1,4 +1,5 @@
-import { Injectable, Signal, WritableSignal, computed, effect, signal, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, Signal, WritableSignal, computed, effect, signal, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { ApiClientService } from './api/apiClient.service';
 import { LoginDto } from './api/dtos/loginDto';
 import { JwtHelperService } from '@auth0/angular-jwt';
@@ -39,21 +40,9 @@ export class AccountService {
   displayName: WritableSignal<string | null> = signal(null);
 
   constructor() {
-    let accessToken = localStorage.getItem("access_token");
-    if (accessToken !== null) {
-      const accessT: AccessTokenResponse = JSON.parse(accessToken)
-      this.accessTokenResponse.set(accessT);
-    }
-
-    const metaInfoJson = localStorage.getItem("metaInfo");
-    if (metaInfoJson !== null) {
-      const r: MetaInfoResponse = JSON.parse(metaInfoJson);
-      this.isSysAdmin.set(r.isSysAdmin);
-      this.isEventOrganizer.set(r.isCommissioner);
-      this.isPlayer.set(r.isPlayer);
-      this.personID.set(r.userID);
-      this.displayName.set(r.displayName);
-    }
+    // The session is kept in the browser. On the server, pages are rendered as a visitor's.
+    if (isPlatformBrowser(inject(PLATFORM_ID)))
+      this.restoreSession();
 
     // Danger zone, need to be careful to not cause
     effect(() => {
@@ -86,6 +75,25 @@ export class AccountService {
         })
       }
     });
+  }
+
+  /** The signed-in user from the last visit, as this browser kept them. */
+  private restoreSession(): void {
+    const accessToken = localStorage.getItem("access_token");
+    if (accessToken !== null) {
+      const accessT: AccessTokenResponse = JSON.parse(accessToken)
+      this.accessTokenResponse.set(accessT);
+    }
+
+    const metaInfoJson = localStorage.getItem("metaInfo");
+    if (metaInfoJson !== null) {
+      const r: MetaInfoResponse = JSON.parse(metaInfoJson);
+      this.isSysAdmin.set(r.isSysAdmin);
+      this.isEventOrganizer.set(r.isCommissioner);
+      this.isPlayer.set(r.isPlayer);
+      this.personID.set(r.userID);
+      this.displayName.set(r.displayName);
+    }
   }
 
   register(registerDto: RegisterDto) {

@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, PLATFORM_ID, input } from '@angular/core';
 import { MediaMatcher } from '@angular/cdk/layout';
 import { of, Subject } from 'rxjs';
 import { ToolbarComponent } from './toolbar/toolbar.component';
@@ -439,5 +439,43 @@ describe('AppComponent behaviour', () => {
     spyOnProperty(document, 'fonts', 'get').and.returnValue(undefined as unknown as FontFaceSet);
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(component.visibleNavLinks().length).toBe(2);
+  });
+});
+
+describe('AppComponent rendered on the server', () => {
+  it('leaves the window, its size and the theme alone', () => {
+    const theming = {
+      neutral: signal('#000000'), neutralVariant: signal('#000000'), error: signal('#ff0000'), font: signal('Arial'),
+      primary: signal('#0000ff'), secondary: signal('#00ff00'), tertiary: signal('#ff00ff'),
+      setNeutralShade: jasmine.createSpy(), setNeutralVariantShade: jasmine.createSpy(), setErrorShade: jasmine.createSpy(),
+      setFont: jasmine.createSpy('setFont'), setPrimaryShade: jasmine.createSpy(), setSecondaryShade: jasmine.createSpy(), setTertiaryShade: jasmine.createSpy(),
+    };
+    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'commitHash', 'commitDate']);
+    api.getCurrentSeasonID.and.returnValue(of(0));
+    api.commitHash.and.returnValue(of(''));
+    api.commitDate.and.returnValue(of(null));
+    const addListener = spyOn(window, 'addEventListener').and.callThrough();
+    const removeListener = spyOn(window, 'removeEventListener').and.callThrough();
+    TestBed.configureTestingModule({
+      imports: [AppComponent, NoopAnimationsModule],
+      providers: [
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: AccountService, useValue: { isLoggedIn: signal(false), isEventOrganizer: signal(false), isSysAdmin: signal(false), isPlayer: signal(false), personID: signal(null), displayName: signal(null) } },
+        { provide: ApiClientService, useValue: api },
+        { provide: ThemingService, useValue: theming },
+      ]
+    }).overrideComponent(AppComponent, {
+      remove: { imports: [ToolbarComponent] },
+      add: { imports: [StubToolbarComponent] }
+    });
+
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    fixture.destroy();
+
+    expect(theming.setFont).not.toHaveBeenCalled();
+    expect(addListener).not.toHaveBeenCalledWith('resize', jasmine.any(Function));
+    expect(removeListener).not.toHaveBeenCalledWith('resize', jasmine.any(Function));
   });
 });

@@ -1,11 +1,12 @@
 // Lighthouse CI (https://github.com/GoogleChrome/lighthouse-ci), run by the lighthouse job in
 // .github/workflows/frontend-tests.yml, once per preset: LIGHTHOUSE_PRESET=mobile|desktop.
 // (Not LHCI_*: lhci reads those environment variables as its own options.)
-// It audits the production build served by e2e/serve.mjs with MOCK_API=1, which answers /api from
-// e2e/mockApi.mts, as a visitor who is not logged in (Lighthouse cannot log in).
+// It audits the production build as deployed, its server (src/server.ts) run by e2e/serve.mjs with
+// the API answered from e2e/mockApi.mts, as a visitor who is not logged in (Lighthouse cannot log
+// in). On localhost, which the server renders pages for, as it does for the site.
 const port = Number(process.env.E2E_PORT ?? 4300);
 const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
-const base = `http://127.0.0.1:${port}`;
+const base = `http://localhost:${port}`;
 // Performance must not drop below these on the CI runner: some margin below what it scores (in
 // October 2026 0.77-0.86 on mobile, 0.98-1.00 on desktop). A single mobile run varies by some 15
 // points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
