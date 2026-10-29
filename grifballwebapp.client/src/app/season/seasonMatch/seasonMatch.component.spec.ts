@@ -8,7 +8,7 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
-import { signal } from '@angular/core';
+import { PLATFORM_ID, signal } from '@angular/core';
 import { AccountService } from '../../account.service';
 import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
@@ -585,5 +585,28 @@ describe('SeasonMatchComponent lobby', () => {
     expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
     expect(el().querySelector('.lobby-score__results')!.textContent).toContain('Won');
     expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
+  });
+});
+
+describe('SeasonMatchComponent on the server', () => {
+  it('renders the page without asking for the possible matches (slow), which the browser loads', async () => {
+    await TestBed.configureTestingModule({
+      imports: [SeasonMatchComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } },
+      ],
+    }).compileComponents();
+    const httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SeasonMatchComponent);
+    fixture.componentRef.setInput('seasonMatchID', 7);
+    fixture.detectChanges();
+
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7');
+    httpMock.expectNone('/api/SeasonMatch/GetPossibleMatches/7');
+    httpMock.verify();
   });
 });

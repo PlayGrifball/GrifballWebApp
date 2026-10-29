@@ -1,6 +1,6 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
@@ -54,6 +54,7 @@ export const actionPrompts: Record<MatchAction, string> = {
 export class SeasonMatchComponent {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
@@ -159,6 +160,10 @@ export class SeasonMatchComponent {
   }
 
   getPossibleMatches(): void {
+    // Slow (the server first pulls the players' recent games from Halo Infinite): never while the
+    // page is rendered on the server, which would wait for it. The browser asks once it has the page.
+    if (!this.isBrowser)
+      return;
     this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID())
       .subscribe({
         next: result => this.possibleMatches.set(result),
