@@ -34,8 +34,8 @@
       }
       @for (player of homeRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
-          <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
-          <span class="lobby-player__name">{{player.gamertag}}</span>
+          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
+          <span class="lobby-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
         </div>
       }
@@ -73,8 +73,8 @@
       @for (player of awayRoster(); track player.teamPlayerID) {
         <div class="lobby-player">
           @if (player.draftCaptainOrder != null) { <span class="hud-label hud-label--gold">Captain</span> }
-          <span class="lobby-player__name">{{player.gamertag}}</span>
-          <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
+          <span class="lobby-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+          <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
         </div>
       }
     </div>

@@ -75,7 +75,8 @@ export interface PlayerDto
 {
   teamPlayerID: number,
   userID: number,
-  gamertag: string,
+  /** null for a player without an Xbox account linked */
+  gamertag: string | null,
   draftCaptainOrder: number | null,
   draftRound: number | null,
 }

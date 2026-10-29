@@ -20,8 +20,8 @@
             <h2 class="hud-h2">Roster</h2>
             @for (player of team()?.players; track player.teamPlayerID) {
                 <div class="team-player">
-                    <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
-                    <span class="team-player__name">{{player.gamertag}}</span>
+                    <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
+                    <span class="team-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
                     @if (player.draftCaptainOrder != null) {
                         <span class="hud-label hud-label--gold">Captain</span>
                     } @else {

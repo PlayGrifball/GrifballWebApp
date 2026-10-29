@@ -579,6 +579,17 @@ describe('SeasonMatchComponent lobby', () => {
     expect(roster('away')).toEqual(['Captain Tucker T', 'Caboose C']);
   });
 
+  it('shows players without a gamertag (no Xbox account linked) without breaking the page', () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush({ ...team('Home', 'Grif', 'x'), players: [{ teamPlayerID: 3, userID: 3, gamertag: null, draftCaptainOrder: 1, draftRound: null }] });
+    httpMock.expectOne('/api/Team/Team/20').flush({ ...team('Away', 'Tucker', 'x'), players: [{ teamPlayerID: 4, userID: 4, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] });
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual(['? Unknown Spartan Captain']);
+    expect(roster('away')).toEqual(['Unknown Spartan ?']);
+    expect(el().querySelector('.lobby-possibles')!.textContent).toContain('No games found for these teams yet.');
+  });
+
   it('keeps the page hidden until the match and both rosters are in', () => {
     const pageEl = () => el().querySelector('.hud-page')!;
     expect(pageEl().classList).toContain('hud-waiting');

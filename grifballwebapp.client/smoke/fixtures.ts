@@ -63,6 +63,19 @@ export async function hydrated(page: Page): Promise<void> {
   await expect(page.locator('[jsaction]')).toHaveCount(0);
 }
 
+/**
+ * Makes page.goto and page.reload wait for hydration too, so no test types into a page the app
+ * has not taken over yet (the lockout and merge-users tests lost their input that way). Clicks
+ * would be replayed, typing is not.
+ */
+export function waitForAppOnNavigation(page: Page): Page {
+  const goto = page.goto.bind(page);
+  const reload = page.reload.bind(page);
+  page.goto = async (...args) => { const response = await goto(...args); await hydrated(page); return response; };
+  page.reload = async (...args) => { const response = await reload(...args); await hydrated(page); return response; };
+  return page;
+}
+
 /** The display name in the header of a page's HTML (as the server drew it), or null for a visitor's. */
 export const headerName = (html: string): string | null =>
   /class="hud-user__name"[^>]*>\s*([^<]*?)\s*</.exec(html)?.[1] ?? null;
@@ -113,6 +126,8 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await api.dispose();
   }, { scope: 'worker' }],
 
+  page: async ({ page }, use) => use(waitForAppOnNavigation(page)),
+
   consoleErrors: async ({ page }, use) => {
     const errors = watchConsole(page);
     await use(errors);
@@ -129,7 +144,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 export async function secondBrowser(browser: Browser, user: Credentials):
   Promise<{ context: BrowserContext; page: Page; consoleErrors: ConsoleErrors }> {
   const context = await browser.newContext();
-  const page = await context.newPage();
+  const page = waitForAppOnNavigation(await context.newPage());
   const consoleErrors = watchConsole(page);
   await login(page, user);
   return { context, page, consoleErrors };

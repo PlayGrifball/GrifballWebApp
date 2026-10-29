@@ -74,6 +74,12 @@ describe('TeamComponent', () => {
     expect(roster).toEqual(['C Captain Grif Captain', 'S Simmons R2']);
   });
 
+  it('shows a player without a gamertag (no Xbox account linked) without breaking the page', () => {
+    load({ ...team, players: [{ teamPlayerID: 3, userID: 12, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] }, []);
+    const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+    expect(roster).toEqual(['? Unknown Spartan R1']);
+  });
+
   it('hides the remaining-matches line when none are left', () => {
     load({ ...team, tbd: 0 }, []);
     expect(el().textContent).not.toContain('matches need to be played');
