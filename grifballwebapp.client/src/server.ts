@@ -46,7 +46,8 @@ app.disable('x-powered-by');
 // The backend, as nginx proxied it: /api/x and /hub/x to /x, /signin-discord as it is (the Discord
 // sign-in callback), with the same headers. The request's own headers go along (the backend reads
 // the client from X-Real-IP, set by the ingress), with its Host, and nginx's X-Forwarded-For
-// (with this hop added), X-Forwarded-Proto (the scheme it was reached on) and X-Forwarded-Host.
+// (with this hop added), X-Forwarded-Proto (the scheme the visitor used: the ingress's, which ends
+// HTTPS before this server, else the scheme this server was reached on) and X-Forwarded-Host.
 const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
   target: apiUrl,
   changeOrigin: false,
@@ -61,12 +62,18 @@ const toBackend = (prefix: string) => createProxyMiddleware<Request, Response>({
   },
 });
 
-/** The X-Forwarded-* headers nginx set: $proxy_add_x_forwarded_for, $scheme and $http_host. */
+/**
+ * The X-Forwarded-* headers nginx set: $proxy_add_x_forwarded_for, $scheme and $http_host. The scheme
+ * is the ingress's X-Forwarded-Proto when it sent one: the API's cookies are Secure and need to
+ * know the visitor came over HTTPS.
+ */
 export function setForwardedHeaders(proxyReq: Pick<ClientRequest, 'setHeader'>, req: IncomingMessage): void {
   const forwardedFor = req.headers['x-forwarded-for'];
   const peer = req.socket.remoteAddress ?? '';
   proxyReq.setHeader('X-Forwarded-For', forwardedFor ? `${forwardedFor}, ${peer}` : peer);
-  proxyReq.setHeader('X-Forwarded-Proto', 'encrypted' in req.socket && req.socket.encrypted ? 'https' : 'http');
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  proxyReq.setHeader('X-Forwarded-Proto', (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto)
+    || ('encrypted' in req.socket && req.socket.encrypted ? 'https' : 'http'));
   if (req.headers.host)
     proxyReq.setHeader('X-Forwarded-Host', req.headers.host);
 }
