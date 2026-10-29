@@ -194,10 +194,9 @@ public class SeasonMatchControllerTests
         var type = typeof(SeasonMatchController);
         Assert.Multiple(() =>
         {
-            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
+            foreach (var name in new[] { nameof(SeasonMatchController.ReportMatch), nameof(SeasonMatchController.GetPossibleMatches), nameof(SeasonMatchController.HomeForfeit), nameof(SeasonMatchController.AwayForfeit), nameof(SeasonMatchController.DoubleForfeit), nameof(SeasonMatchController.UndoResult) })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(type, name)?.Roles, Is.EqualTo("Commissioner"), name);
-            foreach (var name in new[] { nameof(SeasonMatchController.GetSeasonMatchPage), nameof(SeasonMatchController.GetPossibleMatches) })
-                Assert.That(ControllerTestHelpers.ActionAuthorize(type, name), Is.Null, name);
+            Assert.That(ControllerTestHelpers.ActionAuthorize(type, nameof(SeasonMatchController.GetSeasonMatchPage)), Is.Null);
             Assert.That(ControllerTestHelpers.ClassAuthorize(type), Is.Null);
         });
     }

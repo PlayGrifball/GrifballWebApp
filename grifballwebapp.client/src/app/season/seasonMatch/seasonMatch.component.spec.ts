@@ -107,7 +107,6 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
 
   function load(dto: SeasonMatchPageDto): void {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
     fixture.detectChanges();
   }
 
@@ -120,6 +119,11 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
       .map(a => ({ text: a.textContent?.trim() ?? '', href: a.getAttribute('href') }));
   }
 
+  it('does not ask for the possible matches when the user is not an organizer (they are for reporting)', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectNone('/api/SeasonMatch/GetPossibleMatches/7');
+  });
+
   it('shows the regular season text, no bracket links and no date before the page loads', () => {
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
@@ -129,7 +133,6 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
 
   it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(null, { status: 204, statusText: 'No Content' });
-    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
     expect(() => fixture.detectChanges()).not.toThrow();
 
     expect(fixture.componentInstance.seasonMatch()).toBeNull();

@@ -77,6 +77,12 @@ public class SeasonMatchController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// The recorded games that could be this match, for a commissioner to report. Each call first
+    /// pulls both teams' recent games from Halo Infinite (up to a minute), so it is not open to
+    /// every visitor of the match page.
+    /// </summary>
+    [Authorize(Roles = "Commissioner")]
     [HttpGet("{seasonMatchID:int}", Name = "GetPossibleMatches")]
     public Task<List<PossibleMatchDto>> GetPossibleMatches([FromRoute] int seasonMatchID, CancellationToken ct)
     {

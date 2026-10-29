@@ -112,7 +112,13 @@ export class SeasonMatchComponent {
     effect(() => {
       this.seasonMatchID();
       this.getPageDto();
-      this.getPossibleMatches();
+    })
+    // Only commissioners report games, so only they load the games that could be this match: for
+    // those the server first pulls the players' recent games from Halo Infinite, which is slow.
+    effect(() => {
+      this.seasonMatchID();
+      if (this.accountService.isEventOrganizer())
+        this.getPossibleMatches();
     })
   }
 
