@@ -390,25 +390,31 @@ describe('AppComponent behaviour', () => {
 
   it('leaves room for the menu button once some links overflow', () => {
     // The bar is measured as rendered, with the menu button (all links overflow before the first
-    // measurement): 252px plus the button is 300px, too narrow for three 100px links (each must fit
-    // strictly), so the button stays and two links fit next to it.
-    toolbarWidth = 300 - MENU_BUTTON_WIDTH;
+    // measurement): 152px plus the button is 200px, too narrow for the two 100px links (each must
+    // fit strictly), so the button stays and one link fits next to it.
+    toolbarWidth = 200 - MENU_BUTTON_WIDTH;
     fixture.detectChanges();
     expect(component.showMenu()).toBeTrue();
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
 
     // Measured again: the same layout, it does not flip back and forth.
     resize();
     expect(component.showMenu()).toBeTrue();
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
   });
 
   it('gives links hidden from this user no room in the bar', () => {
     toolbarWidth = 350;
     fixture.detectChanges();
-    // Home, Late League and Login fit; the organizer and admin links are neither shown nor counted.
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League', 'Login']);
+    // Home and Late League fit; the organizer and admin links are neither shown nor counted.
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
     expect(component.overflowNavLinks()).toEqual([]);
+  });
+
+  it('has no Login link: the header\'s Login button (or the user\'s name) is the way in', () => {
+    fixture.detectChanges();
+    expect(component.navLinks().map(n => n.title)).not.toContain('Login');
+    expect(component.navLinks().map(n => n.path)).not.toContain('/login');
   });
 
   it('puts the Current Season link right after Home', () => {

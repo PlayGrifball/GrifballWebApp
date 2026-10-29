@@ -228,3 +228,20 @@ for (const [seasonID, offered] of [[13, true], [12, false]] as const) {
     expect(errors.filter(e => /NG0\d|hydration/i.test(e))).toEqual([]);
   });
 }
+
+// The nav has no Login link; a visitor on a phone signs in from the header's Login button, one tap.
+test('a visitor on a phone reaches the login page in one tap from the header', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 360, height: 640 } });
+  const page = await context.newPage();
+  const { errors } = await watch(page);
+  await page.goto(SITE + '/');
+  await expect(page.locator('.toolbar-links a.nav-link', { hasText: 'Login' })).toHaveCount(0);
+  const login = page.locator('header').getByRole('link', { name: 'Login icon' });
+  await expect(login).toBeVisible();
+  await expect(login).toBeInViewport();
+  await login.click();
+  await expect(page).toHaveURL(SITE + '/login');
+  await expect(page.locator('.login-panel input[name="username"]')).toBeVisible();
+  expect(errors.filter(e => /NG0\d|hydration/i.test(e))).toEqual([]);
+  await context.close();
+});

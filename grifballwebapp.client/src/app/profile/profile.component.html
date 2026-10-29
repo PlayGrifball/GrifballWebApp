@@ -8,6 +8,10 @@
       <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
       <div><dt class="hud-label">Service no.</dt><dd>{{userID}}</dd></div>
     </dl>
+    <!-- Signing out, on your own profile (where your name in the header leads) -->
+    @if (accountService.personID() === userID) {
+    <button class="hud-btn profile-logout" type="button" (click)="accountService.logout()">Log out</button>
+    }
   </aside>
 
   @if (accountService.personID() === userID) {
