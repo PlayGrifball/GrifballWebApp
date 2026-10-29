@@ -31,6 +31,28 @@
   <link rel="preload" href="fonts/rajdhani-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/rajdhani-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/share-tech-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- The page, rendered on the server, is painted before those fonts are in: its text would be laid
+       out in a fallback font first, then move (layout shift). So the faces of the preloaded fonts are
+       declared here too (as in src/styles/_fonts.scss), not only in the stylesheet that loads later,
+       and the page stays hidden (its background shows) until they are in, for 3 s at most. -->
+  <style>
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 500; src: url('/fonts/rajdhani-latin-500-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 600; src: url('/fonts/rajdhani-latin-600-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 700; src: url('/fonts/rajdhani-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Share Tech Mono'; font-style: normal; font-display: block; font-weight: 400; src: url('/fonts/share-tech-mono-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    html.fonts-loading app-root { visibility: hidden; }
+  </style>
+  <script>
+    (function () {
+      var fonts = document.fonts, root = document.documentElement;
+      if (!fonts || !fonts.load || !window.Promise) return;
+      root.classList.add('fonts-loading');
+      var show = function () { root.classList.remove('fonts-loading'); };
+      Promise.all(['500 1em Rajdhani', '600 1em Rajdhani', '700 1em Rajdhani', '400 1em "Share Tech Mono"']
+        .map(function (font) { return fonts.load(font); })).then(show, show);
+      setTimeout(show, 3000);
+    })();
+  </script>
   <!-- Shown until the app starts (Angular replaces what is inside <app-root>): the page background
        and the header bar, so something is on screen while the scripts load. Matches the real header. -->
   <style>
