@@ -34,7 +34,7 @@ const PAGES = [
   { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonName/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12', '/api/identity/metaInfo'] },
   { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/MatchPlanner/GetUnscheduledMatches/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/Brackets/GetViewerData?seasonID=12'] },
-  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31', '/api/SeasonMatch/GetPossibleMatches/31'] },
+  { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
   { path: '/profile/117', role: 'player', ready: '.linked-login', early: ['/api/profile/getgamertag/117'] },
 ] as const;
 

@@ -7,9 +7,9 @@ const port = Number(process.env.E2E_PORT ?? 4300);
 const desktop = process.env.LIGHTHOUSE_PRESET === 'desktop';
 const base = `http://127.0.0.1:${port}`;
 // Performance must not drop below these on the CI runner: some margin below what it scores (in
-// October 2026 about 0.80 on mobile, 0.98 on desktop). A single mobile run varies by some 15
+// October 2026 0.77-0.86 on mobile, 0.98-1.00 on desktop). A single mobile run varies by some 15
 // points there, so mobile takes the median of three. e2e/lighthouse-summary.mjs warns below 90.
-const performanceFloor = desktop ? 0.9 : 0.65;
+const performanceFloor = desktop ? 0.9 : 0.7;
 
 module.exports = {
   ci: {
