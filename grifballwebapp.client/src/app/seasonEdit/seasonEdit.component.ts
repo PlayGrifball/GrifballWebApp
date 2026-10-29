@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
 import { MtxDatetimepickerModule, } from '@ng-matero/extensions/datetimepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { provideDatePickers } from '../shared/datePickers';
 
 @Component({
     selector: 'app-season-edit',
@@ -24,6 +25,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     ],
     templateUrl: './seasonEdit.component.html',
     styleUrl: './seasonEdit.component.scss',
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonEditComponent implements OnInit {

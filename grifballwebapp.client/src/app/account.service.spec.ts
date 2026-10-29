@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { Notifier } from './shared/notifier.service';
 import { Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 
@@ -13,7 +13,7 @@ import { RegisterDto } from './api/dtos/registerDto';
 describe('AccountService', () => {
   let service: AccountService;
   let httpTestingController: HttpTestingController;
-  let mockSnackBar: jasmine.SpyObj<MatSnackBar>;
+  let mockSnackBar: jasmine.SpyObj<Notifier>;
   let mockRouter: jasmine.SpyObj<Router>;
   let mockJwtHelper: jasmine.SpyObj<JwtHelperService>;
   let mockApiClient: jasmine.SpyObj<ApiClientService>;
@@ -23,7 +23,7 @@ describe('AccountService', () => {
     localStorage.clear();
 
     // Create spies
-    mockSnackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    mockSnackBar = jasmine.createSpyObj('Notifier', ['open']);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
     mockJwtHelper = jasmine.createSpyObj('JwtHelperService', ['isTokenExpired', 'decodeToken']);
     mockApiClient = jasmine.createSpyObj('ApiClientService', ['get', 'post']);
@@ -32,7 +32,7 @@ describe('AccountService', () => {
       imports: [HttpClientTestingModule],
       providers: [
         AccountService,
-        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: Notifier, useValue: mockSnackBar },
         { provide: Router, useValue: mockRouter },
         { provide: JwtHelperService, useValue: mockJwtHelper },
         { provide: ApiClientService, useValue: mockApiClient }
@@ -79,7 +79,7 @@ describe('AccountService', () => {
       imports: [HttpClientTestingModule],
       providers: [
         AccountService,
-        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: Notifier, useValue: mockSnackBar },
         { provide: Router, useValue: mockRouter },
         { provide: JwtHelperService, useValue: mockJwtHelper },
         { provide: ApiClientService, useValue: mockApiClient }
@@ -108,7 +108,7 @@ describe('AccountService', () => {
       imports: [HttpClientTestingModule],
       providers: [
         AccountService,
-        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: Notifier, useValue: mockSnackBar },
         { provide: Router, useValue: mockRouter },
         { provide: JwtHelperService, useValue: mockJwtHelper },
         { provide: ApiClientService, useValue: mockApiClient }
@@ -224,7 +224,7 @@ describe('AccountService', () => {
 describe('AccountService session handling', () => {
   let service: AccountService;
   let http: HttpTestingController;
-  let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let snackBar: jasmine.SpyObj<Notifier>;
   let router: jasmine.SpyObj<Router>;
 
   const token = (overrides: Partial<AccessTokenResponse> = {}): AccessTokenResponse => ({
@@ -244,13 +244,13 @@ describe('AccountService session handling', () => {
   };
 
   function create(): void {
-    snackBar = jasmine.createSpyObj('MatSnackBar', ['open']);
+    snackBar = jasmine.createSpyObj('Notifier', ['open']);
     router = jasmine.createSpyObj('Router', ['navigate']);
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         AccountService,
-        { provide: MatSnackBar, useValue: snackBar },
+        { provide: Notifier, useValue: snackBar },
         { provide: Router, useValue: router },
         { provide: JwtHelperService, useValue: {} },
         { provide: ApiClientService, useValue: {} }

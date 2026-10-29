@@ -6,6 +6,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarComponent } from './toolbar.component';
 import { ThemeComponent } from '../theme/theme.component';
 import { AccountService } from '../account.service';
+import { MatDialog } from '@angular/material/dialog';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;
@@ -87,8 +88,8 @@ describe('ToolbarComponent', () => {
   });
 
   it('opens the theme editor as a borderless dialog', async () => {
-    // The component imports MatDialogModule, so it gets its own MatDialog.
-    const open = spyOn(component['dialog'], 'open');
+    // The dialog code is loaded on the first click; the app-wide MatDialog opens it.
+    const open = spyOn(TestBed.inject(MatDialog), 'open');
     await component.theme();
     expect(open).toHaveBeenCalledWith(ThemeComponent, {
       maxWidth: '100%',

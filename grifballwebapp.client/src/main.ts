@@ -5,17 +5,15 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { AppComponent } from './app/app.component';
 import { APP_ROUTES } from './app/app.routes';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { MAT_SNACK_BAR_DEFAULT_OPTIONS } from '@angular/material/snack-bar';
 import { importProvidersFrom } from '@angular/core';
 import { JwtModule } from '@auth0/angular-jwt';
 import { authInterceptor } from './app/auth.interceptor';
-import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
+import { provideSnackBarDefaults } from './app/shared/snackBarDefaults';
+import { earlyFetchInterceptor } from './app/earlyFetch.interceptor';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    {
-      provide: MAT_SNACK_BAR_DEFAULT_OPTIONS, useValue: { duration: 5000 }
-    },
+    provideSnackBarDefaults(),
     importProvidersFrom(
       JwtModule.forRoot({
         config: {
@@ -25,28 +23,8 @@ bootstrapApplication(AppComponent, {
         },
       }),
     ),
-    provideLuxonDatetimeAdapter({
-      parse: {
-        dateInput: 'yyyy-LL-dd',
-        monthInput: 'LLLL',
-        yearInput: 'yyyy',
-        timeInput: 'HH:mm',
-        datetimeInput: 'yyyy-LL-dd HH:mm',
-      },
-      display: {
-        dateInput: 'yyyy-LL-dd',
-        monthInput: 'LLLL',
-        yearInput: 'yyyy',
-        timeInput: 'HH:mm',
-        datetimeInput: 'yyyy-LL-dd HH:mm',
-        monthYearLabel: 'yyyy LLLL',
-        dateA11yLabel: 'DDD',
-        monthYearA11yLabel: 'LLLL yyyy',
-        popupHeaderDateLabel: 'dd LLL, ccc',
-      }
-    }),
     provideAnimationsAsync(),
-    provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
+    provideHttpClient(withXhr(), withInterceptors([earlyFetchInterceptor, authInterceptor])),
     provideRouter(APP_ROUTES
       , withComponentInputBinding()
       //,withPreloading(PreloadAllModules)

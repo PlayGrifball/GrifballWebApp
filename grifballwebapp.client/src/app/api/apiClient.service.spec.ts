@@ -275,8 +275,8 @@ describe('ApiClientService', () => {
 
       service.commitDate().subscribe({
         next: (date) => {
-          expect(date).toBeInstanceOf(DateTime);
-          expect(date!.toISO()).toBe(DateTime.fromISO(dateString).toISO());
+          expect(date).toBeInstanceOf(Date);
+          expect(date!.getTime()).toBe(Date.parse(dateString));
           done();
         }
       });
@@ -284,6 +284,17 @@ describe('ApiClientService', () => {
       const req = httpTestingController.expectOne('/api/CommitDate');
       expect(req.request.method).toBe('GET');
       req.flush(dateString);
+    });
+
+    it('gives null when the server has no commit date', (done) => {
+      service.commitDate().subscribe({
+        next: (date) => {
+          expect(date).toBeNull();
+          done();
+        }
+      });
+
+      httpTestingController.expectOne('/api/CommitDate').flush('');
     });
   });
 

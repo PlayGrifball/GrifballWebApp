@@ -1,6 +1,5 @@
 import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { DateTime } from 'luxon';
 import { of, Subject, throwError } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
 import { SiteFooterComponent } from './siteFooter.component';
@@ -11,7 +10,7 @@ describe('SiteFooterComponent', () => {
   beforeEach(async () => {
     api = jasmine.createSpyObj('ApiClientService', ['commitHash', 'commitDate']);
     api.commitHash.and.returnValue(of('abc123'));
-    api.commitDate.and.returnValue(of(DateTime.now()));
+    api.commitDate.and.returnValue(of(new Date()));
     await TestBed.configureTestingModule({
       imports: [SiteFooterComponent],
       providers: [{ provide: ApiClientService, useValue: api }],
@@ -22,7 +21,7 @@ describe('SiteFooterComponent', () => {
   const text = (f: ComponentFixture<SiteFooterComponent>) => (f.nativeElement as HTMLElement).textContent!;
 
   it('loads the commit hash and date on creation', () => {
-    const date = DateTime.fromISO('2024-01-15T10:30:00Z');
+    const date = new Date('2024-01-15T10:30:00Z');
     api.commitHash.and.returnValue(of('test-commit-hash'));
     api.commitDate.and.returnValue(of(date));
 
@@ -34,7 +33,7 @@ describe('SiteFooterComponent', () => {
 
   it('has no build info until the API answers', () => {
     api.commitHash.and.returnValue(new Subject<string>());
-    api.commitDate.and.returnValue(new Subject<DateTime>());
+    api.commitDate.and.returnValue(new Subject<Date>());
 
     const footer = create().componentInstance;
 
@@ -66,7 +65,7 @@ describe('SiteFooterComponent', () => {
   });
 
   it('shows the build date as the date pipe shows the API value, linked to the source', () => {
-    api.commitDate.and.returnValue(of(DateTime.fromISO('2026-01-02T03:04:05Z')));
+    api.commitDate.and.returnValue(of(new Date('2026-01-02T03:04:05Z')));
     const fixture = create();
     fixture.detectChanges();
     const link = (fixture.nativeElement as HTMLElement).querySelector('a')!;

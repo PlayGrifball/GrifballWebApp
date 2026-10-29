@@ -24,6 +24,7 @@ import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialo
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
+import { provideDatePickers } from '../../shared/datePickers';
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -42,6 +43,7 @@ import { ToDatePipe } from '../../shared/toDate.pipe';
         MatDialogModule,
         ToDatePipe,
     ],
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent  implements OnInit {

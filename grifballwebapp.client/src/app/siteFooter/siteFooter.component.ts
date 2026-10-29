@@ -3,16 +3,15 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of } from 'rxjs';
 import { ApiClientService } from '../api/apiClient.service';
-import { ToDatePipe } from '../shared/toDate.pipe';
 
 /** The page footer: which build is running, linked to the source. */
 @Component({
   selector: 'app-site-footer',
-  imports: [DatePipe, ToDatePipe],
+  imports: [DatePipe],
   template: `
     <footer class="site-footer">
       <a class="site-footer__build" href="https://github.com/PlayGrifball/GrifballWebApp">
-        BUILD {{commitDate() | toDate | date:'short'}} {{commitHash()}}
+        BUILD {{commitDate() | date:'short'}} {{commitHash()}}
       </a>
     </footer>
   `,

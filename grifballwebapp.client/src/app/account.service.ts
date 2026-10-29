@@ -1,13 +1,13 @@
 import { Injectable, Signal, WritableSignal, computed, effect, signal, inject } from '@angular/core';
 import { ApiClientService } from './api/apiClient.service';
 import { LoginDto } from './api/dtos/loginDto';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { HttpClient } from '@angular/common/http';
 import { AccessTokenResponse, MetaInfoResponse } from './accessTokenResponse';
 import { RegisterDto } from './api/dtos/registerDto';
 import { Observable, catchError, map, throwError, timer } from 'rxjs';
 import { Router } from '@angular/router';
+import { Notifier } from './shared/notifier.service';
 import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseDto, UsePasswordResetLinkRequestDto } from './api/dtos/passwordResetDtos';
 
 @Injectable({
@@ -15,7 +15,7 @@ import { GeneratePasswordResetLinkRequestDto, GeneratePasswordResetLinkResponseD
 })
 export class AccountService {
   private apiClient = inject(ApiClientService);
-  private snackBar = inject(MatSnackBar);
+  private notifier = inject(Notifier);
   private jwtHelper = inject(JwtHelperService);
   private http = inject(HttpClient);
   private router = inject(Router);
@@ -95,7 +95,7 @@ export class AccountService {
   login(loginDto: LoginDto) : void {
     this.http.post<AccessTokenResponse>('/api/identity/login', loginDto).subscribe(
       {
-        error: (e) => this.snackBar.open("Login failed", "Close"),
+        error: (e) => this.notifier.open("Login failed", "Close"),
         next: (jwt) => this.onLoginSuccess(jwt),
       });
   }
@@ -103,7 +103,7 @@ export class AccountService {
   loginExternal(followUp: string): void {
     this.http.get<AccessTokenResponse>("/api/Identity/ExternalLoginCallback").subscribe(
       {
-        error: (e) => this.snackBar.open("Login failed", "Close"),
+        error: (e) => this.notifier.open("Login failed", "Close"),
         next: (accessToken) => this.onLoginSuccess(accessToken, followUp),
       });
   }
