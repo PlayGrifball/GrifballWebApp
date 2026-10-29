@@ -94,7 +94,11 @@ app.use(
 /** The page that loads the app and renders in the browser (as nginx served index.html). */
 function sendClientPage(res: Response, next: (err?: unknown) => void): void {
   res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(join(browserDistFolder, 'index.csr.html'), err => err && next(err));
+  // A client that went away before the end (ECONNABORTED) is no error of ours
+  res.sendFile(join(browserDistFolder, 'index.csr.html'), err => {
+    if (err && (err as NodeJS.ErrnoException).code !== 'ECONNABORTED')
+      next(err);
+  });
 }
 
 // For hosts this server does not render for

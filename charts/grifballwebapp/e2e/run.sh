@@ -207,7 +207,7 @@ if [ "$scenario" = minimal ]; then
   kubectl -n "$ns" wait --for=condition=Ready pod/curl --timeout=120s
   site() {
     kubectl -n "$ns" exec curl -- curl -fsk -H 'Host: grifball.example.com' https://traefik.kube-system.svc.cluster.local/ \
-      | grep -q '<app-root'
+      | grep '<app-root' >/dev/null  # not -q: curl fails (pipefail) when grep stops reading early
   }
   wait_for 120 site || fail "the site isn't served through the ingress"
   echo "https://grifball.example.com/ serves the Angular app through the Ingress."
