@@ -60,7 +60,8 @@ describe('TeamBuilderComponent', () => {
       'movePlayerToTeam',
       'removePlayerFromTeam',
       'lockCaptains',
-      'unlockCaptains'
+      'unlockCaptains',
+      'connected'
     ]);
 
     mockSignalR.hubConnection = { connectionId: 'test-connection-id' } as any;
@@ -454,6 +455,61 @@ describe('TeamBuilderComponent', () => {
 
 
 
+
+    describe('when the hub connection comes up after the draft loaded', () => {
+      const connected = () => (mockSignalR.connected.calls.mostRecent().args[0] as () => void)();
+      const loads = () => mockApiClient.getTeams.calls.count();
+
+      it('loads the draft again, once: a change sent before the connection was up was missed', () => {
+        const before = loads();
+        connected();
+        expect(loads()).toBe(before + 1);
+        // That load does not bring the connection up again: no loop
+        fixture.detectChanges();
+        expect(loads()).toBe(before + 1);
+        expect(mockSignalR.connected).toHaveBeenCalledTimes(1);
+      });
+
+      it('loads again on every reconnect', () => {
+        const before = loads();
+        connected();
+        connected();
+        expect(loads()).toBe(before + 2);
+      });
+
+      it('waits for a drag under way to end', () => {
+        const before = loads();
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        connected();
+        expect(loads()).toBe(before);
+        component.onDragEnd();
+        expect(loads()).toBe(before + 1);
+        // A later drag ends with nothing waiting
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDragEnd();
+        expect(loads()).toBe(before + 1);
+      });
+
+      it('waits for a save on its way, as other reloads do', () => {
+        const saved = new Subject<Object>();
+        mockApiClient.addPlayerToTeam.and.returnValue(saved);
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+        component.onDragEnd();
+        const before = loads();
+        connected();
+        expect(loads()).toBe(before);
+        saved.next({});
+        saved.complete();
+        expect(loads()).toBe(before + 1);
+      });
+
+      it('stops listening once the page is gone', () => {
+        const off = mockSignalR.connected.calls.mostRecent().returnValue as jasmine.Spy;
+        fixture.destroy();
+        expect(off).toHaveBeenCalled();
+      });
+    });
 
     it('lets a save finish after the page is gone, without touching it', () => {
       const saved = new Subject<Object>();
@@ -1084,7 +1140,8 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
       'movePlayerToTeam',
       'removePlayerFromTeam',
       'lockCaptains',
-      'unlockCaptains'
+      'unlockCaptains',
+      'connected'
     ]);
     mockSignalR.hubConnection = { connectionId: 'conn-42' } as any;
     // Each registration returns its own unregister function, like the real service.

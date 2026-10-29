@@ -5,7 +5,7 @@ import { SignalRService } from './signalR.service';
 import { AuthSession } from '../authSession.service';
 
 describe('SignalRService', () => {
-  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; off: jasmine.Spy };
+  let connection: { start: jasmine.Spy; stop: jasmine.Spy; on: jasmine.Spy; off: jasmine.Spy; onreconnected: jasmine.Spy };
   let withUrl: jasmine.Spy;
   let service: SignalRService;
 
@@ -21,6 +21,7 @@ describe('SignalRService', () => {
       stop: jasmine.createSpy('stop').and.returnValue(Promise.resolve()),
       on: jasmine.createSpy('on'),
       off: jasmine.createSpy('off'),
+      onreconnected: jasmine.createSpy('onreconnected'),
     };
     withUrl = spyOn(HubConnectionBuilder.prototype, 'withUrl').and.callThrough();
     spyOn(HubConnectionBuilder.prototype, 'build').and.returnValue(connection as any);
@@ -62,6 +63,47 @@ describe('SignalRService', () => {
     await new Promise(r => setTimeout(r));
 
     expect(console.log).toHaveBeenCalledWith('Error while starting connection: offline');
+  });
+
+  describe('connected', () => {
+    const flush = () => new Promise(r => setTimeout(r));
+
+    it('tells its listeners when the connection has started', async () => {
+      const listener = jasmine.createSpy('connected');
+      service.connected(listener);
+      await flush();
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells them again on a reconnect, and on a restart as another user', async () => {
+      const listener = jasmine.createSpy('connected');
+      await flush();
+      service.connected(listener);
+      (connection.onreconnected.calls.mostRecent().args[0] as () => void)();
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      TestBed.inject(AuthSession).signedInOrOut();
+      await flush();
+      expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('not when starting fails', async () => {
+      const listener = jasmine.createSpy('connected');
+      service.connected(listener);
+      await flush();
+      listener.calls.reset();
+      connection.start.and.callFake(() => Promise.reject('offline'));
+      (service as any).startConnection();
+      await flush();
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('returns a function that stops telling that listener', async () => {
+      const listener = jasmine.createSpy('connected');
+      service.connected(listener)();
+      await flush();
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 
   const events: [keyof SignalRService, string, unknown][] = [

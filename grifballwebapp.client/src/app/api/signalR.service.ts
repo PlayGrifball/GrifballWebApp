@@ -21,10 +21,15 @@ export class SignalRService {
     .withAutomaticReconnect()
     .build();
 
+  /** Called each time the connection comes up (see connected). */
+  private connectedListeners?: Set<() => void>;
+
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID)))
       return;
 
+    // Back after a drop: whatever was sent meanwhile was missed
+    this.hubConnection.onreconnected(() => this.notifyConnected());
     this.startConnection();
 
     // The connection's user is fixed when it connects: connect again as whoever signed in (or out).
@@ -38,8 +43,26 @@ export class SignalRService {
   private startConnection = () => {
     this.hubConnection
       .start()
-      .then(() => console.log('Connection started'))
+      .then(() => {
+        console.log('Connection started');
+        this.notifyConnected();
+      })
       .catch(err => console.log('Error while starting connection: ' + err));
+  }
+
+  /**
+   * Calls `callback` each time the connection comes up: when it starts (also again, as another
+   * user) and when it reconnects. Not for a connection that is already up. Anything sent while it
+   * was down was missed, so pages that show hub updates reload then. Returns the unregister function.
+   */
+  public connected(callback: () => void): () => void {
+    const listeners = this.connectedListeners ??= new Set();
+    listeners.add(callback);
+    return () => listeners.delete(callback);
+  }
+
+  private notifyConnected(): void {
+    this.connectedListeners?.forEach(listener => listener());
   }
 
   /**

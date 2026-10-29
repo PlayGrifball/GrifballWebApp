@@ -67,14 +67,29 @@ test.describe('team builder', () => {
     const b = other.page;
     try {
       await openTeamBuilder(a, league);
-      await openTeamBuilder(b, league);
+      // The other browser's hub connection is held back until after the first pick: it loads the
+      // board without it, so that pick is never sent to it.
+      let release!: () => void;
+      const held = new Promise<void>(resolve => release = resolve);
+      await b.route('**/hub/TeamsHub/negotiate*', async route => { await held; await route.continue(); });
+      const bConnected = b.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 60_000 });
+      await openTeamBuilder(b, league, { hub: false });
+      await b.evaluate(() => { (window as unknown as { notReloaded: boolean }).notReloaded = true; });
 
-      // 1. Draft a pool player onto a team; the other browser follows over SignalR, no reload.
+      // 1. Draft a pool player onto a team, before the other browser is connected. Once it is, it
+      //    loads the board again and shows the pick, without a page reload.
+      const pickSaved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
       await drag(poolItem(a, p3.name), playersArea(a, team1));
       await expect.poll(() => roster(a, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(a, p3.name)).toHaveCount(0);
+      expect((await pickSaved).ok()).toBe(true);
+      expect(await roster(b, team1)).toEqual([]);
+      release();
+      await bConnected;
+      await b.unroute('**/hub/TeamsHub/negotiate*');
       await expect.poll(() => roster(b, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(b, p3.name)).toHaveCount(0);
+      expect(await b.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded)).toBe(true);
 
       // 2. A pool player dropped among the teams becomes a captain, of a team named after them.
       await drag(poolItem(a, p4.name), teamsZone(a));
