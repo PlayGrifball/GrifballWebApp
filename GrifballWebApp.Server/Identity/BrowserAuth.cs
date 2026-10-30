@@ -132,16 +132,18 @@ public static class BrowserAuth
 }
 
 /// <summary>
-/// Cross-site request forgery protection for cookie sessions (requests with a bearer token are not checked: a
-/// browser never attaches one by itself; nor are requests without a session, which have nothing to abuse).
+/// Cross-site request forgery protection. The antiforgery token is asked only of cookie sessions (a browser never
+/// attaches a bearer token by itself, and a visitor has no session to abuse). The Fetch Metadata and Origin checks
+/// on changes apply to every request, signed in or not, so another site cannot sign a visitor in to an account of
+/// its choosing (login CSRF); scripts and bearer clients send neither header and pass.
 /// <list type="bullet">
 /// <item>A request that changes something (anything but GET, HEAD, OPTIONS and TRACE) must carry the antiforgery
 /// request token in <see cref="BrowserAuth.AntiforgeryHeader"/>; another site cannot read it, so it cannot forge
 /// the request. SameSite=Lax already keeps the cookie off cross-site POSTs; this also covers same-site ones (other
 /// grifball.xyz subdomains, such as the PR previews) and older browsers. Actions marked
 /// <see cref="IgnoreAntiforgeryTokenAttribute"/> are exempt.</item>
-/// <item>Any request the browser says came from another site or subdomain (Sec-Fetch-Site: cross-site or
-/// same-site) is refused. SameSite=Lax still sends the cookie on a top-level navigation, so a link elsewhere must
+/// <item>Any change, and any request on a cookie session, that the browser says came from another site or
+/// subdomain (Sec-Fetch-Site: cross-site or same-site) is refused. SameSite=Lax still sends the cookie on a top-level navigation, so a link elsewhere must
 /// not be able to act as the user (and no action that changes something is a GET).</item>
 /// <item>A change from a browser without Fetch Metadata whose Origin header names another host is refused.</item>
 /// </list>
@@ -150,7 +152,9 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
 {
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
-        if (IsCookieSession(context.HttpContext) && IsFromAnotherSite(context.HttpContext.Request))
+        // Changes from another site are refused signed in or not: a visitor's Login and Register too (login CSRF).
+        if ((IsCookieSession(context.HttpContext) || !IsSafeMethod(context.HttpContext.Request.Method))
+            && IsFromAnotherSite(context.HttpContext.Request))
         {
             logger.LogInformation("Refused {Method} {Path} from another site", context.HttpContext.Request.Method, context.HttpContext.Request.Path);
             context.Result = new ObjectResult(new ProblemDetails
@@ -199,13 +203,13 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
         => HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method) || HttpMethods.IsTrace(method);
 
     /// <summary>
-    /// A change on a cookie session, from a browser that sent no Fetch Metadata, whose Origin is another host.
-    /// Antiforgery already refuses most of these; this also covers the actions exempt from it (Logout).
+    /// A change from a browser that sent no Fetch Metadata, whose Origin is another host, signed in or not.
+    /// Antiforgery already refuses most of these on a cookie session; this also covers the actions exempt from it
+    /// (Logout) and a visitor's Login and Register. Scripts and bearer clients send no Origin and pass.
     /// </summary>
     public static bool IsUnsafeFromAnotherOriginWithoutFetchMetadata(HttpContext context)
         => !IsSafeMethod(context.Request.Method)
-            && IsCookieSession(context)
-            && string.IsNullOrEmpty(context.Request.Headers["Sec-Fetch-Site"].ToString())
+            &&string.IsNullOrEmpty(context.Request.Headers["Sec-Fetch-Site"].ToString())
             && BrowserAuth.IsFromAnotherOrigin(context.Request);
 
     /// <summary>Whether this request must carry an antiforgery token (see the class).</summary>

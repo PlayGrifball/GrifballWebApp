@@ -36,7 +36,7 @@
 
   <aside class="login-side hud-section">
     <h2 class="hud-h2">External Login Providers:</h2>
-    <a class="login-discord" [href]="(followUp() !== undefined && followUp() !== '') ? '/api/identity/externallogin?followUp=' + followUp() : '/api/identity/externallogin'">
+    <a class="login-discord" [href]="discordUrl()">
       <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5061df29d55a92d945_full_logo_blurple_RGB.svg"
            alt="Sign in with Discord" width="509" height="96">
     </a>

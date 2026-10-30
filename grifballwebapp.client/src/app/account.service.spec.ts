@@ -20,7 +20,7 @@ describe('AccountService', () => {
 
   function configure(platform = 'browser'): void {
     notifier = jasmine.createSpyObj('Notifier', ['open']);
-    router = jasmine.createSpyObj('Router', ['navigate']);
+    router = jasmine.createSpyObj('Router', ['navigate', 'navigateByUrl']);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -145,9 +145,11 @@ describe('AccountService', () => {
 
       expect(changed).toHaveBeenCalledTimes(1);
       expect(service.user()).toBeUndefined();
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
       http.expectOne(ME_URL).flush(player);
       expect(service.displayName()).toBe('Chief');
-      expect(router.navigate).not.toHaveBeenCalled();
+      // Not left on the login page
+      expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/');
     });
 
     it('fetches a new antiforgery token after signing in', () => {
@@ -180,36 +182,64 @@ describe('AccountService', () => {
       spyOn(console, 'log');
 
       service.loginExternal('/season/12/teams');
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       const callback = http.expectOne('/api/Identity/ExternalLoginCallback');
-      expect(callback.request.method).toBe('GET');
-      callback.flush('Signed In');
-      expect(router.navigate).not.toHaveBeenCalled();
+      expect(callback.request.method).toBe('POST');
+      expect(callback.request.headers.get('X-XSRF-TOKEN')).toBe('t');
+      callback.flush('');
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
 
       http.expectOne(ME_URL).flush(player);
       expect(service.isPlayer()).toBeTrue();
-      expect(router.navigate).toHaveBeenCalledOnceWith(['/season/12/teams']);
+      expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/season/12/teams');
     });
 
-    it('does not navigate after a Discord sign-in without a follow-up page', () => {
+    it('goes home after a Discord sign-in without a follow-up page', () => {
       const service = signedInAs(null);
 
-      service.loginExternal('');
+      service.loginExternal(undefined);
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       http.expectOne('/api/Identity/ExternalLoginCallback').flush('');
       http.expectOne(ME_URL).flush(player);
 
       expect(service.isLoggedIn()).toBeTrue();
-      expect(router.navigate).not.toHaveBeenCalled();
+      expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/');
     });
+
+    it('goes to the follow-up after a password sign-in, query and fragment kept', () => {
+      const service = signedInAs(null);
+
+      service.login({ username: 'chief', password: 'pw' }, '/season/3?tab=bracket&x=1#top');
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+      http.expectOne('/api/identity/login').flush('');
+      http.expectOne(ME_URL).flush(player);
+
+      expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/season/3?tab=bracket&x=1#top');
+    });
+
+    for (const followUp of ['https://evil.example/', '//evil.example', '/\\evil.example', 'javascript:alert(1)', 'season/3', '/a\nb']) {
+      it(`goes home, not to a follow-up off this site (${JSON.stringify(followUp)})`, () => {
+        const service = signedInAs(null);
+
+        service.loginExternal(followUp);
+        http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
+        http.expectOne('/api/Identity/ExternalLoginCallback').flush('');
+        http.expectOne(ME_URL).flush(player);
+
+        expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/');
+      });
+    }
 
     it('says so when the Discord sign-in fails', () => {
       const service = signedInAs(null);
 
       service.loginExternal('/somewhere');
+      http.expectOne(ANTIFORGERY_URL).flush({ token: 't' });
       http.expectOne('/api/Identity/ExternalLoginCallback').flush('no', { status: 400, statusText: 'Bad Request' });
 
       expect(notifier.open).toHaveBeenCalledWith('Login failed', 'Close');
       expect(service.isLoggedIn()).toBeFalse();
-      expect(router.navigate).not.toHaveBeenCalled();
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
 
     it('signs out on the API (which clears the cookie), then is a visitor', () => {

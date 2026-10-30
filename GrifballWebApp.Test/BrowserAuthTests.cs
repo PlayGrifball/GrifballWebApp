@@ -487,8 +487,50 @@ public class BrowserAuthTests
             Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", "https://grifball.xyz")), Is.False);
             Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", null)), Is.False);
             Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign, site: "same-origin")), Is.False);
-            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign, authorization: "Bearer x")), Is.False);
+            // Signed in or not: a visitor's Login is a change too (login CSRF)
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign, authorization: "Bearer x")), Is.True);
+            var visitor = With("POST", Foreign);
+            visitor.User = new ClaimsPrincipal(new ClaimsIdentity());
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(visitor), Is.True);
         });
+    }
+
+    [TestCase("/Identity/Login", "Sec-Fetch-Site", "cross-site")]
+    [TestCase("/Identity/Login", "Sec-Fetch-Site", "same-site")]
+    [TestCase("/Identity/Login", "Origin", "https://grif-preview1.grifball.xyz")]
+    [TestCase("/Identity/Register", "Sec-Fetch-Site", "same-site")]
+    [TestCase("/Identity/Register", "Origin", "https://evil.example")]
+    public async Task VisitorPost_FromAnotherSite_IsRefused(string path, string header, string value)
+    {
+        using var client = Script();
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(new { Username = UserName, Password }),
+        };
+        request.Headers.Add(header, value);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.That(SetCookie(response, BrowserAuth.CookieName), Is.Null, "not signed in");
+    }
+
+    [TestCase(null, null)]
+    [TestCase("Sec-Fetch-Site", "same-origin")]
+    [TestCase("Origin", "https://localhost")]
+    public async Task VisitorLogin_FromThisSiteOrAScript_IsAccepted(string? header, string? value)
+    {
+        using var client = Script();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/Identity/Login")
+        {
+            Content = JsonContent.Create(new { Username = UserName, Password }),
+        };
+        if (header is not null)
+            request.Headers.Add(header, value);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
 
     // ---------- Which requests need a token (CookieAntiforgeryFilter.RequiresToken) ----------

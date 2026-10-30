@@ -2,6 +2,7 @@
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -106,20 +107,39 @@ public class IdentityController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// Leaves for Discord's sign-in, which comes back to the login page (<c>/login?callback=true</c>), and that
+    /// page calls <see cref="ExternalLoginCallback"/>. <paramref name="followUp"/>, the page to go on to, is kept
+    /// only if it is a path on this site (<see cref="IsAppRelativePath"/>), escaped as one query value.
+    /// </summary>
     [HttpGet(Name = "ExternalLogin")]
     public IActionResult ExternalLogin([FromQuery] string? followUp)
     {
         var provider = "Discord";
         var redirectUrl = "login?callback=true";
-        if (followUp is not null)
-            redirectUrl += "&followUp=" + Uri.UnescapeDataString(followUp);
+        if (IsAppRelativePath(followUp))
+            redirectUrl += "&followUp=" + Uri.EscapeDataString(followUp!);
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
     }
 
-    /// <summary>Finishes a Discord sign-in: the session cookie, or with <paramref name="useCookies"/> false a bearer token.</summary>
+    /// <summary>
+    /// A path on this site ("/season/3?tab=bracket"): starts with a single '/', not "//" or "/\" (which browsers
+    /// read as another host), and has no control characters.
+    /// </summary>
+    public static bool IsAppRelativePath(string? path)
+        => !string.IsNullOrEmpty(path)
+            && path[0] == '/'
+            && (path.Length == 1 || (path[1] != '/' && path[1] != '\\'))
+            && !path.Any(char.IsControl);
+
+    /// <summary>
+    /// Finishes a Discord sign-in: the session cookie, or with <paramref name="useCookies"/> false a bearer token.
+    /// A POST, as it creates the user and signs in: the browser comes back from Discord to the login page (a page
+    /// of the app, not this action), which then calls this with the antiforgery token like any other change.
+    /// </summary>
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
-    [HttpGet(Name = "ExternalLoginCallback")]
+    [HttpPost(Name = "ExternalLoginCallback")]
     public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies = true, CancellationToken ct = default)
     {
         var info = await _signInManager.GetExternalLoginInfoAsync();
@@ -208,9 +228,12 @@ public class IdentityController : ControllerBase
                 }
 
 
-                // Add role
+                // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
+                // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
                 await _signInManager.SignInAsync(user, isPersistent: true);
-                return Ok("Signed In");
+                // For a bearer token, SignInAsync has already written the token response
+                return Empty;
             }
 
             var errors = new StringBuilder();

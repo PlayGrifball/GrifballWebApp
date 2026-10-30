@@ -85,19 +85,28 @@ export class AccountService {
     return this.http.post('/api/identity/register', registerDto);
   }
 
-  login(loginDto: LoginDto): void {
+  /** Signs in with a password, then goes on to `followUp` (a path on this site), or home. */
+  login(loginDto: LoginDto, followUp?: string): void {
     this.http.post('/api/identity/login', loginDto, { responseType: 'text' }).subscribe({
-      error: () => this.notifier.open("Login failed", "Close"),
-      next: () => this.onSignedIn(),
-    });
-  }
-
-  /** Back from Discord: turns its sign-in into the session cookie, then goes on to `followUp` if given. */
-  loginExternal(followUp: string): void {
-    this.http.get('/api/Identity/ExternalLoginCallback', { responseType: 'text' }).subscribe({
       error: () => this.notifier.open("Login failed", "Close"),
       next: () => this.onSignedIn(followUp),
     });
+  }
+
+  /**
+   * Back from Discord: turns its sign-in into the session cookie (a POST: it may create the user), then
+   * goes on to `followUp` (a path on this site), or home.
+   */
+  loginExternal(followUp?: string): void {
+    this.http.post('/api/Identity/ExternalLoginCallback', null, { responseType: 'text' }).subscribe({
+      error: () => this.notifier.open("Login failed", "Close"),
+      next: () => this.onSignedIn(followUp),
+    });
+  }
+
+  /** Goes to `followUp` if it is a path on this site (query and fragment kept), else home. */
+  goToFollowUp(followUp: string | null | undefined): void {
+    this.router.navigateByUrl(appRelativePath(followUp) ?? '/');
   }
 
   private onSignedIn(followUp?: string): void {
@@ -106,10 +115,8 @@ export class AccountService {
     this.known = new ReplaySubject<MetaInfoResponse | null>(1);
     this.refreshUser();
 
-    if (followUp) {
-      console.log('Navigating to follow up:', followUp);
-      this.whenKnown().subscribe(() => this.router.navigate([followUp]));
-    }
+    // Not left on the login page: on to the follow-up (or home) once the user is known
+    this.whenKnown().subscribe(() => this.goToFollowUp(followUp));
   }
 
   logout(): void {
@@ -140,6 +147,18 @@ export class AccountService {
   cleanupExpiredPasswordResetLinks(): Observable<string> {
     return this.http.post('/api/admin/cleanupexpiredpasswordresetlinks', {}, { responseType: 'text' });
   }
+}
+
+/**
+ * `url` if it is a path on this site ("/season/3?tab=bracket#x"): starts with a single "/", not "//" or
+ * "/\\" (which browsers read as another host), and has no control characters. Else null. The same rule
+ * as IdentityController.IsAppRelativePath, which keeps only such follow-ups on the way to Discord.
+ */
+export function appRelativePath(url: string | null | undefined): string | null {
+  if (!url || url[0] !== '/' || url[1] === '/' || url[1] === '\\'
+      || [...url].some(c => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f))
+    return null;
+  return url;
 }
 
 /** Drops the tokens and user earlier versions kept in localStorage, where any script could read them. */

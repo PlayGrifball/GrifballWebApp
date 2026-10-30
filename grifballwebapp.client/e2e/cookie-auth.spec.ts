@@ -70,10 +70,13 @@ test('signs in with a password and out again, with the antiforgery token and no 
   await page.getByRole('button', { name: 'Submit' }).click();
 
   await expect(page.locator('.hud-user')).toContainText(META.player.displayName);
+  // Not left on the login page: home, with no follow-up
+  await expect(page).toHaveURL(/\/$/);
   const login = calls.find(c => c.path === '/api/identity/login')!;
   expect(login.xsrf).toBe('xsrf-visitor');
 
-  await page.getByRole('button', { name: 'Logout' }).click();
+  await page.locator('button.hud-user').click();
+  await page.getByRole('menuitem', { name: 'Log out' }).click();
   await expect(page.locator('.hud-user')).toHaveCount(0);
   // The token belongs to who it was made for: a new one after signing in
   const logout = calls.find(c => c.path === '/api/Identity/Logout')!;
