@@ -1,6 +1,8 @@
 ﻿using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Dtos;
 using GrifballWebApp.Server.UserManagement;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -34,10 +36,15 @@ public class IdentityController : ControllerBase
         _userManagementService = userManagementService;
     }
 
+    /// <summary>
+    /// Signs in with a password. A browser gets the session cookie (<see cref="BrowserAuth.CookieName"/>) and an
+    /// empty 200. With <paramref name="useCookies"/> false the answer is a bearer token instead
+    /// (<see cref="AccessTokenResponse"/>), for clients that are not browsers.
+    /// </summary>
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct)
+    public async Task<IActionResult> Login([FromBody] LoginDto loginDto, CancellationToken ct, [FromQuery] bool useCookies = true)
     {
         if (string.IsNullOrEmpty(loginDto?.Username))
             return BadRequest("Username is required");
@@ -45,7 +52,7 @@ public class IdentityController : ControllerBase
         if (string.IsNullOrEmpty(loginDto?.Password))
             return BadRequest("Password is required");
 
-        _signInManager.AuthenticationScheme = IdentityConstants.BearerScheme;
+        _signInManager.AuthenticationScheme = useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
 
         var result = await _signInManager.PasswordSignInAsync(loginDto.Username, loginDto.Password, true, lockoutOnFailure: true);
         //var foo = await _signInManager.
@@ -100,20 +107,40 @@ public class IdentityController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// Leaves for Discord's sign-in, which comes back to the login page (<c>/login?callback=true</c>), and that
+    /// page calls <see cref="ExternalLoginCallback"/>. <paramref name="followUp"/>, the page to go on to, is kept
+    /// only if it is a path on this site (<see cref="IsAppRelativePath"/>), escaped as one query value.
+    /// </summary>
     [HttpGet(Name = "ExternalLogin")]
     public IActionResult ExternalLogin([FromQuery] string? followUp)
     {
         var provider = "Discord";
         var redirectUrl = "login?callback=true";
-        if (followUp is not null)
-            redirectUrl += "&followUp=" + Uri.UnescapeDataString(followUp);
+        if (IsAppRelativePath(followUp))
+            redirectUrl += "&followUp=" + Uri.EscapeDataString(followUp!);
         var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Challenge(properties, provider);
     }
 
+    /// <summary>
+    /// A path on this site ("/season/3?tab=bracket"): starts with a single '/', not "//" or "/\" (which browsers
+    /// read as another host), and has no control characters.
+    /// </summary>
+    public static bool IsAppRelativePath(string? path)
+        => !string.IsNullOrEmpty(path)
+            && path[0] == '/'
+            && (path.Length == 1 || (path[1] != '/' && path[1] != '\\'))
+            && !path.Any(char.IsControl);
+
+    /// <summary>
+    /// Finishes a Discord sign-in: the session cookie, or with <paramref name="useCookies"/> false a bearer token.
+    /// A POST, as it creates the user and signs in: the browser comes back from Discord to the login page (a page
+    /// of the app, not this action), which then calls this with the antiforgery token like any other change.
+    /// </summary>
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
-    [HttpGet(Name = "ExternalLoginCallback")]
-    public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies, CancellationToken ct)
+    [HttpPost(Name = "ExternalLoginCallback")]
+    public async Task<IActionResult> ExternalLoginCallback([FromQuery] bool useCookies = true, CancellationToken ct = default)
     {
         var info = await _signInManager.GetExternalLoginInfoAsync();
 
@@ -201,9 +228,12 @@ public class IdentityController : ControllerBase
                 }
 
 
-                // Add role
-                await _signInManager.SignInAsync(user, isPersistent: false);
-                return Ok("Signed In");
+                // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
+                // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+                await _signInManager.SignInAsync(user, isPersistent: true);
+                // For a bearer token, SignInAsync has already written the token response
+                return Empty;
             }
 
             var errors = new StringBuilder();
@@ -217,6 +247,7 @@ public class IdentityController : ControllerBase
         }
     }
 
+    /// <summary>A new bearer token for a refresh token (bearer clients only; browsers have the cookie).</summary>
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(AccessTokenResponse), StatusCodes.Status200OK)]
     [HttpPost(Name = "Refresh")]
@@ -251,6 +282,46 @@ public class IdentityController : ControllerBase
             DisplayName = User?.Identity?.Name ?? "Friend",
             UserID = GetUserID() ?? 0,
         };
+    }
+
+    /// <summary>
+    /// Who is signed in, for the client (in the browser, and on the server while it renders a page with the
+    /// visitor's cookie): <see cref="MetaInfo"/>, or 204 No Content for a visitor. Unlike MetaInfo, a visitor is
+    /// not an error, so the client asks on every first load without logging a failed request.
+    /// </summary>
+    [ProducesResponseType(typeof(MetaInfoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [HttpGet(Name = "Me")]
+    public MetaInfoResponse? Me()
+        => User.Identity?.IsAuthenticated is true ? MetaInfo() : null;
+
+    /// <summary>
+    /// The antiforgery request token, which the browser sends in <see cref="BrowserAuth.AntiforgeryHeader"/> with
+    /// every change (<see cref="CookieAntiforgeryFilter"/>). Also sets the antiforgery cookie it pairs with. The
+    /// token belongs to the user signed in when it was made, so the client asks again after signing in or out.
+    /// </summary>
+    [ProducesResponseType(typeof(AntiforgeryTokenResponse), StatusCodes.Status200OK)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [HttpGet(Name = "Antiforgery")]
+    public AntiforgeryTokenResponse Antiforgery([FromServices] IAntiforgery antiforgery)
+        => new() { Token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken! };
+
+    /// <summary>
+    /// Ends the browser's session: clears the session cookie (and any half-finished Discord sign-in). No
+    /// antiforgery token needed: signing someone out is all a forged request could do, and SameSite=Lax already
+    /// keeps the cookie off cross-site POSTs. Also changes the user's security stamp, so a copy of the cookie (and
+    /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
+    /// </summary>
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [IgnoreAntiforgeryToken]
+    [HttpPost(Name = "Logout")]
+    public async Task<IActionResult> Logout()
+    {
+        if (User?.Identity?.IsAuthenticated is true && await _userManager.GetUserAsync(User) is { } user)
+            await _userManager.UpdateSecurityStampAsync(user);
+        await _signInManager.SignOutAsync();
+        return NoContent();
     }
 
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]

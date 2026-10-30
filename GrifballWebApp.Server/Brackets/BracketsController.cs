@@ -18,7 +18,7 @@ public class BracketsController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet(Name = "CreateBracket")]
+    [HttpPost(Name = "CreateBracket")]
     public async Task<ActionResult> CreateBracket([FromQuery] int participantsCount, [FromQuery] int seasonID, [FromQuery] bool doubleElimination, [FromQuery] int bestOf, CancellationToken ct)
     {
         if (participantsCount <= 0)
@@ -53,7 +53,7 @@ public class BracketsController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonID:int}", Name = "SetSeeds")]
+    [HttpPost("{seasonID:int}", Name = "SetSeeds")]
     public Task SetSeeds([FromRoute] int seasonID, CancellationToken ct)
     {
         return _bracketService.SetSeeds(seasonID, null, ct);

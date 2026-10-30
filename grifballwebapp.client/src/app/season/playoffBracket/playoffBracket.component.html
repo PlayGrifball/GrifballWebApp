@@ -1,10 +1,21 @@
 @if (accountService.isEventOrganizer()) {
-<a mat-flat-button color="primary" (click)="openDialog()">Create Bracket</a>
-<a mat-flat-button color="primary" (click)="setSeeds()">Set Seeds</a>
+<div class="hud-actions">
+  <button mat-flat-button (click)="openDialog()">Create Bracket</button>
+  <button mat-stroked-button (click)="setSeeds()">Set Seeds</button>
+</div>
 }
 
-@if(!hasBracket()) {
-    <div>No bracket created</div>
-    
+@if(loaded() && !hasBracket()) {
+  <p class="hud-empty">No bracket created</p>
 }
-<div class="brackets-viewer"></div>
+<div class="bracket-box" [hidden]="!hasBracket()">
+  <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+  <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div>
+</div>
+@if (hasBracket() && drawn()) {
+<div class="bracket-legend">
+  <span class="bracket-legend__key"><span class="bracket-legend__swatch" aria-hidden="true"></span>Advanced</span>
+  <span>BYE = auto-advance</span>
+  <span>Select a match to open it</span>
+</div>
+}

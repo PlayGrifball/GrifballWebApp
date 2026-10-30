@@ -1,33 +1,43 @@
-<mat-toolbar>
-  <button mat-icon-button (click)="snav().toggle()" aria-label="menu icon">
-    <mat-icon>menu</mat-icon>
-  </button>
-  <button mat-icon-button aria-label="grifball icon" [routerLink]="['/']">
-    <img src="/assets/grifballLogo.webp" alt="logo" aria-hidden="true" >
-  </button>
-  <ng-content />
+<header class="hud-header">
+  <nav class="hud-header__bar" aria-label="Main">
+    @if (showMenu()) {
+      <button mat-icon-button class="hud-header__menu" (click)="snav().toggle()" aria-label="menu icon">
+        <mat-icon>menu</mat-icon>
+      </button>
+    }
 
-  <span class="text-xs">
-    <a href="https://github.com/PlayGrifball/GrifballWebApp">
-      {{commitDate() | toDate | date:'short'}} {{commitHash()}}
+    <a class="hud-brand" routerLink="/" aria-label="Grifball home">
+      <svg class="hud-brand__mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <rect x="3" y="3" width="11" height="7"></rect><path d="M8.5 10v11"></path><path d="M14 6.5h6"></path>
+      </svg>
+      <span class="hud-brand__word">Grifball</span>
     </a>
-  </span>
 
-  <button mat-icon-button aria-label="Theme icon" (click)="theme()">
-    <mat-icon>palette</mat-icon>
-  </button>
-  
-  @if (accountService.isLoggedIn()) {
-  <span>Hello {{accountService.displayName()}}</span>
-  <button mat-icon-button aria-label="Profile icon" [routerLink]="['/profile', accountService.personID()]" >
-    <mat-icon>account_box</mat-icon>
-  </button>
-  }
-  @else {
-  <button mat-icon-button
-          aria-label="Login icon"
-          [routerLink]="['/login']">
-    <mat-icon>login</mat-icon>
-  </button>
-  }
-</mat-toolbar>
+    <ng-content />
+
+    <div class="hud-header__tools">
+      <button mat-icon-button aria-label="Theme icon" (click)="theme()">
+        <mat-icon>palette</mat-icon>
+      </button>
+
+      @if (accountService.isLoggedIn()) {
+        <!-- The user's chip opens their menu: their profile, and logging out -->
+        <div class="hud-user-menu" (keydown)="onMenuKeydown($event)" (focusout)="onMenuFocusOut($event)">
+          <button #chip type="button" class="hud-user" aria-haspopup="menu" aria-controls="hud-user-menu"
+                  [attr.aria-expanded]="menuOpen()" (click)="toggleMenu()">
+            <span class="hud-avatar hud-avatar--accent hud-user__avatar" aria-hidden="true">{{initial()}}</span>
+            <span class="hud-user__name">{{accountService.displayName()}}</span>
+          </button>
+          @if (menuOpen()) {
+            <div id="hud-user-menu" class="hud-user-menu__panel" role="menu" [attr.aria-label]="accountService.displayName() + ' menu'">
+              <a #menuItem role="menuitem" class="hud-user-menu__item" [routerLink]="['/profile', accountService.personID()]" (click)="closeMenu()">Profile</a>
+              <button #menuItem role="menuitem" type="button" class="hud-user-menu__item" (click)="logout()">Log out</button>
+            </div>
+          }
+        </div>
+      } @else {
+        <a class="hud-btn hud-btn--primary hud-header__login" routerLink="/login" aria-label="Login icon">Login</a>
+      }
+    </div>
+  </nav>
+</header>

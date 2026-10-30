@@ -1,13 +1,13 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatCardModule } from '@angular/material/card';
+import { RouterLink } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProcessRescheduleDialogComponent } from './process-reschedule-dialog/process-reschedule-dialog.component';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -51,14 +51,14 @@ export interface DashboardSummaryDto {
   standalone: true,
   imports: [
     CommonModule,
-    MatCardModule,
+    RouterLink,
     MatTabsModule,
     MatTableModule,
     MatButtonModule,
     MatIconModule,
     MatBadgeModule,
-    MatChipsModule,
-    MatDialogModule
+    MatDialogModule,
+    MatTooltipModule
   ],
   templateUrl: './commissioner-dashboard.component.html',
   styleUrls: ['./commissioner-dashboard.component.scss'],

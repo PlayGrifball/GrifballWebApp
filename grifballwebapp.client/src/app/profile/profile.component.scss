@@ -1,3 +1,63 @@
 :host {
   display: block;
 }
+
+.profile {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.profile-card {
+  flex: 1 1 300px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-emblem {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hud-border);
+  background: radial-gradient(circle, rgba(124, 203, 255, 0.16) 0%, rgba(124, 203, 255, 0) 70%), var(--hud-input);
+  font-weight: 700;
+  font-size: clamp(64px, 18vw, 120px);
+  color: var(--hud-accent);
+  text-shadow: var(--hud-glow);
+  text-transform: uppercase;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  text-shadow: 0 0 18px rgba(124, 203, 255, 0.35);
+  overflow-wrap: anywhere;
+}
+
+.profile-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+
+  div { display: flex; flex-direction: column; gap: 2px; }
+  dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+}
+
+.profile-main {
+  flex: 999 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+@media (max-width: 600px) {
+  .profile-card { max-width: none; }
+}

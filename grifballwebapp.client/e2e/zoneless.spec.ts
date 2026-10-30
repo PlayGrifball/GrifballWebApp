@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
+import { RS, teamsHubNegotiateBody } from './teamsHubMock.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -17,11 +18,6 @@ const text = (route: Route, body: string) => route.fulfill({ status: 200, conten
 async function mockBackend(page: Page, handlers: Record<string, Handler>): Promise<string[]> {
   const requests: string[] = [];
 
-  await page.addInitScript(() => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 }));
-  });
-
   // Keep the run hermetic (Google Fonts).
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
   await page.route('**/hub/**', route => route.fulfill({ status: 404, body: '' }));
@@ -29,9 +25,14 @@ async function mockBackend(page: Page, handlers: Record<string, Handler>): Promi
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     requests.push(`${route.request().method()} ${url.pathname}${url.search}`);
-    if (url.pathname === '/api/identity/metaInfo') {
+    // Signed in (the session cookie the browser would have)
+    if (url.pathname === '/api/Identity/Me') {
       return json(route, { isSysAdmin: true, isCommissioner: true, isPlayer: false, displayName: 'E2E Admin', userID: 999 });
     }
+    if (url.pathname === '/api/Identity/Antiforgery') return json(route, { token: 'e2e-xsrf' });
+    // As the API: every change from a cookie session carries the antiforgery token
+    if (route.request().method() !== 'GET' && route.request().headers()['x-xsrf-token'] !== 'e2e-xsrf')
+      return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (url.pathname === '/api/CommitHash') return text(route, 'e2ehash');
     if (url.pathname === '/api/CommitDate') return text(route, '2026-01-02T03:04:05Z');
     if (url.pathname === '/api/Season/getCurrentSeasonID/') return json(route, 0);
@@ -58,7 +59,7 @@ test('home renders the events and past seasons that load after navigation', asyn
 
   await expect(page.getByText('The Spring season will run from')).toBeVisible();
   await expect(page.locator('tr.mat-mdc-row')).toHaveText([/Winter/]);
-  await expect(page.locator('mat-toolbar')).toContainText('e2ehash');
+  await expect(page.locator('app-site-footer')).toContainText('e2ehash');
 });
 
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
@@ -78,12 +79,16 @@ test('a season page reached by an in-app link renders the data it loads', async 
   });
 
   await page.goto('/');
-  await page.locator('tr.mat-mdc-row td', { hasText: 'Winter' }).click();
+  await page.locator('tr.mat-mdc-row').getByRole('link', { name: 'Winter' }).click();
 
   await expect(page).toHaveURL(/\/season\/3$/);
-  await expect(page.locator('h2')).toHaveText('Winter Season');
+  await expect(page.locator('h1')).toHaveText('Winter Season');
   await expect(page.locator('app-team-standings tr.mat-mdc-row')).toHaveText([/Alpha\s*4\s*1/]);
+  // The schedule and the bracket are tabs of the season page.
+  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+  await expect(page).toHaveURL(/\/season\/3\?tab=schedule$/);
   await expect(page.locator('app-schedule-list')).toContainText('Home Cap vs Away Cap');
+  await page.getByRole('link', { name: 'Bracket', exact: true }).click();
   await expect(page.locator('app-playoff-bracket')).toContainText('No bracket created');
 });
 
@@ -116,7 +121,7 @@ test('a season with a bracket draws it with the bundled viewer and links its mat
     '/api/Brackets/GetViewerData': route => json(route, bracket),
   });
 
-  await page.goto('/season/3');
+  await page.goto('/season/3?tab=bracket');
 
   const viewer = page.locator('app-playoff-bracket .brackets-viewer');
   await expect(viewer.locator('.match')).toHaveCount(3);
@@ -165,7 +170,7 @@ test('a double-elimination bracket draws its losers bracket and grand final', as
     '/api/Brackets/GetViewerData': route => json(route, bracket),
   });
 
-  await page.goto('/season/3');
+  await page.goto('/season/3?tab=bracket');
 
   const viewer = page.locator('app-playoff-bracket .brackets-viewer');
   // The component's locale names the winners and losers brackets after the stage.
@@ -254,23 +259,25 @@ test('the user search box debounces typing and the table shows the filtered user
 
 test('the team builder renders a captain added by another user over SignalR', async ({ page }) => {
   const SEASON_ID = 7;
+  // The server's draft, which the other user's change updates too: the page reloads it whenever its
+  // hub connection comes up, which may be just after the update arrives.
+  let captainAdded = false;
   await mockBackend(page, {
     [`/api/Teams/GetTeams/${SEASON_ID}`]: route => json(route, [
       { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
+      ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
     ]),
     [`/api/Teams/GetPlayerPool/${SEASON_ID}`]: route => json(route, [
       { name: 'Pool Alex', personID: 101, pick: null, round: null },
-      { name: 'Pool Blair', personID: 102, pick: null, round: null },
+      ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
     ]),
     [`/api/Teams/areCaptainsLocked/${SEASON_ID}`]: route => json(route, true),
   });
 
-  // A minimal SignalR server: negotiate, then the JSON hub protocol over a WebSocket.
-  const RS = '\u001e';
-  await page.route('**/hub/TeamsHub/negotiate**', route => json(route, {
-    negotiateVersion: 1, connectionId: 'e2e', connectionToken: 'e2e',
-    availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }],
-  }));
+  // A minimal SignalR server: negotiate, then the JSON hub protocol over a WebSocket. The shapes
+  // (RS, the negotiate body) are shared with e2e/teamsHubMock.mts, which answers the same hub for
+  // Lighthouse and the layout test (over a real socket there, so it can't share this route-based code).
+  await page.route('**/hub/TeamsHub/negotiate**', route => json(route, teamsHubNegotiateBody()));
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
     // The page may restart the connection once the access token is read, so only the
@@ -290,6 +297,7 @@ test('the team builder renders a captain added by another user over SignalR', as
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
 
   const addCaptain = { seasonID: SEASON_ID, personID: 102, teamName: "Blair's Team", captainName: 'Pool Blair', orderNumber: 2 };
+  captainAdded = true;
   sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'AddCaptain', arguments: [addCaptain] }) + RS);
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
@@ -330,12 +338,12 @@ test('the signup form ticks single slots and whole days, and submits the chosen 
   expect(await checked(1)).toEqual([false, false]);
 
   // The day header ticks only its own row.
-  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await rows.nth(1).locator('td button', { hasText: 'Tuesday' }).click();
   await expect.poll(() => checked(1)).toEqual([true, true]);
   expect(await checked(0)).toEqual([true, true]);
 
   // Clicking it again clears that row only.
-  await rows.nth(1).locator('td div', { hasText: 'Tuesday' }).click();
+  await rows.nth(1).locator('td button', { hasText: 'Tuesday' }).click();
   await expect.poll(() => checked(1)).toEqual([false, false]);
 
   await boxes(1).nth(1).check(); // Tuesday 20:00

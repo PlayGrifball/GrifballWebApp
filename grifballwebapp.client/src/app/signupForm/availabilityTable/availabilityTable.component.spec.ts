@@ -341,10 +341,26 @@ describe('AvailabilityTableComponent', () => {
     it('renders the day of week as a header cell and a checkbox for every time slot', () => {
       const [monday, tuesday] = rows();
       expect(rows().length).toBe(2);
-      expect(monday.querySelector('td div')?.textContent?.trim()).toBe('Monday');
-      expect(tuesday.querySelector('td div')?.textContent?.trim()).toBe('Tuesday');
+      expect(monday.querySelector('td button')?.textContent?.trim()).toBe('Monday');
+      expect(tuesday.querySelector('td button')?.textContent?.trim()).toBe('Tuesday');
       expect(monday.querySelectorAll('mat-checkbox').length).toBe(2);
       expect(tuesday.querySelectorAll('mat-checkbox').length).toBe(2);
+    });
+
+    it('makes the day and time headers buttons that tick a whole row or column, and labels each checkbox', () => {
+      const component = fixture.componentInstance;
+      const timeClicked = spyOn(component, 'timeClicked');
+      const dayClicked = spyOn(component, 'dayOfWeekClicked');
+      const headerButtons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('th button'));
+      // Every time column has one; the day-of-week column does not.
+      expect(headerButtons.length).toBe(component.timeColumns().length - 1);
+      headerButtons[0].click();
+      expect(timeClicked).toHaveBeenCalledWith(component.timeColumns()[1]);
+      expect(headerButtons[0].getAttribute('aria-label')).toBe(`Toggle ${component.timeColumns()[1]} on every day`);
+
+      rows()[0].querySelector<HTMLButtonElement>('td button')!.click();
+      expect(dayClicked).toHaveBeenCalled();
+      expect(rows()[0].querySelector('mat-checkbox input')!.getAttribute('aria-label')).toBe('Monday ' + component.timeColumns()[1]);
     });
 
     it('disables the checkbox for a time slot the day does not have', async () => {
@@ -359,7 +375,7 @@ describe('AvailabilityTableComponent', () => {
     });
 
     it('toggles the row when the day of week header is clicked', () => {
-      const tuesdayHeader = rows()[1].querySelector<HTMLElement>('td div')!;
+      const tuesdayHeader = rows()[1].querySelector<HTMLElement>('td button')!;
       tuesdayHeader.click();
       expect(component.timeslots()!.find(x => x.optionID === 3)?.isChecked).toBe(true);
       expect(component.timeslots()!.find(x => x.optionID === 1)?.isChecked).toBe(true);

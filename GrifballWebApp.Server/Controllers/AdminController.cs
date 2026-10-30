@@ -36,7 +36,7 @@ public class AdminController : ControllerBase
 
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "MatchStats")]
+    [HttpPost(Name = "MatchStats")]
     public async Task Get([FromQuery] string game)
     {
         if (!Guid.TryParse(game, out var guid))
@@ -57,7 +57,7 @@ public class AdminController : ControllerBase
     }
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "SetCode")]
+    [HttpPost(Name = "SetCode")]
     public async Task<ActionResult> SetCode([FromQuery] string code)
     {
         if (string.IsNullOrWhiteSpace(code))
@@ -81,7 +81,7 @@ public class AdminController : ControllerBase
     }
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "DeleteTokens")]
+    [HttpPost(Name = "DeleteTokens")]
     public ActionResult DeleteTokens()
     {
         if (System.IO.File.Exists("AccountAuthorization.txt"))

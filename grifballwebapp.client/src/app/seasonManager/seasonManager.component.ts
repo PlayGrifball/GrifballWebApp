@@ -23,7 +23,10 @@ import { ToDatePipe } from '../shared/toDate.pipe';
 export class SeasonManagerComponent implements OnInit {
   private http = inject(ApiClientService);
 
-  readonly seasons = signal<SeasonDto[]>([]);
+  /** The seasons; undefined while they load. */
+  readonly seasons = signal<SeasonDto[] | undefined>(undefined);
+  readonly error = signal(false);
+  readonly dateFormat = 'MMM d, y, h:mm a';
   public displayedColumns: string[] = ['seasonName', 'signupsOpen', 'signupsClose', 'draftStart', 'seasonStart', 'seasonEnd', 'signupsCount', 'edit'];
 
   ngOnInit(): void {
@@ -33,7 +36,10 @@ export class SeasonManagerComponent implements OnInit {
   getSeasons(): void {
     this.http.getSeasons().subscribe({
       next: (result) => this.seasons.set(result),
-      error: (error) => console.error(error),
+      error: (error) => {
+        console.error(error);
+        this.error.set(true);
+      },
     });
   }
 }

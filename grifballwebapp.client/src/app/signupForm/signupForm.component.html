@@ -1,27 +1,66 @@
-<h2>Season Signup</h2>
+<div class="hud-page hud-page--narrow enlist" [class.hud-waiting]="!loaded()">
 
-<form class="app-form" #signupForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-checkbox [ngModel]="model().willCaptain" (ngModelChange)="patch({ willCaptain: $event })" name="willCaptain">
-        Willing to captain
-  </mat-checkbox>
-  <app-error-message [control]="signupForm.controls['willCaptain']" />
+  <form class="enlist-form hud-panel hud-panel--chamfer-lg" #signupForm="ngForm" (ngSubmit)="onSubmit()">
+    <div class="hud-page-head">
+      <span class="hud-kicker">&gt; Enlistment@if (seasonName(); as name) { · {{name}} }</span>
+      <h1 class="hud-title hud-title--md">Season Signup</h1>
+    </div>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>teamName</mat-label>
-    <input matInput required [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
-    <app-error-message [control]="signupForm.controls['teamName']" />
-  </mat-form-field>
+    @if (accountService.displayName(); as name) {
+    <div class="enlist-who hud-well">
+      <span class="hud-avatar hud-avatar--accent enlist-who__avatar" aria-hidden="true">{{name.charAt(0)}}</span>
+      <span class="enlist-who__text"><span class="hud-label">Signing up as</span><span class="enlist-who__name">{{name}}</span></span>
+    </div>
+    }
 
-  <mat-checkbox [ngModel]="model().requiresAssistanceDrafting" (ngModelChange)="patch({ requiresAssistanceDrafting: $event })" name="requiresAssistanceDrafting" [disabled]="!model().willCaptain" >
-    I Require Assistance Drafting
-  </mat-checkbox>
-  <app-error-message [control]="signupForm.controls['requiresAssistanceDrafting']" />
+    <div class="enlist-captain">
+      <mat-checkbox [ngModel]="model().willCaptain" (ngModelChange)="patch({ willCaptain: $event })" name="willCaptain">
+        <span class="enlist-option">Willing to captain</span>
+      </mat-checkbox>
+      <span class="enlist-hint">Captains draft their roster and run the team.</span>
+      <app-error-message [control]="signupForm.controls['willCaptain']" />
+    </div>
 
-  <app-availability-table [timeslots]="model().timeslots" (timeslotsChange)="patch({ timeslots: $event ?? [] })" />
+    <div class="enlist-sub">
+      <mat-form-field appearance="outline" class="app-full-width">
+        <mat-label>Team name</mat-label>
+        <input matInput required [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
+        <app-error-message [control]="signupForm.controls['teamName']" />
+      </mat-form-field>
 
-  <br>
+      <mat-checkbox [ngModel]="model().requiresAssistanceDrafting" (ngModelChange)="patch({ requiresAssistanceDrafting: $event })" name="requiresAssistanceDrafting" [disabled]="!model().willCaptain" >
+        I Require Assistance Drafting
+      </mat-checkbox>
+      <app-error-message [control]="signupForm.controls['requiresAssistanceDrafting']" />
+    </div>
 
-  <button mat-flat-button color="primary" [disabled]="!signupForm.form.valid">
-    Submit
-  </button>
-</form>
+    <section class="hud-section" aria-labelledby="enlist-availability">
+      <h2 id="enlist-availability" class="hud-label">Availability</h2>
+      <app-availability-table [timeslots]="model().timeslots" (timeslotsChange)="patch({ timeslots: $event ?? [] })" />
+    </section>
+
+    <div>
+      <button class="hud-btn hud-btn--primary" [disabled]="!signupForm.form.valid">
+        Submit
+      </button>
+    </div>
+  </form>
+
+  <aside class="enlist-timeline hud-section" aria-labelledby="enlist-timeline">
+    <h2 id="enlist-timeline" class="hud-h2">Mission timeline</h2>
+    @for (step of timeline(); track step.eventType) {
+      <div class="enlist-step" [class.enlist-step--now]="step.active">
+        <span class="hud-label" [class.hud-label--accent]="step.active">
+          @if (step.active) { Now · until {{step.end | date:'MMM d'}} }
+          @else if (step.eventType === 'Season') { {{step.start | date:'MMM d'}} → {{step.end | date:'MMM d'}} }
+          @else { {{step.start | date:'MMM d, h:mm a'}} }
+        </span>
+        <span class="enlist-step__title">{{eventTitles[step.eventType]}}</span>
+      </div>
+    } @empty {
+      <p class="hud-muted">No upcoming dates for this season.</p>
+    }
+    <a class="hud-more" [routerLink]="['/season', seasonID(), 'signups']">See who signed up &gt;</a>
+  </aside>
+
+</div>

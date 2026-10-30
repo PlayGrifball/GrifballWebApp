@@ -1,86 +1,54 @@
-<div class="dialog-content">
-  <h2 mat-dialog-title>
-    <mat-icon>gavel</mat-icon>
-    Process Reschedule Request
-  </h2>
+<h2 mat-dialog-title class="prd-title">
+  <mat-icon aria-hidden="true">gavel</mat-icon>
+  Process Reschedule Request
+</h2>
 
-  <mat-dialog-content>
-    <!-- Match Details -->
-    <div class="match-details">
-      <h3>Match Details</h3>
-      <div class="detail-row">
-        <strong>Teams:</strong> {{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}
-      </div>
-      <div class="detail-row">
-        <strong>Original Time:</strong> {{ formatDateTime(reschedule.originalScheduledTime) }}
-      </div>
-      <div class="detail-row">
-        <strong>Requested Time:</strong> {{ formatDateTime(reschedule.newScheduledTime) }}
-      </div>
-      <div class="detail-row">
-        <strong>Requested By:</strong> {{ reschedule.requestedByGamertag }}
-      </div>
-      <div class="detail-row">
-        <strong>Requested:</strong> {{ formatDateTime(reschedule.requestedAt) }}
-      </div>
-    </div>
+<mat-dialog-content class="prd-content">
+  <!-- Match Details -->
+  <section class="prd-section" aria-labelledby="prd-match">
+    <h3 id="prd-match" class="hud-kicker">Match details</h3>
+    <dl class="hud-details hud-well prd-well">
+      <dt>Teams</dt><dd>{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</dd>
+      <dt>Original time</dt><dd>{{ formatDateTime(reschedule.originalScheduledTime) }}</dd>
+      <dt>Requested time</dt><dd>{{ formatDateTime(reschedule.newScheduledTime) }}</dd>
+      <dt>Requested by</dt><dd>{{ reschedule.requestedByGamertag }}</dd>
+      <dt>Requested</dt><dd>{{ formatDateTime(reschedule.requestedAt) }}</dd>
+    </dl>
+  </section>
 
-    <!-- Reason -->
-    <div class="reason-section">
-      <h3>Reason for Reschedule</h3>
-      <div class="reason-box">
-        {{ reschedule.reason }}
-      </div>
-    </div>
+  <!-- Reason -->
+  <section class="prd-section" aria-labelledby="prd-reason">
+    <h3 id="prd-reason" class="hud-kicker">Reason for reschedule</h3>
+    <p class="hud-well prd-well prd-reason">{{ reschedule.reason }}</p>
+  </section>
 
-    <!-- Decision -->
-    <div class="decision-section">
-      <h3>Commissioner Decision</h3>
-      <mat-radio-group [(ngModel)]="decision" class="decision-radio-group">
-        <mat-radio-button value="approve" color="primary">
-          <mat-icon>check_circle</mat-icon>
-          Approve Reschedule
-        </mat-radio-button>
-        <mat-radio-button value="reject" color="warn">
-          <mat-icon>cancel</mat-icon>
-          Reject Reschedule
-        </mat-radio-button>
-      </mat-radio-group>
-    </div>
+  <!-- Decision -->
+  <section class="prd-section" aria-labelledby="prd-decision">
+    <h3 id="prd-decision" class="hud-kicker">Commissioner decision</h3>
+    <mat-radio-group [(ngModel)]="decision" class="prd-decision" aria-labelledby="prd-decision">
+      <mat-radio-button value="approve">Approve reschedule</mat-radio-button>
+      <mat-radio-button value="reject">Reject reschedule</mat-radio-button>
+    </mat-radio-group>
+  </section>
 
-    <!-- Commissioner Notes -->
-    <div class="notes-section">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Commissioner Notes (Optional)</mat-label>
-        <textarea matInput 
-                  [(ngModel)]="commissionerNotes" 
-                  rows="3" 
-                  placeholder="Add any additional notes about this decision..."></textarea>
-      </mat-form-field>
-    </div>
-  </mat-dialog-content>
+  <!-- Commissioner Notes -->
+  <mat-form-field appearance="outline" class="prd-notes">
+    <mat-label>Commissioner notes (optional)</mat-label>
+    <textarea matInput
+              [(ngModel)]="commissionerNotes"
+              rows="3"
+              placeholder="Anything the teams should know about this decision"></textarea>
+  </mat-form-field>
+</mat-dialog-content>
 
-  <mat-dialog-actions align="end">
-    <button mat-button (click)="onCancel()" [disabled]="processing()">
-      Cancel
-    </button>
-    <button mat-raised-button 
-            [color]="decision() === 'approve' ? 'primary' : 'warn'"
-            (click)="processReschedule()" 
-            [disabled]="!decision() || processing()">
-      @if (processing())
-      {
-        <mat-icon>hourglass_empty</mat-icon>
-      }
-      @if (!processing() && decision() === 'approve')
-      {
-        <mat-icon>check_circle</mat-icon>
-      }
-      @if (!processing() && decision() === 'reject')
-      {
-        <mat-icon>cancel</mat-icon>
-      }
-      {{ processing() ? 'Processing...' : (decision() === 'approve' ? 'Approve' : 'Reject') }}
-    </button>
-  </mat-dialog-actions>
-</div>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="onCancel()" [disabled]="processing()">
+    Cancel
+  </button>
+  <button mat-flat-button type="button"
+          [class.prd-reject]="decision() === 'reject'"
+          (click)="processReschedule()"
+          [disabled]="!decision() || processing()">
+    {{ processing() ? 'Processing...' : (decision() === 'approve' ? 'Approve' : 'Reject') }}
+  </button>
+</mat-dialog-actions>

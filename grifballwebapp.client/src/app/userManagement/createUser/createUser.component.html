@@ -1,25 +1,38 @@
-<h2>Create User</h2>
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; User management</span>
+    <h1 class="hud-title hud-title--md">Create User</h1>
+  </div>
 
-<form class="form" #form="ngForm" (ngSubmit)="onSubmit()">
-  <mat-form-field class="full-width">
-    <mat-label>Display Name</mat-label>
-    <input matInput required [(ngModel)]="model.displayName" name="displayName">
-    <app-error-message [control]="form.controls['displayName']" />
-  </mat-form-field>
+  <form class="hud-panel hud-form-group cu-form" #form="ngForm" (ngSubmit)="onSubmit()" aria-labelledby="cu-title">
+    <h2 id="cu-title" class="hud-kicker">New user</h2>
+    <p class="hud-muted">For a player who has not signed in yet. They can set a password with a reset link from User Management.</p>
 
-  <mat-form-field class="full-width">
-    <mat-label>Gamertag</mat-label>
-    <input matInput required [(ngModel)]="model.gamertag" name="gamertag">
-    <app-error-message [control]="form.controls['gamertag']" />
-  </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Display name</mat-label>
+      <input matInput required [(ngModel)]="model.displayName" name="displayName">
+      <mat-hint>Shown on the site</mat-hint>
+      <app-error-message [control]="form.controls['displayName']" />
+    </mat-form-field>
 
-  <mat-form-field class="full-width">
-    <mat-label>UserName</mat-label>
-    <input matInput required [(ngModel)]="model.userName" name="userName">
-    <app-error-message [control]="form.controls['userName']" />
-  </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Gamertag</mat-label>
+      <input matInput required [(ngModel)]="model.gamertag" name="gamertag">
+      <mat-hint>Their Xbox gamertag</mat-hint>
+      <app-error-message [control]="form.controls['gamertag']" />
+    </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!form.form.valid">
-    Submit
-  </button>
-</form>
+    <mat-form-field appearance="outline">
+      <mat-label>Username</mat-label>
+      <input matInput required [(ngModel)]="model.userName" name="userName">
+      <mat-hint>What they sign in with</mat-hint>
+      <app-error-message [control]="form.controls['userName']" />
+    </mat-form-field>
+
+    <div class="hud-actions">
+      <button mat-flat-button [disabled]="!form.form.valid">
+        Submit
+      </button>
+    </div>
+  </form>
+</div>

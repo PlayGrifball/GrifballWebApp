@@ -88,48 +88,48 @@ export class UserManagementComponent {
     },
     {
       columnDef: 'userName',
-      header: 'userName',
+      header: 'Username',
       cell: (element: UserResponseDto) => `${element.userName}`,
     },
     {
       columnDef: 'lockoutEnd',
-      header: 'lockoutEnd',
+      header: 'Lockout ends',
       cell: (element: UserResponseDto) => `${element.lockoutEnd}`, // pipe date short
       template: 1,
     },
     {
       columnDef: 'lockoutEnabled',
-      header: 'lockoutEnabled',
-      cell: (element: UserResponseDto) => `${element.lockoutEnabled}`,
+      header: 'Lockout enabled',
+      cell: (element: UserResponseDto) => element.lockoutEnabled ? 'Yes' : 'No',
     },
     {
       columnDef: 'accessFailedCount',
-      header: 'accessFailedCount',
+      header: 'Failed sign-ins',
       cell: (element: UserResponseDto) => `${element.accessFailedCount}`,
     },
     {
       columnDef: 'region',
-      header: 'region',
-      cell: (element: UserResponseDto) => `${element.region}`,
+      header: 'Region',
+      cell: (element: UserResponseDto) => element.region ?? '',
     },
     {
       columnDef: 'displayName',
-      header: 'displayName',
-      cell: (element: UserResponseDto) => `${element.displayName}`,
+      header: 'Display name',
+      cell: (element: UserResponseDto) => element.displayName ?? '',
     },
     {
       columnDef: 'gamertag',
-      header: 'gamertag',
-      cell: (element: UserResponseDto) => `${element.gamertag}`,
+      header: 'Gamertag',
+      cell: (element: UserResponseDto) => element.gamertag ?? '',
     },
     {
       columnDef: 'discord',
       header: 'Discord',
-      cell: (element: UserResponseDto) => `${element.discord}`,
+      cell: (element: UserResponseDto) => element.discord ?? '',
     },
     {
       columnDef: 'externalAuthCount',
-      header: 'External Auth Count',
+      header: 'Linked logins',
       cell: (element: UserResponseDto) => `${element.externalAuthCount}`,
     },
     {

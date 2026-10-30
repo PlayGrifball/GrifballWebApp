@@ -1,52 +1,72 @@
-<h2>Edit User {{model().userID}}</h2>
-
-<form class="app-form" #userForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-form-field class="app-full-width">
-    <mat-label>userName</mat-label>
-    <input matInput required [ngModel]="model().userName" (ngModelChange)="patch({ userName: $event })" name="userName">
-    <app-error-message [control]="userForm.controls['userName']" />
-  </mat-form-field>
-
-  <mat-form-field class="app-full-width">
-    <mat-label>lockoutEnd</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().lockoutEnd" (ngModelChange)="patch({ lockoutEnd: $event })" name="lockoutEnd">
-    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
-    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="userForm.controls['lockoutEnd']" />
-  </mat-form-field>
-
-  <mat-checkbox [ngModel]="model().lockoutEnabled" (ngModelChange)="patch({ lockoutEnabled: $event })" name="lockoutEnabled">
-    Lockout Enabled
-  </mat-checkbox>
-
-  <mat-checkbox [ngModel]="model().isDummyUser" (ngModelChange)="patch({ isDummyUser: $event })" name="isDummyUser">
-    Is Dummy User
-  </mat-checkbox>
-
-  <div>Roles:</div>
-  <div>
-    @for (role of model().roles; track i; let i = $index) {
-    <mat-checkbox [ngModel]="role.hasRole" (ngModelChange)="setRole(i, $event)" [ngModelOptions]="{standalone: true}">{{role.roleName}}</mat-checkbox>
-    }
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; User management</span>
+    <h1 class="hud-title hud-title--md">Edit User {{model().userID}}</h1>
   </div>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>displayName</mat-label>
-    <input matInput [ngModel]="model().displayName" (ngModelChange)="patch({ displayName: $event })" name="displayName">
-    <app-error-message [control]="userForm.controls['displayName']" />
-  </mat-form-field>
+  <form class="hud-form" #userForm="ngForm" (ngSubmit)="onSubmit()">
+    <section class="hud-panel hud-form-group" aria-labelledby="eu-account">
+      <h2 id="eu-account" class="hud-kicker">Account</h2>
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput required [ngModel]="model().userName" (ngModelChange)="patch({ userName: $event })" name="userName">
+        <mat-hint>What they sign in with</mat-hint>
+        <app-error-message [control]="userForm.controls['userName']" />
+      </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>gamertag</mat-label>
-    <input matInput [ngModel]="model().gamertag" (ngModelChange)="patch({ gamertag: $event })" name="gamertag">
-    <app-error-message [control]="userForm.controls['gamertag']" />
-  </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Lockout ends</mat-label>
+        <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().lockoutEnd" (ngModelChange)="patch({ lockoutEnd: $event })" name="lockoutEnd">
+        <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
+        <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" />
+        <mat-hint>Empty: not locked out</mat-hint>
+        <app-error-message [control]="userForm.controls['lockoutEnd']" />
+      </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!userForm.form.valid">
-    Update User
-  </button>
-</form>
+      <div class="hud-options">
+        <mat-checkbox [ngModel]="model().lockoutEnabled" (ngModelChange)="patch({ lockoutEnabled: $event })" name="lockoutEnabled">Lockout Enabled</mat-checkbox>
+        <mat-checkbox [ngModel]="model().isDummyUser" (ngModelChange)="patch({ isDummyUser: $event })" name="isDummyUser">Is Dummy User</mat-checkbox>
+      </div>
+    </section>
 
-@if (model().userID) {
-<app-linked-accounts [userID]="model().userID" />
-}
+    <section class="hud-panel hud-form-group" aria-labelledby="eu-roles">
+      <h2 id="eu-roles" class="hud-kicker">Roles</h2>
+      <div class="hud-options" role="group" aria-labelledby="eu-roles">
+        @for (role of model().roles; track i; let i = $index) {
+        <mat-checkbox [ngModel]="role.hasRole" (ngModelChange)="setRole(i, $event)" [ngModelOptions]="{standalone: true}">{{role.roleName}}</mat-checkbox>
+        } @empty {
+        <p class="hud-muted">No roles.</p>
+        }
+      </div>
+    </section>
+
+    <section class="hud-panel hud-form-group" aria-labelledby="eu-profile">
+      <h2 id="eu-profile" class="hud-kicker">Profile</h2>
+      <div class="hud-field-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Display name</mat-label>
+          <input matInput [ngModel]="model().displayName" (ngModelChange)="patch({ displayName: $event })" name="displayName">
+          <app-error-message [control]="userForm.controls['displayName']" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Gamertag</mat-label>
+          <input matInput [ngModel]="model().gamertag" (ngModelChange)="patch({ gamertag: $event })" name="gamertag">
+          <app-error-message [control]="userForm.controls['gamertag']" />
+        </mat-form-field>
+      </div>
+    </section>
+
+    <div class="hud-actions">
+      <button mat-flat-button [disabled]="!userForm.form.valid">
+        Update User
+      </button>
+    </div>
+  </form>
+
+  @if (model().userID) {
+  <section class="hud-section hud-panel hud-panel--soft">
+    <app-linked-accounts [userID]="model().userID" />
+  </section>
+  }
+</div>

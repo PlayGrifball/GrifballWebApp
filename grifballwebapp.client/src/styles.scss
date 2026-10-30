@@ -2,6 +2,9 @@
 // For more information: https://material.angular.io/guide/theming
 @use '@ng-matero/extensions' as mtx;
 @use "@angular/material" as mat;
+@use "./styles/fonts";
+@use "./styles/hud-tokens";
+@use "./styles/hud";
 // Plus imports for other components in your app.
 
 // Include the common styles for Angular Material. We include this here so that you only
@@ -19,74 +22,92 @@ html {
 
 
 html, body { height: 100%; }
-body { margin: 0; font-family: var(--sys-body-medium-font); }
+body { margin: 0; font-family: var(--hud-font); }
 
 html {
-  --mat-sys-primary: var(--primary-80);
-  --mat-sys-surface-tint: var(--primary-80);
-  --mat-sys-on-primary: var(--primary-20);
-  --mat-sys-primary-container: var(--primary-30);
-  --mat-sys-on-primary-container: var(--primary-90);
-  --mat-sys-secondary: var(--secondary-80);
-  --mat-sys-on-secondary: var(--secondary-20);
-  --mat-sys-secondary-container: var(--secondary-30);
-  --mat-sys-on-secondary-container: var(--secondary-90);
-  --mat-sys-tertiary: var(--tertiary-80);
-  --mat-sys-on-tertiary: var(--tertiary-20);
-  --mat-sys-tertiary-container: var(--tertiary-30);
-  --mat-sys-on-tertiary-container: var(--tertiary-90);
-  --mat-sys-error: var(--error-80);
-  --mat-sys-on-error: var(--error-20);
-  --mat-sys-error-container: var(--error-30);
-  --mat-sys-on-error-container: var(--error-90);
-  --mat-sys-background: var(--neutral-6);
-  --mat-sys-on-background: var(--neutral-90);
-  --mat-sys-surface: var(--neutral-6);
-  --mat-sys-on-surface: var(--neutral-90);
-  --mat-sys-surface-variant: var(--neutral-variant-30);
-  --mat-sys-on-surface-variant: var(--neutral-variant-90);
-  --mat-sys-outline: var(--neutral-variant-60);
-  --mat-sys-outline-variant: var(--neutral-variant-30);
-  --mat-sys-shadow: var(--neutral-0);
-  --mat-sys-scrim: var(--neutral-0);
-  --mat-sys-inverse-surface: var(--neutral-90);
-  --mat-sys-inverse-on-surface: var(--neutral-20);
-  --mat-sys-inverse-primary: var(--primary-40);
-  --mat-sys-primary-fixed: var(--primary-90);
-  --mat-sys-on-primary-fixed: var(--primary-10);
-  --mat-sys-primary-fixed-dim: var(--primary-80);
-  --mat-sys-on-primary-fixed-variant: var(--primary-30);
-  --mat-sys-secondary-fixed: var(--secondary-90);
-  --mat-sys-on-secondary-fixed: var(--secondary-10);
-  --mat-sys-secondary-fixed-dim: var(--secondary-80);
-  --mat-sys-on-secondary-fixed-variant: var(--secondary-30);
-  --mat-sys-tertiary-fixed: var(--tertiary-90);
-  --mat-sys-on-tertiary-fixed: var(--tertiary-10);
-  --mat-sys-tertiary-fixed-dim: var(--tertiary-80);
-  --mat-sys-on-tertiary-fixed-variant: var(--tertiary-30);
-  --mat-sys-surface-dim: var(--neutral-6);
-  --mat-sys-surface-bright: var(--neutral-24);
-  --mat-sys-surface-container-lowest: var(--neutral-4);
-  --mat-sys-surface-container-low: var(--neutral-10);
-  --mat-sys-surface-container: var(--neutral-12);
-  --mat-sys-surface-container-high: var(--neutral-17);
-  --mat-sys-surface-container-highest: var(--neutral-24);
+  // Material 3 system colours, mapped onto the Spartan HUD tokens (styles/_hud-tokens.scss).
+  --mat-sys-primary: var(--hud-accent);
+  --mat-sys-surface-tint: transparent;
+  --mat-sys-on-primary: var(--hud-on-accent);
+  --mat-sys-primary-container: #12304A;
+  --mat-sys-on-primary-container: var(--hud-text);
+  --mat-sys-secondary: var(--hud-muted-2);
+  --mat-sys-on-secondary: var(--hud-on-accent);
+  --mat-sys-secondary-container: var(--hud-avatar);
+  --mat-sys-on-secondary-container: var(--hud-text);
+  --mat-sys-tertiary: var(--hud-gold);
+  --mat-sys-on-tertiary: #2A1F00;
+  --mat-sys-tertiary-container: #4A3A0E;
+  --mat-sys-on-tertiary-container: #FFE9AE;
+  --mat-sys-error: var(--hud-red-text);
+  --mat-sys-on-error: #2B0507;
+  --mat-sys-error-container: #5A1A1E;
+  --mat-sys-on-error-container: #FFD9DA;
+  --mat-sys-background: var(--hud-bg);
+  --mat-sys-on-background: var(--hud-text);
+  --mat-sys-surface: #08131F;
+  --mat-sys-on-surface: var(--hud-text);
+  --mat-sys-surface-variant: var(--hud-avatar);
+  --mat-sys-on-surface-variant: var(--hud-muted-2);
+  --mat-sys-outline: var(--hud-control-outline);
+  --mat-sys-outline-variant: var(--hud-hairline);
+  --mat-sys-shadow: #000000;
+  --mat-sys-scrim: #000000;
+  --mat-sys-inverse-surface: var(--hud-text);
+  --mat-sys-inverse-on-surface: #08131F;
+  --mat-sys-inverse-primary: #1F6EA8;
+  --mat-sys-primary-fixed: #C9E8FF;
+  --mat-sys-on-primary-fixed: var(--hud-on-accent);
+  --mat-sys-primary-fixed-dim: var(--hud-accent);
+  --mat-sys-on-primary-fixed-variant: #12304A;
+  --mat-sys-secondary-fixed: #D9F1FF;
+  --mat-sys-on-secondary-fixed: var(--hud-on-accent);
+  --mat-sys-secondary-fixed-dim: var(--hud-muted-2);
+  --mat-sys-on-secondary-fixed-variant: var(--hud-avatar);
+  --mat-sys-tertiary-fixed: #FFE9AE;
+  --mat-sys-on-tertiary-fixed: #2A1F00;
+  --mat-sys-tertiary-fixed-dim: var(--hud-gold);
+  --mat-sys-on-tertiary-fixed-variant: #4A3A0E;
+  --mat-sys-surface-dim: var(--hud-bg);
+  --mat-sys-surface-bright: #1B3A55;
+  --mat-sys-surface-container-lowest: var(--hud-bg);
+  --mat-sys-surface-container-low: var(--hud-input);
+  --mat-sys-surface-container: #0E2438;
+  --mat-sys-surface-container-high: #12304A;
+  --mat-sys-surface-container-highest: #1B3A55;
+
+  // Typography: Rajdhani everywhere (the theme picker can still swap the font).
+  --mat-sys-body-large-font: var(--hud-font);
+  --mat-sys-body-medium-font: var(--hud-font);
+  --mat-sys-body-small-font: var(--hud-font);
+  --mat-sys-display-large-font: var(--hud-font);
+  --mat-sys-display-medium-font: var(--hud-font);
+  --mat-sys-display-small-font: var(--hud-font);
+  --mat-sys-headline-large-font: var(--hud-font);
+  --mat-sys-headline-medium-font: var(--hud-font);
+  --mat-sys-headline-small-font: var(--hud-font);
+  --mat-sys-label-large-font: var(--hud-font);
+  --mat-sys-label-medium-font: var(--hud-font);
+  --mat-sys-label-small-font: var(--hud-font);
+  --mat-sys-title-large-font: var(--hud-font);
+  --mat-sys-title-medium-font: var(--hud-font);
+  --mat-sys-title-small-font: var(--hud-font);
   //--mat-sys-body-large: 400 1rem / 1.5rem Roboto, sans-serif;
   //--mat-sys-body-large-font: Roboto, sans-serif;
   --mat-sys-body-large-line-height: 1.5rem;
-  --mat-sys-body-large-size: 1rem;
+  --mat-sys-body-large-size: 1.0625rem;
   --mat-sys-body-large-tracking: 0.031rem;
-  --mat-sys-body-large-weight: 400;
+  --mat-sys-body-large-weight: 500;
   //--mat-sys-body-medium: 400 0.875rem / 1.25rem Roboto, sans-serif;
   //--mat-sys-body-medium-font: Roboto, sans-serif;
   --mat-sys-body-medium-line-height: 1.25rem;
-  --mat-sys-body-medium-size: 0.875rem;
+  --mat-sys-body-medium-size: 1rem;
   --mat-sys-body-medium-tracking: 0.016rem;
-  --mat-sys-body-medium-weight: 400;
+  --mat-sys-body-medium-weight: 500;
   //--mat-sys-body-small: 400 0.75rem / 1rem Roboto, sans-serif;
   //--mat-sys-body-small-font: Roboto, sans-serif;
   --mat-sys-body-small-line-height: 1rem;
-  --mat-sys-body-small-size: 0.75rem;
+  --mat-sys-body-small-size: 0.875rem;
   --mat-sys-body-small-tracking: 0.025rem;
   --mat-sys-body-small-weight: 400;
   //--mat-sys-display-large: 400 3.562rem / 4rem Roboto, sans-serif;
@@ -128,9 +149,9 @@ html {
   //--mat-sys-label-large: 500 0.875rem / 1.25rem Roboto, sans-serif;
   //--mat-sys-label-large-font: Roboto, sans-serif;
   --mat-sys-label-large-line-height: 1.25rem;
-  --mat-sys-label-large-size: 0.875rem;
+  --mat-sys-label-large-size: 1rem;
   --mat-sys-label-large-tracking: 0.006rem;
-  --mat-sys-label-large-weight: 500;
+  --mat-sys-label-large-weight: 600;
   --mat-sys-label-large-weight-prominent: 700;
   //--mat-sys-label-medium: 500 0.75rem / 1rem Roboto, sans-serif;
   //--mat-sys-label-medium-font: Roboto, sans-serif;
@@ -150,13 +171,13 @@ html {
   --mat-sys-title-large-line-height: 1.75rem;
   --mat-sys-title-large-size: 1.375rem;
   --mat-sys-title-large-tracking: 0rem;
-  --mat-sys-title-large-weight: 400;
+  --mat-sys-title-large-weight: 700;
   //--mat-sys-title-medium: 500 1rem / 1.5rem Roboto, sans-serif;
   //--mat-sys-title-medium-font: Roboto, sans-serif;
   --mat-sys-title-medium-line-height: 1.5rem;
-  --mat-sys-title-medium-size: 1rem;
+  --mat-sys-title-medium-size: 1.125rem;
   --mat-sys-title-medium-tracking: 0.009rem;
-  --mat-sys-title-medium-weight: 500;
+  --mat-sys-title-medium-weight: 700;
   //--mat-sys-title-small: 500 0.875rem / 1.25rem Roboto, sans-serif;
   //--mat-sys-title-small-font: Roboto, sans-serif;
   --mat-sys-title-small-line-height: 1.25rem;
@@ -192,10 +213,9 @@ html {
   width: 100%;
 }
 
+// Links take their look from where they are (nav, buttons, cards); see styles/_hud.scss.
 a {
-  all: unset;
-}
-
-a:hover {
+  color: inherit;
+  text-decoration: none;
   cursor: pointer;
 }

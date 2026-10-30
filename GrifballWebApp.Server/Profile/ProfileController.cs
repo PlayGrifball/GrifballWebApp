@@ -32,7 +32,7 @@ public class ProfileController : ControllerBase
     }
 
     [Authorize(Roles = "Player")]
-    [HttpGet("{userID:int}", Name = "SetGamertag")]
+    [HttpPost("{userID:int}", Name = "SetGamertag")]
     public async Task<IActionResult> SetGamertag([FromRoute] int userID, [FromQuery] string gamertag, CancellationToken ct)
     {
         var id = GetUserID();

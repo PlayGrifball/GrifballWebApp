@@ -17,10 +17,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { SignalRService } from '../api/signalR.service';
 import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTeam, movePoolPlayer, removeCaptain, removePlayerFromTeam, renameTeam, resortCaptain } from './draft';
+import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 
 @Component({
     selector: 'app-team-builder',
     imports: [
+        SeasonTabsComponent,
         DndModule,
         MatListModule,
         MatIconModule,
@@ -29,7 +31,11 @@ import { addCaptain, addPlayerToTeam, Draft, dropPick, dropTeam, movePlayerToTea
     ],
     templateUrl: './teamBuilder.component.html',
     styleUrl: './teamBuilder.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    // ngx-drag-drop takes its placeholders (dndPlaceholderRef) out of the DOM, so the browser's DOM
+    // no longer matches what the server drew: the browser draws this page again instead of taking
+    // the server's over (the rest of the page, the header with the user, still is).
+    host: { ngSkipHydration: 'true' },
 })
 export class TeamBuilderComponent {
   private route = inject(ActivatedRoute);
@@ -54,6 +60,10 @@ export class TeamBuilderComponent {
   private reloadAfterSaves = false;
   // Saves ever started here; a load that saw a save start while it ran does not apply its result.
   private savesStarted = 0;
+  // A drag under way, and whether a reload waits for it to end (a reload would redraw the board
+  // under the pointer).
+  private dragging = false;
+  private reloadAfterDrag = false;
 
   /** Whose pick it is: the first team (in pick order) with the fewest players, while players are left. */
   readonly onDeck = computed<CaptainDto | null>(() => {
@@ -154,6 +164,10 @@ export class TeamBuilderComponent {
         if (seasonID === this.seasonID)
           this.captainLocked.set(false);
       }),
+      // The hub came up after this page loaded the draft (it was still connecting, or it dropped
+      // and reconnected): a change sent before then never reached this page, so load the draft
+      // again. Only on that change of state, so a load never leads to another.
+      this.signalR.connected(() => this.reloadWhenIdle()),
     ];
     this.destroyRef.onDestroy(() => offs.forEach(off => off()));
   }
@@ -210,6 +224,26 @@ export class TeamBuilderComponent {
 
   onDragStart(item: GrabbedThingTypes, event: DragEvent, kind: GrabbedThing) {
     this.grabbedThing = kind;
+    this.dragging = true;
+  }
+
+  /** A drag ended (dropped or not): a reload that waited for it goes ahead, after any save. */
+  onDragEnd(): void {
+    this.dragging = false;
+    if (this.reloadAfterDrag) {
+      this.reloadAfterDrag = false;
+      this.reloadWhenIdle();
+    }
+  }
+
+  /** Loads the draft again once no drag is under way and no save is on its way. */
+  private reloadWhenIdle(): void {
+    if (this.dragging) {
+      this.reloadAfterDrag = true;
+      return;
+    }
+    this.reloadAfterSaves = true;
+    this.reloadIfSettled();
   }
 
   /**

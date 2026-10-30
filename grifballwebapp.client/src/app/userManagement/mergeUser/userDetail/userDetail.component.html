@@ -1,10 +1,12 @@
-@if (user() == null) {
-    <p>User not found.</p>
+@if (user(); as u) {
+  <dl class="hud-details hud-well detail">
+    <dt>ID</dt><dd>{{ u.userID }}</dd>
+    <dt>Username</dt><dd>{{ u.userName }}</dd>
+    <dt>Display name</dt><dd>{{ u.displayName }}</dd>
+    <dt>Gamertag</dt><dd>{{ u.gamertag }}</dd>
+    <dt>Discord</dt><dd>{{ u.discord }}</dd>
+    <dt>Linked logins</dt><dd>{{ u.externalAuthCount }}</dd>
+  </dl>
 } @else {
-    <p><strong>ID:</strong> {{ user()?.userID }}</p>
-    <p><strong>Username:</strong> {{ user()?.userName }}</p>
-    <p><strong>Display Name:</strong> {{ user()?.displayName }}</p>
-    <p><strong>Gamertag:</strong> {{ user()?.gamertag }}</p>
-    <p><strong>Discord:</strong> {{ user()?.discord }}</p>
-    <p><strong>External Auth Count:</strong> {{ user()?.externalAuthCount }}</p>
+  <p class="hud-empty">User not found.</p>
 }

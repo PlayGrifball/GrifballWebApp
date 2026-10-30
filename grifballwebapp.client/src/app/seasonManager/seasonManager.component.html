@@ -1,63 +1,70 @@
-<h1 id="tableLabel">Season Manager</h1>
+<div class="hud-page">
+  <div class="hud-page-head hud-page-head--actions">
+    <div class="hud-page-head__text">
+      <span class="hud-kicker">&gt; Commissioner tools</span>
+      <h1 id="seasons-title" class="hud-title hud-title--md">Season Manager</h1>
+    </div>
+    <a mat-flat-button [routerLink]="['/seasonEdit', 0]">Create New Season</a>
+  </div>
 
-<button mat-flat-button color="primary" [routerLink]="['/seasonEdit', 0]">
-  Create New Season
-</button>
+  @if (error()) {
+    <p class="hud-empty hud-empty--error" role="alert">Could not load the seasons. Refresh the page to try again.</p>
+  } @else if (seasons(); as list) {
+    @if (list.length === 0) {
+      <p class="hud-empty">No seasons yet. Create the first one to open signups.</p>
+    } @else {
+      <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="seasons-title">
+      <table mat-table [dataSource]="list" aria-labelledby="seasons-title">
 
-<table mat-table [dataSource]="seasons()" class="mat-elevation-z8">
+        <ng-container matColumnDef="seasonName">
+          <th mat-header-cell *matHeaderCellDef>Season</th>
+          <td mat-cell *matCellDef="let row" class="sm-name">{{row.seasonName}}</td>
+        </ng-container>
 
-  <!--- Note that these columns can be defined in any order.
-        The actual rendered columns are set as a property on the row definition" -->
-  <!-- seasonName Column -->
-  <ng-container matColumnDef="seasonName">
-    <th mat-header-cell *matHeaderCellDef> seasonName </th>
-    <td mat-cell *matCellDef="let row"> {{row.seasonName}} </td>
-  </ng-container>
+        <ng-container matColumnDef="signupsOpen">
+          <th mat-header-cell *matHeaderCellDef>Signups open</th>
+          <td mat-cell *matCellDef="let row">{{row.signupsOpen | toDate | date:dateFormat}}</td>
+        </ng-container>
 
-  <!-- signupsOpen Column -->
-  <ng-container matColumnDef="signupsOpen">
-    <th mat-header-cell *matHeaderCellDef> signupsOpen </th>
-    <td mat-cell *matCellDef="let row"> {{row.signupsOpen | toDate | date:'short' }} </td>
-  </ng-container>
+        <ng-container matColumnDef="signupsClose">
+          <th mat-header-cell *matHeaderCellDef>Signups close</th>
+          <td mat-cell *matCellDef="let row">{{row.signupsClose | toDate | date:dateFormat}}</td>
+        </ng-container>
 
-  <!-- signupsClose Column -->
-  <ng-container matColumnDef="signupsClose">
-    <th mat-header-cell *matHeaderCellDef> signupsClose </th>
-    <td mat-cell *matCellDef="let row"> {{row.signupsClose | toDate | date:'short' }} </td>
-  </ng-container>
+        <ng-container matColumnDef="draftStart">
+          <th mat-header-cell *matHeaderCellDef>Draft</th>
+          <td mat-cell *matCellDef="let row">{{row.draftStart | toDate | date:dateFormat}}</td>
+        </ng-container>
 
-  <!-- draftStart Column -->
-  <ng-container matColumnDef="draftStart">
-    <th mat-header-cell *matHeaderCellDef> draftStart </th>
-    <td mat-cell *matCellDef="let row"> {{row.draftStart | toDate | date:'short' }} </td>
-  </ng-container>
+        <ng-container matColumnDef="seasonStart">
+          <th mat-header-cell *matHeaderCellDef>Start</th>
+          <td mat-cell *matCellDef="let row">{{row.seasonStart | toDate | date:dateFormat}}</td>
+        </ng-container>
 
-  <!-- seasonStart Column -->
-  <ng-container matColumnDef="seasonStart">
-    <th mat-header-cell *matHeaderCellDef> seasonStart </th>
-    <td mat-cell *matCellDef="let row"> {{row.seasonStart | toDate | date:'short' }} </td>
-  </ng-container>
+        <ng-container matColumnDef="seasonEnd">
+          <th mat-header-cell *matHeaderCellDef>End</th>
+          <td mat-cell *matCellDef="let row">{{row.seasonEnd | toDate | date:dateFormat}}</td>
+        </ng-container>
 
-  <!-- seasonEnd Column -->
-  <ng-container matColumnDef="seasonEnd">
-    <th mat-header-cell *matHeaderCellDef> seasonEnd </th>
-    <td mat-cell *matCellDef="let row"> {{row.seasonEnd | toDate | date:'short' }} </td>
-  </ng-container>
+        <ng-container matColumnDef="signupsCount">
+          <th mat-header-cell *matHeaderCellDef class="hud-num">Signups</th>
+          <td mat-cell *matCellDef="let row" class="hud-num">{{row.signupsCount}}</td>
+        </ng-container>
 
-  <!-- signupsCount Column -->
-  <ng-container matColumnDef="signupsCount">
-    <th mat-header-cell *matHeaderCellDef> signupsCount </th>
-    <td mat-cell *matCellDef="let row"> {{row.signupsCount}} </td>
-  </ng-container>
+        <ng-container matColumnDef="edit">
+          <th mat-header-cell *matHeaderCellDef>Edit</th>
+          <td mat-cell *matCellDef="let row">
+            <a mat-button [routerLink]="['/seasonEdit', row.seasonID]" [attr.aria-label]="'Edit ' + row.seasonName">Edit</a>
+          </td>
+        </ng-container>
 
-  <!-- edit Column -->
-  <ng-container matColumnDef="edit">
-    <th mat-header-cell *matHeaderCellDef> edit </th>
-    <td mat-cell *matCellDef="let row">
-      <a mat-list-item [routerLink]="['/seasonEdit', row.seasonID]" >EDIT</a>
-    </td>
-  </ng-container>
-
-  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-</table>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+      </div>
+    }
+  } @else {
+    <p class="hud-empty" role="status">Loading seasons…</p>
+  }
+</div>

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { TeamResponseDto } from './api';
-import { drag, expect, secondBrowser, test, watchConsole } from './fixtures';
+import { drag, expect, hydrated, secondBrowser, test, watchConsole } from './fixtures';
 import { createLeague, teamName, type League } from './league';
 
 // The team builder (/season/:id/teams) against the real server, from two signed-in browsers at
@@ -32,12 +32,19 @@ async function draft(page: Page): Promise<{ titles: string[]; rosters: string[][
   return { titles: await titles(page), rosters, pool: await pool(page) };
 }
 
-async function openTeamBuilder(page: Page, league: League): Promise<void> {
+/** Opens the team builder; `hub: false` for a page whose Teams hub is cut off on purpose. */
+async function openTeamBuilder(page: Page, league: League, { hub = true } = {}): Promise<void> {
+  // Changes reach the other browser over the Teams hub: one made before its connection is up is
+  // never sent to it (seen in CI: the first drop came 0.6 s before the other page connected).
+  const connected = hub && page.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 30_000 });
   await page.goto(`/season/${league.seasonID}/teams`);
   await expect(teamCard(page, teamName(league, 0))).toBeVisible();
   // The last player is never drafted: the pool has loaded.
   await expect(poolItem(page, league.players[league.players.length - 1].name)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Lock Captains' })).toBeVisible(); // i.e. unlocked
+  // The server drew the board too; drags only work once the app has drawn it again.
+  await hydrated(page);
+  await connected;
 }
 
 test.describe('team builder', () => {
@@ -46,7 +53,7 @@ test.describe('team builder', () => {
   test.beforeAll(async ({ baseUrl, admin }) => {
     // p1, p2 captain "Team 1" and "Team 2"; p3..p7 wait in the pool.
     league = await createLeague(baseUrl, admin, 'teams', { players: 7, captains: 2 });
-    await admin.get(`Teams/UnlockCaptains/${league.seasonID}`);
+    await admin.post(`Teams/UnlockCaptains/${league.seasonID}`);
   });
   test.afterAll(async () => league?.close());
 
@@ -60,14 +67,29 @@ test.describe('team builder', () => {
     const b = other.page;
     try {
       await openTeamBuilder(a, league);
-      await openTeamBuilder(b, league);
+      // The other browser's hub connection is held back until after the first pick: it loads the
+      // board without it, so that pick is never sent to it.
+      let release!: () => void;
+      const held = new Promise<void>(resolve => release = resolve);
+      await b.route('**/hub/TeamsHub/negotiate*', async route => { await held; await route.continue(); });
+      const bConnected = b.waitForEvent('console', { predicate: m => m.text() === 'Connection started', timeout: 60_000 });
+      await openTeamBuilder(b, league, { hub: false });
+      await b.evaluate(() => { (window as unknown as { notReloaded: boolean }).notReloaded = true; });
 
-      // 1. Draft a pool player onto a team; the other browser follows over SignalR, no reload.
+      // 1. Draft a pool player onto a team, before the other browser is connected. Once it is, it
+      //    loads the board again and shows the pick, without a page reload.
+      const pickSaved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));
       await drag(poolItem(a, p3.name), playersArea(a, team1));
       await expect.poll(() => roster(a, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(a, p3.name)).toHaveCount(0);
+      expect((await pickSaved).ok()).toBe(true);
+      expect(await roster(b, team1)).toEqual([]);
+      release();
+      await bConnected;
+      await b.unroute('**/hub/TeamsHub/negotiate*');
       await expect.poll(() => roster(b, team1)).toEqual([`1 ${p3.name}`]);
       await expect(poolItem(b, p3.name)).toHaveCount(0);
+      expect(await b.evaluate(() => (window as unknown as { notReloaded?: boolean }).notReloaded)).toBe(true);
 
       // 2. A pool player dropped among the teams becomes a captain, of a team named after them.
       await drag(poolItem(a, p4.name), teamsZone(a));
@@ -95,7 +117,7 @@ test.describe('team builder', () => {
       // The refused save: the browser logs the failed request.
       staleErrors.allow(/status of (400|409|500).*Teams\/addPlayerToTeam/i);
       await stale.route('**/hub/**', route => route.abort());
-      await openTeamBuilder(stale, league);
+      await openTeamBuilder(stale, league, { hub: false });
 
       // Saved before the stale browser tries: otherwise its request could win the race.
       const saved = a.waitForResponse(r => /\/api\/Teams\/addPlayerToTeam/i.test(r.url()));

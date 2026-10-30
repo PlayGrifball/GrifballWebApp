@@ -6,6 +6,8 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SignupFormComponent } from './signupForm.component';
 import { AvailabilityService } from '../availability.service';
+import { AccountService } from '../account.service';
+import { signal } from '@angular/core';
 
 describe('SignupFormComponent', () => {
   let fixture: ComponentFixture<SignupFormComponent>;
@@ -34,6 +36,7 @@ describe('SignupFormComponent', () => {
         provideHttpClientTesting(),
         { provide: MatSnackBar, useValue: snackBar },
         { provide: AvailabilityService, useValue: availability },
+        { provide: AccountService, useValue: { displayName: signal('Grif') } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: convertToParamMap(seasonID === null ? {} : { seasonID }) } },
@@ -45,7 +48,13 @@ describe('SignupFormComponent', () => {
     component = fixture.componentInstance;
   }
 
-  afterEach(() => httpMock.verify());
+  /** The season name and dates for the heading and timeline; most tests do not look at them. */
+  const seasonInfo = () => httpMock.match(r => r.url === '/api/Home/CurrentAndFutureEvents/' || r.url.startsWith('/api/Season/getSeasonName/'));
+
+  afterEach(() => {
+    seasonInfo();
+    httpMock.verify();
+  });
 
   it('renders before the signup request has responded without throwing', () => {
     setup('5');
@@ -98,6 +107,65 @@ describe('SignupFormComponent', () => {
     httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush('boom', { status: 500, statusText: 'Server Error' });
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(snackBar.open).toHaveBeenCalledWith('Failed to get signup');
+  });
+
+  it("shows who is signing up, the season's name and its timeline", () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/Season/getSeasonName/5').flush('Winter');
+    const now = Date.parse('2026-03-10T12:00:00Z');
+    component.now.set(now);
+    httpMock.expectOne('/api/Home/CurrentAndFutureEvents/').flush([
+      { seasonID: 5, name: 'Winter', start: '2026-04-01T00:00:00Z', end: '2026-06-01T00:00:00Z', eventType: 'Season' },
+      { seasonID: 9, name: 'Other', start: '2026-03-01T00:00:00Z', end: '2026-03-20T00:00:00Z', eventType: 'Signup' },
+      { seasonID: 5, name: 'Winter', start: '2026-03-01T00:00:00Z', end: '2026-03-20T00:00:00Z', eventType: 'Signup' },
+      { seasonID: 5, name: 'Winter', start: '2026-03-25T19:00:00Z', end: '2026-03-25T23:00:00Z', eventType: 'Draft' },
+    ]);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.hud-kicker')!.textContent).toContain('Winter');
+    expect(el.querySelector('.enlist-who__name')!.textContent).toBe('Grif');
+    expect(component.timeline().map(e => [e.eventType, e.active])).toEqual([['Signup', true], ['Draft', false], ['Season', false]]);
+    const steps = Array.from(el.querySelectorAll('.enlist-step')).map(s => s.textContent!.replace(/\s+/g, ' ').trim());
+    expect(steps.length).toBe(3);
+    expect(steps[0]).toMatch(/^Now · until .* Signups$/);
+    expect(steps[2]).toContain('→');
+    expect(el.querySelector('.enlist-step--now')).not.toBeNull();
+    expect(el.querySelector('a.hud-more')!.getAttribute('href')).toBe('/season/5/signups');
+  });
+
+  it('keeps the page hidden until the signup and its timeslots are in', () => {
+    setup('5');
+    fixture.detectChanges();
+    expect(component.loaded()).toBeFalse();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    expect(component.loaded()).toBeFalse();
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush('x', { status: 500, statusText: 'Server Error' });
+    expect(component.loaded()).toBeTrue();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+  });
+
+  it('shows the page at once without a season, and after an existing signup or a failure', () => {
+    setup(null);
+    fixture.detectChanges();
+    expect(component.loaded()).toBeTrue();
+  });
+
+  it('still works when the season name and dates cannot be loaded', () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush(null);
+    httpMock.expectOne('/api/Signups/getTimeslots/5?offset=0').flush(timeslots());
+    httpMock.expectOne('/api/Season/getSeasonName/5').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(component.seasonName()).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No upcoming dates for this season.');
   });
 
   it('renders without a season ID and makes no request', () => {

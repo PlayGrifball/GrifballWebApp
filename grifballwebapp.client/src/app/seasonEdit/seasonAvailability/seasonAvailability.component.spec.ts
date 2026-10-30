@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideLuxonDatetimeAdapter } from '@ng-matero/extensions-luxon-adapter';
 import { DateTime } from 'luxon';
+import { provideRouter } from '@angular/router';
 import { SeasonAvailabilityComponent } from './seasonAvailability.component';
 import { AvailabilityOption } from '../../api/dtos/availabilityOption';
 
@@ -23,6 +24,7 @@ describe('SeasonAvailabilityComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideLuxonDatetimeAdapter(),
+        provideRouter([]),
       ]
     })
       .overrideProvider(MatSnackBar, { useValue: snackBar })

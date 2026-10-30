@@ -1,10 +1,4 @@
-export interface AccessTokenResponse {
-  tokenType: string,
-  accessToken: string,
-  expiresIn: number,
-  refreshToken: string
-}
-
+/** Who is signed in (IdentityController.MetaInfo and Me). */
 export interface MetaInfoResponse {
   isSysAdmin: boolean,
   isCommissioner: boolean,
@@ -12,4 +6,3 @@ export interface MetaInfoResponse {
   displayName: string,
   userID: number,
 }
-

@@ -20,6 +20,8 @@ public record SeasonMatchPageDto
     public required ReportedGameDto[] ReportedGames { get; set; }
     public required BracketInfoDto? BracketInfo { get; set; }
     public int? ActiveRescheduleRequestId { get; set; }
+    /// <summary>Whether the user asking may request a reschedule of this match now (see RescheduleRules); false for a visitor.</summary>
+    public bool CanRequestReschedule { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

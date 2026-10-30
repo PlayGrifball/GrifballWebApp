@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, hydrated, test } from './fixtures';
 import { createLeague, createLockedOutUser, type League } from './league';
 import type { UserResponseDto } from './api';
 
@@ -40,7 +40,7 @@ test.describe('dates', () => {
     // The season list shows them too.
     await page.goto('/seasonManager');
     const row = page.locator('tr', { hasText: league.name });
-    await expect(row).toContainText('1/5/99'); // draft start, short date
+    await expect(row).toContainText('Jan 5, 2099'); // draft start, medium date
     await expect(row).not.toContainText(/invalid/i);
   });
 
@@ -50,6 +50,8 @@ test.describe('dates', () => {
 
     await page.goto(`/usermanagement/edituser/${user.userID}`);
     await expect(page.locator('input[name="userName"]')).toHaveValue(user.userName);
+    // The server drew the form; typed before the app takes it over, the new name was wiped out.
+    await hydrated(page);
     const lockout = page.locator('input[name="lockoutEnd"]');
     // Shown in local time: in a zone ahead of UTC that is past year 9999 (e.g. 10000-01-01 00:59).
     await expect(lockout).toHaveValue(/^(9999|10000)-/);

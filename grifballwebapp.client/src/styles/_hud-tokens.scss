@@ -1,0 +1,54 @@
+// Spartan HUD design tokens. Every page and the Material theme read these.
+//
+// The theme picker (ThemingService) writes the seed colours --primary, --tertiary and --error on
+// <html>; the accent, gold and team red follow them, so the picker keeps working. Their fallbacks
+// are the Spartan HUD defaults (the same values as SPARTAN_HUD in theming.service.ts).
+:root {
+  --hud-font: var(--sys-body-medium-font, Rajdhani), Rajdhani, system-ui, sans-serif;
+  --hud-font-mono: 'Share Tech Mono', ui-monospace, monospace;
+
+  // Page
+  --hud-bg: #060B13;
+  --hud-bg-glow: radial-gradient(ellipse at 70% 0%, #12304A 0%, #08131F 45%, #060B13 100%);
+
+  // Panels and lines
+  --hud-panel: rgba(14, 36, 56, 0.72);
+  --hud-panel-soft: rgba(14, 36, 56, 0.6);
+  --hud-panel-faint: rgba(14, 36, 56, 0.5);
+  --hud-well: rgba(8, 19, 31, 0.7);
+  --hud-input: #0B1B2A;
+  --hud-avatar: #1B3A55;
+  --hud-border: #2A5373;
+  --hud-hairline: #1E3A52;
+  // Outlines of inputs and other controls need 3:1 against the page (WCAG 1.4.11).
+  --hud-control-outline: #5F87A6;
+
+  // Text
+  --hud-text: #D9F1FF;
+  --hud-heading: #FFFFFF;
+  --hud-muted: #8FB4CC;
+  --hud-muted-2: #A9C8DC;
+
+  // Accents
+  --hud-accent: var(--primary, #7CCBFF);
+  --hud-on-accent: #04101C;
+  --hud-accent-tint: rgba(124, 203, 255, 0.08);
+  --hud-glow: 0 0 24px rgba(124, 203, 255, 0.35);
+  --hud-gold: var(--tertiary, #FFD25E);
+  --hud-red: var(--error, #E5484D);
+  --hud-red-text: #FF8A8E;
+  --hud-blue: #4C8DFF;
+  --hud-blue-text: #8FC0FF;
+
+  // Shapes (chamfered panels: .hud-panel--chamfer in _hud.scss)
+  --hud-slant: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+
+  --hud-max-width: 1240px;
+  --hud-gutter: 24px;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --hud-gutter: 16px;
+  }
+}

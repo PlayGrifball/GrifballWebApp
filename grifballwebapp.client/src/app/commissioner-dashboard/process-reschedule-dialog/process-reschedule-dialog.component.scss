@@ -1,87 +1,49 @@
-.dialog-content {
-  min-width: 500px;
-  max-width: 600px;
+:host {
+  display: block;
 }
 
-h2 {
+.prd-title {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
 }
 
-h3 {
-  //color: mat.get-color-from-palette($primary, 600);
-  margin-bottom: 12px;
-  font-size: 1.1rem;
-}
-
-.match-details {
-  margin-bottom: 24px;
-  padding: 16px;
-  //background-color: mat.get-color-from-palette($background, background);
-  border-radius: 8px;
-  //border: 1px solid mat.get-color-from-palette($foreground, divider);
-}
-
-.detail-row {
-  margin-bottom: 8px;
-  
-  strong {
-    min-width: 140px;
-    display: inline-block;
-  }
-}
-
-.reason-section {
-  margin-bottom: 24px;
-}
-
-.reason-box {
-  padding: 16px;
-  //background-color: mat.get-color-from-palette($background, card);
-  border-radius: 8px;
-  //border: 1px solid mat.get-color-from-palette($foreground, divider);
-  font-style: italic;
-  line-height: 1.5;
-}
-
-.decision-section {
-  margin-bottom: 24px;
-}
-
-.decision-radio-group {
+.prd-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 12px;
-  
-  mat-radio-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    
-    .mat-radio-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-  }
+  gap: 20px;
 }
 
-.notes-section {
-  margin-bottom: 16px;
+.prd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  > .hud-kicker { margin: 0; }
 }
 
-.full-width {
+.prd-well {
+  padding: 14px 16px;
+}
+
+.prd-reason {
+  margin: 0;
+  color: var(--hud-text);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.prd-decision {
+  display: flex;
+  flex-direction: column;
+}
+
+.prd-notes {
   width: 100%;
 }
 
-mat-dialog-actions {
-  padding: 16px 0 0 0;
-  margin: 0;
-  
-  button {
-    margin-left: 8px;
-  }
+// Rejecting: the action button in the red of a destructive choice.
+.mat-mdc-unelevated-button.prd-reject:not(.mat-mdc-button-disabled) {
+  background: var(--hud-red-text);
+  color: #2B0507;
 }

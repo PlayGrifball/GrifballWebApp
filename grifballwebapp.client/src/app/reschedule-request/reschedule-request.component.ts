@@ -1,13 +1,11 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
-import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { HttpClient } from '@angular/common/http';
 import { Location } from '@angular/common';
@@ -23,13 +21,11 @@ interface RescheduleRequest {
   standalone: true,
   imports: [
     FormsModule,
-    MatCardModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    MatIconModule,
     MatSnackBarModule
   ],
   templateUrl: './reschedule-request.component.html',

@@ -50,6 +50,16 @@ describe('ProfileComponent', () => {
   }
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent!;
+  const name = () => (fixture.nativeElement as HTMLElement).querySelector('h1')!.textContent!.trim();
+
+  it('shows a placeholder service record for a user without a gamertag', () => {
+    personID.set(3);
+    load({ gamertag: null });
+    expect(name()).toBe('Unknown Spartan');
+    expect(text()).toContain('Not set');
+    expect(text()).toContain('21');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.profile-emblem')!.textContent!.trim()).toBe('?');
+  });
 
   it("shows another user's gamertag read-only", () => {
     personID.set(3);
@@ -57,7 +67,7 @@ describe('ProfileComponent', () => {
 
     expect(component.userID).toBe(21);
     expect(component.settingGamertag()).toBeFalse();
-    expect(text()).toContain('Gamertag: Sgt Grif');
+    expect(name()).toBe('Sgt Grif');
     expect((fixture.nativeElement as HTMLElement).querySelector('form')).toBeNull();
   });
 
@@ -102,10 +112,10 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
-    expect(text()).toContain('Gamertag: NewTag');
+    expect(name()).toBe('NewTag');
   });
 
   it('URL-encodes a gamertag with a space, &, and +', () => {
@@ -114,7 +124,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('Sgt Grif & Co+');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=Sgt%20Grif%20%26%20Co%2B').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=Sgt%20Grif%20%26%20Co%2B' }).flush({});
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
   });
@@ -124,7 +134,7 @@ describe('ProfileComponent', () => {
     load({ gamertag: null });
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=' }).flush({});
     expect(component.settingGamertag()).toBeFalse();
   });
 
@@ -135,7 +145,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush(null, { status: 400, statusText: 'Bad Request' });
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush(null, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
     expect(component.settingGamertag()).toBeTrue();
   });
@@ -147,7 +157,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag')
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' })
       .flush('Gamertag is already set for this user. Contact sysadmin if it needs to be changed', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith(
       'Gamertag is already set for this user. Contact sysadmin if it needs to be changed', 'Close');
@@ -159,7 +169,7 @@ describe('ProfileComponent', () => {
     http.expectOne('api/profile/getgamertag/21').flush({ gamertag: 'Sgt Grif' });
     await fixture.whenStable();
 
-    expect(text()).toContain('Gamertag: Sgt Grif');
+    expect(name()).toBe('Sgt Grif');
   });
 
   it('leaves edit mode once the gamertag is saved, without a manual detectChanges', async () => {
@@ -171,10 +181,10 @@ describe('ProfileComponent', () => {
 
     component.gamertag.set('NewTag');
     component.setGamertag();
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
     await fixture.whenStable();
 
-    expect(text()).toContain('Gamertag: NewTag');
+    expect(name()).toBe('NewTag');
   });
 });
 

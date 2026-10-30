@@ -5,11 +5,10 @@ import { SeasonMatchComponent } from './seasonMatch.component';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 import { ActivatedRoute, provideRouter, RouterLink } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
-import { signal } from '@angular/core';
+import { PLATFORM_ID, signal } from '@angular/core';
 import { AccountService } from '../../account.service';
 import { BracketInfoDto, SeasonMatchPageDto } from './seasonMatchPageDto';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
@@ -25,8 +24,6 @@ describe('SeasonMatchComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        { provide: JWT_OPTIONS, useValue: {} },
-        JwtHelperService,
         {
           provide: ActivatedRoute,
           useValue: {
@@ -71,6 +68,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     reportedGames: [],
     bracketInfo: null,
     activeRescheduleRequestId: null,
+    canRequestReschedule: false,
     ...overrides
   });
 
@@ -123,8 +121,8 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   it('shows the regular season text, no bracket links and no date before the page loads', () => {
     expect(text()).toContain('Regular Season Match');
     expect(links()).toEqual([]);
-    expect(text()).toContain('Scheduled Date:');
-    expect(text()).not.toContain('Scheduled Date: 1');
+    expect(text()).toContain('Not scheduled');
+    expect(text()).not.toContain('Starts');
   });
 
   it('shows the empty page for an unknown match (the API answers 204 with no body)', () => {
@@ -144,8 +142,8 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
   });
 
   function teamTiles(): { text: string, linked: boolean }[] {
-    return fixture.debugElement.queryAll(By.css('mat-grid-tile'))
-      .map(d => ({ text: (d.nativeElement as HTMLElement).textContent?.trim() ?? '', linked: d.injector.get(RouterLink, null, { self: true }) !== null }))
+    return fixture.debugElement.queryAll(By.css('.lobby-team__banner'))
+      .map(d => ({ text: (d.nativeElement as HTMLElement).querySelector('span:not(.hud-label)')?.textContent?.trim() ?? '', linked: d.injector.get(RouterLink, null, { self: true }) !== null }))
       .filter(t => t.text === 'Home' || t.text === 'Away' || t.text === 'BYE');
   }
 
@@ -204,7 +202,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     load(page({ scheduledTime: '2026-01-02T03:04:00Z' as unknown as SeasonMatchPageDto['scheduledTime'] }));
 
     expect(fixture.componentInstance.seasonMatch()!.scheduledTime instanceof DateTime).toBeTrue();
-    expect(text()).toContain('Scheduled Date: ' + new DatePipe('en-US').transform('2026-01-02T03:04:00Z', 'short'));
+    expect(text()).toContain('Starts ' + new DatePipe('en-US').transform('2026-01-02T03:04:00Z', 'short'));
   });
 });
 
@@ -219,7 +217,7 @@ describe('SeasonMatchComponent reporting', () => {
     seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
     homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null,
+    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
     ...overrides
   });
 
@@ -265,6 +263,9 @@ describe('SeasonMatchComponent reporting', () => {
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
     httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(matches);
     fixture.detectChanges();
+    // The rosters are not under test here.
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
   }
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -273,8 +274,8 @@ describe('SeasonMatchComponent reporting', () => {
 
   it('lists reported games', () => {
     load(page({ reportedGames: [{ matchNumber: 1, matchID: 'g-1' }, { matchNumber: 2, matchID: 'g-2' }] }));
-    expect(text()).toContain('Game 1 - g-1');
-    expect(text()).toContain('Game 2 - g-2');
+    const games = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.lobby-games li')).map(li => Array.from(li.children).map(c => c.textContent!.trim()).join(' '));
+    expect(games).toEqual(['Game 1 g-1', 'Game 2 g-2']);
     expect(text()).not.toContain('There are no reported games');
   });
 
@@ -284,12 +285,19 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Reschedule')).toBeUndefined();
   });
 
-  it('offers players a reschedule link when there is no active request', () => {
+  it('offers a reschedule link when the server says this user may request one', () => {
     isEventOrganizer.set(false);
     isPlayer.set(true);
-    load(page());
+    load(page({ canRequestReschedule: true }));
     expect(button('Reschedule')).toBeDefined();
     expect(text()).not.toContain('Report Game');
+  });
+
+  it('offers no reschedule link to a player the server does not allow (not on either team, or the match decided)', () => {
+    isEventOrganizer.set(false);
+    isPlayer.set(true);
+    load(page({ canRequestReschedule: false }));
+    expect(button('Reschedule')).toBeUndefined();
   });
 
   it('shows the report tools to organizers while the match is undecided', () => {
@@ -321,17 +329,66 @@ describe('SeasonMatchComponent reporting', () => {
     expect(component.isSubmittingMatch()).toBeTrue();
     expect(button('Home Team Forfeit')!.disabled).toBeTrue();
 
-    httpMock.expectOne('/api/SeasonMatch/ReportMatch/7/abc-123').flush('ok');
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
     expect(component.isSubmittingMatch()).toBeFalse();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
     fixture.detectChanges();
     expect(text()).toContain('This match has been completed.');
   });
 
+  it('shows the possible matches to everyone, the SUBMIT buttons to organizers only', () => {
+    isEventOrganizer.set(false);
+    load(page(), [possible]);
+    expect(text()).toContain('Possible Matches');
+    expect(text()).toContain('abc-123: 50 - 49');
+    expect(text()).not.toContain('Report Game');
+    expect(button('SUBMIT')).toBeUndefined();
+  });
+
+  it('says it is looking for games until the search answers, then lists them', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    fixture.detectChanges();
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
+    const section = () => (fixture.nativeElement as HTMLElement).querySelector('.lobby-possibles')!;
+    expect(section().textContent).toContain('Looking for games…');
+    expect(section().getAttribute('aria-busy')).toBe('true');
+
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([possible]);
+    fixture.detectChanges();
+    expect(section().textContent).not.toContain('Looking for games…');
+    expect(section().textContent).toContain('abc-123: 50 - 49');
+    expect(section().getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('says when no games were found', () => {
+    load(page(), []);
+    expect(text()).toContain('No games found for these teams yet.');
+  });
+
+  it('says the search failed when it does, with no list', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+    fixture.detectChanges();
+    expect(component.possibleMatchesState()).toBe('error');
+    expect(text()).toContain('Could not look for games right now.');
+    expect(text()).not.toContain('No games found');
+  });
+
+  it('treats an empty answer as no games', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush(null);
+    expect(component.possibleMatches()).toEqual([]);
+    expect(component.possibleMatchesState()).toBe('loaded');
+    httpMock.match(r => r.url.startsWith('/api/Team/Team/')).forEach(r => r.flush(null));
+  });
+
   it('clears the submitting state and reloads even when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
-    httpMock.expectOne('/api/SeasonMatch/ReportMatch/7/bad').flush('no', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/bad' }).flush('no', { status: 400, statusText: 'Bad Request' });
 
     expect(component.isSubmittingMatch()).toBeFalse();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());
@@ -471,5 +528,155 @@ describe('SeasonMatchComponent reporting', () => {
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(submit.disabled).toBeFalse();
+  });
+});
+
+describe('SeasonMatchComponent lobby', () => {
+  let fixture: ComponentFixture<SeasonMatchComponent>;
+  let httpMock: HttpTestingController;
+
+  const page = (overrides: Partial<SeasonMatchPageDto> = {}): SeasonMatchPageDto => ({
+    seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
+    homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
+    awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
+    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
+    ...overrides
+  });
+  const team = (name: string, captain: string, player: string) => ({
+    teamName: name, wins: 0, losses: 0, tbd: 0,
+    players: [
+      { teamPlayerID: 1, userID: 1, gamertag: captain, draftCaptainOrder: 1, draftRound: null },
+      { teamPlayerID: 2, userID: 2, gamertag: player, draftCaptainOrder: null, draftRound: 1 },
+    ],
+  });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [SeasonMatchComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: AccountService, useValue: { isEventOrganizer: signal(false), isPlayer: signal(false) } }
+      ]
+    }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(SeasonMatchComponent);
+    fixture.componentRef.setInput('seasonMatchID', 7);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => httpMock.verify());
+
+  function load(dto: SeasonMatchPageDto): void {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(dto);
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    fixture.detectChanges();
+  }
+  const el = () => fixture.nativeElement as HTMLElement;
+  const roster = (side: 'home' | 'away') => Array.from(el().querySelectorAll(`.lobby-team--${side} .lobby-player`))
+    .map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+
+  it("lists each side's players from its team, marking the captain", () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual(['G Grif Captain', 'S Simmons']);
+    expect(roster('away')).toEqual(['Captain Tucker T', 'Caboose C']);
+  });
+
+  it('shows players without a gamertag (no Xbox account linked) without breaking the page', () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush({ ...team('Home', 'Grif', 'x'), players: [{ teamPlayerID: 3, userID: 3, gamertag: null, draftCaptainOrder: 1, draftRound: null }] });
+    httpMock.expectOne('/api/Team/Team/20').flush({ ...team('Away', 'Tucker', 'x'), players: [{ teamPlayerID: 4, userID: 4, gamertag: null, draftCaptainOrder: null, draftRound: 1 }] });
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual(['? Unknown Spartan Captain']);
+    expect(roster('away')).toEqual(['Unknown Spartan ?']);
+    expect(el().querySelector('.lobby-possibles')!.textContent).toContain('No games found for these teams yet.');
+  });
+
+  it('keeps the page hidden until the match and both rosters are in', () => {
+    const pageEl = () => el().querySelector('.hud-page')!;
+    expect(pageEl().classList).toContain('hud-waiting');
+    load(page());
+    expect(fixture.componentInstance.ready()).toBeFalse();
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    fixture.detectChanges();
+    expect(pageEl().classList).toContain('hud-waiting');
+    httpMock.expectOne('/api/Team/Team/20').flush(team('Away', 'Tucker', 'Caboose'));
+    fixture.detectChanges();
+    expect(pageEl().classList).not.toContain('hud-waiting');
+  });
+
+  it('shows the page for a match that does not exist, or that could not be loaded', () => {
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectOne('/api/SeasonMatch/GetPossibleMatches/7').flush([]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.ready()).toBeTrue();
+  });
+
+  it('does not reload the rosters when the match page is reloaded for the same teams', () => {
+    load(page());
+    httpMock.expectOne('/api/Team/Team/10').flush(team('Home', 'Grif', 'Simmons'));
+    httpMock.expectOne('/api/Team/Team/20').flush(null);
+    fixture.componentInstance.finishedReportingMatch();
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamScore: 1, awayTeamScore: 0 }));
+    fixture.detectChanges();
+
+    httpMock.expectNone(r => r.url.startsWith('/api/Team/Team/'));
+    expect(roster('home').length).toBe(2);
+    expect(roster('away')).toEqual([]);
+  });
+
+  it('leaves a roster empty when it cannot be loaded, and has none for a BYE', () => {
+    load(page({ isPlayoff: true, awayTeamName: null, awayTeamID: null, awayTeamResult: 'Bye', homeTeamResult: 'Won' }));
+    httpMock.expectOne('/api/Team/Team/10').flush('x', { status: 500, statusText: 'Server Error' });
+    httpMock.expectNone('/api/Team/Team/null');
+    fixture.detectChanges();
+
+    expect(roster('home')).toEqual([]);
+    expect(roster('away')).toEqual([]);
+  });
+
+  it('is a lobby until a result is in, then a match report with the score', () => {
+    load(page());
+    httpMock.match(() => true).forEach(r => r.flush(null));
+    expect(el().querySelector('h1')!.textContent).toBe('Pre-game lobby');
+    expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('-:-');
+
+    fixture.componentInstance.seasonMatch.set(page({ homeTeamScore: 2, awayTeamScore: 1, homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
+    fixture.detectChanges();
+    expect(el().querySelector('h1')!.textContent).toBe('Match report');
+    expect(el().querySelector('.lobby-score__value')!.textContent!.replace(/\s+/g, '')).toBe('2:1');
+    expect(el().querySelector('.lobby-score__results')!.textContent).toContain('Won');
+    expect(el().querySelector('.lobby-head__season')!.textContent).toContain('Season 3 · Regular season');
+  });
+});
+
+describe('SeasonMatchComponent on the server', () => {
+  it('renders the page without asking for the possible matches (slow), which the browser loads', async () => {
+    await TestBed.configureTestingModule({
+      imports: [SeasonMatchComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: AccountService, useValue: { isEventOrganizer: signal(true), isPlayer: signal(false) } },
+      ],
+    }).compileComponents();
+    const httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SeasonMatchComponent);
+    fixture.componentRef.setInput('seasonMatchID', 7);
+    fixture.detectChanges();
+
+    httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7');
+    httpMock.expectNone('/api/SeasonMatch/GetPossibleMatches/7');
+    // The page drawn on the server says the search is under way; the browser does it
+    expect(fixture.componentInstance.possibleMatchesState()).toBe('loading');
+    httpMock.verify();
   });
 });

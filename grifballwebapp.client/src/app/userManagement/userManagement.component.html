@@ -1,32 +1,38 @@
-<h1>User Management</h1>
-
-<button mat-flat-button color="primary" [routerLink]="['createuser']">Create New User
-</button>
-
-<app-search-box [(value)]="filter" />
-
-<!--
-  Columns are almost entirely setup in ts,
-  but we allow the use of templates that can be used in the ts via index
- -->
-<app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser">
-  <ng-template let-row>
-    <div class="action-buttons">
-      <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">
-        <mat-icon>edit</mat-icon>
-        EDIT
-      </a>
-      <button mat-button 
-              (click)="generatePasswordResetLink(row)"
-              matTooltip="Generate password reset/setup link for this user">
-        <mat-icon>lock_reset</mat-icon>
-        RESET PASSWORD
-      </button>
+<div class="hud-page">
+  <div class="hud-page-head hud-page-head--actions">
+    <div class="hud-page-head__text">
+      <span class="hud-kicker">&gt; Admin</span>
+      <h1 class="hud-title hud-title--md">User Management</h1>
     </div>
-  </ng-template>
-  <ng-template let-row>
-    {{row.lockoutEnd | toDate | date:'short' }}
-  </ng-template>
-</app-table>
+    <div class="hud-actions">
+      <a mat-flat-button [routerLink]="['createuser']">Create New User</a>
+      <a mat-stroked-button [routerLink]="['mergeuser']">Merge Users</a>
+    </div>
+  </div>
 
+  <app-search-box class="um-search" [(value)]="filter" label="Search users" />
 
+  <!--
+    Columns are almost entirely setup in ts,
+    but we allow the use of templates that can be used in the ts via index
+   -->
+  <app-table [url]="url" [displayedColumns]="displayedColumns" [columns]="columns" [filters]="filters()" [parseRow]="parseUser">
+    <ng-template let-row>
+      <div class="action-buttons">
+        <a mat-button [routerLink]="['edituser', row.userID]" matTooltip="Edit User">
+          <mat-icon>edit</mat-icon>
+          EDIT
+        </a>
+        <button mat-button
+                (click)="generatePasswordResetLink(row)"
+                matTooltip="Generate password reset/setup link for this user">
+          <mat-icon>lock_reset</mat-icon>
+          RESET PASSWORD
+        </button>
+      </div>
+    </ng-template>
+    <ng-template let-row>
+      {{row.lockoutEnd | toDate | date:'short' }}
+    </ng-template>
+  </app-table>
+</div>

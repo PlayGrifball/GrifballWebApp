@@ -18,6 +18,9 @@ export interface SeasonMatchPageDto {
   reportedGames: ReportedGameDto[],
   bracketInfo: BracketInfoDto | null,
   activeRescheduleRequestId: number | null,
+  /** Whether the signed-in user may request a reschedule now: an undecided match between two teams, no request
+   * active, and the user on either roster or a commissioner (decided on the server). */
+  canRequestReschedule: boolean,
 }
 
 export interface BracketInfoDto {

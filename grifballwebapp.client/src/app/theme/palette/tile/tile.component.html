@@ -1,4 +1,4 @@
-<div [class]="bg() + ' size-full ' + textColor()">
-    <div>{{i()}}</div>
-    <div>{{hex()}}</div>
+<div class="tile" [class]="bg()" [style.color]="textColor()">
+    <div class="tile__tone">{{i() ?? 'seed'}}</div>
+    <div class="tile__hex">{{hex()}}</div>
 </div>

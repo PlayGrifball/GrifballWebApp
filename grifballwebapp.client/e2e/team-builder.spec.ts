@@ -12,6 +12,10 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const SEASON_ID = 7;
 
+// The drag helper moves the raw mouse, which cannot scroll the app's inner scroll container:
+// keep the whole board (header, season tabs, teams and pool) on screen.
+test.use({ viewport: { width: 1280, height: 1200 } });
+
 interface Player { name: string; personID: number; pick: number | null; round: number | null }
 interface Team { teamID: number; teamName: string; captain: { name: string; personID: number; order: number }; players: Player[] }
 interface Call { path: string; body: unknown }
@@ -34,11 +38,6 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
   const data = seed();
   const calls: Call[] = [];
 
-  await page.addInitScript(() => {
-    localStorage.setItem('access_token', JSON.stringify({ tokenType: 'Bearer', accessToken: 'e2e-token', expiresIn: 3600, refreshToken: 'e2e-refresh' }));
-    localStorage.setItem('metaInfo', JSON.stringify({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 }));
-  });
-
   // Keep the run hermetic: index.html pulls Google Fonts and a jsDelivr script that the
   // team builder doesn't need, and a slow CDN would otherwise stall the page's load event.
   await page.route(url => url.hostname !== '127.0.0.1', route => route.abort());
@@ -52,9 +51,14 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
     const path = new URL(request.url()).pathname;
     const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 
-    if (path === '/api/identity/metaInfo') {
+    // Signed in (the session cookie the browser would have)
+    if (path === '/api/Identity/Me') {
       return json({ isSysAdmin: false, isCommissioner: true, isPlayer: false, displayName: 'E2E Organizer', userID: 999 });
     }
+    if (path === '/api/Identity/Antiforgery') return json({ token: 'e2e-xsrf' });
+    // As the API: every change from a cookie session carries the antiforgery token
+    if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
+      return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/Teams/GetTeams/${SEASON_ID}`) return json(data.teams);
     if (path === `/api/Teams/GetPlayerPool/${SEASON_ID}`) return json(data.pool);
     if (path === `/api/Teams/areCaptainsLocked/${SEASON_ID}`) return json(opts.captainsLocked ?? true);
@@ -87,6 +91,8 @@ const teamsZone = (page: Page) => page.locator('div.dndList');
 const poolZone = (page: Page) => page.locator('mat-list.dndList');
 const teamCard = (page: Page, teamName: string) =>
   page.locator('mat-card.item:not(.dndPlaceholder)').filter({ has: page.locator('mat-card-title', { hasText: teamName }) });
+// A team is dragged by its header: the middle of the card can be one of its players, depending on the font.
+const teamTitle = (page: Page, teamName: string) => teamCard(page, teamName).locator('mat-card-header');
 const playersArea = (page: Page, teamName: string) => teamCard(page, teamName).locator('.players-area');
 const teamPlayer = (page: Page, teamName: string, name: string) => playersArea(page, teamName).locator('> div', { hasText: name });
 const poolItem = (page: Page, name: string) => page.locator('mat-list-item.player-pool-item', { hasText: name });
@@ -189,7 +195,7 @@ test('reorders the captains\' pick order when captains are unlocked', async ({ p
   const calls = await openTeamBuilder(page, { captainsLocked: false });
 
   // Drop Blue on the leading edge of Red, i.e. in front of it.
-  await drag(teamCard(page, 'Blue Team'), teamCard(page, 'Red Team'), { x: 5, y: 20 });
+  await drag(teamTitle(page, 'Blue Team'), teamCard(page, 'Red Team'), { x: 5, y: 20 });
 
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Blue Team', '2 - Red Team']);
   await waitForCalls(calls, 1);
@@ -199,7 +205,7 @@ test('reorders the captains\' pick order when captains are unlocked', async ({ p
 test('returns a captain and their picks to the pool when captains are unlocked', async ({ page }) => {
   const calls = await openTeamBuilder(page, { captainsLocked: false });
 
-  await drag(teamCard(page, 'Red Team'), poolZone(page));
+  await drag(teamTitle(page, 'Red Team'), poolZone(page));
 
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Blue Team']);
   await expect.poll(async () => (await poolNames(page)).sort()).toEqual(['Captain Red', 'Player Pat', 'Player Quinn', 'Pool Alex', 'Pool Blair', 'Pool Casey']);
@@ -211,7 +217,7 @@ test('does not let teams be dragged while captains are locked', async ({ page })
   const calls = await openTeamBuilder(page, { captainsLocked: true });
 
   await expect(teamCard(page, 'Blue Team')).toHaveAttribute('draggable', 'false');
-  await drag(teamCard(page, 'Blue Team'), teamCard(page, 'Red Team'));
+  await drag(teamTitle(page, 'Blue Team'), teamCard(page, 'Red Team'));
 
   await expect.poll(() => teamTitles(page)).toEqual(['1 - Red Team', '2 - Blue Team']);
   expect(calls).toEqual([]);

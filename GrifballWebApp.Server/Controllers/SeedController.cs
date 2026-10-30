@@ -21,7 +21,7 @@ public class SeedController : ControllerBase
     }
 
     [Authorize(Roles = "Sysadmin")]
-    [HttpGet(Name = "Medals")]
+    [HttpPost(Name = "Medals")]
     public async Task Medals()
     {
         await _dataPullService.DownloadMedals();

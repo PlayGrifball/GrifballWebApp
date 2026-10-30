@@ -1,9 +1,8 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, computed, effect, input, signal, Signal, WritableSignal, ChangeDetectionStrategy, PLATFORM_ID, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { parseSeasonMatchPage, SeasonMatchPageDto } from './seasonMatchPageDto';
-import { MatGridListModule } from '@angular/material/grid-list';
 import { ErrorMessageComponent } from '../../validation/errorMessage.component';
 import { MtxDatetimepickerModule } from '@ng-matero/extensions/datetimepicker';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,14 +11,14 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { RegexMatchValidValidatorDirective } from '../../validation/directives/regexMatchValidValidatorDirective.directive';
 import { PossibleMatchDto, PossiblePlayerDto } from './possibleMatchDto';
-import { MatCardModule } from '@angular/material/card';
-import { MatListModule } from '@angular/material/list';
 import { MatTableModule } from '@angular/material/table';
 import { AccountService } from '../../account.service';
 import { map } from 'rxjs';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { errorText } from '../../shared/errorText';
+import { PlayerDto, TeamDto } from '../team/team.component';
+import { provideDatePickers } from '../../shared/datePickers';
 
 /** The commissioner actions on a match that are confirmed first. Each is a POST to the endpoint of the same name. */
 export type MatchAction = 'HomeForfeit' | 'AwayForfeit' | 'DoubleForfeit' | 'UndoResult';
@@ -36,7 +35,6 @@ export const actionPrompts: Record<MatchAction, string> = {
     selector: 'app-season-match',
     imports: [
         CommonModule,
-        MatGridListModule,
         RouterModule,
         FormsModule,
         MatInputModule,
@@ -45,18 +43,18 @@ export const actionPrompts: Record<MatchAction, string> = {
         ErrorMessageComponent,
         RegexMatchValidValidatorDirective,
         MtxDatetimepickerModule,
-        MatCardModule,
-        MatListModule,
         MatTableModule,
         ToDatePipe,
     ],
     templateUrl: './seasonMatch.component.html',
     styleUrl: './seasonMatch.component.scss',
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonMatchComponent {
   private http = inject(HttpClient);
   accountService = inject(AccountService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   seasonMatchID: Signal<number> = input.required<number>()
   seasonMatch: WritableSignal<SeasonMatchPageDto | null> = signal(null);
@@ -77,7 +75,30 @@ export class SeasonMatchComponent {
     return match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD' || match.reportedGames.length > 0;
   });
 
+  /** A result is in (or a BYE decided the match). */
+  readonly isDecided = computed(() => {
+    const match = this.seasonMatch();
+    return match !== null && (match.homeTeamResult !== 'TBD' || match.awayTeamResult !== 'TBD');
+  });
+
+  private readonly homeTeamID = computed(() => this.seasonMatch()?.homeTeamID ?? null);
+  private readonly awayTeamID = computed(() => this.seasonMatch()?.awayTeamID ?? null);
+  /** Each side's players, from its team page (null while loading). Reloading the match page does not reload them. */
+  private readonly homeLoaded = signal<Roster>({ teamID: null, players: [] });
+  private readonly awayLoaded = signal<Roster>({ teamID: null, players: [] });
+  readonly homeRoster = computed(() => this.homeLoaded().players ?? []);
+  readonly awayRoster = computed(() => this.awayLoaded().players ?? []);
+  /** The page has answered (with a match or without). */
+  readonly pageLoaded = signal(false);
+  /** The match and both rosters are in: the page is shown then, in one go, so the rosters do not
+   * push the score and the rest down as they arrive. */
+  readonly ready = computed(() => this.pageLoaded()
+    && isLoaded(this.homeLoaded(), this.homeTeamID()) && isLoaded(this.awayLoaded(), this.awayTeamID()));
+
   possibleMatches: WritableSignal<PossibleMatchDto[]> = signal([]);
+  /** Where the search for possible matches is: under way (also while the page is drawn on the
+   * server, which never asks), done (the list, or none), or failed. */
+  readonly possibleMatchesState = signal<'loading' | 'loaded' | 'error'>('loading');
 
   public displayedColumns: string[] = ['gamertag', 'score', 'kills', 'deaths'];
 
@@ -114,27 +135,56 @@ export class SeasonMatchComponent {
       this.getPageDto();
       this.getPossibleMatches();
     })
+    effect(() => this.loadRoster(this.homeTeamID(), this.homeLoaded));
+    effect(() => this.loadRoster(this.awayTeamID(), this.awayLoaded));
+  }
+
+  private loadRoster(teamID: number | null, roster: WritableSignal<Roster>): void {
+    roster.set({ teamID, players: teamID === null ? [] : null });
+    if (teamID === null)
+      return;
+    this.http.get<TeamDto | null>('/api/Team/Team/' + teamID)
+      .subscribe({
+        next: team => roster.set({ teamID, players: team?.players ?? [] }),
+        error: () => roster.set({ teamID, players: [] }),
+      });
   }
 
   getPageDto(): void {
     this.http.get<unknown>('/api/SeasonMatch/GetSeasonMatchPage/' + this.seasonMatchID())
       .pipe(map(parseSeasonMatchPage))
       .subscribe({
-        next: result => this.seasonMatch.set(result),
+        next: result => {
+          this.seasonMatch.set(result);
+          this.pageLoaded.set(true);
+        },
+        error: () => this.pageLoaded.set(true),
       });
   }
 
   getPossibleMatches(): void {
+    // Slow (the server first pulls the players' recent games from Halo Infinite): never while the
+    // page is rendered on the server, which would wait for it. The browser asks once it has the page.
+    this.possibleMatchesState.set('loading');
+    if (!this.isBrowser)
+      return;
     this.http.get<PossibleMatchDto[]>('/api/SeasonMatch/GetPossibleMatches/' + this.seasonMatchID())
       .subscribe({
-        next: result => this.possibleMatches.set(result),
+        next: result => {
+          this.possibleMatches.set(result ?? []);
+          this.possibleMatchesState.set('loaded');
+        },
+        error: () => {
+          this.possibleMatches.set([]);
+          this.possibleMatchesState.set('error');
+        },
       });
   }
 
   onSubmit(matchID: string): void {
     this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID)
+    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID, null)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),
@@ -170,4 +220,15 @@ export class SeasonMatchComponent {
     this.isSubmittingMatch.set(false);
     this.getPageDto();
   }
+}
+
+/** A side's players and the team they were loaded for; players is null while loading. */
+interface Roster {
+  teamID: number | null,
+  players: PlayerDto[] | null,
+}
+
+/** The roster of this team has arrived. */
+function isLoaded(roster: Roster, teamID: number | null): boolean {
+  return roster.teamID === teamID && roster.players !== null;
 }

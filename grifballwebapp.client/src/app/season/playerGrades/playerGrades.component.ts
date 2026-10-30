@@ -4,10 +4,12 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@ang
 import { ActivatedRoute } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
+import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 
 @Component({
     selector: 'app-player-grades',
     imports: [
+        SeasonTabsComponent,
         MatTableModule
     ],
     providers: [DecimalPipe],

@@ -7,8 +7,8 @@ name: Preview smoke tests
 # itself, named smoke-<run>-...
 #
 # - PRs with the `preview` label, from branches of this repository only: fork PRs get no preview and no secrets.
-# - The PREVIEW_SMOKE_PASSWORD secret holds the same value as the previews' Preview:SmokeUserPassword. Until it is set
-#   the job is skipped with a notice, not failed.
+# - The PREVIEW_SMOKE_PASSWORD secret holds the same value as the previews' Preview:SmokeUserPassword. Without it
+#   the job fails: a smoke run that never ran must not pass.
 # - A PR still waiting for a preview slot when the wait runs out is skipped with a notice too; a preview that has a slot
 #   but never serves the head commit fails.
 # - Run by hand (workflow_dispatch) against any preview URL, without waiting for a commit.
@@ -65,21 +65,17 @@ jobs:
 
     steps:
     - name: Check the smoke-test password is configured
-      id: secret
       working-directory: .
       run: |
         if [ -z "$SMOKE_PASSWORD" ]; then
-          msg="PREVIEW_SMOKE_PASSWORD is not set: skipping the preview smoke tests. Set it to the previews' Preview:SmokeUserPassword."
-          echo "::notice::$msg"
+          msg="PREVIEW_SMOKE_PASSWORD is not set, so the preview smoke tests cannot sign in. Set the secret to the previews' Preview:SmokeUserPassword."
+          echo "::error::$msg"
           echo "$msg" >> "$GITHUB_STEP_SUMMARY"
-          echo "run=false" >> "$GITHUB_OUTPUT"
-        else
-          echo "run=true" >> "$GITHUB_OUTPUT"
+          exit 1
         fi
 
     - name: Wait for the preview to serve this commit
       id: preview
-      if: steps.secret.outputs.run == 'true'
       working-directory: .
       run: |
         set -euo pipefail

@@ -1,44 +1,48 @@
-<h2>Login</h2>
+<div class="hud-page hud-page--narrow login">
 
-<form class="example-form" #loginForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-form-field class="example-full-width">
-    <mat-label>Username</mat-label>
-    <input matInput required [(ngModel)]="model.username" name="username">
-    <app-error-message [control]="loginForm.controls['username']" />
-  </mat-form-field>
+  <section class="login-panel hud-panel hud-panel--chamfer-lg" aria-labelledby="login-title">
+    <div class="hud-page-head">
+      <span class="hud-kicker">&gt; Identify, Spartan</span>
+      <h1 id="login-title" class="hud-title hud-title--md">Login</h1>
+    </div>
 
-  <mat-form-field class="example-full-width">
-    <mat-label>Password</mat-label>
-    <input matInput [type]="hide ? 'password' : 'text'" required [(ngModel)]="model.password" name="password">
-    <button mat-icon-button matSuffix (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
-      <mat-icon>{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
+    <form class="app-form" #loginForm="ngForm" (ngSubmit)="onSubmit()">
+      <mat-form-field appearance="outline" class="app-full-width">
+        <mat-label>Username</mat-label>
+        <input matInput required [(ngModel)]="model.username" name="username" autocomplete="username">
+        <app-error-message [control]="loginForm.controls['username']" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="app-full-width">
+        <mat-label>Password</mat-label>
+        <input matInput [type]="hide ? 'password' : 'text'" required [(ngModel)]="model.password" name="password" autocomplete="current-password">
+        <button mat-icon-button matSuffix type="button" (click)="hide = !hide" [attr.aria-label]="'Hide password'" [attr.aria-pressed]="hide">
+          <mat-icon>{{hide ? 'visibility_off' : 'visibility'}}</mat-icon>
+        </button>
+        <app-error-message [control]="loginForm.controls['password']" />
+      </mat-form-field>
+
+      <button class="hud-btn hud-btn--primary" [disabled]="!loginForm.form.valid">
+        Submit
+      </button>
+    </form>
+
+    @if (accountService.isLoggedIn()) {
+    <button class="hud-btn" (click)="accountService.logout()">
+      Logout
     </button>
-    <app-error-message [control]="loginForm.controls['password']" />
-  </mat-form-field>
+    }
+  </section>
 
-  <button mat-flat-button color="primary" [disabled]="!loginForm.form.valid">
-    Submit
-  </button>
-</form>
+  <aside class="login-side hud-section">
+    <h2 class="hud-h2">External Login Providers:</h2>
+    <a class="login-discord" [href]="discordUrl()">
+      <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5061df29d55a92d945_full_logo_blurple_RGB.svg"
+           alt="Sign in with Discord" width="509" height="96">
+    </a>
 
-<div class="space"></div>
+    <h2 class="hud-h2">Not registered?</h2>
+    <a class="hud-btn" [routerLink]="['/register']">Register</a>
+  </aside>
 
-<p>Not registered?</p>
-<button mat-flat-button color="primary" [routerLink]="['/register']">
-  Register
-</button>
-
-<h2>External Login Providers:</h2>
-
-<a [href]="(followUp() !== undefined && followUp() !== '') ? '/api/identity/externallogin?followUp=' + followUp() : '/api/identity/externallogin'">
-  <mat-card class="ext-login-card">
-    <img mat-card-image src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0b5061df29d55a92d945_full_logo_blurple_RGB.svg"
-         alt="Discord Logo">
-  </mat-card>
-</a>
-
-@if (accountService.isLoggedIn()) {
-<button mat-flat-button color="primary" (click)="accountService.logout()">
-  Logout
-</button>
-}
+</div>

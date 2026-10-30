@@ -24,8 +24,6 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.UserManagement;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -99,7 +97,9 @@ public class Program
             options.AddFilter<UserContextHubFilter>();
         });
 
-        builder.Services.AddControllers()
+        // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
+        builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
+        builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -156,30 +156,10 @@ public class Program
         .AddSignInManager<SignInManager<User>>()
         .AddEntityFrameworkStores<GrifballContext>();
 
-        builder.Services.ConfigureApplicationCookie(o =>
-        {
-            o.Events = new CookieAuthenticationEvents()
-            {
-                OnRedirectToLogin = (ctx) =>
-                {
-                    if (ctx.Response.StatusCode == 200)
-                    {
-                        ctx.Response.StatusCode = 401;
-                    }
-
-                    return Task.CompletedTask;
-                },
-                OnRedirectToAccessDenied = (ctx) =>
-                {
-                    if (ctx.Response.StatusCode == 200)
-                    {
-                        ctx.Response.StatusCode = 403;
-                    }
-
-                    return Task.CompletedTask;
-                }
-            };
-        });
+        // The browser's session: an HttpOnly, Secure, SameSite=Lax cookie (BrowserAuth).
+        builder.Services.ConfigureApplicationCookie(BrowserAuth.ConfigureCookie);
+        // Check sessions against the security stamp often (default 30 min), so Logout ends copies of the cookie.
+        builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = BrowserAuth.SecurityStampValidationInterval);
 
         if (discordOff)
         {
@@ -269,28 +249,23 @@ public class Program
 
         builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
 
+        // A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by
+        // the browser's cookie. Challenges and forbids go the same way: 401/403, never a redirect.
+        // The default sign-in scheme stays Identity's external cookie (Discord's round trip).
         var authentication = builder.Services.AddAuthentication(options =>
         {
-            options.DefaultScheme = IdentityConstants.BearerScheme;
-            options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+            options.DefaultScheme = BrowserAuth.Scheme;
+            options.DefaultAuthenticateScheme = BrowserAuth.Scheme;
+            options.DefaultChallengeScheme = BrowserAuth.Scheme;
+            options.DefaultForbidScheme = BrowserAuth.Scheme;
         })
-        .AddBearerToken("Identity.Bearer", options =>
+        .AddPolicyScheme(BrowserAuth.Scheme, "Cookie or bearer token", options =>
+        {
+            options.ForwardDefaultSelector = BrowserAuth.SelectScheme;
+        })
+        .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
             options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
-
-            options.Events = new BearerTokenEvents()
-            {
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/api/TeamsHub")))
-                    {
-                        context.Token = accessToken;
-                    }
-                    return Task.CompletedTask;
-                }
-            };
         });
 
         if (!discordOff)
@@ -394,6 +369,9 @@ public class Program
         app.MapAppHealthChecks();
 
         app.MapControllers();
+
+        // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
+        app.Use(BrowserAuth.RefuseForeignHubRequests);
 
         app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
 

@@ -1,36 +1,47 @@
-<div class="flex gap-4">
-  <div class="flex-1">
-    <h2>Merge From</h2>
-    <app-search-box [(value)]="mergeFromId" type="number" />
-    @if (mergeFrom.error()) {
-      <p class="merge-error" role="alert">Failed to load user.</p>
-    } @else {
-      <app-user-detail [user]="mergeFromUser()" />
-    }
+<div class="hud-page">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; User management</span>
+    <h1 class="hud-title hud-title--md">Merge Users</h1>
   </div>
-  <div class="flex-1">
-    <h2>Merge To</h2>
-    <app-search-box [(value)]="mergeToId" type="number" />
-    @if (mergeTo.error()) {
-      <p class="merge-error" role="alert">Failed to load user.</p>
-    } @else {
-      <app-user-detail [user]="mergeToUser()" />
-    }
-  </div>
-</div>
+  <p class="hud-lede">Moves one user's accounts and history onto another, e.g. a player who signed up twice.</p>
 
-<div class="flex flex-col gap-4">
-    <mat-slide-toggle [(ngModel)]="transferDiscord">Transfer Discord</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="transferLogins">Transfer Sign-in Logins (Discord and other providers)</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="transferXbox">Transfer Xbox</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="transferTeamPlayers">Transfer Team Players</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="transferExperiences">Transfer Experiences</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="transferSignups">Transfer Signups</mat-slide-toggle>
-    <mat-slide-toggle [(ngModel)]="deleteMergeFrom">Delete Merge From</mat-slide-toggle>
-    <div>
-        <button mat-flat-button (click)="submit()" [disabled]="submitting() || mergeToUser() == null || mergeFromUser() == null || (mergeFromId() == mergeToId())">Merge Users</button>
+  <div class="hud-grid">
+    <section class="hud-panel hud-form-group" aria-labelledby="merge-from">
+      <h2 id="merge-from" class="hud-kicker">Merge From</h2>
+      <app-search-box [(value)]="mergeFromId" type="number" label="User ID" />
+      @if (mergeFrom.error()) {
+        <p class="merge-error" role="alert">Failed to load user.</p>
+      } @else {
+        <app-user-detail [user]="mergeFromUser()" />
+      }
+    </section>
+    <section class="hud-panel hud-form-group" aria-labelledby="merge-to">
+      <h2 id="merge-to" class="hud-kicker">Merge To</h2>
+      <app-search-box [(value)]="mergeToId" type="number" label="User ID" />
+      @if (mergeTo.error()) {
+        <p class="merge-error" role="alert">Failed to load user.</p>
+      } @else {
+        <app-user-detail [user]="mergeToUser()" />
+      }
+    </section>
+  </div>
+
+  <section class="hud-panel hud-form-group" aria-labelledby="merge-options">
+    <h2 id="merge-options" class="hud-kicker">What to move</h2>
+    <div class="hud-options">
+      <mat-slide-toggle [(ngModel)]="transferDiscord">Transfer Discord</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="transferLogins">Transfer Sign-in Logins (Discord and other providers)</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="transferXbox">Transfer Xbox</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="transferTeamPlayers">Transfer Team Players</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="transferExperiences">Transfer Experiences</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="transferSignups">Transfer Signups</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="deleteMergeFrom">Delete Merge From</mat-slide-toggle>
+    </div>
+    <div class="hud-actions merge-actions">
+      <button mat-flat-button (click)="submit()" [disabled]="submitting() || mergeToUser() == null || mergeFromUser() == null || (mergeFromId() == mergeToId())">Merge Users</button>
     </div>
     @if (result(); as r) {
-      <p [class.merge-error]="!r.ok" [attr.role]="r.ok ? 'status' : 'alert'">{{ r.text }}</p>
+      <p class="merge-result" [class.merge-error]="!r.ok" [attr.role]="r.ok ? 'status' : 'alert'">{{ r.text }}</p>
     }
+  </section>
 </div>

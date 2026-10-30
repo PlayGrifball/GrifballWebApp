@@ -14,6 +14,8 @@ permissions:
 
 env:
   NODE_VERSION: '24.x'
+  # Lighthouse CI, run with npx (see the lighthouse job). Not LHCI_*: lhci reads those as options.
+  LIGHTHOUSE_CI_VERSION: '0.15.1'
 
 jobs:
   test:
@@ -81,6 +83,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    outputs:
+      # Markdown links to the screenshot contact sheets, for the report job
+      screenshots: ${{ steps.links.outputs.markdown }}
 
     defaults:
       run:
@@ -105,8 +110,163 @@ jobs:
     - name: Install Playwright Chromium
       run: npx playwright install --with-deps chromium
 
+    # Includes the layout test (e2e/layout.spec.ts): every key page at six screen sizes, screenshotted;
+    # and the accessibility test (e2e/a11y.spec.ts): axe on every page and every dialog, menu and picker
     - name: Build and run end-to-end tests
       run: npm run e2e
+
+    # One picture per page with all its screen sizes. Even when a test failed, since the pictures
+    # may show why.
+    - name: Make the screenshot contact sheets
+      id: sheets
+      if: ${{ !cancelled() && hashFiles('grifballwebapp.client/screenshots/*/*.png') != '' }}
+      run: node e2e/contact-sheets.mjs
+
+    # Unzipped, so each opens straight in the browser. One file per upload is the limit for that.
+    - name: Upload the home screenshots
+      id: sheet_home
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/home.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the home-signed-out screenshots
+      id: sheet_home_signed_out
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/home-signed-out.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season screenshots
+      id: sheet_season
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season-schedule screenshots
+      id: sheet_season_schedule
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-schedule.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season-bracket screenshots
+      id: sheet_season_bracket
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-bracket.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the match screenshots
+      id: sheet_match
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/match.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the profile screenshots
+      id: sheet_profile
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/profile.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the signup screenshots
+      id: sheet_signup
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/signup.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the login screenshots
+      id: sheet_login
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/login.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the user-management screenshots
+      id: sheet_user_management
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/user-management.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the season-manager screenshots
+      id: sheet_season_manager
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/season-manager.png
+        archive: false
+        retention-days: 30
+
+    - name: Upload the theme-dialog screenshots
+      id: sheet_theme_dialog
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        path: grifballwebapp.client/screenshots/theme-dialog.png
+        archive: false
+        retention-days: 30
+
+    # The full-size originals, for a closer look
+    - name: Upload all the screenshots
+      id: all
+      if: ${{ !cancelled() && steps.sheets.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: screenshots
+        path: grifballwebapp.client/screenshots/*/*.png
+        retention-days: 30
+
+    - name: List the screenshot links
+      id: links
+      if: ${{ !cancelled() && steps.all.outcome == 'success' }}
+      env:
+        SHEET_HOME: ${{ steps.sheet_home.outputs.artifact-url }}
+        SHEET_HOME_SIGNED_OUT: ${{ steps.sheet_home_signed_out.outputs.artifact-url }}
+        SHEET_SEASON: ${{ steps.sheet_season.outputs.artifact-url }}
+        SHEET_SEASON_SCHEDULE: ${{ steps.sheet_season_schedule.outputs.artifact-url }}
+        SHEET_SEASON_BRACKET: ${{ steps.sheet_season_bracket.outputs.artifact-url }}
+        SHEET_MATCH: ${{ steps.sheet_match.outputs.artifact-url }}
+        SHEET_PROFILE: ${{ steps.sheet_profile.outputs.artifact-url }}
+        SHEET_SIGNUP: ${{ steps.sheet_signup.outputs.artifact-url }}
+        SHEET_LOGIN: ${{ steps.sheet_login.outputs.artifact-url }}
+        SHEET_USER_MANAGEMENT: ${{ steps.sheet_user_management.outputs.artifact-url }}
+        SHEET_SEASON_MANAGER: ${{ steps.sheet_season_manager.outputs.artifact-url }}
+        SHEET_THEME_DIALOG: ${{ steps.sheet_theme_dialog.outputs.artifact-url }}
+        ALL: ${{ steps.all.outputs.artifact-url }}
+      run: |
+        links=""
+        for page in home home-signed-out season season-schedule season-bracket match profile signup login user-management season-manager theme-dialog; do
+          var="SHEET_$(echo "$page" | tr 'a-z-' 'A-Z_')"
+          links="${links}[${page}](${!var}) · "
+        done
+        markdown="${links}[all, full size (zip)]($ALL)"
+        echo "$markdown" >> "$GITHUB_STEP_SUMMARY"
+        echo "markdown=$markdown" >> "$GITHUB_OUTPUT"
 
     - name: Upload Playwright traces and report
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -117,3 +277,165 @@ jobs:
           grifballwebapp.client/e2e-results/
           grifballwebapp.client/playwright-report/
         retention-days: 7
+
+  # Lighthouse on the production build, run by its own server (pages rendered on the server) with the
+  # mocked API (e2e/mockApi.mts, e2e/serve.mjs), with the mobile and the desktop settings: as a
+  # visitor who is not logged in, and, side by side, signed in as a commissioner and admin (their
+  # pages too; see lighthouserc.cjs). Accessibility, best practices and SEO must score 90;
+  # performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and warns under 90.
+  # Every page of the site is too many for one job (some 45 seconds each), so each session's pages
+  # are split between jobs (LIGHTHOUSE_SHARD), side by side.
+  lighthouse:
+    name: ${{ format('Lighthouse ({0}{1}/{2})', matrix.session == 'signed-in' && 'signed in, ' || '', matrix.shard, matrix.shards) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { session: signed-out, shard: 1, shards: 2 }
+          - { session: signed-out, shard: 2, shards: 2 }
+          - { session: signed-in, shard: 1, shards: 3 }
+          - { session: signed-in, shard: 2, shards: 3 }
+          - { session: signed-in, shard: 3, shards: 3 }
+    env:
+      LIGHTHOUSE_SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
+
+    defaults:
+      run:
+        working-directory: ./grifballwebapp.client
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: grifballwebapp.client/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build
+      run: npx ng build
+
+    # Else the signed-in scores would be a visitor's: the server must render every page for the user
+    - name: Check the pages render signed in
+      if: ${{ matrix.session == 'signed-in' }}
+      run: node e2e/lighthouse-signed-in.mjs
+
+    # Configured in lighthouserc.cjs. The reports go to Lighthouse's temporary public storage
+    # (kept for a few days), linked from the scores.
+    - name: Run Lighthouse
+      env:
+        LIGHTHOUSE_SESSION: ${{ matrix.session }}
+      run: |
+        lhci="npx --yes @lhci/cli@${{ env.LIGHTHOUSE_CI_VERSION }}"
+        session="${LIGHTHOUSE_SESSION/-/ }"
+        failed=0
+        : > lighthouse.md
+        for preset in mobile desktop; do
+          LIGHTHOUSE_PRESET=$preset $lhci collect
+          $lhci upload || echo "::warning::The $preset reports could not be uploaded"
+          # The table to the file; the warnings (stderr) to the log, where GitHub picks them up
+          { node e2e/lighthouse-summary.mjs "${preset^}" >> lighthouse.md; } 2>&1
+          LIGHTHOUSE_PRESET=$preset $lhci assert || failed=1
+          mv .lighthouseci "lighthouse-$LIGHTHOUSE_SESSION-$preset"
+        done
+        { echo "### Lighthouse, ${session} (pages ${LIGHTHOUSE_SHARD})"; echo; cat lighthouse.md; } >> "$GITHUB_STEP_SUMMARY"
+        exit $failed
+
+    # The tables, for the PR comment (the report job)
+    - name: Upload the Lighthouse scores
+      if: ${{ !cancelled() && hashFiles('grifballwebapp.client/lighthouse.md') != '' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: lighthouse-scores-${{ matrix.session }}-${{ matrix.shard }}
+        path: grifballwebapp.client/lighthouse.md
+        retention-days: 1
+
+    - name: Upload the Lighthouse reports
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: ${{ !cancelled() }}
+      with:
+        name: lighthouse-${{ matrix.session }}-${{ matrix.shard }}
+        path: grifballwebapp.client/lighthouse-*/
+        retention-days: 30
+
+  # On a PR, one comment with the screenshots and the Lighthouse scores, which each run updates in place
+  report:
+    name: Screenshots and Lighthouse comment
+    needs: [e2e, lighthouse]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # The comment
+      pull-requests: write
+
+    steps:
+    # For e2e/lighthouse-merge.mjs
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        sparse-checkout: grifballwebapp.client/e2e
+        sparse-checkout-cone-mode: false
+
+    # The Lighthouse tables, signed out and signed in, one per job (none when a job did not get that far)
+    - name: Download the Lighthouse scores
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      continue-on-error: true
+      with:
+        pattern: lighthouse-scores-*
+        path: lighthouse
+
+    - name: Comment on the PR
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        SCREENSHOTS: ${{ needs.e2e.outputs.screenshots }}
+      run: |
+        # The Lighthouse jobs' tables, signed out then signed in: each session's jobs' merged into one
+        scores=""
+        for session in signed-out signed-in; do
+          files=$(ls lighthouse/lighthouse-scores-$session-*/lighthouse.md 2>/dev/null || true)
+          if [ -n "$files" ]; then
+            label="${session/-/ }"
+            # shellcheck disable=SC2086 # one path per shard job, without spaces
+            tables=$(node grifballwebapp.client/e2e/lighthouse-merge.mjs $files | sed "s/^#### /##### /")
+            scores="$scores#### ${label^}"$'\n\n'"$tables"$'\n\n'
+          fi
+        done
+        marker='<!-- layout-screenshots -->'
+        body="$marker
+        ### Screenshots
+
+        Each page on a desktop (1920x1080), laptop (1280x720), tablet in landscape (1024x768) and portrait (768x1024), and phone in landscape (820x300) and portrait (360x640), as of $SHA:
+        ${SCREENSHOTS:-_No screenshots: see the e2e job._}
+
+        Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
+
+        ### Lighthouse
+
+        ${scores:-_No scores: see the Lighthouse jobs._}"
+        # Only on PRs from this repo: a fork's PR gets a read-only token
+        if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+        fi

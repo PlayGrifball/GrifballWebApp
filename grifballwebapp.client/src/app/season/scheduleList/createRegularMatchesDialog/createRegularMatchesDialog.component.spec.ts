@@ -64,7 +64,7 @@ describe('CreateRegularMatchesDialogComponent', () => {
     component.bestOf = 3;
 
     (fixture.nativeElement as HTMLElement).querySelector('form')!.dispatchEvent(new Event('submit'));
-    http.expectOne('api/MatchPlanner/CreateSeasonMatches?seasonID=11&homeMatchesPerTeam=2&bestOf=3').flush({});
+    http.expectOne({ method: 'POST', url: 'api/MatchPlanner/CreateSeasonMatches?seasonID=11&homeMatchesPerTeam=2&bestOf=3' }).flush({});
 
     expect(created).toHaveBeenCalled();
   });

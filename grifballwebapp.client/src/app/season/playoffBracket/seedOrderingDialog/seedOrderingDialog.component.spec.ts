@@ -129,6 +129,24 @@ describe('SeedOrderingDialogComponent behaviour', () => {
     expect(names()).toEqual(['1:Alpha', '2:Bravo', '3:Charlie']);
   });
 
+  it('moves a team up or down with its buttons, and not past either end', () => {
+    loadStandings();
+    const button = (label: string) => (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+    expect(button('Move Alpha up').disabled).toBeTrue();
+    expect(button('Move Charlie down').disabled).toBeTrue();
+
+    button('Move Charlie up').click();
+    fixture.detectChanges();
+    expect(names()).toEqual(['1:Alpha', '2:Charlie', '3:Bravo']);
+    button('Move Alpha down').click();
+    fixture.detectChanges();
+    expect(names()).toEqual(['1:Charlie', '2:Alpha', '3:Bravo']);
+
+    component.move(0, -1);
+    component.move(2, 1);
+    expect(names()).toEqual(['1:Charlie', '2:Alpha', '3:Bravo']);
+  });
+
   it('submits the custom seeds, emits and closes the dialog with true', () => {
     loadStandings();
     component.onDrop({ dropEffect: 'move', data: component.teams()[2], index: 0 } as any);

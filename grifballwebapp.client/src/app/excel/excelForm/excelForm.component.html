@@ -1,29 +1,34 @@
-<h2>{{inputName()}}</h2>
+<h2 class="hud-kicker">{{inputName() || 'Export a match'}}</h2>
 
 @if (isSubmittingMatch()) {
     <mat-spinner />
 } @else {
-    <form class="app-form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
-        <mat-form-field class="app-full-width">
-            <mat-label>SpreadsheetID</mat-label>
+    <form class="hud-form-group" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
+        <mat-form-field appearance="outline">
+            <mat-label>Spreadsheet ID</mat-label>
             <input matInput required [(ngModel)]="spreadsheetID" name="spreadsheetID">
+            <mat-hint>From the sheet's address: /spreadsheets/d/&lt;ID&gt;/</mat-hint>
             <app-error-message [control]="reportMatchForm.controls['spreadsheetID']" />
         </mat-form-field>
 
-        <mat-form-field class="app-full-width">
-            <mat-label>Sheet Name</mat-label>
+        <mat-form-field appearance="outline">
+            <mat-label>Sheet name</mat-label>
             <input matInput required [(ngModel)]="sheetName" name="sheetName">
+            <mat-hint>The tab to write to</mat-hint>
             <app-error-message [control]="reportMatchForm.controls['sheetName']" />
         </mat-form-field>
 
-        <mat-form-field class="app-full-width">
-          <mat-label>MatchID</mat-label>
+        <mat-form-field appearance="outline">
+          <mat-label>Match ID</mat-label>
           <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
+          <mat-hint>The Halo Infinite match's GUID</mat-hint>
           <app-error-message [control]="reportMatchForm.controls['MatchID']" />
         </mat-form-field>
-      
-        <button mat-flat-button color="primary" [disabled]="!reportMatchForm.form.valid || isSubmittingMatch()">
-          Submit
-        </button>
+
+        <div class="hud-actions">
+          <button mat-flat-button [disabled]="!reportMatchForm.form.valid || isSubmittingMatch()">
+            Submit
+          </button>
+        </div>
     </form>
 }

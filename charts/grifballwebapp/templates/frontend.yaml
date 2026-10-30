@@ -39,7 +39,8 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        # Static files, and /api proxied to the backend's Service.
+        # The app's server: the public pages rendered on the server, the built files, and /api,
+        # /hub and /signin-discord proxied to the backend's Service.
         - name: grif-frontend
           image: {{ include "grif.image" $f.image }}
           imagePullPolicy: {{ $f.image.pullPolicy }}
@@ -72,22 +73,14 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          # nginx's writable paths, with a read-only root filesystem.
+          # A writable /tmp, with a read-only root filesystem.
           volumeMounts:
-            - name: var-cache-nginx
-              mountPath: /var/cache/nginx
-            - name: var-run
-              mountPath: /var/run
             - name: tmp
               mountPath: /tmp
             {{- with $f.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
-        - name: var-cache-nginx
-          emptyDir: {}
-        - name: var-run
-          emptyDir: {}
         - name: tmp
           emptyDir: {}
         {{- with $f.extraVolumes }}

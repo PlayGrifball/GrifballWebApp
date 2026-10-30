@@ -12,8 +12,14 @@
   }
 }
 
+.flexList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .dndDragging {
-  border: 1px solid green;
+  border: 1px solid var(--hud-accent);
 }
 
 .dndDraggingSource {
@@ -22,38 +28,38 @@
 
 .dndPlaceholder {
   min-height: 72px;
-  background: black;
-}
-
-.poolList {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  overflow: hidden;
-  width: 1000px;
-  max-width: 100%;
+  background: var(--hud-accent-tint);
+  border: 1px dashed var(--hud-accent);
 }
 
 .item {
+  box-sizing: border-box;
   padding: 16px;
-  margin: 16px;
-  display: inline-table;
-  width: 180px;
+  width: 220px;
+  max-width: 100%;
   cursor: move;
-  border: 4px black;
+  border-top: 3px solid var(--hud-accent);
 }
 
 .player-pool-item {
-  padding: 16px;
-  display: inline-table;
-  max-width: 100px;
+  box-sizing: border-box;
+  width: auto;
+  padding: 0 16px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-panel-faint);
   cursor: move;
-  border: 4px black;
 }
 
 .players-area {
   min-height: 96px;
-  border: solid;
-  border-radius: 6px;
-  border-width: 1px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
+
+  > div { padding: 4px 0; }
+}
+
+@media (max-width: 600px) {
+  .item { width: 100%; }
 }

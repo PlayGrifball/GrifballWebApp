@@ -33,7 +33,14 @@
             <div class="team-name">{{ team.teamName }}</div>
             <div class="team-record">{{ team.wins }}W - {{ team.losses }}L</div>
           </div>
-          <mat-icon class="drag-handle">drag_indicator</mat-icon>
+          <!-- The same moves without dragging: for the keyboard and screen readers -->
+          <button mat-icon-button type="button" [disabled]="i === 0" (click)="move(i, -1)" [attr.aria-label]="'Move ' + team.teamName + ' up'">
+            <mat-icon>arrow_upward</mat-icon>
+          </button>
+          <button mat-icon-button type="button" [disabled]="i === teams().length - 1" (click)="move(i, 1)" [attr.aria-label]="'Move ' + team.teamName + ' down'">
+            <mat-icon>arrow_downward</mat-icon>
+          </button>
+          <mat-icon class="drag-handle" aria-hidden="true">drag_indicator</mat-icon>
         </div>
       </div>
       }
