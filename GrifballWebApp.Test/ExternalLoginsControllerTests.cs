@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -313,7 +314,7 @@ public class ExternalLoginsControllerDatabaseTests
         _signInManager = Substitute.For<SignInManager<User>>(
             _userManager, Substitute.For<IHttpContextAccessor>(),
             Substitute.For<IUserClaimsPrincipalFactory<User>>(), null, null, null, null);
-        _controller = new ExternalLoginsController(_signInManager, new ExternalLoginService(_userManager), new EphemeralDataProtectionProvider());
+        _controller = new ExternalLoginsController(_signInManager, new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>())), new EphemeralDataProtectionProvider());
     }
 
     [TearDown]
