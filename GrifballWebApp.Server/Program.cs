@@ -244,6 +244,7 @@ public class Program
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
         builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();
+        builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
         builder.Services.AddTransient<TransferLegacyDiscordService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 

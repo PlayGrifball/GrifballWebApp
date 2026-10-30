@@ -30,6 +30,7 @@ public class IdentityControllerActionTests
     private IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private ISecureDataFormat<AuthenticationTicket> _refreshProtector;
     private IUserManagementService _userManagementService;
+    private IDiscordAccountLinkService _discordLinks;
     private IdentityController _controller;
 
     [SetUp]
@@ -44,9 +45,12 @@ public class IdentityControllerActionTests
         _optionsMonitor = Substitute.For<IOptionsMonitor<BearerTokenOptions>>();
         _optionsMonitor.Get(IdentityConstants.BearerScheme).Returns(new BearerTokenOptions { RefreshTokenProtector = _refreshProtector });
         _userManagementService = Substitute.For<IUserManagementService>();
+        _discordLinks = Substitute.For<IDiscordAccountLinkService>();
+        _discordLinks.InTransactionAsync(Arg.Any<Func<Task<bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Func<Task<bool>>>()());
 
         _controller = new IdentityController(Substitute.For<ILogger<IdentityController>>(), _userManager, _signInManager,
-            _optionsMonitor, new FixedTimeProvider(Now), _userManagementService);
+            _optionsMonitor, new FixedTimeProvider(Now), _userManagementService, _discordLinks);
     }
 
     // ---------- Login ----------
@@ -405,6 +409,101 @@ public class IdentityControllerActionTests
         Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
         await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
+    }
+
+    [TestCase(true, "Identity.Application")]
+    [TestCase(false, "Identity.Bearer")]
+    public async Task ExternalLoginCallback_FirstSignInOfBotLinkedUser_AddsLoginToThemAndSignsIn(bool useCookies, string scheme)
+    {
+        var info = Info();
+        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
+        _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Success);
+        ExternalResult(IdentitySignInResult.Success);
+
+        var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<EmptyResult>());
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        Received.InOrder(() =>
+        {
+            _userManager.AddLoginAsync(botLinked, info);
+            _discordLinks.TryLinkAsync(botLinked, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+        });
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _userManager.DidNotReceiveWithAnyArgs().AddToRoleAsync(default!, default!);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_BotLinkedAddLoginFails_ReturnsErrorWithoutNewAccount()
+    {
+        var info = Info();
+        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
+        _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Failed());
+
+        var result = await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add the Discord login to your existing account"));
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _signInManager.DidNotReceiveWithAnyArgs().ExternalLoginSignInAsync(default!, default!, default, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_ExistingLogin_BackfillsDiscordLinkBeforeSigningIn()
+    {
+        var user = new User { Id = 4, UserName = "alice" };
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        _userManager.FindByLoginAsync("Discord", "key-1").Returns(user);
+        ExternalResult(IdentitySignInResult.Success);
+
+        await _controller.ExternalLoginCallback(false, CancellationToken.None);
+
+        Received.InOrder(() =>
+        {
+            _discordLinks.TryLinkAsync(user, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+        });
+        await _discordLinks.DidNotReceiveWithAnyArgs().FindBotLinkedUserAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_NewUser_LinksDiscordInsideTheTransaction()
+    {
+        var info = Info();
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
+        _userManager.AddLoginAsync(Arg.Any<User>(), info).Returns(IdentityResult.Success);
+        _controller.WithAnonymousUser();
+        _controller.HttpContext.RequestServices = new ServiceCollection().AddSingleton(Substitute.For<IAuthenticationService>()).BuildServiceProvider();
+
+        await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        await _discordLinks.Received(1).InTransactionAsync(Arg.Any<Func<Task<bool>>>(), Arg.Any<CancellationToken>());
+        Received.InOrder(() =>
+        {
+            _userManager.AddLoginAsync(Arg.Any<User>(), info);
+            _discordLinks.LinkAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.SignInAsync(Arg.Any<User>(), true, null);
+        });
+        await _discordLinks.DidNotReceiveWithAnyArgs().TryLinkAsync(default!, default!, default!, default, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_NewUserFails_DoesNotLinkDiscord()
+    {
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Failed());
+
+        await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        await _discordLinks.DidNotReceiveWithAnyArgs().LinkAsync(default!, default!, default!, default, default);
     }
 
     // ---------- Refresh ----------

@@ -3,6 +3,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -21,7 +22,7 @@ public class ExternalLoginServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _userManager = IdentityTestHelpers.NewUserManager(_context);
-        _service = new ExternalLoginService(_userManager);
+        _service = new ExternalLoginService(_userManager, new DiscordAccountLinkService(_context, Substitute.For<ILogger<DiscordAccountLinkService>>()));
     }
 
     [TearDown]
@@ -176,7 +177,7 @@ public class ExternalLoginServiceFailureTests
         _userManager = Substitute.For<UserManager<User>>(
             Substitute.For<IUserStore<User>>(), null, null, null, null, null, null, null, null);
         _userManager.FindByIdAsync("5").Returns(_user);
-        _service = new ExternalLoginService(_userManager);
+        _service = new ExternalLoginService(_userManager, Substitute.For<IDiscordAccountLinkService>());
     }
 
     [TearDown]

@@ -38,7 +38,7 @@ public class IdentityControllerTests
         _userManagementService = Substitute.For<IUserManagementService>();
         
         _controller = new IdentityController(_logger, _userManager, _signInManager, 
-            _optionsMonitor, _timeProvider, _userManagementService);
+            _optionsMonitor, _timeProvider, _userManagementService, Substitute.For<IDiscordAccountLinkService>());
     }
 
     [Test]

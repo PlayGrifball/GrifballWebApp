@@ -24,10 +24,13 @@ public class IdentityController : ControllerBase
     private readonly IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private readonly TimeProvider _timeProvider;
     private readonly IUserManagementService _userManagementService;
-    
+    private readonly IDiscordAccountLinkService _discordLinks;
+
     public IdentityController(ILogger<IdentityController> logger, UserManager<User> userManager, SignInManager<User> signInManager,
-        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider, IUserManagementService userManagementService)
+        IOptionsMonitor<BearerTokenOptions> optionsMonitor, TimeProvider timeProvider, IUserManagementService userManagementService,
+        IDiscordAccountLinkService discordLinks)
     {
+        _discordLinks = discordLinks;
         _logger = logger;
         _userManager = userManager;
         _signInManager = signInManager;
@@ -135,6 +138,8 @@ public class IdentityController : ControllerBase
 
     /// <summary>
     /// Finishes a Discord sign-in: the session cookie, or with <paramref name="useCookies"/> false a bearer token.
+    /// Discord sign-in and the bot know a player by the same Discord id: a first sign-in joins the account the bot already
+    /// links to that id, and an account made or signed in here gets that link (<see cref="IDiscordAccountLinkService"/>).
     /// A POST, as it creates the user and signs in: the browser comes back from Discord to the login page (a page
     /// of the app, not this action), which then calls this with the antiforgery token like any other change.
     /// </summary>
@@ -150,6 +155,24 @@ public class IdentityController : ControllerBase
         }
         
         _signInManager.AuthenticationScheme = useCookies ? IdentityConstants.ApplicationScheme : IdentityConstants.BearerScheme;
+
+        var existingUser = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+        if (existingUser is null && await _discordLinks.FindBotLinkedUserAsync(info.LoginProvider, info.ProviderKey, ct) is { } botLinked)
+        {
+            // First sign-in of a player the bot already knows: the login joins their account instead of making a second one
+            var added = await _userManager.AddLoginAsync(botLinked, info);
+            if (!added.Succeeded)
+            {
+                return BadRequest("Failed to add the Discord login to your existing account");
+            }
+            existingUser = botLinked;
+        }
+
+        // Before signing in, as a bearer sign-in writes the response: the bot's Discord link, for an account without one
+        if (existingUser is not null)
+        {
+            await _discordLinks.TryLinkAsync(existingUser, info.LoginProvider, info.ProviderKey, info.Principal.FindFirstValue(ClaimTypes.Name), ct);
+        }
 
         var signInResult = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: true, bypassTwoFactor: true);
         if (signInResult.Succeeded)
@@ -203,22 +226,35 @@ public class IdentityController : ControllerBase
                 UserName = name,
                 Email = email,
             };
-            var result = await _userManager.CreateAsync(user);
-
-            if (result.Succeeded)
+            IActionResult? failure = null;
+            // One transaction: a failed step leaves no half-made account behind
+            var created = await _discordLinks.InTransactionAsync(async () =>
             {
-                result = await _userManager.AddToRoleAsync(user, "Player");
-
+                var result = await _userManager.CreateAsync(user);
                 if (!result.Succeeded)
                 {
-                    return BadRequest("Failed to add role");
+                    var errors = new StringBuilder();
+                    foreach (var error in result.Errors)
+                    {
+                        errors.AppendFormat("{0}: {1}", error.Code, error.Description);
+                        errors.AppendLine();
+                    }
+                    failure = BadRequest($"Errors: {errors.ToString()}");
+                    return false;
+                }
+
+                result = await _userManager.AddToRoleAsync(user, "Player");
+                if (!result.Succeeded)
+                {
+                    failure = BadRequest("Failed to add role");
+                    return false;
                 }
 
                 result = await _userManager.AddLoginAsync(user, info);
-
                 if (!result.Succeeded)
                 {
-                    return BadRequest("Failed to add login");
+                    failure = BadRequest("Failed to add login");
+                    return false;
                 }
 
                 var claims = p.Claims;
@@ -227,23 +263,22 @@ public class IdentityController : ControllerBase
                     await _userManager.AddClaimsAsync(user, claims);
                 }
 
+                // The bot's Discord link, so the bot and the site know the player as one account
+                await _discordLinks.LinkAsync(user, info.LoginProvider, info.ProviderKey, name, ct);
+                return true;
+            }, ct);
 
-                // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
-                // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
-                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-                await _signInManager.SignInAsync(user, isPersistent: true);
-                // For a bearer token, SignInAsync has already written the token response
-                return Empty;
-            }
-
-            var errors = new StringBuilder();
-            foreach (var error in result.Errors)
+            if (!created)
             {
-                errors.AppendFormat("{0}: {1}", error.Code, error.Description);
-                errors.AppendLine();
+                return failure!;
             }
 
-            return BadRequest($"Errors: {errors.ToString()}");
+            // Done with Discord's half-finished sign-in (ExternalLoginSignInAsync drops it on the other branch).
+            // Before signing in: a bearer sign-in writes the response, after which no cookie can be cleared.
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+            await _signInManager.SignInAsync(user, isPersistent: true);
+            // For a bearer token, SignInAsync has already written the token response
+            return Empty;
         }
     }
 
