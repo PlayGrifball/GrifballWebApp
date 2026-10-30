@@ -34,6 +34,26 @@ describe('pageNow', () => {
     expect(now()).toBeGreaterThan(1234);
   });
 
+  it('in the browser, drops the server\'s time once drawn, so later pages use the browser\'s clock', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: 'browser' }] });
+    const state = TestBed.inject(TransferState);
+    state.set(KEY, 1234);
+    const injector = TestBed.inject(Injector);
+    const first = runInInjectionContext(injector, () => pageNow());
+    // Another part of the same first page, before it is drawn, gets the same time
+    const sibling = runInInjectionContext(injector, () => pageNow());
+    expect(first()).toBe(1234);
+    expect(sibling()).toBe(1234);
+
+    TestBed.inject(ApplicationRef).tick();
+    await TestBed.inject(ApplicationRef).whenStable();
+    expect(state.hasKey(KEY)).toBeFalse();
+
+    // A page navigated to afterwards
+    const before = Date.now();
+    expect(runInInjectionContext(injector, () => pageNow())()).toBeGreaterThanOrEqual(before);
+  });
+
   it('in the browser without a page from the server, is the browser\'s clock', () => {
     const before = Date.now();
     expect(create('browser')()).toBeGreaterThanOrEqual(before);
