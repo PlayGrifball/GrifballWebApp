@@ -258,13 +258,17 @@ test('the user search box debounces typing and the table shows the filtered user
 
 test('the team builder renders a captain added by another user over SignalR', async ({ page }) => {
   const SEASON_ID = 7;
+  // The server's draft, which the other user's change updates too: the page reloads it whenever its
+  // hub connection comes up, which may be just after the update arrives.
+  let captainAdded = false;
   await mockBackend(page, {
     [`/api/Teams/GetTeams/${SEASON_ID}`]: route => json(route, [
       { teamID: 1, teamName: 'Red Team', captain: { name: 'Captain Red', personID: 201, order: 1 }, players: [] },
+      ...(captainAdded ? [{ teamID: 2, teamName: "Blair's Team", captain: { name: 'Pool Blair', personID: 102, order: 2 }, players: [] }] : []),
     ]),
     [`/api/Teams/GetPlayerPool/${SEASON_ID}`]: route => json(route, [
       { name: 'Pool Alex', personID: 101, pick: null, round: null },
-      { name: 'Pool Blair', personID: 102, pick: null, round: null },
+      ...(captainAdded ? [] : [{ name: 'Pool Blair', personID: 102, pick: null, round: null }]),
     ]),
     [`/api/Teams/areCaptainsLocked/${SEASON_ID}`]: route => json(route, true),
   });
@@ -294,6 +298,7 @@ test('the team builder renders a captain added by another user over SignalR', as
   await expect.poll(() => sockets.length).toBeGreaterThan(0);
 
   const addCaptain = { seasonID: SEASON_ID, personID: 102, teamName: "Blair's Team", captainName: 'Pool Blair', orderNumber: 2 };
+  captainAdded = true;
   sockets[sockets.length - 1].send(JSON.stringify({ type: 1, target: 'AddCaptain', arguments: [addCaptain] }) + RS);
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
