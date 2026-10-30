@@ -23,26 +23,6 @@ describe('ApiClientService', () => {
     expect(service).toBeTruthy();
   });
 
-  describe('getKills', () => {
-    it('should fetch kills data', (done) => {
-      const mockKills = [
-        { gamertag: 'Player1', kills: 100, rank: 1 },
-        { gamertag: 'Player2', kills: 90, rank: 2 }
-      ];
-
-      service.getKills().subscribe({
-        next: (data) => {
-          expect(data).toEqual(mockKills);
-          done();
-        }
-      });
-
-      const req = httpTestingController.expectOne('/api/stats/TopKills');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockKills);
-    });
-  });
-
   describe('getSeasons', () => {
     it('should fetch seasons data', (done) => {
       const mockSeasons: any[] = [{ seasonID: 1, seasonName: 'Season 1', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z', signupsCount: 3 }];

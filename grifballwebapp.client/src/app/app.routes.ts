@@ -49,11 +49,6 @@ export const APP_ROUTES: Routes = [
     title: 'Season Match'
   },
   {
-    path: 'topstats',
-    loadComponent: () => import('./top-stats/top-stats.component').then(m => m.TopStatsComponent),
-    title: 'Top Stats'
-  },
-  {
     path: 'login',
     loadComponent: () => import('./login/login.component').then(m => m.LoginComponent),
     title: 'Login'
@@ -144,11 +139,6 @@ export const APP_ROUTES: Routes = [
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),
     title: 'Excel Exporter',
     canActivate: [isEventOrganizerGuard]
-  },
-  {
-    path: 'lateLeague',
-    loadComponent: () => import('./lateLeague/lateLeague.component').then(m => m.LateLeagueComponent),
-    title: 'Late League',
   },
   {
     path: 'commissioner-dashboard',

@@ -138,10 +138,6 @@ const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[season
 const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
 const userDetail = (user: typeof users[number]) => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
 
-// The top kills of all time (/topstats)
-const topKills = ['Grifmeister', 'Sarge Prime', 'MasterChief117', 'Caboose42', 'Plasma Pete', 'Banshee Bri', 'Tucker Tactics', 'Donut Delta']
-  .map((gamertag, i) => ({ rank: i + 1, gamertag, kills: 1840 - i * 137 }));
-
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
@@ -196,7 +192,6 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFrom: null, copyAvailability: false, copySignups: false, copyTeams: false },
     // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
     '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
-    '/api/stats/TopKills': topKills,
     '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
     '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },

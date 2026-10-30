@@ -49,8 +49,6 @@ const publicPages = [
   '/season/12/team/1',
   '/season/12/playergrades',
   '/seasonmatch/31',
-  '/topstats',
-  '/lateLeague',
   '/reschedule-request/31',
   // The page for any other address (answered with a 404)
   notFoundPage,

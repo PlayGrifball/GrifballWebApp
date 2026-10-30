@@ -104,7 +104,7 @@ describe('AppComponent behaviour', () => {
   let removedMobileListeners: Function[];
   let frames: FrameRequestCallback[];
 
-  /** The links this (logged out) user may see. */
+  /** The links this user (an organizer, so the bar has more links than fit) may see. */
   const shown = () => component.navLinks().filter(n => n.show()).length;
 
   const resize = () => {
@@ -120,7 +120,7 @@ describe('AppComponent behaviour', () => {
 
     account = {
       isLoggedIn: signal(false),
-      isEventOrganizer: signal(false),
+      isEventOrganizer: signal(true),
       isSysAdmin: signal(false),
       isPlayer: signal(false),
       personID: signal(null),
@@ -235,6 +235,7 @@ describe('AppComponent behaviour', () => {
 
   it('shows organizer and admin links only to those roles', () => {
     const show = (title: string) => component.navLinks().find(n => n.title === title)!.show();
+    account.isEventOrganizer.set(false);
     expect(show('Home')).toBeTrue();
     expect(show('Season Manager')).toBeFalse();
     expect(show('User Management')).toBeFalse();
@@ -254,7 +255,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     // 250px toolbar, 100px links: two fit (100, 200), the third would need 300.
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Season Manager']);
     expect(component.overflowNavLinks().length).toBe(shown() - 2);
   });
 
@@ -262,7 +263,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
     const toolbarLinks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.toolbar-links a:not(#hidden)'))
       .map(a => a.textContent!.trim());
-    expect(toolbarLinks).toEqual(['Home', 'Late League']);
+    expect(toolbarLinks).toEqual(['Home', 'Season Manager']);
   });
 
   it('puts every link in the overflow on a mobile-width screen', () => {
@@ -339,7 +340,7 @@ describe('AppComponent behaviour', () => {
     (document.getElementById as jasmine.Spy).calls.reset();
     (document.querySelector as jasmine.Spy).calls.reset();
 
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Season Manager']);
     expect(document.getElementById).not.toHaveBeenCalled();
     expect(document.querySelector).not.toHaveBeenCalled();
   });
@@ -404,10 +405,11 @@ describe('AppComponent behaviour', () => {
   });
 
   it('gives links hidden from this user no room in the bar', () => {
-    toolbarWidth = 350;
+    account.isEventOrganizer.set(false);
+    toolbarWidth = 150;
     fixture.detectChanges();
-    // Home and Late League fit; the organizer and admin links are neither shown nor counted.
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Late League']);
+    // Home fits; the organizer and admin links are neither shown nor counted.
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
     expect(component.overflowNavLinks()).toEqual([]);
   });
 
@@ -420,7 +422,7 @@ describe('AppComponent behaviour', () => {
   it('puts the Current Season link right after Home', () => {
     api.getCurrentSeasonID.and.returnValue(of(4));
     fixture.detectChanges();
-    expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Late League']);
+    expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Season Manager']);
   });
 
   it('measures again once the web fonts have loaded', async () => {

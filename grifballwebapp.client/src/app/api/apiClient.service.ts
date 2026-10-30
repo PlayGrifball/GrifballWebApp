@@ -1,6 +1,5 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { KillsDto } from './dtos/killsDto';
 import { map, Observable, switchMap } from 'rxjs';
 import type { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
@@ -24,10 +23,6 @@ export class ApiClientService {
     responseType: 'text'
   };
 
-
-  getKills(): Observable<KillsDto[]> {
-    return this.http.get<KillsDto[]>('/api/stats/TopKills');
-  }
 
   // A season's dates are Luxon DateTimes, and Luxon is only loaded with the pages that need it
   // (season editing), not with the app: the parser is imported when a season arrives.
