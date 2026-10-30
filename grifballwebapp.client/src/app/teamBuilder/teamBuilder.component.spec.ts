@@ -386,7 +386,7 @@ describe('TeamBuilderComponent', () => {
       ]));
       mockApiClient.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
       for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
-        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named' } : {}));
+        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named', teamID: 9 } : {}));
       }
       spyOn(console, 'log');
       fixture.detectChanges();
@@ -409,11 +409,12 @@ describe('TeamBuilderComponent', () => {
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
       const loads = mockApiClient.getTeams.calls.count();
 
-      saved.next({ teamName: 'The Fours' });
+      saved.next({ teamName: 'The Fours', teamID: 44 });
       saved.complete();
 
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
       expect(component.teams()[1].teamName).toBe('The Fours');
+      expect(component.teams()[1].teamID).toBe(44);
       expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
     });
 
@@ -959,8 +960,9 @@ describe('TeamBuilderComponent', () => {
       fixture.autoDetectChanges();
       await fixture.whenStable();
 
-      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
+      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamID: 31, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
       await fixture.whenStable();
+      expect(component.teams()[0].teamID).toBe(31);
 
       const titles = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-card.item:not(.dndPlaceholder) mat-card-title'))
         .map(t => t.textContent!.trim());
