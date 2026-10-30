@@ -412,57 +412,7 @@ jobs:
             label="${session/-/ }"
             # shellcheck disable=SC2086 # one path per shard job, without spaces
             tables=$(node grifballwebapp.client/e2e/lighthouse-merge.mjs $files | sed "s/^#### /##### /")
-            scores="$scores#### ${label^}"
-        marker='<!-- layout-screenshots -->'
-        body="$marker
-        ### Screenshots
-
-        Each page on a desktop (1920x1080), laptop (1280x720), tablet in landscape (1024x768) and portrait (768x1024), and phone in landscape (820x300) and portrait (360x640), as of $SHA:
-        ${SCREENSHOTS:-_No screenshots: see the e2e job._}
-
-        Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
-
-        ### Lighthouse
-
-        ${scores:-_No scores: see the Lighthouse jobs._}"
-        # Only on PRs from this repo: a fork's PR gets a read-only token
-        if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-          echo "$body" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
-        fi
-        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
-          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
-        if [ -n "$existing" ]; then
-          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
-        else
-          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
-        fi
-\n\n'"$tables"
-        marker='<!-- layout-screenshots -->'
-        body="$marker
-        ### Screenshots
-
-        Each page on a desktop (1920x1080), laptop (1280x720), tablet in landscape (1024x768) and portrait (768x1024), and phone in landscape (820x300) and portrait (360x640), as of $SHA:
-        ${SCREENSHOTS:-_No screenshots: see the e2e job._}
-
-        Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
-
-        ### Lighthouse
-
-        ${scores:-_No scores: see the Lighthouse jobs._}"
-        # Only on PRs from this repo: a fork's PR gets a read-only token
-        if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-          echo "$body" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
-        fi
-        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
-          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
-        if [ -n "$existing" ]; then
-          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
-        else
-          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
-        fi
-\n\n'
+            scores="$scores#### ${label^}"$'\n\n'"$tables"$'\n\n'
           fi
         done
         marker='<!-- layout-screenshots -->'
