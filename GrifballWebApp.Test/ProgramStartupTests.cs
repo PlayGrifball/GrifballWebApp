@@ -6,6 +6,7 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -261,6 +262,58 @@ public class ProgramStartupTests
         await AssertOk(client, "/CommitHash");
         await AssertOk(client, "/Home/CurrentAndFutureEvents");
         await AssertLogin(client, PreviewSmokeUsers.UserNames[0], HttpStatusCode.Unauthorized);
+    }
+
+    [Test]
+    public async Task NormalMode_DiscordCallback_Should_SeeTheForwardedSchemeAndHost()
+    {
+        // Behind the frontend: the backend is reached over http from the cluster, the visitor came over https.
+        // The callback builds its redirect_uri from the request, so it must see https like the sign-in did.
+        var settings = CommonSettings();
+        settings["Discord:ClientId"] = "123456789012345678";
+        settings["Discord:ClientSecret"] = "dummy-client-secret";
+        settings["Discord:Token"] = DummyBotToken;
+        settings["Discord:DraftChannel"] = "1";
+        settings["Discord:DisableGlobally"] = "true";
+        settings["ForwardedHeaders:ForwardedForHeaderName"] = "X-Real-IP";
+        settings["ForwardedHeaders:KnownIPNetworks:0"] = "10.42.0.0/16";
+
+        string? seen = null;
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true, services =>
+        {
+            // The test server has no client address: give it the frontend pod's, a known proxy.
+            services.AddSingleton<IStartupFilter>(new FromAddress(IPAddress.Parse("10.42.3.239")));
+            // The bogus state fails the callback; note what the handler saw instead of throwing.
+            services.PostConfigure<AspNet.Security.OAuth.Discord.DiscordAuthenticationOptions>("Discord", options =>
+                options.Events.OnRemoteFailure = context =>
+                {
+                    seen = $"{context.Request.Scheme}://{context.Request.Host}";
+                    context.HandleResponse();
+                    return Task.CompletedTask;
+                });
+        });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/signin-discord?code=some-code&state=not-a-state");
+        request.Headers.Add("X-Forwarded-Proto", "https");
+        request.Headers.Add("X-Forwarded-Host", "grifball.example");
+        request.Headers.Add("X-Real-IP", "203.0.113.9");
+        using var response = await client.SendAsync(request);
+
+        Assert.That(seen, Is.EqualTo("https://grifball.example"));
+    }
+
+    private sealed class FromAddress(IPAddress address) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                context.Connection.RemoteIpAddress = address;
+                return nextMiddleware(context);
+            });
+            next(app);
+        };
     }
 
     [Test]

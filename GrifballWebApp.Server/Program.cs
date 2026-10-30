@@ -364,6 +364,10 @@ public class Program
 
         //app.UseHttpsRedirection();
 
+        // Explicitly, after the forwarded headers: left out, WebApplication adds it at the start of the
+        // pipeline, where the Discord callback (/signin-discord) would see the frontend's http and send
+        // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapAppHealthChecks();
