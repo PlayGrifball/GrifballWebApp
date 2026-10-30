@@ -164,6 +164,11 @@ public class UserManagementService : IUserManagementService
             return sb.ToString();
         }
 
+        // Every account plays: without the role the signup form and setting a gamertag are forbidden.
+        result = await _userManager.AddToRoleAsync(user, "Player");
+        if (result.Succeeded is false)
+            return "Failed to add the Player role";
+
         await transaction.CommitAsync(ct);
         return null;
     }

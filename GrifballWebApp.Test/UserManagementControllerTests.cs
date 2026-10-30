@@ -147,4 +147,26 @@ public class UserManagementControllerTests
 
         Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Cannot merge a user into itself"));
     }
+
+    [Test]
+    public async Task MergeUser_Conflict_Returns409WithTheReason()
+    {
+        _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new MergeConflictException("Both users are on different teams in season S1.")));
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+
+        var result = await _controller.MergeUser(req, CancellationToken.None);
+
+        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo("Both users are on different teams in season S1."));
+    }
+
+    [Test]
+    public async Task MergeUser_DatabaseRefusesIt_Returns409()
+    {
+        _mergeService.Merge(1, 2, Arg.Any<MergeOptions>(), Arg.Any<CancellationToken>()).Returns(Task.FromException(new Microsoft.EntityFrameworkCore.DbUpdateException("unique index")));
+        var req = new MergeRequest { MergeToId = 1, MergeFromId = 2, MergeOptions = new MergeOptions() };
+
+        var result = await _controller.MergeUser(req, CancellationToken.None);
+
+        Assert.That(((ConflictObjectResult)result).Value, Is.EqualTo("The users could not be merged because their data conflicts. Nothing was changed."));
+    }
 }

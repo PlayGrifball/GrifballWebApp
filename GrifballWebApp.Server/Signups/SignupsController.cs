@@ -34,7 +34,7 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged to get timeslots");
+            return Unauthorized("You must be logged in to get timeslots");
 
         return Ok(await _signupsService.GetTimeslots(seasonID: seasonID, offset: offset, userID: userID, ct));
     }
@@ -45,7 +45,7 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged to get signup data");
+            return Unauthorized("You must be logged in to get signup data");
 
         return Ok(await _signupsService.GetSignup(seasonID: seasonID, offset: offset, userID: userID, ct));
     }
@@ -56,7 +56,7 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged in to signup for a season");
+            return Unauthorized("You must be logged in to sign up for a season");
 
         signupDto.UserID = userID;
         try
