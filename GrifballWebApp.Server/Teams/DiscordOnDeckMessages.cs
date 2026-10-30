@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NetCord.Services;
-using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Teams;
 
@@ -89,26 +88,5 @@ public class DiscordOnDeckMessages
         }
     }
 
-    // TODO: Refactor into class
-    private async Task<string> GetUsername(int userID)
-    {
-        var claimValue = await _context.UserClaims
-            .Where(x => x.UserId == userID && x.ClaimType == ClaimTypes.NameIdentifier)
-            .Select(x => x.ClaimValue)
-            .FirstOrDefaultAsync();
-
-        if (claimValue is not null)
-        {
-            if (ulong.TryParse(claimValue, out var discordUserID))
-            {
-                return new UserId(discordUserID).ToString();
-            }
-        }
-
-        var name = await _context.Users
-            .Where(x => x.Id == userID)
-            .Select(x => x.DisplayName)
-            .FirstOrDefaultAsync();
-        return name ?? userID.ToString();
-    }
+    private Task<string> GetUsername(int userID) => DiscordMention.ForUser(_context, userID);
 }

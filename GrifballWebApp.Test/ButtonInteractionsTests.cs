@@ -6,6 +6,7 @@ using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.Notifications;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
@@ -21,6 +22,7 @@ public class ButtonInteractionsTests
     private GrifballContext _context;
     private IQueueRepository _queueRepository;
     private IPublisher _publisher;
+    private RecordingLogger<MatchmakingButtonHandler> _handlerLogger;
     private IDiscordRestClient _discordClient;
     private IOptions<DiscordOptions> _discordOptions;
     private QueueService _queueService;
@@ -41,7 +43,7 @@ public class ButtonInteractionsTests
         _logger = Substitute.For<ILogger<QueueService>>();
         _dataPullService = Substitute.For<IDataPullService>();
         _queueService = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
-        _handler = new MatchmakingButtonHandler(_queueRepository, _publisher, _context, _discordClient, _queueService);
+        _handler = new MatchmakingButtonHandler(_queueRepository, new ServiceCollection().AddScoped(_ => _publisher).BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _context, _discordClient, _queueService, _handlerLogger = new RecordingLogger<MatchmakingButtonHandler>());
 
         _discordContext = Substitute.For<IDiscordButtonInteractionContext>();
     }
@@ -316,5 +318,30 @@ public class ButtonInteractionsTests
 
         // User receives thanks message
         await _discordContext.AssertSendResponse("Match does not exist or it is no longer active");
+    }
+
+    [Test]
+    public async Task RefreshQueueDisplay_PublishesInItsOwnScope()
+    {
+        await _handler.RefreshQueueDisplay();
+
+        await _publisher.Received(1).Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>());
+        Assert.That(_handlerLogger.Entries, Is.Empty);
+    }
+
+    [Test]
+    public async Task RefreshQueueDisplay_LogsFailures_InsteadOfThrowing()
+    {
+        _publisher.Publish(Arg.Any<UpdateDisplayNotification>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("discord down")));
+
+        await _handler.RefreshQueueDisplay();
+
+        var entry = _handlerLogger.Entries.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
+            Assert.That(entry.Exception, Is.TypeOf<InvalidOperationException>());
+        });
     }
 }

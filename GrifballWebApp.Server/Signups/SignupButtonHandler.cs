@@ -56,7 +56,15 @@ public class SignupButtonHandler
             SeasonID = seasonId,
             UserID = user.Id,
         };
-        await _signupsService.UpsertSignup(dto);
+        try
+        {
+            await _signupsService.UpsertSignup(dto);
+        }
+        catch (SignupsClosedException)
+        {
+            await discordContext.EphemeralResponse("Signups for this season are closed.");
+            return;
+        }
 
         await discordContext.EphemeralResponse($"You have signed up for the season. Remember you can do more things like set your availability {"here".LinkMarkdown(signupUrl)}");
     }

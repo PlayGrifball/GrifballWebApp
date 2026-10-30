@@ -118,6 +118,24 @@ public class DiscordOnDeckMessagesTests
     }
 
     [Test]
+    public async Task SendMessage_Should_MentionTheLinkedDiscordUser_BeforeAnyClaim()
+    {
+        // Accounts linked through the bot or the profile page have a DiscordUserID and no NameIdentifier claim.
+        var season = await _context.AddSeason();
+        var cap = await _context.AddUser("cap", "Cap");
+        cap.DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 424242, DiscordUsername = "capdisc" };
+        _context.UserClaims.Add(new UserClaim { UserId = cap.Id, ClaimType = ClaimTypes.NameIdentifier, ClaimValue = "111" });
+        await _context.SaveChangesAsync();
+        await _context.AddTeam(season, "T", cap, 1);
+        var p = await _context.AddUser("p", gamertag: "P");
+        await _context.AddSignup(season, p);
+
+        await _sut.SendMessageAsync(season.SeasonID);
+
+        Assert.That(Content(_handler.SentMessages().Single().Body), Is.EqualTo("<@424242> is on deck"));
+    }
+
+    [Test]
     public async Task SendMessage_Should_UseDisplayName_When_ClaimIsNotADiscordId()
     {
         var season = await _context.AddSeason();
