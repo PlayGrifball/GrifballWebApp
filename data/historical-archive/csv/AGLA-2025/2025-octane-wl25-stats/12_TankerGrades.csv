@@ -1,0 +1,60 @@
+#REF!,Goals PM,KD PM,Punches PM,Sprees PM,DPM,TPM,MKPM,XFACT,KPM,,#REF!,Goals PM,KD PM,Punches PM,Sprees PM,DPM,TPM,MKPM,XFACT,KPM,Grade AVG,gAVGmath,,,,Goals PM,KD PM,Punches PM,Sprees PM,DPM,TPM,MKPM,XFACT,KPM
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,Grade,Value,S+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S+,11,S,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S,10.5,S-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S-,10,A+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A+,9.5,A(Q3/Q1),#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A,9,A-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A-,8.5,B+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B+,8,B(MED-A/C),#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B,7.5,B-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B-,7,C+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C+,6.5,C(Q2),#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C,6,C-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C-,5.5,D+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,D+,5,D(MED-C/E),#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,D,4.5,D-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,D-,4,E+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,E+,3.5,E(Q3/Q1),#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,E,3,E-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,E-,2.5,F+,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,F+,2,F,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,F,1.5,F-,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,F-,1,,,,,,,ffffff
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,,,,0.9791666667
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S+,#REF!,,0.9583333333
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S,#REF!,,0.9375
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,S-,#REF!,,0.8958333333
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A+,#REF!,,0.8541666667
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A,#REF!,,0.8125
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,A-,#REF!,,0.75
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B+,#REF!,,0.6875
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B,#REF!,,0.625
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,B-,#REF!,,0.5416666667
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C+,#REF!,,0.4583333333
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C,#REF!,,0.375
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,C-,#REF!,,0.3125
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,D+,#REF!,,0.25
+,#REF!,,,,,,,,,,,#REF!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#NUM!,#REF!,#REF!,D,#REF!,,0.1875
+,,,,,,,,,,,,,,,,,,,,,,,D-,#REF!,,0.1458333333
+,,,,,,,,,,,,,,,,,,,,,,,E+,#REF!,,0.1041666667
+,,,,,,,,,,,,,,,,,,,,,,,E,#REF!,,0.0625
+,,,,,,,,,,,,,,,,,,,,,,,E-,#REF!,,0.04166666667
+,,,,,,,,,,,,,,,,,,,,,,,F+,#REF!,,0.02083333333
+,,,,,,,,,,,,,,,,,,,,,,,F,#REF!,,0
+,,,,,,,,,,,,,,,,,,,,,,,F-,#REF!
+,,,,,,,,,,,,,,,,,,,,,,,Goals PM,,0.1,GoalsPM=,Goals per minute
+,,,,,,,,,,,,,,,,,,,,,,,KDPM,0.55,,KDPM=,Kill/Deaths per minute
+,,,,,,,,,,,,,,,,,,,,,,,PPM,,0,PPM=,Ball Punches per minute
+,,,,,,,,,,,,,,,,,,,,,,,SPM,0.35,,SPM=,Sprees per minute
+,,,,,,,,,,,,,,,,,,,,,,,DPM,0.2,,DPM=,Double kills per minute
+,,,,,,,,,,,,,,,,,,,,,,,TPM,0.25,,TPM=,Triple Kills per minute
+,,,,,,,,,,,,,,,,,,,,,,,MKPM,0.35,,MKPM,Grand Slams+Overkills+every multikill medal above it per minute
+,,,,,,,,,,,,,,,,,,,,,,,XFACT,0.1,,XFACT=,pancake+killjoy+whiplash+bulltrue+assists per minute
+,,,,,,,,,,,,,,,,,,,,,,,KPM,0.25,,KPM=,Kills per minute
+,,,,,,,,,,,,,,,,,,,,,,,Weighting,,Adding Punches per minute
+,,,,,,,,,,,,,,,,,,,,,,,increase sprees per minute
+,,,,,,,,,,,,,,,,,,,,,,,decrease goals per minute
+,,,,,,,,,,,,,,,,,,,,,,,add punches per minute
+,,,,,,,,,,,,,,,,,,,,,,,remove bulltrues per minute
+,,,,,,,,,,,,,,,,,,,,,,,remove harpoon from XFACT

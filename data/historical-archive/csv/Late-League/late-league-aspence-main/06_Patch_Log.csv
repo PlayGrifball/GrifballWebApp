@@ -1,0 +1,140 @@
+Date,What's In the Patch
+7-18-2021,"Visual
+    Bot visuals have been drastically improved. You will now see better visual organization for each command that corresponds to player information output.
+
+- Removed rank and stats commands. Replaced with profile command. 
+- New profile section displays your Rank, Grifbux, stats for the currently selected game.
+- Colored bar in profile correlates to the player's current rank.
+- Updated post game information display. Now shows both teams with each player's current rank and LP.
+
+Lobby & Match Functionality
+    The lobby system & win input system have been enhanced. Generation of a lobby will be faster and more precise than before. Additionally the ability to determine the hosting type has been added. These newer features are a step in the right direction to ultimately allow players to run their own lobbies.
+
+- Bot will now create a lobby once 8 players have signed up.
+- Addition of a command to select host type. Dedicated host positioned in Central is on by default.
+- Addition of a voting system for players to determine the winning team. Votes are completed through selecting the corresponding emote for Red or Blue teams.
+- On court host selection randomly selects a player from the lobby. Selected host will have a higher weighting applied to team generation. This will help balance teams more efficiently.
+
+Base Rank Progression
+    Standard rank progression has changed to work in tandem with the new placement & balancing system. In order to match the new speeds at which players will progress, the current numbers had to be swapped up.
+
+- LP gains for wins reduced to 25 per win. Down from 30 per win.
+- LP gains for losses reduced to -15 per loss. Down from 21 per loss.
+- LP gains for 3 win streak increased to 25. Up from 10.
+- LP gains for 6 win streak increased to 50. Up from 16.
+- LP gains for 3 loss streak increased to -25. Up from -12.
+- LP gains for 6 loss streak increased to -50. Up from -18.
+
+Placements & Player Balancing
+    Placements have been changed to handle the new rank progression. Instead of 5 matches to determine your starting position, you will have 3 matches to build your starting player grade. As you continue to play, your player grade will become more accurate, narrowing down your progression until you’ve reached the system desired rank. 
+
+- Removed amateur & pro monikers.
+- Placement match total reduced to 3 games. Down from 5.
+- Placement MMR gains per win remain the same. MMR gains per loss remain the same.
+- Accelerated LP gain system implemented based on player grade. Each grade has an MMR ranking correlated to it. Example acceleration:
+
+            S Grade Player will receive
+            300 LP (3 ranks) per win in Bronze.
+            200 LP (2 ranks) per win in Silver.
+            100 LP (1 rank) per win in Gold.
+            50 LP per win in Platinum.
+            25 LP (base gains) per win in Diamond.
+
+Grifbux
+    Means of earning Grifbux have been introduced through Late League. For every win you receive & every time you neutral host a match, you will receive 20 Grifbux. The bot will now keep track of all Grifbux earned, with a means to identify your current total via the profile command. As of now, every Sunday will be the payout period.
+
+- Addition of Grifbux. Players receive 20 per win & 20 per neutral hosting.
+- Profile command displays current Grifbux total.
+- Grifbux are paid out every sunday.
+- Grifbux total is purged on payout.
+- All Grifbux earnings are retroactive.
+"
+7/21/2021,"Hotfix
+- Reduced lobby generation loop timer down to 3 seconds. Down from 30 seconds
+- Added a que for remove commands when a match is in session. Removes will initiate once stats have been written."
+7/22/2021,"Hotfix
+- Halo 4 medals have been added for stat tracking. Medals from previous matches are not retroactively added. This may change in the future."
+8-8-2021,"Introduction of Season Lengths
+        Late League will now have better organization & transparency with how seasons work. Each game will have a set season length by the number of hosted days. This allows for players to have a clear understanding of how many days they can effectively play.
+
+- All Halo’s start with 30 session season length. Sessions are defined by a hosted day. 
+- Seasons may increase in session length as seen fit.
+
+Mid-End of Season Tournaments
+        In order to improve competitiveness in a season, we’re introducing mid and end of season tournaments. More information will be give on this at a later date.
+
+Visual
+- Profile page now displays if a player has not played in the current season.
+- Waitlist now displays estimated wait time for each player. First few sessions may display incorrect times. Estimated time will increase in accuracy for following sessions.
+- Lobby now shows the remaining season length.
+
+Lobby & Match Functionality
+- Europe has been removed as an option for neutral & oncourt host.
+
+Player Bot Command
+In order to help facilitate automation, new commands have been added to the bot functionality. Likewise discord username handling has been improved.
+
+- Bot will now handle discord user names with @USERNAME. 
+- &kick @discordusername in order to start a vote kick. 5 votes are required to kick a player from the lobby.
+- &drop will now allow players to drop themselves to the bottom of the wait-list.
+- &board command added. &leaderboard removed.
+- &board will now display the top 5 players for each Halo.
+- &board halo4 | halo5 | haloreach | halo3 will display the top 15 players for the chosen game.
+
+New Game Addition
+        It’s about time to have a new game thrown in the mix. Halo 5 has been added in to help give those with the itch a chance to play competitively with others in the community.
+
+- Halo 5 has been fully implemented into the bot & google sheet.
+- Stat collection is fully automated from the Halo API
+- Lobby generation times are longer than standard due to API response times.
+
+Base Rank Progression
+        In order to help maintain a healthy state of progression for players, LP adjustments have been made to make it happen.
+
+- All LP from losses adjusted from original base of -15
+- LP gains for losses reduced to -10 in Bronze/Silver/Gold/Platinum 3
+- LP gains for losses reduced to -15 in Bronze/Silver/Gold/Platinum 2
+- LP gains for losses reduced to -20 in Bronze/Silver/Gold/Platinum 1
+- LP gains for losses reduced to -10 in Diamond 3
+- LP gains for losses reduced to -20 in Diamond 2
+- LP gains for losses increased to -30 in Diamond 1
+- LP gains for losses reduced to -15 in Masters 3
+- LP gains for losses increased to -30 in Masters 2
+- LP gains for losses increased to -50 in Masters 1
+
+Player Grade Adjustments
+- Halo 4 has received 3 new player grades; Playmaking, Defence, Stops per Minute.
+- Halo 4 weightings have been adjusted.
+"
+8/10/2021,"Hotfix
+- Lobby-info channels are now temporary channels created for the session. Only players within the lobby can see the channel.
+- Team voice channels are now temporary channels created for the session. Only player of the correct team can see their channel.
+- Added match-history channel to display all post game information. 
+- Bot now automoves users into their respective team channels when lobby is generated. Players will be moved back into the main lobby after a match's voting concludes. "
+10-16-2021,"Bot Updates
+        - Addition of leaderboard channel. Updates after each session to the latest top 15 players.
+        - Addition of queue channel. Updates in real time when players join, drop, & remove themselves.
+        - Removal of voting for winner
+        - Addition of &list command to show you current signup list.
+        
+Lobby Changes
+        - Removal of voting for winner
+        - Addition of XML uploading in Lobby Info channel. Bot determines winner through XML.
+        - Additon of XML authenticity verification.
+        - Addition of emote voting for changing Lobby host & restarting Lobby."
+10/21/2021,"Lobby Function
+        - Addition of a buffer to prevent lobbies from closing when a player leaves the lobby. 
+        - Addition of quick post game information.
+        - Updated command information in Lobby Info
+        - Addition of High Stakes matches. Every 5th match will be High Stakes. 
+           -High Stakes creates unbalanced teams with one being the favored to win. The favored team receives reduced LP for a win & loses substantial LP for a loss. Opposite applies for non-favored team.
+        
+Base Rank Progression
+        - Addition of Iron rank. MMR will be 0-50.
+        - Streak bonuses changed from +25,50,75,100 reduced to +15,30,45,60"
+11/24/2021,"Bot Function
+       - Bot will now auto open signups at 8pm EST
+       - Bot will now auto close signups at 3am EST if there are 4 players or less signed up."
+11/25/2021,"Lobby Function
+        - Added drop down functionality for voting for host type & to restart the lobby.
+        - Added drop down functionality for vote kicking."

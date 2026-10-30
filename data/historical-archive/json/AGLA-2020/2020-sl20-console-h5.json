@@ -1,0 +1,364 @@
+{
+  "id": "2020-sl20-console-h5",
+  "category": "AGLA-2020",
+  "year": 2020,
+  "title": "SL20 Console Halo 5",
+  "url": "https://docs.google.com/spreadsheets/d/1snAr7pMsghrUt5X11vuSEaHIN_2tPNudl2nJUfzuS0M/edit?ts=5e8a3140#gid=1623708663",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 13,
+      "colCount": 8,
+      "sampleHeader": [
+        "",
+        "AGLA SL20 Halo 5 Schedule"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-h5/01_Schedule.csv"
+    },
+    {
+      "index": 2,
+      "name": "Standings",
+      "hidden": false,
+      "rowCount": 11,
+      "colCount": 6,
+      "sampleHeader": [
+        "AGLA Console Circuit: Halo 5 Series Standings"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-h5/02_Standings.csv"
+    },
+    {
+      "index": 3,
+      "name": "Rosters",
+      "hidden": false,
+      "rowCount": 10,
+      "colCount": 7,
+      "sampleHeader": [
+        "Team",
+        "Captain",
+        "Player 1",
+        "Player 2",
+        "Player 3",
+        "Player 4",
+        "Player 5"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-h5/03_Rosters.csv"
+    }
+  ],
+  "bytes": 70915,
+  "fullSheets": [
+    {
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 13,
+      "colCount": 8,
+      "rows": [
+        [
+          "",
+          "AGLA SL20 Halo 5 Schedule"
+        ],
+        [
+          "",
+          "SUN",
+          "MON",
+          "TUES",
+          "WED",
+          "THURS",
+          "FRI",
+          "SAT"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        [
+          "",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11"
+        ],
+        [
+          "",
+          "",
+          "\n\n9:30pm: Impulse (5) vs. High Voltage (1)",
+          "8:30pm: Junkyard Dogs (5) vs. Behind Enemy Lines (1)\n\n",
+          "",
+          "8:00pm: Legacy (5) vs. Behind Enemy Lines (1)\n\n8:30pm: Power OUtage (3) vs. Legacy (5)",
+          "9:00pm: Power Outage (5) vs. Oblivion (3)",
+          "9:00pm: Lag Spike (4) vs. Endgame (5)\n\n9:00pm: Oblivion (0) vs. High Voltage (5)\n\n9:30pm: Endgame (0) vs. Junkyard Dogs (5)"
+        ],
+        [
+          "",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
+          "18"
+        ],
+        [
+          "",
+          "9:30pm: Impulse (5) vs. Oblivion (2)\n\n10:00pm: Legacy (5) vs. Impulse (0)\n\n",
+          "7:30pm: Impulse (1) vs. Behind Enemy Lines (5)\n\n9:30pm: High Voltage (1) vs. Junkyard Dogs (5)",
+          "",
+          "9:30pm: Lag Spike (2) vs. High Voltage (5)",
+          "",
+          "8:30pm: Power Outage (0) vs. High Voltage (5)\n\n9:30pm: Lag Spike vs. Power Outage\n\n\n\n",
+          "9:00pm: Legacy (1) vs. Endgame (5)\n\n9:30pm: Endgame (3) vs. Behind Enemy Lines (5)\n\n9:30pm: Oblivion (1) vs. Junkyard Dogs (5)"
+        ],
+        [
+          "",
+          "19",
+          "20",
+          "21",
+          "22",
+          "23",
+          "24",
+          "25"
+        ],
+        [
+          "",
+          "8:30pm: Legacy (5) vs Oblivion (0)\n\n9:00pm: Legacy (3) vs. High Voltage (5)\n\n9:00pm: Impulse vs. Lag Spike",
+          "9:00pm: Impulse vs. Junkyard Dogs\n\n9:00pm: Lag Spike (3) vs. Behind Enemy Lines (5)",
+          "9:30pm: Junkyard Dogs (5) vs. Legacy (1)",
+          "",
+          "",
+          "8:30pm: Behind Enemy Lines (5) vs. Power Outage (3)",
+          "9:00pm: Power Outage vs. Endgame\n\n9:30pm: Endgame (5) vs. Oblivion (1)"
+        ],
+        [
+          "",
+          "26",
+          "27",
+          "28",
+          "29",
+          "30",
+          "1",
+          "2"
+        ],
+        [
+          "",
+          "9:30pm: Oblivion vs. Lag Spike",
+          "9:00pm: Power OUtage (5) vs. Impulse (1)\n\n9:30pm: Junkyard Dogs vs. Lag Spike",
+          "9:00pm: Power Outage (0) vs. Junkyard Dogs (5)\n\n9:30pm: Lag Spike vs. Legacy",
+          "8:00pm: Behind Enemy Lines (1) vs. High Voltage (5)",
+          "",
+          "8:00pm: Oblivion vs. Behind Enemy Lines",
+          "9:00pm: Impulse (0) vs. Endgame (5)\n\n9:30pm: Endgame vs. High Voltage"
+        ],
+        [
+          "",
+          "N O T E S"
+        ],
+        [
+          "",
+          "Games in bold have not been reported\n\nTo quickly find your team's games simply hit Control+F and type in your team name. "
+        ]
+      ]
+    },
+    {
+      "name": "Standings",
+      "hidden": false,
+      "rowCount": 11,
+      "colCount": 6,
+      "rows": [
+        [
+          "AGLA Console Circuit: Halo 5 Series Standings"
+        ],
+        [
+          "Team",
+          "Wins",
+          "Losses",
+          "Gaols For",
+          "Goals Against",
+          "Goal Efficiency"
+        ],
+        [
+          "Junkyard Dogs",
+          "8",
+          "0",
+          "30",
+          "4",
+          "0.8823529412"
+        ],
+        [
+          "High Voltage",
+          "5",
+          "3",
+          "27",
+          "16",
+          "0.6279069767"
+        ],
+        [
+          "Endgame",
+          "5",
+          "3",
+          "23",
+          "16",
+          "0.5897435897"
+        ],
+        [
+          "Legacy",
+          "5",
+          "3",
+          "25",
+          "19",
+          "0.5681818182"
+        ],
+        [
+          "Behind Enemy Lines",
+          "5",
+          "3",
+          "23",
+          "25",
+          "0.4791666667"
+        ],
+        [
+          "Impulse",
+          "3",
+          "5",
+          "12",
+          "23",
+          "0.3428571429"
+        ],
+        [
+          "Power Outage",
+          "3",
+          "5",
+          "16",
+          "24",
+          "0.4"
+        ],
+        [
+          "Oblivion",
+          "1",
+          "7",
+          "7",
+          "30",
+          "0.1891891892"
+        ],
+        [
+          "Lag Spike",
+          "0",
+          "8",
+          "9",
+          "15",
+          "0.375"
+        ]
+      ]
+    },
+    {
+      "name": "Rosters",
+      "hidden": false,
+      "rowCount": 10,
+      "colCount": 7,
+      "rows": [
+        [
+          "Team",
+          "Captain",
+          "Player 1",
+          "Player 2",
+          "Player 3",
+          "Player 4",
+          "Player 5"
+        ],
+        [
+          "Oblivion",
+          "KindredDaedric",
+          "Ace B S1lentND1",
+          "Tariq TE",
+          "FadedFLYS",
+          "Scet",
+          "Vickfan7"
+        ],
+        [
+          "High Voltage",
+          "Cavalier IV",
+          "Ming Crusader",
+          "Silva",
+          "SnipezzzTTV",
+          "El Diablo X230X",
+          "Fireboy"
+        ],
+        [
+          "Endgame",
+          "TcT Avenger",
+          "Galvann",
+          "xSeoulSnatch",
+          "Mungo Pungo",
+          "Nard0turko",
+          "Grunt Padre"
+        ],
+        [
+          "Junkyard Dogs",
+          "Skiyttles",
+          "KDSkill",
+          "Innerimoral (Veli)",
+          "Enfright (Weabs)",
+          "oDhmon",
+          "SIMQ"
+        ],
+        [
+          "Power Outage",
+          "Activehate",
+          "Rage More Nerd",
+          "Mr Above Nub",
+          "Priest XYZ",
+          "frenzh",
+          "Revengeinthesky"
+        ],
+        [
+          "Behind Enemy Lines",
+          "TcT Jbomb",
+          "MysticalNovice",
+          "KING RICKXL",
+          "Havoc Puppies",
+          "BigDaddyMayan",
+          "RedHeadKing"
+        ],
+        [
+          "Impulse",
+          "MsMeowlla",
+          "Hide yo o kidz",
+          "DCleak",
+          "Its Rainin MenZ",
+          "Psayi",
+          "C Slick4"
+        ],
+        [
+          "Legacy",
+          "Reyas",
+          "BCN19",
+          "Thumpinghawk",
+          "Trespa5s",
+          "redangela1",
+          "Shifty X Team 5"
+        ],
+        [
+          "Lag Spike",
+          "Stop Killing Me",
+          "The Eastbrook",
+          "Xz Amicable",
+          "Kuuchsurk",
+          "AsCrack2255",
+          "Brumak97"
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3768 @@
+{
+  "sourceId": "history-agla-champions",
+  "sourceUrl": "https://docs.google.com/spreadsheets/d/1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg/edit?gid=0#gid=0",
+  "totalChampionshipsRecorded": 76,
+  "totalPlayersWithRings": 264,
+  "champions": [
+    {
+      "season": "Original 8 Tounament",
+      "game": "Halo 3",
+      "league": "Open",
+      "team": "SG1",
+      "captain": "Kroze",
+      "roster": [
+        "Kroze",
+        "Dix",
+        "Godzilla",
+        "Paladin",
+        "Aperture"
+      ]
+    },
+    {
+      "season": "Winter League 2008",
+      "game": "Halo 3",
+      "league": "Open",
+      "team": "Cannonball",
+      "captain": "ii flowers ii",
+      "roster": [
+        "ii flowers ii",
+        "JOEPRO v2",
+        "orcishmiscreant",
+        "Bebop Gastelum",
+        "OboeCrazy",
+        "TTL Quikthnkr",
+        "dropg",
+        "JustJwl"
+      ]
+    },
+    {
+      "season": "Spring League 2008",
+      "game": "Halo 3",
+      "league": "Open",
+      "team": "Grunts of Fury",
+      "captain": "El Driver",
+      "roster": [
+        "El Driver",
+        "Blade B48",
+        "Shadow S16",
+        "x0 pie x0",
+        "Youngnastyman79",
+        "FunkySteam",
+        "protoplayer36"
+      ]
+    },
+    {
+      "season": "Summer League 2008",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Shut Your Lips and Learn",
+      "captain": "El Driver",
+      "roster": [
+        "El Driver",
+        "Magorphenger",
+        "Shadow S16",
+        "x0 pie x0",
+        "Sgt Nathan West",
+        "l Flowers l",
+        "x Zeg x"
+      ]
+    },
+    {
+      "season": "Summer League 2008",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "The Rain Makers",
+      "captain": "TRM Doc",
+      "roster": [
+        "TRM Doc",
+        "TRM Jayhawk",
+        "KiLla Iz PrO 13",
+        "iheartMETHADONE"
+      ]
+    },
+    {
+      "season": "Winter League 2009",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Gaming So Hard",
+      "captain": "Doc Status",
+      "roster": [
+        "Doc Status",
+        "Love Thumee",
+        "Twizzted Status",
+        "NKOTb4evah",
+        "iWrestle8",
+        "PhD Spaz",
+        "Crowing",
+        "Lost Status"
+      ]
+    },
+    {
+      "season": "Winter League 2009",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Put It On The Pad",
+      "captain": "HighlndHellrazr",
+      "roster": [
+        "HighlndHellrazr",
+        "Tad Neptune",
+        "donnieredboy",
+        "guthouse",
+        "Mr Loots"
+      ]
+    },
+    {
+      "season": "Spring League 2009",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Strictly Business",
+      "captain": "Shadow S16",
+      "roster": [
+        "Shadow S16",
+        "x0 pie x0",
+        "I Flowers I",
+        "Super Status",
+        "Scet Shin",
+        "PhD Spaz"
+      ]
+    },
+    {
+      "season": "Spring League 2009",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Galloping Seagulls",
+      "captain": "Dr Waffels",
+      "roster": [
+        "Dr Waffels",
+        "El Diablo",
+        "Major Silva",
+        "Doerstopper",
+        "Amerijap"
+      ]
+    },
+    {
+      "season": "Summer League 2009",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Power Outage",
+      "captain": "TurbanEspy",
+      "roster": [
+        "TurbanEspy",
+        "TheCokester",
+        "Jlamanna91",
+        "Proj3ctSnake",
+        "The Corn Ninja",
+        "Sean Cohen"
+      ]
+    },
+    {
+      "season": "Summer League 2009",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Zero Logic",
+      "captain": "NHALING2XHALE",
+      "roster": [
+        "NHALING2XHALE",
+        "JudasFEKE II",
+        "MSSR Martin",
+        "Otakusamurai2",
+        "Final Keyblade",
+        "Bojangles9000",
+        "blue collar kid"
+      ]
+    },
+    {
+      "season": "Fall League 2009",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Can't Understand Neanderthal Tone",
+      "captain": "x Zeg x",
+      "roster": [
+        "x Zeg x",
+        "x0 pie x0",
+        "Scet Shin",
+        "lol Ninj0",
+        "Bynumator",
+        "Doerstopper"
+      ]
+    },
+    {
+      "season": "Fall League 2009",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Yup Guppies",
+      "captain": "Pacman",
+      "roster": [
+        "Pacman",
+        "II BlueZebra II",
+        "Dinglerfritzer",
+        "iStrafety",
+        "Delta Force"
+      ]
+    },
+    {
+      "season": "Winter League 2010",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "<3",
+      "captain": "Taylor Cann",
+      "roster": [
+        "Taylor Cann",
+        "T Rich Da King",
+        "D Hans",
+        "I MajorSilva I",
+        "Doc Status",
+        "Love Thumee",
+        "Crowing"
+      ]
+    },
+    {
+      "season": "Winter League 2010",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Apocalypse Ponies",
+      "captain": "blue collar kid",
+      "roster": [
+        "blue collar kid",
+        "ManbearpigX2",
+        "HoboSaaz",
+        "Nolan Black",
+        "DSR Pie",
+        "Oh Booster Seat"
+      ]
+    },
+    {
+      "season": "Spring League 2010",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Dat Orange Kush",
+      "captain": "I Major Silva I",
+      "roster": [
+        "I Major Silva I",
+        "MenztrualCramps",
+        "Twizzted Status",
+        "T Rich Da King",
+        "YoungNastyMan79",
+        "Crowing"
+      ]
+    },
+    {
+      "season": "Spring League 2010",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Trippin Ballz",
+      "captain": "I DIM3 I",
+      "roster": [
+        "I DIM3 I",
+        "Str8 Metal",
+        "bred4war",
+        "TJP11"
+      ]
+    },
+    {
+      "season": "Summer League 2010",
+      "game": "Halo 3",
+      "league": "Pro",
+      "team": "Cool Kids Club",
+      "captain": "AllegedHornet",
+      "roster": [
+        "AllegedHornet",
+        "x0 pie x0",
+        "Taylor Cann",
+        "Love Thumee",
+        "Doc Status",
+        "Veritas"
+      ]
+    },
+    {
+      "season": "Summer League 2010",
+      "game": "Halo 3",
+      "league": "Amateur",
+      "team": "Relentless",
+      "captain": "oDime",
+      "roster": [
+        "oDime",
+        "V IE R I T A S",
+        "Overweighttank",
+        "JAW5H OF D00M",
+        "TJP11",
+        "Veritas"
+      ]
+    },
+    {
+      "season": "Winter League 2011",
+      "game": "Halo Reach",
+      "league": "Pro",
+      "team": "Cabs Are Here",
+      "captain": "halfbreed105",
+      "roster": [
+        "halfbreed105",
+        "OverweightTank",
+        "Fanciest Pants",
+        "Yo DrGreenthumb",
+        "CJ Plaunsters",
+        "skipper iz here",
+        "PacFRITZERman"
+      ]
+    },
+    {
+      "season": "Winter League 2011",
+      "game": "Halo Reach",
+      "league": "Amateur",
+      "team": "Downstait",
+      "captain": "Hoya16",
+      "roster": [
+        "Hoya16",
+        "BigG1790",
+        "NoFun4You888",
+        "Matrixmonkey17",
+        "Paul Dolby",
+        "xlShepardlx",
+        "LoydTheVoid"
+      ]
+    },
+    {
+      "season": "Spring League 2011",
+      "game": "Halo Reach",
+      "league": "Pro",
+      "team": "Way to Fail",
+      "captain": "PriestXYZ",
+      "roster": [
+        "PriestXYZ",
+        "v Determined v",
+        "ID I2 IA G O N",
+        "DlGITAL PAIN"
+      ]
+    },
+    {
+      "season": "Spring League 2011",
+      "game": "Halo Reach",
+      "league": "Amateur",
+      "team": "Red Ray",
+      "captain": "runNOKYARDrun",
+      "roster": [
+        "runNOKYARDrun",
+        "Avaianche812",
+        "Momstaco81",
+        "Papa Cap X",
+        "JKPgamer",
+        "Sp0nY"
+      ]
+    },
+    {
+      "season": "Summer League 2011",
+      "game": "Halo Reach",
+      "league": "Pro",
+      "team": "<3",
+      "captain": "Love Thumee",
+      "roster": [
+        "Love Thumee",
+        "T Rich Da King",
+        "Shadow S16",
+        "Doc Status",
+        "The Silvaa",
+        "iWrestle8"
+      ]
+    },
+    {
+      "season": "Summer League 2011",
+      "game": "Halo Reach",
+      "league": "Amateur",
+      "team": "The Fatal Four",
+      "captain": "II Got3nks II",
+      "roster": [
+        "II Got3nks II",
+        "Ezy08",
+        "ShadowAlche3mi5t",
+        "Itmkid",
+        "Angel9001",
+        "ShinYeg",
+        "iDurrp",
+        "Rated Mature"
+      ]
+    },
+    {
+      "season": "Winter League 2012",
+      "game": "Halo Reach",
+      "league": "Open",
+      "team": "Lake Greats",
+      "captain": "Yo DrGreenthumb",
+      "roster": [
+        "Yo DrGreenthumb",
+        "blue collar kid",
+        "halfbreed105",
+        "Fanciest Pants",
+        "YEAG3R",
+        "OVERweightGOAT",
+        "Hi im Pacman",
+        "T RICH Da King"
+      ]
+    },
+    {
+      "season": "Spring League 2012",
+      "game": "Halo Reach",
+      "league": "Open",
+      "team": "T Rich and Rockman Go Back To High School",
+      "captain": "Major Silva",
+      "roster": [
+        "Major Silva",
+        "Shadow S16",
+        "Rockys12",
+        "T Rich Da King",
+        "v Determined v",
+        "Blade B48"
+      ]
+    },
+    {
+      "season": "Summer League 2012",
+      "game": "Halo Reach",
+      "league": "Open",
+      "team": "Easy as Pie",
+      "captain": "Major Silva",
+      "roster": [
+        "Major Silva",
+        "x0 pie x0",
+        "Rockys12",
+        "IVI 0 0 S",
+        "Shadow S16",
+        "T Rich Da King",
+        "Taylor Cann",
+        "Tad Neptune"
+      ]
+    },
+    {
+      "season": "Winter League 2013",
+      "game": "Halo 4",
+      "league": "Open",
+      "team": "Four Guys One Ball",
+      "captain": "Crusader0102",
+      "roster": [
+        "Crusader0102",
+        "TrueFlyingCow",
+        "L1ght5aber",
+        "fullofmyself",
+        "Rage More Nerd",
+        "Jedi Hunter"
+      ]
+    },
+    {
+      "season": "Summer League 2013",
+      "game": "Halo 4",
+      "league": "Open",
+      "team": "Hybrid Theory",
+      "captain": "iSnipeUd0wn",
+      "roster": [
+        "iSnipeUd0wn",
+        "IVI 0 0 S",
+        "x352x piggies",
+        "RAMBOStrueBLOOD",
+        "ACE B S1lentND1",
+        "SlimJimX50",
+        "RosaTookMahSeat"
+      ]
+    },
+    {
+      "season": "Fall League 2013",
+      "game": "Halo 4",
+      "league": "Pro",
+      "team": "One Hit Wonders",
+      "captain": "Shadow S16",
+      "roster": [
+        "Shadow S16",
+        "Crusader0102",
+        "x352x piggies",
+        "Rage More Nerd",
+        "eTazedd",
+        "TrueFlyingCow"
+      ]
+    },
+    {
+      "season": "Fall League 2013",
+      "game": "Halo 4",
+      "league": "Amateur",
+      "team": "Retroactive",
+      "captain": "TheAlphaTurtle",
+      "roster": [
+        "TheAlphaTurtle",
+        "Beam Me Up 11",
+        "Thunder4400",
+        "ACHunter",
+        "Blue Collar Kid",
+        "Nikodemons",
+        "combustikation"
+      ]
+    },
+    {
+      "season": "Spring League 2014",
+      "game": "Halo 4",
+      "league": "Pro",
+      "team": "Pro Run",
+      "captain": "Ezy08",
+      "roster": [
+        "Ezy08",
+        "DlGITAL PAIN",
+        "a man canon",
+        "Yutt Ughhhhhhhh",
+        "A Love So Pure",
+        "Five Try Hard"
+      ]
+    },
+    {
+      "season": "Spring League 2014",
+      "game": "Halo 4",
+      "league": "Amateur",
+      "team": "Bad Intentions",
+      "captain": "Bear is Clutch",
+      "roster": [
+        "Bear is Clutch",
+        "ChocolateTigerX",
+        "Kyles1NSpace",
+        "Nikodemons",
+        "Angel of Grif",
+        "Alwaystrollin"
+      ]
+    },
+    {
+      "season": "Summer League 2014",
+      "game": "Halo 4",
+      "league": "Pro",
+      "team": "Next Dimenstion",
+      "captain": "Shadow S16",
+      "roster": [
+        "Shadow S16",
+        "NetsPride15",
+        "SilentShadow459",
+        "Oh My Godlxss",
+        "II Got3nks II",
+        "Doc Sword"
+      ]
+    },
+    {
+      "season": "Summer League 2014",
+      "game": "Halo 4",
+      "league": "Amateur",
+      "team": "Hyperdrive",
+      "captain": "Perfect Demise",
+      "roster": [
+        "Perfect Demise",
+        "SonicRainboom",
+        "Routine Ritual",
+        "Lorde Rey",
+        "AwareMosquito",
+        "Rekamcipdiputs",
+        "Daves Toy",
+        "BxA Real Deal D"
+      ]
+    },
+    {
+      "season": "Fall League 2014",
+      "game": "Halo 4",
+      "league": "Pro",
+      "team": "Next Dimenstion",
+      "captain": "Shadow S16",
+      "roster": [
+        "Shadow S16",
+        "NetsPride15",
+        "Cutthroat912",
+        "Killerz Legit",
+        "Freakshow187",
+        "Jester1194"
+      ]
+    },
+    {
+      "season": "Fall League 2014",
+      "game": "Halo 4",
+      "league": "Amateur",
+      "team": "Aftershock",
+      "captain": "About73Puppies",
+      "roster": [
+        "About73Puppies",
+        "Angel of Grif",
+        "rekamcipdiputs",
+        "AB0UT73PUPPIES",
+        "Klianite",
+        "megamura"
+      ]
+    },
+    {
+      "season": "Spring League 2015",
+      "game": "MCC Halo 4",
+      "league": "Pro",
+      "team": "Hybrid Theory",
+      "captain": "ixGingy",
+      "roster": [
+        "ixGingy",
+        "Ezy08",
+        "ActiveHate",
+        "THEXILEDRAGON",
+        "Routine Ritual"
+      ]
+    },
+    {
+      "season": "Spring League 2015",
+      "game": "MCC Halo 4",
+      "league": "Amateur",
+      "team": "Bad Intentions",
+      "captain": "TG Revenge 40",
+      "roster": [
+        "TG Revenge 40",
+        "NecessaryEvil10",
+        "KING RICKXL",
+        "DJBlue PDX",
+        "RENEGADEofFUNK1",
+        "LvL 25 Magikarp"
+      ]
+    },
+    {
+      "season": "Summer League 2015",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Retroactive",
+      "captain": "TheAlphaTurtle",
+      "roster": [
+        "TheAlphaTurtle",
+        "NetsPride15",
+        "xRebsx",
+        "DIGITAL PAIN",
+        "Paragon Saber"
+      ]
+    },
+    {
+      "season": "Fall League 2015",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Hybrid Theory",
+      "captain": "Shadow S16",
+      "roster": [
+        "Shadow S16",
+        "sonicchaos1993",
+        "overweightgoat",
+        "Priest XYZ",
+        "Youngnastyman79"
+      ]
+    },
+    {
+      "season": "Fall League 2015",
+      "game": "MCC Halo 4",
+      "league": "Open",
+      "team": "Pro Run",
+      "captain": "Killerz Legit",
+      "roster": [
+        "Killerz Legit",
+        "Lorde Rey",
+        "II got3nks II",
+        "amnatu",
+        "kev1897",
+        "m3TTa World War",
+        "Drache Naito"
+      ]
+    },
+    {
+      "season": "Summer League 2016",
+      "game": "Halo 5",
+      "league": "Open",
+      "team": "Impulse",
+      "captain": "KID TONGA 1",
+      "roster": [
+        "KID TONGA 1",
+        "SilentShadow451",
+        "Galvann",
+        "xStarBlade",
+        "KING RICK XL"
+      ]
+    },
+    {
+      "season": "Spring League 2017",
+      "game": "Halo 5",
+      "league": "Pro",
+      "team": "Vital Signs",
+      "captain": "InfiniteRain",
+      "roster": [
+        "InfiniteRain",
+        "NetsPride15",
+        "oUniqueRose",
+        "Ouglaf11",
+        "BCN19"
+      ]
+    },
+    {
+      "season": "Spring League 2017",
+      "game": "Halo 5",
+      "league": "Amateur",
+      "team": "Underrated",
+      "captain": "PoisonxPoptart",
+      "roster": [
+        "PoisonxPoptart",
+        "KSI Gambit 7",
+        "Rayzyr",
+        "Invayda Zim",
+        "AlwaysTrollin"
+      ]
+    },
+    {
+      "season": "Fall League 2017",
+      "game": "Halo 5",
+      "league": "Pro",
+      "team": "Impulse",
+      "captain": "NetsPride15",
+      "roster": [
+        "NetsPride15",
+        "The Eastbrook",
+        "The Piggies",
+        "ACE B S1lentND1",
+        "MsMeowlla"
+      ]
+    },
+    {
+      "season": "Fall League 2017",
+      "game": "Halo 5",
+      "league": "Legacy",
+      "team": "Defiance",
+      "captain": "Trespa5s",
+      "roster": [
+        "Trespa5s",
+        "Rayzyr",
+        "Gen Seizon Sha",
+        "Dirty Murder tx"
+      ]
+    },
+    {
+      "season": "Summer League 2018",
+      "game": "Halo 5",
+      "league": "Pro",
+      "team": "Grammaton Clerics",
+      "captain": "InfiniteRain",
+      "roster": [
+        "InfiniteRain",
+        "DCleak",
+        "ACE B S1lentND1",
+        "oUniqueRose",
+        "ST0P KILLING ME"
+      ]
+    },
+    {
+      "season": "Summer League 2018",
+      "game": "Halo 5",
+      "league": "Amateur",
+      "team": "Nobility",
+      "captain": "RevengeintheSky",
+      "roster": [
+        "RevengeintheSky",
+        "I Copilot I",
+        "SKiYTTLES",
+        "Perfect Demise"
+      ]
+    },
+    {
+      "season": "Fall League 2018",
+      "game": "Halo 5",
+      "league": "Pro",
+      "team": "One Hit Wonders",
+      "captain": "OHW Crusader",
+      "roster": [
+        "OHW Crusader",
+        "Sabasauros Rex",
+        "Killerz Legit",
+        "MsWolverine",
+        "spike18sw"
+      ]
+    },
+    {
+      "season": "Winter League 2019",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Rooster Bux to Blow",
+      "captain": "Silva",
+      "roster": [
+        "Silva",
+        "T RICH Da King",
+        "Rockys12",
+        "Regresser",
+        "oScet",
+        "AJDaJuiceMayne"
+      ]
+    },
+    {
+      "season": "Spring League 2019",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Defiance",
+      "captain": "Trespa5s",
+      "roster": [
+        "Trespa5s",
+        "Sabasauros Rex",
+        "DlGITAL PAIN",
+        "The Eastbrook",
+        "ThumpingHawk"
+      ]
+    },
+    {
+      "season": "Winter League 2020",
+      "game": "MCC Halo Reach: Dash",
+      "league": "Open",
+      "team": "Way to Fail",
+      "captain": "Priest XYZ",
+      "roster": [
+        "Priest XYZ",
+        "the man canon",
+        "DlGITAL PAIN",
+        "Rage More Nerd",
+        "ixGingy",
+        "Ezy08"
+      ]
+    },
+    {
+      "season": "Winter League 2020",
+      "game": "MCC Halo Reach",
+      "league": "Console",
+      "team": "Predatory",
+      "captain": "Regresser",
+      "roster": [
+        "Regresser",
+        "Silva",
+        "Galvann",
+        "ACE B S1lentND1",
+        "xStarBlade",
+        "The Eastbrook"
+      ]
+    },
+    {
+      "season": "Winter league 2020",
+      "game": "MCC Halo Reach",
+      "league": "PC",
+      "team": "ThunderCats",
+      "captain": "ixLiono",
+      "roster": [
+        "ixLiono",
+        "ixSnarf",
+        "ixGingy",
+        "ixJaga",
+        "ACE B S1lentND1",
+        "Inf3ktion"
+      ]
+    },
+    {
+      "season": "Spring League 2020",
+      "game": "MCC Halo Reach",
+      "league": "Open",
+      "team": "Free Ship",
+      "captain": "Regresser",
+      "roster": [
+        "Regresser",
+        "Silva",
+        "L1fe",
+        "Scet",
+        "Chibifoxkit1",
+        "Mstell96"
+      ]
+    },
+    {
+      "season": "Summer League 2020",
+      "game": "MCC Halo Reach",
+      "league": "PC",
+      "team": "FTN",
+      "captain": "Samuel Adams",
+      "roster": [
+        "Samuel Adams",
+        "Galvann",
+        "Hyveria",
+        "DI Cell4225",
+        "Doerstopper",
+        "UnwishedCorpse2"
+      ]
+    },
+    {
+      "season": "Fall League 2020",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Ascended",
+      "captain": "Regresser",
+      "roster": [
+        "Regresser",
+        "Sabasauros Rex",
+        "Icey Tanker",
+        "cxrnchip",
+        "Credit Clown"
+      ]
+    },
+    {
+      "season": "Spring League 2020",
+      "game": "MCC Halo Reach",
+      "league": "Console",
+      "team": "Zero Gravity",
+      "captain": "xStarBlade",
+      "roster": [
+        "xStarBlade",
+        "Rage More Nerd",
+        "MysticalNovice",
+        "nagwas",
+        "RECEPTOR 17"
+      ]
+    },
+    {
+      "season": "Summer League 2020",
+      "game": "MCC Halo 4",
+      "league": "Console",
+      "team": "Natural Selection",
+      "captain": "Gingy",
+      "roster": [
+        "Gingy",
+        "ACE B S1lentND1",
+        "Killerz Legit",
+        "Myst the Cold",
+        "SIMQ",
+        "Havoc Puppies",
+        "Grunt Padre",
+        "ThrobbingInfect"
+      ]
+    },
+    {
+      "season": "Summer League 2020",
+      "game": "MCC Halo 3",
+      "league": "Open",
+      "team": "Slytherin",
+      "captain": "Silva",
+      "roster": [
+        "Silva",
+        "AJ DaJuiceMayne",
+        "DIGITAL PAIN",
+        "Saintz the God",
+        "oDhmon"
+      ]
+    },
+    {
+      "season": "Winter League 2021",
+      "game": "MCC Halo 3",
+      "league": "Pro",
+      "team": "Yung Hummu",
+      "captain": "ixGingy",
+      "roster": [
+        "ixGingy",
+        "halfbreed105",
+        "Doerstopper",
+        "Killerz Legit",
+        "TommyWstSide793"
+      ]
+    },
+    {
+      "season": "Winter League 2021",
+      "game": "MCC Halo 3",
+      "league": "Amateur",
+      "team": "8th Place",
+      "captain": "Fox Fahrenheit",
+      "roster": [
+        "Fox Fahrenheit",
+        "Sammisaibot",
+        "MuNgO PuNgO",
+        "Chibifoxkit1",
+        "VinnyHaw"
+      ]
+    },
+    {
+      "season": "Summer League 2021",
+      "game": "MCC Split",
+      "league": "Pro",
+      "team": "Yeji's Iced Toasted Banana",
+      "captain": "xStarBlade",
+      "roster": [
+        "xStarBlade",
+        "oDhmon",
+        "Solace VIII",
+        "Icey Tanker",
+        "Wrecking Nerdz"
+      ]
+    },
+    {
+      "season": "Summer League 2021",
+      "game": "MCC Split",
+      "league": "Amateur",
+      "team": "BeAware",
+      "captain": "AwareMosquito",
+      "roster": [
+        "AwareMosquito",
+        "Beam Me Up 11",
+        "RDG NHL",
+        "Nihilus",
+        "Trespa5s",
+        "Sherbski"
+      ]
+    },
+    {
+      "season": "Summer League 2022",
+      "game": "Halo 3",
+      "league": "Open",
+      "team": "Junkyard Dogs",
+      "captain": "NKOTb4evah",
+      "roster": [
+        "NKOTb4evah",
+        "ACE B S1lentND1",
+        "Rage More Nerd",
+        "AtoneMilitant",
+        "AwareMosquito"
+      ]
+    },
+    {
+      "season": "Winter League 2023",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Ram Ranch",
+      "captain": "MuNgO PuNgO",
+      "roster": [
+        "MuNgO PuNgO",
+        "Fanciest Pants",
+        "TommyWstSide",
+        "KDSkill"
+      ]
+    },
+    {
+      "season": "Spring League 2024",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Puffy Grifbussy",
+      "captain": "Hells Angel cx",
+      "roster": [
+        "Hells Angel cx",
+        "SPANKTR0N",
+        "Inf3ktion",
+        "AwareMosquito"
+      ]
+    },
+    {
+      "season": "Fall League 2024",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Asking Alexandra",
+      "captain": "Hells Angel cx",
+      "roster": [
+        "Hells Angel cx",
+        "ill shrek u",
+        "Inf3ktion",
+        "Grunt Padre",
+        "Tre5pass"
+      ]
+    },
+    {
+      "season": "Winter League 2025",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Like Clockwork",
+      "captain": "Sabasauros Rex",
+      "roster": [
+        "Sabasauros Rex",
+        "Dhlyn",
+        "TcT Avenger",
+        "CaptainSev004"
+      ]
+    },
+    {
+      "season": "Spring League 2025",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Like Clockwork",
+      "captain": "yLuxe",
+      "roster": [
+        "yLuxe",
+        "ixGingy",
+        "TommyWstSide",
+        "Its Low Mane"
+      ]
+    },
+    {
+      "season": "Summer League 2025",
+      "game": "Infinite",
+      "league": "Pro",
+      "team": "Three Days Ace",
+      "captain": "Hells Angel cx",
+      "roster": [
+        "Hells Angel cx",
+        "ACE B S1lentND1",
+        "BCN19",
+        "Scullen cx"
+      ]
+    },
+    {
+      "season": "Summer League 2025",
+      "game": "Infinite",
+      "league": "Amateur",
+      "team": "Reverse Sweepers",
+      "captain": "Rechargen",
+      "roster": [
+        "Rechargen",
+        "TcT Avenger",
+        "BIG AL 60",
+        "Godly FGC",
+        "VinnyHaw"
+      ]
+    },
+    {
+      "season": "Q1 Minor Season 2026",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "Operation: Doomsday",
+      "captain": "AceBS1lentND1",
+      "roster": [
+        "AceBS1lentND1",
+        "Deathcrawller",
+        "xRebsx",
+        "Imtehz"
+      ]
+    },
+    {
+      "season": "Q2 Major Season 2026",
+      "game": "Infinite",
+      "league": "Open",
+      "team": "My Chemical Aspence",
+      "captain": "Hells Angel cx",
+      "roster": [
+        "Hells Angel cx",
+        "Aspence501",
+        "Chemical",
+        "JollyJlhadlst",
+        "AwareMosquito",
+        "JOEPRO v2"
+      ]
+    }
+  ],
+  "leaderboard": [
+    {
+      "player": "Shadow S16",
+      "total": 10,
+      "halo3": 4,
+      "haloReach": 3,
+      "halo4": 3,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Major Silva",
+      "total": 10,
+      "halo3": 5,
+      "haloReach": 5,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ACE B S1lentND1",
+      "total": 9,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 2,
+      "halo5": 2,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "T Rich Da King",
+      "total": 7,
+      "halo3": 3,
+      "haloReach": 4,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "x0 pie x0",
+      "total": 6,
+      "halo3": 5,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ixGingy",
+      "total": 6,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "DlGITAL PAIN",
+      "total": 6,
+      "halo3": 3,
+      "haloReach": 2,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Regresser",
+      "total": 5,
+      "halo3": 2,
+      "haloReach": 2,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Rage More Nerd",
+      "total": 5,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "NetsPride15",
+      "total": 5,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 2,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Killerz Legit",
+      "total": 5,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 3,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AwareMosquito",
+      "total": 5,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 3,
+      "split": 0
+    },
+    {
+      "player": "xStarBlade",
+      "total": 4,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 1
+    },
+    {
+      "player": "Scet Shin",
+      "total": 4,
+      "halo3": 3,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Sabasauros Rex",
+      "total": 4,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "OVERweightGOAT",
+      "total": 4,
+      "halo3": 2,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Love Thumee",
+      "total": 4,
+      "halo3": 3,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Ezy08",
+      "total": 4,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Doerstopper",
+      "total": 4,
+      "halo3": 3,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Doc Status",
+      "total": 4,
+      "halo3": 3,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "blue collar kid",
+      "total": 4,
+      "halo3": 2,
+      "haloReach": 1,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Hells Angel cx",
+      "total": 4,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 4,
+      "split": 0
+    },
+    {
+      "player": "Youngnastyman79",
+      "total": 3,
+      "halo3": 3,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Trespa5s",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "TommyWstSide793",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "The Piggies",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "The Eastbrook",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Taylor Cann",
+      "total": 3,
+      "halo3": 2,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Rockys12",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "PriestXYZ",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Inf3ktion",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "II Got3nks II",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ii flowers ii",
+      "total": 3,
+      "halo3": 3,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "halfbreed105",
+      "total": 3,
+      "halo3": 1,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Galvann",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Fanciest Pants",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Crusader0102",
+      "total": 3,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Crowing",
+      "total": 3,
+      "halo3": 3,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Yo DrGreenthumb",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "x Zeg x",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "VinnyHaw",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "Veritas",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "v Determined v",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 2,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Twizzted Status",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TrueFlyingCow",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TJP11",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TheAlphaTurtle",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TcT Avenger",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "Tad Neptune",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "SilentShadow459",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Routine Ritual",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Rayzyr",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 2,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "PhD Spaz",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Perfect Demise",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "oUniqueRose",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 2,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "oDhmon",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 1
+    },
+    {
+      "player": "NKOTb4evah",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Nikodemons",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MuNgO PuNgO",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 2,
+      "split": 0
+    },
+    {
+      "player": "Lorde Rey",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "L1ght5aber",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "KING RICKXL",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "iWrestle8",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "IVI 0 0 S",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "InfiniteRain",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 2,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ID I2 IA G O N",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Icey Tanker",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 1
+    },
+    {
+      "player": "I DIM3 I",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Grunt Padre",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "El Driver",
+      "total": 2,
+      "halo3": 2,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "cxrnchip",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Blade B48",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Beam Me Up 11",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "BCN19",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Angel of Grif",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 2,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AJDaJuiceMayne",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "a man canon",
+      "total": 2,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "xRebsx",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "JOEPRO v2",
+      "total": 2,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "yLuxe",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "YEAG3R",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Yutt Ughhhhhhhh",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "xlShepardlx",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Wrecking Nerdz",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 1
+    },
+    {
+      "player": "V IE R I T A S",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "UnwishedCorpse2",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TurbanEspy",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TTL Quikthnkr",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TRM Jayhawk",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TRM Doc",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Tre5pass",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Thunder4400",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ThumpingHawk",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ThrobbingInfect",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TheCokester",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "The Corn Ninja",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "TG Revenge 40",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Super Status",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Str8 Metal",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ST0P KILLING ME",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "spike18sw",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "SPANKTR0N",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Sp0nY",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "SonicRainboom",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "sonicchaos1993",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Solace VIII",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 1
+    },
+    {
+      "player": "SlimJimX50",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "SKiYTTLES",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "skipper iz here",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "SIMQ",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ShinYeg",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Sherbski",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "ShadowAlche3mi5t",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Sgt Nathan West",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Sean Cohen",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Scullen cx",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Samuel Adams",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Sammisaibot",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Saintz the God",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "runNOKYARDrun",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "RosaTookMahSeat",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "RevengeintheSky",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "RENEGADEofFUNK1",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Rekamcipdiputs",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "rekamcipdiputs",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Rechargen",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "RECEPTOR 17",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "RDG NHL",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Rated Mature",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "RAMBOStrueBLOOD",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "protoplayer36",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Proj3ctSnake",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "PoisonxPoptart",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Paul Dolby",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Papa Cap X",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Paladin",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Pacman",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "PacFRITZERman",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Ouglaf11",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Otakusamurai2",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "orcishmiscreant",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Oh Booster Seat",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "OboeCrazy",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Nolan Black",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "NoFun4You888",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Nihilus",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "NHALING2XHALE",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "NecessaryEvil10",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "nagwas",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MysticalNovice",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Myst the Cold",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MsWolverine",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Mstell96",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MSSR Martin",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MsMeowlla",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Mr Loots",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Momstaco81",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "MenztrualCramps",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "megamura",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Matrixmonkey17",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ManbearpigX2",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Magorphenger",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "m3TTa World War",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "LvL 25 Magikarp",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "LoydTheVoid",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Lost Status",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "lol Ninj0",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "L1fe",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Kyles1NSpace",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "KSI Gambit 7",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Kroze",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Klianite",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "KiLla Iz PrO 13",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "KID TONGA 1",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "kev1897",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "KDSkill",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "JustJwl",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "JudasFEKE II",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Jlamanna91",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "JKPgamer",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Jester1194",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Jedi Hunter",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "JAW5H OF D00M",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ixSnarf",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ixLiono",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ixJaga",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Its Low Mane",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Itmkid",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "iStrafety",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "iSnipeUd0wn",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Invayda Zim",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ill shrek u",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "II BlueZebra II",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "iheartMETHADONE",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "iDurrp",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "I Copilot I",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Hyveria",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Hoya16",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "HoboSaaz",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "HighlndHellrazr",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Hi im Pacman",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Havoc Puppies",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "guthouse",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Godzilla",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Godly FGC",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Gen Seizon Sha",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "fullofmyself",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Freakshow187",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Fox Fahrenheit",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Five Try Hard",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Final Keyblade",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "eTazedd",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "El Diablo",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "DSR Pie",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "dropg",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Drache Naito",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Dr Waffels",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "donnieredboy",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Doc Sword",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "DJBlue PDX",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Dix",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Dirty Murder tx",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Dinglerfritzer",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Dhlyn",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Delta Force",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "DCleak",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Daves Toy",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "D Hans",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "CutThroat912",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Credit Clown",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "combustikation",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "CJ Plaunsters",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ChocolateTigerX",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Chibifoxkit1",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Chibifoxkit1",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "CaptainSev004",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Bynumator",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "BxA Real Deal D",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "bred4war",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Bojangles9000",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "BigG1790",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "BIG AL 60",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Bebop Gastelum",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Bear is Clutch",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Avaianche812",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AtoneMilitant",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Aperture",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Angel9001",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 1,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "amnatu",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Amerijap",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Alwaystrollin",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AlwaysTrollin",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 1,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AllegedHornet",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ActiveHate",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "ACHunter",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "About73Puppies",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "AB0UT73PUPPIES",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "A Love So Pure",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 1,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "FunkySteam",
+      "total": 1,
+      "halo3": 1,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 0,
+      "split": 0
+    },
+    {
+      "player": "Deathcrawller",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Imtehz",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Aspence501",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "Chemical",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    },
+    {
+      "player": "JollyJlhadlst",
+      "total": 1,
+      "halo3": 0,
+      "haloReach": 0,
+      "halo4": 0,
+      "halo5": 0,
+      "infinite": 1,
+      "split": 0
+    }
+  ]
+}

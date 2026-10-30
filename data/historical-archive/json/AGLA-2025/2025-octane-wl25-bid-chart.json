@@ -1,0 +1,1811 @@
+{
+  "id": "2025-octane-wl25-bid-chart",
+  "category": "AGLA-2025",
+  "year": 2025,
+  "title": "Octane WL25 Bid Chart",
+  "url": "https://docs.google.com/spreadsheets/d/1hJcR7bpQIZ7ebopNebq3A6iL0Lde1KQGdX8fnA8LndY/edit?gid=262963722#gid=262963722",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Bidding",
+      "hidden": false,
+      "rowCount": 41,
+      "colCount": 15,
+      "sampleHeader": [
+        "WL25 Bid Season Board"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-wl25-bid-chart/01_Bidding.csv"
+    },
+    {
+      "index": 2,
+      "name": "Draft Mock",
+      "hidden": true,
+      "rowCount": 4,
+      "colCount": 10,
+      "sampleHeader": [
+        "",
+        "Sauted Smurf",
+        "NecessaryEvil10",
+        "MuNgO PuNgO",
+        "Hells Angel cx",
+        "ill shrek u",
+        "Cosmos5024",
+        "Solace VIII",
+        "Sabasauros rex",
+        "MysticalNovice"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-wl25-bid-chart/02_Draft_Mock.csv"
+    },
+    {
+      "index": 3,
+      "name": "PLAYERS",
+      "hidden": false,
+      "rowCount": 33,
+      "colCount": 8,
+      "sampleHeader": [
+        "GAMERTAG",
+        "CODE",
+        "GRADE",
+        "LOCATION",
+        "POSITION",
+        "INPUT",
+        "NOTES",
+        "SCHEDULE"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-wl25-bid-chart/03_PLAYERS.csv"
+    },
+    {
+      "index": 4,
+      "name": "BidLog",
+      "hidden": false,
+      "rowCount": 152,
+      "colCount": 4,
+      "sampleHeader": [
+        "",
+        "",
+        "Bid Log"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-wl25-bid-chart/04_BidLog.csv"
+    }
+  ],
+  "bytes": 27447,
+  "fullSheets": [
+    {
+      "name": "Bidding",
+      "hidden": false,
+      "rowCount": 41,
+      "colCount": 15,
+      "rows": [
+        [
+          "WL25 Bid Season Board"
+        ],
+        [
+          "Captain",
+          "Balance",
+          "Bids Out:",
+          "Available Balance:",
+          "",
+          "Player",
+          "ASpence501               (ASpence)",
+          "Mavbrid                (Mav)",
+          "Timers Update Every                            5                                                         Seconds.                                    Don't try to wait out the clock!",
+          "",
+          "Chemical       (Chemical)",
+          "iNf3ktion                       (nfkt)",
+          "Scullen cx                           (Scullen)",
+          "Dhlyn                          (Dhlyn)"
+        ],
+        [
+          "Cosmos5024",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "Sabasauros rex",
+          "0",
+          "0",
+          "0",
+          "",
+          "Grade",
+          "S",
+          "A",
+          "",
+          "",
+          "B",
+          "B",
+          "B",
+          "B"
+        ],
+        [
+          "Sauted Smurf",
+          "0",
+          "0",
+          "0",
+          "",
+          "Current Bid",
+          "350",
+          "300",
+          "",
+          "",
+          "310",
+          "200",
+          "160",
+          "210"
+        ],
+        [
+          "NecessaryEvil10",
+          "40",
+          "0",
+          "40",
+          "",
+          "Timer",
+          "0:03",
+          "0:01",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "0:03"
+        ],
+        [
+          "ill shrek u",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "MuNgO PuNgO",
+          "30",
+          "0",
+          "30"
+        ],
+        [
+          "Solace VIII",
+          "0",
+          "0",
+          "0",
+          "",
+          "Player",
+          "SPANKTR0N               (Spank)",
+          "CaptainSev004                (Sev)",
+          "Deathcrawller            (Death)",
+          "Havoc Puppies                         (Havoc)",
+          "KDSkill                      (KDSkill)",
+          "MasterSquirre           (Squirre)",
+          "Mr Epic Beast                         (Epic)"
+        ],
+        [
+          "Hells Angel cx",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "MysticalNovice",
+          "0",
+          "0",
+          "0"
+        ],
+        [
+          "",
+          "370",
+          "0",
+          "",
+          "",
+          "Grade",
+          "B",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        [
+          "Captain11",
+          "400",
+          "0",
+          "",
+          "",
+          "Current Bid",
+          "280",
+          "80",
+          "110",
+          "190",
+          "300",
+          "210",
+          "200"
+        ],
+        [
+          "Captain12",
+          "540",
+          "10",
+          "",
+          "",
+          "Timer",
+          "0:01",
+          "0:00",
+          "",
+          "0:03",
+          "",
+          "0:03",
+          "0:03"
+        ],
+        [
+          "Teams"
+        ],
+        [
+          "Cosmos5024 (c)",
+          "Chemical. iReign 7, Big Al 60, KindredDaedric",
+          "",
+          "",
+          "",
+          "Player",
+          "NOPLEX         (NOPLEX)",
+          "PsyDucky54                             (Ducky)",
+          "Trespa5s                  (Trespass)",
+          "AwareMosquito                             (Aware)",
+          "BLOODEN NICK                                 (Nick)",
+          "Grunt Padre         (Grunt)",
+          "Priest XYZ                    (Priest)"
+        ],
+        [
+          "Sabasauros rex (c)",
+          "CaptainSev004, Dhlyn, TcT Avenger [Ship Winners - 12-4-2024] luxe was here",
+          "",
+          "",
+          "",
+          "Grade",
+          "C",
+          "C",
+          "C",
+          "D",
+          "D",
+          "D",
+          "D"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Current Bid",
+          "120",
+          "110",
+          "5th",
+          "80",
+          "100",
+          "130",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Timer",
+          "",
+          "",
+          "",
+          "0:01",
+          "0:03",
+          "0:00",
+          "0:03"
+        ],
+        [
+          "Sauted Smurf (c) ",
+          "ASpence501, NOPLEX, Priest XYZ, Trespa5s"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Player",
+          "TcT AVENGER                    (Avenger)",
+          "Rechargen                  (Frnzh)",
+          "Big AL 60          (BigAl)",
+          "ENDASIS ZX5080                      (Endasis)",
+          "G3Ohh                           (Geo)",
+          "MajesticKittens                           (Kittens)",
+          "II Panther Lily                         (Panther)"
+        ],
+        [
+          "NecessaryEvil10 (c) ",
+          "KDSkill, MasterSquirre, itsRiskE, Endasis"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Grade",
+          "D",
+          "D",
+          "E",
+          "E",
+          "E",
+          "E",
+          "E"
+        ],
+        [
+          "ill shrek u (c)",
+          "Havoc Puppies, Blooden Nick, PsyDucky54, MajesticKittens",
+          "",
+          "",
+          "",
+          "Current Bid",
+          "90",
+          "70",
+          "60",
+          "5th",
+          "5th",
+          "5th",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Timer",
+          "0:01",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "0:02"
+        ],
+        [
+          "MuNgO PuNgO (c)   ",
+          "Mavbrid, Scullen cx, mxrvine, G3Ohh"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Player",
+          "iReign 7                             (Reign)",
+          "itsRiskE                                (RiskE)",
+          "Ram Osneb                  (Ram)",
+          "mxrvine                  (Hawk)",
+          "Clutch Academy                  (Clutch)",
+          "KindredDaedric         (Daedric)",
+          "Trespa5s"
+        ],
+        [
+          "Solace VIII (c) ",
+          "Deathcrawller, Rechargen, Mr Epic Beast"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Grade",
+          "E",
+          "E",
+          "E",
+          "E",
+          "F",
+          "F",
+          "C"
+        ],
+        [
+          "",
+          "",
+          "470",
+          "",
+          "",
+          "Current Bid",
+          "30",
+          "20",
+          "70",
+          "60",
+          "5th",
+          "5th"
+        ],
+        [
+          "Hells Angel cx (c)",
+          "iNf3ktion, Grunt Padre, Ram Osneb, Clutch Academy",
+          "",
+          "",
+          "",
+          "Timer",
+          "",
+          "0:01",
+          "0:04"
+        ],
+        [
+          "MysticalNovice (c)",
+          "SPANKTR0N, AwareMosquito, II Panther Lily",
+          "",
+          "",
+          "",
+          "Player",
+          "Mr Epic Beast",
+          "CaptainSev004",
+          "Grunt Padre",
+          "TJP37",
+          "Priest XYZ",
+          "Rechargen"
+        ],
+        [
+          "Captain10 (c)",
+          "",
+          "",
+          "",
+          "",
+          "Grade",
+          "B",
+          "C",
+          "D",
+          "D",
+          "D",
+          "C",
+          "C"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Current Bid"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Top Bidder"
+        ],
+        [
+          "Captain11 (c)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "epic"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Player"
+        ],
+        [
+          "Captain12 (c)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Grade",
+          "B",
+          "C",
+          "D",
+          "D",
+          "D",
+          "C",
+          "C"
+        ],
+        [
+          "Captain13 (c)",
+          "",
+          "",
+          "",
+          "",
+          "Current Bid"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Top Bidder"
+        ]
+      ]
+    },
+    {
+      "name": "Draft Mock",
+      "hidden": true,
+      "rowCount": 4,
+      "colCount": 10,
+      "rows": [
+        [
+          "",
+          "Sauted Smurf",
+          "NecessaryEvil10",
+          "MuNgO PuNgO",
+          "Hells Angel cx",
+          "ill shrek u",
+          "Cosmos5024",
+          "Solace VIII",
+          "Sabasauros rex",
+          "MysticalNovice"
+        ],
+        [
+          "",
+          "ASpence",
+          "KDSkill",
+          "Mavbrid",
+          "iNf3ktion",
+          "Havoc Puppies",
+          "Chemical",
+          "Mr Epic Beast",
+          "Dhlyn",
+          "Spanktron"
+        ],
+        [
+          "",
+          "Noplex",
+          "MasterSquirre",
+          "Scullen cx",
+          "Grunt Padre",
+          "Psyduck",
+          "Big Al",
+          "Deathcrawller",
+          "Avenger",
+          "AwareMosquito"
+        ],
+        [
+          "",
+          "Priest",
+          "itsRiskE",
+          "mxrvine",
+          "Ram Osneb",
+          "BloodenNick",
+          "Reign",
+          "Rechargen",
+          "CaptainSev004",
+          "Panther Lily"
+        ]
+      ]
+    },
+    {
+      "name": "PLAYERS",
+      "hidden": false,
+      "rowCount": 33,
+      "colCount": 8,
+      "rows": [
+        [
+          "GAMERTAG",
+          "CODE",
+          "GRADE",
+          "LOCATION",
+          "POSITION",
+          "INPUT",
+          "NOTES",
+          "SCHEDULE"
+        ],
+        [
+          "ASpence501",
+          "aspence",
+          "S",
+          "NA Central",
+          "Hybrid",
+          "M&K",
+          "No"
+        ],
+        [
+          "Mavbrid",
+          "mav",
+          "S",
+          "NA East",
+          "Hybrid",
+          "M&K",
+          "I am bad at the game "
+        ],
+        [
+          "SPANKTR0N",
+          "spank",
+          "B",
+          "this aint my job",
+          "Tank",
+          "Hybrid (Mouse + Controller)",
+          "I’m a horrible teammate and im homophobic"
+        ],
+        [
+          "Scullen cx",
+          "scullen",
+          "B",
+          "",
+          "Runner",
+          "Controller",
+          "Starting the season on the 22nd is retarded awesome. If I'm not with Ram I am only putting in the very bare minimum. I get stuck working late a lot so expect that. I put 10-12 for times but I'm not willing to start a game at 11 or after. I will communicate my schedule if there are changes or if anything comes up short notice."
+        ],
+        [
+          "Chemical",
+          "chemical",
+          "B",
+          "",
+          "Tank",
+          "Hybrid (Mouse + Controller)",
+          "MAGA - Make AGLA Grif Again"
+        ],
+        [
+          "iNf3ktion",
+          "nfkt",
+          "B",
+          "",
+          "Hybrid",
+          "M&K",
+          "mav a bitch. I know Infektion"
+        ],
+        [
+          "CaptainSev004",
+          "sev",
+          "C",
+          "",
+          "Runner",
+          "Controller",
+          "Usually available 4 days a week which are different depending on my work. But these are mostly fixed so can give full availability for months ahead to aid scheduling."
+        ],
+        [
+          "Mr Epic Beast",
+          "epic",
+          "C",
+          "",
+          "Runner",
+          "Controller",
+          "Thanks for doing what ya do."
+        ],
+        [
+          "KDSkill",
+          "kdskill",
+          "C",
+          "",
+          "Hybrid",
+          "Controller",
+          "My internet hasn't been great lately, worse than normal. Sometimes I lag out of multiplayer games. So it's possible if im having a bad internet day, a sub would be required. Sorry in advance to my team and opposing teams :(. You've been warned. Also please keep 3rd person pov in the game mode, been enjoying it so far."
+        ],
+        [
+          "MasterSquirre",
+          "squirre",
+          "C",
+          "",
+          "Hybrid",
+          "M&K",
+          "Yes."
+        ],
+        [
+          "NOPLEX",
+          "noplex",
+          "C",
+          "",
+          "Tank",
+          "Hybrid (Mouse + Controller)",
+          "Sometimes, I do stuff."
+        ],
+        [
+          "PsyDucky54",
+          "ducky",
+          "C",
+          "",
+          "Tank",
+          "Controller",
+          "Quack quack"
+        ],
+        [
+          "Trespa5s",
+          "trespass",
+          "C",
+          "",
+          "Hybrid",
+          "Hybrid (Mouse + Controller)",
+          "I have no idea what the question about \"comfortable\" skill level means.  I put 5 because I've played comp grif for almost 9 years now.  If it was asking about what I'd rate myself skill level wise from 1-5, it'd be like a 2.5."
+        ],
+        [
+          "Deathcrawller",
+          "death",
+          "C",
+          "",
+          "Hybrid",
+          "Hybrid (Mouse + Controller)",
+          "I AM GONE: 1st week of season and Jan 16th-Jan 27th\n\nFrom now and leading up to season my availability will be pretty bad. I will get on to respond to messages and such after 6PM tho"
+        ],
+        [
+          "Havoc Puppies",
+          "havoc",
+          "C",
+          "",
+          "",
+          "Controller",
+          "I'm new to infinite but I can adapt very quickly. I've played leagues in H4 & H5 and have done very well in all leagues I've played."
+        ],
+        [
+          "Rechargen",
+          "frnzh",
+          "D",
+          "",
+          "Hybrid",
+          "Controller",
+          "I’m bad"
+        ],
+        [
+          "AwareMosquito",
+          "aware",
+          "D",
+          "",
+          "Tank",
+          "Controller",
+          "Nah"
+        ],
+        [
+          "BLOODEN NICK",
+          "nick",
+          "D",
+          "",
+          "Tank",
+          "Controller",
+          "Idk"
+        ],
+        [
+          "Grunt Padre",
+          "grunt",
+          "D",
+          "",
+          "Tank",
+          "Controller",
+          "#the dough is rising #lfg"
+        ],
+        [
+          "Priest XYZ",
+          "priest",
+          "D",
+          "",
+          "Hybrid",
+          "Hybrid (Mouse + Controller)",
+          "I should always be good Monday and Sunday. Saturday will vary if I have dates lined up or not. Thursday should also consistently work."
+        ],
+        [
+          "TcT AVENGER",
+          "avenger",
+          "D",
+          "",
+          "Hybrid",
+          "Hybrid (Mouse + Controller)",
+          "WILDCARD BID CAREFULLY. I HAVE RADIATION AND CHEMO TREATMENTS POTENTIALLY COMING UP AND IDK HOW IT WILL AFFECT MY SCHEDULE. but you know imma ball for my team 🏌‍♂️don't over spend, I will make my availability better known if I get notice before bidding. Until then, let's make a playoff run! 💯🔥"
+        ],
+        [
+          "ENDASIS ZX5080",
+          "endasis",
+          "E",
+          "",
+          "Tank",
+          "Controller",
+          "Not really just always willing to try my best"
+        ],
+        [
+          "II Panther Lily",
+          "panther",
+          "E",
+          "",
+          "Tank",
+          "Controller",
+          "My schedule is open other than Sundays, oh and I suk"
+        ],
+        [
+          "iReign 7",
+          "reign",
+          "E",
+          "",
+          "Tank",
+          "Controller",
+          "I have high availability and learn fast. Just need someone to take the time to teach me the mechanics more in depth"
+        ],
+        [
+          "itsRiskE",
+          "riske",
+          "E",
+          "",
+          "Hybrid",
+          "Controller",
+          "My availability can open up depending on the week. Definitely always free Thursday or Friday"
+        ],
+        [
+          "Ram Osneb",
+          "ram",
+          "E",
+          "",
+          "Hybrid",
+          "Controller",
+          "Hi"
+        ],
+        [
+          "Big Al 60",
+          "bigal",
+          "E",
+          "",
+          "Runner",
+          "M&K",
+          "I'm bad"
+        ],
+        [
+          "MajesticKittens",
+          "kittens",
+          "E",
+          "",
+          "Hybrid",
+          "M&K",
+          "Teach me the ways"
+        ],
+        [
+          "G3Ohh",
+          "geo",
+          "E",
+          "",
+          "Hybrid",
+          "Hybrid (Mouse + Controller)",
+          "Master’s Student, with a busy schedule but I could make the late games"
+        ],
+        [
+          "Clutch Academy",
+          "clutch",
+          "F",
+          "",
+          "Runner",
+          "Controller",
+          "I run the Clutch Academy discord and am interested in playing some Grifball, just need to know the schedule!"
+        ],
+        [
+          "aspence",
+          "10"
+        ],
+        [
+          "mav",
+          "50"
+        ]
+      ]
+    },
+    {
+      "name": "BidLog",
+      "hidden": false,
+      "rowCount": 152,
+      "colCount": 4,
+      "rows": [
+        [
+          "",
+          "",
+          "Bid Log"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "290"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "230"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "ducky",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "kdskill",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "death",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "kdskill",
+          "250"
+        ],
+        [
+          "",
+          "",
+          "nick",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "reign",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "kdskill",
+          "300"
+        ],
+        [
+          "",
+          "",
+          "noplex",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "scullen",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "300"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "120"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "240"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "210"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "130"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "250"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "150"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "260"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "220"
+        ],
+        [
+          "",
+          "",
+          "death",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "130"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "nick",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "noplex",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "270"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "280"
+        ],
+        [
+          "",
+          "",
+          "scullen",
+          "140"
+        ],
+        [
+          "",
+          "",
+          "death",
+          "90"
+        ],
+        [
+          "",
+          "",
+          "reign",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "140"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "310"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "150"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "330"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "230"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "240"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "300"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "170"
+        ],
+        [
+          "",
+          "",
+          "chemical",
+          "310"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "180"
+        ],
+        [
+          "",
+          "",
+          "sev",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "scullen",
+          "150"
+        ],
+        [
+          "",
+          "",
+          "nick",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "noplex",
+          "90"
+        ],
+        [
+          "",
+          "",
+          "noplex",
+          "120"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "190"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "scullen",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "death",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "death",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "reign",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "frnzh",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "250"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "260"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "270"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "340"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "180"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "270"
+        ],
+        [
+          "",
+          "",
+          "sev",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "280"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "nick",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "350"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "270"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "270"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "160"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "180"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "sev",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "spank",
+          "280"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "nick",
+          "100"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "aspence",
+          "350"
+        ],
+        [
+          "",
+          "",
+          "nfkt",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "90"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "280"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "squirre",
+          "210"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "epic",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "290"
+        ],
+        [
+          "",
+          "",
+          "mav",
+          "300"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "dhlyn",
+          "210"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "120"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "grunt",
+          "130"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "epic",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "epic",
+          "200"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "bigal",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "40"
+        ],
+        [
+          "",
+          "",
+          "havoc",
+          "190"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "50"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "avenger",
+          "90"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "aware",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "80"
+        ],
+        [
+          "",
+          "",
+          "ram",
+          "70"
+        ],
+        [
+          "",
+          "",
+          "priest",
+          "110"
+        ],
+        [
+          "",
+          "",
+          "riske",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "hawk",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "hawk",
+          "60"
+        ],
+        [
+          "",
+          "",
+          "riske",
+          "20"
+        ],
+        [
+          "",
+          "",
+          "panther",
+          "10"
+        ]
+      ]
+    }
+  ]
+}

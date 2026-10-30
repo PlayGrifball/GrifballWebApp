@@ -1,0 +1,1263 @@
+# Grifball Historical Data Archive (2008–2026)
+
+- **Generated At:** 2026-10-30T06:16:27.381Z
+- **Total Links Processed:** 65
+- **Workbooks & Snapshots Recovered:** 51 spreadsheet workbooks + 3 web/Wayback snapshots
+- **Total Worksheet Tabs Extracted:** 792
+- **Total Non-Empty Data Rows Extracted:** 85,611
+
+## Directory Structure
+
+- `raw/` — Original `.xlsx` workbooks, `.htmlview.html` snapshots, `.wayback.html` Internet Archive captures, and `.csv` exports (52+ MB).
+- `csv/<Category>/<source-id>/<sheetIndex>_<sheetName>.csv` — Every single worksheet tab from all 51 workbooks exported as clean UTF-8 CSV (792 CSV files).
+- `json/<Category>/<source-id>.json` — Full multi-tab structured JSON representation of each workbook.
+- `compiled/` — High-level normalized datasets:
+  - `catalog.json` — Master index of all 65 sources, 792 sheets, row/column counts, visibility state, and sample headers.
+  - `agla-champions.json` — All 76 championship teams/rosters (2008–2026) and 264 ring-holders leaderboard.
+  - `all-time-infinite-stats.json` — All-time Halo Infinite career stats for 107 players + S1–S7 seasonal & playoff breakdowns.
+  - `late-league-master.json` — Late League master player registry (131 players with Gamertags, Discord IDs, locations, systems), Data Center Pings (51 players), Grifbux MMR (465 entries), and S6–S8 leaderboards.
+  - `youtube-vods.json` — Channel metadata & video IDs extracted from the Grifball YouTube channel.
+
+---
+
+## Recovery Notes on Dead / Restricted Links
+
+1. **2018 SL18 Pro/Legacy/Ammy Schedules (`DEAD`) & `grifballstats.com/AGLASML18Stats.php`:**
+   - While the 3 Google Sheets return HTTP `410 Gone` and `grifballstats.com` is offline, **`2018-sml18-fantasy-rey` (`SML18 Fantasy by Rey`)** contains **31 tabs**, including `03_Fixtures_Results.csv` (`AGLA SL18 Fixtures & Results`, 75 rows), `08_Total_Stats.csv` (62 rows), and weekly `09_W1_Stats.csv` through `16_W8_Stats.csv` (`AGLA SL18 Stats`).
+2. **2018 FL18 Schedule (`DEAD`):**
+   - Permanently deleted (`410 Gone`), but all team rosters, captains, and bids are preserved in **`2018-fl18-bid-league` (`FL18 Bid League`)**, and the champion (`One Hit Wonders`) is recorded in `agla-champions.json`.
+3. **2019 WL19 Playoff Bracket (`challonge.com/h3wl19`):**
+   - Challonge blocks automated requests via Cloudflare (`403`), but **`2019-wl19-schedule-stats` (`WL19 Schedule & Stats`)** preserves the full playoff stats (`03_Playoff_Stats.csv`, 64 rows), regular season schedule (`01_Schedule.csv`, 144 rows), and every single game result (`14_Game_Results.csv`, 3,415 rows).
+4. **2021 Fall League (`FL21`) Bonus Discovery:**
+   - Although not listed as a separate link, **`2021-sml21-pro-stats`** and **`2021-sml21-ammy-stats`** contain full `FL21_Stats`, `FL21_PlayoffStats`, and `FL21_MatchHistory` tabs (353 and 586 match rows).
+5. **2022 ASpence Halo 4 Bid Season Draft (`DEAD`):**
+   - The draft sheet is `410 Gone`, but **`2022-h4-bid-sheet`** (28 tabs) and **`2022-h4-bid-stats`** (19 tabs) preserve all 4 bidding rounds (`Round 1`–`Round 4`), `Final Team Seeds`, `Players Sheet`, `AGLA Pro/Ammy Season Raw Data`, and full match history (`H4B1_MatchH`, 960 rows).
+6. **2024 IGL Infektions Halo Infinite FL24 Stats (`1drv.ms`):**
+   - OneDrive personal link requires Microsoft authentication, but **`2024-igl-evolved-fl24-stats`** (2.17 MB `.xlsx` with `Overall Stats`, `Carnage Reports`, `Players`, `Matches`, `Rounds`) and **`2025-octane-sl25-bid-stats`** (`05_IGL_Fall_Season_2024_Stats_Shee.csv`, 50 rows) preserve the IGL Fall 2024 stats.
+7. **PlayGrifball.com Website (`http://playgrifball.com/`):**
+   - Live domain is parked/404, so our downloader automatically queried the **Internet Archive Wayback Machine CDX API** and recovered the `2021-05-18` snapshot (`raw/website-playgrifball.wayback.html`).
+
+---
+
+## Complete Source Inventory
+
+| # | Category | ID | Title | Status | Format | Tabs | Non-Empty Rows |
+|---|---|---|---|---|---|---:|---:|
+| 1 | AGLA-2018 | `2018-sl18-pro-schedule` | SL18 Pro Schedule DEAD | `missing` | `-` | 0 | 0 |
+| 2 | AGLA-2018 | `2018-sl18-legacy-schedule` | SL18 Legacy Schedule DEAD | `missing` | `-` | 0 | 0 |
+| 3 | AGLA-2018 | `2018-sl18-ammy-schedule` | SL18 Ammy Schedule DEAD | `missing` | `-` | 0 | 0 |
+| 4 | AGLA-2018 | `2018-sml18-stats` | SML18 Stats | `missing` | `-` | 0 | 0 |
+| 5 | AGLA-2018 | `2018-sml18-fantasy-rey` | SML18 Fantasy by Rey | `recovered` | `xlsx` | 19 | 1,035 |
+| 6 | AGLA-2018 | `2018-fl18-bid-league` | FL18 Bid League | `recovered` | `xlsx` | 1 | 11 |
+| 7 | AGLA-2018 | `2018-fl18-schedule` | FL18 Schedule DEAD | `missing` | `-` | 0 | 0 |
+| 8 | AGLA-2019 | `2019-wl19-schedule-stats` | WL19 Schedule & Stats | `recovered` | `xlsx` | 14 | 4,698 |
+| 9 | AGLA-2019 | `2019-wl19-playoff-bracket` | WL19 Playoff Bracket | `missing` | `-` | 0 | 0 |
+| 10 | AGLA-2019 | `2019-sl19-schedule-stats` | SL19 Schedule & Stats | `recovered` | `xlsx` | 13 | 2,378 |
+| 11 | AGLA-2020 | `2020-wl20-xbox-schedule` | WL20 Xbox Schedule DEAD | `missing` | `-` | 0 | 0 |
+| 12 | AGLA-2020 | `2020-sl20-console-h5` | SL20 Console Halo 5 | `recovered` | `xlsx` | 3 | 34 |
+| 13 | AGLA-2020 | `2020-sl20-console-reach` | SL20 Console Reach | `recovered` | `xlsx` | 3 | 41 |
+| 14 | AGLA-2020 | `2020-sml20-halo3` | SML20 Halo 3 | `recovered` | `xlsx` | 8 | 346 |
+| 15 | AGLA-2020 | `2020-fl20-pc-schedule-stats` | FL20 PC schedule, stats, standings | `recovered` | `xlsx` | 17 | 1,270 |
+| 16 | AGLA-2021 | `2021-wl21-schedule` | WL21 Schedule | `recovered` | `xlsx` | 4 | 70 |
+| 17 | AGLA-2021 | `2021-wl21-legacy-stats` | WL21 Legacy Stats | `recovered` | `xlsx` | 17 | 1,148 |
+| 18 | AGLA-2021 | `2021-wl21-rookie-stats` | WL21 Rookie stats | `recovered` | `xlsx` | 13 | 614 |
+| 19 | AGLA-2021 | `2021-sml21-pro-stats` | SML21 Pro Stats | `recovered` | `xlsx` | 18 | 1,107 |
+| 20 | AGLA-2021 | `2021-sml21-ammy-stats` | SML21 Ammy Stats | `recovered` | `xlsx` | 21 | 1,614 |
+| 21 | AGLA-2022 | `2022-h4-bid-sheet` | ASpence's Halo 4 Bid Season Bid Sheet | `recovered` | `xlsx` | 28 | 1,854 |
+| 22 | AGLA-2022 | `2022-h4-bid-draft` | ASpence Halo 4 Bid Season Draft DEAD | `missing` | `-` | 0 | 0 |
+| 23 | AGLA-2022 | `2022-h4-bid-stats` | ASpence Halo 4 Bid Season Stats | `recovered` | `xlsx` | 19 | 1,549 |
+| 24 | AGLA-2022 | `2022-h3-action-schedule` | H3 Action League 22 Schedule | `recovered` | `xlsx` | 14 | 511 |
+| 25 | AGLA-2022 | `2022-h3-action-stats` | H3 Action League 22 Stats | `recovered` | `xlsx` | 27 | 2,042 |
+| 26 | AGLA-2023 | `2023-da-wl23-stats` | Grifball DA WL23 Stats | `recovered` | `xlsx` | 25 | 1,873 |
+| 27 | AGLA-2023 | `2023-da-wl23-schedule` | Grifball DA WL23 Schedule | `recovered` | `xlsx` | 7 | 298 |
+| 28 | AGLA-2024 | `2024-da-sl24-stats` | Grifball DA(Post Netcode Change) SL24 Stats | `recovered` | `xlsx` | 20 | 3,307 |
+| 29 | AGLA-2024 | `2024-da-sl24-schedule` | Grifball DA(Post Netcode Change) SL24 Schedule | `recovered` | `xlsx` | 6 | 385 |
+| 30 | AGLA-2025 | `2025-octane-wl25-stats` | Octane WL25 Stats | `recovered` | `xlsx` | 16 | 2,723 |
+| 31 | AGLA-2025 | `2025-octane-wl25-schedule` | Octane WL25 Schedule | `recovered` | `xlsx` | 11 | 774 |
+| 32 | AGLA-2025 | `2025-octane-wl25-bid-chart` | Octane WL25 Bid Chart | `recovered` | `xlsx` | 4 | 230 |
+| 33 | AGLA-2025 | `2025-octane-sl25-bid-chart` | Octane SL25 Bid Chart | `recovered` | `xlsx` | 5 | 266 |
+| 34 | AGLA-2025 | `2025-octane-sl25-bid-schedule` | Octane SL25 Bid Schedule | `recovered` | `xlsx` | 11 | 892 |
+| 35 | AGLA-2025 | `2025-octane-sl25-bid-stats` | Octane SL25 Bid Stats | `recovered` | `xlsx` | 18 | 4,051 |
+| 36 | AGLA-2025 | `2025-classic-sml25-draft` | Classic SML25 Pro & Legacy Draft Sheets | `recovered` | `xlsx` | 4 | 181 |
+| 37 | AGLA-2025 | `2025-classic-sml25-schedules` | Classic SML25 Pro & Legacy Schedules | `recovered` | `xlsx` | 18 | 987 |
+| 38 | AGLA-2025 | `2025-classic-sml25-pro-stats` | Classic SML25 Pro League Stats | `recovered` | `xlsx` | 22 | 4,518 |
+| 39 | AGLA-2025 | `2025-classic-sml25-legacy-stats` | Classic SML25 Legacy League Stats | `recovered` | `xlsx` | 21 | 5,188 |
+| 40 | AGLA-2025 | `2026-sl26-minor-stats-schedule` | SL26 Minor Season Stats & Schedule | `recovered` | `xlsx` | 17 | 3,827 |
+| 41 | AGLA-2025 | `2026-sl26-major-stats` | SL26 Major Season Stats | `recovered` | `xlsx` | 20 | 5,116 |
+| 42 | AGLA-2025 | `2026-sl26-major-schedule` | SL26 Major Season Schedule | `recovered` | `gviz-csv` | 5 | 182 |
+| 43 | IGL-2024 | `2024-igl-evolved-fl24` | Evolved FL24 | `recovered` | `xlsx` | 10 | 900 |
+| 44 | IGL-2024 | `2024-igl-evolved-fl24-stats` | Evolved FL24 Stats | `recovered` | `xlsx` | 12 | 2,100 |
+| 45 | IGL-2024 | `2024-igl-infektions-fl24-stats` | Infektions Halo Infinite FL24 Stats | `web-page` | `html` | 0 | 0 |
+| 46 | GWL | `gwl-ts1-halo4` | Tournament Series #1 Halo 4 | `recovered` | `xlsx` | 21 | 837 |
+| 47 | GWL | `gwl-ts2-reach` | Tournament Series #2 Halo Reach | `recovered` | `xlsx` | 22 | 753 |
+| 48 | GWL | `2023-gwl-sl23-reach-stats` | SL23 Halo Reach Stats | `recovered` | `xlsx` | 7 | 204 |
+| 49 | GWL | `2023-gwl-sl23-reach-schedule` | SL23 Halo Reach Schedule/Playoffs | `recovered` | `xlsx` | 33 | 2,412 |
+| 50 | Side-2021 | `2021-side-djblue-reach-stats` | DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo Reach - Stats | `recovered` | `xlsx` | 4 | 458 |
+| 51 | Side-2021 | `2021-side-djblue-h3-stats` | DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo 3 -Stats | `recovered` | `xlsx` | 4 | 464 |
+| 52 | Side-2021 | `2021-side-respawn-h4-1` | The Respawn All-Stars Halo 4 Grifball Fall Series (1/3) 10/23/21 | `recovered` | `xlsx` | 18 | 818 |
+| 53 | Side-2021 | `2021-side-respawn-h4-2` | The Respawn All-Stars Halo 4 Grifball Fall Series (2/3) 11/13/21 | `recovered` | `xlsx` | 20 | 905 |
+| 54 | Side-2021 | `2021-side-respawn-h4-3` | The Respawn All-Stars Halo 4 Grifball Fall Series (3/3) 12/04/21 | `recovered` | `xlsx` | 20 | 959 |
+| 55 | Side-Undated | `side-slide-league` | Slide League Schedule and Rosters | `missing` | `-` | 0 | 0 |
+| 56 | Side-Undated | `side-original-late-league-rankings` | Original Late League Rankings | `recovered` | `xlsx` | 10 | 499 |
+| 57 | Side-Undated | `side-bum-rush` | Bum Rush Spreadsheet | `recovered` | `xlsx` | 1 | 62 |
+| 58 | Side-Undated | `side-reach-pc-stats` | Reach PC Stats | `recovered` | `xlsx` | 2 | 49 |
+| 59 | Late-League | `late-league-website` | Late League Website | `web-page` | `html` | 0 | 0 |
+| 60 | Late-League | `late-league-aspence-main` | ASpence Late League Main Sheet | `recovered` | `xlsx` | 113 | 17,656 |
+| 61 | VODs | `youtube-grifball-channel` | Grifball YouTube Channel | `web-page` | `html` | 0 | 0 |
+| 62 | History | `history-agla-champions` | AGLA Champions | `recovered` | `xlsx` | 3 | 267 |
+| 63 | History | `history-all-time-infinite-stats-luxe` | All-time Infinite Stats by Luxe | `recovered` | `xlsx` | 23 | 1,148 |
+| 64 | Website | `website-playgrifball` | PlayGrifball | `recovered-web-snapshot` | `wayback-html` | 0 | 0 |
+| 65 | Merchandise | `merch-teespring-agla` | Tee Spring Store | `missing` | `-` | 0 | 0 |
+
+---
+
+## Detailed Workbook & Worksheet Breakdown
+
+### SML18 Fantasy by Rey (`2018-sml18-fantasy-rey`)
+- **Category:** AGLA-2018 | **Format:** `xlsx` | **Tabs:** 19 | **Rows:** 1,035
+- **JSON:** `json/AGLA-2018/2018-sml18-fantasy-rey.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Reported Games | Hidden | 2 | 9 | `csv/AGLA-2018/2018-sml18-fantasy-rey/01_Reported_Games.csv` |
+| 2 | League Table | Visible | 14 | 30 | `csv/AGLA-2018/2018-sml18-fantasy-rey/02_League_Table.csv` |
+| 3 | Fixtures & Results | Visible | 75 | 14 | `csv/AGLA-2018/2018-sml18-fantasy-rey/03_Fixtures_Results.csv` |
+| 4 | _BlockspringConfiguration | Hidden | 4 | 16 | `csv/AGLA-2018/2018-sml18-fantasy-rey/04_BlockspringConfiguration.csv` |
+| 5 | Teams Totals | Visible | 64 | 20 | `csv/AGLA-2018/2018-sml18-fantasy-rey/05_Teams_Totals.csv` |
+| 6 | Total Stats | Visible | 33 | 23 | `csv/AGLA-2018/2018-sml18-fantasy-rey/06_Total_Stats.csv` |
+| 7 | Points System | Visible | 91 | 29 | `csv/AGLA-2018/2018-sml18-fantasy-rey/07_Points_System.csv` |
+| 8 | W1 Team Points | Visible | 64 | 20 | `csv/AGLA-2018/2018-sml18-fantasy-rey/08_W1_Team_Points.csv` |
+| 9 | W1 Stats | Visible | 33 | 23 | `csv/AGLA-2018/2018-sml18-fantasy-rey/09_W1_Stats.csv` |
+| 10 | W1 Points | Visible | 91 | 29 | `csv/AGLA-2018/2018-sml18-fantasy-rey/10_W1_Points.csv` |
+| 11 | W2 Team Points | Visible | 64 | 20 | `csv/AGLA-2018/2018-sml18-fantasy-rey/11_W2_Team_Points.csv` |
+| 12 | W2 Stats | Visible | 33 | 23 | `csv/AGLA-2018/2018-sml18-fantasy-rey/12_W2_Stats.csv` |
+| 13 | W2 Points | Visible | 91 | 29 | `csv/AGLA-2018/2018-sml18-fantasy-rey/13_W2_Points.csv` |
+| 14 | W3 Team Points | Visible | 64 | 20 | `csv/AGLA-2018/2018-sml18-fantasy-rey/14_W3_Team_Points.csv` |
+| 15 | W3 Stats | Visible | 33 | 23 | `csv/AGLA-2018/2018-sml18-fantasy-rey/15_W3_Stats.csv` |
+| 16 | W3 Points | Visible | 91 | 29 | `csv/AGLA-2018/2018-sml18-fantasy-rey/16_W3_Points.csv` |
+| 17 | W4 Team Points | Visible | 64 | 20 | `csv/AGLA-2018/2018-sml18-fantasy-rey/17_W4_Team_Points.csv` |
+| 18 | W4 Stats | Visible | 33 | 23 | `csv/AGLA-2018/2018-sml18-fantasy-rey/18_W4_Stats.csv` |
+| 19 | W4 Points | Visible | 91 | 29 | `csv/AGLA-2018/2018-sml18-fantasy-rey/19_W4_Points.csv` |
+
+### FL18 Bid League (`2018-fl18-bid-league`)
+- **Category:** AGLA-2018 | **Format:** `xlsx` | **Tabs:** 1 | **Rows:** 11
+- **JSON:** `json/AGLA-2018/2018-fl18-bid-league.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | AGLA FL18 | Visible | 11 | 8 | `csv/AGLA-2018/2018-fl18-bid-league/01_AGLA_FL18.csv` |
+
+### WL19 Schedule & Stats (`2019-wl19-schedule-stats`)
+- **Category:** AGLA-2019 | **Format:** `xlsx` | **Tabs:** 14 | **Rows:** 4,698
+- **JSON:** `json/AGLA-2019/2019-wl19-schedule-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 58 | 23 | `csv/AGLA-2019/2019-wl19-schedule-stats/01_Schedule.csv` |
+| 2 | Team and Player Stats | Visible | 141 | 34 | `csv/AGLA-2019/2019-wl19-schedule-stats/02_Team_and_Player_Stats.csv` |
+| 3 | Playoff Stats | Visible | 64 | 34 | `csv/AGLA-2019/2019-wl19-schedule-stats/03_Playoff_Stats.csv` |
+| 4 | Most Goals | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/04_Most_Goals.csv` |
+| 5 | Biggest Spread | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/05_Biggest_Spread.csv` |
+| 6 | Highest KD | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/06_Highest_KD.csv` |
+| 7 | Most Carrier Killers | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/07_Most_Carrier_Killers.csv` |
+| 8 | Goals per Game | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/08_Goals_per_Game.csv` |
+| 9 | Kills per Min | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/09_Kills_per_Min.csv` |
+| 10 | Deaths per Min | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/10_Deaths_per_Min.csv` |
+| 11 | Spread per Min | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/11_Spread_per_Min.csv` |
+| 12 | Medals per Min | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/12_Medals_per_Min.csv` |
+| 13 | Carrier Kills per Min | Visible | 102 | 33 | `csv/AGLA-2019/2019-wl19-schedule-stats/13_Carrier_Kills_per_Min.csv` |
+| 14 | Game Results | Visible | 3415 | 34 | `csv/AGLA-2019/2019-wl19-schedule-stats/14_Game_Results.csv` |
+
+### SL19 Schedule & Stats (`2019-sl19-schedule-stats`)
+- **Category:** AGLA-2019 | **Format:** `xlsx` | **Tabs:** 13 | **Rows:** 2,378
+- **JSON:** `json/AGLA-2019/2019-sl19-schedule-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 56 | 24 | `csv/AGLA-2019/2019-sl19-schedule-stats/01_Schedule.csv` |
+| 2 | Team and Player Stats | Visible | 79 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/02_Team_and_Player_Stats.csv` |
+| 3 | Most Goals | Visible | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/03_Most_Goals.csv` |
+| 4 | Biggest Spread | Visible | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/04_Biggest_Spread.csv` |
+| 5 | Highest KD | Visible | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/05_Highest_KD.csv` |
+| 6 | Most Carrier Killers | Visible | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/06_Most_Carrier_Killers.csv` |
+| 7 | Goals per Game | Hidden | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/07_Goals_per_Game.csv` |
+| 8 | Kills per Min | Hidden | 58 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/08_Kills_per_Min.csv` |
+| 9 | Deaths per Min | Hidden | 2 | 33 | `csv/AGLA-2019/2019-sl19-schedule-stats/09_Deaths_per_Min.csv` |
+| 10 | Spread per Min | Hidden | 2 | 33 | `csv/AGLA-2019/2019-sl19-schedule-stats/10_Spread_per_Min.csv` |
+| 11 | Medals per Min | Hidden | 2 | 33 | `csv/AGLA-2019/2019-sl19-schedule-stats/11_Medals_per_Min.csv` |
+| 12 | Carrier Kills per Min | Hidden | 2 | 33 | `csv/AGLA-2019/2019-sl19-schedule-stats/12_Carrier_Kills_per_Min.csv` |
+| 13 | Game Results | Visible | 1887 | 34 | `csv/AGLA-2019/2019-sl19-schedule-stats/13_Game_Results.csv` |
+
+### SL20 Console Halo 5 (`2020-sl20-console-h5`)
+- **Category:** AGLA-2020 | **Format:** `xlsx` | **Tabs:** 3 | **Rows:** 34
+- **JSON:** `json/AGLA-2020/2020-sl20-console-h5.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 13 | 8 | `csv/AGLA-2020/2020-sl20-console-h5/01_Schedule.csv` |
+| 2 | Standings | Visible | 11 | 6 | `csv/AGLA-2020/2020-sl20-console-h5/02_Standings.csv` |
+| 3 | Rosters | Visible | 10 | 7 | `csv/AGLA-2020/2020-sl20-console-h5/03_Rosters.csv` |
+
+### SL20 Console Reach (`2020-sl20-console-reach`)
+- **Category:** AGLA-2020 | **Format:** `xlsx` | **Tabs:** 3 | **Rows:** 41
+- **JSON:** `json/AGLA-2020/2020-sl20-console-reach.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 19 | 13 | `csv/AGLA-2020/2020-sl20-console-reach/01_Schedule.csv` |
+| 2 | Standings | Visible | 12 | 11 | `csv/AGLA-2020/2020-sl20-console-reach/02_Standings.csv` |
+| 3 | Rosters | Visible | 10 | 7 | `csv/AGLA-2020/2020-sl20-console-reach/03_Rosters.csv` |
+
+### SML20 Halo 3 (`2020-sml20-halo3`)
+- **Category:** AGLA-2020 | **Format:** `xlsx` | **Tabs:** 8 | **Rows:** 346
+- **JSON:** `json/AGLA-2020/2020-sml20-halo3.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Full Schedule | Visible | 25 | 18 | `csv/AGLA-2020/2020-sml20-halo3/01_Full_Schedule.csv` |
+| 2 | Stats | Visible | 87 | 21 | `csv/AGLA-2020/2020-sml20-halo3/02_Stats.csv` |
+| 3 | Playoff Stats | Visible | 49 | 14 | `csv/AGLA-2020/2020-sml20-halo3/03_Playoff_Stats.csv` |
+| 4 | Game Results | Visible | 8 | 14 | `csv/AGLA-2020/2020-sml20-halo3/04_Game_Results.csv` |
+| 5 | Standings | Visible | 22 | 13 | `csv/AGLA-2020/2020-sml20-halo3/05_Standings.csv` |
+| 6 | Mock draftin | Visible | 53 | 18 | `csv/AGLA-2020/2020-sml20-halo3/06_Mock_draftin.csv` |
+| 7 | Copy of Stats | Visible | 51 | 14 | `csv/AGLA-2020/2020-sml20-halo3/07_Copy_of_Stats.csv` |
+| 8 | Copy of Stats 1 | Visible | 51 | 17 | `csv/AGLA-2020/2020-sml20-halo3/08_Copy_of_Stats_1.csv` |
+
+### FL20 PC schedule, stats, standings (`2020-fl20-pc-schedule-stats`)
+- **Category:** AGLA-2020 | **Format:** `xlsx` | **Tabs:** 17 | **Rows:** 1,270
+- **JSON:** `json/AGLA-2020/2020-fl20-pc-schedule-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Full Schedule | Visible | 33 | 18 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/01_Full_Schedule.csv` |
+| 2 | Stats | Visible | 83 | 24 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/02_Stats.csv` |
+| 3 | Playoff Game Stats | Visible | 114 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/03_Playoff_Game_Stats.csv` |
+| 4 | Sams Playground | Visible | 61 | 27 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/04_Sams_Playground.csv` |
+| 5 | Leaderboards | Visible | 25 | 12 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/05_Leaderboards.csv` |
+| 6 | Game Results | Visible | 137 | 15 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/06_Game_Results.csv` |
+| 7 | ASC | Visible | 70 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/07_ASC.csv` |
+| 8 | AP | Visible | 80 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/08_AP.csv` |
+| 9 | t.Rocket | Visible | 80 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/09_t.Rocket.csv` |
+| 10 | ZMD | Visible | 80 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/10_ZMD.csv` |
+| 11 | MAB | Visible | 71 | 34 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/11_MAB.csv` |
+| 12 | A&tS | Visible | 70 | 34 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/12_A_tS.csv` |
+| 13 | AJYD | Visible | 77 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/13_AJYD.csv` |
+| 14 | G&tC | Visible | 81 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/14_G_tC.csv` |
+| 15 | USA | Visible | 69 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/15_USA.csv` |
+| 16 | FB | Visible | 69 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/16_FB.csv` |
+| 17 | TB | Visible | 70 | 33 | `csv/AGLA-2020/2020-fl20-pc-schedule-stats/17_TB.csv` |
+
+### WL21 Schedule (`2021-wl21-schedule`)
+- **Category:** AGLA-2021 | **Format:** `xlsx` | **Tabs:** 4 | **Rows:** 70
+- **JSON:** `json/AGLA-2021/2021-wl21-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Legacy Schedule | Visible | 30 | 26 | `csv/AGLA-2021/2021-wl21-schedule/01_Legacy_Schedule.csv` |
+| 2 | Legacy Standings | Hidden | 12 | 21 | `csv/AGLA-2021/2021-wl21-schedule/02_Legacy_Standings.csv` |
+| 3 | Rookie Schedule | Visible | 18 | 26 | `csv/AGLA-2021/2021-wl21-schedule/03_Rookie_Schedule.csv` |
+| 4 | Rookie Standings | Hidden | 10 | 22 | `csv/AGLA-2021/2021-wl21-schedule/04_Rookie_Standings.csv` |
+
+### WL21 Legacy Stats (`2021-wl21-legacy-stats`)
+- **Category:** AGLA-2021 | **Format:** `xlsx` | **Tabs:** 17 | **Rows:** 1,148
+- **JSON:** `json/AGLA-2021/2021-wl21-legacy-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Individual Stats | Visible | 60 | 20 | `csv/AGLA-2021/2021-wl21-legacy-stats/01_Individual_Stats.csv` |
+| 2 | Playoff Stats | Visible | 26 | 20 | `csv/AGLA-2021/2021-wl21-legacy-stats/02_Playoff_Stats.csv` |
+| 3 | Game Results | Visible | 116 | 11 | `csv/AGLA-2021/2021-wl21-legacy-stats/03_Game_Results.csv` |
+| 4 | Standings | Visible | 12 | 21 | `csv/AGLA-2021/2021-wl21-legacy-stats/04_Standings.csv` |
+| 5 | Stat Playground | Visible | 52 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/05_Stat_Playground.csv` |
+| 6 | Leaderboards | Visible | 26 | 24 | `csv/AGLA-2021/2021-wl21-legacy-stats/06_Leaderboards.csv` |
+| 7 | OID | Visible | 84 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/07_OID.csv` |
+| 8 | FG | Visible | 84 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/08_FG.csv` |
+| 9 | DBAGS | Visible | 73 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/09_DBAGS.csv` |
+| 10 | RB | Visible | 70 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/10_RB.csv` |
+| 11 | LMT | Visible | 77 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/11_LMT.csv` |
+| 12 | YH | Visible | 84 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/12_YH.csv` |
+| 13 | PIE | Visible | 87 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/13_PIE.csv` |
+| 14 | NH | Visible | 80 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/14_NH.csv` |
+| 15 | BFH | Visible | 69 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/15_BFH.csv` |
+| 16 | CMP | Visible | 69 | 33 | `csv/AGLA-2021/2021-wl21-legacy-stats/16_CMP.csv` |
+| 17 | Testing | Visible | 79 | 29 | `csv/AGLA-2021/2021-wl21-legacy-stats/17_Testing.csv` |
+
+### WL21 Rookie stats (`2021-wl21-rookie-stats`)
+- **Category:** AGLA-2021 | **Format:** `xlsx` | **Tabs:** 13 | **Rows:** 614
+- **JSON:** `json/AGLA-2021/2021-wl21-rookie-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Individual Stats | Visible | 53 | 20 | `csv/AGLA-2021/2021-wl21-rookie-stats/01_Individual_Stats.csv` |
+| 2 | Standings | Visible | 9 | 22 | `csv/AGLA-2021/2021-wl21-rookie-stats/02_Standings.csv` |
+| 3 | Game Results | Visible | 65 | 9 | `csv/AGLA-2021/2021-wl21-rookie-stats/03_Game_Results.csv` |
+| 4 | Leaderboards | Visible | 27 | 21 | `csv/AGLA-2021/2021-wl21-rookie-stats/04_Leaderboards.csv` |
+| 5 | Beams Playground | Visible | 43 | 37 | `csv/AGLA-2021/2021-wl21-rookie-stats/05_Beams_Playground.csv` |
+| 6 | 8P | Visible | 47 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/06_8P.csv` |
+| 7 | DEF | Visible | 47 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/07_DEF.csv` |
+| 8 | ROR | Visible | 53 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/08_ROR.csv` |
+| 9 | KTC | Visible | 44 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/09_KTC.csv` |
+| 10 | BM | Visible | 53 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/10_BM.csv` |
+| 11 | GA | Visible | 55 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/11_GA.csv` |
+| 12 | GH | Visible | 54 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/12_GH.csv` |
+| 13 | AGT | Visible | 64 | 33 | `csv/AGLA-2021/2021-wl21-rookie-stats/13_AGT.csv` |
+
+### SML21 Pro Stats (`2021-sml21-pro-stats`)
+- **Category:** AGLA-2021 | **Format:** `xlsx` | **Tabs:** 18 | **Rows:** 1,107
+- **JSON:** `json/AGLA-2021/2021-sml21-pro-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Playoff Stats | Hidden | 26 | 20 | `csv/AGLA-2021/2021-sml21-pro-stats/01_Playoff_Stats.csv` |
+| 2 | Individual Stats | Visible | 39 | 36 | `csv/AGLA-2021/2021-sml21-pro-stats/02_Individual_Stats.csv` |
+| 3 | Bracket | Visible | 20 | 19 | `csv/AGLA-2021/2021-sml21-pro-stats/03_Bracket.csv` |
+| 4 | FL21_PlayoffStats | Visible | 31 | 39 | `csv/AGLA-2021/2021-sml21-pro-stats/04_FL21_PlayoffStats.csv` |
+| 5 | Game Results | Visible | 48 | 8 | `csv/AGLA-2021/2021-sml21-pro-stats/05_Game_Results.csv` |
+| 6 | Stats_Sortable | Visible | 31 | 53 | `csv/AGLA-2021/2021-sml21-pro-stats/06_Stats_Sortable.csv` |
+| 7 | Standings | Hidden | 8 | 23 | `csv/AGLA-2021/2021-sml21-pro-stats/07_Standings.csv` |
+| 8 | Stat Playground | Hidden | 52 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/08_Stat_Playground.csv` |
+| 9 | Leaderboards | Visible | 26 | 27 | `csv/AGLA-2021/2021-sml21-pro-stats/09_Leaderboards.csv` |
+| 10 | SYLaL | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/10_SYLaL.csv` |
+| 11 | ND | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/11_ND.csv` |
+| 12 | KB | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/12_KB.csv` |
+| 13 | YTBI | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/13_YTBI.csv` |
+| 14 | NW | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/14_NW.csv` |
+| 15 | P | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-pro-stats/15_P.csv` |
+| 16 | Testing | Hidden | 79 | 29 | `csv/AGLA-2021/2021-sml21-pro-stats/16_Testing.csv` |
+| 17 | FL21_Stats | Visible | 34 | 39 | `csv/AGLA-2021/2021-sml21-pro-stats/17_FL21_Stats.csv` |
+| 18 | FL21_MatchHistory | Visible | 353 | 38 | `csv/AGLA-2021/2021-sml21-pro-stats/18_FL21_MatchHistory.csv` |
+
+### SML21 Ammy Stats (`2021-sml21-ammy-stats`)
+- **Category:** AGLA-2021 | **Format:** `xlsx` | **Tabs:** 21 | **Rows:** 1,614
+- **JSON:** `json/AGLA-2021/2021-sml21-ammy-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Playoff Stats | Hidden | 26 | 20 | `csv/AGLA-2021/2021-sml21-ammy-stats/01_Playoff_Stats.csv` |
+| 2 | Individual Stats | Visible | 49 | 36 | `csv/AGLA-2021/2021-sml21-ammy-stats/02_Individual_Stats.csv` |
+| 3 | Bracket | Visible | 11 | 14 | `csv/AGLA-2021/2021-sml21-ammy-stats/03_Bracket.csv` |
+| 4 | Game Results | Visible | 81 | 8 | `csv/AGLA-2021/2021-sml21-ammy-stats/04_Game_Results.csv` |
+| 5 | Stats_Sortable | Visible | 64 | 53 | `csv/AGLA-2021/2021-sml21-ammy-stats/05_Stats_Sortable.csv` |
+| 6 | Leaderboards | Visible | 26 | 27 | `csv/AGLA-2021/2021-sml21-ammy-stats/06_Leaderboards.csv` |
+| 7 | BA | Visible | 70 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/07_BA.csv` |
+| 8 | Standings | Hidden | 11 | 23 | `csv/AGLA-2021/2021-sml21-ammy-stats/08_Standings.csv` |
+| 9 | Stat Playground | Hidden | 51 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/09_Stat_Playground.csv` |
+| 10 | NGFF | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/10_NGFF.csv` |
+| 11 | NWB | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/11_NWB.csv` |
+| 12 | CNH | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/12_CNH.csv` |
+| 13 | LE | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/13_LE.csv` |
+| 14 | DSZD | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/14_DSZD.csv` |
+| 15 | SaD | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/15_SaD.csv` |
+| 16 | AR | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/16_AR.csv` |
+| 17 | LC | Visible | 60 | 33 | `csv/AGLA-2021/2021-sml21-ammy-stats/17_LC.csv` |
+| 18 | Testing | Hidden | 79 | 29 | `csv/AGLA-2021/2021-sml21-ammy-stats/18_Testing.csv` |
+| 19 | FL21_Stats | Visible | 58 | 39 | `csv/AGLA-2021/2021-sml21-ammy-stats/19_FL21_Stats.csv` |
+| 20 | FL21_PlayoffStats | Visible | 22 | 39 | `csv/AGLA-2021/2021-sml21-ammy-stats/20_FL21_PlayoffStats.csv` |
+| 21 | FL21_MatchHistory | Visible | 586 | 38 | `csv/AGLA-2021/2021-sml21-ammy-stats/21_FL21_MatchHistory.csv` |
+
+### ASpence's Halo 4 Bid Season Bid Sheet (`2022-h4-bid-sheet`)
+- **Category:** AGLA-2022 | **Format:** `xlsx` | **Tabs:** 28 | **Rows:** 1,854
+- **JSON:** `json/AGLA-2022/2022-h4-bid-sheet.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | HistoryHalo4 | Visible | 148 | 27 | `csv/AGLA-2022/2022-h4-bid-sheet/01_HistoryHalo4.csv` |
+| 2 | Player Comparison | Visible | 22 | 28 | `csv/AGLA-2022/2022-h4-bid-sheet/02_Player_Comparison.csv` |
+| 3 | LL_Data_Aggregate | Hidden | 137 | 19 | `csv/AGLA-2022/2022-h4-bid-sheet/03_LL_Data_Aggregate.csv` |
+| 4 | Signed | Visible | 44 | 18 | `csv/AGLA-2022/2022-h4-bid-sheet/04_Signed.csv` |
+| 5 | Bid Values | Visible | 146 | 14 | `csv/AGLA-2022/2022-h4-bid-sheet/05_Bid_Values.csv` |
+| 6 | Potential Scheduling | Visible | 43 | 26 | `csv/AGLA-2022/2022-h4-bid-sheet/06_Potential_Scheduling.csv` |
+| 7 | Mock2 Page | Hidden | 70 | 33 | `csv/AGLA-2022/2022-h4-bid-sheet/07_Mock2_Page.csv` |
+| 8 | Mock3 Page | Hidden | 68 | 33 | `csv/AGLA-2022/2022-h4-bid-sheet/08_Mock3_Page.csv` |
+| 9 | H4 Bidding Page | Visible | 70 | 34 | `csv/AGLA-2022/2022-h4-bid-sheet/09_H4_Bidding_Page.csv` |
+| 10 | Round 1 | Hidden | 26 | 10 | `csv/AGLA-2022/2022-h4-bid-sheet/10_Round_1.csv` |
+| 11 | Round 2 | Hidden | 23 | 10 | `csv/AGLA-2022/2022-h4-bid-sheet/11_Round_2.csv` |
+| 12 | Round 3 | Hidden | 16 | 10 | `csv/AGLA-2022/2022-h4-bid-sheet/12_Round_3.csv` |
+| 13 | Round 4 | Hidden | 23 | 10 | `csv/AGLA-2022/2022-h4-bid-sheet/13_Round_4.csv` |
+| 14 | MockTrial | Hidden | 49 | 33 | `csv/AGLA-2022/2022-h4-bid-sheet/14_MockTrial.csv` |
+| 15 | (SCRAP) Captain Drafting | Hidden | 127 | 9 | `csv/AGLA-2022/2022-h4-bid-sheet/15_SCRAP_Captain_Drafting.csv` |
+| 16 | AGLA Ammy Season Raw Data | Hidden | 148 | 36 | `csv/AGLA-2022/2022-h4-bid-sheet/16_AGLA_Ammy_Season_Raw_Data.csv` |
+| 17 | ammy stats | Hidden | 49 | 29 | `csv/AGLA-2022/2022-h4-bid-sheet/17_ammy_stats.csv` |
+| 18 | ProStats | Hidden | 37 | 29 | `csv/AGLA-2022/2022-h4-bid-sheet/18_ProStats.csv` |
+| 19 | ApgS | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-sheet/19_ApgS.csv` |
+| 20 | amy pg | Hidden | 39 | 26 | `csv/AGLA-2022/2022-h4-bid-sheet/20_amy_pg.csv` |
+| 21 | AGLA Pro Season Raw Data | Hidden | 156 | 36 | `csv/AGLA-2022/2022-h4-bid-sheet/21_AGLA_Pro_Season_Raw_Data.csv` |
+| 22 | combo | Hidden | 63 | 29 | `csv/AGLA-2022/2022-h4-bid-sheet/22_combo.csv` |
+| 23 | PpgS | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-sheet/23_PpgS.csv` |
+| 24 | CpgS | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-sheet/24_CpgS.csv` |
+| 25 | pro pg | Hidden | 31 | 26 | `csv/AGLA-2022/2022-h4-bid-sheet/25_pro_pg.csv` |
+| 26 | Combo pg | Hidden | 63 | 26 | `csv/AGLA-2022/2022-h4-bid-sheet/26_Combo_pg.csv` |
+| 27 | HistoryHalo3 | Hidden | 128 | 5 | `csv/AGLA-2022/2022-h4-bid-sheet/27_HistoryHalo3.csv` |
+| 28 | HistoryReach | Hidden | 128 | 1 | `csv/AGLA-2022/2022-h4-bid-sheet/28_HistoryReach.csv` |
+
+### ASpence Halo 4 Bid Season Stats (`2022-h4-bid-stats`)
+- **Category:** AGLA-2022 | **Format:** `xlsx` | **Tabs:** 19 | **Rows:** 1,549
+- **JSON:** `json/AGLA-2022/2022-h4-bid-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 25 | 11 | `csv/AGLA-2022/2022-h4-bid-stats/01_Schedule.csv` |
+| 2 | Achievements | Visible | 4 | 13 | `csv/AGLA-2022/2022-h4-bid-stats/02_Achievements.csv` |
+| 3 | Sub Page | Visible | 28 | 14 | `csv/AGLA-2022/2022-h4-bid-stats/03_Sub_Page.csv` |
+| 4 | Teams | Visible | 36 | 18 | `csv/AGLA-2022/2022-h4-bid-stats/04_Teams.csv` |
+| 5 | PLAYOFFS | Visible | 13 | 4 | `csv/AGLA-2022/2022-h4-bid-stats/05_PLAYOFFS.csv` |
+| 6 | Sub Page Data Aggregate | Hidden | 44 | 34 | `csv/AGLA-2022/2022-h4-bid-stats/06_Sub_Page_Data_Aggregate.csv` |
+| 7 | Reschedules | Hidden | 46 | 4 | `csv/AGLA-2022/2022-h4-bid-stats/07_Reschedules.csv` |
+| 8 | Stats | Visible | 38 | 55 | `csv/AGLA-2022/2022-h4-bid-stats/08_Stats.csv` |
+| 9 | HEXAS | Visible | 38 | 28 | `csv/AGLA-2022/2022-h4-bid-stats/09_HEXAS.csv` |
+| 10 | Player_Grades | Visible | 73 | 32 | `csv/AGLA-2022/2022-h4-bid-stats/10_Player_Grades.csv` |
+| 11 | Player Efficiency | Visible | 55 | 40 | `csv/AGLA-2022/2022-h4-bid-stats/11_Player_Efficiency.csv` |
+| 12 | Match_History | Visible | 814 | 54 | `csv/AGLA-2022/2022-h4-bid-stats/12_Match_History.csv` |
+| 13 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-stats/13_HEXASbaseINFO.csv` |
+| 14 | MassFormulaTesting | Hidden | 104 | 43 | `csv/AGLA-2022/2022-h4-bid-stats/14_MassFormulaTesting.csv` |
+| 15 | PG_Stats | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-stats/15_PG_Stats.csv` |
+| 16 | TotalAverages | Visible | 47 | 50 | `csv/AGLA-2022/2022-h4-bid-stats/16_TotalAverages.csv` |
+| 17 | Weekly Recap | Hidden | 100 | 54 | `csv/AGLA-2022/2022-h4-bid-stats/17_Weekly_Recap.csv` |
+| 18 | Sheet17 | Hidden | 84 | 54 | `csv/AGLA-2022/2022-h4-bid-stats/18_Sheet17.csv` |
+| 19 | WQeekly Recap | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h4-bid-stats/19_WQeekly_Recap.csv` |
+
+### H3 Action League 22 Schedule (`2022-h3-action-schedule`)
+- **Category:** AGLA-2022 | **Format:** `xlsx` | **Tabs:** 14 | **Rows:** 511
+- **JSON:** `json/AGLA-2022/2022-h3-action-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Visible | 27 | 10 | `csv/AGLA-2022/2022-h3-action-schedule/01_Schedule.csv` |
+| 2 | Game Overview | Visible | 132 | 8 | `csv/AGLA-2022/2022-h3-action-schedule/02_Game_Overview.csv` |
+| 3 | PLAYOFFS | Visible | 14 | 10 | `csv/AGLA-2022/2022-h3-action-schedule/03_PLAYOFFS.csv` |
+| 4 | Mission Page | Visible | 51 | 92 | `csv/AGLA-2022/2022-h3-action-schedule/04_Mission_Page.csv` |
+| 5 | Players Signed Up | Hidden | 58 | 12 | `csv/AGLA-2022/2022-h3-action-schedule/05_Players_Signed_Up.csv` |
+| 6 | TEST DRAFT (not mock) | Hidden | 37 | 43 | `csv/AGLA-2022/2022-h3-action-schedule/06_TEST_DRAFT_not_mock.csv` |
+| 7 | Cards 1 | Hidden | 29 | 22 | `csv/AGLA-2022/2022-h3-action-schedule/07_Cards_1.csv` |
+| 8 | Draft Cards | Hidden | 9 | 6 | `csv/AGLA-2022/2022-h3-action-schedule/08_Draft_Cards.csv` |
+| 9 | Card Usage | Visible | 12 | 6 | `csv/AGLA-2022/2022-h3-action-schedule/09_Card_Usage.csv` |
+| 10 | Big Board | Visible | 36 | 47 | `csv/AGLA-2022/2022-h3-action-schedule/10_Big_Board.csv` |
+| 11 | Game Board | Visible | 0 | 0 | `csv/AGLA-2022/2022-h3-action-schedule/11_Game_Board.csv` |
+| 12 | Mission Check Auto | Visible | 36 | 44 | `csv/AGLA-2022/2022-h3-action-schedule/12_Mission_Check_Auto.csv` |
+| 13 | Sheet7 | Hidden | 22 | 6 | `csv/AGLA-2022/2022-h3-action-schedule/13_Sheet7.csv` |
+| 14 | Mission Check | Hidden | 48 | 61 | `csv/AGLA-2022/2022-h3-action-schedule/14_Mission_Check.csv` |
+
+### H3 Action League 22 Stats (`2022-h3-action-stats`)
+- **Category:** AGLA-2022 | **Format:** `xlsx` | **Tabs:** 27 | **Rows:** 2,042
+- **JSON:** `json/AGLA-2022/2022-h3-action-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule | Hidden | 26 | 12 | `csv/AGLA-2022/2022-h3-action-stats/01_Schedule.csv` |
+| 2 | Team Avail | Hidden | 30 | 27 | `csv/AGLA-2022/2022-h3-action-stats/02_Team_Avail.csv` |
+| 3 | Sub Page | Visible | 36 | 14 | `csv/AGLA-2022/2022-h3-action-stats/03_Sub_Page.csv` |
+| 4 | Sub Page New | Visible | 31 | 14 | `csv/AGLA-2022/2022-h3-action-stats/04_Sub_Page_New.csv` |
+| 5 |  Sub Page Percentiles | Visible | 30 | 16 | `csv/AGLA-2022/2022-h3-action-stats/05_Sub_Page_Percentiles.csv` |
+| 6 | Percentiles Grades | Visible | 50 | 5 | `csv/AGLA-2022/2022-h3-action-stats/06_Percentiles_Grades.csv` |
+| 7 | Teams | Visible | 30 | 19 | `csv/AGLA-2022/2022-h3-action-stats/07_Teams.csv` |
+| 8 | Team Report Cards | Visible | 69 | 43 | `csv/AGLA-2022/2022-h3-action-stats/08_Team_Report_Cards.csv` |
+| 9 | Stats | Visible | 51 | 45 | `csv/AGLA-2022/2022-h3-action-stats/09_Stats.csv` |
+| 10 | PlayerGrades | Visible | 73 | 32 | `csv/AGLA-2022/2022-h3-action-stats/10_PlayerGrades.csv` |
+| 11 | TeamInfo | Hidden | 58 | 9 | `csv/AGLA-2022/2022-h3-action-stats/11_TeamInfo.csv` |
+| 12 | NTankGrades | Hidden | 73 | 32 | `csv/AGLA-2022/2022-h3-action-stats/12_NTankGrades.csv` |
+| 13 | NRunnerGrades | Hidden | 73 | 32 | `csv/AGLA-2022/2022-h3-action-stats/13_NRunnerGrades.csv` |
+| 14 | PlayerGradesNew | Visible | 73 | 32 | `csv/AGLA-2022/2022-h3-action-stats/14_PlayerGradesNew.csv` |
+| 15 | PGrunner | Visible | 84 | 32 | `csv/AGLA-2022/2022-h3-action-stats/15_PGrunner.csv` |
+| 16 | PGTank | Visible | 84 | 38 | `csv/AGLA-2022/2022-h3-action-stats/16_PGTank.csv` |
+| 17 | Grades Groupings | Visible | 74 | 24 | `csv/AGLA-2022/2022-h3-action-stats/17_Grades_Groupings.csv` |
+| 18 | HEXAS | Visible | 51 | 37 | `csv/AGLA-2022/2022-h3-action-stats/18_HEXAS.csv` |
+| 19 | Role Grades | Hidden | 66 | 25 | `csv/AGLA-2022/2022-h3-action-stats/19_Role_Grades.csv` |
+| 20 | PG_Stats | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h3-action-stats/20_PG_Stats.csv` |
+| 21 | PG_Stats_Tank | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h3-action-stats/21_PG_Stats_Tank.csv` |
+| 22 | PG_Stats_Runner | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h3-action-stats/22_PG_Stats_Runner.csv` |
+| 23 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/AGLA-2022/2022-h3-action-stats/23_HEXASbaseINFO.csv` |
+| 24 | Player Efficiency | Visible | 60 | 40 | `csv/AGLA-2022/2022-h3-action-stats/24_Player_Efficiency.csv` |
+| 25 | TotalAverages | Visible | 53 | 40 | `csv/AGLA-2022/2022-h3-action-stats/25_TotalAverages.csv` |
+| 26 | Match_History | Visible | 776 | 44 | `csv/AGLA-2022/2022-h3-action-stats/26_Match_History.csv` |
+| 27 | MassFormulaTesting | Hidden | 91 | 43 | `csv/AGLA-2022/2022-h3-action-stats/27_MassFormulaTesting.csv` |
+
+### Grifball DA WL23 Stats (`2023-da-wl23-stats`)
+- **Category:** AGLA-2023 | **Format:** `xlsx` | **Tabs:** 25 | **Rows:** 1,873
+- **JSON:** `json/AGLA-2023/2023-da-wl23-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Teams | Visible | 18 | 12 | `csv/AGLA-2023/2023-da-wl23-stats/01_Teams.csv` |
+| 2 | Team Stats | Visible | 56 | 24 | `csv/AGLA-2023/2023-da-wl23-stats/02_Team_Stats.csv` |
+| 3 | Top Stats | Visible | 37 | 12 | `csv/AGLA-2023/2023-da-wl23-stats/03_Top_Stats.csv` |
+| 4 | Leaderboards | Visible | 87 | 42 | `csv/AGLA-2023/2023-da-wl23-stats/04_Leaderboards.csv` |
+| 5 | Runner Stats | Visible | 50 | 20 | `csv/AGLA-2023/2023-da-wl23-stats/05_Runner_Stats.csv` |
+| 6 | PlayerGrades+ | Visible | 61 | 35 | `csv/AGLA-2023/2023-da-wl23-stats/06_PlayerGrades.csv` |
+| 7 | Round Avg | Hidden | 48 | 22 | `csv/AGLA-2023/2023-da-wl23-stats/07_Round_Avg.csv` |
+| 8 | PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2023/2023-da-wl23-stats/08_PG_Stats.csv` |
+| 9 | Full Season PlayerGrades+ | Hidden | 56 | 35 | `csv/AGLA-2023/2023-da-wl23-stats/09_Full_Season_PlayerGrades.csv` |
+| 10 | Full Season PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2023/2023-da-wl23-stats/10_Full_Season_PG_Stats.csv` |
+| 11 | Season Awards | Visible | 23 | 23 | `csv/AGLA-2023/2023-da-wl23-stats/11_Season_Awards.csv` |
+| 12 | Season+Playoffs Stats | Visible | 50 | 44 | `csv/AGLA-2023/2023-da-wl23-stats/12_Season_Playoffs_Stats.csv` |
+| 13 | Halo Infinite Stats | Visible | 50 | 44 | `csv/AGLA-2023/2023-da-wl23-stats/13_Halo_Infinite_Stats.csv` |
+| 14 | Sheet20 | Hidden | 11 | 3 | `csv/AGLA-2023/2023-da-wl23-stats/14_Sheet20.csv` |
+| 15 | Playoff Stats | Visible | 32 | 44 | `csv/AGLA-2023/2023-da-wl23-stats/15_Playoff_Stats.csv` |
+| 16 | Playoff Stats Pivot | Hidden | 0 | 0 | `csv/AGLA-2023/2023-da-wl23-stats/16_Playoff_Stats_Pivot.csv` |
+| 17 | Detail2-TJP37 | Hidden | 3 | 52 | `csv/AGLA-2023/2023-da-wl23-stats/17_Detail2-TJP37.csv` |
+| 18 | Playoff Review HI_MatchH | Visible | 121 | 52 | `csv/AGLA-2023/2023-da-wl23-stats/18_Playoff_Review_HI_MatchH.csv` |
+| 19 | Schedule  | Hidden | 143 | 9 | `csv/AGLA-2023/2023-da-wl23-stats/19_Schedule.csv` |
+| 20 | Match History | Visible | 128 | 10 | `csv/AGLA-2023/2023-da-wl23-stats/20_Match_History.csv` |
+| 21 | Special Thanks | Visible | 3 | 7 | `csv/AGLA-2023/2023-da-wl23-stats/21_Special_Thanks.csv` |
+| 22 | Review HI_MatchH | Hidden | 705 | 52 | `csv/AGLA-2023/2023-da-wl23-stats/22_Review_HI_MatchH.csv` |
+| 23 | PG Stats | Hidden | 138 | 34 | `csv/AGLA-2023/2023-da-wl23-stats/23_PG_Stats.csv` |
+| 24 | Awards IN THE WORKS | Hidden | 12 | 31 | `csv/AGLA-2023/2023-da-wl23-stats/24_Awards_IN_THE_WORKS.csv` |
+| 25 | Playoffs | Hidden | 41 | 14 | `csv/AGLA-2023/2023-da-wl23-stats/25_Playoffs.csv` |
+
+### Grifball DA WL23 Schedule (`2023-da-wl23-schedule`)
+- **Category:** AGLA-2023 | **Format:** `xlsx` | **Tabs:** 7 | **Rows:** 298
+- **JSON:** `json/AGLA-2023/2023-da-wl23-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Old SCHEDU | Hidden | 21 | 13 | `csv/AGLA-2023/2023-da-wl23-schedule/01_Old_SCHEDU.csv` |
+| 2 | Schedule | Hidden | 12 | 10 | `csv/AGLA-2023/2023-da-wl23-schedule/02_Schedule.csv` |
+| 3 | Draft Sheet | Visible | 42 | 15 | `csv/AGLA-2023/2023-da-wl23-schedule/03_Draft_Sheet.csv` |
+| 4 | Schedule ListStandings | Visible | 43 | 32 | `csv/AGLA-2023/2023-da-wl23-schedule/04_Schedule_ListStandings.csv` |
+| 5 | Game History | Visible | 100 | 11 | `csv/AGLA-2023/2023-da-wl23-schedule/05_Game_History.csv` |
+| 6 | Playoffs | Visible | 41 | 14 | `csv/AGLA-2023/2023-da-wl23-schedule/06_Playoffs.csv` |
+| 7 | Copy of Halo Reach Stats | Hidden | 39 | 37 | `csv/AGLA-2023/2023-da-wl23-schedule/07_Copy_of_Halo_Reach_Stats.csv` |
+
+### Grifball DA(Post Netcode Change) SL24 Stats (`2024-da-sl24-stats`)
+- **Category:** AGLA-2024 | **Format:** `xlsx` | **Tabs:** 20 | **Rows:** 3,307
+- **JSON:** `json/AGLA-2024/2024-da-sl24-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | QuickLook | Visible | 51 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/01_QuickLook.csv` |
+| 2 | TeamInfo | Hidden | 52 | 10 | `csv/AGLA-2024/2024-da-sl24-stats/02_TeamInfo.csv` |
+| 3 | Team Report Cards | Visible | 64 | 42 | `csv/AGLA-2024/2024-da-sl24-stats/03_Team_Report_Cards.csv` |
+| 4 | Halo Infinite Stats | Visible | 49 | 37 | `csv/AGLA-2024/2024-da-sl24-stats/04_Halo_Infinite_Stats.csv` |
+| 5 | Copy of Team Report Cards | Hidden | 64 | 42 | `csv/AGLA-2024/2024-da-sl24-stats/05_Copy_of_Team_Report_Cards.csv` |
+| 6 | PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2024/2024-da-sl24-stats/06_PG_Stats.csv` |
+| 7 | PlayerGrades+ | Visible | 61 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/07_PlayerGrades.csv` |
+| 8 | Curve_PlayerGrades+ | Visible | 61 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/08_Curve_PlayerGrades.csv` |
+| 9 | Review HI_MatchH | Visible | 1127 | 55 | `csv/AGLA-2024/2024-da-sl24-stats/09_Review_HI_MatchH.csv` |
+| 10 | MatchBot | Visible | 1261 | 42 | `csv/AGLA-2024/2024-da-sl24-stats/10_MatchBot.csv` |
+| 11 | PlayerExtra | Hidden | 117 | 10 | `csv/AGLA-2024/2024-da-sl24-stats/11_PlayerExtra.csv` |
+| 12 | Aggregate | Hidden | 43 | 37 | `csv/AGLA-2024/2024-da-sl24-stats/12_Aggregate.csv` |
+| 13 | Aggregate_Stats | Hidden | 116 | 42 | `csv/AGLA-2024/2024-da-sl24-stats/13_Aggregate_Stats.csv` |
+| 14 | MatchBot_Pivot | Hidden | 0 | 0 | `csv/AGLA-2024/2024-da-sl24-stats/14_MatchBot_Pivot.csv` |
+| 15 | Aggregate_Pivot | Hidden | 0 | 0 | `csv/AGLA-2024/2024-da-sl24-stats/15_Aggregate_Pivot.csv` |
+| 16 | PG_Agg_Stats | Hidden | 0 | 0 | `csv/AGLA-2024/2024-da-sl24-stats/16_PG_Agg_Stats.csv` |
+| 17 | PG_vs_SetValue | Hidden | 62 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/17_PG_vs_SetValue.csv` |
+| 18 | PG_Aggregate | Hidden | 67 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/18_PG_Aggregate.csv` |
+| 19 | PG_vs_All Seasons | Hidden | 62 | 35 | `csv/AGLA-2024/2024-da-sl24-stats/19_PG_vs_All_Seasons.csv` |
+| 20 | Runner Stats | Hidden | 50 | 17 | `csv/AGLA-2024/2024-da-sl24-stats/20_Runner_Stats.csv` |
+
+### Grifball DA(Post Netcode Change) SL24 Schedule (`2024-da-sl24-schedule`)
+- **Category:** AGLA-2024 | **Format:** `xlsx` | **Tabs:** 6 | **Rows:** 385
+- **JSON:** `json/AGLA-2024/2024-da-sl24-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Draft Sheet | Visible | 51 | 16 | `csv/AGLA-2024/2024-da-sl24-schedule/01_Draft_Sheet.csv` |
+| 2 | Alternate Draft Sheet | Visible | 55 | 16 | `csv/AGLA-2024/2024-da-sl24-schedule/02_Alternate_Draft_Sheet.csv` |
+| 3 | Schedule ListStandings | Visible | 86 | 11 | `csv/AGLA-2024/2024-da-sl24-schedule/03_Schedule_ListStandings.csv` |
+| 4 | Sheet5 | Hidden | 2 | 1 | `csv/AGLA-2024/2024-da-sl24-schedule/04_Sheet5.csv` |
+| 5 | Game History | Visible | 155 | 11 | `csv/AGLA-2024/2024-da-sl24-schedule/05_Game_History.csv` |
+| 6 | Playoffs | Visible | 36 | 14 | `csv/AGLA-2024/2024-da-sl24-schedule/06_Playoffs.csv` |
+
+### Octane WL25 Stats (`2025-octane-wl25-stats`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 16 | **Rows:** 2,723
+- **JSON:** `json/AGLA-2025/2025-octane-wl25-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Substitution List | Hidden | 15 | 12 | `csv/AGLA-2025/2025-octane-wl25-stats/01_Substitution_List.csv` |
+| 2 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2025-octane-wl25-stats/02_Team_Report_Cards.csv` |
+| 3 | TeamInfo | Hidden | 62 | 11 | `csv/AGLA-2025/2025-octane-wl25-stats/03_TeamInfo.csv` |
+| 4 | PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2025/2025-octane-wl25-stats/04_PG_Stats.csv` |
+| 5 | IGL Fall Season 2024 Stats Shee | Hidden | 1 | 47 | `csv/AGLA-2025/2025-octane-wl25-stats/05_IGL_Fall_Season_2024_Stats_Shee.csv` |
+| 6 | QuickLook | Visible | 53 | 43 | `csv/AGLA-2025/2025-octane-wl25-stats/06_QuickLook.csv` |
+| 7 | Regular Season Stats Sheet stat | Visible | 40 | 42 | `csv/AGLA-2025/2025-octane-wl25-stats/07_Regular_Season_Stats_Sheet_stat.csv` |
+| 8 | Playoff Stats Sheet stats | Visible | 25 | 42 | `csv/AGLA-2025/2025-octane-wl25-stats/08_Playoff_Stats_Sheet_stats.csv` |
+| 9 | PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-octane-wl25-stats/09_PlayerGrades.csv` |
+| 10 | Reg_Playoff PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-octane-wl25-stats/10_Reg_Playoff_PlayerGrades.csv` |
+| 11 | Review HI_MatchH | Visible | 800 | 61 | `csv/AGLA-2025/2025-octane-wl25-stats/11_Review_HI_MatchH.csv` |
+| 12 | TankerGrades+ | Hidden | 60 | 35 | `csv/AGLA-2025/2025-octane-wl25-stats/12_TankerGrades.csv` |
+| 13 | Copy | Visible | 800 | 203 | `csv/AGLA-2025/2025-octane-wl25-stats/13_Copy.csv` |
+| 14 | IGL Fall Season 2024 Sheet hist | Visible | 673 | 197 | `csv/AGLA-2025/2025-octane-wl25-stats/14_IGL_Fall_Season_2024_Sheet_hist.csv` |
+| 15 | Copy of Regular Season PG+ Stat | Visible | 0 | 0 | `csv/AGLA-2025/2025-octane-wl25-stats/15_Copy_of_Regular_Season_PG_Stat.csv` |
+| 16 | Reg_Play PG+ Stats | Visible | 0 | 0 | `csv/AGLA-2025/2025-octane-wl25-stats/16_Reg_Play_PG_Stats.csv` |
+
+### Octane WL25 Schedule (`2025-octane-wl25-schedule`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 11 | **Rows:** 774
+- **JSON:** `json/AGLA-2025/2025-octane-wl25-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Draft Sheet | Visible | 20 | 14 | `csv/AGLA-2025/2025-octane-wl25-schedule/01_Draft_Sheet.csv` |
+| 2 | Schedule ListStandings | Visible | 65 | 12 | `csv/AGLA-2025/2025-octane-wl25-schedule/02_Schedule_ListStandings.csv` |
+| 3 | Game History | Visible | 89 | 21 | `csv/AGLA-2025/2025-octane-wl25-schedule/03_Game_History.csv` |
+| 4 | Playoffs | Visible | 33 | 14 | `csv/AGLA-2025/2025-octane-wl25-schedule/04_Playoffs.csv` |
+| 5 | Schedule | Visible | 80 | 27 | `csv/AGLA-2025/2025-octane-wl25-schedule/05_Schedule.csv` |
+| 6 | Copy of Draft Sheet | Hidden | 20 | 14 | `csv/AGLA-2025/2025-octane-wl25-schedule/06_Copy_of_Draft_Sheet.csv` |
+| 7 | Substitution List | Hidden | 15 | 12 | `csv/AGLA-2025/2025-octane-wl25-schedule/07_Substitution_List.csv` |
+| 8 | Schedule Lookup Tool | Hidden | 316 | 12 | `csv/AGLA-2025/2025-octane-wl25-schedule/08_Schedule_Lookup_Tool.csv` |
+| 9 | Alt Draft Sheet | Hidden | 55 | 16 | `csv/AGLA-2025/2025-octane-wl25-schedule/09_Alt_Draft_Sheet.csv` |
+| 10 | Sheet5 | Hidden | 2 | 1 | `csv/AGLA-2025/2025-octane-wl25-schedule/10_Sheet5.csv` |
+| 11 | Game History (OLD) | Hidden | 79 | 12 | `csv/AGLA-2025/2025-octane-wl25-schedule/11_Game_History_OLD.csv` |
+
+### Octane WL25 Bid Chart (`2025-octane-wl25-bid-chart`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 4 | **Rows:** 230
+- **JSON:** `json/AGLA-2025/2025-octane-wl25-bid-chart.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Bidding | Visible | 41 | 15 | `csv/AGLA-2025/2025-octane-wl25-bid-chart/01_Bidding.csv` |
+| 2 | Draft Mock | Hidden | 4 | 10 | `csv/AGLA-2025/2025-octane-wl25-bid-chart/02_Draft_Mock.csv` |
+| 3 | PLAYERS | Visible | 33 | 8 | `csv/AGLA-2025/2025-octane-wl25-bid-chart/03_PLAYERS.csv` |
+| 4 | BidLog | Visible | 152 | 4 | `csv/AGLA-2025/2025-octane-wl25-bid-chart/04_BidLog.csv` |
+
+### Octane SL25 Bid Chart (`2025-octane-sl25-bid-chart`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 5 | **Rows:** 266
+- **JSON:** `json/AGLA-2025/2025-octane-sl25-bid-chart.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Bid Sheet | Visible | 41 | 20 | `csv/AGLA-2025/2025-octane-sl25-bid-chart/01_Bid_Sheet.csv` |
+| 2 | Sheet11 | Visible | 0 | 0 | `csv/AGLA-2025/2025-octane-sl25-bid-chart/02_Sheet11.csv` |
+| 3 | PLAYERS | Visible | 2 | 8 | `csv/AGLA-2025/2025-octane-sl25-bid-chart/03_PLAYERS.csv` |
+| 4 | BidLog | Visible | 182 | 4 | `csv/AGLA-2025/2025-octane-sl25-bid-chart/04_BidLog.csv` |
+| 5 | Bidding | Visible | 41 | 15 | `csv/AGLA-2025/2025-octane-sl25-bid-chart/05_Bidding.csv` |
+
+### Octane SL25 Bid Schedule (`2025-octane-sl25-bid-schedule`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 11 | **Rows:** 892
+- **JSON:** `json/AGLA-2025/2025-octane-sl25-bid-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team Chart | Visible | 9 | 16 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/01_Team_Chart.csv` |
+| 2 | Schedule ListStandings | Visible | 130 | 19 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/02_Schedule_ListStandings.csv` |
+| 3 | Game History | Visible | 156 | 21 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/03_Game_History.csv` |
+| 4 | Playoffs | Visible | 45 | 12 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/04_Playoffs.csv` |
+| 5 | Schedule | Visible | 65 | 24 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/05_Schedule.csv` |
+| 6 | Copy of Draft Sheet | Hidden | 20 | 14 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/06_Copy_of_Draft_Sheet.csv` |
+| 7 | Substitution List | Hidden | 15 | 12 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/07_Substitution_List.csv` |
+| 8 | Schedule Lookup Tool | Hidden | 316 | 12 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/08_Schedule_Lookup_Tool.csv` |
+| 9 | Alt Draft Sheet | Hidden | 55 | 16 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/09_Alt_Draft_Sheet.csv` |
+| 10 | Sheet5 | Hidden | 2 | 1 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/10_Sheet5.csv` |
+| 11 | Game History (OLD) | Hidden | 79 | 12 | `csv/AGLA-2025/2025-octane-sl25-bid-schedule/11_Game_History_OLD.csv` |
+
+### Octane SL25 Bid Stats (`2025-octane-sl25-bid-stats`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 18 | **Rows:** 4,051
+- **JSON:** `json/AGLA-2025/2025-octane-sl25-bid-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Substitution List | Hidden | 15 | 12 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/01_Substitution_List.csv` |
+| 2 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/02_Team_Report_Cards.csv` |
+| 3 | TeamInfo | Hidden | 62 | 11 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/03_TeamInfo.csv` |
+| 4 | PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/04_PG_Stats.csv` |
+| 5 | IGL Fall Season 2024 Stats Shee | Hidden | 1 | 47 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/05_IGL_Fall_Season_2024_Stats_Shee.csv` |
+| 6 | Copy | Visible | 1169 | 203 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/06_Copy.csv` |
+| 7 | QuickLook | Visible | 57 | 61 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/07_QuickLook.csv` |
+| 8 | Sheet5 | Hidden | 0 | 0 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/08_Sheet5.csv` |
+| 9 | Regular Season Stats Sheet stat | Visible | 56 | 42 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/09_Regular_Season_Stats_Sheet_stat.csv` |
+| 10 | PlayerGrades+ | Visible | 61 | 35 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/10_PlayerGrades.csv` |
+| 11 | Playoff Stats Sheet stats | Hidden | 36 | 42 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/11_Playoff_Stats_Sheet_stats.csv` |
+| 12 | Hard# PlayerGrades+ | Hidden | 61 | 55 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/12_Hard_PlayerGrades.csv` |
+| 13 | Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/13_Review_HI_MatchH.csv` |
+| 14 | Reg_Playoff PlayerGrades+ | Hidden | 61 | 35 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/14_Reg_Playoff_PlayerGrades.csv` |
+| 15 | Season Match History | Visible | 1169 | 197 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/15_Season_Match_History.csv` |
+| 16 | Copy of Regular Season PG+ Stat | Hidden | 0 | 0 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/16_Copy_of_Regular_Season_PG_Stat.csv` |
+| 17 | TankerGrades+ | Hidden | 60 | 35 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/17_TankerGrades.csv` |
+| 18 | Reg_Play PG+ Stats | Hidden | 0 | 0 | `csv/AGLA-2025/2025-octane-sl25-bid-stats/18_Reg_Play_PG_Stats.csv` |
+
+### Classic SML25 Pro & Legacy Draft Sheets (`2025-classic-sml25-draft`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 4 | **Rows:** 181
+- **JSON:** `json/AGLA-2025/2025-classic-sml25-draft.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Pro Draft Sheet | Visible | 78 | 10 | `csv/AGLA-2025/2025-classic-sml25-draft/01_Pro_Draft_Sheet.csv` |
+| 2 | Legacy Draft Sheet | Visible | 46 | 10 | `csv/AGLA-2025/2025-classic-sml25-draft/02_Legacy_Draft_Sheet.csv` |
+| 3 | Alt Draft Sheet | Hidden | 55 | 16 | `csv/AGLA-2025/2025-classic-sml25-draft/03_Alt_Draft_Sheet.csv` |
+| 4 | Sheet5 | Hidden | 2 | 1 | `csv/AGLA-2025/2025-classic-sml25-draft/04_Sheet5.csv` |
+
+### Classic SML25 Pro & Legacy Schedules (`2025-classic-sml25-schedules`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 18 | **Rows:** 987
+- **JSON:** `json/AGLA-2025/2025-classic-sml25-schedules.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Pro Schedule | Visible | 9 | 9 | `csv/AGLA-2025/2025-classic-sml25-schedules/01_Pro_Schedule.csv` |
+| 2 | Legacy Schedule | Visible | 9 | 9 | `csv/AGLA-2025/2025-classic-sml25-schedules/02_Legacy_Schedule.csv` |
+| 3 | Pro Team Chart | Visible | 9 | 8 | `csv/AGLA-2025/2025-classic-sml25-schedules/03_Pro_Team_Chart.csv` |
+| 4 | Legacy Team Chart | Visible | 10 | 10 | `csv/AGLA-2025/2025-classic-sml25-schedules/04_Legacy_Team_Chart.csv` |
+| 5 | Schedule ListStandings | Visible | 10 | 10 | `csv/AGLA-2025/2025-classic-sml25-schedules/05_Schedule_ListStandings.csv` |
+| 6 | Legacy Playoffs | Visible | 24 | 11 | `csv/AGLA-2025/2025-classic-sml25-schedules/06_Legacy_Playoffs.csv` |
+| 7 | Standings Calculator | Visible | 87 | 17 | `csv/AGLA-2025/2025-classic-sml25-schedules/07_Standings_Calculator.csv` |
+| 8 | Pro Game History | Visible | 74 | 21 | `csv/AGLA-2025/2025-classic-sml25-schedules/08_Pro_Game_History.csv` |
+| 9 | Legacy Game History | Visible | 113 | 21 | `csv/AGLA-2025/2025-classic-sml25-schedules/09_Legacy_Game_History.csv` |
+| 10 | Pro Playoffs | Visible | 21 | 14 | `csv/AGLA-2025/2025-classic-sml25-schedules/10_Pro_Playoffs.csv` |
+| 11 | Schedule | Hidden | 47 | 24 | `csv/AGLA-2025/2025-classic-sml25-schedules/11_Schedule.csv` |
+| 12 | Sheet9 | Hidden | 87 | 9 | `csv/AGLA-2025/2025-classic-sml25-schedules/12_Sheet9.csv` |
+| 13 | Copy of Draft Sheet | Hidden | 20 | 14 | `csv/AGLA-2025/2025-classic-sml25-schedules/13_Copy_of_Draft_Sheet.csv` |
+| 14 | Substitution List | Hidden | 15 | 12 | `csv/AGLA-2025/2025-classic-sml25-schedules/14_Substitution_List.csv` |
+| 15 | Schedule Lookup Tool | Hidden | 316 | 12 | `csv/AGLA-2025/2025-classic-sml25-schedules/15_Schedule_Lookup_Tool.csv` |
+| 16 | Alt Draft Sheet | Hidden | 55 | 16 | `csv/AGLA-2025/2025-classic-sml25-schedules/16_Alt_Draft_Sheet.csv` |
+| 17 | Sheet5 | Hidden | 2 | 1 | `csv/AGLA-2025/2025-classic-sml25-schedules/17_Sheet5.csv` |
+| 18 | Game History (OLD) | Hidden | 79 | 12 | `csv/AGLA-2025/2025-classic-sml25-schedules/18_Game_History_OLD.csv` |
+
+### Classic SML25 Pro League Stats (`2025-classic-sml25-pro-stats`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 22 | **Rows:** 4,518
+- **JSON:** `json/AGLA-2025/2025-classic-sml25-pro-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Substitution List | Hidden | 10 | 12 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/01_Substitution_List.csv` |
+| 2 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/02_Team_Report_Cards.csv` |
+| 3 | TeamInfo | Hidden | 62 | 11 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/03_TeamInfo.csv` |
+| 4 | Welcome | Visible | 6 | 6 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/04_Welcome.csv` |
+| 5 | QuickLook | Visible | 52 | 68 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/05_QuickLook.csv` |
+| 6 | Regular + Playoffs Season Stats | Visible | 26 | 45 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/06_Regular_Playoffs_Season_Stats.csv` |
+| 7 | Playoff Stats Sheet stats | Visible | 24 | 42 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/07_Playoff_Stats_Sheet_stats.csv` |
+| 8 | Leaderboards WIP | Visible | 55 | 24 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/08_Leaderboards_WIP.csv` |
+| 9 | PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/09_PlayerGrades.csv` |
+| 10 | Playoff PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/10_Playoff_PlayerGrades.csv` |
+| 11 | Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/11_Review_HI_MatchH.csv` |
+| 12 | Playoff Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/12_Playoff_Review_HI_MatchH.csv` |
+| 13 | Copy of Regular Season PG+ Stat | Visible | 27 | 42 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/13_Copy_of_Regular_Season_PG_Stat.csv` |
+| 14 | Season Match History | Hidden | 553 | 197 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/14_Season_Match_History.csv` |
+| 15 | Copy | Hidden | 561 | 204 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/15_Copy.csv` |
+| 16 | Playoff Match History | Hidden | 185 | 197 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/16_Playoff_Match_History.csv` |
+| 17 | Playoff | Hidden | 185 | 204 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/17_Playoff.csv` |
+| 18 | PT | Hidden | 0 | 0 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/18_PT.csv` |
+| 19 | Playoff Table mis | Hidden | 0 | 0 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/19_Playoff_Table_mis.csv` |
+| 20 | Test table | Hidden | 119 | 42 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/20_Test_table.csv` |
+| 21 | Hard# PlayerGrades+ | Hidden | 61 | 55 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/21_Hard_PlayerGrades.csv` |
+| 22 | Reg_Playoff PlayerGrades+ | Hidden | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-pro-stats/22_Reg_Playoff_PlayerGrades.csv` |
+
+### Classic SML25 Legacy League Stats (`2025-classic-sml25-legacy-stats`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 21 | **Rows:** 5,188
+- **JSON:** `json/AGLA-2025/2025-classic-sml25-legacy-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Substitution List | Hidden | 14 | 12 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/01_Substitution_List.csv` |
+| 2 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/02_Team_Report_Cards.csv` |
+| 3 | TeamInfo | Hidden | 62 | 11 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/03_TeamInfo.csv` |
+| 4 | IGL Fall Season 2024 Stats Shee | Hidden | 1 | 47 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/04_IGL_Fall_Season_2024_Stats_Shee.csv` |
+| 5 | Welcome | Visible | 5 | 6 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/05_Welcome.csv` |
+| 6 | QuickLook | Visible | 51 | 66 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/06_QuickLook.csv` |
+| 7 | Leaderboards WIP | Visible | 76 | 24 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/07_Leaderboards_WIP.csv` |
+| 8 | Regular + Playoff Season Stats  | Visible | 37 | 45 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/08_Regular_Playoff_Season_Stats.csv` |
+| 9 | Playoff Season Stats Sheet | Visible | 30 | 45 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/09_Playoff_Season_Stats_Sheet.csv` |
+| 10 | PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/10_PlayerGrades.csv` |
+| 11 | Playoffs PlayerGrades+ | Visible | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/11_Playoffs_PlayerGrades.csv` |
+| 12 | Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/12_Review_HI_MatchH.csv` |
+| 13 | Playoff Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/13_Playoff_Review_HI_MatchH.csv` |
+| 14 | Copy | Hidden | 889 | 204 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/14_Copy.csv` |
+| 15 | Season Match History | Hidden | 865 | 197 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/15_Season_Match_History.csv` |
+| 16 | Playoff Match History | Hidden | 193 | 197 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/16_Playoff_Match_History.csv` |
+| 17 | Playoff | Hidden | 193 | 204 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/17_Playoff.csv` |
+| 18 | PT | Hidden | 0 | 0 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/18_PT.csv` |
+| 19 | Copy of Regular Season PG+ Stat | Visible | 119 | 42 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/19_Copy_of_Regular_Season_PG_Stat.csv` |
+| 20 | Hard# PlayerGrades+ | Hidden | 61 | 55 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/20_Hard_PlayerGrades.csv` |
+| 21 | Reg_Playoff PlayerGrades+ | Hidden | 60 | 35 | `csv/AGLA-2025/2025-classic-sml25-legacy-stats/21_Reg_Playoff_PlayerGrades.csv` |
+
+### SL26 Minor Season Stats & Schedule (`2026-sl26-minor-stats-schedule`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 17 | **Rows:** 3,827
+- **JSON:** `json/AGLA-2025/2026-sl26-minor-stats-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/01_Team_Report_Cards.csv` |
+| 2 | Welcome | Hidden | 1 | 1 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/02_Welcome.csv` |
+| 3 | Season Sheet | Visible | 34 | 18 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/03_Season_Sheet.csv` |
+| 4 | Game History | Visible | 51 | 22 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/04_Game_History.csv` |
+| 5 | QuickLook | Visible | 57 | 68 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/05_QuickLook.csv` |
+| 6 | Leaderboards WIP | Hidden | 57 | 24 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/06_Leaderboards_WIP.csv` |
+| 7 | Regular Season Stats Sheet | Visible | 27 | 45 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/07_Regular_Season_Stats_Sheet.csv` |
+| 8 | Playoff Stats Sheet stats | Hidden | 1 | 1 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/08_Playoff_Stats_Sheet_stats.csv` |
+| 9 | Playoff Review HI_MatchH | Hidden | 1169 | 61 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/09_Playoff_Review_HI_MatchH.csv` |
+| 10 | Playoff Match History | Hidden | 1 | 197 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/10_Playoff_Match_History.csv` |
+| 11 | Playoff | Hidden | 185 | 204 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/11_Playoff.csv` |
+| 12 | EvoPlayerGrades | Visible | 74 | 62 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/12_EvoPlayerGrades.csv` |
+| 13 | EvoPGPStyle | Visible | 27 | 19 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/13_EvoPGPStyle.csv` |
+| 14 | EvoPGPStyleRaw | Visible | 28 | 46 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/14_EvoPGPStyleRaw.csv` |
+| 15 | Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/15_Review_HI_MatchH.csv` |
+| 16 | Season Match History | Visible | 425 | 197 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/16_Season_Match_History.csv` |
+| 17 | Copy | Visible | 447 | 204 | `csv/AGLA-2025/2026-sl26-minor-stats-schedule/17_Copy.csv` |
+
+### SL26 Major Season Stats (`2026-sl26-major-stats`)
+- **Category:** AGLA-2025 | **Format:** `xlsx` | **Tabs:** 20 | **Rows:** 5,116
+- **JSON:** `json/AGLA-2025/2026-sl26-major-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team Report Cards | Hidden | 74 | 52 | `csv/AGLA-2025/2026-sl26-major-stats/01_Team_Report_Cards.csv` |
+| 2 | Welcome | Hidden | 1 | 1 | `csv/AGLA-2025/2026-sl26-major-stats/02_Welcome.csv` |
+| 3 | QuickLook | Visible | 41 | 30 | `csv/AGLA-2025/2026-sl26-major-stats/03_QuickLook.csv` |
+| 4 | Leaderboards | Visible | 76 | 24 | `csv/AGLA-2025/2026-sl26-major-stats/04_Leaderboards.csv` |
+| 5 | Regular Season Stats Sheet | Visible | 38 | 56 | `csv/AGLA-2025/2026-sl26-major-stats/05_Regular_Season_Stats_Sheet.csv` |
+| 6 | Playoffs Season Stats Sheet | Visible | 37 | 56 | `csv/AGLA-2025/2026-sl26-major-stats/06_Playoffs_Season_Stats_Sheet.csv` |
+| 7 | EvoPlayerGrades | Visible | 74 | 62 | `csv/AGLA-2025/2026-sl26-major-stats/07_EvoPlayerGrades.csv` |
+| 8 | EvoPGPStyle | Visible | 38 | 19 | `csv/AGLA-2025/2026-sl26-major-stats/08_EvoPGPStyle.csv` |
+| 9 | Playoff Stats Sheet stats | Hidden | 1 | 1 | `csv/AGLA-2025/2026-sl26-major-stats/09_Playoff_Stats_Sheet_stats.csv` |
+| 10 | Playoff Review HI_MatchH | Hidden | 1169 | 61 | `csv/AGLA-2025/2026-sl26-major-stats/10_Playoff_Review_HI_MatchH.csv` |
+| 11 | Playoff Match History | Hidden | 1 | 197 | `csv/AGLA-2025/2026-sl26-major-stats/11_Playoff_Match_History.csv` |
+| 12 | Playoff | Hidden | 185 | 204 | `csv/AGLA-2025/2026-sl26-major-stats/12_Playoff.csv` |
+| 13 | EvoPGPStyleRaw | Visible | 39 | 46 | `csv/AGLA-2025/2026-sl26-major-stats/13_EvoPGPStyleRaw.csv` |
+| 14 | Review HI_MatchH | Visible | 1169 | 61 | `csv/AGLA-2025/2026-sl26-major-stats/14_Review_HI_MatchH.csv` |
+| 15 | Copy | Visible | 729 | 204 | `csv/AGLA-2025/2026-sl26-major-stats/15_Copy.csv` |
+| 16 | PCopy | Visible | 729 | 204 | `csv/AGLA-2025/2026-sl26-major-stats/16_PCopy.csv` |
+| 17 | Season Match History | Visible | 577 | 197 | `csv/AGLA-2025/2026-sl26-major-stats/17_Season_Match_History.csv` |
+| 18 | Playoffs Match History | Visible | 73 | 197 | `csv/AGLA-2025/2026-sl26-major-stats/18_Playoffs_Match_History.csv` |
+| 19 | Game History | Hidden | 5 | 22 | `csv/AGLA-2025/2026-sl26-major-stats/19_Game_History.csv` |
+| 20 | Copy of PlayerGrades+ | Hidden | 60 | 35 | `csv/AGLA-2025/2026-sl26-major-stats/20_Copy_of_PlayerGrades.csv` |
+
+### SL26 Major Season Schedule (`2026-sl26-major-schedule`)
+- **Category:** AGLA-2025 | **Format:** `gviz-csv` | **Tabs:** 5 | **Rows:** 182
+- **JSON:** `json/AGLA-2025/2026-sl26-major-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Teams | Visible | 8 | 10 | `csv/AGLA-2025/2026-sl26-major-schedule/01_Teams.csv` |
+| 2 | League Schedule | Visible | 38 | 26 | `csv/AGLA-2025/2026-sl26-major-schedule/02_League_Schedule.csv` |
+| 3 | Team Schedules | Visible | 57 | 26 | `csv/AGLA-2025/2026-sl26-major-schedule/03_Team_Schedules.csv` |
+| 4 | Game History | Visible | 76 | 22 | `csv/AGLA-2025/2026-sl26-major-schedule/04_Game_History.csv` |
+| 5 | Playoffs | Visible | 3 | 15 | `csv/AGLA-2025/2026-sl26-major-schedule/05_Playoffs.csv` |
+
+### Evolved FL24 (`2024-igl-evolved-fl24`)
+- **Category:** IGL-2024 | **Format:** `xlsx` | **Tabs:** 10 | **Rows:** 900
+- **JSON:** `json/IGL-2024/2024-igl-evolved-fl24.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Draft Sheet | Visible | 55 | 14 | `csv/IGL-2024/2024-igl-evolved-fl24/01_Draft_Sheet.csv` |
+| 2 | Schedule ListStandings | Visible | 130 | 13 | `csv/IGL-2024/2024-igl-evolved-fl24/02_Schedule_ListStandings.csv` |
+| 3 | Game History | Visible | 112 | 21 | `csv/IGL-2024/2024-igl-evolved-fl24/03_Game_History.csv` |
+| 4 | Playoffs | Visible | 35 | 14 | `csv/IGL-2024/2024-igl-evolved-fl24/04_Playoffs.csv` |
+| 5 | Substitution List | Hidden | 15 | 12 | `csv/IGL-2024/2024-igl-evolved-fl24/05_Substitution_List.csv` |
+| 6 | Schedule | Hidden | 101 | 26 | `csv/IGL-2024/2024-igl-evolved-fl24/06_Schedule.csv` |
+| 7 | Schedule Lookup Tool | Hidden | 316 | 12 | `csv/IGL-2024/2024-igl-evolved-fl24/07_Schedule_Lookup_Tool.csv` |
+| 8 | Alt Draft Sheet | Hidden | 55 | 16 | `csv/IGL-2024/2024-igl-evolved-fl24/08_Alt_Draft_Sheet.csv` |
+| 9 | Sheet5 | Hidden | 2 | 1 | `csv/IGL-2024/2024-igl-evolved-fl24/09_Sheet5.csv` |
+| 10 | Game History (OLD) | Hidden | 79 | 12 | `csv/IGL-2024/2024-igl-evolved-fl24/10_Game_History_OLD.csv` |
+
+### Evolved FL24 Stats (`2024-igl-evolved-fl24-stats`)
+- **Category:** IGL-2024 | **Format:** `xlsx` | **Tabs:** 12 | **Rows:** 2,100
+- **JSON:** `json/IGL-2024/2024-igl-evolved-fl24-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Substitution List | Visible | 15 | 12 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/01_Substitution_List.csv` |
+| 2 | QuickLook | Visible | 53 | 41 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/02_QuickLook.csv` |
+| 3 | PlayerGrades+ | Visible | 61 | 35 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/03_PlayerGrades.csv` |
+| 4 | Team Report Cards | Visible | 74 | 52 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/04_Team_Report_Cards.csv` |
+| 5 | PG+ Stats | Hidden | 0 | 0 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/05_PG_Stats.csv` |
+| 6 | TeamInfo | Hidden | 62 | 11 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/06_TeamInfo.csv` |
+| 7 | IGL Fall Season 2024 Stats Shee | Visible | 50 | 47 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/07_IGL_Fall_Season_2024_Stats_Shee.csv` |
+| 8 | IGL Fall Season 2024 Sheet hist | Visible | 820 | 47 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/08_IGL_Fall_Season_2024_Sheet_hist.csv` |
+| 9 | Regular Season Stats Sheet stat | Hidden | 50 | 47 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/09_Regular_Season_Stats_Sheet_stat.csv` |
+| 10 | Regular Season PlayerGrades+ | Hidden | 61 | 35 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/10_Regular_Season_PlayerGrades.csv` |
+| 11 | Regular Season PG+ Stats | Hidden | 0 | 0 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/11_Regular_Season_PG_Stats.csv` |
+| 12 | Review HI_MatchH | Visible | 854 | 65 | `csv/IGL-2024/2024-igl-evolved-fl24-stats/12_Review_HI_MatchH.csv` |
+
+### Tournament Series #1 Halo 4 (`gwl-ts1-halo4`)
+- **Category:** GWL | **Format:** `xlsx` | **Tabs:** 21 | **Rows:** 837
+- **JSON:** `json/GWL/gwl-ts1-halo4.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/GWL/gwl-ts1-halo4/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 104 | 42 | `csv/GWL/gwl-ts1-halo4/02_MassFormulaTesting.csv` |
+| 3 | PlayerGradeStats | Hidden | 0 | 0 | `csv/GWL/gwl-ts1-halo4/03_PlayerGradeStats.csv` |
+| 4 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/GWL/gwl-ts1-halo4/04_HEXASbaseINFO.csv` |
+| 5 | Bracket Quick Check | Visible | 27 | 6 | `csv/GWL/gwl-ts1-halo4/05_Bracket_Quick_Check.csv` |
+| 6 | Draft Sheet | Visible | 46 | 16 | `csv/GWL/gwl-ts1-halo4/06_Draft_Sheet.csv` |
+| 7 | TeamInfo | Hidden | 45 | 5 | `csv/GWL/gwl-ts1-halo4/07_TeamInfo.csv` |
+| 8 | Special Stats | Hidden | 46 | 2 | `csv/GWL/gwl-ts1-halo4/08_Special_Stats.csv` |
+| 9 | Leaderboards | Visible | 47 | 15 | `csv/GWL/gwl-ts1-halo4/09_Leaderboards.csv` |
+| 10 | Team Report Cards | Visible | 56 | 51 | `csv/GWL/gwl-ts1-halo4/10_Team_Report_Cards.csv` |
+| 11 | Player Efficiency | Visible | 45 | 39 | `csv/GWL/gwl-ts1-halo4/11_Player_Efficiency.csv` |
+| 12 | PlayerGrades | Visible | 47 | 32 | `csv/GWL/gwl-ts1-halo4/12_PlayerGrades.csv` |
+| 13 | Halo 4 Stats | Visible | 41 | 55 | `csv/GWL/gwl-ts1-halo4/13_Halo_4_Stats.csv` |
+| 14 | TotalTournamentAverages | Visible | 56 | 50 | `csv/GWL/gwl-ts1-halo4/14_TotalTournamentAverages.csv` |
+| 15 | H4_MatchH | Visible | 161 | 54 | `csv/GWL/gwl-ts1-halo4/15_H4_MatchH.csv` |
+| 16 | Round 1 | Visible | 2 | 54 | `csv/GWL/gwl-ts1-halo4/16_Round_1.csv` |
+| 17 | Round 2 | Visible | 10 | 56 | `csv/GWL/gwl-ts1-halo4/17_Round_2.csv` |
+| 18 | RoundAverages | Hidden | 11 | 48 | `csv/GWL/gwl-ts1-halo4/18_RoundAverages.csv` |
+| 19 | Round 3 | Visible | 34 | 58 | `csv/GWL/gwl-ts1-halo4/19_Round_3.csv` |
+| 20 | Semifinals | Visible | 18 | 57 | `csv/GWL/gwl-ts1-halo4/20_Semifinals.csv` |
+| 21 | Finals | Visible | 26 | 57 | `csv/GWL/gwl-ts1-halo4/21_Finals.csv` |
+
+### Tournament Series #2 Halo Reach (`gwl-ts2-reach`)
+- **Category:** GWL | **Format:** `xlsx` | **Tabs:** 22 | **Rows:** 753
+- **JSON:** `json/GWL/gwl-ts2-reach.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/GWL/gwl-ts2-reach/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 105 | 42 | `csv/GWL/gwl-ts2-reach/02_MassFormulaTesting.csv` |
+| 3 | PlayerGradeStats | Hidden | 0 | 0 | `csv/GWL/gwl-ts2-reach/03_PlayerGradeStats.csv` |
+| 4 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/GWL/gwl-ts2-reach/04_HEXASbaseINFO.csv` |
+| 5 | Bracket Quick Check | Visible | 32 | 9 | `csv/GWL/gwl-ts2-reach/05_Bracket_Quick_Check.csv` |
+| 6 | Draft Sheet | Visible | 41 | 17 | `csv/GWL/gwl-ts2-reach/06_Draft_Sheet.csv` |
+| 7 | Leaderboards | Visible | 47 | 15 | `csv/GWL/gwl-ts2-reach/07_Leaderboards.csv` |
+| 8 | HR_MatchH | Visible | 128 | 35 | `csv/GWL/gwl-ts2-reach/08_HR_MatchH.csv` |
+| 9 | Team Report Cards | Visible | 61 | 34 | `csv/GWL/gwl-ts2-reach/09_Team_Report_Cards.csv` |
+| 10 | TeamInfo | Hidden | 49 | 5 | `csv/GWL/gwl-ts2-reach/10_TeamInfo.csv` |
+| 11 | Special Stats | Hidden | 46 | 2 | `csv/GWL/gwl-ts2-reach/11_Special_Stats.csv` |
+| 12 | Player Efficiency | Hidden | 45 | 39 | `csv/GWL/gwl-ts2-reach/12_Player_Efficiency.csv` |
+| 13 | PlayerGrades | Visible | 61 | 29 | `csv/GWL/gwl-ts2-reach/13_PlayerGrades.csv` |
+| 14 | PG Stats | Visible | 0 | 0 | `csv/GWL/gwl-ts2-reach/14_PG_Stats.csv` |
+| 15 | Halo Reach Stats | Visible | 47 | 37 | `csv/GWL/gwl-ts2-reach/15_Halo_Reach_Stats.csv` |
+| 16 | TotalTournamentAverages | Visible | 59 | 31 | `csv/GWL/gwl-ts2-reach/16_TotalTournamentAverages.csv` |
+| 17 | Round 1 | Hidden | 2 | 54 | `csv/GWL/gwl-ts2-reach/17_Round_1.csv` |
+| 18 | Round 2 | Hidden | 2 | 55 | `csv/GWL/gwl-ts2-reach/18_Round_2.csv` |
+| 19 | RoundAverages | Hidden | 10 | 2 | `csv/GWL/gwl-ts2-reach/19_RoundAverages.csv` |
+| 20 | Round 3 | Hidden | 1 | 58 | `csv/GWL/gwl-ts2-reach/20_Round_3.csv` |
+| 21 | Semifinals | Hidden | 1 | 56 | `csv/GWL/gwl-ts2-reach/21_Semifinals.csv` |
+| 22 | Finals | Hidden | 1 | 56 | `csv/GWL/gwl-ts2-reach/22_Finals.csv` |
+
+### SL23 Halo Reach Stats (`2023-gwl-sl23-reach-stats`)
+- **Category:** GWL | **Format:** `xlsx` | **Tabs:** 7 | **Rows:** 204
+- **JSON:** `json/GWL/2023-gwl-sl23-reach-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Schedule Backup | Hidden | 16 | 10 | `csv/GWL/2023-gwl-sl23-reach-stats/01_Schedule_Backup.csv` |
+| 2 | Schedule Overview | Visible | 41 | 19 | `csv/GWL/2023-gwl-sl23-reach-stats/02_Schedule_Overview.csv` |
+| 3 | Delete after check | Hidden | 12 | 11 | `csv/GWL/2023-gwl-sl23-reach-stats/03_Delete_after_check.csv` |
+| 4 | Playoff Bracket | Visible | 15 | 11 | `csv/GWL/2023-gwl-sl23-reach-stats/04_Playoff_Bracket.csv` |
+| 5 | Playoff Games | Visible | 26 | 9 | `csv/GWL/2023-gwl-sl23-reach-stats/05_Playoff_Games.csv` |
+| 6 | Game Overview | Visible | 76 | 9 | `csv/GWL/2023-gwl-sl23-reach-stats/06_Game_Overview.csv` |
+| 7 | Schedule | Visible | 18 | 10 | `csv/GWL/2023-gwl-sl23-reach-stats/07_Schedule.csv` |
+
+### SL23 Halo Reach Schedule/Playoffs (`2023-gwl-sl23-reach-schedule`)
+- **Category:** GWL | **Format:** `xlsx` | **Tabs:** 33 | **Rows:** 2,412
+- **JSON:** `json/GWL/2023-gwl-sl23-reach-schedule.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/GWL/2023-gwl-sl23-reach-schedule/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 105 | 42 | `csv/GWL/2023-gwl-sl23-reach-schedule/02_MassFormulaTesting.csv` |
+| 3 | HexaEquatCopy | Hidden | 13 | 2 | `csv/GWL/2023-gwl-sl23-reach-schedule/03_HexaEquatCopy.csv` |
+| 4 | SunSet-Leaderboards | Hidden | 47 | 15 | `csv/GWL/2023-gwl-sl23-reach-schedule/04_SunSet-Leaderboards.csv` |
+| 5 | Draft Sheet | Visible | 42 | 16 | `csv/GWL/2023-gwl-sl23-reach-schedule/05_Draft_Sheet.csv` |
+| 6 | PrePlayoff Standings | Visible | 21 | 10 | `csv/GWL/2023-gwl-sl23-reach-schedule/06_PrePlayoff_Standings.csv` |
+| 7 | What Each Means | Visible | 13 | 2 | `csv/GWL/2023-gwl-sl23-reach-schedule/07_What_Each_Means.csv` |
+| 8 | Leaderboards | Visible | 40 | 48 | `csv/GWL/2023-gwl-sl23-reach-schedule/08_Leaderboards.csv` |
+| 9 | Team Report Cards | Visible | 61 | 39 | `csv/GWL/2023-gwl-sl23-reach-schedule/09_Team_Report_Cards.csv` |
+| 10 | Record Book | Visible | 61 | 14 | `csv/GWL/2023-gwl-sl23-reach-schedule/10_Record_Book.csv` |
+| 11 | TeamInfo | Visible | 49 | 10 | `csv/GWL/2023-gwl-sl23-reach-schedule/11_TeamInfo.csv` |
+| 12 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/GWL/2023-gwl-sl23-reach-schedule/12_HEXASbaseINFO.csv` |
+| 13 | PlayerGrades+ | Visible | 55 | 35 | `csv/GWL/2023-gwl-sl23-reach-schedule/13_PlayerGrades.csv` |
+| 14 | PlayerGrades | Hidden | 42 | 38 | `csv/GWL/2023-gwl-sl23-reach-schedule/14_PlayerGrades.csv` |
+| 15 | PG Stats | Visible | 0 | 0 | `csv/GWL/2023-gwl-sl23-reach-schedule/15_PG_Stats.csv` |
+| 16 | Runner Comparison chart | Visible | 66 | 24 | `csv/GWL/2023-gwl-sl23-reach-schedule/16_Runner_Comparison_chart.csv` |
+| 17 | Halo Reach Stats | Visible | 39 | 39 | `csv/GWL/2023-gwl-sl23-reach-schedule/17_Halo_Reach_Stats.csv` |
+| 18 | TotalAverages | Visible | 51 | 31 | `csv/GWL/2023-gwl-sl23-reach-schedule/18_TotalAverages.csv` |
+| 19 | Review HR_MatchH | Visible | 705 | 59 | `csv/GWL/2023-gwl-sl23-reach-schedule/19_Review_HR_MatchH.csv` |
+| 20 | Percentiles Grades | Hidden | 39 | 5 | `csv/GWL/2023-gwl-sl23-reach-schedule/20_Percentiles_Grades.csv` |
+| 21 | Special Stats | Hidden | 46 | 2 | `csv/GWL/2023-gwl-sl23-reach-schedule/21_Special_Stats.csv` |
+| 22 | Player Efficiency | Hidden | 45 | 39 | `csv/GWL/2023-gwl-sl23-reach-schedule/22_Player_Efficiency.csv` |
+| 23 | HR_MatchH | Hidden | 705 | 39 | `csv/GWL/2023-gwl-sl23-reach-schedule/23_HR_MatchH.csv` |
+| 24 | Copy of Playoff Bracket | Visible | 15 | 11 | `csv/GWL/2023-gwl-sl23-reach-schedule/24_Copy_of_Playoff_Bracket.csv` |
+| 25 | Copy of Playoff Games | Visible | 26 | 9 | `csv/GWL/2023-gwl-sl23-reach-schedule/25_Copy_of_Playoff_Games.csv` |
+| 26 | Round 1 | Hidden | 2 | 54 | `csv/GWL/2023-gwl-sl23-reach-schedule/26_Round_1.csv` |
+| 27 | Round 2 | Hidden | 2 | 55 | `csv/GWL/2023-gwl-sl23-reach-schedule/27_Round_2.csv` |
+| 28 | RoundAverages | Hidden | 10 | 2 | `csv/GWL/2023-gwl-sl23-reach-schedule/28_RoundAverages.csv` |
+| 29 | Round 3 | Hidden | 1 | 58 | `csv/GWL/2023-gwl-sl23-reach-schedule/29_Round_3.csv` |
+| 30 | Semifinals | Hidden | 1 | 56 | `csv/GWL/2023-gwl-sl23-reach-schedule/30_Semifinals.csv` |
+| 31 | Finals | Hidden | 1 | 56 | `csv/GWL/2023-gwl-sl23-reach-schedule/31_Finals.csv` |
+| 32 | Game Overview | Visible | 76 | 9 | `csv/GWL/2023-gwl-sl23-reach-schedule/32_Game_Overview.csv` |
+| 33 | Copy of Schedule | Visible | 18 | 10 | `csv/GWL/2023-gwl-sl23-reach-schedule/33_Copy_of_Schedule.csv` |
+
+### DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo Reach - Stats (`2021-side-djblue-reach-stats`)
+- **Category:** Side-2021 | **Format:** `xlsx` | **Tabs:** 4 | **Rows:** 458
+- **JSON:** `json/Side-2021/2021-side-djblue-reach-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team Statistics | Visible | 77 | 30 | `csv/Side-2021/2021-side-djblue-reach-stats/01_Team_Statistics.csv` |
+| 2 | Player Leaderboards | Visible | 54 | 36 | `csv/Side-2021/2021-side-djblue-reach-stats/02_Player_Leaderboards.csv` |
+| 3 | Team Leaderboards | Visible | 15 | 35 | `csv/Side-2021/2021-side-djblue-reach-stats/03_Team_Leaderboards.csv` |
+| 4 | Game Results | Visible | 312 | 29 | `csv/Side-2021/2021-side-djblue-reach-stats/04_Game_Results.csv` |
+
+### DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo 3 -Stats (`2021-side-djblue-h3-stats`)
+- **Category:** Side-2021 | **Format:** `xlsx` | **Tabs:** 4 | **Rows:** 464
+- **JSON:** `json/Side-2021/2021-side-djblue-h3-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team Statistics | Visible | 83 | 30 | `csv/Side-2021/2021-side-djblue-h3-stats/01_Team_Statistics.csv` |
+| 2 | Player Leaderboards | Visible | 54 | 30 | `csv/Side-2021/2021-side-djblue-h3-stats/02_Player_Leaderboards.csv` |
+| 3 | Team Leaderboards | Visible | 15 | 29 | `csv/Side-2021/2021-side-djblue-h3-stats/03_Team_Leaderboards.csv` |
+| 4 | Game Results | Visible | 312 | 30 | `csv/Side-2021/2021-side-djblue-h3-stats/04_Game_Results.csv` |
+
+### The Respawn All-Stars Halo 4 Grifball Fall Series (1/3) 10/23/21 (`2021-side-respawn-h4-1`)
+- **Category:** Side-2021 | **Format:** `xlsx` | **Tabs:** 18 | **Rows:** 818
+- **JSON:** `json/Side-2021/2021-side-respawn-h4-1.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/Side-2021/2021-side-respawn-h4-1/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 100 | 42 | `csv/Side-2021/2021-side-respawn-h4-1/02_MassFormulaTesting.csv` |
+| 3 | Draft | Visible | 49 | 16 | `csv/Side-2021/2021-side-respawn-h4-1/03_Draft.csv` |
+| 4 | Leaderboards | Visible | 47 | 13 | `csv/Side-2021/2021-side-respawn-h4-1/04_Leaderboards.csv` |
+| 5 | PlayerGradeStats | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-1/05_PlayerGradeStats.csv` |
+| 6 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-1/06_HEXASbaseINFO.csv` |
+| 7 | Team Report Cards | Visible | 56 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/07_Team_Report_Cards.csv` |
+| 8 | Player Efficiency | Visible | 45 | 39 | `csv/Side-2021/2021-side-respawn-h4-1/08_Player_Efficiency.csv` |
+| 9 | PlayerGrades | Visible | 53 | 32 | `csv/Side-2021/2021-side-respawn-h4-1/09_PlayerGrades.csv` |
+| 10 | Halo 4 Stats | Visible | 45 | 54 | `csv/Side-2021/2021-side-respawn-h4-1/10_Halo_4_Stats.csv` |
+| 11 | TotalTournamentAverages | Visible | 62 | 48 | `csv/Side-2021/2021-side-respawn-h4-1/11_TotalTournamentAverages.csv` |
+| 12 | H4_MatchH | Visible | 161 | 52 | `csv/Side-2021/2021-side-respawn-h4-1/12_H4_MatchH.csv` |
+| 13 | RoundAverages | Hidden | 15 | 48 | `csv/Side-2021/2021-side-respawn-h4-1/13_RoundAverages.csv` |
+| 14 | Round 1 | Visible | 50 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/14_Round_1.csv` |
+| 15 | Round 2 | Visible | 50 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/15_Round_2.csv` |
+| 16 | Round 3 | Visible | 34 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/16_Round_3.csv` |
+| 17 | Semifinals | Visible | 18 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/17_Semifinals.csv` |
+| 18 | Finals | Visible | 18 | 51 | `csv/Side-2021/2021-side-respawn-h4-1/18_Finals.csv` |
+
+### The Respawn All-Stars Halo 4 Grifball Fall Series (2/3) 11/13/21 (`2021-side-respawn-h4-2`)
+- **Category:** Side-2021 | **Format:** `xlsx` | **Tabs:** 20 | **Rows:** 905
+- **JSON:** `json/Side-2021/2021-side-respawn-h4-2.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/Side-2021/2021-side-respawn-h4-2/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 100 | 42 | `csv/Side-2021/2021-side-respawn-h4-2/02_MassFormulaTesting.csv` |
+| 3 | PlayerGradeStats | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-2/03_PlayerGradeStats.csv` |
+| 4 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-2/04_HEXASbaseINFO.csv` |
+| 5 | TeamInfo | Hidden | 45 | 5 | `csv/Side-2021/2021-side-respawn-h4-2/05_TeamInfo.csv` |
+| 6 | Special Stats | Hidden | 46 | 2 | `csv/Side-2021/2021-side-respawn-h4-2/06_Special_Stats.csv` |
+| 7 | Draft | Visible | 48 | 16 | `csv/Side-2021/2021-side-respawn-h4-2/07_Draft.csv` |
+| 8 | Leaderboards | Visible | 47 | 15 | `csv/Side-2021/2021-side-respawn-h4-2/08_Leaderboards.csv` |
+| 9 | Team Report Cards | Visible | 56 | 51 | `csv/Side-2021/2021-side-respawn-h4-2/09_Team_Report_Cards.csv` |
+| 10 | Player Efficiency | Visible | 45 | 39 | `csv/Side-2021/2021-side-respawn-h4-2/10_Player_Efficiency.csv` |
+| 11 | PlayerGrades | Visible | 47 | 32 | `csv/Side-2021/2021-side-respawn-h4-2/11_PlayerGrades.csv` |
+| 12 | Halo 4 Stats | Visible | 45 | 53 | `csv/Side-2021/2021-side-respawn-h4-2/12_Halo_4_Stats.csv` |
+| 13 | TotalTournamentAverages | Visible | 62 | 48 | `csv/Side-2021/2021-side-respawn-h4-2/13_TotalTournamentAverages.csv` |
+| 14 | H4_MatchH | Visible | 161 | 52 | `csv/Side-2021/2021-side-respawn-h4-2/14_H4_MatchH.csv` |
+| 15 | Round 1 | Visible | 50 | 55 | `csv/Side-2021/2021-side-respawn-h4-2/15_Round_1.csv` |
+| 16 | RoundAverages | Hidden | 10 | 2 | `csv/Side-2021/2021-side-respawn-h4-2/16_RoundAverages.csv` |
+| 17 | Round 2 | Visible | 50 | 55 | `csv/Side-2021/2021-side-respawn-h4-2/17_Round_2.csv` |
+| 18 | Round 3 | Visible | 34 | 55 | `csv/Side-2021/2021-side-respawn-h4-2/18_Round_3.csv` |
+| 19 | Semifinals | Visible | 18 | 55 | `csv/Side-2021/2021-side-respawn-h4-2/19_Semifinals.csv` |
+| 20 | Finals | Visible | 26 | 55 | `csv/Side-2021/2021-side-respawn-h4-2/20_Finals.csv` |
+
+### The Respawn All-Stars Halo 4 Grifball Fall Series (3/3) 12/04/21 (`2021-side-respawn-h4-3`)
+- **Category:** Side-2021 | **Format:** `xlsx` | **Tabs:** 20 | **Rows:** 959
+- **JSON:** `json/Side-2021/2021-side-respawn-h4-3.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Addto | Hidden | 15 | 2 | `csv/Side-2021/2021-side-respawn-h4-3/01_Addto.csv` |
+| 2 | MassFormulaTesting | Hidden | 100 | 42 | `csv/Side-2021/2021-side-respawn-h4-3/02_MassFormulaTesting.csv` |
+| 3 | PlayerGradeStats | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-3/03_PlayerGradeStats.csv` |
+| 4 | HEXASbaseINFO | Hidden | 0 | 0 | `csv/Side-2021/2021-side-respawn-h4-3/04_HEXASbaseINFO.csv` |
+| 5 | Special Stats | Hidden | 46 | 2 | `csv/Side-2021/2021-side-respawn-h4-3/05_Special_Stats.csv` |
+| 6 | Draft Sheet | Visible | 50 | 17 | `csv/Side-2021/2021-side-respawn-h4-3/06_Draft_Sheet.csv` |
+| 7 | Leaderboards | Visible | 47 | 15 | `csv/Side-2021/2021-side-respawn-h4-3/07_Leaderboards.csv` |
+| 8 | TeamInfo | Hidden | 49 | 5 | `csv/Side-2021/2021-side-respawn-h4-3/08_TeamInfo.csv` |
+| 9 | Team Report Cards | Visible | 61 | 51 | `csv/Side-2021/2021-side-respawn-h4-3/09_Team_Report_Cards.csv` |
+| 10 | Player Efficiency | Visible | 49 | 39 | `csv/Side-2021/2021-side-respawn-h4-3/10_Player_Efficiency.csv` |
+| 11 | PlayerGrades | Visible | 53 | 32 | `csv/Side-2021/2021-side-respawn-h4-3/11_PlayerGrades.csv` |
+| 12 | Halo 4 Stats | Visible | 47 | 53 | `csv/Side-2021/2021-side-respawn-h4-3/12_Halo_4_Stats.csv` |
+| 13 | TotalTournamentAverages | Visible | 64 | 48 | `csv/Side-2021/2021-side-respawn-h4-3/13_TotalTournamentAverages.csv` |
+| 14 | H4_MatchH | Visible | 177 | 52 | `csv/Side-2021/2021-side-respawn-h4-3/14_H4_MatchH.csv` |
+| 15 | Round 1 | Visible | 66 | 55 | `csv/Side-2021/2021-side-respawn-h4-3/15_Round_1.csv` |
+| 16 | RoundAverages | Hidden | 15 | 48 | `csv/Side-2021/2021-side-respawn-h4-3/16_RoundAverages.csv` |
+| 17 | Round 2 | Visible | 50 | 55 | `csv/Side-2021/2021-side-respawn-h4-3/17_Round_2.csv` |
+| 18 | Round 3 | Visible | 34 | 55 | `csv/Side-2021/2021-side-respawn-h4-3/18_Round_3.csv` |
+| 19 | Semifinals | Visible | 18 | 55 | `csv/Side-2021/2021-side-respawn-h4-3/19_Semifinals.csv` |
+| 20 | Finals | Visible | 18 | 55 | `csv/Side-2021/2021-side-respawn-h4-3/20_Finals.csv` |
+
+### Original Late League Rankings (`side-original-late-league-rankings`)
+- **Category:** Side-Undated | **Format:** `xlsx` | **Tabs:** 10 | **Rows:** 499
+- **JSON:** `json/Side-Undated/side-original-late-league-rankings.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Season 4 Reach | Visible | 33 | 30 | `csv/Side-Undated/side-original-late-league-rankings/01_Season_4_Reach.csv` |
+| 2 | Rules | Hidden | 40 | 3 | `csv/Side-Undated/side-original-late-league-rankings/02_Rules.csv` |
+| 3 | Achievements | Hidden | 9 | 9 | `csv/Side-Undated/side-original-late-league-rankings/03_Achievements.csv` |
+| 4 | Season 4 Pre Reach | Hidden | 33 | 30 | `csv/Side-Undated/side-original-late-league-rankings/04_Season_4_Pre_Reach.csv` |
+| 5 | Season 3 Halo 5 | Visible | 32 | 30 | `csv/Side-Undated/side-original-late-league-rankings/05_Season_3_Halo_5.csv` |
+| 6 | H3 Season 2 Leaderboard | Hidden | 73 | 30 | `csv/Side-Undated/side-original-late-league-rankings/06_H3_Season_2_Leaderboard.csv` |
+| 7 | Pre Season Leaderboard | Hidden | 61 | 7 | `csv/Side-Undated/side-original-late-league-rankings/07_Pre_Season_Leaderboard.csv` |
+| 8 | Season 1 Leaderboard | Hidden | 82 | 8 | `csv/Side-Undated/side-original-late-league-rankings/08_Season_1_Leaderboard.csv` |
+| 9 | Past Seasons | Visible | 118 | 16 | `csv/Side-Undated/side-original-late-league-rankings/09_Past_Seasons.csv` |
+| 10 | Rules and Scoring | Visible | 18 | 18 | `csv/Side-Undated/side-original-late-league-rankings/10_Rules_and_Scoring.csv` |
+
+### Bum Rush Spreadsheet (`side-bum-rush`)
+- **Category:** Side-Undated | **Format:** `xlsx` | **Tabs:** 1 | **Rows:** 62
+- **JSON:** `json/Side-Undated/side-bum-rush.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Sheet1 | Visible | 62 | 13 | `csv/Side-Undated/side-bum-rush/01_Sheet1.csv` |
+
+### Reach PC Stats (`side-reach-pc-stats`)
+- **Category:** Side-Undated | **Format:** `xlsx` | **Tabs:** 2 | **Rows:** 49
+- **JSON:** `json/Side-Undated/side-reach-pc-stats.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Team & Player Stats | Visible | 49 | 13 | `csv/Side-Undated/side-reach-pc-stats/01_Team_Player_Stats.csv` |
+| 2 | Playoff Stats | Visible | 0 | 0 | `csv/Side-Undated/side-reach-pc-stats/02_Playoff_Stats.csv` |
+
+### ASpence Late League Main Sheet (`late-league-aspence-main`)
+- **Category:** Late-League | **Format:** `xlsx` | **Tabs:** 113 | **Rows:** 17,656
+- **JSON:** `json/Late-League/late-league-aspence-main.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Rules and Scoring | Visible | 21 | 13 | `csv/Late-League/late-league-aspence-main/01_Rules_and_Scoring.csv` |
+| 2 | S9 Halo Reach Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/02_S9_Halo_Reach_Stats.csv` |
+| 3 | S9 HR Match History | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/03_S9_HR_Match_History.csv` |
+| 4 | SPECIAL SHEET | Hidden | 6 | 1 | `csv/Late-League/late-league-aspence-main/04_SPECIAL_SHEET.csv` |
+| 5 | Calendar | Hidden | 17 | 16 | `csv/Late-League/late-league-aspence-main/05_Calendar.csv` |
+| 6 | Patch Log | Visible | 10 | 2 | `csv/Late-League/late-league-aspence-main/06_Patch_Log.csv` |
+| 7 | Road Map | Hidden | 7 | 6 | `csv/Late-League/late-league-aspence-main/07_Road_Map.csv` |
+| 8 | Grifbux Master | Hidden | 466 | 11 | `csv/Late-League/late-league-aspence-main/08_Grifbux_Master.csv` |
+| 9 | Grifbux Total | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/09_Grifbux_Total.csv` |
+| 10 | Data Center Pings | Visible | 52 | 8 | `csv/Late-League/late-league-aspence-main/10_Data_Center_Pings.csv` |
+| 11 | Player Masterlist | Visible | 132 | 8 | `csv/Late-League/late-league-aspence-main/11_Player_Masterlist.csv` |
+| 12 | Player Rank Masterlist | Hidden | 134 | 11 | `csv/Late-League/late-league-aspence-main/12_Player_Rank_Masterlist.csv` |
+| 13 | Searchup | Visible | 12 | 7 | `csv/Late-League/late-league-aspence-main/13_Searchup.csv` |
+| 14 | S8 Halo 3 | Visible | 99 | 20 | `csv/Late-League/late-league-aspence-main/14_S8_Halo_3.csv` |
+| 15 | S8 Halo Reach | Visible | 110 | 20 | `csv/Late-League/late-league-aspence-main/15_S8_Halo_Reach.csv` |
+| 16 | S8 Halo 4 | Visible | 127 | 20 | `csv/Late-League/late-league-aspence-main/16_S8_Halo_4.csv` |
+| 17 | S7 Halo 3 | Hidden | 99 | 20 | `csv/Late-League/late-league-aspence-main/17_S7_Halo_3.csv` |
+| 18 | S7 Halo Reach | Hidden | 108 | 20 | `csv/Late-League/late-league-aspence-main/18_S7_Halo_Reach.csv` |
+| 19 | S7 Halo 4 | Hidden | 123 | 20 | `csv/Late-League/late-league-aspence-main/19_S7_Halo_4.csv` |
+| 20 | S6 Halo 3 | Hidden | 87 | 18 | `csv/Late-League/late-league-aspence-main/20_S6_Halo_3.csv` |
+| 21 | S6 Halo Reach | Hidden | 98 | 30 | `csv/Late-League/late-league-aspence-main/21_S6_Halo_Reach.csv` |
+| 22 | S7 Halo 5 | Hidden | 136 | 20 | `csv/Late-League/late-league-aspence-main/22_S7_Halo_5.csv` |
+| 23 | S6 Halo 4 | Hidden | 76 | 30 | `csv/Late-League/late-league-aspence-main/23_S6_Halo_4.csv` |
+| 24 | Late League Halo | Hidden | 1 | 2 | `csv/Late-League/late-league-aspence-main/24_Late_League_Halo.csv` |
+| 25 | S8Halo 3 Stats | Hidden | 65 | 45 | `csv/Late-League/late-league-aspence-main/25_S8Halo_3_Stats.csv` |
+| 26 | S7Halo 3 Stats | Hidden | 59 | 35 | `csv/Late-League/late-league-aspence-main/26_S7Halo_3_Stats.csv` |
+| 27 | S6 Halo 5 | Hidden | 85 | 30 | `csv/Late-League/late-league-aspence-main/27_S6_Halo_5.csv` |
+| 28 | S8Halo Reach Stats | Hidden | 16 | 37 | `csv/Late-League/late-league-aspence-main/28_S8Halo_Reach_Stats.csv` |
+| 29 | S8Halo 4 Stats | Visible | 56 | 55 | `csv/Late-League/late-league-aspence-main/29_S8Halo_4_Stats.csv` |
+| 30 | S7Halo Reach Stats | Hidden | 57 | 37 | `csv/Late-League/late-league-aspence-main/30_S7Halo_Reach_Stats.csv` |
+| 31 | S7Halo 4 Stats | Hidden | 79 | 53 | `csv/Late-League/late-league-aspence-main/31_S7Halo_4_Stats.csv` |
+| 32 | S6Halo 3 Stats | Hidden | 62 | 34 | `csv/Late-League/late-league-aspence-main/32_S6Halo_3_Stats.csv` |
+| 33 | S6Halo Reach Stats | Hidden | 39 | 35 | `csv/Late-League/late-league-aspence-main/33_S6Halo_Reach_Stats.csv` |
+| 34 | S7Halo 5 Stats | Hidden | 10 | 38 | `csv/Late-League/late-league-aspence-main/34_S7Halo_5_Stats.csv` |
+| 35 | S6Halo 4 Stats | Hidden | 58 | 51 | `csv/Late-League/late-league-aspence-main/35_S6Halo_4_Stats.csv` |
+| 36 | S6Halo 5 Stats | Hidden | 1 | 38 | `csv/Late-League/late-league-aspence-main/36_S6Halo_5_Stats.csv` |
+| 37 | PG_H3S8 | Hidden | 70 | 29 | `csv/Late-League/late-league-aspence-main/37_PG_H3S8.csv` |
+| 38 | H3S8_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/38_H3S8_PG_Stats.csv` |
+| 39 | PG_HRS8 | Hidden | 61 | 29 | `csv/Late-League/late-league-aspence-main/39_PG_HRS8.csv` |
+| 40 | PG_H4S8 | Hidden | 85 | 32 | `csv/Late-League/late-league-aspence-main/40_PG_H4S8.csv` |
+| 41 | PG_H5S8 | Hidden | 70 | 29 | `csv/Late-League/late-league-aspence-main/41_PG_H5S8.csv` |
+| 42 | H5S8_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/42_H5S8_PG_Stats.csv` |
+| 43 | H4S8_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/43_H4S8_PG_Stats.csv` |
+| 44 | H4S7_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/44_H4S7_PG_Stats.csv` |
+| 45 | HRS8_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/45_HRS8_PG_Stats.csv` |
+| 46 | PG_H3S7 | Hidden | 70 | 29 | `csv/Late-League/late-league-aspence-main/46_PG_H3S7.csv` |
+| 47 | PG_HRS7 | Hidden | 61 | 29 | `csv/Late-League/late-league-aspence-main/47_PG_HRS7.csv` |
+| 48 | PG_H4S7 | Hidden | 85 | 32 | `csv/Late-League/late-league-aspence-main/48_PG_H4S7.csv` |
+| 49 | PG_H5S7 | Hidden | 73 | 26 | `csv/Late-League/late-league-aspence-main/49_PG_H5S7.csv` |
+| 50 | H3S7_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/50_H3S7_PG_Stats.csv` |
+| 51 | H3S6_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/51_H3S6_PG_Stats.csv` |
+| 52 | HRS7_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/52_HRS7_PG_Stats.csv` |
+| 53 | HRS6_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/53_HRS6_PG_Stats.csv` |
+| 54 | PG_H3S5 | Hidden | 47 | 29 | `csv/Late-League/late-league-aspence-main/54_PG_H3S5.csv` |
+| 55 | H4S6_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/55_H4S6_PG_Stats.csv` |
+| 56 | PG_H5S6 | Hidden | 73 | 26 | `csv/Late-League/late-league-aspence-main/56_PG_H5S6.csv` |
+| 57 | H5S7_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/57_H5S7_PG_Stats.csv` |
+| 58 | H3S5_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/58_H3S5_PG_Stats.csv` |
+| 59 | PG_H3S6 | Hidden | 70 | 29 | `csv/Late-League/late-league-aspence-main/59_PG_H3S6.csv` |
+| 60 | PG_HRS6 | Hidden | 47 | 29 | `csv/Late-League/late-league-aspence-main/60_PG_HRS6.csv` |
+| 61 | PG_H4S6 | Hidden | 59 | 32 | `csv/Late-League/late-league-aspence-main/61_PG_H4S6.csv` |
+| 62 | H5S6_PG_Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/62_H5S6_PG_Stats.csv` |
+| 63 | PG_Halo3_Master | Visible | 103 | 29 | `csv/Late-League/late-league-aspence-main/63_PG_Halo3_Master.csv` |
+| 64 | PG_HaloReach_Master | Visible | 77 | 29 | `csv/Late-League/late-league-aspence-main/64_PG_HaloReach_Master.csv` |
+| 65 | PG_Halo4_Master | Visible | 113 | 32 | `csv/Late-League/late-league-aspence-main/65_PG_Halo4_Master.csv` |
+| 66 | H3_Master | Hidden | 234 | 34 | `csv/Late-League/late-league-aspence-main/66_H3_Master.csv` |
+| 67 | PG_Halo5_Master | Hidden | 92 | 26 | `csv/Late-League/late-league-aspence-main/67_PG_Halo5_Master.csv` |
+| 68 | H3_PG_Stats_Master | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/68_H3_PG_Stats_Master.csv` |
+| 69 | HR_PG_Stats_Master | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/69_HR_PG_Stats_Master.csv` |
+| 70 | H4_PG_Stats_Master | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/70_H4_PG_Stats_Master.csv` |
+| 71 | H5_PG_Stats_Master | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/71_H5_PG_Stats_Master.csv` |
+| 72 | HR_Master | Visible | 96 | 35 | `csv/Late-League/late-league-aspence-main/72_HR_Master.csv` |
+| 73 | H4_Master | Hidden | 193 | 52 | `csv/Late-League/late-league-aspence-main/73_H4_Master.csv` |
+| 74 | H5_Master | Hidden | 1 | 38 | `csv/Late-League/late-league-aspence-main/74_H5_Master.csv` |
+| 75 | H3S8_MatchH | Hidden | 2939 | 44 | `csv/Late-League/late-league-aspence-main/75_H3S8_MatchH.csv` |
+| 76 | H3S8_MatchAvg | Hidden | 67 | 30 | `csv/Late-League/late-league-aspence-main/76_H3S8_MatchAvg.csv` |
+| 77 | H3S7_MatchH | Hidden | 1255 | 34 | `csv/Late-League/late-league-aspence-main/77_H3S7_MatchH.csv` |
+| 78 | H3S6_MatchH | Hidden | 1169 | 33 | `csv/Late-League/late-league-aspence-main/78_H3S6_MatchH.csv` |
+| 79 | H3S7_MatchAvg | Hidden | 61 | 30 | `csv/Late-League/late-league-aspence-main/79_H3S7_MatchAvg.csv` |
+| 80 | H3S6_MatchAvg | Hidden | 65 | 30 | `csv/Late-League/late-league-aspence-main/80_H3S6_MatchAvg.csv` |
+| 81 | HRS8_MatchH | Hidden | 25 | 35 | `csv/Late-League/late-league-aspence-main/81_HRS8_MatchH.csv` |
+| 82 | HRS8_MatchAvg | Hidden | 18 | 30 | `csv/Late-League/late-league-aspence-main/82_HRS8_MatchAvg.csv` |
+| 83 | H4S8_MatchH | Hidden | 1268 | 54 | `csv/Late-League/late-league-aspence-main/83_H4S8_MatchH.csv` |
+| 84 | HRS7_MatchH | Hidden | 1033 | 35 | `csv/Late-League/late-league-aspence-main/84_HRS7_MatchH.csv` |
+| 85 | HRS6_MatchH | Hidden | 440 | 33 | `csv/Late-League/late-league-aspence-main/85_HRS6_MatchH.csv` |
+| 86 | HRS7_MatchAvg | Hidden | 59 | 30 | `csv/Late-League/late-league-aspence-main/86_HRS7_MatchAvg.csv` |
+| 87 | HRS6_MatchAvg | Hidden | 41 | 30 | `csv/Late-League/late-league-aspence-main/87_HRS6_MatchAvg.csv` |
+| 88 | H4S8_MatchAvg | Hidden | 58 | 47 | `csv/Late-League/late-league-aspence-main/88_H4S8_MatchAvg.csv` |
+| 89 | S8 Halo 5 Stats | Hidden | 1 | 64 | `csv/Late-League/late-league-aspence-main/89_S8_Halo_5_Stats.csv` |
+| 90 | H5S8_MatchHistory | Hidden | 1 | 66 | `csv/Late-League/late-league-aspence-main/90_H5S8_MatchHistory.csv` |
+| 91 | H4S7_MatchH | Hidden | 2039 | 52 | `csv/Late-League/late-league-aspence-main/91_H4S7_MatchH.csv` |
+| 92 | H4S6_MatchH | Hidden | 1178 | 50 | `csv/Late-League/late-league-aspence-main/92_H4S6_MatchH.csv` |
+| 93 | H4S7_MatchAvg | Hidden | 81 | 47 | `csv/Late-League/late-league-aspence-main/93_H4S7_MatchAvg.csv` |
+| 94 | H4S6_MatchAvg | Hidden | 60 | 47 | `csv/Late-League/late-league-aspence-main/94_H4S6_MatchAvg.csv` |
+| 95 | H5S7_MatchH | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/95_H5S7_MatchH.csv` |
+| 96 | H5S6_MatchH | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/96_H5S6_MatchH.csv` |
+| 97 | H5S7_MatchAvg | Hidden | 3 | 2 | `csv/Late-League/late-league-aspence-main/97_H5S7_MatchAvg.csv` |
+| 98 | H5S6_MatchAvg | Hidden | 3 | 2 | `csv/Late-League/late-league-aspence-main/98_H5S6_MatchAvg.csv` |
+| 99 | S5Halo 3 Stats Remix | Hidden | 48 | 34 | `csv/Late-League/late-league-aspence-main/99_S5Halo_3_Stats_Remix.csv` |
+| 100 | H3S5_MatchH | Hidden | 793 | 51 | `csv/Late-League/late-league-aspence-main/100_H3S5_MatchH.csv` |
+| 101 | Past Seasons | Hidden | 118 | 16 | `csv/Late-League/late-league-aspence-main/101_Past_Seasons.csv` |
+| 102 | Season 5 Halo 3 | Hidden | 64 | 33 | `csv/Late-League/late-league-aspence-main/102_Season_5_Halo_3.csv` |
+| 103 | S5Halo 3 Stats | Hidden | 0 | 0 | `csv/Late-League/late-league-aspence-main/103_S5Halo_3_Stats.csv` |
+| 104 | Season 5 Halo Reach | Hidden | 84 | 33 | `csv/Late-League/late-league-aspence-main/104_Season_5_Halo_Reach.csv` |
+| 105 | S5 WL Grid | Hidden | 34 | 34 | `csv/Late-League/late-league-aspence-main/105_S5_WL_Grid.csv` |
+| 106 | Rules | Hidden | 40 | 3 | `csv/Late-League/late-league-aspence-main/106_Rules.csv` |
+| 107 | Achievements | Hidden | 9 | 9 | `csv/Late-League/late-league-aspence-main/107_Achievements.csv` |
+| 108 | Season 4 Reach | Hidden | 33 | 30 | `csv/Late-League/late-league-aspence-main/108_Season_4_Reach.csv` |
+| 109 | Season 4 Pre Reach | Hidden | 33 | 30 | `csv/Late-League/late-league-aspence-main/109_Season_4_Pre_Reach.csv` |
+| 110 | Season 3 Halo 5 | Hidden | 32 | 30 | `csv/Late-League/late-league-aspence-main/110_Season_3_Halo_5.csv` |
+| 111 | H3 Season 2 Leaderboard | Hidden | 73 | 30 | `csv/Late-League/late-league-aspence-main/111_H3_Season_2_Leaderboard.csv` |
+| 112 | Season 1 Leaderboard | Hidden | 82 | 8 | `csv/Late-League/late-league-aspence-main/112_Season_1_Leaderboard.csv` |
+| 113 | Pre Season Leaderboard | Hidden | 61 | 7 | `csv/Late-League/late-league-aspence-main/113_Pre_Season_Leaderboard.csv` |
+
+### AGLA Champions (`history-agla-champions`)
+- **Category:** History | **Format:** `xlsx` | **Tabs:** 3 | **Rows:** 267
+- **JSON:** `json/History/history-agla-champions.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | AGLA Champions | Visible | 266 | 21 | `csv/History/history-agla-champions/01_AGLA_Champions.csv` |
+| 2 | GGL Champions | Visible | 1 | 1 | `csv/History/history-agla-champions/02_GGL_Champions.csv` |
+| 3 | Player Histories | Visible | 0 | 0 | `csv/History/history-agla-champions/03_Player_Histories.csv` |
+
+### All-time Infinite Stats by Luxe (`history-all-time-infinite-stats-luxe`)
+- **Category:** History | **Format:** `xlsx` | **Tabs:** 23 | **Rows:** 1,148
+- **JSON:** `json/History/history-all-time-infinite-stats-luxe.json`
+
+| Tab # | Sheet Name | Visibility | Rows | Cols | CSV File |
+|---:|---|---|---:|---:|---|
+| 1 | Intro | Visible | 6 | 13 | `csv/History/history-all-time-infinite-stats-luxe/01_Intro.csv` |
+| 2 | All Time | Visible | 109 | 32 | `csv/History/history-all-time-infinite-stats-luxe/02_All_Time.csv` |
+| 3 | Record Book | Visible | 108 | 44 | `csv/History/history-all-time-infinite-stats-luxe/03_Record_Book.csv` |
+| 4 | Player Comparison 1.0 | Visible | 18 | 9 | `csv/History/history-all-time-infinite-stats-luxe/04_Player_Comparison_1.0.csv` |
+| 5 | Top 20 | Hidden | 92 | 15 | `csv/History/history-all-time-infinite-stats-luxe/05_Top_20.csv` |
+| 6 | helper | Hidden | 61 | 19 | `csv/History/history-all-time-infinite-stats-luxe/06_helper.csv` |
+| 7 | S1 | Visible | 50 | 45 | `csv/History/history-all-time-infinite-stats-luxe/07_S1.csv` |
+| 8 | S1 Playoffs | Visible | 32 | 45 | `csv/History/history-all-time-infinite-stats-luxe/08_S1_Playoffs.csv` |
+| 9 | S2 | Visible | 49 | 38 | `csv/History/history-all-time-infinite-stats-luxe/09_S2.csv` |
+| 10 | S3 | Visible | 50 | 48 | `csv/History/history-all-time-infinite-stats-luxe/10_S3.csv` |
+| 11 | S4 | Visible | 40 | 45 | `csv/History/history-all-time-infinite-stats-luxe/11_S4.csv` |
+| 12 | S4 Playoffs | Visible | 25 | 43 | `csv/History/history-all-time-infinite-stats-luxe/12_S4_Playoffs.csv` |
+| 13 | S5 | Visible | 56 | 45 | `csv/History/history-all-time-infinite-stats-luxe/13_S5.csv` |
+| 14 | S6 | Visible | 61 | 51 | `csv/History/history-all-time-infinite-stats-luxe/14_S6.csv` |
+| 15 | S7 | Visible | 38 | 56 | `csv/History/history-all-time-infinite-stats-luxe/15_S7.csv` |
+| 16 | Draft S1 | Visible | 43 | 15 | `csv/History/history-all-time-infinite-stats-luxe/16_Draft_S1.csv` |
+| 17 | Draft S2 | Visible | 50 | 16 | `csv/History/history-all-time-infinite-stats-luxe/17_Draft_S2.csv` |
+| 18 | Draft S3 | Visible | 54 | 14 | `csv/History/history-all-time-infinite-stats-luxe/18_Draft_S3.csv` |
+| 19 | Bidding S4 | Visible | 41 | 15 | `csv/History/history-all-time-infinite-stats-luxe/19_Bidding_S4.csv` |
+| 20 | Bidding S5 | Visible | 41 | 20 | `csv/History/history-all-time-infinite-stats-luxe/20_Bidding_S5.csv` |
+| 21 | Draft Pro S6 | Visible | 78 | 10 | `csv/History/history-all-time-infinite-stats-luxe/21_Draft_Pro_S6.csv` |
+| 22 | PG+ Stats | Hidden | 0 | 0 | `csv/History/history-all-time-infinite-stats-luxe/22_PG_Stats.csv` |
+| 23 | Draft Legacy S6 | Visible | 46 | 10 | `csv/History/history-all-time-infinite-stats-luxe/23_Draft_Legacy_S6.csv` |

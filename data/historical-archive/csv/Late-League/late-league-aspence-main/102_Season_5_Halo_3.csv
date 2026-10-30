@@ -1,0 +1,71 @@
+Players,Division,League,Rank,LP,Streak,MMR,P/ Win,P/ Loss,Loc
+Galvann,#N/A,Gold 3,3,16,5,400,N/A,N/A,West,,,Game 1,MMR:,#,L#,Hosted,Lobby 1:,MMR:,Ranking Legend,,Base MMR:,,What are placement games?,"When you first sign up for Late League, your first 5 games will be your placement games.  Your win/loss record in these first 5 games determine your initial rank on the leaderboards. Each placement match adjusts your MMR using the following criteria:
+
+5-0 = Silver 1
+4-1 = Silver 2
+3-2 = Silver 3
+2-3 = Bronze 1
+1-4 = Bronze 2
+0-5 = Bronze 3",,,,,,,DO NOT TOUCH
+jbar,#N/A,Gold 3,3,6,3,400,N/A,N/A,East,,,**Red Team**,,1,,FALSE,Conra4859,100,Challenger,1,1000,,,,,,,,,,Challenger,1
+Doerstopper,#N/A,Silver 1,3,46,2,350,N/A,N/A,Central,,,,,2,,FALSE,iGrifball,100,Masters 1,2,950,,,,,,,,,,Master,2
+nkotB4Evah,#N/A,Silver 1,3,34,7,350,N/A,N/A,East,,,,,3,,FALSE,Armanama,250,Masters 2,2,900,,,,,,,,,,Diamond,3
+dCleak,#N/A,Silver 1,3,22,-1,350,N/A,N/A,Central,,,,,4,,FALSE,Sam Adams,200,Masters 3,2,850,,,,,,,,,,Platinum,4
+BlueCollarKid,#N/A,Silver 2,3,98,-1,300,N/A,N/A,West,,,,,5,,FALSE,Mstell,200,Diamond 1,3,800,,,,,,,,,,Gold,5
+Aspence501,#N/A,Silver 2,3,76,-2,300,N/A,N/A,East,,18,0,,6,,FALSE,Tommy,150,Diamond 2,3,750,,,,,,,,,,Silver,6
+xSeoulSnatch,#N/A,Silver 2,3,58,-2,300,N/A,N/A,Central,,,**Blue Team**,,7,,FALSE,Cxrnchip,200,Diamond 3,3,700,,,,,,,,,,Bronze,7
+Ace B,#N/A,Silver 2,3,0,0,300,4,0,Central,,,,,8,,FALSE,maverick,100,Platinum 1,4,650,,                                For Hosts,,,,,,,,Placements,8
+RDG NHL,#N/A,Silver 2,3,0,0,300,N/A,N/A,Central,,,,,Neutral,,,East,,Platinum 2,4,600,,Win: +20LP    3streak = +22LP  6streak = +24LP
+eTazzed,#N/A,Silver 3,3,98,-2,250,N/A,N/A,East,,,,,,,,,1200,Platinum 3,4,550,,Loss:  -14LP   3streak =  -18LP  6streak  = -22LP
+Alphaturtle,#N/A,Silver 3,3,92,-2,250,N/A,N/A,East,,,,,,,,,600,Gold 1,5,500,,"Team Choice Order:                                               1. Match Average MMR±100                                             2. Player location to host                                         3. If not host, then by stats/previous match stats"
+oDhmon,#N/A,Silver 3,3,58,-3,250,N/A,N/A,East,,18,0,,,,,Lobby 2/Wait-list,MMR:,Gold 2,5,450
+Priest XYZ,#N/A,Silver 3,3,56,-1,250,N/A,N/A,Central,,,,,1,,,,,Gold 3,5,400
+Nihilus,#N/A,Silver 3,3,48,3,250,N/A,N/A,Central,,,Game 1,MMR:,2,,,,,Silver 1,6,350
+Snipezz,#N/A,Silver 3,3,32,1,250,N/A,N/A,Central,,,**Red Team**,,3,,,,,Silver 2,6,300,,Stats Done
+Armanama,#N/A,Silver 3,3,24,1,250,N/A,N/A,East,,,,,4,,,,,Silver 3,6,250,,104/106 games
+Rage More Nerd,#N/A,Bronze 1,3,94,-1,200,N/A,N/A,West,,,,,5,,,,,Bronze 1,7,200
+ixJaga,#N/A,Bronze 1,3,92,-2,200,N/A,N/A,Central,,,,,6,,,,,Bronze 2,7,150
+Mstell,#N/A,Bronze 1,3,80,-1,200,N/A,N/A,Central,,,,,7,,,,,Bronze 3,7,100
+DigitalPain,#N/A,Bronze 1,3,80,1,200,N/A,N/A,East,,18,0,,8,,,,,Placements,8,100
+I Robot9000,#N/A,Bronze 1,3,76,1,200,N/A,N/A,East,,,**Blue Team**,,9
+Myst the Cold,#N/A,Bronze 1,3,72,-1,200,N/A,N/A,Central,,,,,,,,,0,Ordering: 
+regresser,#N/A,Bronze 1,3,62,-2,200,N/A,N/A,Central,,,,,,,,Waitlist:,0,LP Z-A
+Sam Adams,#N/A,Bronze 1,3,54,-1,200,N/A,N/A,West,,,,,1,,,,,MMR Z-A
+Invayda Zim,#N/A,Bronze 1,3,48,7,200,N/A,N/A,Central,,,,,2,,,,,B1 A-Z
+iceytanker,#N/A,Bronze 1,3,36,3,200,N/A,N/A,West,,18,0,,3,,,,,,, 
+AJ,#N/A,Bronze 1,3,0,0,200,2,1,East,,,,,4
+Code Beaver,#N/A,Bronze 1,3,0,0,200,2,2,East,,,,,5
+ixLiono,#N/A,Bronze 1,3,0,0,200,2,1,Central,,,,,6
+Noplex,#N/A,Bronze 1,3,0,0,200,2,1,,,,,,7
+Cxrnchip,#N/A,Bronze 1,3,0,0,200,N/A,N/A,West,,,,,8
+Halfbreed,#N/A,Bronze 2,3,98,2,150,N/A,N/A,East,,,,,9
+Tommy,#N/A,Bronze 2,3,68,1,150,N/A,N/A,Central,,,,,10
+Atonemilitant,#N/A,Bronze 2,3,36,-2,150,N/A,N/A,Central,,,,,11
+x Zeg x,#N/A,Bronze 2,3,28,-4,150,N/A,N/A,East,,,,,12
+Gilded grams,#N/A,Bronze 2,3,0,0,150,1,0,,,,,,13
+imShad,#N/A,Bronze 2,3,0,0,150,1,1,,,,,,14
+Sab,#N/A,Bronze 2,3,0,0,150,1,1,East
+Scet,#N/A,Bronze 2,3,0,1,150,N/A,N/A,East
+Silva,#N/A,Bronze 2,3,0,0,150,1,2
+Fanciest Pants,#N/A,Bronze 3,3,96,-2,100,N/A,N/A,Central
+Gingy,#N/A,Bronze 3,3,86,-2,100,N/A,N/A,Central
+Conra4859,#N/A,Bronze 3,3,48,-1,100,N/A,N/A,East
+maverick,#N/A,Bronze 3,3,40,2,100,N/A,N/A
+AwareMosquito,#N/A,Bronze 3,3,20,1,100,N/A,N/A,Europe
+Killerz,#N/A,Bronze 3,2,20,1,100,N/A,N/A
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0
+iGrifball,#N/A,Bronze 3,3,0,0,100,0,4,West
+Adhilly,#N/A,Bronze 3,3,0,0,100,0,0,West
+Beam1n1,#N/A,Bronze 3,3,0,0,100,1,2,East
+drez,#N/A,Bronze 3,3,0,0,100,0,1,East
+elementary,#N/A,Bronze 3,3,0,0,100,0,1
+ixSnarf,#N/A,Bronze 3,1,0,0,100,0,2,Central
+Menz,#N/A,Bronze 3,3,0,0,100,0,0
+Saintz,#N/A,Bronze 3,3,0,0,100,0,0
+,#N/A,Bronze 3,3,0,0,100,0,0

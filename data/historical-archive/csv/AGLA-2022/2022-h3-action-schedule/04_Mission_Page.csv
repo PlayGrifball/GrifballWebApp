@@ -1,0 +1,51 @@
+Season Missions,Value,Time Limit,Status,Recipients,,Week 1,,,,,,,,,,,,Week 2,,,,,,,,,,,,Week 3,,,,,,,,,,,,Week 4,,,,,,,,,,,,Week 5,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Week 3,Week 4,Week 5
+,,,,,,0,-1,2,4,0,8,4,5,0,2,-2,,1,0,0,1,-8,1,2,1,-5,-4,-1,,2,4,0,0,-1,7,-4,4,-3,2,-2,,,0,1,2,0,7,1,0,-1,0,0,,,2,,,,,,,,-2
+,,,,,,TNA,ZEG,ALP,JYD,GAS,LCW,SMF,42G,BS3,12T,SpR,,TNA,ZEG,ALP,JYD,GAS,LCW,SMF,42G,BS3,12T,SpR,,TNA,ZEG,ALP,JYD,GAS,LCW,SMF,42G,BS3,12T,SpR,,TNA,ZEG,ALP,JYD,GAS,LCW,SMF,42G,BS3,12T,SpR,,TNA,ZEG,ALP,JYD,GAS,LCW,SMF,42G,BS3,12T,SpR
+Come back from down by 3+ scores & WIN,2,All Season,,,,,,,,,,,,,,,,,,,,,,,,X
+Give up a lead of 3+ scores & LOSE,-2,All Season,,,,,,,,,,,,,,,,,,,X
+Lose 5-0 ,-1,All Season,,,,,X,,,,,,,,,,,,,,,X,,,,X,xx,,,,,X,,xx,,,,,,,,,,,X,,X,,,,,,,,,,,,,,,,xx
+Win 5-0,1,All Season,,,,,,,X,,,,,,,,,,,,xx,,,X,X,,,,,,xx,,,,,,,,,,,,,,X,,X,,,,,,,,xx
+2-0 a team in a series,2,All Season,Once per team,,,X,,X,X,X,X,X,X,,X,,,,,,,,,,,,,X,,,X
+"Majority of your team is ""Host"" and you lose (2+ players fielded)",-2,All Season,,,,X,,,,,,,,,,,,,,,,xxx,,x,,x3,x,x,,,,,,,,xx,,xx,xx,x,,,,,,,,,,X
+Beat Aspence on Sandbox +2. If you lose -1,2 (-1),All Season,,,,,,,,- -,,X,,,,- -,,,,,,-,,,,,,-,,X,,,,,X,,X,,,,,,,,X-,,,,,x-
+Same player scores all 5 goals in your win,1,All Season,,,,,,,X,,,,,,,,,X,,,X,,X,X,,,,,,,,,,X,,,,X,X,,,,,X,X,,,X
+5-0 a team in less than 7 Minutes,7,First Come first serve,Closed,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+Launch for 3 or more goals & WIN,2,First Come first serve,Open,Video Needed
+Score off 3 flowers & WIN,5,First Come first serve,Closed,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+"Each player of the team earns a sword spree, and you WIN ",5,First Come first serve,Closed,Entire Team,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+WIN a game with your teammate having less than 20 kills,3,First Come first serve,Closed,Single Player,,,,,,,,,X
+WIN a game with your team's total kills under 50,5,First Come first serve,Open
+Score off 3 shotguns & WIN,3,First Come first serve,Closed,,,,,,,,X
+Have a player triple kill then score the bomb,3,First Come first serve,Closed,`,,,,,,,X
+,,,,,,8,1,3,10,4,4,7,2,5,7,0,,9,1,2,2,1,8,4,18,4,7,7,,8,2,5,1,4,6,6,9,3,19,6,,,1,6,2,1,2,4,1,4,4,4
+Stat Based Missions,Value,Time Limit,Type,Recipients,,Week 1,,,,,,,,,,,,Week 2,,,,,,,,,,,,Week 3,,,,,,,,,,,,Week 4,,,,,,,,,,,,Week 5,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Week 3,Week 4,Week 5
+Have a player earn a saboteur medal & a KD ratio of 2 in a game,3,,Scoring
+Have a player earn a saboteur medal & WIN ,1,,Scoring,15min = 900s,,X,,X,X,X,X,X,X,,X,,,X,,X,X,,X,X,X,X,X,X,,X,X,X,X,X,X,X,X,,X,X,,,,X,X,,X,X,X,X,X,X
+Have a player earn 30+ ball kills & 100+ total kills in a game,2,30 minutes,Spread,20min = 1200s,,,,,,,,,,X
+Have a player earn 25+ ball kills & 25+ bulltrue medals in a game,1,30 minutes,Spread,25min = 1500s
+Have a player earn a spread of +30 in a game,1,30 minutes,Spread,30min = 1800s,,X,,,X,,,,,X,,,,,,,,,X,X,X,,,,,X,,,,,X,X,,,X
+Have a player earn a spread of +50 in a game & WIN ,5,30 minutes,Spread,,,,,,,,,,,,,,,X,,,,,,,X,,,,,,,,,,,,,,X
+Have a player earn a spread of +100 in a game & WIN ,7,30 minutes,Spread
+Each player on your team has a spread of +25 in a game,5,,Spread
+Have a player earn a ball kill per minute of 1.5+ in a game,3,,Spread
+Have a player earn 8+ close call medals in a game,2,,Survival,,,,,,,,,,,,,,,,,,,,X,,,,,,,X,,,,,X,X,X,X,X,X
+Have a team total of 30+ comeback kill medals in a game & WIN,2,,Survival,,,,,,X,X,X,X,,,X,,,,,,X,,,,,X,X,X,,X,,X,,X,,,,,,X,,,,X,,,,X,,X,,X
+"Have a team total of 100+ from Avenger, Protector & revenge in a game",1,,Survival,,,X,X,X,X,X,X,X,X,X,X,,,X,X,X,X,X,X,X,X,X,X,X,,X,X,X,X,X,X,X,X,X,X,X,,,X,X,X,X,X,X,,X,X,X
+Have a player earn an average life of 35 seconds & WIN ,2,25 minutes,Survival,,,X,,,X,,,,,,,,,,,,,,X,,X,,,,,,,,,,,,X,,,,,,,,,,,,,,X
+Have a player earn an average life of 60 seconds & WIN ,5,15 minutes,Survival
+Have a player earn 15+ bomb stops medals & WIN ,2,25 minutes,Timing,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+Have a player earn 20+ bulltrue medals in a game,2,25 minutes,Timing,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+Have a player earn 25+ bulltrue medals & 15+ bomb stop medals and WIN ,5,30 minutes,Timing
+Have a player earn a sword spree & WIN ,2,25 minutes,Timing,,,X,,,,,,,,,,,,,,,,,,,,,,,,X,,,,,,,,,X,,,,,X
+Have a team total spread of -70 & WIN ,5,25 minutes,Insane
+Have a team total spread of -150 & WIN ,7,,Insane
+Have a team total spread of +50 & LOSE,-2,,Insane,,,,,,,,,,,,,,,,,,,,,,,,,,,X
+Have a team total spread of +100 & LOSE,-5,,Insane
+Have a team total spread of +150 & LOSE,-7,,Insane
+Have a player earn a spread of +30 in a game,1,,Insane,,,X,,X,X,,,X,,X,X,,,,,,X,,X,X,X,,X,X,,X,,X,,,X,X,X,,X
+Have a player earn a spread of +50 in a game & WIN ,2,,Insane,,,,,,X,,,X,,,X,,,X,,,,,,,X,,X,X,,,,,,,,,X,,X
+Have a player earn a spread of +100 in a game & WIN ,3,,Insane
+,,,,,,Game Points,,,,,,,,,,,,Game Points,,,,,,,,,,,,Game Points,,,,,,,,,,,,Game Points,,,,,,,,,,,,Game Points
+,,,,Win/Loss Points,,4,-2,8,12,4,12,8,4,-4,4,-2,,8,-4,0,8,-4,12,8,8,0,0,8,,8,12,6,0,0,8,4,12,-4,0,2,,,-2,6,4,-2,2,4,12,2,0,2,,,6,,,,,,,,-2
+,,,,Total for that week,,12,-2,13,26,8,24,19,11,1,13,-4,,18,-3,2,11,-11,21,14,27,-1,3,14,,18,18,11,1,3,21,6,25,-4,21,6,,0,-1,13,8,-1,11,9,13,5,4,6,,0,8,0,0,0,0,0,0,0,-4,0
+,,,,Total up until now,,12,0,13,26,8,24,19,11,1,13,0,,30,0,15,37,-3,45,33,38,0,16,14,,48,18,26,38,0,66,39,63,0,37,20,,48,6,53,53,2,77,50,81,5,44,27

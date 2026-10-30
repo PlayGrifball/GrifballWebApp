@@ -1,0 +1,22 @@
+Stat Based Missions -  points,Time Limit,Type
+Earn a saboteur medal & a KD ratio of 2 in a game +2,,Scoring,5 weeks,4 games a week,50 points to make playoffs
+Earn a saboteur medal and win +1,,Scoring
+Earn 30+ ball kills & 100+ total kills in a game +2,20 minutes,Spread,time limit,"If game time lasts longer than threshold, mission can't be completed"
+Earn 25+ ball kills & 25+ bulltrue medals in a game +1,20 minutes,Spread,,Stat based missions are once per week
+Earn a spread of +30 in a game +1,30 minutes,Spread
+Earn a spread of +50 in a game and win +5,20 minutes,Spread,Caveat,"Stat missions do not stack. A mission is considered completed if the goal is met. If you reach the highest version of a mission, only THAT mission is completed. The proceeding missions are not."
+Earn a spread of +100 in a game and win +7,15 minutes,Spread
+Earn a ball kill per minute of 1.5 in a game +3,25 minutes,Spread
+Earn 8+ close call medals in a game +2,,Survival
+"Earn 15 total medals from Avenger, Protector & revenge in a game. +1",,Survival
+Have an average life of 35 seconds and win +2,25 minutes,Survival
+Earn an average life of 60 seconds and win +5,15 minutes,Survival
+Earn 15+ bomb stops medals & win +2,25 minutes,Timing
+Earn 20 total bulltrue medals in a game. +2,25 minutes,Timing
+Earn 25+ bulltrue medals & 15+ bomb stop medals and win. +5,30 minutes,Timing
+Earn a sword spree & win +3,25 minutes,Timing
+Have negative -70 & win +5,25 minutes,Insane
+Have a total team spread of -300 & win +7,,Insane
+Have a total team spread of +50 & lose -2,,Insane
+Have a total team spread of +100 & lose -5,,Insane
+Have a total team spread of +150 & lose -7,,Insane

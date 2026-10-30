@@ -1,0 +1,12 @@
+Player Lookup,Information
+ASpence501,Halo3,vlookup
+,#REF!,query
+,Halo reach
+,#N/A
+,Halo 4
+,Halo 5
+,#N/A
+Saved Commands
+"`=IFERROR(INDEX('Player Masterlist'!$1:$1000,MATCH(L2,'Player Masterlist'!C:C,0),1),"""")",,,,,,Indexes masterlist & matches Discord ID to find the players Discord username. Discord username is in column B. Discord ID is in column C
+"`=IFERROR(VLOOKUP(A2,'Player Masterlist'!$1:$1000,4,0),)"
+"`=IFERROR(VLOOKUP(A2,'Player Masterlist'!A:E,3,0),)"

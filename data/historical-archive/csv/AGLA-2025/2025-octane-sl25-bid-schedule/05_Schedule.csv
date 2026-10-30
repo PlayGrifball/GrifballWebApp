@@ -1,0 +1,65 @@
+,,,,,,,,,,,,,,,,,,unavailable ,Available
+,,Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,,,,Based on top 3 players
+,,,,,,,,,,,Sun,Mon,Tue,Wed,Thu,Fri,Sat,aspence,Captain Sev
+,,,,,,,,,1,NecessaryEvil,-,-,-,8-10,8-10,8-10,-,"3/19, 3/20, 3/26, 3/30-4/1, 4/7-4/10"
+,,,,,,,,,2,Aspence,-,9-12,9-12,9-12,-,-,-
+,,,,,,,,,3,KDskill,-,-,-,10-12,-,-,-,Evil
+,,,,,,,,,4,novice,?,?,?,?,?,?,?,5/8-5/11
+,,,,,,,,,5,scullen,8-9,8-9,-,8-9,8-9,-,-
+,,,,,,,,,6,chemical,-,9-9:30,-,9-9:30,-,-,-,Mav
+,,,,,,,,,7,daedric,-,-,-,-,-,-,7-8:30,4/11- 4/13
+,,,,,,,,,8,squire,9-12,9-12,9-12,9-12,9-12,9-12,9-12
+,,,,,,,,,9,luxe,8-9,-,8-9,-,8-9,-,-
+,,,,,,,,,10,solace,7-9:30,7-9:30,-,-,-,-,7-9:30
+,,,,,,,,,11,nkot,-,7-9,7-9,-,7-9,-,-
+,,,,,,,,,12,noplex,-,7:30-8:30,7:30-8:30,-,7:30-8:30,7:30-8:30,-
+,,,,,,,,,13,avenger,-,7:30-9,-,7:30-9,-,-,7:30-9
+,,,,,,,,,14,epic,7-9,-,-,-,-,-,7-9
+,,,,,,,,,,,,,,Hammer,Sword
+,,,,,,,,,,,,,,luxe,novice
+,,,,,,,,,,,13,,,solace,aspence
+,,,,,,,,,,,,,,chemical,nkot
+,,,,,,,,,,,,,,necessevil,kdskill
+,,,,,,,,,,,,,,daedrice,epic
+,,,,,,,,,,,,,,noplex,scullen
+,,,,,,,,,,,,,,avenger,squirell
+,,,March,May, 
+,,,23rd,18th
+Week,Home,Day,Date,Time,Away,4th round can?,Conference
+,ASpence,Monday,3/24/2025,9:00:00 PM,Solace,,out
+,ASpence,Tuesday,3/25/2025,9:00:00 PM,Squirell,,in
+,Luxe,Tuesday,3/25/2025,8:00:00 PM,Nkot,,out
+,NecessaryEvil,Wednesday,3/26/2025,8:00:00 PM,avenger,,in
+,KDSkill,Wednesday,3/26/2025,10:00:00 PM,Squirell,,in
+,Nkot,Thursday,3/27/2025,7:30:00 PM,Noplex,,out
+,NecessaryEvil,Friday,3/28/2025,9:00 PM,Squirell,,out
+,Daedric,Saturday,3/29/2025,7:00:00 PM,Solace,,in
+,Scullen,Sunday,3/30/2025,8:00:00 PM,Luxe,,out
+,Scullen,Monday,3/31/2025,8:00:00 PM,Avenger,,out
+,Luxe,Tuesday,4/1/2025,8:00:00 PM,Noplex,,in
+,NecessaryEvil,Wednesday,4/2/2025,9:00 PM,Aspence,,out
+,NecessaryEvil,Thursday,4/3/2025,8:00:00 PM,Scullen,,out
+,NecessaryEvil,Friday,4/4/2025,8:00:00 PM,Noplex,,out
+,Daedric,Saturday,4/5/2025,7:00:00 PM,Avenger,,in
+,Scullen,Sunday,4/6/2025,8:00:00 PM,Solace,,out,,,NecessaryEvil,Aspence,KDskill,novice,scullen,chemical,daedric,squire,luxe,solace,nkot,noplex,avenger,Epic
+,Scullen,Monday,4/7/2025,8:00:00 PM,Noplex,,out,,NecessaryEvil,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+,Chemical,Monday,4/7/2025,9:00:00 PM,Squirell,,out,,Aspence,|,-,-,-,-,-,-,-,-,-,-,-,-,-
+,Solace,Monday,4/7/2025,7:00:00 PM,Nkot,,out,,KDskill,?,|,-,-,-,-,-,-,-,-,-,-,-,-
+,NecessaryEvil,Wednesday,4/9/2025,9:00:00 PM,Chemical,,in,,novice,?,?,?,-,-,-,-,-,-,-,-,-,-,-
+,NecessaryEvil,Thursday,4/10/2025,8:00:00 PM,Luxe,,in,,scullen,|,?,?,?,-,-,-,-,-,-,-,-,-,-
+,Daedric,Saturday,4/12/2025,7:00:00 PM,Epic,,out,,chemical,|,|,?,?,?,-,-,-,-,-,-,-,-,-
+,Scullen,Sunday,4/13/2025,8:00:00 PM,Epic,,in,,daedric,?,?,?,?,?,?,-,-,-,-,-,-,-,-
+,ASpence,Monday,4/14/2025,9:00:00 PM,Chemical,,out,,squirell,|,|,|,?,?,|,?,-,-,-,-,-,-,-
+,Scullen,Monday,4/14/2025,8:00:00 PM,Nkot,,in,,luxe,|,?,?,?,|,?,?,?,-,-,-,-,-,-
+,Solace,Monday,4/14/2025,7:30:00 PM,Avenger,,in,,solace,?,|,?,?,|,|,|,|,|,-,-,-,-,-
+,ASpence,Wednesday,4/16/2025,10:00:00 PM,KDSkill,,in,,nkot,|,?,?,?,|,?,?,?,|,|,-,-,-,-
+,NecessaryEvil,Thursday,4/17/2025,8:00:00 PM,Nkot,,out,,noplex,|,?,?,?,|,?,?,?,|,|,|,-,-,-
+,Squirell,Saturday,4/19/2025,9:00:00 PM,Solace,,out,,avenger,|,?,?,?,|,?,|,?,?,|,|,|,-,-
+,Avenger,Saturday,4/19/2025,7:30:00 PM,Epic,,out,,Epic,?,?,?,?,|,?,|,?,|,|,?,?,|,-
+,Luxe,Sunday,4/20/2025,8:00:00 PM,Solace,,in
+,Chemical,Monday,4/21/2025,9:00:00 PM,Solace,,in
+,Noplex,Monday,4/21/2025,7:30:00 PM,Avenger,,in
+,Luxe,Sunday,4/27/2025,8:00:00 PM,Epic,,out
+,Nkot,Monday,4/28/2025,7:30:00 PM,Avenger,,out
+,Solace,Saturday,5/3/2025,7:00:00 PM,Epic,,out
+,Solace,Monday,5/5/2025,7:30:00 PM,Noplex,,in

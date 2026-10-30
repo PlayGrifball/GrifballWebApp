@@ -1,0 +1,151 @@
+{
+  "id": "2018-fl18-bid-league",
+  "category": "AGLA-2018",
+  "year": 2018,
+  "title": "FL18 Bid League",
+  "url": "https://docs.google.com/spreadsheets/d/1Th2BrmlN6PdYfgoMXv4N5tZQMsfDsQAUZxkB0l3wOUs/edit?usp=sharing",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "AGLA FL18",
+      "hidden": false,
+      "rowCount": 11,
+      "colCount": 8,
+      "sampleHeader": [
+        "Team Name",
+        "Captain (Player 1)",
+        "Player 2",
+        "Player 3",
+        "Player 4",
+        "Draft",
+        "Cap Spent",
+        "Cap Remaining"
+      ],
+      "csvFile": "csv/AGLA-2018/2018-fl18-bid-league/01_AGLA_FL18.csv"
+    }
+  ],
+  "bytes": 5864,
+  "fullSheets": [
+    {
+      "name": "AGLA FL18",
+      "hidden": false,
+      "rowCount": 11,
+      "colCount": 8,
+      "rows": [
+        [
+          "Team Name",
+          "Captain (Player 1)",
+          "Player 2",
+          "Player 3",
+          "Player 4",
+          "Draft",
+          "Cap Spent",
+          "Cap Remaining"
+        ],
+        [
+          "Notorious",
+          "Silva (120ccv)",
+          "zvi CHICKEN ivz (10cr)",
+          "ActiveHate (130cr)",
+          "ixPanthro (100cr)",
+          "Panther Il",
+          "360",
+          "40"
+        ],
+        [
+          "One Hit Wonders",
+          "Ming Crusader (170ccv)",
+          "Sabasaurous Rex (190cr)",
+          "Killerz Legit (20cr)",
+          "Spike18sw (20cr)",
+          "SonicNachos",
+          "400",
+          "0"
+        ],
+        [
+          "NSFW",
+          "Invayda Zim (150ccv)",
+          "iNF3ktioN (10cr)",
+          "DCleak (170cr)",
+          "Rayzyr (10cr)",
+          "The Texorcist",
+          "340",
+          "60"
+        ],
+        [
+          "Nobility",
+          "Perfect Demise (40ccv)",
+          "ThumpingHawk (160cr)",
+          "Skiyttles (150cr)",
+          "RevengeintheSky (10cr)",
+          "Mystical Novice",
+          "320",
+          "40"
+        ],
+        [
+          "Team 8",
+          "MuNgO PuNgO (40ccv)",
+          "ST0P K1LLING ME (220cr)",
+          "FBK27 (20cr)",
+          "xknight25R9270 (110cr)",
+          "BEN9116",
+          "390",
+          "10"
+        ],
+        [
+          "Corrupt",
+          "Rage More Nerd (130ccv)",
+          "Almighty Tycoon (160cr)",
+          "I Copilot I (10cr)",
+          "TcT J Bomb (20cr)",
+          "Trespa5s",
+          "320",
+          "80"
+        ],
+        [
+          "Vanguard",
+          "TcT Avenger (20ccv)",
+          "KDSkill (170cr)",
+          "BCN19 (200cr)",
+          "Fs MsWolv3rine (10cr)",
+          "Mr Epicbeast",
+          "400",
+          "0"
+        ],
+        [
+          "Legacy",
+          "Reyas (80ccv)",
+          "NetsPride15 (140cr)",
+          "KSI Gambit 7 (30cr)",
+          "ixGingy (10cr)",
+          "AlwaysTrollin",
+          "260",
+          "130"
+        ],
+        [
+          "Bomb Squad",
+          "Saintz the God (180ccv)",
+          "God of Sprint (200cr)",
+          "RicE ChieF II (10cr)",
+          "TcT Conviction (10cr)",
+          "TheRealFearno",
+          "400",
+          "0"
+        ],
+        [
+          "No Cap",
+          "VenomWetBlanket (60ccv)",
+          "ACE B S1lentND1 (310cr)",
+          "incrips (10cr)",
+          "Atonemillitant (10cr)",
+          "Melvishdon",
+          "390",
+          "10"
+        ]
+      ]
+    }
+  ]
+}
