@@ -104,6 +104,74 @@ public class RescheduleServiceWorkflowTests
         Assert.That(await ctx.MatchReschedules.Select(x => x.MatchRescheduleID).ToListAsync(), Is.EqualTo(new[] { first.MatchRescheduleID }));
     }
 
+    [TestCase(SeasonMatchResult.Won, null)]
+    [TestCase(null, SeasonMatchResult.Forfeit)]
+    [TestCase(SeasonMatchResult.Bye, null)]
+    public async Task Request_Throws_NotAllowed_When_MatchHasAResult(SeasonMatchResult? home, SeasonMatchResult? away)
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        s.Match.HomeTeamResult = home;
+        s.Match.AwayTeamResult = away;
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
+            _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "late" }, s.HomeCaptain.Id));
+
+        Assert.That(ex!.Message, Is.EqualTo("This match already has a result."));
+        Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task Request_Throws_NotAllowed_When_MatchIsMissingATeam()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        // A bracket match still waiting on an earlier result
+        s.Match.AwayTeamID = null;
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<RescheduleNotAllowedException>(() =>
+            _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "late" }, s.HomeCaptain.Id));
+
+        Assert.That(ex!.Message, Is.EqualTo("This match does not have both teams yet."));
+    }
+
+    [Test]
+    public async Task Request_Throws_Forbidden_When_UserIsOnNeitherTeam_AndNotACommissioner()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var outsider = await RescheduleTestData.AddUser(_context, "outsider", 1009);
+        // On a roster, but of another team in the season
+        var otherCaptain = await RescheduleTestData.AddUser(_context, "othercap", 1010);
+        await RescheduleTestData.AddTeamWithCaptain(_context, s.Season, "Other", otherCaptain);
+
+        foreach (var user in new[] { outsider, otherCaptain })
+        {
+            await Assert.ThrowsAsync<RescheduleForbiddenException>(() =>
+                _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "late" }, user.Id));
+        }
+        Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task Request_IsAllowed_ForEitherTeamsPlayers_AndForACommissioner()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var commissioner = await RescheduleTestData.AddUser(_context, "commish", 1011);
+        await RescheduleTestData.MakeCommissioner(_context, commissioner);
+
+        // One request at a time per match: each asker gets their own match between the same teams.
+        foreach (var user in new[] { s.Requester, s.HomeCaptain, s.AwayCaptain, commissioner })
+        {
+            var match = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1 };
+            _context.SeasonMatches.Add(match);
+            await _context.SaveChangesAsync();
+
+            var r = await _service.RequestRescheduleAsync(new RescheduleRequestDto { SeasonMatchID = match.SeasonMatchID, Reason = "late" }, user.Id);
+
+            Assert.That(r.RequestedByUserID, Is.EqualTo(user.Id));
+        }
+    }
+
     // ---------- ProcessRescheduleAsync ----------
 
     [Test]
@@ -188,8 +256,59 @@ public class RescheduleServiceWorkflowTests
             Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
             Assert.That(sm.ScheduledTime, Is.EqualTo(scheduled));
             Assert.That(sm.ActiveRescheduleRequestId, Is.Null);
-            Assert.That(SentContents(4444UL), Is.EqualTo(new[] { $"Your request has been Rejected by {s.HomeCaptain.Id}" }));
+            // The approver as Discord shows them (a mention: their Discord account is linked), not their user ID
+            Assert.That(SentContents(4444UL), Is.EqualTo(new[] { "Your request has been Rejected by <@5001>" }));
         });
+    }
+
+    [Test]
+    public async Task Process_NamesTheApprover_WhenTheyHaveNoDiscordAccount()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var commissioner = await RescheduleTestData.AddUser(_context, "commish", 1011);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4445UL);
+        _context.ChangeTracker.Clear();
+
+        await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, commissioner.Id);
+
+        Assert.That(SentContents(4445UL), Is.EqualTo(new[] { "Your request has been Approved by GT_commish" }));
+    }
+
+    [Test]
+    public async Task Process_StillSavesTheDecision_When_DiscordIsOffInAPreview()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4446UL);
+        s.Match.ActiveRescheduleRequestId = r.MatchRescheduleID;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new GrifballWebApp.Server.Preview.PreviewDiscordDisabledException("Discord is disabled in preview mode"));
+
+        var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id);
+
+        await using var ctx = _context.NewContextLike();
+        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
+        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Approved));
+        Assert.That((await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID)).ActiveRescheduleRequestId, Is.Null);
+        Assert.That(_logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "Log" && (LogLevel)c.GetArguments()[0]! == LogLevel.Information), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Process_StillSavesTheDecision_When_DiscordFails()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4447UL);
+        _context.ChangeTracker.Clear();
+        _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("Discord is down"));
+
+        var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
+
+        await using var ctx = _context.NewContextLike();
+        Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
+        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Rejected));
+        Assert.That(_logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "Log" && (LogLevel)c.GetArguments()[0]! == LogLevel.Error), Is.EqualTo(1));
     }
 
     // ---------- GetPendingReschedulesAsync ----------
@@ -308,6 +427,21 @@ public class RescheduleServiceWorkflowTests
 
         Assert.That(result[0].HomeCaptain, Is.EqualTo("UNKNOWN"));
         Assert.That(result[0].AwayCaptain, Is.EqualTo("UNKNOWN"));
+    }
+
+    [Test]
+    public async Task GetOverdue_LeavesOutMatchesMissingATeam()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddHours(-50));
+        // Bracket matches given a time before both teams were known: not playable, so not overdue (and no crash)
+        _context.SeasonMatches.AddRange(
+            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = null, BestOf = 1, ScheduledTime = DateTime.UtcNow.AddHours(-60) },
+            new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = null, AwayTeamID = null, BestOf = 1, ScheduledTime = DateTime.UtcNow.AddHours(-70) });
+        await _context.SaveChangesAsync();
+
+        var result = await _service.GetOverdueMatchesAsync();
+
+        Assert.That(result.Select(x => x.SeasonMatchID), Is.EqualTo(new[] { s.Match.SeasonMatchID }));
     }
 
     [Test]

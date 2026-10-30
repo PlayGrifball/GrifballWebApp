@@ -68,6 +68,7 @@ describe('SeasonMatchComponent template (safe navigation)', () => {
     reportedGames: [],
     bracketInfo: null,
     activeRescheduleRequestId: null,
+    canRequestReschedule: false,
     ...overrides
   });
 
@@ -216,7 +217,7 @@ describe('SeasonMatchComponent reporting', () => {
     seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
     homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null,
+    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
     ...overrides
   });
 
@@ -284,12 +285,19 @@ describe('SeasonMatchComponent reporting', () => {
     expect(button('Reschedule')).toBeUndefined();
   });
 
-  it('offers players a reschedule link when there is no active request', () => {
+  it('offers a reschedule link when the server says this user may request one', () => {
     isEventOrganizer.set(false);
     isPlayer.set(true);
-    load(page());
+    load(page({ canRequestReschedule: true }));
     expect(button('Reschedule')).toBeDefined();
     expect(text()).not.toContain('Report Game');
+  });
+
+  it('offers no reschedule link to a player the server does not allow (not on either team, or the match decided)', () => {
+    isEventOrganizer.set(false);
+    isPlayer.set(true);
+    load(page({ canRequestReschedule: false }));
+    expect(button('Reschedule')).toBeUndefined();
   });
 
   it('shows the report tools to organizers while the match is undecided', () => {
@@ -531,7 +539,7 @@ describe('SeasonMatchComponent lobby', () => {
     seasonID: 3, seasonName: 'Season 3', isPlayoff: false,
     homeTeamName: 'Home', homeTeamID: 10, homeTeamScore: null, homeTeamResult: 'TBD',
     awayTeamName: 'Away', awayTeamID: 20, awayTeamScore: null, awayTeamResult: 'TBD',
-    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null,
+    scheduledTime: null, bestOf: 3, reportedGames: [], bracketInfo: null, activeRescheduleRequestId: null, canRequestReschedule: false,
     ...overrides
   });
   const team = (name: string, captain: string, player: string) => ({

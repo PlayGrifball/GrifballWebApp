@@ -175,6 +175,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       scheduledTime: '2026-10-30T23:00:00Z', bestOf: 3,
       reportedGames: [{ matchNumber: 1, matchID: '0f8fad5b-d9cb-469f-a165-70867728950e' }],
       bracketInfo: null, activeRescheduleRequestId: null,
+      // Signed in, the mock users play in (or run) this match: the server would take a reschedule request
+      canRequestReschedule: role !== 'anon',
     },
     '/api/SeasonMatch/GetPossibleMatches/31': [{ matchID: '7c9e6679-7425-40de-944b-e07fc1f90ae7', homeTeam: possibleTeam(1, 5, 'Won', 0), awayTeam: possibleTeam(2, 3, 'Lost', 10) }],
     ...Object.fromEntries(teams.map(([id]) => [`/api/Team/Team/${id}`, roster(id)])),

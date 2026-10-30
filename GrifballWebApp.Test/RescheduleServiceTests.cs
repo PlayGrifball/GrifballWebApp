@@ -37,22 +37,18 @@ public class RescheduleServiceTests
     [Test]
     public async Task RequestRescheduleAsync_ShouldCreateReschedule_WhenValid()
     {
-        // Arrange: create a match
-        var match = new SeasonMatch { ScheduledTime = DateTime.UtcNow.AddDays(1), Season = new() { SeasonName = "Test Season" } };
-        _context.SeasonMatches.Add(match);
-        await _context.SaveChangesAsync();
+        // Arrange: a match between two teams, asked for by one of their players
+        var s = await RescheduleTestData.SeedAsync(_context, DateTime.UtcNow.AddDays(1));
+        var match = s.Match;
         var dto = new RescheduleRequestDto
         {
             SeasonMatchID = match.SeasonMatchID,
             NewScheduledTime = DateTime.UtcNow.AddDays(2),
             Reason = "Test reason"
         };
-        var user = new User();
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
 
         // Act
-        var reschedule = await _service.RequestRescheduleAsync(dto, user.Id);
+        var reschedule = await _service.RequestRescheduleAsync(dto, s.Requester.Id);
 
         // Assert
         Assert.That(reschedule, Is.Not.Null);

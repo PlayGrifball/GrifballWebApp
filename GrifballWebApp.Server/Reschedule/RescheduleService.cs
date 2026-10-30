@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Preview;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text;
@@ -41,6 +42,12 @@ public class RescheduleService
             if (seasonMatch == null)
                 throw new ArgumentException("Season match not found");
 
+            // Only an undecided match between two teams, and only by a player on either team or a commissioner
+            if (RescheduleRules.WhyNotReschedulable(seasonMatch) is { } reason)
+                throw new RescheduleNotAllowedException(reason);
+            if (!await RescheduleRules.MayRequestAsync(_context, seasonMatch, requestedByUserId, ct))
+                throw new RescheduleForbiddenException();
+
             // Prevent new request if there is already an active one
             if (seasonMatch.ActiveRescheduleRequestId.HasValue)
                 throw new RescheduleAlreadyActiveException();
@@ -75,6 +82,17 @@ public class RescheduleService
 
     public async Task<MatchReschedule> ProcessRescheduleAsync(int rescheduleId, ProcessRescheduleDto dto, int commissionerUserId, CancellationToken ct = default)
     {
+        var reschedule = await SaveDecisionAsync(rescheduleId, dto, commissionerUserId, ct);
+
+        // After the commit: the decision stands whether or not Discord hears about it.
+        if (reschedule.DiscordThreadID is not null)
+            await NotifyThreadAsync(reschedule.DiscordThreadID.Value, reschedule.Status, commissionerUserId, ct);
+
+        return reschedule;
+    }
+
+    private async Task<MatchReschedule> SaveDecisionAsync(int rescheduleId, ProcessRescheduleDto dto, int commissionerUserId, CancellationToken ct)
+    {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         try
@@ -106,13 +124,6 @@ public class RescheduleService
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
-            if (reschedule.DiscordThreadID is not null)
-            {
-                await _discordClient.SendMessageAsync(reschedule.DiscordThreadID.Value,
-                new NetCord.Rest.MessageProperties { Content = $"Your request has been {reschedule.Status} by {reschedule.ApprovedByUserID}" },
-                cancellationToken: ct);
-            }
-
             return reschedule;
         }
         catch
@@ -120,6 +131,48 @@ public class RescheduleService
             await transaction.RollbackAsync(ct);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Tells the request's Discord thread the decision and who made it. Never fails the decision: in a preview without
+    /// Discord every call throws <see cref="PreviewDiscordDisabledException"/>, and Discord can be down; both are logged.
+    /// </summary>
+    private async Task NotifyThreadAsync(ulong threadID, RescheduleStatus status, int approverUserID, CancellationToken ct)
+    {
+        try
+        {
+            var approver = await ApproverNameAsync(approverUserID, ct);
+            await _discordClient.SendMessageAsync(threadID,
+                new NetCord.Rest.MessageProperties { Content = $"Your request has been {status} by {approver}" },
+                cancellationToken: ct);
+        }
+        catch (PreviewDiscordDisabledException ex)
+        {
+            _logger.LogInformation(ex, "Preview without Discord: not telling thread {ThreadId} the reschedule was {Status}", threadID, status);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to tell thread {ThreadId} the reschedule was {Status}", threadID, status);
+        }
+    }
+
+    /// <summary>
+    /// The approver as the thread should see them: a mention when their Discord account is linked (as the other Discord
+    /// notifications name users), otherwise their gamertag, Discord name or display name.
+    /// </summary>
+    private async Task<string> ApproverNameAsync(int userID, CancellationToken ct)
+    {
+        var user = await _context.Users
+            .Include(u => u.XboxUser)
+            .Include(u => u.DiscordUser)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userID, ct);
+
+        if (user is null)
+            return "a commissioner";
+        if (user.DiscordUserID is { } discordUserID)
+            return $"<@{discordUserID}>";
+        return user.ToDisplayName() ?? user.UserName ?? "a commissioner";
     }
 
     public async Task<List<RescheduleDto>> GetPendingReschedulesAsync(CancellationToken ct = default)
@@ -160,7 +213,11 @@ public class RescheduleService
         var overdueMatches = await _context.SeasonMatches
             .Include(sm => sm.HomeTeam.Captain.User.XboxUser)
             .Include(sm => sm.AwayTeam.Captain.User.XboxUser)
-            .Where(sm => sm.ScheduledTime.HasValue 
+            // A match without both teams (a bracket match still waiting on an earlier result) cannot be played yet,
+            // so it is not overdue, whatever time it was given.
+            .Where(sm => sm.ScheduledTime.HasValue
+                && sm.HomeTeamID != null
+                && sm.AwayTeamID != null
                 && sm.ScheduledTime < cutoffDate
                 && sm.HomeTeamResult == null 
                 && sm.AwayTeamResult == null)
@@ -171,8 +228,8 @@ public class RescheduleService
         return overdueMatches.Select(sm => new OverdueMatchDto
         {
             SeasonMatchID = sm.SeasonMatchID,
-            HomeCaptain = sm.HomeTeam.Captain?.User.ToDisplayName() ?? "UNKNOWN",
-            AwayCaptain = sm.AwayTeam.Captain?.User.ToDisplayName() ?? "UNKNOWN",
+            HomeCaptain = sm.HomeTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
+            AwayCaptain = sm.AwayTeam?.Captain?.User.ToDisplayName() ?? "UNKNOWN",
             ScheduledTime = sm.ScheduledTime.Value,
             HoursOverdue = (int)Math.Floor((DateTime.UtcNow - sm.ScheduledTime.Value).TotalHours)
         }).ToList();
@@ -198,7 +255,7 @@ public class RescheduleService
 
         // Create a message first to create thread from
         var messageContent = $"🔄 **Match Reschedule Request**\n" +
-                            $"**Match:** {reschedule.SeasonMatch.HomeTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}\n" +
+                            $"**Match:** {reschedule.SeasonMatch.HomeTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}\n" +
                             $"**Original Time:** {reschedule.OriginalScheduledTime?.DiscordTimeEmbed() ?? "Not scheduled"}\n" +
                             $"**Requested New Time:** {reschedule.NewScheduledTime?.DiscordTimeEmbed() ?? "TBD"}\n" +
                             $"**Requested By:** {reschedule.RequestedByUser.XboxUser?.Gamertag}\n" +
@@ -206,7 +263,7 @@ public class RescheduleService
 
         var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, cancellationToken: ct);
 
-        var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}";
+        var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}";
         var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id,
             new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
 
@@ -238,8 +295,14 @@ public class RescheduleService
         }
     }
 
-    private async Task AddCaptainToThread(Team team, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
+    private async Task AddCaptainToThread(Team? team, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
     {
+        if (team is null)
+        {
+            sb.AppendLine("Could not add a captain to thread, the match is missing a team.");
+            return;
+        }
+
         if (team.Captain is null)
         {
             sb.AppendLine($"Could not add {team.TeamName} captain to thread, team has no captain.");

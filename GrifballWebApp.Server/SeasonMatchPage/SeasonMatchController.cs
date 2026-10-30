@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace GrifballWebApp.Server.SeasonMatchPage;
 
@@ -17,7 +18,9 @@ public class SeasonMatchController : ControllerBase
     [HttpGet("{seasonMatchID:int}", Name = "GetSeasonMatchPage")]
     public Task<SeasonMatchPageDto?> GetSeasonMatchPage([FromRoute] int seasonMatchID, CancellationToken ct)
     {
-        return _seasonMatchService.GetSeasonMatchPage(seasonMatchID, ct);
+        // Signed in: whether this user may ask to reschedule the match. A visitor gets the page without.
+        int? userID = int.TryParse(User?.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+        return _seasonMatchService.GetSeasonMatchPage(seasonMatchID, userID, ct);
     }
 
     [Authorize(Roles = "Commissioner")]

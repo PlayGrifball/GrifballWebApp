@@ -80,6 +80,35 @@ public class RescheduleControllerTests
         Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("There is already an active reschedule request for this match."));
     }
 
+    [Test]
+    public async Task RequestReschedule_ReturnsBadRequest_When_MatchHasAResult()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        s.Match.HomeTeamResult = SeasonMatchResult.Won;
+        s.Match.AwayTeamResult = SeasonMatchResult.Loss;
+        await _context.SaveChangesAsync();
+        SetUser(s.Requester.Id);
+
+        var result = await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
+
+        Assert.That((result as BadRequestObjectResult)?.Value, Is.EqualTo("This match already has a result."));
+    }
+
+    [Test]
+    public async Task RequestReschedule_Returns403_When_UserIsOnNeitherTeam()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var outsider = await RescheduleTestData.AddUser(_context, "outsider");
+        SetUser(outsider.Id);
+
+        var result = await _controller.RequestReschedule(new RescheduleRequestDto { SeasonMatchID = s.Match.SeasonMatchID, Reason = "r" }, CancellationToken.None);
+
+        var forbidden = result as ObjectResult;
+        Assert.That(forbidden?.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+        Assert.That(forbidden!.Value, Is.EqualTo("Only players on either team, or a commissioner, can request a reschedule for this match."));
+        Assert.That(await _context.MatchReschedules.AnyAsync(), Is.False);
+    }
+
     [TestCase(true, "approved")]
     [TestCase(false, "rejected")]
     public async Task ProcessReschedule_ReturnsOk(bool approved, string word)

@@ -7,10 +7,9 @@
       <h1 class="hud-title hud-title--md">{{isDecided() ? 'Match report' : 'Pre-game lobby'}}</h1>
     </div>
     <div class="hud-actions">
-      <!-- TODO: Can we lock down front end to captain or event organizer only?
-        Also this button should be disabled if the match has been completed.
-      -->
-      @if (!match?.activeRescheduleRequestId && (accountService.isPlayer() || accountService.isEventOrganizer())) {
+      <!-- Only where the server would take the request (RescheduleRules): undecided, both teams, no request active,
+        and the user on either roster or a commissioner -->
+      @if (match?.canRequestReschedule) {
         <button class="hud-btn" [routerLink]="['/reschedule-request', seasonMatchID()]">Reschedule</button>
       }
     </div>

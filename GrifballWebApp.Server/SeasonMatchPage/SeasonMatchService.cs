@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
+using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Match = GrifballWebApp.Database.Models.Match;
@@ -19,7 +20,11 @@ public class SeasonMatchService
         _bracketService = bracketService;
     }
 
-    public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
+    public Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
+        => GetSeasonMatchPage(seasonMatchID, null, ct);
+
+    /// <param name="userID">The signed-in user, for <see cref="SeasonMatchPageDto.CanRequestReschedule"/>; null for a visitor.</param>
+    public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
             .Include(x => x.MatchLinks)
@@ -81,6 +86,7 @@ public class SeasonMatchService
                 IsGrandFinal = seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath,
             },
             ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
+            CanRequestReschedule = await RescheduleRules.CanRequestAsync(_context, seasonMatch, userID, ct),
         };
     }
 
