@@ -1,24 +1,41 @@
-<p>Status: </p>
-@if (status().startsWith('https')) {
-  <a [href]="status()">
-    <p>{{status()}}</p>
-  </a>
-} @else {
-  <p>{{status()}}</p>
-}
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Admin</span>
+    <h1 class="hud-title hud-title--md">Halo Infinite Client</h1>
+  </div>
+  <p class="hud-lede">The site's own sign-in to Halo Infinite, which it uses to read match results.</p>
 
-<button mat-flat-button color="primary" (click)="deleteTokens()">
-Delete Tokens
-</button>
+  <section class="hud-panel hud-form-group" aria-labelledby="ic-status">
+    <h2 id="ic-status" class="hud-kicker">Status</h2>
+    <div class="hud-well ic-status" role="status">
+      @if (status() === '') {
+        <span class="hud-muted">Checking…</span>
+      } @else if (status().startsWith('https')) {
+        <span>Signed out. Sign in here: </span><a class="hud-text-link" [href]="status()">{{status()}}</a>
+      } @else {
+        <span>{{status()}}</span>
+      }
+    </div>
+    <div class="hud-actions ic-actions">
+      <button mat-stroked-button type="button" (click)="deleteTokens()">
+        Delete Tokens
+      </button>
+    </div>
+  </section>
 
-<form class="app-form" #form="ngForm" (ngSubmit)="setCode()">
-    <mat-form-field appearance="outline" class="app-full-width">
+  <form class="hud-panel hud-form-group" #form="ngForm" (ngSubmit)="setCode()" aria-labelledby="ic-code">
+    <h2 id="ic-code" class="hud-kicker">Sign-in code</h2>
+    <mat-form-field appearance="outline">
       <mat-label>Code</mat-label>
       <input matInput required [(ngModel)]="code" name="code">
+      <mat-hint>The code from the sign-in page's redirect</mat-hint>
       <app-error-message [control]="form.controls['code']" />
     </mat-form-field>
 
-    <button mat-flat-button color="primary" [disabled]="!form.form.valid">
-      Set Code
-    </button>
-</form>
+    <div class="hud-actions">
+      <button mat-flat-button [disabled]="!form.form.valid">
+        Set Code
+      </button>
+    </div>
+  </form>
+</div>

@@ -158,7 +158,7 @@
     <h3 class="hud-label">Enter Match ID</h3>
     <form class="app-form lobby-admin__form" #reportMatchForm="ngForm" (ngSubmit)="onSubmit(matchID)">
       <mat-form-field appearance="outline" class="app-full-width">
-        <mat-label>MatchID</mat-label>
+        <mat-label>Match ID</mat-label>
         <input matInput required [(ngModel)]="matchID" name="MatchID" [regexExpression]="regex" [errorMessage]="regexErrorMessage">
         <app-error-message [control]="reportMatchForm.controls['MatchID']" />
       </mat-form-field>

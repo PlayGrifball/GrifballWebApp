@@ -150,6 +150,78 @@ a.hud-kicker {
   color: var(--hud-muted);
 }
 
+.hud-empty--error {
+  border-color: var(--hud-red);
+  color: var(--hud-red-text);
+}
+
+// A page head with its actions (Create, Merge, ...) beside the title, wrapping under it when there
+// is no room.
+.hud-page-head--actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+
+  > .hud-page-head__text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Forms: titled groups of labelled fields, each group a panel
+// ---------------------------------------------------------------------------
+
+.hud-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.hud-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+
+  > .hud-kicker { margin: 0 0 2px; }
+  > p.hud-muted { margin: -4px 0 4px; font-size: 16px; }
+  > mat-form-field { width: 100%; }
+}
+
+// Fields side by side where they fit, one per row on a phone.
+.hud-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 12px 16px;
+
+  > mat-form-field { width: 100%; min-width: 0; }
+}
+
+// Checkboxes and toggles, one per line.
+.hud-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// A label and its value, e.g. a user's details.
+.hud-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: baseline;
+
+  > dt { font-family: var(--hud-font-mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hud-muted); }
+  > dd { margin: 0; color: var(--hud-heading); font-weight: 600; overflow-wrap: anywhere; }
+}
+
 // ---------------------------------------------------------------------------
 // Panels and cards
 // ---------------------------------------------------------------------------

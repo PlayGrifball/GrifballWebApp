@@ -224,6 +224,15 @@ export const OVERLAYS: Overlay[] = [
     },
   },
   {
+    name: 'season editor, copy-from list', role: 'admin', path: '/seasonEdit/12',
+    setup: async page => {
+      await page.getByRole('combobox', { name: 'Copy from' }).click();
+      const listbox = page.getByRole('listbox');
+      await expect(listbox).toContainText('Winter Campaign');
+      return listbox;
+    },
+  },
+  {
     name: 'availability, time picker', role: 'admin', path: '/seasonAvailability/12',
     setup: async page => {
       await page.locator('mtx-datetimepicker-toggle button').first().click();

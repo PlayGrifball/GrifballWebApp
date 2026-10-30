@@ -64,9 +64,13 @@ const PAGES: PageCase[] = [
   { name: 'login', path: '/login', role: 'anon', ready: '.login-panel',
     parts: ['.login-panel', '.login-side > *'] },
   { name: 'user-management', path: '/usermanagement', role: 'admin', ready: 'app-table tr.mat-mdc-row',
-    parts: ['text:app-user-management > h1', 'app-user-management > button', 'app-search-box', 'app-table'] },
+    parts: ['text:app-user-management h1', 'app-user-management .hud-page-head .hud-actions > a', 'app-search-box', 'app-table'] },
   { name: 'season-manager', path: '/seasonManager', role: 'admin', ready: 'tr.mat-mdc-row',
-    parts: ['text:app-season-manager > h1', 'app-season-manager > button', 'app-season-manager .hud-table-wrap'] },
+    parts: ['text:app-season-manager h1', 'app-season-manager .hud-page-head > a', 'app-season-manager .hud-table-wrap'] },
+  { name: 'season-editor', path: '/seasonEdit/12', role: 'admin', ready: 'mat-select[name="copyFrom"]',
+    parts: ['text:app-season-edit h1', 'app-season-edit section.hud-panel', 'app-season-edit .hud-actions > *'] },
+  { name: 'commissioner-dashboard', path: '/commissioner-dashboard', role: 'admin', ready: '.cd-metric',
+    parts: ['text:app-commissioner-dashboard h1', '.cd-metric', 'app-commissioner-dashboard .hud-table-wrap'] },
 ];
 
 // What has to be at least 44x44 on a phone: the buttons and links people tap.

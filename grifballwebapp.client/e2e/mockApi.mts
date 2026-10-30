@@ -190,7 +190,7 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Signups/getSignups/12': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
       teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
     '/api/Grades/GetGrades/12': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
-    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(seasonID => { const { seasonName, ...rest } = season(seasonID); return { ...rest, name: seasonName }; }),
+    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(season),
     '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFrom: null, copyAvailability: false, copySignups: false, copyTeams: false },
     // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
     '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),

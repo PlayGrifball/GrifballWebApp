@@ -3,6 +3,7 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 
 import { CommissionerDashboardComponent, CommissionerDashboardDto, RescheduleDto, OverdueMatchDto } from './commissioner-dashboard.component';
@@ -33,7 +34,8 @@ describe('CommissionerDashboardComponent', () => {
         NoopAnimationsModule
       ],
       providers: [
-        { provide: MatDialog, useValue: mockDialog }
+        { provide: MatDialog, useValue: mockDialog },
+        provideRouter([]),
       ]
     }).compileComponents();
 
@@ -244,6 +246,23 @@ describe('CommissionerDashboardComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent!;
     expect(text).not.toContain('Loading dashboard data...');
     expect((fixture.nativeElement as HTMLElement).querySelector('.metric-value')?.textContent?.trim()).toBe('4');
+  });
+
+  it('links each overdue match to its match page and marks how late it is', async () => {
+    await fixture.whenStable();
+    httpTestingController.expectOne('/api/CommissionerDashboard/GetDashboardData').flush({
+      pendingReschedules: [],
+      overdueMatches: [{ seasonMatchID: 33, homeCaptain: 'A', awayCaptain: 'B', scheduledTime: '2026-10-27T00:30:00Z', hoursOverdue: 80 }],
+      summary: { pendingRescheduleCount: 0, overdueMatchCount: 1, criticalOverdueCount: 1 },
+    });
+    await fixture.whenStable();
+    (Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]'))[1]).click();
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('a.cd-match')!.getAttribute('href')).toBe('/seasonmatch/33');
+    expect(el.querySelector('.cd-severity')!.getAttribute('data-severity')).toBe('critical');
+    expect(el.querySelector('.cd-metric--critical .metric-value')!.textContent!.trim()).toBe('1');
   });
 
   it('shows the error once the request fails, without a manual detectChanges', async () => {
