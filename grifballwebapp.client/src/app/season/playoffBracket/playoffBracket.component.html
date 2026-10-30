@@ -9,7 +9,8 @@
   <p class="hud-empty">No bracket created</p>
 }
 <div class="bracket-box" [hidden]="!hasBracket()">
-  <div class="brackets-viewer"></div>
+  <!-- Drawn by brackets-viewer; scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+  <div class="brackets-viewer" tabindex="0" role="region" aria-label="Playoff bracket"></div>
 </div>
 @if (hasBracket() && drawn()) {
 <div class="bracket-legend">

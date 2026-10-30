@@ -8,7 +8,8 @@
 
 <span class="hud-label">{{signUps().length}} signed up</span>
 
-<div class="hud-table-wrap">
+<!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+<div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="tableLabel">
 <table mat-table [dataSource]="signUps()" aria-labelledby="tableLabel">
 
   <!--- Note that these columns can be defined in any order.

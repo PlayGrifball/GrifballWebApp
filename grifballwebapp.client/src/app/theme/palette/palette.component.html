@@ -1,7 +1,7 @@
 <mat-form-field appearance="outline" class="palette-picker">
     <mat-label>{{paletteName()}} colour</mat-label>
     <input matInput [formControl]="color" [mtxColorpicker]="picker" format="hex">
-    <mtx-colorpicker-toggle matSuffix [for]="picker" />
+    <mtx-colorpicker-toggle matSuffix [for]="picker" [aria-label]="'Pick the ' + paletteName() + ' colour'" />
     <mtx-colorpicker #picker />
 </mat-form-field>
 

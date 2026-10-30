@@ -626,3 +626,24 @@ main > :not(router-outlet):not(:has(> .hud-page)) {
 .hud-waiting {
   visibility: hidden;
 }
+
+// The date and time pickers (@ng-matero/extensions): the header's year, date, hours, minutes and
+// AM/PM not being edited are dimmed to 60%, under 4.5:1 against the header. Dimmed less, they
+// still read as not selected and are legible. AM and PM are stacked at 18px a line on phones:
+// 24px each, the least a touch target may be (WCAG 2.5.8). In the overlay, to outweigh their own
+// styles, which load later.
+.cdk-overlay-container .mtx-calendar-header {
+  // The time while the date is being picked, the same
+  .mtx-calendar-header-time:not(.active) { opacity: 0.85; }
+
+  .mtx-calendar-header-year, .mtx-calendar-header-date, .mtx-calendar-header-hours,
+  .mtx-calendar-header-minutes, .mtx-calendar-header-ampm {
+    &:not(.active) { opacity: 0.85; }
+  }
+
+  .mtx-calendar-header-ampm { min-height: 24px; min-width: 24px; }
+}
+
+// The colour picker's (@acrodata/color-picker) labels under its inputs (HEX, R, G, B, A): #969696
+// on white is 2.9:1; this grey is 5.3:1.
+.cdk-overlay-container .color-input-field span { color: #6b6b6b; }

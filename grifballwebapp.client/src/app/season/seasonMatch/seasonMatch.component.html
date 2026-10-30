@@ -187,7 +187,8 @@
       <span class="lobby-possible__title">{{possible.matchID}}: {{possible.homeTeam.score}} - {{possible.awayTeam.score}}</span>
       <div class="lobby-possible__teams">
         @for (team of [possible.homeTeam, possible.awayTeam]; track $index) {
-        <div class="hud-table-wrap">
+        <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+        <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="($index === 0 ? 'Home' : 'Away') + ' players in ' + possible.matchID">
           <table mat-table [dataSource]="team.players">
             @for (column of columns; track column) {
             <ng-container [matColumnDef]="column.columnDef">

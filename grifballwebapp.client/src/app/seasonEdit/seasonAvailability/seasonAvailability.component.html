@@ -34,12 +34,14 @@
   @for (option of options(); track $index) {
   <div>
     <mat-form-field appearance="outline">
+      <mat-label>Time</mat-label>
       <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="option.time" (ngModelChange)="setOption($index, { time: $event })" required [name]="'picker' + $index">
       <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
       <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" />
     </mat-form-field>
 
     <mat-form-field appearance="outline">
+      <mat-label>Day</mat-label>
       <mat-select [ngModel]="option.dayOfWeek" (ngModelChange)="setOption($index, { dayOfWeek: $event })" required [name]="'select' + $index">
         @for (dayOfWeek of daysOfWeek(); track dayOfWeek) {
         <mat-option [value]="dayOfWeek">{{dayOfWeek}}</mat-option>
