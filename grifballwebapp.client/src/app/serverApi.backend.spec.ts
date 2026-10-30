@@ -105,4 +105,32 @@ describe('ServerApiBackend', () => {
     expect(error).toEqual(jasmine.any(HttpErrorResponse));
     expect((error as HttpErrorResponse).status).toBe(0);
   });
+
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    it(`refuses a ${method} while rendering, without sending it (only the browser makes changes)`, async () => {
+      const error = spyOn(console, 'error');
+      const backend = create(page({ cookie: 'a=b' }));
+
+      const failure = await lastValueFrom(backend.handle(new HttpRequest(method, 'https://grifball.xyz/api/ExternalLogins/LinkCallback', null))).catch(e => e);
+
+      expect(failure).toEqual(jasmine.any(HttpErrorResponse));
+      expect((failure as HttpErrorResponse).status).toBe(405);
+      expect(fetch).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalled();
+    });
+  }
+
+  it('refuses a change to another host too', async () => {
+    spyOn(console, 'error');
+    const backend = create(page());
+    const failure = await lastValueFrom(backend.handle(new HttpRequest('POST', 'https://example.com/hook', {}))).catch(e => e);
+    expect((failure as HttpErrorResponse).status).toBe(405);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('sends a HEAD', async () => {
+    const backend = create(page());
+    await lastValueFrom(backend.handle(new HttpRequest('HEAD', 'https://grifball.xyz/api/CommitHash')));
+    expect(sent()[0]).toBe('http://backend:5295/CommitHash');
+  });
 });

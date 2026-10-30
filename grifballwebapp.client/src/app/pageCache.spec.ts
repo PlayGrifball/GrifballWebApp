@@ -23,7 +23,7 @@ describe('pageCache', () => {
   });
 
   it('has a visitor\'s page checked on every visit, as before', () => {
-    expect(pageCacheHeaders(undefined)).toEqual({ 'Cache-Control': 'no-cache' });
-    expect(pageCacheHeaders('theme=dark')).toEqual({ 'Cache-Control': 'no-cache' });
+    expect(pageCacheHeaders(undefined)).toEqual({ 'Cache-Control': 'no-cache', 'Vary': 'Cookie' });
+    expect(pageCacheHeaders('theme=dark')).toEqual({ 'Cache-Control': 'no-cache', 'Vary': 'Cookie' });
   });
 });

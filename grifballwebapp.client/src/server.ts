@@ -20,22 +20,12 @@ import express, { type Request, type Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import { join } from 'node:path';
+import { isAllowedHost, parseAllowedHosts } from './app/allowedHosts';
 import { pageCacheHeaders } from './app/pageCache';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 const apiUrl = (process.env['API_URL'] ?? 'http://grifballwebapp-server:5295').replace(/\/+$/, '');
-const allowedHosts = [
-  'grifball.xyz',
-  '*.grifball.xyz',
-  'localhost',
-  ...(process.env['NG_ALLOWED_HOSTS'] ?? '').split(',').map(host => host.trim()).filter(host => host !== ''),
-];
-
-/** Whether pages for this Host header may be rendered (the same rule Angular's engine applies). */
-export function isAllowedHost(host: string | undefined, allowed: readonly string[] = allowedHosts): boolean {
-  const hostname = (host ?? '').replace(/:\d+$/, '').replace(/^\[(.*)\]$/, '$1').toLowerCase();
-  return hostname !== '' && allowed.some(entry => entry === hostname || (entry.startsWith('*.') && hostname.endsWith(entry.slice(1))));
-}
+const allowedHosts = parseAllowedHosts(process.env['NG_ALLOWED_HOSTS']);
 
 const app = express();
 const angularApp = new AngularNodeAppEngine({ allowedHosts });
@@ -111,7 +101,7 @@ function sendClientPage(res: Response, next: (err?: unknown) => void): void {
 
 // For hosts this server does not render for
 app.use((req, res, next) => {
-  if (isAllowedHost(req.headers.host))
+  if (isAllowedHost(req.headers.host, allowedHosts))
     return next();
   sendClientPage(res, next);
 });

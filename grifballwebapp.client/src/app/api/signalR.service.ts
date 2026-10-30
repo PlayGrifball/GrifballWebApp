@@ -24,24 +24,43 @@ export class SignalRService {
   /** Called each time the connection comes up (see connected). */
   private connectedListeners?: Set<() => void>;
 
+  /**
+   * The connection's starts and restarts, one after another: a start while another is still under way
+   * throws ("Cannot start a HubConnection that is not in the 'Disconnected' state").
+   */
+  private lifecycle: Promise<void> = Promise.resolve();
+  /** A restart is queued and has not begun: another sign-in or out meanwhile needs no second one. */
+  private restartQueued = false;
+
   constructor() {
     if (!isPlatformBrowser(inject(PLATFORM_ID)))
       return;
 
     // Back after a drop: whatever was sent meanwhile was missed
     this.hubConnection.onreconnected(() => this.notifyConnected());
-    this.startConnection();
+    this.lifecycle = this.startConnection();
 
-    // The connection's user is fixed when it connects: connect again as whoever signed in (or out).
+    // The connection's user is fixed when it connects: connect again as whoever signed in (or out),
+    // once any start or restart under way is done.
     inject(AuthSession).changed$.subscribe(() => {
-      this.hubConnection.stop()
-        .then(() => this.startConnection())
-        .catch(err => console.log('Error while trying to restart the connection: ' + err));
+      if (this.restartQueued)
+        return;
+      this.restartQueued = true;
+      this.queue(() => {
+        this.restartQueued = false;
+        return this.hubConnection.stop()
+          .then(() => this.startConnection())
+          .catch(err => console.log('Error while trying to restart the connection: ' + err));
+      });
     });
   }
 
-  private startConnection = () => {
-    this.hubConnection
+  private queue(step: () => Promise<void>): void {
+    this.lifecycle = this.lifecycle.then(step);
+  }
+
+  private startConnection = (): Promise<void> => {
+    return this.hubConnection
       .start()
       .then(() => {
         console.log('Connection started');

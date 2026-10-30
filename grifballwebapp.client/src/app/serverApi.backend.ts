@@ -11,6 +11,13 @@ export const API_ORIGIN = new InjectionToken<string>('API_ORIGIN');
  */
 export const SERVER_API_TIMEOUT_MS = 5000;
 
+/**
+ * The only methods the server sends while it renders. Rendering a page must change nothing: a POST made
+ * there would run once on the server and again in the browser once the page starts, and whatever cookies
+ * its answer set would never reach the browser (the server keeps the answer).
+ */
+export const SERVER_SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD']);
+
 /** The page request's headers that go on to the API: the visitor's cookies and address. */
 export const FORWARDED_HEADERS = ['cookie', 'x-real-ip', 'x-forwarded-for'];
 
@@ -20,7 +27,8 @@ export const FORWARDED_HEADERS = ['cookie', 'x-real-ip', 'x-forwarded-for'];
  * those URLs absolute against the page's own address (https://<site>/api/...); this sends them
  * straight to the backend instead, as the proxy would, rather than out to the internet and back.
  * Other URLs go out as they are. Everything before it (interceptors, the transfer cache) still sees
- * the app's own URL, so the browser finds the answers under the URLs it asks for.
+ * the app's own URL, so the browser finds the answers under the URLs it asks for. Anything but a GET or
+ * HEAD is refused (SERVER_SAFE_METHODS), whatever its URL.
  */
 @Injectable()
 export class ServerApiBackend extends FetchBackend {
@@ -28,6 +36,10 @@ export class ServerApiBackend extends FetchBackend {
   private readonly pageRequest = inject(REQUEST, { optional: true });
 
   override handle(req: HttpRequest<unknown>): Observable<HttpEvent<unknown>> {
+    if (!SERVER_SAFE_METHODS.has(req.method)) {
+      console.error(`Refused ${req.method} ${req.url} while rendering on the server: only the browser makes changes`);
+      return throwError(() => new HttpErrorResponse({ status: 405, statusText: 'Method Not Allowed', url: req.url }));
+    }
     const url = new URL(req.url);
     const page = this.pageRequest ? new URL(this.pageRequest.url) : null;
     if (page === null || url.host !== page.host || !url.pathname.startsWith('/api/'))

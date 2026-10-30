@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, InjectionToken, OnInit, computed, inject, input, signal } from '@angular/core';
-import { Location } from '@angular/common';
+import { ChangeDetectionStrategy, Component, InjectionToken, OnInit, PLATFORM_ID, computed, inject, input, signal } from '@angular/core';
+import { Location, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { errorText } from '../errorText';
@@ -45,6 +45,7 @@ export class LinkedAccountsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private location = inject(Location);
   private navigate = inject(BROWSER_NAVIGATE);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** Set for a sysadmin managing another user; unset for the signed-in user's own accounts. */
   userID = input<number>();
@@ -59,7 +60,10 @@ export class LinkedAccountsComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.userID() === undefined && this.route.snapshot.queryParamMap.get('linkCallback') === 'true') {
-      this.finishLink();
+      // Only in the browser: on the server the link would be added there (its cookies never reaching the
+      // browser) and then again by the browser. The server draws the list empty; the browser fills it.
+      if (this.isBrowser)
+        this.finishLink();
     } else {
       this.load();
     }

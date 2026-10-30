@@ -42,10 +42,45 @@ describe('SignalRService', () => {
 
   it('connects again when someone signs in or out', async () => {
     TestBed.inject(AuthSession).signedInOrOut();
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise(r => setTimeout(r));
     expect(connection.stop).toHaveBeenCalledTimes(1);
     expect(connection.start).toHaveBeenCalledTimes(2);
+  });
+
+  it('restarts one step at a time: never a start while another is under way', async () => {
+    // A connection that, like the real one, refuses a start unless it is disconnected
+    let state: 'Disconnected' | 'Connecting' | 'Connected' = 'Connecting';
+    let finishStart!: () => void;
+    const overlapping: string[] = [];
+    connection.start.and.callFake(() => {
+      if (state !== 'Disconnected') {
+        overlapping.push(state);
+        return Promise.reject(new Error('Cannot start a HubConnection that is not in the Disconnected state'));
+      }
+      state = 'Connecting';
+      return new Promise<void>(resolve => finishStart = () => { state = 'Connected'; resolve(); });
+    });
+    connection.stop.and.callFake(() => { state = 'Disconnected'; return Promise.resolve(); });
+
+    const session = TestBed.inject(AuthSession);
+    session.signedInOrOut();
+    session.signedInOrOut();
+    session.signedInOrOut();
+    await new Promise(r => setTimeout(r));
+    // Three at once: one restart (after the constructor's start) covers them all
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+    expect(connection.start).toHaveBeenCalledTimes(2);
+
+    // A sign-out while that restart is still connecting: queued behind it, not run alongside
+    session.signedInOrOut();
+    await new Promise(r => setTimeout(r));
+    expect(connection.stop).toHaveBeenCalledTimes(1);
+
+    finishStart();
+    await new Promise(r => setTimeout(r));
+    expect(connection.stop).toHaveBeenCalledTimes(2);
+    expect(connection.start).toHaveBeenCalledTimes(3);
+    expect(overlapping).toEqual([]);
   });
 
   it('logs instead of throwing when restarting fails', async () => {

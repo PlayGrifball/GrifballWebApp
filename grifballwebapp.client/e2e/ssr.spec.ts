@@ -89,7 +89,8 @@ test('a visitor\'s page has no one\'s name, and is checked on every visit as bef
   expect(html).not.toContain(META.admin.displayName);
   expect(html).not.toContain('Home Team Forfeit');
   expect(response.headers()['cache-control']).toBe('no-cache');
-  expect(response.headers()['vary'] ?? '').not.toMatch(/cookie/i);
+  // Varies by Cookie too: a cache that kept it must not hand it to someone signed in
+  expect(response.headers()['vary']).toMatch(/(^|,\s*)Cookie(,|$)/i);
 });
 
 test('two users each get their own page', async ({ request }) => {

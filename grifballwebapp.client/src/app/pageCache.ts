@@ -14,10 +14,11 @@ export function hasSession(cookieHeader: string | null | undefined): boolean {
  * The caching headers of a page the server rendered. Everyone's page is checked on every visit
  * (it changes with each build and its data). A page rendered with a session is that user's alone:
  * no browser or cache in between (Cloudflare) may keep it or hand it to anyone else, so it is
- * private and no-store, and varies by Cookie for any cache that ignores those.
+ * private and no-store, and varies by Cookie for any cache that ignores those. A visitor's page varies
+ * by Cookie too: a cache that kept it must not hand it to a signed-in user, whose page differs.
  */
 export function pageCacheHeaders(cookieHeader: string | null | undefined): Record<string, string> {
   return hasSession(cookieHeader)
     ? { 'Cache-Control': 'private, no-store', 'Vary': 'Cookie' }
-    : { 'Cache-Control': 'no-cache' };
+    : { 'Cache-Control': 'no-cache', 'Vary': 'Cookie' };
 }
