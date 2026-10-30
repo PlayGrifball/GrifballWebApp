@@ -42,11 +42,11 @@ function indexAfterRemoval(from: number, to: number): number {
 }
 
 /** A pool player becomes captain of a new team at pick order `order` (1-based). */
-export function addCaptain(draft: Draft, personID: number, teamName: string, captainName: string, order: number): Draft | null {
+export function addCaptain(draft: Draft, personID: number, teamName: string, captainName: string, order: number, teamID = 0): Draft | null {
   const from = playerIndex(draft.pool, personID);
   if (from === -1)
     return null;
-  const team: TeamResponseDto = { teamID: 0, teamName, captain: { name: captainName, personID, order }, players: [] };
+  const team: TeamResponseDto = { teamID, teamName, captain: { name: captainName, personID, order }, players: [] };
   return { teams: renumberCaptains(insertAt(draft.teams, order - 1, team)), pool: removeAt(draft.pool, from) };
 }
 
@@ -58,12 +58,13 @@ export function resortCaptain(draft: Draft, personID: number, order: number): Dr
   return { ...draft, teams: renumberCaptains(insertAt(removeAt(draft.teams, from), order - 1, draft.teams[from])) };
 }
 
-/** Gives a captain's team its name (the one the server chose); a team that is gone stays gone. */
-export function renameTeam(draft: Draft, captainID: number, teamName: string): Draft {
+/** Gives a captain's team its name and id (the ones the server chose); a team that is gone stays gone. */
+export function renameTeam(draft: Draft, captainID: number, teamName: string, teamID?: number): Draft {
   const index = teamIndex(draft.teams, captainID);
-  if (index === -1 || draft.teams[index].teamName === teamName)
+  const team = draft.teams[index];
+  if (index === -1 || (team.teamName === teamName && (teamID === undefined || team.teamID === teamID)))
     return draft;
-  return { ...draft, teams: draft.teams.map((t, i) => i === index ? { ...t, teamName } : t) };
+  return { ...draft, teams: draft.teams.map((t, i) => i === index ? { ...t, teamName, teamID: teamID ?? t.teamID } : t) };
 }
 
 /** Re-sorts a dropped team to the drop index (which still counts the dragged team). */

@@ -174,7 +174,25 @@ describe('SeasonEditComponent', () => {
   it('labels its fields for people, not with the field names', async () => {
     await render();
     const labels = Array.from(el().querySelectorAll('mat-label')).map(l => l.textContent!.trim());
-    expect(labels).toEqual(['Season name', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
+    expect(labels).toEqual(['Season name', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
+  });
+
+  it('keeps a new season unannounced until a time is set', async () => {
+    seasonID = '0';
+    await render();
+    expect(component.model().publicAt ?? null).toBeNull();
+    expect(el().querySelector<HTMLInputElement>('input[name="publicAt"]')!.required).toBeFalse();
+  });
+
+  it('shows and saves when a season is public from', async () => {
+    const publicAt = DateTime.fromISO('2026-04-01T12:00:00');
+    api.getSeason.and.returnValue(of(season({ publicAt })));
+    api.upsertSeason.and.returnValue(of(4));
+    await render();
+
+    component.onSubmit();
+
+    expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ publicAt }));
   });
 
   it('keeps the empty form for a season that does not exist', async () => {

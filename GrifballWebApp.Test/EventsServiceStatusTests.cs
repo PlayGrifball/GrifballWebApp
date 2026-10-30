@@ -99,4 +99,17 @@ public class EventsServiceStatusTests
             Assert.That(((ActionRowProperties)closedMsg.Components!.Single()).Components.Count(), Is.EqualTo(1));
         });
     }
+
+    [Test]
+    public async Task Go_SeasonWithoutPublicAt_IsNotPosted()
+    {
+        var now = DateTime.UtcNow;
+        var season = await AddSeason("Unannounced", now.AddDays(-1), now.AddDays(1));
+        season.PublicAt = null;
+        await _context.SaveChangesAsync();
+
+        await _service.Go(CancellationToken.None);
+
+        Assert.That(_discordClient.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.UpsertMessageAsync)), Is.Zero);
+    }
 }

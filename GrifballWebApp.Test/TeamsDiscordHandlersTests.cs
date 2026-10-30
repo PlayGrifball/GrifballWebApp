@@ -151,7 +151,7 @@ public class TeamsDiscordHandlersTests
     public async Task CaptainDiscordHandlers_Should_CurrentlySendNothing()
     {
         await new AddCaptainDiscordHandler(_rest, _options, _factory)
-            .Handle(Notification.Create("c", new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamName = "T", CaptainName = "C", OrderNumber = 1 }), CancellationToken.None);
+            .Handle(Notification.Create("c", new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 }), CancellationToken.None);
         await new RemoveCaptainDiscordHandler(_rest, _options, _factory)
             .Handle(Notification.Create("c", new RemoveCaptainDto { SeasonID = 1, PersonID = 2 }), CancellationToken.None);
         await new ResortCaptainDiscordHandler(_rest, _options, _factory)

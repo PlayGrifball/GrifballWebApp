@@ -11,6 +11,7 @@ public record CaptainAddedDto
 {
     public required int SeasonID { get; set; }
     public required int PersonID { get; set; }
+    public required int TeamID { get; set; }
     public required string TeamName { get; set; }
     public required string CaptainName { get; set; }
     public required int OrderNumber { get; set; }
@@ -26,4 +27,5 @@ public class RemoveCaptainDto
 public class CaptainAddedResponseDto
 {
     public required string TeamName { get; set; }
+    public int TeamID { get; set; }
 }

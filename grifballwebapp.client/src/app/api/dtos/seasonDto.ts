@@ -1,9 +1,11 @@
 import { DateTime } from "luxon";
-import { fromRequiredApiDate } from "../../shared/apiDates";
+import { fromApiDate, fromRequiredApiDate } from "../../shared/apiDates";
 
 export class SeasonDto {
   seasonID: number = 0;
   seasonName: string = "";
+  /** When the season is announced (Discord events channel); null: not yet, as a new season is. */
+  publicAt: DateTime | null = null;
   signupsOpen!: DateTime;
   signupsClose!: DateTime;
   draftStart!: DateTime;
@@ -22,6 +24,7 @@ export function parseSeason(raw: any): SeasonDto | null {
     return null;
   return {
     ...raw,
+    publicAt: fromApiDate(raw.publicAt),
     signupsOpen: fromRequiredApiDate(raw.signupsOpen),
     signupsClose: fromRequiredApiDate(raw.signupsClose),
     draftStart: fromRequiredApiDate(raw.draftStart),

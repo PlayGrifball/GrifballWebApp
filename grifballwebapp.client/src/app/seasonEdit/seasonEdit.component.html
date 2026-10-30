@@ -20,6 +20,15 @@
       <p class="hud-muted">In your local time. Each date should come after the one before it.</p>
       <div class="hud-field-grid">
         <mat-form-field appearance="outline">
+          <mat-label>Public from</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker0" [ngModel]="model().publicAt" (ngModelChange)="patch({ publicAt: $event })" name="publicAt">
+          <mtx-datetimepicker-toggle [for]="datetimePicker0" matSuffix />
+          <mtx-datetimepicker #datetimePicker0 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>Announced on Discord from here. Leave empty to keep it hidden.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['publicAt']" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
           <mat-label>Signups open</mat-label>
           <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().signupsOpen" (ngModelChange)="patch({ signupsOpen: $event })" required name="signupsOpen">
           <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />

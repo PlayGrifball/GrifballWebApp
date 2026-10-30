@@ -19,7 +19,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             modelBuilder
                 .HasAnnotation("Grif:HistoryFunctions", 1)
                 .HasAnnotation("Npgsql:CollationDefinition:case_insensitive", "und-u-ks-level2,und-u-ks-level2,icu,False")
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -2714,7 +2714,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("transaction_timestamp()");
 
-                    b.Property<DateTime>("PublicAt")
+                    b.Property<DateTime?>("PublicAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("SeasonEnd")

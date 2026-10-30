@@ -8,8 +8,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 
 # The PostgreSQL client (psql, pg_dump, pg_restore): the Helm chart's migration Job and backups on
 # Postgres (charts/grifballwebapp), as sqlcmd is on SQL Server. Its major version is the newest
-# server's the chart supports: pg_dump can't dump a newer server.
-RUN apk add --no-cache icu-libs postgresql18-client
+# server's the chart supports: pg_dump can't dump a newer server. tzdata: the time zone database, which Alpine leaves
+# out and TimeZoneInfo needs (the scheduler works in US Eastern time).
+RUN apk add --no-cache icu-libs tzdata postgresql18-client
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER app

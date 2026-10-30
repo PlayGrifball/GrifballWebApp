@@ -72,6 +72,8 @@ public class TeamService
     public async Task<string?> AddCaptain(CaptainPlacementDto dto, bool resortOnly, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await LockSeasonDraft(dto.SeasonID, ct);
+        await ThrowIfCaptainsLocked(dto.SeasonID, ct);
         // Grab existing captains for this season
         var existingCaptains = await _context.TeamPlayers
             .Where(tp => tp.Team.SeasonID == dto.SeasonID)
@@ -103,7 +105,6 @@ public class TeamService
             var newTeam = new Team()
             {
                 SeasonID = dto.SeasonID,
-                TeamName = signup.TeamName,
                 Captain = null, // Will be set after initial save changes
             };
             captain = new TeamPlayer()
@@ -113,17 +114,12 @@ public class TeamService
             };
             newTeam.TeamPlayers.Add(captain);
 
-            if (string.IsNullOrEmpty(newTeam.TeamName))
-            {
-                var name = await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.XboxUser.Gamertag).FirstOrDefaultAsync(ct);
-                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DiscordUser.DiscordUsername).FirstOrDefaultAsync(ct);
-                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.DisplayName).FirstOrDefaultAsync(ct);
-                name ??= await _context.Users.Where(p => p.Id == captain.UserID).Select(x => x.UserName).FirstOrDefaultAsync(ct);
-                newTeam.TeamName = $"{name}'s Team";
-                var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == newTeam.TeamName && x.SeasonID == dto.SeasonID, ct);
-                if (teamNameTaken)
-                    newTeam.TeamName = $"{name}'s Team {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
-            }
+            // The name the signup asked for, else "<name>'s Team"; either way unique in the season (a unique index)
+            var teamName = string.IsNullOrEmpty(signup.TeamName) ? $"{await PersonName(captain.UserID, ct)}'s Team" : signup.TeamName;
+            var teamNameTaken = await _context.Teams.AnyAsync(x => x.TeamName == teamName && x.SeasonID == dto.SeasonID, ct);
+            if (teamNameTaken)
+                teamName = $"{Truncate(teamName, TeamNameMaxLength - 5)} {Guid.NewGuid().ToString()[..4]}"; // Add a random suffix to make it unique
+            newTeam.TeamName = Truncate(teamName, TeamNameMaxLength);
 
             await _context.Teams.AddAsync(newTeam, ct);
             await _context.SaveChangesAsync(ct);
@@ -158,22 +154,25 @@ public class TeamService
             return null;
         }
 
-        var teamName = captain.Team?.TeamName ?? "Team";
+        var addedTeam = captain.Team!;
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, new CaptainAddedDto()
         {
             SeasonID = dto.SeasonID,
             PersonID = dto.PersonID,
-            CaptainName = await _context.Users.Where(p => p.Id == captain.UserID).Select(p => p.DisplayName).FirstOrDefaultAsync() ?? "Person",
-            TeamName = teamName,
+            TeamID = addedTeam.TeamID,
+            CaptainName = await PersonName(captain.UserID, ct),
+            TeamName = addedTeam.TeamName,
             OrderNumber = dto.OrderNumber,
         }));
         // The broadcast skips the sender's connection, so the sender gets the name here.
-        return teamName;
+        return addedTeam.TeamName;
     }
 
     public async Task RemoveCaptain(RemoveCaptainDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await LockSeasonDraft(dto.SeasonID, ct);
+        await ThrowIfCaptainsLocked(dto.SeasonID, ct);
         // Grab existing captains for this season
         var existingCaptains = await _context.TeamPlayers
             .Where(tp => tp.Team.SeasonID == dto.SeasonID)
@@ -209,6 +208,7 @@ public class TeamService
     public async Task RemovePlayerFromTeam(RemovePlayerFromTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await LockSeasonDraft(dto.SeasonID, ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.CaptainID, ct);
 
         var player = players.FirstOrDefault(tp => tp.UserID == dto.PersonID);
@@ -235,6 +235,9 @@ public class TeamService
     public async Task AddPlayerToTeam(AddPlayerToTeamRequestDto dto, int requestorId, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        // One pick at a time per season: without it two picks of one player (or two picks in one turn) both pass the
+        // checks below before either is saved.
+        await LockSeasonDraft(dto.SeasonID, ct);
 
         var isPlayerAlreadyOnTeam = await _context.TeamPlayers.AnyAsync(x => x.Team.SeasonID == dto.SeasonID && x.User.Id == dto.PersonID, ct);
         if (isPlayerAlreadyOnTeam)
@@ -272,6 +275,10 @@ public class TeamService
                 throw new TeamServiceException("You cannot make picks on behalf of another captain unless you are the commissioner");
             }
 
+            // Captains pick once the draft order is set; a commissioner may place a player any time.
+            if (await AreCaptainsLocked(dto.SeasonID, ct) is false)
+                throw new TeamServiceException("The draft has not started: the captains are not locked yet");
+
             Team onDeck = await OnDeck(dto.SeasonID, ct) ?? throw new TeamServiceException("Failed to find on deck team");
 
             if (onDeck.Captain.UserID != requestorId)
@@ -296,6 +303,15 @@ public class TeamService
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
 
+    /// <summary>The id of the team <paramref name="captainID"/> captains in the season; 0 when none.</summary>
+    public Task<int> CaptainsTeamID(int seasonID, int captainID, CancellationToken ct = default)
+    {
+        return _context.Teams
+            .Where(t => t.SeasonID == seasonID && t.Captain.UserID == captainID)
+            .Select(t => t.TeamID)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<Team?> OnDeck(int seasonId, CancellationToken ct)
     {
         return await _context.Teams
@@ -309,6 +325,7 @@ public class TeamService
     public async Task MovePlayerToTeam(MovePlayerToTeamRequestDto dto, string? signalRConnectionID = null, CancellationToken ct = default)
     {
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
+        await LockSeasonDraft(dto.SeasonID, ct);
         var players = await GetPlayersForTeam(seasonID: dto.SeasonID, captainID: dto.NewCaptainID, ct);
 
         TeamPlayer? player = null;
@@ -361,6 +378,37 @@ public class TeamService
 
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
     }
+
+    /// <summary>
+    /// Locks the season's row until the transaction ends, so that changes to one season's draft run one at a time and
+    /// each one's checks see the one before it. Reading the row this way writes nothing (no history).
+    /// </summary>
+    private Task LockSeasonDraft(int seasonID, CancellationToken ct)
+    {
+        return _context.Database.IsNpgsql()
+            ? _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Event\".\"Seasons\" WHERE \"SeasonID\" = {seasonID} FOR UPDATE", ct)
+            : _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM [Event].[Seasons] WITH (UPDLOCK, HOLDLOCK) WHERE [SeasonID] = {seasonID}", ct);
+    }
+
+    /// <summary>Captains can't be added, moved or removed once they are locked (the draft order is set): unlock them first.</summary>
+    private async Task ThrowIfCaptainsLocked(int seasonID, CancellationToken ct)
+    {
+        if (await AreCaptainsLocked(seasonID, ct))
+            throw new TeamServiceException("Captains are locked for this season. Unlock them to change the captains");
+    }
+
+    /// <summary>A person's name as the draft shows it (<see cref="GetTeams"/>): gamertag, else Discord name, display name or user name.</summary>
+    private async Task<string> PersonName(int userID, CancellationToken ct)
+    {
+        return await _context.Users
+            .Where(u => u.Id == userID)
+            .Select(u => u.XboxUser!.Gamertag ?? u.DiscordUser!.DiscordUsername ?? u.DisplayName ?? u.UserName ?? "")
+            .FirstOrDefaultAsync(ct) ?? "";
+    }
+
+    private const int TeamNameMaxLength = 30;
+
+    private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 
     private Task<List<TeamPlayer>> GetPlayersForTeam(int seasonID, int captainID, CancellationToken ct = default)
     {
