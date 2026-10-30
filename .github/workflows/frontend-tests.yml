@@ -110,7 +110,8 @@ jobs:
     - name: Install Playwright Chromium
       run: npx playwright install --with-deps chromium
 
-    # Includes the layout test (e2e/layout.spec.ts): every key page at six screen sizes, screenshotted
+    # Includes the layout test (e2e/layout.spec.ts): every key page at six screen sizes, screenshotted;
+    # and the accessibility test (e2e/a11y.spec.ts): axe on every page and every dialog, menu and picker
     - name: Build and run end-to-end tests
       run: npm run e2e
 
@@ -282,8 +283,10 @@ jobs:
   # visitor who is not logged in, and, side by side, signed in as a commissioner and admin (their
   # pages too; see lighthouserc.cjs). Accessibility, best practices and SEO must score 90;
   # performance has a lower floor (CI runners are noisy, see lighthouserc.cjs) and warns under 90.
+  # Every page of the site is too many for one job (some 45 seconds each), so each session's pages
+  # are split between jobs (LIGHTHOUSE_SHARD), side by side.
   lighthouse:
-    name: ${{ matrix.session == 'signed-in' && 'Lighthouse (signed in)' || 'Lighthouse' }}
+    name: ${{ format('Lighthouse ({0}{1}/{2})', matrix.session == 'signed-in' && 'signed in, ' || '', matrix.shard, matrix.shards) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -291,7 +294,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        session: [signed-out, signed-in]
+        include:
+          - { session: signed-out, shard: 1, shards: 2 }
+          - { session: signed-out, shard: 2, shards: 2 }
+          - { session: signed-in, shard: 1, shards: 3 }
+          - { session: signed-in, shard: 2, shards: 3 }
+          - { session: signed-in, shard: 3, shards: 3 }
+    env:
+      LIGHTHOUSE_SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
 
     defaults:
       run:
@@ -339,7 +349,7 @@ jobs:
           LIGHTHOUSE_PRESET=$preset $lhci assert || failed=1
           mv .lighthouseci "lighthouse-$LIGHTHOUSE_SESSION-$preset"
         done
-        { echo "### Lighthouse, ${session}"; echo; cat lighthouse.md; } >> "$GITHUB_STEP_SUMMARY"
+        { echo "### Lighthouse, ${session} (pages ${LIGHTHOUSE_SHARD})"; echo; cat lighthouse.md; } >> "$GITHUB_STEP_SUMMARY"
         exit $failed
 
     # The tables, for the PR comment (the report job)
@@ -347,7 +357,7 @@ jobs:
       if: ${{ !cancelled() && hashFiles('grifballwebapp.client/lighthouse.md') != '' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: lighthouse-scores-${{ matrix.session }}
+        name: lighthouse-scores-${{ matrix.session }}-${{ matrix.shard }}
         path: grifballwebapp.client/lighthouse.md
         retention-days: 1
 
@@ -355,7 +365,7 @@ jobs:
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       if: ${{ !cancelled() }}
       with:
-        name: lighthouse-${{ matrix.session }}
+        name: lighthouse-${{ matrix.session }}-${{ matrix.shard }}
         path: grifballwebapp.client/lighthouse-*/
         retention-days: 30
 
@@ -371,7 +381,15 @@ jobs:
       pull-requests: write
 
     steps:
-    # The Lighthouse tables, signed out and signed in (none when that job did not get that far)
+    # For e2e/lighthouse-merge.mjs
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+        sparse-checkout: grifballwebapp.client/e2e
+        sparse-checkout-cone-mode: false
+
+    # The Lighthouse tables, signed out and signed in, one per job (none when a job did not get that far)
     - name: Download the Lighthouse scores
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       continue-on-error: true
@@ -386,13 +404,65 @@ jobs:
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         SCREENSHOTS: ${{ needs.e2e.outputs.screenshots }}
       run: |
-        # The Lighthouse jobs' tables, signed out then signed in
+        # The Lighthouse jobs' tables, signed out then signed in: each session's jobs' merged into one
         scores=""
         for session in signed-out signed-in; do
-          file="lighthouse/lighthouse-scores-$session/lighthouse.md"
-          if [ -s "$file" ]; then
+          files=$(ls lighthouse/lighthouse-scores-$session-*/lighthouse.md 2>/dev/null || true)
+          if [ -n "$files" ]; then
             label="${session/-/ }"
-            scores="$scores#### ${label^}"$'\n\n'"$(sed "s/^#### /##### /" "$file")"$'\n\n'
+            # shellcheck disable=SC2086 # one path per shard job, without spaces
+            tables=$(node grifballwebapp.client/e2e/lighthouse-merge.mjs $files | sed "s/^#### /##### /")
+            scores="$scores#### ${label^}"
+        marker='<!-- layout-screenshots -->'
+        body="$marker
+        ### Screenshots
+
+        Each page on a desktop (1920x1080), laptop (1280x720), tablet in landscape (1024x768) and portrait (768x1024), and phone in landscape (820x300) and portrait (360x640), as of $SHA:
+        ${SCREENSHOTS:-_No screenshots: see the e2e job._}
+
+        Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
+
+        ### Lighthouse
+
+        ${scores:-_No scores: see the Lighthouse jobs._}"
+        # Only on PRs from this repo: a fork's PR gets a read-only token
+        if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+        fi
+\n\n'"$tables"
+        marker='<!-- layout-screenshots -->'
+        body="$marker
+        ### Screenshots
+
+        Each page on a desktop (1920x1080), laptop (1280x720), tablet in landscape (1024x768) and portrait (768x1024), and phone in landscape (820x300) and portrait (360x640), as of $SHA:
+        ${SCREENSHOTS:-_No screenshots: see the e2e job._}
+
+        Each page opens as one picture in the browser (signed in to GitHub). Kept for 30 days.
+
+        ### Lighthouse
+
+        ${scores:-_No scores: see the Lighthouse jobs._}"
+        # Only on PRs from this repo: a fork's PR gets a read-only token
+        if [ -z "$PR" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+          --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+        else
+          gh pr comment "$PR" -R "${{ github.repository }}" --body "$body"
+        fi
+\n\n'
           fi
         done
         marker='<!-- layout-screenshots -->'

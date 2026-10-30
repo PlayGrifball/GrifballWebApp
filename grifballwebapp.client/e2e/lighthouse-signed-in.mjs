@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { META } from './mockApi.mts';
 
 process.env.LIGHTHOUSE_SESSION = 'signed-in';
-const { collect } = createRequire(import.meta.url)('../lighthouserc.cjs').ci;
+const { notFoundPage, browserPages, ci: { collect } } = createRequire(import.meta.url)('../lighthouserc.cjs');
 const name = META.admin.displayName;
 
 const server = spawn(process.execPath, [new URL('serve.mjs', import.meta.url).pathname], { stdio: ['ignore', 'pipe', 'inherit'] });
@@ -23,14 +23,17 @@ let failed = 0;
 try {
   for (const url of collect.url) {
     const response = await fetch(url, { headers: collect.settings.extraHeaders });
+    const page = new URL(url).pathname + new URL(url).search;
+    // The page for an address the site has no page for is drawn for them too, answered with a 404
+    const status = page === notFoundPage ? 404 : 200;
     // The page as drawn, without its scripts (the transfer cache has the API's answers, the name too)
     const html = (await response.text()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
     const problems = [
-      response.status !== 200 && `answered ${response.status}`,
-      !html.includes(name) && `does not show "${name}"`,
+      response.status !== status && `answered ${response.status}`,
+      // (Not the pages the browser draws: the server sends anyone the same)
+      !browserPages.includes(page) && !html.includes(name) && `does not show "${name}"`,
       response.headers.get('cache-control') !== 'private, no-store' && `is cached as a visitor's page (${response.headers.get('cache-control')})`,
     ].filter(Boolean);
-    const page = new URL(url).pathname + new URL(url).search;
     if (problems.length) {
       failed++;
       console.log(`::error title=Lighthouse signed in::${page} was not rendered for the signed-in user: it ${problems.join(', ')}`);

@@ -130,6 +130,18 @@ const signupsClose = new Date(Math.max(Date.parse('2026-11-10T23:59:00Z'), Date.
 
 const seasonNames: Record<number, string> = { 11: 'Summer Smash', 12: 'Autumn Brawl', 13: 'Winter Campaign' };
 
+// The season editor's form (/seasonEdit/12), in the shape GetSeasons lists them
+const season = (seasonID: number) => ({ seasonID, seasonName: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
+  signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24 });
+
+// A user as User Management edits and merges them (/usermanagement/edituser/2, /usermanagement/mergeuser/2/3)
+const roleNames = ['Sysadmin', 'Commissioner', 'Player'];
+const userDetail = (user: typeof users[number]) => ({ ...user, roles: roleNames.map((roleName, i) => ({ roleName, hasRole: user.userID === 1 || i === 2 })) });
+
+// The top kills of all time (/topstats)
+const topKills = ['Grifmeister', 'Sarge Prime', 'MasterChief117', 'Caboose42', 'Plasma Pete', 'Banshee Bri', 'Tucker Tactics', 'Donut Delta']
+  .map((gamertag, i) => ({ rank: i + 1, gamertag, kills: 1840 - i * 137 }));
+
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
@@ -178,9 +190,18 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     '/api/Signups/getSignups/12': players.map((personName, i) => ({ seasonID: 12, userID: i, personName, timestamp: `2026-10-2${i}T18:0${i}:00Z`,
       teamName: i % 3 === 0 ? `${personName}'s Crew` : null, willCaptain: i % 3 === 0, requiresAssistanceDrafting: i === 3, timeslots: [] })),
     '/api/Grades/GetGrades/12': { totals: [], perMinutes: [], letters: players.slice(0, 5).map((p, i) => grades(i, p)) },
-    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(seasonID => ({ seasonID, name: seasonNames[seasonID], signupsOpen: '2026-08-01T00:00:00Z',
-      signupsClose: '2026-08-31T00:00:00Z', draftStart: '2026-09-02T00:00:00Z', seasonStart: '2026-09-07T00:00:00Z', seasonEnd: '2026-11-30T00:00:00Z', signupsCount: 24 })),
+    '/api/EventOrganizer/GetSeasons': [12, 13, 11].map(seasonID => { const { seasonName, ...rest } = season(seasonID); return { ...rest, name: seasonName }; }),
+    '/api/EventOrganizer/GetSeason/12': { ...season(12), copyFrom: null, copyAvailability: false, copySignups: false, copyTeams: false },
+    // The times a season offers for signups (?seasonID=12): weeknights at 7 and 8
+    '/api/Availability/GetSeasonAvailability': ['Monday', 'Wednesday', 'Thursday'].flatMap(dayOfWeek => ['19:00:00', '20:00:00'].map(time => ({ dayOfWeek, time }))),
+    '/api/stats/TopKills': topKills,
+    '/api/Admin/CheckStatus': { text: 'Signed in to Halo Infinite (token valid for 41 minutes)' },
+    '/api/Excel/DefaultSheetInfo': [{ name: 'Autumn Brawl results', spreadsheetID: '1xGrifballAutumnBrawl2026', sheetName: 'Week 3' }],
     '/api/UserManagement/GetUsers': { totalCount: users.length, results: users },
+    ...Object.fromEntries(users.map(user => ['/api/usermanagement/getuser/' + user.userID, userDetail(user)])),
+    // The accounts linked to a user, on their edit page
+    ...Object.fromEntries(users.map(user => ['/api/ExternalLogins/UserLogins/' + user.userID, { hasPassword: user.hasPassword,
+      logins: [{ loginProvider: 'Discord', providerKey: '8123456789012345' + user.userID, providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] }])),
     '/api/Teams/GetTeams/13': draftTeams,
     '/api/Teams/GetPlayerPool/13': draftPool,
     '/api/Teams/areCaptainsLocked/13': true,

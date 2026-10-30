@@ -1,6 +1,7 @@
 // Lighthouse CI (https://github.com/GoogleChrome/lighthouse-ci), run by the lighthouse job in
 // .github/workflows/frontend-tests.yml, once per preset and session:
-// LIGHTHOUSE_PRESET=mobile|desktop, LIGHTHOUSE_SESSION=signed-out|signed-in.
+// LIGHTHOUSE_PRESET=mobile|desktop, LIGHTHOUSE_SESSION=signed-out|signed-in, and LIGHTHOUSE_SHARD for
+// the pages (see below).
 // (Not LHCI_*: lhci reads those environment variables as its own options.)
 // It audits the production build as deployed, its server (src/server.ts) run by e2e/serve.mjs with
 // the API answered from e2e/mockApi.mts. On localhost, which the server renders pages for, as it
@@ -24,34 +25,74 @@ const performanceFloor = desktop ? 0.9 : 0.7;
 // The session cookie (SESSION_COOKIE in e2e/mockApi.mts), its value the role it signs in as there
 const signedInCookie = '__Host-Grifball=admin';
 
-// The public pages, for both; signed in, also the user's own profile (in place of someone else's)
-// and the pages only commissioners and admins have. Not the login page, which they have no use for.
-const pages = signedIn
-  ? [
-      '/',
-      '/season/12',
-      '/season/12?tab=schedule',
-      '/season/12?tab=bracket',
-      '/seasonmatch/31',
-      '/profile/999',
-      '/season/13/signupForm',
-      '/season/13/teams',
-      '/seasonManager',
-      '/commissioner-dashboard',
-      '/usermanagement',
-    ]
-  : [
-      '/',
-      '/season/12',
-      '/season/12?tab=schedule',
-      '/season/12?tab=bracket',
-      '/seasonmatch/31',
-      '/profile/117',
-      '/season/13/signupForm',
-      '/login',
-    ];
+// An address the site has no page for
+const notFoundPage = '/no-such-page';
+// The pages the browser draws (RenderMode.Client in src/app/app.routes.server.ts): the server sends
+// them as it does to anyone, and the browser draws them as the user
+const browserPages = ['/theme'];
+
+// Every page of the site (src/app/app.routes.ts), with the mock data of e2e/mockApi.mts.
+// Pages anyone can open, for both:
+const publicPages = [
+  '/',
+  ...browserPages,
+  '/season/12',
+  '/season/12?tab=schedule',
+  '/season/12?tab=bracket',
+  '/season/12/signups',
+  '/season/13/signupForm',
+  '/season/13/teams',
+  '/season/12/team/1',
+  '/season/12/playergrades',
+  '/seasonmatch/31',
+  '/topstats',
+  '/lateLeague',
+  '/reschedule-request/31',
+  // The page for any other address (answered with a 404)
+  notFoundPage,
+];
+// Signed out, also someone's profile and the pages for signing in. Not the pages only commissioners
+// and admins may open, which send a visitor home (the home page is audited already).
+const signedOutPages = [
+  '/profile/117',
+  '/login',
+  '/register',
+  // Opened from the link in a reset email; without its token the page sends the visitor to /login
+  '/reset-password?token=e2e-reset-token',
+];
+// Signed in, the user's own profile (in place of someone else's) and the commissioners' and admins'
+// pages. Not login, register and reset-password, for visitors: a signed-in user has no use for them.
+const signedInPages = [
+  '/profile/999',
+  '/seasonManager',
+  // A new season (0), and an existing one
+  '/seasonEdit/0',
+  '/seasonEdit/12',
+  '/seasonAvailability/12',
+  '/commissioner-dashboard',
+  '/excel',
+  '/excel/1xGrifballAutumnBrawl2026/Week%203',
+  '/infiniteclient',
+  '/usermanagement',
+  '/usermanagement/createuser',
+  '/usermanagement/edituser/2',
+  // Merging: nobody picked yet, the user to merge from, and both
+  '/usermanagement/mergeuser',
+  '/usermanagement/mergeuser/2',
+  '/usermanagement/mergeuser/2/3',
+];
+const allPages = [...publicPages, ...(signedIn ? signedInPages : signedOutPages)];
+
+// Too many pages for one job in reasonable time (each takes some 45 seconds: three mobile runs and a
+// desktop one), so CI splits them between jobs: LIGHTHOUSE_SHARD=2/3 audits every third page from
+// the second on. All of them without it.
+const [shard, shards] = (process.env.LIGHTHOUSE_SHARD ?? '1/1').split('/').map(Number);
+const pages = allPages.filter((_, i) => i % shards === shard - 1);
 
 module.exports = {
+  // For e2e/lighthouse-signed-in.mjs
+  notFoundPage,
+  browserPages,
   ci: {
     collect: {
       startServerCommand: 'node e2e/serve.mjs',
@@ -65,6 +106,10 @@ module.exports = {
         chromeFlags: process.env.LIGHTHOUSE_CHROME_FLAGS ?? '',
         // Slow, and only a picture for the report
         skipAudits: ['full-page-screenshot'],
+        // The page for an unknown address is answered with a 404, which Lighthouse otherwise refuses
+        // to audit. Any other page answering with an error still fails: its SEO audit
+        // (http-status-code) does, and e2e/lighthouse-signed-in.mjs checks each page's status.
+        ignoreStatusCode: true,
       },
     },
     assert: {
