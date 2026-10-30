@@ -722,4 +722,40 @@ public class QueueServiceBranchTests
             Assert.That(users.Sum(x => x.Wins), Is.EqualTo(2), "Both matches' results were saved before Discord was told");
         });
     }
+
+    [Test]
+    public async Task Go_QueueMessageFails_IsLogged_AndMatchesStillFinish()
+    {
+        _discordClient.GetCurrentUserAsync(Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("discord down"));
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        var match = await SeedMatch(home, away);
+        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
+    }
+
+    [Test]
+    public async Task Go_VoteEndedMatch_TeamWhosePlayersWereAllKicked_ShowsNoPlayers()
+    {
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        match.HomeTeam.Players[0].Kicked = true;
+        await _context.SaveChangesAsync();
+        foreach (var p in match.AwayTeam.Players)
+            await Vote(match, p, WinnerVote.Away);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        Assert.That(Field(SentTo(LogChannel).Single(), "Home Team MMR Changes"), Is.EqualTo("No players"), "Discord rejects an empty field");
+    }
 }

@@ -251,7 +251,7 @@ public class MessageCreateHandlerTests
         // chunk: that update already shows the whole reply, so the final step has nothing left to change.
         const string first = "This first chunk is over 25 characters";
         const string second = "!";
-        using var ollama = FakeOllama.Start(first, second, delayBeforeSecond: TimeSpan.FromMilliseconds(1300));
+        using var ollama = FakeOllama.Start((TimeSpan.Zero, first), (TimeSpan.FromMilliseconds(1300), second));
         var handler = await HandlerWithDatabase(ollama.Url);
         var rest = new RestClient(new RestClientConfiguration { RequestHandler = new FakeRestRequestHandler { EchoContent = true } });
 
@@ -261,6 +261,28 @@ public class MessageCreateHandlerTests
         using var read = _db!.NewContextLike();
         var reply = await read.DiscordMessages.SingleOrDefaultAsync(x => x.FromDiscordUserId == (long)BotId);
         Assert.That(reply?.Content, Is.EqualTo(first + second), "The bot's reply is kept for the conversation's history");
+    }
+
+    [Test]
+    public async Task HandleAsync_StreamedReplyGrewAfterTheLastUpdate_IsEditedAndSaved()
+    {
+        // The streamed update shows the first two chunks; the third comes too soon after it for another, so the final step
+        // edits the reply to the whole of it.
+        const string first = "This first chunk is over 25 characters";
+        using var ollama = FakeOllama.Start((TimeSpan.Zero, first), (TimeSpan.FromMilliseconds(1300), "!"), (TimeSpan.Zero, " The end."));
+        var handler = await HandlerWithDatabase(ollama.Url);
+        var discord = new FakeRestRequestHandler { EchoContent = true };
+        var rest = new RestClient(new RestClientConfiguration { RequestHandler = discord });
+
+        await handler.HandleAsync(Message(5, [BotId], restClient: rest));
+
+        using var read = _db!.NewContextLike();
+        var reply = await read.DiscordMessages.SingleOrDefaultAsync(x => x.FromDiscordUserId == (long)BotId);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reply?.Content, Is.EqualTo(first + "! The end."));
+            Assert.That(discord.Requests.Count(r => r.Method == HttpMethod.Patch), Is.EqualTo(1), "The reply was edited once, at the end");
+        });
     }
 
     /// <summary>Answers Ollama's /api/chat with a streamed reply in two chunks.</summary>
@@ -275,7 +297,8 @@ public class MessageCreateHandlerTests
             _listener.Prefixes.Add(url);
         }
 
-        public static FakeOllama Start(string first, string second, TimeSpan delayBeforeSecond)
+        /// <summary>Streams each chunk after its delay.</summary>
+        public static FakeOllama Start(params (TimeSpan Delay, string Text)[] chunks)
         {
             var port = FreePort();
             var fake = new FakeOllama($"http://127.0.0.1:{port}/");
@@ -290,10 +313,12 @@ public class MessageCreateHandlerTests
                     ctx.Response.ContentType = "application/x-ndjson";
                     ctx.Response.SendChunked = true;
                     await using var writer = new StreamWriter(ctx.Response.OutputStream);
-                    await writer.WriteLineAsync(Chunk(first, done: false));
-                    await writer.FlushAsync();
-                    await Task.Delay(delayBeforeSecond);
-                    await writer.WriteLineAsync(Chunk(second, done: false));
+                    foreach (var (delay, text) in chunks)
+                    {
+                        await Task.Delay(delay);
+                        await writer.WriteLineAsync(Chunk(text, done: false));
+                        await writer.FlushAsync();
+                    }
                     await writer.WriteLineAsync(Chunk("", done: true));
                     await writer.FlushAsync();
                 }

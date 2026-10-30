@@ -196,4 +196,23 @@ public class DiscordCommandsHandlerTests
             Assert.That(fields.Single(f => f.Name.StartsWith("**---")).Value, Is.EqualTo("\u200B"), "The divider has a zero-width value");
         });
     }
+
+    [Test]
+    public async Task RecentMatches_TeamWithNoPlayers_StillHasAPlayersValue()
+    {
+        await LinkMe();
+        var match = new Match { MatchID = Guid.NewGuid(), StartTime = DateTime.UtcNow, EndTime = DateTime.UtcNow, Duration = TimeSpan.FromMinutes(1) };
+        match.MatchTeams =
+        [
+            new MatchTeam { Match = match, TeamID = 0, Score = 50, Outcome = Outcomes.Won, MatchParticipants = [new MatchParticipant { XboxUserID = MyXboxId }] },
+            new MatchTeam { Match = match, TeamID = 1, Score = 0, Outcome = Outcomes.Lost },
+        ];
+        _context.Matches.Add(match);
+        await _context.SaveChangesAsync();
+
+        await _handler.RecentMatches(_discordContext, null);
+
+        var players = ModifiedEmbeds().Single().Fields!.Where(f => f.Name == "Players").Select(f => f.Value).ToList();
+        Assert.That(players, Is.EqualTo(new[] { "MyGT", "\u200B" }));
+    }
 }
