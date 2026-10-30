@@ -40,7 +40,7 @@ test.describe('dates', () => {
     // The season list shows them too.
     await page.goto('/seasonManager');
     const row = page.locator('tr', { hasText: league.name });
-    await expect(row).toContainText('1/5/99'); // draft start, short date
+    await expect(row).toContainText('Jan 5, 2099'); // draft start, medium date
     await expect(row).not.toContainText(/invalid/i);
   });
 
