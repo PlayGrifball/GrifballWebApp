@@ -158,6 +158,8 @@ public class Program
 
         // The browser's session: an HttpOnly, Secure, SameSite=Lax cookie (BrowserAuth).
         builder.Services.ConfigureApplicationCookie(BrowserAuth.ConfigureCookie);
+        // Check sessions against the security stamp often (default 30 min), so Logout ends copies of the cookie.
+        builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = BrowserAuth.SecurityStampValidationInterval);
 
         if (discordOff)
         {
@@ -367,6 +369,9 @@ public class Program
         app.MapAppHealthChecks();
 
         app.MapControllers();
+
+        // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
+        app.Use(BrowserAuth.RefuseForeignHubRequests);
 
         app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
 

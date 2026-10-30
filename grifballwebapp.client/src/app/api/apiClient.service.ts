@@ -131,11 +131,11 @@ export class ApiClientService {
   }
 
   lockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.get('/api/Teams/lockCaptains/' + seasonID, this.prepareHeaders(connectionID));
+    return this.http.post('/api/Teams/lockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
   }
 
   unlockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.get('/api/Teams/unlockCaptains/' + seasonID, this.prepareHeaders(connectionID));
+    return this.http.post('/api/Teams/unlockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
   }
 
   areCaptainsLocked(seasonID: number): Observable<boolean> {

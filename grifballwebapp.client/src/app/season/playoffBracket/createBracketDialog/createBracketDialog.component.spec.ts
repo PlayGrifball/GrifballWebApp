@@ -66,8 +66,8 @@ describe('CreateBracketDialogComponent', () => {
     component.bestOf = 5;
 
     component.onSubmit();
-    const req = http.expectOne('api/Brackets/CreateBracket?seasonID=3&participantsCount=4&doubleElimination=false&bestOf=5');
-    expect(req.request.method).toBe('GET');
+    const req = http.expectOne({ method: 'POST', url: 'api/Brackets/CreateBracket?seasonID=3&participantsCount=4&doubleElimination=false&bestOf=5' });
+    expect(req.request.method).toBe('POST');
     req.flush({});
 
     expect(created).toHaveBeenCalled();

@@ -184,7 +184,7 @@ export class SeasonMatchComponent {
   onSubmit(matchID: string): void {
     this.isSubmittingMatch.set(true);
 
-    this.http.get<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID)
+    this.http.post<string>('/api/SeasonMatch/ReportMatch/' + this.seasonMatchID() + '/' + matchID, null)
         .subscribe({
           next: result => console.log(result),
           error: result => console.log(result),

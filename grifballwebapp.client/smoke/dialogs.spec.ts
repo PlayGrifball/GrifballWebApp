@@ -43,7 +43,7 @@ test.describe('season page dialogs', () => {
 
   test('Set Seeds: submit closes and refreshes; Esc right after a second submit still refreshes', async ({ adminPage: page, admin }) => {
     const viewer = page.locator('.brackets-viewer');
-    await admin.get(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
+    await admin.post(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
     await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(viewer).toContainText('Seed 1');
 
@@ -59,7 +59,7 @@ test.describe('season page dialogs', () => {
     await expect(viewer).toContainText(teamName(league, 0));
 
     // A seeded bracket can't be seeded again (the server refuses): start a fresh one first.
-    await admin.get(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
+    await admin.post(`Brackets/CreateBracket?seasonID=${league.seasonID}&participantsCount=4&doubleElimination=false&bestOf=1`);
     await page.reload();
     await expect(viewer).toContainText('Seed 1');
     await expect(viewer).not.toContainText(teamName(league, 0));

@@ -287,13 +287,16 @@ public class IdentityController : ControllerBase
     /// <summary>
     /// Ends the browser's session: clears the session cookie (and any half-finished Discord sign-in). No
     /// antiforgery token needed: signing someone out is all a forged request could do, and SameSite=Lax already
-    /// keeps the cookie off cross-site POSTs.
+    /// keeps the cookie off cross-site POSTs. Also changes the user's security stamp, so a copy of the cookie (and
+    /// the user's other sessions) stops working within <see cref="BrowserAuth.SecurityStampValidationInterval"/>.
     /// </summary>
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [IgnoreAntiforgeryToken]
     [HttpPost(Name = "Logout")]
     public async Task<IActionResult> Logout()
     {
+        if (User?.Identity?.IsAuthenticated is true && await _userManager.GetUserAsync(User) is { } user)
+            await _userManager.UpdateSecurityStampAsync(user);
         await _signInManager.SignOutAsync();
         return NoContent();
     }

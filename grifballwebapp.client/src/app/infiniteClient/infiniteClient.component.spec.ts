@@ -95,7 +95,7 @@ describe('InfiniteClientComponent', () => {
     init('ok');
     component.code = 'xyz';
     component.setCode();
-    http.expectOne('api/Admin/SetCode?code=xyz').flush({});
+    http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=xyz' }).flush({});
     expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
   });
 
@@ -103,7 +103,7 @@ describe('InfiniteClientComponent', () => {
     init('ok');
     component.code = 'a b&c+d';
     component.setCode();
-    http.expectOne('api/Admin/SetCode?code=a%20b%26c%2Bd').flush({});
+    http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=a%20b%26c%2Bd' }).flush({});
     expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
   });
 
@@ -112,19 +112,19 @@ describe('InfiniteClientComponent', () => {
     spyOn(console, 'log');
     component.code = 'xyz';
     component.setCode();
-    http.expectOne('api/Admin/SetCode?code=xyz').flush('x', { status: 400, statusText: 'Bad Request' });
+    http.expectOne({ method: 'POST', url: 'api/Admin/SetCode?code=xyz' }).flush('x', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to set code', 'Close');
   });
 
   it('deletes tokens and reports the result', () => {
     init('ok');
     (Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Delete Tokens')) as HTMLButtonElement).click();
-    http.expectOne('api/Admin/DeleteTokens').flush({});
+    http.expectOne({ method: 'POST', url: 'api/Admin/DeleteTokens' }).flush({});
     expect(snackBar.open).toHaveBeenCalledWith('Success', 'Close');
 
     spyOn(console, 'log');
     component.deleteTokens();
-    http.expectOne('api/Admin/DeleteTokens').flush('x', { status: 500, statusText: 'Server Error' });
+    http.expectOne({ method: 'POST', url: 'api/Admin/DeleteTokens' }).flush('x', { status: 500, statusText: 'Server Error' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed to delete tokens', 'Close');
   });
 

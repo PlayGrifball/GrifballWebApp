@@ -77,14 +77,14 @@ public class TeamsController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonID:int}", Name = "LockCaptains")]
+    [HttpPost("{seasonID:int}", Name = "LockCaptains")]
     public Task LockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.LockCaptains(seasonID, @lock: true, signalRConnectionID, ct);
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonID:int}", Name = "UnlockCaptains")]
+    [HttpPost("{seasonID:int}", Name = "UnlockCaptains")]
     public Task UnlockCaptains([FromRoute] int seasonID, [FromHeader] string? signalRConnectionID, CancellationToken ct)
     {
         return _teamService.LockCaptains(seasonID, @lock: false, signalRConnectionID, ct);

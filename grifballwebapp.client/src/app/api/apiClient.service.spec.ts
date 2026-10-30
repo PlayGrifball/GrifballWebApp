@@ -447,7 +447,7 @@ describe('ApiClientService', () => {
       });
 
       const req = httpTestingController.expectOne('/api/Teams/lockCaptains/1');
-      expect(req.request.method).toBe('GET');
+      expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('lock-conn');
       req.flush({});
     });
@@ -458,7 +458,7 @@ describe('ApiClientService', () => {
       });
 
       const req = httpTestingController.expectOne('/api/Teams/unlockCaptains/1');
-      expect(req.request.method).toBe('GET');
+      expect(req.request.method).toBe('POST');
       expect(req.request.headers.get('SignalRConnectionID')).toBe('unlock-conn');
       req.flush({});
     });

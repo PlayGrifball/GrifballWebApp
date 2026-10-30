@@ -112,7 +112,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
     expect(name()).toBe('NewTag');
@@ -124,7 +124,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('Sgt Grif & Co+');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=Sgt%20Grif%20%26%20Co%2B').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=Sgt%20Grif%20%26%20Co%2B' }).flush({});
     fixture.detectChanges();
     expect(component.settingGamertag()).toBeFalse();
   });
@@ -134,7 +134,7 @@ describe('ProfileComponent', () => {
     load({ gamertag: null });
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=' }).flush({});
     expect(component.settingGamertag()).toBeFalse();
   });
 
@@ -145,7 +145,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush(null, { status: 400, statusText: 'Bad Request' });
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush(null, { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith('Failed set gamertag', 'Close');
     expect(component.settingGamertag()).toBeTrue();
   });
@@ -157,7 +157,7 @@ describe('ProfileComponent', () => {
     component.gamertag.set('NewTag');
     component.setGamertag();
 
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag')
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' })
       .flush('Gamertag is already set for this user. Contact sysadmin if it needs to be changed', { status: 400, statusText: 'Bad Request' });
     expect(snackBar.open).toHaveBeenCalledWith(
       'Gamertag is already set for this user. Contact sysadmin if it needs to be changed', 'Close');
@@ -181,7 +181,7 @@ describe('ProfileComponent', () => {
 
     component.gamertag.set('NewTag');
     component.setGamertag();
-    http.expectOne('api/profile/setgamertag/21?gamertag=NewTag').flush({});
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
     await fixture.whenStable();
 
     expect(name()).toBe('NewTag');

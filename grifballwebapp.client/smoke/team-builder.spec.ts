@@ -53,7 +53,7 @@ test.describe('team builder', () => {
   test.beforeAll(async ({ baseUrl, admin }) => {
     // p1, p2 captain "Team 1" and "Team 2"; p3..p7 wait in the pool.
     league = await createLeague(baseUrl, admin, 'teams', { players: 7, captains: 2 });
-    await admin.get(`Teams/UnlockCaptains/${league.seasonID}`);
+    await admin.post(`Teams/UnlockCaptains/${league.seasonID}`);
   });
   test.afterAll(async () => league?.close());
 

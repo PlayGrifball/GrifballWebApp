@@ -558,6 +558,22 @@ public class IdentityControllerActionTests
 
         Assert.That(result, Is.TypeOf<NoContentResult>());
         await _signInManager.Received(1).SignOutAsync();
+        await _userManager.DidNotReceiveWithAnyArgs().UpdateSecurityStampAsync(default!);
+    }
+
+    [Test]
+    public async Task Logout_ChangesTheSignedInUsersSecurityStamp()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "5")], "Identity.Application"));
+        _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } };
+        var user = new User { Id = 5, UserName = "grif" };
+        _userManager.GetUserAsync(principal).Returns(user);
+
+        var result = await _controller.Logout();
+
+        Assert.That(result, Is.TypeOf<NoContentResult>());
+        await _userManager.Received(1).UpdateSecurityStampAsync(user);
+        await _signInManager.Received(1).SignOutAsync();
     }
 
     // ---------- Authorization attributes ----------

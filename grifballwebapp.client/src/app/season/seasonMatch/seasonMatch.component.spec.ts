@@ -321,7 +321,7 @@ describe('SeasonMatchComponent reporting', () => {
     expect(component.isSubmittingMatch()).toBeTrue();
     expect(button('Home Team Forfeit')!.disabled).toBeTrue();
 
-    httpMock.expectOne('/api/SeasonMatch/ReportMatch/7/abc-123').flush('ok');
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/abc-123' }).flush('ok');
     expect(component.isSubmittingMatch()).toBeFalse();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page({ homeTeamResult: 'Won', awayTeamResult: 'Loss' }));
     fixture.detectChanges();
@@ -380,7 +380,7 @@ describe('SeasonMatchComponent reporting', () => {
   it('clears the submitting state and reloads even when reporting fails', () => {
     load(page());
     component.onSubmit('bad');
-    httpMock.expectOne('/api/SeasonMatch/ReportMatch/7/bad').flush('no', { status: 400, statusText: 'Bad Request' });
+    httpMock.expectOne({ method: 'POST', url: '/api/SeasonMatch/ReportMatch/7/bad' }).flush('no', { status: 400, statusText: 'Bad Request' });
 
     expect(component.isSubmittingMatch()).toBeFalse();
     httpMock.expectOne('/api/SeasonMatch/GetSeasonMatchPage/7').flush(page());

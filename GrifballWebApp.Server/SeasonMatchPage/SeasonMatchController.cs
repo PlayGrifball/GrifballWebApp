@@ -21,7 +21,7 @@ public class SeasonMatchController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet("{seasonMatchID:int}/{matchID:Guid}", Name = "ReportMatch")]
+    [HttpPost("{seasonMatchID:int}/{matchID:Guid}", Name = "ReportMatch")]
     public async Task<IActionResult?> ReportMatch([FromRoute] int seasonMatchID, [FromRoute] Guid matchID, CancellationToken ct)
     {
         if (matchID == default)

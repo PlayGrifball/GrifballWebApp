@@ -46,7 +46,7 @@ export class Api {
     return body<T>(res);
   }
 
-  async post<T = unknown>(path: string, data: unknown): Promise<T> {
+  async post<T = unknown>(path: string, data?: unknown): Promise<T> {
     const res = await this.http.post(`/api/${path}`, { headers: this.headers(), data });
     await ok(res, `POST ${path}`);
     return body<T>(res);

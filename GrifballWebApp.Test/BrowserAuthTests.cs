@@ -2,6 +2,10 @@ using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Preview;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
@@ -280,6 +284,213 @@ public class BrowserAuthTests
         Assert.That(me.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 
+    [Test]
+    public void SecurityStamp_IsCheckedEveryFewMinutes()
+    {
+        var options = _factory.Services.GetRequiredService<IOptions<SecurityStampValidatorOptions>>().Value;
+        Assert.That(options.ValidationInterval, Is.EqualTo(BrowserAuth.SecurityStampValidationInterval));
+        Assert.That(options.ValidationInterval, Is.LessThanOrEqualTo(TimeSpan.FromMinutes(5)));
+    }
+
+    [Test]
+    public async Task Logout_EndsCopiesOfTheSessionCookie()
+    {
+        // Checked on every request here, rather than after BrowserAuth.SecurityStampValidationInterval
+        await using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.PostConfigure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero)));
+        var options = new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), HandleCookies = false, AllowAutoRedirect = false };
+        using var client = factory.CreateClient(options);
+        using var login = await Login(client);
+        var cookie = SetCookie(login, BrowserAuth.CookieName)!.Split(';')[0];
+
+        HttpRequestMessage WithCookie(HttpMethod method, string path)
+        {
+            var request = new HttpRequestMessage(method, path);
+            request.Headers.Add("Cookie", cookie);
+            return request;
+        }
+
+        using (var before = await client.SendAsync(WithCookie(HttpMethod.Get, "/Identity/MetaInfo")))
+            Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        using (var logout = await client.SendAsync(WithCookie(HttpMethod.Post, "/Identity/Logout")))
+            Assert.That(logout.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        // A copy of the cookie kept from before the logout no longer signs anyone in
+        using var after = await client.SendAsync(WithCookie(HttpMethod.Get, "/Identity/MetaInfo"));
+        Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    // ---------- SignalR hub: cookie sessions only from this site's own pages ----------
+
+    private const string Negotiate = "/TeamsHub/negotiate?negotiateVersion=1";
+
+    private static HttpRequestMessage NegotiateRequest(string? origin = null, string? site = null, string? bearer = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, Negotiate);
+        if (origin is not null)
+            request.Headers.Add("Origin", origin);
+        if (site is not null)
+            request.Headers.Add("Sec-Fetch-Site", site);
+        if (bearer is not null)
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        return request;
+    }
+
+    [TestCase("https://grif-preview1.grifball.xyz", null)]
+    [TestCase("https://evil.example", null)]
+    [TestCase("null", null)]
+    [TestCase("https://localhost:8443", null)]
+    [TestCase(null, "same-site")]
+    [TestCase(null, "cross-site")]
+    [TestCase(null, "none")]
+    [TestCase("https://localhost", "same-site")]
+    public async Task Hub_CookieSession_FromAnotherOrigin_IsRefused(string? origin, string? site)
+    {
+        using var client = Browser();
+        using (await Login(client)) { }
+
+        using var response = await client.SendAsync(NegotiateRequest(origin, site));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    [TestCase("https://localhost", "same-origin")]
+    [TestCase("https://LOCALHOST", null)]
+    [TestCase("http://localhost", null)]
+    [TestCase(null, null)]
+    public async Task Hub_CookieSession_FromThisSite_IsAccepted(string? origin, string? site)
+    {
+        using var client = Browser();
+        using (await Login(client)) { }
+
+        using var response = await client.SendAsync(NegotiateRequest(origin, site));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task Hub_BearerOrVisitor_IsNotCheckedForOrigin()
+    {
+        using var script = Script();
+        using var login = await Login(script, "?useCookies=false");
+        var token = (await login.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>())!.AccessToken;
+
+        using var bearer = await script.SendAsync(NegotiateRequest("https://evil.example", "cross-site", token));
+        Assert.That(bearer.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        using var visitorClient = Browser();
+        using var visitor = await visitorClient.SendAsync(NegotiateRequest("https://evil.example", "cross-site"));
+        Assert.That(visitor.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task Hub_WebSocket_WithTheCookie_FromAnotherOrigin_IsRefused_AndFromThisOneAccepted()
+    {
+        using var client = Browser();
+        using var login = await Login(client);
+        var cookie = SetCookie(login, BrowserAuth.CookieName)!.Split(';')[0];
+
+        WebSocketClient Socket(string origin)
+        {
+            var socket = _factory.Server.CreateWebSocketClient();
+            socket.ConfigureRequest = request =>
+            {
+                request.Headers.Cookie = cookie;
+                request.Headers.Origin = origin;
+            };
+            return socket;
+        }
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Socket("https://grif-preview1.grifball.xyz").ConnectAsync(new Uri("wss://localhost/TeamsHub"), CancellationToken.None));
+        Assert.That(refused!.Message, Does.Contain("403"));
+
+        using var accepted = await Socket("https://localhost").ConnectAsync(new Uri("wss://localhost/TeamsHub"), CancellationToken.None);
+        Assert.That(accepted.State, Is.EqualTo(System.Net.WebSockets.WebSocketState.Open));
+        await accepted.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+    }
+
+    [Test]
+    public void IsFromAnotherOrigin_ComparesHostAndPort()
+    {
+        static HttpRequest With(string host, string? origin)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Host = new HostString(host);
+            if (origin is not null)
+                context.Request.Headers.Origin = origin;
+            return context.Request;
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz", null)), Is.False);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz", "https://grifball.xyz")), Is.False);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz:443", "https://grifball.xyz")), Is.False);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("localhost:4200", "http://localhost:4200")), Is.False);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz", "https://grif-preview2.grifball.xyz")), Is.True);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("localhost:4200", "http://localhost:5295")), Is.True);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz", "https://grifball.xyz:8443")), Is.True);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("grifball.xyz", "null")), Is.True);
+            Assert.That(BrowserAuth.IsFromAnotherOrigin(With("", "https://grifball.xyz")), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task HubGuard_PassesNonHubEndpoints()
+    {
+        var context = Context("GET");
+        context.Request.Headers.Origin = "https://evil.example";
+        var called = false;
+
+        await BrowserAuth.RefuseForeignHubRequests(context, _ => { called = true; return Task.CompletedTask; });
+
+        Assert.That(called, Is.True);
+    }
+
+    [Test]
+    public async Task CookiePost_WithoutFetchMetadata_FromAnotherOrigin_IsRefused_EvenWhereNoTokenIsNeeded()
+    {
+        using var client = Browser();
+        using (await Login(client)) { }
+
+        using var foreign = Post("/Identity/Logout");
+        foreign.Headers.Add("Origin", "https://grif-preview1.grifball.xyz");
+        using var refused = await client.SendAsync(foreign);
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+
+        using var own = Post("/Identity/Logout");
+        own.Headers.Add("Origin", "https://localhost");
+        using var accepted = await client.SendAsync(own);
+        Assert.That(accepted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+    }
+
+    [Test]
+    public void IsUnsafeFromAnotherOriginWithoutFetchMetadata_Cases()
+    {
+        static HttpContext With(string method, string? origin, string? site = null, string? authorization = null)
+        {
+            var context = Context(method, authorization: authorization);
+            context.Request.Host = new HostString("grifball.xyz");
+            if (origin is not null)
+                context.Request.Headers.Origin = origin;
+            if (site is not null)
+                context.Request.Headers["Sec-Fetch-Site"] = site;
+            return context;
+        }
+
+        const string Foreign = "https://evil.grifball.xyz";
+        Assert.Multiple(() =>
+        {
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign)), Is.True);
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("GET", Foreign)), Is.False);
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", "https://grifball.xyz")), Is.False);
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", null)), Is.False);
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign, site: "same-origin")), Is.False);
+            Assert.That(CookieAntiforgeryFilter.IsUnsafeFromAnotherOriginWithoutFetchMetadata(With("POST", Foreign, authorization: "Bearer x")), Is.False);
+        });
+    }
+
     // ---------- Which requests need a token (CookieAntiforgeryFilter.RequiresToken) ----------
 
     private static HttpContext Context(string method, bool signedIn = true, string? authorization = null)
@@ -292,6 +503,36 @@ public class BrowserAuthTests
             ? new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "1")], "Identity.Application")
             : new ClaimsIdentity());
         return context;
+    }
+
+    // Actions that change something: POSTs, so they need the antiforgery token and a link cannot call them.
+    [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "SetCode")]
+    [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "DeleteTokens")]
+    [TestCase(typeof(GrifballWebApp.Server.Controllers.AdminController), "Get")]
+    [TestCase(typeof(GrifballWebApp.Server.Controllers.SeedController), "Medals")]
+    [TestCase(typeof(GrifballWebApp.Server.Teams.TeamsController), "LockCaptains")]
+    [TestCase(typeof(GrifballWebApp.Server.Teams.TeamsController), "UnlockCaptains")]
+    [TestCase(typeof(GrifballWebApp.Server.Brackets.BracketsController), "CreateBracket")]
+    [TestCase(typeof(GrifballWebApp.Server.Brackets.BracketsController), "SetSeeds")]
+    [TestCase(typeof(GrifballWebApp.Server.MatchPlanner.MatchPlannerController), "CreateSeasonMatches")]
+    [TestCase(typeof(GrifballWebApp.Server.SeasonMatchPage.SeasonMatchController), "ReportMatch")]
+    [TestCase(typeof(GrifballWebApp.Server.Profile.ProfileController), "SetGamertag")]
+    public void StateChangingAction_IsPostOnly(Type controller, string action)
+    {
+        var attributes = controller.GetMethod(action)!.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute), true)
+            .Cast<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>().ToList();
+        Assert.That(attributes.SelectMany(a => a.HttpMethods), Is.EquivalentTo(new[] { "POST" }));
+    }
+
+    [Test]
+    public async Task CookieGet_ToAnActionThatChangesSomething_IsNotRouted()
+    {
+        using var client = Browser();
+        using (await Login(client)) { }
+
+        using var response = await client.GetAsync("/Admin/DeleteTokens");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.MethodNotAllowed));
     }
 
     [TestCase("POST", true)]

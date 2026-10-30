@@ -18,7 +18,7 @@ public class MatchPlannerController : ControllerBase
     }
 
     [Authorize(Roles = "Commissioner")]
-    [HttpGet(Name = "CreateSeasonMatches")]
+    [HttpPost(Name = "CreateSeasonMatches")]
     public async Task<ActionResult> CreateSeasonMatches([FromQuery] int seasonID, [FromQuery] int homeMatchesPerTeam, [FromQuery] int bestOf, CancellationToken ct)
     {
         if (seasonID <= 0)

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.SignalR;
 
 namespace GrifballWebApp.Server.Identity;
 
@@ -44,6 +45,52 @@ public static class BrowserAuth
     public static string SelectScheme(HttpContext context)
         => HasBearerToken(context.Request) ? IdentityConstants.BearerScheme : IdentityConstants.ApplicationScheme;
 
+    /// <summary>How often a cookie session is checked against the user's security stamp. Logging out changes the
+    /// stamp, so a copy of the cookie stops working within this time (as do the user's other sessions).</summary>
+    public static readonly TimeSpan SecurityStampValidationInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Whether the request's Origin header names another host than the one the request was sent to (or is "null",
+    /// as from a sandboxed page). No Origin header is not "another": scripts and same-origin GETs send none.
+    /// Only the host and port are compared: TLS ends at the ingress, so the backend may see http for an https page.
+    /// </summary>
+    public static bool IsFromAnotherOrigin(HttpRequest request)
+    {
+        var origin = request.Headers.Origin.ToString();
+        if (string.IsNullOrEmpty(origin))
+            return false;
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) || !request.Host.HasValue)
+            return true;
+        // A Host without a port went to the scheme's default port, so the page must be on one too.
+        var samePort = request.Host.Port is { } port ? uri.Port == port : uri.IsDefaultPort;
+        return !string.Equals(uri.Host, request.Host.Host, StringComparison.OrdinalIgnoreCase) || !samePort;
+    }
+
+    /// <summary>
+    /// A SignalR hub request (negotiate or the WebSocket upgrade) on a cookie session that did not come from this
+    /// site's own pages: Fetch Metadata says other than same-origin, or the Origin is another host. The MVC
+    /// antiforgery filter does not run for hubs, and SameSite=Lax still sends the cookie on a WebSocket opened by
+    /// another subdomain. Bearer tokens and visitors are not checked (nothing a browser attaches by itself).
+    /// </summary>
+    public static bool IsForeignHubRequest(HttpContext context)
+    {
+        if (!CookieAntiforgeryFilter.IsCookieSession(context))
+            return false;
+        var site = context.Request.Headers["Sec-Fetch-Site"].ToString();
+        return (site.Length > 0 && site != "same-origin") || IsFromAnotherOrigin(context.Request);
+    }
+
+    /// <summary>Middleware: refuses <see cref="IsForeignHubRequest"/> requests to any hub endpoint with 403.</summary>
+    public static Task RefuseForeignHubRequests(HttpContext context, RequestDelegate next)
+    {
+        if (context.GetEndpoint()?.Metadata.GetMetadata<HubMetadata>() is null || !IsForeignHubRequest(context))
+            return next(context);
+        context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(BrowserAuth).FullName!)
+            .LogInformation("Refused hub request {Path} from another origin", context.Request.Path);
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    }
+
     /// <summary>The sign-in cookie's settings. API calls without a session get 401 and 403, not a redirect to a login page.</summary>
     public static void ConfigureCookie(CookieAuthenticationOptions options)
     {
@@ -56,6 +103,9 @@ public static class BrowserAuth
         options.SlidingExpiration = true;
         options.Events = new CookieAuthenticationEvents()
         {
+            // Identity's own handler, which these events replace: checks the session against the user's
+            // security stamp every SecurityStampValidationInterval, so Logout ends copies of the cookie.
+            OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync,
             OnRedirectToLogin = ctx =>
             {
                 ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -91,8 +141,9 @@ public static class BrowserAuth
 /// grifball.xyz subdomains, such as the PR previews) and older browsers. Actions marked
 /// <see cref="IgnoreAntiforgeryTokenAttribute"/> are exempt.</item>
 /// <item>Any request the browser says came from another site or subdomain (Sec-Fetch-Site: cross-site or
-/// same-site) is refused. SameSite=Lax still sends the cookie on a top-level navigation, and a few GET actions
-/// change things (Admin/SetCode, Teams/LockCaptains, ...), so a link elsewhere must not be able to call them.</item>
+/// same-site) is refused. SameSite=Lax still sends the cookie on a top-level navigation, so a link elsewhere must
+/// not be able to act as the user (and no action that changes something is a GET).</item>
+/// <item>A change from a browser without Fetch Metadata whose Origin header names another host is refused.</item>
 /// </list>
 /// </summary>
 public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<CookieAntiforgeryFilter> logger) : IAsyncAuthorizationFilter
@@ -102,6 +153,18 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
         if (IsCookieSession(context.HttpContext) && IsFromAnotherSite(context.HttpContext.Request))
         {
             logger.LogInformation("Refused {Method} {Path} from another site", context.HttpContext.Request.Method, context.HttpContext.Request.Path);
+            context.Result = new ObjectResult(new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Requests from other sites are not accepted",
+            })
+            { StatusCode = StatusCodes.Status403Forbidden };
+            return;
+        }
+
+        if (IsUnsafeFromAnotherOriginWithoutFetchMetadata(context.HttpContext))
+        {
+            logger.LogInformation("Refused {Method} {Path} from another origin", context.HttpContext.Request.Method, context.HttpContext.Request.Path);
             context.Result = new ObjectResult(new ProblemDetails
             {
                 Status = StatusCodes.Status403Forbidden,
@@ -131,11 +194,24 @@ public sealed class CookieAntiforgeryFilter(IAntiforgery antiforgery, ILogger<Co
         }
     }
 
+    /// <summary>GET, HEAD, OPTIONS and TRACE: requests that should change nothing.</summary>
+    public static bool IsSafeMethod(string method)
+        => HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method) || HttpMethods.IsTrace(method);
+
+    /// <summary>
+    /// A change on a cookie session, from a browser that sent no Fetch Metadata, whose Origin is another host.
+    /// Antiforgery already refuses most of these; this also covers the actions exempt from it (Logout).
+    /// </summary>
+    public static bool IsUnsafeFromAnotherOriginWithoutFetchMetadata(HttpContext context)
+        => !IsSafeMethod(context.Request.Method)
+            && IsCookieSession(context)
+            && string.IsNullOrEmpty(context.Request.Headers["Sec-Fetch-Site"].ToString())
+            && BrowserAuth.IsFromAnotherOrigin(context.Request);
+
     /// <summary>Whether this request must carry an antiforgery token (see the class).</summary>
     public static bool RequiresToken(HttpContext context, IEnumerable<object> endpointMetadata)
     {
-        var method = context.Request.Method;
-        if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method) || HttpMethods.IsTrace(method))
+        if (IsSafeMethod(context.Request.Method))
             return false;
         if (!IsCookieSession(context))
             return false;

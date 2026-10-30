@@ -25,7 +25,7 @@ test.describe('session', () => {
   test.beforeAll(async ({ baseUrl, admin }) => {
     // Two teams, one match between them
     league = await createLeague(baseUrl, admin, 'session', { players: 2, captains: 2 });
-    await admin.get(`MatchPlanner/CreateSeasonMatches?seasonID=${league.seasonID}&homeMatchesPerTeam=1&bestOf=1`);
+    await admin.post(`MatchPlanner/CreateSeasonMatches?seasonID=${league.seasonID}&homeMatchesPerTeam=1&bestOf=1`);
     const matches = await admin.get<{ seasonMatchID: number }[]>(`MatchPlanner/GetUnscheduledMatches/${league.seasonID}`);
     expect(matches.length).toBeGreaterThan(0);
     seasonMatchID = matches[0].seasonMatchID;
