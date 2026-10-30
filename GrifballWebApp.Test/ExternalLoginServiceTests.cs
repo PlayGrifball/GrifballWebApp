@@ -107,6 +107,33 @@ public class ExternalLoginServiceTests
     }
 
     [Test]
+    public async Task Link_Discord_AlsoSetsTheBotsDiscordLink()
+    {
+        var user = await NewUser("alice", withPassword: true);
+        var principal = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "alice_discord")], "Discord"));
+
+        var result = await _service.Link(user.Id, new ExternalLoginInfo(principal, "Discord", "111", "Discord"));
+
+        Assert.That(result, Is.EqualTo(LinkLoginResult.Linked));
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(111));
+            Assert.That((await _context.DiscordUsers.AsNoTracking().SingleAsync()).DiscordUsername, Is.EqualTo("alice_discord"));
+        });
+    }
+
+    [Test]
+    public async Task Link_SameDiscordLoginAgain_BackfillsAMissingLink()
+    {
+        var user = await NewUser("alice");
+        await AddLogin(user, "Discord", "111");
+
+        Assert.That(await _service.Link(user.Id, Discord("111")), Is.EqualTo(LinkLoginResult.AlreadyLinked));
+        Assert.That(await _context.Users.AsNoTracking().Where(u => u.Id == user.Id).Select(u => u.DiscordUserID).SingleAsync(), Is.EqualTo(111));
+    }
+
+    [Test]
     public async Task Link_MissingUser_IsUserNotFound()
     {
         Assert.That(await _service.Link(12345, Discord("111")), Is.EqualTo(LinkLoginResult.UserNotFound));
