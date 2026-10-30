@@ -12,18 +12,33 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { mockResponse, roleOf } from './mockApi.mts';
+import { handleTeamsHubUpgrade, isTeamsHubUpgrade, teamsHubNegotiateBody } from './teamsHubMock.mts';
 
 const port = Number(process.env.E2E_PORT ?? 4300);
 const apiPort = port + 1;
 const serverEntry = fileURLToPath(new URL('../dist/grifballwebapp.client/server/server.mjs', import.meta.url));
 
-// The backend, as the server reaches it: without the /api prefix
-createServer((req, res) => {
-  const path = '/api' + (req.url ?? '/').split('?')[0];
-  const mocked = mockResponse(roleOf(req.headers.cookie), path);
+// The backend, as the server reaches it: without the /api prefix. Plus the Teams SignalR hub
+// (/hub/TeamsHub, proxied here as /TeamsHub): negotiate below, the WebSocket upgrade on 'upgrade'.
+const backend = createServer((req, res) => {
+  const bare = (req.url ?? '/').split('?')[0];
+  if (bare === '/TeamsHub/negotiate') {
+    const body = JSON.stringify(teamsHubNegotiateBody());
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(body);
+    return;
+  }
+  const mocked = mockResponse(roleOf(req.headers.cookie), '/api' + bare);
   res.writeHead(mocked?.status ?? 404, { 'Content-Type': mocked?.contentType ?? 'text/plain' });
   res.end(mocked?.body ?? '');
-}).listen(apiPort, '127.0.0.1', () => {
+});
+backend.on('upgrade', (req, socket) => {
+  if (isTeamsHubUpgrade(req))
+    handleTeamsHubUpgrade(req, socket);
+  else
+    socket.destroy();
+});
+backend.listen(apiPort, '127.0.0.1', () => {
   // It prints "Serving on ..." once it listens (lighthouserc.cjs waits for that).
   const server = spawn(process.execPath, [serverEntry], {
     env: { ...process.env, PORT: String(port), API_URL: `http://127.0.0.1:${apiPort}` },

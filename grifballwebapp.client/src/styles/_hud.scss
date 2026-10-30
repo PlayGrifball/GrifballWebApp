@@ -545,6 +545,24 @@ body {
 
 .mdc-text-field--outlined:not(.mdc-text-field--disabled) { background: var(--hud-input); }
 
+// Material's own CSS for the outlined text field's wrapper (.mdc-text-field--outlined) sets its
+// horizontal padding with a max() of an unthemed corner-radius token, which loses to a later,
+// equal-specificity Material rule here (likely from a third override chain inside its compiled
+// theme output); the net effect is the wrapper's padding collapses to 0, so the value text and the
+// mat-select trigger text sit flush against the outline (the label is unaffected: it is positioned,
+// not padded). !important is needed because plain overrides of the same specificity lose to
+// Material's own later declaration. 16px matches the label's inset.
+.mdc-text-field--outlined {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+// Fields with a suffix (the colour picker's toggle button) want no padding on that side, so their
+// icon sits where Material placed it.
+.mat-mdc-form-field-has-icon-suffix .mdc-text-field--outlined {
+  padding-right: 0 !important;
+}
+
 .mat-mdc-card { border: 1px solid var(--hud-border); }
 
 // Filled (primary) Material buttons get the HUD parallelogram, with the focus ring inside.

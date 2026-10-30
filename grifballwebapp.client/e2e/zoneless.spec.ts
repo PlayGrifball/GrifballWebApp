@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
+import { RS, teamsHubNegotiateBody } from './teamsHubMock.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -273,12 +274,10 @@ test('the team builder renders a captain added by another user over SignalR', as
     [`/api/Teams/areCaptainsLocked/${SEASON_ID}`]: route => json(route, true),
   });
 
-  // A minimal SignalR server: negotiate, then the JSON hub protocol over a WebSocket.
-  const RS = '\u001e';
-  await page.route('**/hub/TeamsHub/negotiate**', route => json(route, {
-    negotiateVersion: 1, connectionId: 'e2e', connectionToken: 'e2e',
-    availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }],
-  }));
+  // A minimal SignalR server: negotiate, then the JSON hub protocol over a WebSocket. The shapes
+  // (RS, the negotiate body) are shared with e2e/teamsHubMock.mts, which answers the same hub for
+  // Lighthouse and the layout test (over a real socket there, so it can't share this route-based code).
+  await page.route('**/hub/TeamsHub/negotiate**', route => json(route, teamsHubNegotiateBody()));
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
     // The page may restart the connection once the access token is read, so only the

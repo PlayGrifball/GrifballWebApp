@@ -4,6 +4,7 @@
 // annotation for each page whose performance is under 90, which lighthouserc.cjs does not fail on)
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { notFoundPage } from '../lighthouserc.cjs';
 
 const dir = '.lighthouseci';
 const title = process.argv[2] ?? 'Lighthouse';
@@ -37,8 +38,10 @@ const rows = reports.map(lhr => {
   const url = new URL(lhr.requestedUrl);
   const page = url.pathname + url.search;
   const link = links[lhr.requestedUrl];
-  return `| ${link ? `[${page}](${link})` : page} | ${categories.map(([id]) => score(lhr, id)).join(' | ')} |`;
+  const note = page === notFoundPage ? ' *' : '';
+  return `| ${link ? `[${page}](${link})` : page}${note} | ${categories.map(([id]) => score(lhr, id)).join(' | ')} |`;
 });
+const hasNotFoundPage = reports.some(lhr => new URL(lhr.requestedUrl).pathname === notFoundPage);
 console.log([
   `#### ${title}`,
   '',
@@ -46,4 +49,7 @@ console.log([
   `|---|${categories.map(() => '---:').join('|')}|`,
   ...rows,
   '',
+  // Low best practices and SEO are expected here: assertMatrix (lighthouserc.cjs) does not fail the
+  // build on them, since they are the page correctly reporting its own 404.
+  ...(hasNotFoundPage ? [`\\* ${notFoundPage} is expected to score low on best practices and SEO: it is the site's 404 page, correctly reporting itself as not found.`, ''] : []),
 ].join('\n'));

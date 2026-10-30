@@ -27,6 +27,10 @@ const signedInCookie = '__Host-Grifball=admin';
 
 // An address the site has no page for
 const notFoundPage = '/no-such-page';
+
+/** Escapes a string for use inside a RegExp (assert.assertMatrix's matchingUrlPattern). */
+const escapeForRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // The pages the browser draws (RenderMode.Client in src/app/app.routes.server.ts): the server sends
 // them as it does to anyone, and the browser draws them as the user
 const browserPages = ['/theme'];
@@ -113,13 +117,38 @@ module.exports = {
       },
     },
     assert: {
-      // Of several runs of a page, the median one counts
-      assertions: {
-        'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-        'categories:best-practices': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-        'categories:seo': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
-        'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
-      },
+      // Of several runs of a page, the median one counts. assertMatrix: the 404 page
+      // (notFoundPage) is asserted differently, see below; every other page keeps the one set of
+      // assertions it always had.
+      assertMatrix: [
+        {
+          matchingUrlPattern: escapeForRegExp(notFoundPage),
+          assertions: {
+            // The page correctly answers with a 404: Lighthouse's own best-practices and SEO
+            // audits for that (errors-in-console, for the console message Angular's server logs
+            // for an unknown route; http-status-code, for the 404 status itself) are expected to
+            // fail here, and failing them drags those two categories' scores down too. That is
+            // the page working as intended, not a regression, so both the audits and the
+            // categories they belong to are off for this one URL; accessibility and performance
+            // are asserted as normal (e2e/lighthouse-summary.mjs notes this row as expected).
+            'errors-in-console': 'off',
+            'http-status-code': 'off',
+            'categories:best-practices': 'off',
+            'categories:seo': 'off',
+            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
+          },
+        },
+        {
+          matchingUrlPattern: `^(?!.*${escapeForRegExp(notFoundPage)}).*$`,
+          assertions: {
+            'categories:accessibility': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:best-practices': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:seo': ['error', { minScore: 0.9, aggregationMethod: 'median-run' }],
+            'categories:performance': ['error', { minScore: performanceFloor, aggregationMethod: 'median-run' }],
+          },
+        },
+      ],
     },
     upload: {
       target: process.env.LIGHTHOUSE_UPLOAD_TARGET ?? 'temporary-public-storage',
