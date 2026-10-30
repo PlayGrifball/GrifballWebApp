@@ -88,6 +88,17 @@ h1, h2, h3, h4 {
   color: var(--hud-muted);
 }
 
+// A kicker that links somewhere (the breadcrumb above a team or match page) is one line of small
+// text, under the 44px tap target (WCAG 2.5.8). Padding it out, with a matching negative margin,
+// grows the clickable area without the compact label growing visually or pushing the heading below
+// it down. All on top (never on the bottom): it is always the page head's first line, with the
+// heading right under it (8px gap) - padding there instead would reach into the heading's own box.
+a.hud-kicker {
+  display: inline-block;
+  padding-top: 23px;
+  margin-top: -23px;
+}
+
 .hud-label--gold { color: var(--hud-gold); }
 .hud-label--accent { color: var(--hud-accent); }
 
@@ -578,6 +589,24 @@ body {
 
 // Tap targets: Material's list and menu rows are at least 48px already; icon buttons too.
 .mat-mdc-paginator .mat-mdc-icon-button { width: 48px; height: 48px; }
+
+// The paginator's page-size mat-select, dense by default (Material's own
+// --mat-paginator-form-field-container-vertical-padding: 8px), comes out at 40-42px: under the
+// 44px minimum tap target (WCAG 2.5.8).
+.mat-mdc-paginator .mat-mdc-text-field-wrapper { min-height: 44px; }
+
+// A sortable column header's clickable element (.mat-sort-header-container) only wraps its label,
+// so it is as short as one line of text (about 20px) inside a taller header cell: 46px, matching
+// the table's own header-container-height above, makes most of the row tappable instead (WCAG
+// 2.5.8). height: 100% does not work here: percentage heights do not resolve against a table cell.
+.mat-sort-header-container { height: 46px; }
+
+// A checkbox, radio button or slide toggle (with its label) is only as tall as its text line, 32-40px:
+// under the 44px minimum tap target (WCAG 2.5.8). The extra height is invisible (the control and
+// label stay the same size, just with more room to tap around them).
+mat-checkbox .mdc-form-field,
+mat-radio-button .mdc-form-field,
+mat-slide-toggle .mdc-form-field { min-height: 44px; align-items: center; }
 
 // Snack bars are short notices; keep them inside a phone screen.
 .mat-mdc-snack-bar-container { margin: 8px !important; }

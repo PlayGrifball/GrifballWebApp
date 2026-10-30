@@ -125,7 +125,7 @@
               <ng-container matColumnDef="reason">
                 <mat-header-cell *matHeaderCellDef>Reason</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  <div class="reason-cell">{{ reschedule.reason }}</div>
+                  <div class="reason-cell" [title]="reschedule.reason">{{ reschedule.reason }}</div>
                 </mat-cell>
               </ng-container>
 
