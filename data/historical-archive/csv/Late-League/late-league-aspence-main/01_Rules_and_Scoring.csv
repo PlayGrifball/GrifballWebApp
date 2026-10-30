@@ -1,0 +1,82 @@
+,Please check discord for uptodate info - Late League - Please check discord for uptodate info
+,What is Late League?,Late League is essentially ranked Grifball customs!  You sign up individually and will go up and down the leaderboard based on a win/loss LP system.,,,,,,What are placement games?,"When you first sign up for Late League, your first 3 games will be your placement games.  These matches are used to build your initial player grade. This player grade will influence how you progress through the ranks.
+
+Each win you will receive 1 Rank (50 MMR)
+Each loss will cause no effect"
+,How do I play?,"In the PlayGrifball Community Discord, a host will announce signups in the Late League (Ranked Customs) channel, sign up using the bot command and you're in!  The bot will create teams and update the leaderboard, all you need to do it go to your designated team and play!"
+,How does scoring work?,"Basic Scoring:
+1 Win = +25 LP (League Points)
+1 Loss = -15 LP
+
+Win Streaks: Bonus LP
+3 Game win streak = +25 LP
+6 Game win streak = +50 LP
+
+Loss Streaks: LP Penalty
+3 Game loss streak = -25 LP 
+6 Game loss streak = -50 LP"
+,,,,,,,,Reward System
+,How do the ranks work?,"The leaderboard is split up into divisions and tiers.  Each division has 3 tiers and each tier requires 100LP in order to progress.
+
+Division Ranking: Each division has 3 tiers.
+Challenger
+Masters
+Diamond
+Platinum
+Gold
+Silver
+Bronze
+
+Once you reach 100LP in a tier, you will tier up. You will start at 0LP in the new tier.
+
+If you are at 0LP, you will drop a tier once you go below 0LP in your current division."
+,,,,,,,,What's New?,"Discord Bot Functionality: The bot will handle sign-ups, lobby generation, & stat updating.
+
+Team Generation Balance: Using player stats & win/loss in conjuction with MMR, teams will be better balanced to allow for increased fairness.
+
+End of Season Rewards: Once you've achieved a certain rank or accomplished a certain task, you willbe entitled to a reward based on what you've achieved. Said rewards may be trophies, miniatures, or trinkets, all Grifball/Halo related."
+,,,,,,,,For Hosts,"While bot is running do not edit Lobby/Waitlist cells. Any other cell can be edited
+1. Choose game version with &game halo3/haloreach/halo4/halo5
+2. Begin signup period with &open
+3. Once 8 players are in bot will auto make lobbies. If it needs to be remade use &r1 or &r2
+4. Player's vote on the correct winner.
+5. Upload the most recent game stat XML file to the stat bot. XML location is %USERPROFILE%\AppData\LocalLow\MCC\Temporary
+6. Lobby will be regenerated after voting completes.
+7. If a player is gone or a wait lister is gone, use &remove DISCORDUSER to take them out of the list. If a player is afk but still going to play, use &drop DISCORDUSER to move them to the bottom of the list.
+8. Close signup period at end of night with &close"
+,,"Suspension Tier:
+First Offence - Warning ""based on viewed behavior by Late League host""
+First Offence - 3 session/day
+Second Offence - 5 Session/day
+Third Offence - Permenant Ban
+
+What to expect:
+After a player has broken the rules, they will receive a suspension as follows in the tier list. The time in which the suspension is applied may vary. An announcement will be made when a suspension occurs, with the weekly pinned message being updated accordingly.
+
+Verbal Abuse - it is your responsibility as a player to use the tools available at your disposal to handle this. This entails muting & blocking communications. If verbal abuse persists beyond this, where they circumvent your mute/block & go out of there way for continued harassment, then we shall step in.
+
+Examples of Infractions:
+Warning Issued - ""Mavbrid makes a mistake and Nihilus gets mad. Nihilus betrays Mavbrid off spawn, BUT proceeds to stay at spawn to catch Mavbrid once again. He proceeds to betray him 2 more times."" 
+
+Reasoning - Maintaining a competitive environment is paramount to us. In this example, due to multiple betrayals, Nihilus interrupted game play thus incurring a warning.
+
+Suspension Issued - ""ASpence bonks MysticalNovice off spawn. MysticalNovice proceeds to betray ASpence twice afterwards as retaliation. They both act in a trolling manner with each other for a portion of the game. MysticalNovice then begins to strategically betray ASpence twice in the last round of the game. After the match ends, MysticalNovice attempts to provoke ASpence into lashing out via chat.""
+
+Reasoning - In this example, the combination of provoking post-game & betraying to negatively impact game play, lead to a suspension issued. It is important to denote in this example, MysticalNovice attempted to provoke ASpence post-game. This is a clear demonstration of toxic behavior in combination with in-game negative activity.
+
+How to Report:
+1. Player uses report function on bot. (Not currently available)
+2. Player contacts Late League hosts with issue.
+3. Player records clip of issue in question and supplies it to Late League hosts."
+,,,,,,,,For Hosts
+,,,,,,,,Suspension List,Gamertag,Discord,Reason,Duration (sessions)
+,,,,,,,,,MysticalNovice,MysticalNovice#2876,Purposely losing/provoking in chat,Warning
+,,,,,,,,,AtoneMilitant,Atone#4396,Purposely AFK to allow opponent to win,Warning
+,,,,,,,,,Yejis,117#8735,Purposely leaving the game,Warning
+,,,,,,,,,Nihilus,Nihilus#1850,Holding game hostage,warning
+,,,,,,,,,AtoneMilitant,Atone#4396,"Afk to type, costing game. Afk for first round score.",Banned 3 sessions        
+,,,,,,,,,Regresser,Regresser#4673,Purpose betraying as retaliation,Warning
+,,,,,,,,,ASpence501,Ronald Raygun#9000,Purposely losing the game,Warning
+,,,,,,,,,yLuxe,,Purposely leaving the game,Warning
+,,,,,,,,,Galvann,,Purposely leaving the game,Warning
+,,,,,,,,,Wrecking Nerds,,Purposely leaving the game,Warning

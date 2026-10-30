@@ -1,0 +1,1729 @@
+{
+  "id": "2025-classic-sml25-draft",
+  "category": "AGLA-2025",
+  "year": 2025,
+  "title": "Classic SML25 Pro & Legacy Draft Sheets",
+  "url": "https://docs.google.com/spreadsheets/d/1omgOFqcSiWVgZMffVWhHzejeSSSm9xO6da217L2TIng/edit?usp=sharing",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Pro Draft Sheet",
+      "hidden": false,
+      "rowCount": 78,
+      "colCount": 10,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-classic-sml25-draft/01_Pro_Draft_Sheet.csv"
+    },
+    {
+      "index": 2,
+      "name": "Legacy Draft Sheet",
+      "hidden": false,
+      "rowCount": 46,
+      "colCount": 10,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-classic-sml25-draft/02_Legacy_Draft_Sheet.csv"
+    },
+    {
+      "index": 3,
+      "name": "Alt Draft Sheet",
+      "hidden": true,
+      "rowCount": 55,
+      "colCount": 16,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-classic-sml25-draft/03_Alt_Draft_Sheet.csv"
+    },
+    {
+      "index": 4,
+      "name": "Sheet5",
+      "hidden": true,
+      "rowCount": 2,
+      "colCount": 1,
+      "sampleHeader": [
+        "https://docs.google.com/spreadsheets/d/1d-JA1rtr6SsQ3KDwXKl9d69yCGp7i6YiLm1GlgrUU-M/edit#gid=1265428282"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-classic-sml25-draft/04_Sheet5.csv"
+    }
+  ],
+  "bytes": 47865,
+  "fullSheets": [
+    {
+      "name": "Pro Draft Sheet",
+      "hidden": false,
+      "rowCount": 78,
+      "colCount": 10,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "AGLA PRO SML25 SEASON"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:",
+          "",
+          "Legends Never Die",
+          "Chemical Imbalance",
+          "",
+          "The Holy Shrek Empire",
+          "Like Clockwork"
+        ],
+        [
+          "",
+          "Captain",
+          "Hells Angel cx",
+          "Snipezz",
+          "Chemical",
+          "Cosmos",
+          "ill shrek u",
+          "yLuxe"
+        ],
+        [
+          "",
+          "Player 1",
+          "Ace B S1lentND1",
+          "Sabasauros rex",
+          "MysticalNovice",
+          "KDSkill",
+          "Solace VIII",
+          "oDhmon"
+        ],
+        [
+          "",
+          "Player 2",
+          "BCN19",
+          "NOPLEX",
+          "Mavbrid",
+          "PoisonxPoptart",
+          "SPANKTR0N",
+          "Gingy"
+        ],
+        [
+          "",
+          "Player 3",
+          "Scullen cx",
+          "Mxrvine",
+          "Deathcrawller",
+          "Priest XYZ",
+          "Dhlyn",
+          "Mr Above Avg"
+        ],
+        [
+          "",
+          "",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        [
+          "",
+          "1st Round:",
+          "Ace B S1lentND1",
+          "Sabasauros rex",
+          "MysticalNovice",
+          "KDSkill",
+          "Solace VIII",
+          "oDhmon"
+        ],
+        [
+          "",
+          "",
+          "12",
+          "11",
+          "10",
+          "9",
+          "8",
+          "7"
+        ],
+        [
+          "",
+          "2nd Round:",
+          "BCN19",
+          "NOPLEX",
+          "SPANKTR0N",
+          "PoisonxPoptart",
+          "Mavbrid",
+          "Gingy"
+        ],
+        [
+          "",
+          "",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
+          "18"
+        ],
+        [
+          "",
+          "3rd Round:",
+          "Scullen cx",
+          "Mxrvine",
+          "Dhlyn",
+          "Priest XYZ",
+          "Deathcrawller",
+          "Mr Above Avg"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Free Sub Pool"
+        ],
+        [
+          "",
+          "Gamertag",
+          "Skill Estimate",
+          "Last Season",
+          "Region",
+          "Input",
+          "",
+          "Captains"
+        ],
+        [
+          "",
+          "Ace B S1lentND1",
+          "S",
+          "",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "E",
+          "",
+          "NA EAST",
+          "Controller",
+          "",
+          "Gamertag"
+        ],
+        [
+          "",
+          "Almighty Tycoon",
+          "E",
+          "E+",
+          "NA WEST",
+          "Controller",
+          "",
+          "Hells Angel cx"
+        ],
+        [
+          "",
+          "ArtistKnownAs1K",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "Controller",
+          "",
+          "Snipezz"
+        ],
+        [
+          "",
+          "AwareMosquito",
+          "D",
+          "C",
+          "EU",
+          "Controller",
+          "",
+          "Chemical"
+        ],
+        [
+          "w",
+          "BCN19",
+          "C",
+          "",
+          "NA WEST",
+          "Controller",
+          "",
+          "Cosmos"
+        ],
+        [
+          "",
+          "BIG AL 60",
+          "D",
+          "D-",
+          "NA EAST",
+          "M&K",
+          "",
+          "ill shrek u"
+        ],
+        [
+          "",
+          "Brandonator24",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "M&K",
+          "",
+          "yLuxe"
+        ],
+        [
+          "",
+          "Buddha GVO",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "M&K"
+        ],
+        [
+          "",
+          "BuhBuhGuh",
+          "E",
+          "",
+          "NA CENTRAL",
+          "Controller"
+        ],
+        [
+          "",
+          "CaptainSev004",
+          "D",
+          "D+",
+          "EU",
+          "Controller",
+          "TRADES"
+        ],
+        [
+          "",
+          "Clydrohsun",
+          "E",
+          "",
+          "NA WEST",
+          "M&K"
+        ],
+        [
+          "",
+          "Coded Fps",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "C",
+          "B",
+          "NA CENTRAL",
+          "Hybird",
+          "Chemical Receives",
+          "Shrek Receives"
+        ],
+        [
+          "",
+          "DFinedBeauty",
+          "UNKNOWN",
+          "",
+          "NA CENTRAL",
+          "Controller",
+          "Pick 8, 17",
+          "Pick 10, 15"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "C",
+          "B",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "Doerstopper",
+          "E",
+          "",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "Dveo",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Gingy",
+          "A",
+          "B+",
+          "NA CENTRAL",
+          "Controller"
+        ],
+        [
+          "",
+          "GodlyFGC",
+          "D",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Grunt Padre",
+          "D",
+          "E",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Havoc Puppies",
+          "C",
+          "C",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "II Panther Lily",
+          "D",
+          "C-",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "ImmensePoll",
+          "E",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "imtehz1337",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Inactive Spoon",
+          "D",
+          "C",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "IReign 7",
+          "C",
+          "C+",
+          "NA CENTRAL",
+          "Controller"
+        ],
+        [
+          "",
+          "itsriske",
+          "E",
+          "E-",
+          "NA WEST",
+          "Hybird"
+        ],
+        [
+          "",
+          "JollyJlhadst",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "KDSkill",
+          "B",
+          "C",
+          "NA WEST",
+          "Hybird"
+        ],
+        [
+          "",
+          "KindredDaedric",
+          "D",
+          "D",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "lHarveyBirdmanl",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "A",
+          "S+",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Memorized",
+          "D",
+          "",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Mr Above Avg",
+          "D",
+          "",
+          "NA CENTRAL",
+          "Controller"
+        ],
+        [
+          "",
+          "Mr Epic Beast",
+          "D",
+          "C-",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "MuNgO PuNgO",
+          "D",
+          "C-",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "mxrvine",
+          "C",
+          "B-",
+          "EU/ NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "MysticalNovice",
+          "S",
+          "A",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "NecessaryEvil10",
+          "D",
+          "D",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Nkotb4evah",
+          "C",
+          "C",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "NOPLEX",
+          "C",
+          "C-",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "oDhmon",
+          "C",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "pacfan010",
+          "E",
+          "F",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "PoisonxPoptart",
+          "B",
+          "B",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Priest XYZ",
+          "C",
+          "B+",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "PsyDucky54",
+          "C",
+          "C+",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "RECEPTOR 17",
+          "UNKNOWN",
+          "",
+          "EU",
+          "Controller"
+        ],
+        [
+          "",
+          "Rechargen",
+          "C",
+          "B-",
+          "EU",
+          "Controller"
+        ],
+        [
+          "",
+          "Roswiitha",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Sabasauros rex",
+          "S",
+          "S-",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "SaltyPeterBread",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Sauted Smurf",
+          "D",
+          "D+",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "ScrappyDoes",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Scullen cx",
+          "B",
+          "A-",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "Senpai Rebs",
+          "E",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Solace VIII",
+          "A",
+          "A-",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "SPANKTR0N",
+          "B",
+          "C-",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "TcT Avenger",
+          "C",
+          "C+",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "Trespa5s",
+          "D",
+          "D-",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "VinnyHaw",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "xXTHEChickenGod",
+          "E",
+          "",
+          "NA CENTRAL",
+          "Controller"
+        ]
+      ]
+    },
+    {
+      "name": "Legacy Draft Sheet",
+      "hidden": false,
+      "rowCount": 46,
+      "colCount": 10,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "AGLA Legacy SML25 SEASON"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:"
+        ],
+        [
+          "",
+          "Captain",
+          "ActiveHate",
+          "KindredDaedric",
+          "Sauted Smurf",
+          "NecessaryEvil10",
+          "Memorized",
+          "Nkotb4evah",
+          "IReign 7",
+          "Rechargen"
+        ],
+        [
+          "",
+          "Player 1",
+          "Havoc Puppies",
+          "CaptainSev004",
+          "MuNgO PuNgO",
+          "Inactive Spoon",
+          "Grunt Padre",
+          "Senpai Rebs",
+          "Mr Epic Beast",
+          "TcT Avenger"
+        ],
+        [
+          "",
+          "Player 2",
+          "AwareMosquito",
+          "PsyDucky54",
+          "II Panther Lily",
+          "Doerstopper",
+          "DfinedBeauty ",
+          "SaltyPeterBread",
+          "itsRiskE",
+          "BIG AL 60"
+        ],
+        [
+          "",
+          "Player 3",
+          "Almighty Tycoon",
+          "Dveo",
+          "BuhBuhGuh",
+          "Trespa5s",
+          "Roswiitha",
+          "ScrappyDoes",
+          "Coded Fps",
+          "Godly FGC"
+        ],
+        [
+          "",
+          "Player 4",
+          "IHarveyBirdmanI",
+          "JollyJihadist",
+          "ImmensePoll",
+          "Clydroshun",
+          "xXTHEChickenGod",
+          "pacfan010",
+          "Buddha GVO",
+          "VinnyHaw"
+        ],
+        [
+          "",
+          "Gamertag",
+          "Skill Estimate",
+          "Last Season",
+          "Region",
+          "Input",
+          "Captains",
+          "Free Sub Pool"
+        ],
+        [
+          "",
+          "Almighty Tycoon",
+          "E",
+          "E+",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "ArtistKnownAs1K",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "Controller",
+          "Gamertag",
+          "RECEPTOR 17 (ActiveHate)"
+        ],
+        [
+          "",
+          "AwareMosquito",
+          "D",
+          "C",
+          "EU",
+          "Controller",
+          "ActiveHate",
+          "imtehz1337 (KindredDaedric)"
+        ],
+        [
+          "",
+          "BIG AL 60",
+          "D",
+          "D-",
+          "NA EAST",
+          "M&K",
+          "KindredDaedric",
+          "Brandonator24 (Sauted Smurf)"
+        ],
+        [
+          "",
+          "Brandonator24",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "M&K",
+          "Sauted Smurf",
+          "ArtistKnownAs1K (NecessaryEvil10)"
+        ],
+        [
+          "",
+          "Buddha GVO",
+          "E",
+          "",
+          "NA WEST",
+          "M&K",
+          "NecessaryEvil10"
+        ],
+        [
+          "",
+          "BuhBuhGuh",
+          "E",
+          "",
+          "NA CENTRAL",
+          "Controller",
+          "Memorized"
+        ],
+        [
+          "",
+          "CaptainSev004",
+          "D",
+          "D+",
+          "EU",
+          "Controller",
+          "Nkotb4evah"
+        ],
+        [
+          "",
+          "Clydrohsun",
+          "E",
+          "",
+          "NA WEST",
+          "M&K",
+          "IReign 7"
+        ],
+        [
+          "",
+          "Coded Fps",
+          "E-",
+          "",
+          "NA EAST",
+          "Controller",
+          "Rechargen"
+        ],
+        [
+          "",
+          "DFinedBeauty",
+          "E",
+          "",
+          "NA CENTRAL",
+          "Controller"
+        ],
+        [
+          "",
+          "Doerstopper",
+          "E",
+          "",
+          "NA CENTRAL",
+          "M&K"
+        ],
+        [
+          "",
+          "Dveo",
+          "D",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "GodlyFGC",
+          "D",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Grunt Padre",
+          "D",
+          "E",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "Havoc Puppies",
+          "C+",
+          "C",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "II Panther Lily",
+          "D",
+          "C-",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "ImmensePoll",
+          "E",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "imtehz1337",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Inactive Spoon",
+          "D",
+          "C",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "itsriske",
+          "E",
+          "E-",
+          "NA WEST",
+          "Hybird"
+        ],
+        [
+          "",
+          "JollyJlhadst",
+          "C",
+          "",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "lHarveyBirdmanl",
+          "UNKNOWN",
+          "",
+          "NA WEST",
+          "Hybird"
+        ],
+        [
+          "",
+          "Mr Epic Beast",
+          "D",
+          "C-",
+          "NA WEST",
+          "Controller"
+        ],
+        [
+          "",
+          "MuNgO PuNgO",
+          "D",
+          "C-",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "pacfan010",
+          "E",
+          "F",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "PsyDucky54",
+          "C",
+          "C+",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "RECEPTOR 17",
+          "E",
+          "",
+          "EU",
+          "Controller"
+        ],
+        [
+          "",
+          "Roswiitha",
+          "D",
+          "",
+          "NA EAST",
+          "Controller"
+        ],
+        [
+          "",
+          "SaltyPeterBread",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "ScrappyDoes",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "Senpai Rebs",
+          "D+",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "TcT Avenger",
+          "C",
+          "C+",
+          "NA CENTRAL",
+          "Hybird"
+        ],
+        [
+          "",
+          "Trespa5s",
+          "D",
+          "D-",
+          "NA EAST",
+          "Hybird"
+        ],
+        [
+          "",
+          "VinnyHaw",
+          "UNKNOWN",
+          "",
+          "NA EAST",
+          "M&K"
+        ],
+        [
+          "",
+          "xXTHEChickenGod",
+          "E",
+          "",
+          "NA CENTRAL",
+          "Controller"
+        ]
+      ]
+    },
+    {
+      "name": "Alt Draft Sheet",
+      "hidden": true,
+      "rowCount": 55,
+      "colCount": 16,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "HALO INFINITE SPRING LEAGUE 2024 GRIFBALL SEASON"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:",
+          "Buff Oily Men (& Women)",
+          "Post Grif Depression",
+          "Crazy Guys",
+          "Sarge’s Squad",
+          "Operation: Doomsday",
+          "Angry Duck Noises",
+          "Puffy Grifbussy",
+          "Skill Diff",
+          "GET SHREKT",
+          "Separate Intelligence",
+          "Paradox Warriors",
+          "Moist grapefruit"
+        ],
+        [
+          "",
+          "Captain:",
+          "commandstation",
+          "DMar7in69",
+          "Sauted Smurf",
+          "NecessaryEvil10",
+          "Deathcrawller",
+          "PsyDucky54",
+          "iNF3ktioN",
+          "KDSkill",
+          "ill shrek u",
+          "Dhlyn",
+          "PoisonxPoptart",
+          "IxGingy "
+        ],
+        [
+          "",
+          "",
+          "D-",
+          "",
+          "E-",
+          "F+",
+          "E+",
+          "D",
+          "B-",
+          "C+",
+          "S+",
+          "B",
+          "B-",
+          "A+"
+        ],
+        [
+          "",
+          "1st Round:",
+          "MysticalNovice",
+          "Ace B S1lentND1",
+          "ASpence501",
+          "Fanciest Pants",
+          "Solace VIII",
+          "Mavbrid",
+          "SPANKTR0N",
+          "Sabasauros rex",
+          "Papasnipezx ",
+          "Scullen cx",
+          "Sherbetshake",
+          "Icey Tanker"
+        ],
+        [
+          "",
+          "",
+          "B",
+          "S+",
+          "S+",
+          "A",
+          "A",
+          "S",
+          "S-",
+          "A+",
+          "S",
+          "A-",
+          "B+",
+          "D-"
+        ],
+        [
+          "",
+          "2nd Round:",
+          "oh zilly",
+          "Invayda Zim",
+          "TommyWestSide",
+          "TJP37",
+          "Chemical",
+          "DCleak",
+          "Hells Angel cx",
+          "MuNgO PuNgO",
+          "Cosmos5024 ",
+          "Its Rainin Menz",
+          "Inactive Spoon",
+          "Mr epic beast"
+        ],
+        [
+          "",
+          "",
+          "B+",
+          "S-",
+          "B-",
+          "D",
+          "C+",
+          "D+",
+          "A",
+          "C",
+          "A-",
+          "E-",
+          "D+",
+          "C-"
+        ],
+        [
+          "",
+          "3rd Round:",
+          "CaptainSev004",
+          "NOPLEX ",
+          "Grunt Padre",
+          "Reyas",
+          "Doerstopper",
+          "IReign 77",
+          "AwareMosquito",
+          "Listless DK",
+          "TcT AVENGER",
+          "El Diablo X230X",
+          "I iTz Bear I",
+          "JOEPRO v2"
+        ],
+        [
+          "",
+          "",
+          "E+",
+          "E",
+          "C",
+          "D+",
+          "E",
+          "F+",
+          "C-",
+          "F",
+          "F",
+          "F-",
+          "F-",
+          "E"
+        ],
+        [
+          "",
+          "4th Round:",
+          "GamezoWinselot",
+          "Trespa5s",
+          "OREOTHECAT5618"
+        ],
+        [
+          "",
+          "",
+          "",
+          "F-"
+        ],
+        [
+          "",
+          "Draft Pool",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Captains",
+          " "
+        ],
+        [
+          "",
+          "Gamertag",
+          "Skill Estimate",
+          "Last Season",
+          "Current Season",
+          "Region",
+          "Experience:",
+          "",
+          "",
+          "",
+          "",
+          "Gamertag",
+          "",
+          "1"
+        ],
+        [
+          "",
+          "Ace B S1lentND1",
+          "S",
+          "S",
+          "S+",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "IxGingy ",
+          "Banned Player List"
+        ],
+        [
+          "",
+          "ASpence501",
+          "S",
+          "S",
+          "S+",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Dhlyn",
+          "DMar7in69",
+          "",
+          "",
+          "Free Sub Pool"
+        ],
+        [
+          "",
+          "AwareMosquito",
+          "D",
+          "D",
+          "C-",
+          "North Europe",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "PoisonxPoptart"
+        ],
+        [
+          "",
+          "CaptainSev004",
+          "C",
+          "C",
+          "E+",
+          "North Europe",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Deathcrawller"
+        ],
+        [
+          "",
+          "Chemical",
+          "B",
+          "",
+          "C+",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "KDSkill"
+        ],
+        [
+          "",
+          "Cosmos5024 ",
+          "D",
+          "",
+          "A-",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "commandstation "
+        ],
+        [
+          "",
+          "DCleak",
+          "C",
+          "C-",
+          "D+",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Sauted Smurf"
+        ],
+        [
+          "",
+          "Doerstopper",
+          "E",
+          "E-",
+          "E",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ill shrek u"
+        ],
+        [
+          "",
+          "El Diablo X230X",
+          "D",
+          "",
+          "F-",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "DMar7in69"
+        ],
+        [
+          "",
+          "Fanciest Pants",
+          "B",
+          "A",
+          "A",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "PsyDucky54"
+        ],
+        [
+          "",
+          "GamezoWinselot",
+          "E",
+          "",
+          "",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "NecessaryEvil10"
+        ],
+        [
+          "",
+          "Grunt Padre",
+          "C",
+          "C",
+          "C",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "iNF3ktioN"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "B",
+          "",
+          "A",
+          "East North America"
+        ],
+        [
+          "",
+          "I iTz Bear I",
+          "E",
+          "",
+          "F-",
+          "West North America"
+        ],
+        [
+          "",
+          "Icey Tanker",
+          "B",
+          "",
+          "D-",
+          "West North America"
+        ],
+        [
+          "",
+          "Inactive Spoon",
+          "C",
+          "",
+          "D+",
+          "East North America"
+        ],
+        [
+          "",
+          "Invayda Zim",
+          "A",
+          "",
+          "S-",
+          "Central North America"
+        ],
+        [
+          "",
+          "IReign 77",
+          "D",
+          "",
+          "F+",
+          "Central North America"
+        ],
+        [
+          "",
+          "Its Rainin Menz",
+          "C",
+          "E+",
+          "E-",
+          "East North America"
+        ],
+        [
+          "",
+          "JOEPRO v2",
+          "UNKNOWN",
+          "",
+          "E",
+          "West North America"
+        ],
+        [
+          "",
+          "Listless DK",
+          "UNKNOWN",
+          "",
+          "F",
+          "West North America"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "A",
+          "A+",
+          "S",
+          "East North America"
+        ],
+        [
+          "",
+          "Mr epic beast",
+          "C",
+          "C+",
+          "C-",
+          "West North America"
+        ],
+        [
+          "",
+          "MuNgO PuNgO",
+          "C",
+          "D+",
+          "C",
+          "East North America"
+        ],
+        [
+          "",
+          "MysticalNovice",
+          "S",
+          "S",
+          "B",
+          "West North America"
+        ],
+        [
+          "",
+          "NOPLEX ",
+          "C",
+          "C-",
+          "E",
+          "Central North America"
+        ],
+        [
+          "",
+          "oh zilly",
+          "B",
+          "B+",
+          "B+",
+          "Central North America"
+        ],
+        [
+          "",
+          "OREOTHECAT5618",
+          "E",
+          "F-",
+          "",
+          "Australia"
+        ],
+        [
+          "",
+          "Papasnipezx ",
+          "A",
+          "",
+          "S",
+          "Central North America"
+        ],
+        [
+          "",
+          "Reyas",
+          "C",
+          "",
+          "D+",
+          "North Europe"
+        ],
+        [
+          "",
+          "Sabasauros rex",
+          "A",
+          "",
+          "A+",
+          "East North America"
+        ],
+        [
+          "",
+          "Scullen cx",
+          "A",
+          "A+",
+          "A-",
+          "Central North America"
+        ],
+        [
+          "",
+          "Sherbetshake",
+          "B",
+          "",
+          "B+",
+          "Central North America"
+        ],
+        [
+          "",
+          "Solace VIII",
+          "A",
+          "",
+          "A",
+          "Central North America"
+        ],
+        [
+          "",
+          "SPANKTR0N",
+          "A",
+          "A-",
+          "S-",
+          "Central North America"
+        ],
+        [
+          "",
+          "TcT AVENGER",
+          "D",
+          "",
+          "F",
+          "Central North America"
+        ],
+        [
+          "",
+          "TJP37",
+          "B",
+          "B+",
+          "D",
+          "East North America"
+        ],
+        [
+          "",
+          "TommyWestSide",
+          "A",
+          "A",
+          "B-",
+          "Central North America"
+        ],
+        [
+          "",
+          "Trespa5s",
+          "C",
+          "F-",
+          "F-",
+          "East North America"
+        ]
+      ]
+    },
+    {
+      "name": "Sheet5",
+      "hidden": true,
+      "rowCount": 2,
+      "colCount": 1,
+      "rows": [
+        [
+          "https://docs.google.com/spreadsheets/d/1d-JA1rtr6SsQ3KDwXKl9d69yCGp7i6YiLm1GlgrUU-M/edit#gid=1265428282"
+        ],
+        [
+          "#REF!"
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2189 @@
+{
+  "id": "2023-gwl-sl23-reach-stats",
+  "category": "GWL",
+  "year": 2023,
+  "title": "SL23 Halo Reach Stats",
+  "url": "https://docs.google.com/spreadsheets/d/11cheA4Rt49b97I9fLkROyPxHyZaGz-2e/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Schedule Backup",
+      "hidden": true,
+      "rowCount": 16,
+      "colCount": 10,
+      "sampleHeader": [
+        "AWAY @ HOME",
+        "All Games are Eastern Time (EST)"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/01_Schedule_Backup.csv"
+    },
+    {
+      "index": 2,
+      "name": "Schedule Overview",
+      "hidden": false,
+      "rowCount": 41,
+      "colCount": 19,
+      "sampleHeader": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Actual:",
+        "",
+        "",
+        "WITHOUT LEAST AVAILABLE PLAYER/ bes tplayer"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/02_Schedule_Overview.csv"
+    },
+    {
+      "index": 3,
+      "name": "Delete after check",
+      "hidden": true,
+      "rowCount": 12,
+      "colCount": 11,
+      "sampleHeader": [
+        "",
+        "Mavbrid",
+        "ADhilly",
+        "ActiveHate",
+        "Dior Glori",
+        "Dhlyn",
+        "Hells Angel",
+        "InfiniRain",
+        "oDhmon",
+        "unbes",
+        "yLuxe"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/03_Delete_after_check.csv"
+    },
+    {
+      "index": 4,
+      "name": "Playoff Bracket",
+      "hidden": false,
+      "rowCount": 15,
+      "colCount": 11,
+      "sampleHeader": [
+        "SL23 PLAYOFFS"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/04_Playoff_Bracket.csv"
+    },
+    {
+      "index": 5,
+      "name": "Playoff Games",
+      "hidden": false,
+      "rowCount": 26,
+      "colCount": 9,
+      "sampleHeader": [
+        " ",
+        "Game",
+        "Top Seed",
+        "Bottom Seed",
+        "Score",
+        "Host",
+        "",
+        "VOD",
+        "Standings"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/05_Playoff_Games.csv"
+    },
+    {
+      "index": 6,
+      "name": "Game Overview",
+      "hidden": false,
+      "rowCount": 76,
+      "colCount": 9,
+      "sampleHeader": [
+        " ",
+        "Home",
+        "Away",
+        "Score",
+        "Map",
+        "Host",
+        "",
+        "VOD",
+        "Standings"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/06_Game_Overview.csv"
+    },
+    {
+      "index": 7,
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 18,
+      "colCount": 10,
+      "sampleHeader": [
+        "AWAY @ HOME",
+        "All Games are Eastern Time (EST)"
+      ],
+      "csvFile": "csv/GWL/2023-gwl-sl23-reach-stats/07_Schedule.csv"
+    }
+  ],
+  "bytes": 64774,
+  "fullSheets": [
+    {
+      "name": "Schedule Backup",
+      "hidden": true,
+      "rowCount": 16,
+      "colCount": 10,
+      "rows": [
+        [
+          "AWAY @ HOME",
+          "All Games are Eastern Time (EST)"
+        ],
+        [
+          "",
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday ",
+          "Saturday (Stream Days)"
+        ],
+        [
+          "March 5th - 11th",
+          "Dior Glori @ unbes                     8PM EST                               ",
+          "InfiniteRainge @ Hells Angel cx 8:15PM EST                                         ",
+          "unbes @ oDhmon                                         8PM EST                                oDhmon @ Dhlyn                       9PM EST                                   yLuxe @ Dhlyn                           10PM EST                                          Dior Glori @ ActiveHate                          10PM EST",
+          "Hells Angel cx @ ADhillyy                            8PM EST                                                                                           Mavbrid @ Dior Glori              9PM EST",
+          "ADhillyy @ ActiveHate                  8PM EST                                    ",
+          "yLuxe @ Dior Glori                  9PM EST                                         ",
+          "ActiveHate @ oDhmon                  7PM EST                                    unbes @ Mavbrid                        8PM EST                                                    ADhillyy @ InfiniteRainge                                              9PM EST                                      Hells Angel cx @ Dior Glori                             10PM EST ",
+          "Blue = Rescheduled Games"
+        ],
+        [
+          "March 12th - 18th",
+          "unbes @ InfiniteRainge                          7PM EST                                                                                                                       Dior Glori @ Mavbrid                            9PM EST                                         ",
+          "Dhlyn @ Hells Angel cx                  8PM EST                                             ActiveHate @ Hells Angel cx                              9PM EST",
+          " ADhillyy @ Dhlyn                                 8PM EST                               InfiniteRainge @ unbes                         8PM EST                         InfiniteRainge @ ActiveHate                          9PM EST                                                 oDhmon @ Hells Angel cx                                 9PM EST",
+          "oDhmon @ InfiniteRainge                          8PM EST                                                     Dior Glori @ Dhlyn                                     9PM EST                                         Dhlyn @ Mavbrid                 10PM EST",
+          "InfiniteRainge @ ADhillyy                8PM EST                                                                                                      ActiveHate @ yLuxe                         10PM EST",
+          " unbes @ InfiniteRainge                          7PM EST                                         Mavbrid @ yLuxe                            9PM EST                               ",
+          "Mavbrid @ unbes                       7PM EST                             Mavbrid @ oDhmon                        8PM EST                                    InfiniteRainge @ yLuxe                      9PM EST                                        ActiveHate @ Dhlyn                        10PM EST"
+        ],
+        [
+          "March 19th - 25th",
+          "yLuxe @ unbes                                7PM EST                                             ADhillyy @ unbes                         8PM EST                               Mavbrid @ ActiveHate                                8PM EST                              ADhillyy @ Dior Glori                    9PM EST",
+          "InfiniteRainge @ Dior Glori                                       8PM EST                                  Mavbrid @ ADhillyy                                    9PM EST                                         InfiniteRainge @ Dhlyn              9PM EST",
+          "Dhlyn @ unbes                                7PM EST                                oDhmon @ ADhillyy                               8PM EST                                              ActiveHate @ Dior Glori                                      9PM EST",
+          " ADhillyy @ yLuxe                               8PM EST                          InfiniteRainge @ oDhmon                       8PM EST                                           ",
+          "ActiveHate @ unbes                          7PM EST                                   Mavbrid @ Hells Angel cx                                          8PM EST                                       ",
+          "Dior Glori @ oDhmon                             9PM EST                             yLuxe @ Hells Angel cx         9PM EST                                         yLuxe @ oDhmon                 10PM EST",
+          "Dhlyn @ ActiveHate                          7PM EST                                  unbes @ ADhillyy                          8PM EST                                         Dior Glori @ Mavbrid                            9PM EST                                         Hells Angel cx @ oDhmon                            10PM EST"
+        ],
+        [
+          "March 26th - April 1st",
+          "unbes @ Hells Angel cx                           8PM EST                               yLuxe @ ADhillyy                                     9PM EST                                            Dhlyn @ ADhilly                        10PM EST",
+          "Hells Angel cx @ ActiveHate                                        8PM EST                                         ADhillyy @ Mavbrid                                 9PM EST                                       Hells Angel cx @ yLuxe                        9PM EST",
+          "yLuxe @ InfiniteRainge              8PM EST                                         ActiveHate @ InfiniteRainge                          9PM EST",
+          " oDhmon @ Dior Glori                                8PM EST                                            ADhillyy @ Hells Angel cx                                                8:30PM EST                                 Dhlyn @ Dior Glori                                  9PM EST                             ",
+          "Mavbrid @ InfiniteRainge                                         8PM EST                                Hells Angel cx @ Dhlyn            9PM EST                              Mavbrid @ Dhlyn                          10PM EST",
+          "unbes @ ActiveHate                                8PM EST                                               Dior Glori @ yLuxe                      9PM EST                                     Dhlyn @ yLuxe                                 10PM EST",
+          "oDhmon @ unbes                     8PM EST                             oDhmon @ Mavbrid                    9PM EST                 InfiniteRainge @ Mavbrid              10PM EST                      "
+        ],
+        [
+          "April 2nd - 8th",
+          "unbes @ yLuxe                              7PM EST                                           unbes @ Dhlyn                               8PM EST                                       Dior Glori @ ADhillyy                       9PM EST",
+          "Hells Angel cx @ InfiniteRainge    8:15PM EST                                   Dhlyn @ InfiniteRainge             9PM EST",
+          "ADhillyy @ oDhmon                               8PM EST                                Dhlyn @ oDhmon                      9PM EST",
+          "yLuxe @ ActiveHate                    9PM EST                                  Dior Glori @ InfiniteRainge                               9PM EST",
+          "Hells Angel cx @ Mavbrid                       8PM EST                                            ActiveHate @ ADhillyy                8PM EST                               ActiveHate @ Mavbrid             9PM EST                                  ",
+          "oDhmon @ ActiveHate                         8PM EST                                           yLuxe @ Mavbrid                                 9PM EST                                      Dior Glori @ Hells Angel cx                             9PM EST",
+          "Hells Angel cx @ unbes                             7PM EST                               oDhmon @ yLuxe                                  10PM EST"
+        ],
+        [
+          "Red - Away                                 Blue - Home",
+          "Mav vs ADhilly                   March 20th 9PM EST        March 27th 9PM EST",
+          "ADhilly vs ActiveHate March 9th 8PM EST  April 6th 8PM EST",
+          "ActiveHate vs Dior Glori          March 7th 10PM EST                March 21st 9PM EST",
+          "Dior Glori vs Dhlyn              March 15th 9PM EST                  March 29th 9PM EST",
+          "Dhlyn vs Hells Angel cx                    March 30th 9PM EST                                March 13th 8PM EST",
+          "Hells Angel cx vs InfiniteRainge                    April 3rd 8PM EST                                March 6th 8PM EST    ",
+          "InfiniteRainge vs oDhmon                                March 22th 8PM EST                      March 15th 8PM EST",
+          "oDhmon vs unbes                            April 1st 8PM EST                             March 7th 8PM EST",
+          "unbes vs yLuxe                     April 2nd 7PM EST                          March 19th 7PM EST"
+        ],
+        [
+          "",
+          "Mav vs ActiveHate                  March 19th 8PM EST           April 6th 9PM EST",
+          "ADhilly vs Dior Glori April 2nd 9PM EST       March 19th 9PM EST",
+          "ActiveHate vs Dhlyn              March 25th 7PM EST              March 18th  10PM EST",
+          "Dior Glori vs Hells Angel cx                                     March 11th 10PM EST                        April 7th 9PM EST",
+          "Dhlyn vs InfiniteRainge                             April 3rd 9PM EST                    March 20th 9PM EST",
+          "Hells Angel cx vs oDhmon                  March 25th 10PM EST                 March 14th 9PM EST",
+          "InfiniteRainge vs unbes                March 14th 8PM EST                 March 17th 7PM EST",
+          "oDhmon vs yLuxe             April 8th 10PM EST                   March 24th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Dior Glori                     March 8th 9PM EST                                 March 25th 9PM EST         ",
+          "ADhilly vs Dhlyn             March 26th 10PM EST            March 14th 8PM EST",
+          "ActiveHate vs Hells Angel cx                       March 13th 9PM EST            March 27th 8PM EST",
+          "Dior Glori vs InfiniteRainge                    April 5th 9PM EST                March 20th 8PM EST",
+          "Dhlyn vs oDhmon                March 7th 9PM EST                  April 4th 9PM EST",
+          "Hells Angel cx vs unbes              April 8th 7PM EST                March 26th 8PM EST",
+          "InfiniteRainge vs yLuxe              March 28th 8PM EST                       March 18th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Dhlyn            March 15th 10PM EST              March 30th 10PM EST",
+          "ADhilly vs Hells Angel cx  March 8th 8PM EST            March 29th 8:30PM EST",
+          "ActiveHate vs InfiniteRainge                March 28th 9PM EST                       March 14th 9PM EST",
+          "Dior Glori vs oDhmon                     March 24h 9PM EST                     March 29th 8PM EST",
+          "Dhlyn vs unbes                     April 2nd 8PM EST                   March 21th 7PM EST",
+          "Hells Angel cx vs yLuxe                March 24th 9PM EST                  March 27th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Hells Angel cx March 23th 8PM EST             April 6th 8PM EST",
+          "ADhilly vs InfiniteRainge        March 16th 8PM EST              March 11th 9PM EST",
+          "ActiveHate vs oDhmon                   March 11th 7PM EST           April 7th 8PM EST",
+          "Dior Glori vs unbes       March 5th 8PM EST                          March 12th 7PM EST",
+          "Dhlyn vs yLuxe                       March 31st 10PM EST                        March 7th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs InfiniteRainge        April 1st 10PM EST         March 30th 8PM EST",
+          "ADhilly vs oDhmon    March 21st 8PM EST                April 4th 8PM EST ",
+          "ActiveHate vs unbes                March 31st 8PM EST                March 23th 7PM EST",
+          "Dior Glori vs yLuxe            March 10th 9PM EST                      March 31st 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs oDhmon                        April 1st 9PM EST          March 18th 8PM EST",
+          "ADhilly vs unbes March 19th 8PM EST    March 25th 8PM EST",
+          "ActiveHate vs yLuxe                April 5th 9PM EST             March 16th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs unbes               March 18th 7PM EST               March 11th 8PM EST",
+          "ADhilly vs yLuxe                  March 22th 8PM EST          March 26th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs yLuxe              March 17th 9PM EST                 April 7th 9PM EST"
+        ]
+      ]
+    },
+    {
+      "name": "Schedule Overview",
+      "hidden": false,
+      "rowCount": 41,
+      "colCount": 19,
+      "rows": [
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Actual:",
+          "",
+          "",
+          "WITHOUT LEAST AVAILABLE PLAYER/ bes tplayer"
+        ],
+        [
+          "",
+          "",
+          "Mavbrid (C)",
+          "Everyday 7-10PM",
+          "",
+          "",
+          "",
+          "",
+          "Wednesdays,Thursdays, 10PM EST",
+          "",
+          "",
+          "",
+          "Mavbrid (C)",
+          "Everyday 7-10PM",
+          "",
+          "",
+          "",
+          "",
+          "Mondays - Thursdays 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Judasey",
+          "Mondays-Thursdays, 7-10PM EST\t\t",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Judasey",
+          "Mondays-Thursdays, 7-10PM EST\t\t"
+        ],
+        [
+          "",
+          "",
+          "MysticalNovice",
+          "Sundays, Wednesdays-Saturdays, 10PM EST [Can play before 10PM most days]",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "MysticalNovice",
+          "Sundays, Wednesdays-Saturdays, 10PM EST"
+        ],
+        [
+          "",
+          "",
+          "MoldyVolts",
+          "Everyday, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "MoldyVolts",
+          "Everyday, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "ADhillyy (C)",
+          "Mondays-Thursdays, 8-9PM EST (Can play whenever)",
+          "",
+          "",
+          "",
+          "",
+          "Never",
+          "",
+          "",
+          "",
+          "ADhillyy (C)",
+          "Mondays-Thursdays, 8-9PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Mondays - Thursdays, 8-9PM EST"
+        ],
+        [
+          "",
+          "",
+          "Finesse God24",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Finesse God24",
+          "Everyday, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Mhurcy",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Mhurcy",
+          "Everyday, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "L0rna Shore",
+          "Sundays, Saturdays, 7-10PM EST (Can play 6-8PM EST Weekdays)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "L0rna Shore",
+          "Sundays, Saturdays, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "ActiveHate (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Never",
+          "",
+          "",
+          "",
+          "ActiveHate (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Sundays, Thursdays, Fridays, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "DIGITAL PAIN",
+          "Sundays, Thursdays, Fridays, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "DIGITAL PAIN",
+          "Sundays, Thursdays, Fridays, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Solace VIII",
+          "Sundays, Mondays, Saturdays, 7-10PM EST (No Tuesday-Friday)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Solace VIII",
+          "Sundays, Mondays, Saturdays, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "EllisGotMyPills",
+          "Mondays-Fridays, 7PM EST (Can play weekends perfer not too, same with 8pm EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "EllisGotMyPills",
+          "Mondays-Fridays, 7PM EST"
+        ],
+        [
+          "",
+          "",
+          "Dior Glori (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Sundays, Fridays, Saturdays, 9PM EST",
+          "",
+          "",
+          "",
+          "Dior Glori (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Sundays, Fridays, Saturdays, 9PM EST"
+        ],
+        [
+          "",
+          "",
+          "Cell x2",
+          "Everyday, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Cell x2",
+          "Everyday, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "MealyKitten0",
+          "Sundays, Fridays, Saturdays, 9PM EST (Can make before 9)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "MealyKitten0",
+          "Sundays, Fridays, Saturdays, 9PM EST"
+        ],
+        [
+          "",
+          "",
+          "Luner Panda",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Luner Panda",
+          "Everyday, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Dhlyn (C)",
+          "Sundays-Thursdays, 10PM EST       (Tuesdays-Wednesdays ur off)",
+          "",
+          "",
+          "",
+          "",
+          "Never",
+          "",
+          "",
+          "",
+          "Dhlyn (C)",
+          "Sundays-Thursdays, 10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Sundays-Thursdays 9-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Itzreelz",
+          "Everyday, 7-8PM EST (Can play after 8 not perferred)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Itzreelz",
+          "Everyday, 7-8PM EST"
+        ],
+        [
+          "",
+          "",
+          "Lane Uppy",
+          "Everyday, 10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Lane Uppy",
+          "Everyday, 10PM EST"
+        ],
+        [
+          "",
+          "",
+          "sshank hill",
+          "Everyday, 9-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "sshank hill",
+          "Everyday, 9-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Hells Angel cx (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Mondays,Tuesdays, Thursdays-Saturdays 8-9PM EST",
+          "",
+          "",
+          "",
+          "Hells Angel cx (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Mondays - Saturdays 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Genesiology",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Genesiology",
+          "Everyday, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Scullen cx",
+          "Mondays-Saturdays, 8-10PM EST (Can play sundays, perfer not too)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Scullen cx",
+          "Mondays-Saturdays, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "TommyWstSide",
+          "Sundays-Tuesdays, Thursdays-Saturdays, 7-9PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "TommyWstSide",
+          "Sundays-Tuesdays, Thursdays-Saturdays, 7-9PM EST"
+        ],
+        [
+          "",
+          "",
+          "InfiniteRainge (C)",
+          "Mondays-Thursdays, 8PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Mondays-Thursdays, 8PM EST"
+        ],
+        [
+          "",
+          "",
+          "L1ght5aber",
+          "Mondays-Saturdays, 8-10PM EST\t\t"
+        ],
+        [
+          "",
+          "",
+          "CaptainSev004",
+          "Everyday, 7-9PM EST, Subject to Change."
+        ],
+        [
+          "",
+          "",
+          "Doerstopper",
+          "Everyday, 9-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "oDhmon (C)",
+          "Tuesdays, Thursdays, Fridays, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "\nNever",
+          "",
+          "",
+          "",
+          "oDhmon (C)",
+          "Tuesdays, Thursdays, Fridays, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "\nTuesdays-Saturdays 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "ixGingy",
+          "Sundays, Wednesdays, Fridays, Saturdays, 7-8PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ixGingy",
+          "Sundays, Wednesdays, Fridays, Saturdays, 7-8PM EST"
+        ],
+        [
+          "",
+          "",
+          "zahils",
+          "Everyday, 8-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "zahils",
+          "Everyday, 8-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "Laser Wins",
+          "Sundays, Mondays, 10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Laser Wins",
+          "Sundays, Mondays, 10PM EST"
+        ],
+        [
+          "",
+          "",
+          "unbes (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Never ",
+          "",
+          "",
+          "",
+          "unbes (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Saturdays, Sundays 7-8PM EST"
+        ],
+        [
+          "",
+          "",
+          "Impuritive",
+          "Saturdays, Sundays, 7PM EST [Hard Stuck Weekends]",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Impuritive",
+          "Saturdays, Sundays, 7PM EST"
+        ],
+        [
+          "",
+          "",
+          "Zelynthia",
+          "Everyday, 10PM EST\t\t",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Zelynthia",
+          "Everyday, 10PM EST\t\t"
+        ],
+        [
+          "",
+          "",
+          "OhhMy Misery",
+          "Tuesdays, Wednesdays, Thursdays, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "OhhMy Misery",
+          "Tuesdays, Wednesdays, Thursdays, 7-10PM EST"
+        ],
+        [
+          "",
+          "",
+          "yLuxe (C)",
+          "Everyday, 7-10PM EST",
+          "",
+          "",
+          "",
+          "",
+          "Fridays, Saturdays 7-9PM EST"
+        ],
+        [
+          "",
+          "",
+          "Godsnipezx",
+          "Everyday, 7-9PM EST"
+        ],
+        [
+          "",
+          "",
+          "ASpence501",
+          "Fridays, Saturdays. 7-9PM EST"
+        ],
+        [
+          "",
+          "",
+          "Almighty Tycoon",
+          "Sundays, Fridays, Saturdays. 7-9PM EST"
+        ]
+      ]
+    },
+    {
+      "name": "Delete after check",
+      "hidden": true,
+      "rowCount": 12,
+      "colCount": 11,
+      "rows": [
+        [
+          "",
+          "Mavbrid",
+          "ADhilly",
+          "ActiveHate",
+          "Dior Glori",
+          "Dhlyn",
+          "Hells Angel",
+          "InfiniRain",
+          "oDhmon",
+          "unbes",
+          "yLuxe"
+        ],
+        [
+          "Mavbrid",
+          "",
+          "3/27 9pm",
+          "4/6 9pm",
+          "3/25 9pm",
+          "3/16 9pm",
+          "4/6 8pm",
+          "4/1 10pm",
+          "4/1 9pm",
+          "3/26 7pm",
+          "4/7 9pm"
+        ],
+        [
+          "ADhilly",
+          "3/20 9pm",
+          "",
+          "4/6 8pm",
+          "4/2 9pm",
+          "3/8 8pm"
+        ],
+        [
+          "ActiveHate",
+          "3/19 8pm",
+          "3/9 8pm",
+          "",
+          "3/7 10pm",
+          "3/25 7pm"
+        ],
+        [
+          "Dior Glori",
+          "3/8 9pm",
+          "3/19 9pm",
+          "3/21 9pm",
+          "",
+          "3/29 9pm"
+        ],
+        [
+          "Dhlyn",
+          "3/30 10pm",
+          "3/12 8pm",
+          "3/18 10pm",
+          "3/15 9pm"
+        ],
+        [
+          "Hells Angel",
+          "3/23 8pm",
+          "3/29 8:30pm",
+          "3/28 9pm",
+          "4/7 9pm",
+          "3/13 8pm"
+        ],
+        [
+          "InfiniRain",
+          "3/30 8pm",
+          "3/11 9pm",
+          "3/28 9pm",
+          "4/5 9pm",
+          "4/3 9pm",
+          "4/3 8pm"
+        ],
+        [
+          "oDhmon",
+          "3/18 8pm",
+          "4/4 8pm",
+          "3/11 7pm",
+          "3/24 9pm",
+          "4/4 9pm",
+          "3/25 10pm",
+          "3/22 8pm"
+        ],
+        [
+          "unbes",
+          "3/18 7pm",
+          "3/19 8pm",
+          "3/23 7pm",
+          "3/5 8pm",
+          "3/11 8pm",
+          "4/8 7pm",
+          "3/14 8pm"
+        ],
+        [
+          "yLuxe",
+          "3/17 9pm",
+          "3/22 8pm",
+          "3/16 10pm",
+          "3/31 9pm",
+          "3/31 10pm",
+          "3/27 9pm",
+          "3/18 9pm"
+        ],
+        [
+          "",
+          "Red",
+          "Away",
+          "",
+          "Blue ",
+          "Home"
+        ]
+      ]
+    },
+    {
+      "name": "Playoff Bracket",
+      "hidden": false,
+      "rowCount": 15,
+      "colCount": 11,
+      "rows": [
+        [
+          "SL23 PLAYOFFS"
+        ],
+        [
+          "",
+          "Bo5",
+          "",
+          "",
+          "Bo5",
+          "",
+          "",
+          "Bo7",
+          "",
+          "",
+          "Champions"
+        ],
+        [
+          "",
+          "Quarter-Finals ",
+          "",
+          "",
+          "Semi-Finals",
+          "",
+          "",
+          "Championship",
+          "",
+          "",
+          "Winner"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "Tips N Tricks (1)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "3-2 Rated R"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Rated R (4)"
+        ],
+        [
+          "",
+          "Rated R (4)"
+        ],
+        [
+          "",
+          "3-1 Rated R",
+          "",
+          "",
+          "Rated R (4)"
+        ],
+        [
+          "",
+          "Hammers N Roses (5)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "4-1 Like Clockwork",
+          "",
+          "",
+          "Like Clockwork"
+        ],
+        [
+          "",
+          "Do It Fart? (3)"
+        ],
+        [
+          "",
+          "3-0 Yodie Gang",
+          "",
+          "",
+          "Yodie Gang (6)"
+        ],
+        [
+          "",
+          "Yodie Gang (6)",
+          "",
+          "",
+          "3-0 Like Clockwork"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Like Clockwork (2)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "Like Clockwork (2)"
+        ]
+      ]
+    },
+    {
+      "name": "Playoff Games",
+      "hidden": false,
+      "rowCount": 26,
+      "colCount": 9,
+      "rows": [
+        [
+          " ",
+          "Game",
+          "Top Seed",
+          "Bottom Seed",
+          "Score",
+          "Host",
+          "",
+          "VOD",
+          "Standings"
+        ],
+        [
+          "",
+          "Quarter Finals (Seed 3 vs Seed 6)  Yodie Gang 3-0"
+        ],
+        [
+          "",
+          "Game 1",
+          "Do It Fart?",
+          "Yodie Gang",
+          "0-5",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 2",
+          "Do It Fart?",
+          "Yodie Gang",
+          "0-5",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 3",
+          "Do It Fart?",
+          "Yodie Gang",
+          "4-5",
+          "South Central"
+        ],
+        [
+          "",
+          "Quarter Finals (Seed 4 vs Seed 5)  Rated R 3-1 "
+        ],
+        [
+          "",
+          "Game 1",
+          "Rated R",
+          "Hammers N Roses",
+          "5-1",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 2",
+          "Rated R",
+          "Hammers N Roses",
+          "2-5",
+          "East"
+        ],
+        [
+          "",
+          "Game 3",
+          "Rated R",
+          "Hammers N Roses",
+          "5-3",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 4",
+          "Rated R",
+          "Hammers N Roses",
+          "5-2",
+          "East"
+        ],
+        [
+          "",
+          "Semi Finals (Seed 2 vs Seed 6)  Like Clockwork 3-0"
+        ],
+        [
+          "",
+          "Game 1",
+          "Like Clockwork",
+          "Yodie Gang",
+          "5-3",
+          "East"
+        ],
+        [
+          "",
+          "Game 2",
+          "Like Clockwork",
+          "Yodie Gang",
+          "5-2",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 3",
+          "Like Clockwork",
+          "Yodie Gang",
+          "5-4",
+          "East"
+        ],
+        [
+          "",
+          "Semi Finals (Seed 1 vs Seed 4)  Rated R 3-2"
+        ],
+        [
+          "",
+          "Game 1",
+          "Tips N Tricks",
+          "Rated R",
+          "1-5",
+          "East"
+        ],
+        [
+          "",
+          "Game 2",
+          "Tips N Tricks",
+          "Rated R",
+          "5-3",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 3",
+          "Tips N Tricks",
+          "Rated R",
+          "5-2",
+          "East"
+        ],
+        [
+          "",
+          "Game 4",
+          "Tips N Tricks",
+          "Rated R",
+          "3-5",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 5",
+          "Tips N Tricks",
+          "Rated R",
+          "2-5",
+          "East"
+        ],
+        [
+          "",
+          "Finals (Seed 2 vs Seed 4)  Like Clockwork 4-1 Champions"
+        ],
+        [
+          "",
+          "Game 1",
+          "Like Clockwork",
+          "Rated R",
+          "5-0 ",
+          "FF"
+        ],
+        [
+          "",
+          "Game 2",
+          "Like Clockwork",
+          "Rated R",
+          "5-0",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 3",
+          "Like Clockwork",
+          "Rated R",
+          "5-3",
+          "North Central"
+        ],
+        [
+          "",
+          "Game 4",
+          "Like Clockwork",
+          "Rated R",
+          "5-2",
+          "East"
+        ],
+        [
+          "",
+          "Game 5",
+          "Like Clockwork",
+          "Rated R",
+          "5-3",
+          "North Central"
+        ]
+      ]
+    },
+    {
+      "name": "Game Overview",
+      "hidden": false,
+      "rowCount": 76,
+      "colCount": 9,
+      "rows": [
+        [
+          " ",
+          "Home",
+          "Away",
+          "Score",
+          "Map",
+          "Host",
+          "",
+          "VOD",
+          "Standings"
+        ],
+        [
+          "Week 1",
+          "Dior Glori",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT",
+          "Week 1"
+        ],
+        [
+          "",
+          "unbes",
+          "oDhmon",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "unbes",
+          "Mavbrid",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "yLuxe",
+          "5-0",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "ADhillyy",
+          "Hells Angel cx",
+          "1-5",
+          "Mixer",
+          "East US"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "Dhlyn",
+          "1-5",
+          "Mixer",
+          "East US",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "Dior Glori",
+          "5-3",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "Dior Glori",
+          "oDhmon",
+          "5-1",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "oDhmon",
+          "Dior Glori",
+          "5-3",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "oDhmon",
+          "5-4",
+          "ANGB",
+          "East US",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Dior Glori",
+          "Hells Angel cx",
+          "5-4",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "NOT ALL TEAM COLORS MAY BE ACCURATE ",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "Week 2"
+        ],
+        [
+          "",
+          "unbes",
+          "InfiniteRainge",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT",
+          "Week 2"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "oDhmon",
+          "4-5",
+          "Mixer",
+          "South Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "InfiniteRainge",
+          "5-1",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Dior Glori",
+          "yLuxe",
+          "5-4",
+          "ANGB",
+          "South Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "ADhillyy",
+          "5-2",
+          "",
+          "North Central"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "Dior Glori",
+          "5-0",
+          "",
+          "North Central"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "ADhillyy",
+          "5-3",
+          "ANGB",
+          "North Central"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "ActiveHate",
+          "3-5",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "oDhmon",
+          "2-5",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "ADhillyy",
+          "InfiniteRainge",
+          "5-0",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "ADhillyy",
+          "5-2",
+          "Mixer",
+          "South Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "Glori",
+          "5-3",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/videos/1768265235"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "Dhlyn",
+          "2-5",
+          "",
+          "North Central",
+          "",
+          "https://www.twitch.tv/videos/1768265235"
+        ],
+        [
+          "Week 3",
+          "yLuxe",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT",
+          "Week 3"
+        ],
+        [
+          "",
+          "ADhilly",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "Dhlyn",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "unbes",
+          "ADhillyy",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "Mavbrid",
+          "5-0",
+          "Mixer",
+          "South Central"
+        ],
+        [
+          "",
+          "yLuxe",
+          "ActiveHate",
+          "2-5",
+          "Mixer",
+          "East"
+        ],
+        [
+          "",
+          "Dior Glori",
+          "ADhillyy",
+          "5-2",
+          "",
+          "North Central"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "InfiniteRainge",
+          "5-2",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "ADhillyy",
+          "5-2"
+        ],
+        [
+          "",
+          "oDhmon",
+          "ADhillyy",
+          "2-5",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "ADhillyy",
+          "oDhmon",
+          "2-5",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "oDhmon",
+          "Mavbrid",
+          "5-2",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "InfiniteRainge",
+          "5-1",
+          "",
+          "North Central"
+        ],
+        [
+          "",
+          "Dior Glori",
+          "InfiniteRainge",
+          "2-5",
+          "",
+          "East"
+        ],
+        [
+          "Week 4",
+          "unbes",
+          "Hells Angel cx",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT",
+          "Week 4"
+        ],
+        [
+          "",
+          "unbes",
+          "ActiveHate",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "oDhmon",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "Angel",
+          "ADhilly",
+          "5-4",
+          "Foundry",
+          "North Central"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "Mavbrid",
+          "5-0",
+          "Mixer",
+          "South Central"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "Hells Angel cx",
+          "5-2",
+          "Foundry",
+          "South Central"
+        ],
+        [
+          "",
+          "yLuxe",
+          "Dior Glori",
+          "5-0",
+          "Mixer",
+          "East",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "oDhmon",
+          "5-1",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "oDhmon",
+          "yLuxe",
+          "5-2",
+          "Mixer",
+          "East",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "Week 5",
+          "unbes",
+          "yLuxe",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT",
+          "Week 5"
+        ],
+        [
+          "",
+          "unbes",
+          "Dhlyn",
+          "0-5",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "unbes",
+          "5-0",
+          "FORFEIT",
+          "FORFEIT"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "yLuxe",
+          "5-1",
+          "Mixer",
+          "East",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "yLuxe",
+          "InfiniteRainge",
+          "5-4",
+          "Mixer",
+          "South Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "yLuxe",
+          "5-2",
+          "Mixer",
+          "East",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "yLuxe",
+          "Hells Angel cx",
+          "5-4",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "yLuxe",
+          "ADhilly",
+          "5-3",
+          "Mixer",
+          "East",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "ADhilly",
+          "yLuxe",
+          "5-0",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "Mavbrid",
+          "5-4",
+          "Mixer",
+          "East"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "Hells Angel cx",
+          "5-1",
+          "Mixer",
+          "North Central"
+        ],
+        [
+          "",
+          "yLuxe",
+          "Dhlyn",
+          "",
+          "Mixer",
+          "East"
+        ],
+        [
+          "",
+          "Dhmon",
+          "Dhlyn",
+          "",
+          "Mixer",
+          "East"
+        ],
+        [
+          "",
+          "Glori Dior",
+          "ADhilly",
+          "5-1"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "oDhmon",
+          "5-1",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "oDhmon",
+          "ActiveHate",
+          "5-2",
+          "Mixer",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "Week 6",
+          "InfiniteRainge",
+          "ActiveHate",
+          "5-4",
+          "",
+          "South Central",
+          "Week 6",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "ActiveHate",
+          "Mavbrid",
+          "5-1",
+          "",
+          "South Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "Dior Glorii",
+          "Hells Angels",
+          "5-1",
+          "ANGB",
+          "North Central",
+          "",
+          "https://www.twitch.tv/yluxe"
+        ],
+        [
+          "",
+          "InfiniteRainge",
+          "Dior Glori",
+          "FF",
+          "FF",
+          "FF"
+        ],
+        [
+          "Playoffs",
+          "imagine",
+          "",
+          "",
+          "",
+          "",
+          "Playoffs"
+        ]
+      ]
+    },
+    {
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 18,
+      "colCount": 10,
+      "rows": [
+        [
+          "AWAY @ HOME",
+          "All Games are Eastern Time (EST)"
+        ],
+        [
+          "",
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday ",
+          "Saturday "
+        ],
+        [
+          "March 5th - 11th",
+          "                        ",
+          "                                        ",
+          "yLuxe @ Dhlyn                           10PM EST                                          ",
+          "Hells Angel cx @ ADhillyy                            8PM EST                                                                           Mavbrid @ Dior Glori                 9PM EST                                                  Dhlyn @ Hells Angel cx                  9:15PM EST",
+          "    Dior Glori @ oDhmon                             8PM EST                                        oDhmon @ Dior Glori                            8:30PM EST",
+          "oDhmon @ Dhlyn                       11:30PM EST ",
+          "                                               Hells Angel cx @ Dior Glori                             8PM EST ",
+          "Blue = Rescheduled Games           Red = Awaiting Reschedule Date"
+        ],
+        [
+          "March 12th - 18th",
+          "ADhillyy @ ActiveHate                  7PM EST                                      oDhmon @ InfiniteRainge                          7PM EST                                                      InfiniteRainge @ Hells Angel cx                                                7:30PM EST                                                                                         Dior Glori @ ActiveHate                          8PM EST                                                                                                           yLuxe @ Dior Glori                                   10PM EST ",
+          "  ADhillyy @ Dhlyn                                 7PM EST                                                 ActiveHate @ Hells Angel cx                              8PM EST                                           ",
+          "                                              oDhmon @ Hells Angel cx                                 9PM EST ",
+          "InfiniteRainge @ ADhillyy                8:15PM EST                                             ADhillyy @ InfiniteRainge                                              Double Header                                         ",
+          "",
+          "Dior Glori @ Dhlyn                                     8PM EST                                                          Dhlyn @ Mavbrid                 10PM EST",
+          "                                                                 "
+        ],
+        [
+          "March 19th - 25th",
+          "Mavbrid @ ActiveHate                                8PM EST                                       ActiveHate @ yLuxe                         9PM EST                                                           ADhillyy @ Dior Glori                    9PM EST",
+          "   InfiniteRainge @ ActiveHate                          8PM EST                                                                          Mavbrid @ ADhillyy                                    9PM EST                                                                                           ",
+          "oDhmon @ ADhillyy                               8PM EST                                            ADhillyy @ oDhmon                              Double Header                                          ",
+          "                                                            ",
+          " InfiniteRainge @ Mavbrid 8PM EST                                   InfiniteRainge @ Dior Glori                                       9PM EST",
+          "                                         ",
+          " Mavbrid @ oDhmon 10PM EST"
+        ],
+        [
+          "March 26th - April 1st",
+          "",
+          "Dhlyn @ ActiveHate                                           7PM EST                                                              ActiveHate @ Dhlyn                                  Double Header                                                                                                                                                                                                                                                                   InfiniteRainge @ Dhlyn                                                   9PM EST",
+          "                                         ",
+          " Hells Angel cx @ InfiniteRainge    8:15PM EST ",
+          "Adhilly vs Hells Angel cx             7PM EST                          Mavbrid @ InfiniteRainge                                         8PM EST                                                     ",
+          " Dior Glori @ yLuxe                      9PM EST                                    ",
+          "                                                   oDhmon @ Mavbrid                    10:30PM EST                                      "
+        ],
+        [
+          "April 2nd - 8th",
+          "  yLuxe @ oDhmon                 10:15PM EST                                         ",
+          " ",
+          "",
+          " InfiniteRainge @ yLuxe                      8:15PM EST                                      yLuxe @ InfiniteRainge              Double Header                                          Hells Angel cx @ yLuxe                                                          9PM EST                                        yLuxe @ Hells Angel cx         9PM EST                                                                              ",
+          "Hells Angel cx @ Mavbrid                       8PM EST                                 Mavbrid @ Hells Angel cx                             Double Header                                           yLuxe vs ADhillyy                                8:15PM EST                             ADhillyy vs yLuxe                    Double Header                                        ",
+          "   Dhlyn @ yLuxe                                 8:30PM EST                                                                                                                     Dhlyn @ oDhmon 10:30PM EST",
+          "Dior Glori @ ADhilly                              9:00PM EST                                           "
+        ],
+        [
+          "Red - Away                                 Blue - Home",
+          "Mav vs ADhilly                   March 20th 9PM EST        March 27th 9PM EST",
+          "ADhilly vs ActiveHate March 9th 8PM EST  April 6th 8PM EST",
+          "ActiveHate vs Dior Glori          March 7th 10PM EST                March 21st 9PM EST",
+          "Dior Glori vs Dhlyn              March 15th 9PM EST                  March 29th 9PM EST",
+          "Dhlyn vs Hells Angel cx                    March 30th 9PM EST                                March 13th 8PM EST",
+          "Hells Angel cx vs InfiniteRainge                    April 3rd 8PM EST                                March 6th 8PM EST    ",
+          "InfiniteRainge vs oDhmon                                March 22th 8PM EST                      March 15th 8PM EST",
+          "oDhmon vs unbes                            April 1st 8PM EST                             March 7th 8PM EST",
+          "unbes vs yLuxe                     April 2nd 7PM EST                          March 19th 7PM EST"
+        ],
+        [
+          "",
+          "Mav vs ActiveHate                  March 19th 8PM EST           April 6th 9PM EST",
+          "ADhilly vs Dior Glori April 2nd 9PM EST       March 19th 9PM EST",
+          "ActiveHate vs Dhlyn              March 25th 7PM EST              March 18th  10PM EST",
+          "Dior Glori vs Hells Angel cx                                     March 11th 10PM EST                        April 7th 9PM EST",
+          "Dhlyn vs InfiniteRainge                             April 3rd 9PM EST                    March 20th 9PM EST",
+          "Hells Angel cx vs oDhmon                  March 25th 10PM EST                 March 14th 9PM EST",
+          "InfiniteRainge vs unbes                March 14th 8PM EST                 March 17th 7PM EST",
+          "oDhmon vs yLuxe             April 8th 10PM EST                   March 24th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Dior Glori                     March 8th 9PM EST                                 March 25th 9PM EST         ",
+          "ADhilly vs Dhlyn             March 26th 10PM EST            March 14th 8PM EST",
+          "ActiveHate vs Hells Angel cx                       March 13th 9PM EST            March 27th 8PM EST",
+          "Dior Glori vs InfiniteRainge                    April 5th 9PM EST                March 20th 8PM EST",
+          "Dhlyn vs oDhmon                March 7th 9PM EST                  April 4th 9PM EST",
+          "Hells Angel cx vs unbes              April 8th 7PM EST                March 26th 8PM EST",
+          "InfiniteRainge vs yLuxe              March 28th 8PM EST                       March 18th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Dhlyn            March 15th 10PM EST              March 30th 10PM EST",
+          "ADhilly vs Hells Angel cx  March 8th 8PM EST            March 29th 8:30PM EST",
+          "ActiveHate vs InfiniteRainge                March 28th 9PM EST                       March 14th 9PM EST",
+          "Dior Glori vs oDhmon                     March 24h 9PM EST                     March 29th 8PM EST",
+          "Dhlyn vs unbes                     April 2nd 8PM EST                   March 21th 7PM EST",
+          "Hells Angel cx vs yLuxe                March 24th 9PM EST                  March 27th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs Hells Angel cx March 23th 8PM EST             April 6th 8PM EST",
+          "ADhilly vs InfiniteRainge        March 16th 8PM EST              March 11th 9PM EST",
+          "ActiveHate vs oDhmon                   March 11th 7PM EST           April 7th 8PM EST",
+          "Dior Glori vs unbes       March 5th 8PM EST                          March 12th 7PM EST",
+          "Dhlyn vs yLuxe                       March 31st 10PM EST                        March 7th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs InfiniteRainge        April 1st 10PM EST         March 30th 8PM EST",
+          "ADhilly vs oDhmon    March 21st 8PM EST                April 4th 8PM EST ",
+          "ActiveHate vs unbes                March 31st 8PM EST                March 23th 7PM EST",
+          "Dior Glori vs yLuxe            March 10th 9PM EST                      March 31st 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs oDhmon                        April 1st 9PM EST          March 18th 8PM EST",
+          "ADhilly vs unbes March 19th 8PM EST    March 25th 8PM EST",
+          "ActiveHate vs yLuxe                April 5th 9PM EST             March 16th 10PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs unbes               March 18th 7PM EST               March 11th 8PM EST",
+          "ADhilly vs yLuxe                  March 22th 8PM EST          March 26th 9PM EST"
+        ],
+        [
+          "",
+          "Mavbrid vs yLuxe              March 17th 9PM EST                 April 7th 9PM EST"
+        ],
+        [
+          "Make Up Week                April 9th - 15th",
+          "ActiveHate @ oDhmon                  11PM EST                                           oDhmon @ ActiveHate                             DOUBLE HEADER",
+          "                                                                 ActiveHate @ InfiniteRainge                     8:30PM EST                                                                                ActiveHate @ Mavbrid                          10:30PM EST",
+          "Dior Glori @ Hells Angel cx                          10PM EST",
+          "Dior Glori @ InfiniteRainge                               8:15PM EST",
+          " Dhlyn @ Dior Glori                                                     7PM EST                                                                Dhlyn @ ADhillyy                                           8PM EST                                                          Hells Angel cx @ oDhmon                                           8PM EST                                                Dhlyn @ InfiniteRainge                                 8:30PM EST                                              InfiniteRainge @ oDhmon                                    9:15PM EST                                                                                          Hells Angel cx @ Dhlyn                        9:50PM EST                                                             Mavbrid @ Dhlyn                                         10:40PM EST",
+          "Hells Angel cx @ ActiveHate                     7PM EST                                     oDhmon @ yLuxe                                      8PM EST                              yLuxe @ Mavbrid                9PM EST                                                     ",
+          "yLuxe @ ActiveHate                       8PM EST                        Mavbrid @ yLuxe                           9PM EST                              ActiveHate @ Dior Glori                        9PM EST                                       Dior Glori @ Mavbrid                     10PM EST"
+        ],
+        [
+          "Make Up Games:"
+        ]
+      ]
+    }
+  ]
+}

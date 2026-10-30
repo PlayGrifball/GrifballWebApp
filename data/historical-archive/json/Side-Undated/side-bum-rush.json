@@ -1,0 +1,677 @@
+{
+  "id": "side-bum-rush",
+  "category": "Side-Undated",
+  "year": null,
+  "title": "Bum Rush Spreadsheet",
+  "url": "https://docs.google.com/spreadsheets/d/1M5vE-uRCkpVCRYcJ1hPocOq4O7Jg7fTyhBtHQTjI2NM/edit#gid=0",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Sheet1",
+      "hidden": false,
+      "rowCount": 62,
+      "colCount": 13,
+      "sampleHeader": [
+        "Team",
+        "Captain 1",
+        "Captain 2",
+        "Wins",
+        "First Pick",
+        "Second Pick",
+        "Third Pick",
+        "Fourth",
+        "Current Team Points",
+        "Available Players"
+      ],
+      "csvFile": "csv/Side-Undated/side-bum-rush/01_Sheet1.csv"
+    }
+  ],
+  "bytes": 8534,
+  "fullSheets": [
+    {
+      "name": "Sheet1",
+      "hidden": false,
+      "rowCount": 62,
+      "colCount": 13,
+      "rows": [
+        [
+          "Team",
+          "Captain 1",
+          "Captain 2",
+          "Wins",
+          "First Pick",
+          "Second Pick",
+          "Third Pick",
+          "Fourth",
+          "Current Team Points",
+          "Available Players"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ACE"
+        ],
+        [
+          "Ken No Senshi:Zero",
+          "Poptart",
+          "Eastbrook",
+          "4",
+          "Ace",
+          "Gilded",
+          "Menz",
+          "Mikinater",
+          "4",
+          "Almighty Tycoon"
+        ],
+        [
+          "Big Cum Cum",
+          "Nkot",
+          "El Diablo",
+          "4",
+          "Rage",
+          "Atone",
+          "Doc",
+          "Meow",
+          "0",
+          "Atone"
+        ],
+        [
+          "Bonks & Breakfast",
+          "Aspence",
+          "Blootzy",
+          "0",
+          "Yuhxi",
+          "Zeg",
+          "perturb",
+          "Juc",
+          "1",
+          "azaDoom"
+        ],
+        [
+          "Red Barons Revenge",
+          "Silverback",
+          "Man Canon",
+          "2",
+          "elementary",
+          "Priest",
+          "Boss",
+          "azaDoom",
+          "4",
+          "Elementary"
+        ],
+        [
+          "Sabot",
+          "Robot",
+          "Sab",
+          "4",
+          "Zim",
+          "Gingy",
+          "thumping",
+          "Mungo",
+          "-1",
+          "Gilded"
+        ],
+        [
+          "Predatory",
+          "Godless",
+          "Digital Pain",
+          "5",
+          "T Rich",
+          "Taylor Cann",
+          "Truthless",
+          "Archon",
+          "1",
+          "Zim"
+        ],
+        [
+          "Final Boss",
+          "Saintz",
+          "AJ",
+          "5",
+          "Scet",
+          "Corn",
+          "Rebs",
+          "Skyttles",
+          "0",
+          "Menz"
+        ],
+        [
+          "Sinister Six",
+          "Silva",
+          "Shad",
+          "1",
+          "Titan Man",
+          "Lion",
+          "Myst",
+          "Reyas",
+          "1",
+          "Gingy"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Juc"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Lion"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Mikinater"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Meow"
+        ],
+        [
+          "Week One",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Myst"
+        ],
+        [
+          "Pop vs Major 5-0",
+          "Pop vs Nkot 5-2",
+          "Pop Vs Saintz 3-5",
+          "",
+          "",
+          "Availability",
+          "",
+          "",
+          "",
+          "Scet"
+        ],
+        [
+          "Nkot vs Saintz 5-4",
+          "Nkot vs Pop 2-5",
+          "Nkot vs Painless 1-5",
+          "",
+          "",
+          "godless ",
+          "Tues Wed Thurs",
+          "815-10",
+          "",
+          "Archon"
+        ],
+        [
+          "Blootz vs Painless 0-5",
+          "Blootz vs Sabot 0-5",
+          "Blootz vs Saintz ff",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Priest"
+        ],
+        [
+          "Red vs Major 0-5",
+          "Red vs Sabot 5-4",
+          "Red vs Pain 1-5",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Rage"
+        ],
+        [
+          "Sabot vs Blootz 5-0",
+          "Sabot vs Red 4-5",
+          "Sabot vs Major 5-3",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Rebs"
+        ],
+        [
+          "Pain vs Nkot 5-1",
+          "Pain vs Blootz 5-0",
+          "Pain vs Red 5-1",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Reyas"
+        ],
+        [
+          "Saintz vs Pop 5-3",
+          "Saintz vs Nkot 4-5",
+          "Saintz vs Blootz ff",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Skyttles"
+        ],
+        [
+          "Major vs Pop 0-5",
+          "Major vs Sabot 3-5",
+          "Major vs Red 5-0",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Trich"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Banned Hosts",
+          "Mikinater",
+          "",
+          "",
+          "Corn"
+        ],
+        [
+          "Week Two",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Thumping"
+        ],
+        [
+          "Pop vs Blootz 5-1",
+          "Pop vs Red 5-1",
+          "Pop vs Sabot 3-5",
+          "Pop vs Pain",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Titan Man"
+        ],
+        [
+          "Nkot vs Blootz",
+          "Nkot vs Red 5-4",
+          "Nkot vs Sabot 5-3",
+          "Nkot vs Major 5-0",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Truthless"
+        ],
+        [
+          "Blootz vs Pop 1-5",
+          "Blootz vs Nkot",
+          "Blootz vs Red ff",
+          "Blootz vs Major",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Zeg"
+        ],
+        [
+          "Red vs Pop 1-5",
+          "Red vs Nkot 4-5",
+          "Red vs Blootz ff",
+          "Red vs Saintz",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Taylor Cann"
+        ],
+        [
+          "Sabot vs Pop 5-3",
+          "Sabot vs Nkot 3-5",
+          "Sabot vs Pain 5-3",
+          "Sabot vs Saintz 3-5",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Mungo Pungo"
+        ],
+        [
+          "Pain vs Pop",
+          "Pain vs Sabot 3-5",
+          "Pain vs Saintz 1-5",
+          "Pain vs Major 5-2",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Perturb"
+        ],
+        [
+          "Saintz vs Red",
+          "Saintz vs Sabot 5-3",
+          "Saintz vs Pain 5-1",
+          "Saintz vs Major 5-3",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Yuhxi"
+        ],
+        [
+          "Major vs Nkot 0-5",
+          "Major vs Blootz",
+          "Major vs Pain 2-5",
+          "Major vs Saintz 3-5",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "doc"
+        ],
+        [
+          "Home Games"
+        ],
+        [
+          "Pop vs",
+          "Major",
+          "Saintz",
+          "Pain",
+          "Sabot"
+        ],
+        [
+          "Nkot vs",
+          "Major",
+          "Saintz",
+          "Pain",
+          "Pop"
+        ],
+        [
+          "Blootz vs",
+          "Major",
+          "Saintz",
+          "Pop",
+          "Nkot"
+        ],
+        [
+          "Red vs",
+          "Major",
+          "Pop",
+          "Nkot",
+          "Blootz"
+        ],
+        [
+          "Sabot vs",
+          "Nkot",
+          "Blootz",
+          "Red"
+        ],
+        [
+          "Pain vs",
+          "Blootz",
+          "Red",
+          "Sabot"
+        ],
+        [
+          "Saintz vs",
+          "Red",
+          "Sabot",
+          "Pain"
+        ],
+        [
+          "Major vs",
+          "Sabot",
+          "Pain",
+          "Saintz"
+        ],
+        [
+          "No subs allowed. Games can be played 3 v 4 if need be. At end of week 1 any games unplayed will be given a winner. I will look into each scenario if a team can not make the game to decide the validity of a forfeit. Same system of week 2. I will only allow games from week 1 to be played in week 2 with extenuating circumstances. The home team picks host but can also opt to give the other team on court host. In those situations the map is teleporterless and the selection amongst the team is done by the team itself. (team A is home team, decides for on court host. Team B picks amongst their team who is the on court host) I do not expect this to be done but is an option I enjoy. A team may request a warm up round on the NH to just bounce around and slay a little to feel it out as the games are BO1. Playoffs must be NH. During playoffs each team has one host veto per series that can be used throughout the series. The higher seed team gets pick of host in games 2 and 3."
+        ],
+        [
+          "Day 1 Tues 830 PM EST",
+          "",
+          "Tuesday 9PM EST",
+          "",
+          "Tuesday 930 PM EST",
+          "Day 2 Wed 830 EST",
+          "",
+          "",
+          "Day 1 Tuesday 830 PM EST",
+          "",
+          "Tuesday 9 PM EST",
+          "",
+          "Day 2 Wed 930 PM EST"
+        ],
+        [
+          "Ken No Senshi Zero (5)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Final Boss (1)"
+        ],
+        [
+          "Match 1 - bo1"
+        ],
+        [
+          "Bonk and Breakfast (8)",
+          "",
+          "bonks and breakfast",
+          "",
+          "",
+          "blootz",
+          "",
+          "",
+          "Match 4 - bo1",
+          "",
+          "sabot"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Match 8"
+        ],
+        [
+          "",
+          "",
+          "Match 3 - bo1",
+          "",
+          "",
+          "saintz",
+          "",
+          "",
+          "Sabot (4)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Winner of M6"
+        ],
+        [
+          "Day 1 Tues 830 PM EST"
+        ],
+        [
+          "Red Barons Revenge (7)",
+          "",
+          "Red Barons Revenge",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Match 6- bo1",
+          "",
+          "Match 10 bo3"
+        ],
+        [
+          "Match 2 - bo1",
+          "",
+          "",
+          "",
+          "blootz canon"
+        ],
+        [
+          "Sinister Six (6)",
+          "",
+          "",
+          "",
+          "Match 7 - bo1",
+          "Wed 9 PM EST",
+          "",
+          "",
+          "Day 1 Tuesday 830 PM EST"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "big cum cum",
+          "",
+          "",
+          "",
+          "Big Cum Cum (3)",
+          "",
+          "",
+          "",
+          "Winner of M9"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Winner of M8"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Match 9 - bo1"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Loser of M6",
+          "",
+          "",
+          "Match 5 - bo1",
+          "",
+          "Predatory"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Predatory (1)"
+        ],
+        [
+          "E - F"
+        ],
+        [
+          "",
+          "(EF) - (GH)",
+          "(EFGH) - (ABCD)",
+          "",
+          "(ABCDEFGH) - (ABCD)"
+        ],
+        [
+          "G - H"
+        ]
+      ]
+    }
+  ]
+}

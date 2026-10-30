@@ -1,0 +1,7592 @@
+{
+  "id": "2025-octane-sl25-bid-schedule",
+  "category": "AGLA-2025",
+  "year": 2025,
+  "title": "Octane SL25 Bid Schedule",
+  "url": "https://docs.google.com/spreadsheets/d/105G1WCYNVSm922_1I_A3-v2QQkBZ4u0q/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Team Chart",
+      "hidden": false,
+      "rowCount": 9,
+      "colCount": 16,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/01_Team_Chart.csv"
+    },
+    {
+      "index": 2,
+      "name": "Schedule ListStandings",
+      "hidden": false,
+      "rowCount": 130,
+      "colCount": 19,
+      "sampleHeader": [
+        "h",
+        "All Times Are Eastern Daylight Time"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/02_Schedule_ListStandings.csv"
+    },
+    {
+      "index": 3,
+      "name": "Game History",
+      "hidden": false,
+      "rowCount": 156,
+      "colCount": 21,
+      "sampleHeader": [
+        " ",
+        "Home",
+        "Away",
+        "Score",
+        "Time",
+        "Waypoint URL",
+        "",
+        "VOD",
+        "",
+        "4/5th used Home",
+        "4/5th used Away",
+        ""
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/03_Game_History.csv"
+    },
+    {
+      "index": 4,
+      "name": "Playoffs",
+      "hidden": false,
+      "rowCount": 45,
+      "colCount": 12,
+      "sampleHeader": [
+        "",
+        "",
+        "Auto Updates"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/04_Playoffs.csv"
+    },
+    {
+      "index": 5,
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 65,
+      "colCount": 24,
+      "sampleHeader": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/05_Schedule.csv"
+    },
+    {
+      "index": 6,
+      "name": "Copy of Draft Sheet",
+      "hidden": true,
+      "rowCount": 20,
+      "colCount": 14,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/06_Copy_of_Draft_Sheet.csv"
+    },
+    {
+      "index": 7,
+      "name": "Substitution List",
+      "hidden": true,
+      "rowCount": 15,
+      "colCount": 12,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/07_Substitution_List.csv"
+    },
+    {
+      "index": 8,
+      "name": "Schedule Lookup Tool",
+      "hidden": true,
+      "rowCount": 316,
+      "colCount": 12,
+      "sampleHeader": [
+        "",
+        "",
+        "",
+        "Use this to search the schedule sheet for your or other captain's games. UPDATES AUTOMATICALLY FROM ADMIN SHEET, refer to schedule for captain name spelling"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/08_Schedule_Lookup_Tool.csv"
+    },
+    {
+      "index": 9,
+      "name": "Alt Draft Sheet",
+      "hidden": true,
+      "rowCount": 55,
+      "colCount": 16,
+      "sampleHeader": [
+        "7"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/09_Alt_Draft_Sheet.csv"
+    },
+    {
+      "index": 10,
+      "name": "Sheet5",
+      "hidden": true,
+      "rowCount": 2,
+      "colCount": 1,
+      "sampleHeader": [
+        "https://docs.google.com/spreadsheets/d/1d-JA1rtr6SsQ3KDwXKl9d69yCGp7i6YiLm1GlgrUU-M/edit#gid=1265428282"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/10_Sheet5.csv"
+    },
+    {
+      "index": 11,
+      "name": "Game History (OLD)",
+      "hidden": true,
+      "rowCount": 79,
+      "colCount": 12,
+      "sampleHeader": [
+        " ",
+        "Home",
+        "Away",
+        "Score",
+        "Time",
+        "Waypoint URL",
+        "",
+        "VOD",
+        "",
+        "4/5th used Home",
+        "4/5th used Away"
+      ],
+      "csvFile": "csv/AGLA-2025/2025-octane-sl25-bid-schedule/11_Game_History_OLD.csv"
+    }
+  ],
+  "bytes": 192956,
+  "fullSheets": [
+    {
+      "name": "Team Chart",
+      "hidden": false,
+      "rowCount": 9,
+      "colCount": 16,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "HALO INFINITE Spring Bid League 2025 GRIFBALL SEASON"
+        ],
+        [
+          "",
+          "Season Standings",
+          "5th",
+          "3rd",
+          "6th",
+          "7th",
+          "4th",
+          "13th",
+          "1st",
+          "8th",
+          "9th",
+          "2nd",
+          "10th",
+          "14th",
+          "11th",
+          "12th"
+        ],
+        [
+          "",
+          "Playoff Ending",
+          "3rd (Semi-Finals)",
+          "3rd (Semi-Finals)",
+          "4th (Quarter Finals)",
+          "4th (Quarter Finals)",
+          "4th (Quarter Finals)",
+          "",
+          "2nd (Finals)",
+          "4th (Quarter Finals)",
+          "",
+          "1st (Season Winner)"
+        ],
+        [
+          "",
+          "Team Name:",
+          "First Strike",
+          "Clip Hunters",
+          "Hammers are for Losers",
+          "Skill Differential",
+          "Chick-fil-Ass Grabbers",
+          "Intervention",
+          "Chemical Imbalance",
+          "Cosmic Oblivion",
+          "Murder Incorporated",
+          "Like Clockwork",
+          "Ascension",
+          "Junkyard Dogs",
+          "Underrated",
+          "NeuraLink II"
+        ],
+        [
+          "",
+          "Captain:",
+          "NecessaryEvil",
+          "ASpence501",
+          "Mr Epic Beast",
+          "KDSkill",
+          "MysticalNovice",
+          "Scullen cx",
+          "Chemical",
+          "DaedricKindred",
+          "MasterSquirre",
+          "yLuxe",
+          "Solace VII",
+          "Nkot",
+          "NOPLEX",
+          "TcT AVENGER"
+        ],
+        [
+          "",
+          "Bid 1",
+          "Mavbrid",
+          "Fanciest Pants",
+          "Triumph Penguin",
+          "Invayda Zim",
+          "Dhlyn",
+          "ShadowPandah",
+          "PoisonxPoptart",
+          "Cosmos5024",
+          "mxrvine",
+          "Its Low Mane",
+          "Grunt Padre",
+          "PapasnipezX",
+          "Sabasaurus rex",
+          "Deathcrawller"
+        ],
+        [
+          "",
+          "Bid 2",
+          "PsyDuck54",
+          "Boss Tycoon",
+          "ill shrek u",
+          "AwareMosquito",
+          "Trespa5s",
+          "The Goosler2948",
+          "Priest XYZ",
+          "Rechargen",
+          "Ump Double Ump",
+          "ixGingy",
+          "Inactive Spoon",
+          "iReign 7",
+          "Big Al 60",
+          "Havoc Puppies"
+        ],
+        [
+          "",
+          "Bid 3",
+          "TcT Demon",
+          "Sauted Smurf",
+          "Rage More Nerd",
+          "II Panther Lily",
+          "itsRiskE",
+          "SPANKTR0N",
+          "CaptainSev004",
+          "VwS Executioner",
+          "ENDASIS ZX5080",
+          "TommyWstSide",
+          "MuNgO PuNgO",
+          "Legion of Toast",
+          "Pacfan010",
+          "El Diablo"
+        ]
+      ]
+    },
+    {
+      "name": "Schedule ListStandings",
+      "hidden": false,
+      "rowCount": 130,
+      "colCount": 19,
+      "rows": [
+        [
+          "h",
+          "All Times Are Eastern Daylight Time"
+        ],
+        [
+          "",
+          "ALL IN CONFERENCE MATCHES ARE DOUBLE HEADERS",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Hammer Conference",
+          "",
+          "",
+          "",
+          "",
+          "Sword Conference"
+        ],
+        [
+          "",
+          "ALL OUT OF CONFERENCE MATCHES ARE SINGLES"
+        ],
+        [
+          "Week 1 (March)",
+          "Bouts",
+          "Times",
+          "In/Out of Conference",
+          "",
+          "Reschedules",
+          "In/Out",
+          "Free Scheduling",
+          "",
+          "",
+          "Team Standings",
+          "Wins",
+          "Loss",
+          "Games",
+          "",
+          "Team Standings",
+          "Wins",
+          "Loss",
+          "Games"
+        ],
+        [
+          "Monday 24th",
+          "ASpence vs Solace",
+          "9:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "Evil vs kdskill (out)",
+          "Sunday",
+          "1",
+          "Chemical Imbalance (chemical)",
+          "16",
+          "3",
+          "0",
+          "",
+          "Clip Hunters (aspence)",
+          "15",
+          "4",
+          "0"
+        ],
+        [
+          "",
+          "Chemical vs KDSkill",
+          "7:30 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "Evil vs Daedric (in)",
+          "Monday",
+          "2",
+          "Like Clockwork (luxe)",
+          "16",
+          "3",
+          "0",
+          "",
+          "Chick-fil-Ass Grabbers (novice)",
+          "14",
+          "5",
+          "0"
+        ],
+        [
+          "Tuesday 25th",
+          "",
+          "",
+          "",
+          "",
+          "Luxe vs Noplex 9:30 PM ",
+          "in",
+          "Evil vs Solace (in)",
+          "Tuesday",
+          "3",
+          "First Strike (evil)",
+          "13",
+          "6",
+          "0",
+          "",
+          "Hammers are for Losers (epic)",
+          "11",
+          "8",
+          "0"
+        ],
+        [
+          "",
+          "Luxe vs Nkot",
+          "8:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "Evil vs Epic (out)",
+          "Wednesday",
+          "4",
+          "Cosmic Oblivion (Daedric)",
+          "9",
+          "10",
+          "0",
+          "",
+          "Skill Differential (kdskill)",
+          "10",
+          "9",
+          "0"
+        ],
+        [
+          "Wednesday 26th",
+          "Evil vs Avenger",
+          "8:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          "ASpence vs Scullen (in)",
+          "Thursday",
+          "5",
+          "Ascension (solace)",
+          "8",
+          "11",
+          "0",
+          "",
+          "Murder Incorporated (squirell)",
+          "8",
+          "11",
+          "0"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ASpence vs Daedric (out)",
+          "Friday",
+          "6",
+          "Underrated (noplex)",
+          "6",
+          "13",
+          "0",
+          "",
+          "Intervention (scullen)",
+          "2",
+          "17",
+          "0"
+        ],
+        [
+          "Thursday 27th",
+          "Nkot vs Noplex",
+          "7:30 PM",
+          "Out",
+          "",
+          "Nkot vs Noplex 9:00 PM",
+          "out",
+          " ASpence vs Luxe (out)",
+          "Saturday",
+          "7",
+          "NeuraLink II (avenger)",
+          "4",
+          "15",
+          "0",
+          "",
+          "Junkyard Dogs (nkot)",
+          "1",
+          "18",
+          "0"
+        ],
+        [
+          "Friday 28th",
+          "Noplex vs Epic",
+          "9:30 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "ASpence vs Nkot (in)",
+          "Reschedule Thread Opened"
+        ],
+        [
+          "Saturday 29th",
+          "Daedric vs Solace",
+          "7:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          "ASpence vs Noplex (out)",
+          "Reschedule Locked in"
+        ],
+        [
+          "Week 2 (April)",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules",
+          "",
+          "ASpence vs Avenger (out)"
+        ],
+        [
+          "Sunday 30th",
+          "Scullen vs Luxe",
+          "8:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          " ASpence vs Epic (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "kdskill vs scullen (in)"
+        ],
+        [
+          "Monday 31st",
+          "KDSkill vs Solace",
+          "7:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "kdskill vs chemical (out)"
+        ],
+        [
+          "",
+          "Scullen vs Avenger",
+          "8:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "kdskill vs daedric (out)"
+        ],
+        [
+          "",
+          "Novice vs Solace",
+          "8:00 PM",
+          "Out"
+        ],
+        [
+          "",
+          "Solace vs Novice",
+          "8:00 PM",
+          "Out"
+        ],
+        [
+          "",
+          "Chemical vs Nkot",
+          "8:30 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "kdskill vs luxe (out)"
+        ],
+        [
+          "",
+          "Chemical vs Noplex",
+          "9:30 PM",
+          "In",
+          "",
+          "",
+          "",
+          "kdskill vs solace (out)"
+        ],
+        [
+          "Tuesday 1st",
+          "Luxe vs Noplex",
+          "8:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          "kdskill vs nkot (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "kdskill vs avenger (out)"
+        ],
+        [
+          "Wednesday 2nd",
+          "Evil vs KDSkill",
+          "8:00 PM",
+          "Out"
+        ],
+        [
+          "",
+          "Novice vs Luxe",
+          "8:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "kdskill vs epic (in)"
+        ],
+        [
+          "",
+          "Evil vs ASpence",
+          "9:00 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "kdskill vs noplex (out)"
+        ],
+        [
+          "Thursday 3rd",
+          "Evil vs Scullen",
+          "8:00 PM",
+          "Out",
+          "",
+          "Evil vs Noplex 9:00 PM",
+          "in",
+          "scullen vs chemical (out)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "scullen vs daedric (out)"
+        ],
+        [
+          "Friday 4th",
+          "Evil vs Noplex",
+          "8:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          "scullen vs squirell (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "chemical vs daedrice (in)"
+        ],
+        [
+          "Saturday 5th",
+          "Daedric vs Avenger",
+          "7:00 PM",
+          "In",
+          "",
+          "",
+          "",
+          "chemical vs luxe (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "chemical vs nkot (out)"
+        ],
+        [
+          "Week 3",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules",
+          "",
+          "chemical vs noplex (in)"
+        ],
+        [
+          "Sunday 6th",
+          "Scullen vs Solace",
+          "8:00 PM",
+          "Out"
+        ],
+        [
+          "",
+          "Evil vs Epic",
+          "8:30 PM",
+          "Out",
+          "",
+          "",
+          "",
+          "chemical vs avenger (in)"
+        ],
+        [
+          "",
+          "Evil vs Solace",
+          "9:00 PM",
+          "in",
+          "",
+          "",
+          "",
+          "chemical vs epic (out)"
+        ],
+        [
+          "Monday 7th",
+          "Scullen vs Noplex",
+          "8:00 PM",
+          "out",
+          "",
+          "Solace vs Nkot 8 PM",
+          "out",
+          "daedric vs squirell (out)"
+        ],
+        [
+          "",
+          "Solace vs Nkot",
+          "7:00 PM",
+          "out",
+          "",
+          "Scullen vs Avenger 9 PM",
+          "out",
+          "daedric vs luxe (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Scullen vs Noplex 9:30 PM",
+          "out",
+          "daedric vs nkot (out)"
+        ],
+        [
+          "Tuesday 8th",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "daedric vs noplex (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "squirell vs luxe (out)"
+        ],
+        [
+          "Wednesday 9th",
+          "Evil vs Chemical",
+          "9:00 PM",
+          "in",
+          "",
+          "Luxe vs KDSkill 8 PM",
+          "out",
+          "squirell vs nkot (in)"
+        ],
+        [
+          "",
+          "Chemical vs Epic",
+          "10:00 PM",
+          "out",
+          "",
+          "Novice vs Chemical 8:30 PM",
+          "out",
+          "squirell vs noplex (out)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Novice vs Luxe 9 PM",
+          "out",
+          "squirell vs avenger (out)"
+        ],
+        [
+          "Thursday 10th",
+          "Evil vs Luxe",
+          "8:00 PM",
+          "in",
+          "",
+          "",
+          "",
+          "squirell vs epic (in)"
+        ],
+        [
+          "",
+          "Nkot vs Daedric",
+          "8:30 PM",
+          "in"
+        ],
+        [
+          "Friday 11th",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "nkot vs epic (in)"
+        ],
+        [
+          "",
+          "KDSkill vs NOPLEX",
+          "9:00 PM",
+          "out",
+          "",
+          "",
+          "",
+          "noplex vs epic (out)"
+        ],
+        [
+          "Saturday 12th",
+          "Daedric vs Epic",
+          "7:00 PM",
+          "out",
+          "",
+          "",
+          "",
+          "novice vs aspence (in)"
+        ],
+        [
+          "",
+          "Daedric vs Luxe",
+          "8:30 PM",
+          "In",
+          "",
+          "",
+          "",
+          "novice vs nkot (in)"
+        ],
+        [
+          "",
+          "squirell vs avenger",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "Week 4",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules",
+          "",
+          "novice vs kdskill (in)"
+        ],
+        [
+          "Sunday 13th",
+          "Scullen vs Epic",
+          "8:00 PM",
+          "in",
+          "",
+          "Daedric vs Epic 7 PM",
+          "out",
+          "novice vs epic (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "novice vs scullen (in)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "novice vs squirell (in)"
+        ],
+        [
+          "Monday 14th",
+          "ASpence vs Chemical",
+          "9:00 PM",
+          "out",
+          "",
+          "Avenger vs KDSkill 7PM",
+          "out",
+          "novice vs luxe (out)"
+        ],
+        [
+          "",
+          "Scullen vs Nkot",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "",
+          "Solace vs Avenger",
+          "7:30 PM",
+          "in",
+          "",
+          "",
+          "",
+          "novice vs solace (out)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "novice vs chemical (out)"
+        ],
+        [
+          "Tuesday 15th",
+          "ASpence vs NOPLEX",
+          "9:00 PM",
+          "out",
+          "",
+          "",
+          "",
+          "novice vs evil (out)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "novice vs daedric (out)"
+        ],
+        [
+          "Wednesday 16th",
+          "Avenger vs Luxe",
+          "9:00 PM",
+          "in",
+          "",
+          "Evil vs Luxe 8 PM",
+          "in",
+          "novice vs noplex (out)"
+        ],
+        [
+          "",
+          "Evil vs Novice ",
+          "9:00 PM",
+          "out",
+          "",
+          "",
+          "",
+          "novice vs avenger (out)"
+        ],
+        [
+          "",
+          "ASpence vs KDSkill",
+          "10:00 PM",
+          "in",
+          "",
+          "",
+          "",
+          "ASpence vs Squirell (in)"
+        ],
+        [
+          "Thursday 17th",
+          "Evil vs Nkot",
+          "8:00 PM",
+          "out",
+          "",
+          "ASpence vs KDSkill 9PM",
+          "in"
+        ],
+        [
+          "",
+          "Novice vs Noplex",
+          "8:30 PM",
+          "out",
+          "",
+          "",
+          "",
+          "KDSkill vs Squirell (in)"
+        ],
+        [
+          "",
+          "Novice vs Nkot",
+          "9:00 PM",
+          "out"
+        ],
+        [
+          "Friday 18th",
+          "KDSkill vs Daedric",
+          "8:00 PM",
+          "out",
+          "",
+          "Squirell vs Solace 9:30 PM",
+          "out",
+          "Evil vs Squirell (in)"
+        ],
+        [
+          "",
+          "NOPLEX vs Daedric",
+          "9:30 PM",
+          "In",
+          "",
+          "",
+          "",
+          "Chemical vs Squirell (out)"
+        ],
+        [
+          "",
+          "Nkot vs Epic",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "Saturday 19th",
+          "Squirell vs Solace",
+          "9:00 PM",
+          "out",
+          "",
+          "",
+          "",
+          "Luxe vs Avenger (in)"
+        ],
+        [
+          "",
+          "Luxe vs Epic",
+          "8:00 PM",
+          "out"
+        ],
+        [
+          "",
+          "Avenger vs Epic",
+          "7:30 PM",
+          "out"
+        ],
+        [
+          "Week 5",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday 20th",
+          "Luxe vs Solace",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "",
+          "Noplex vs Squirell",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "",
+          "Chemical vs Avenger",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "Monday 21st",
+          "Chemical vs Solace",
+          "9:00 PM",
+          "in",
+          "",
+          "Noplex vs Avenger 9:30 PM",
+          "in"
+        ],
+        [
+          "",
+          "ASpence vs Scullen",
+          "10:00 PM",
+          "in",
+          "",
+          "Luxe vs Solace 8 PM",
+          "in"
+        ],
+        [
+          "",
+          "Scullen vs KDSKill",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "Tuesday 22nd"
+        ],
+        [
+          "Wednesday 23rd",
+          "ASpence vs Epic",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "",
+          "Avenger vs Novice",
+          "9:00 PM",
+          "out"
+        ],
+        [
+          "Thursday 24th",
+          "Novice vs Epic",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "Friday 25th"
+        ],
+        [
+          "Saturday 26th",
+          "",
+          "",
+          "",
+          "",
+          "Avenger vs Epic 7 PM",
+          "out"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Epic vs Daedric 8 PM",
+          "out"
+        ],
+        [
+          "Week 6 (May)",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday 27th",
+          "Luxe vs Epic",
+          "8:00 PM",
+          "out",
+          "",
+          "Solace vs Daedric 8 PM",
+          "in"
+        ],
+        [
+          "",
+          "Squirell vs Daedric",
+          "7:30 PM",
+          "out"
+        ],
+        [
+          "Monday 28th",
+          "Nkot vs Avenger",
+          "7:30 PM",
+          "out"
+        ],
+        [
+          "Tuesday 29th",
+          "kdskill vs nkot",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "Wednesday 30th",
+          "ASpence vs Daedric",
+          "9:00 PM",
+          "out"
+        ],
+        [
+          "",
+          "Squirell vs Luxe",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "",
+          "Squirell vs ASpence",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "Thursday 1st",
+          "Novice vs ASpence",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "",
+          "novice vs kdskill",
+          "9:00 PM",
+          "in"
+        ],
+        [
+          "Friday 2nd",
+          "scullen vs daedric",
+          "8:30 PM",
+          "out",
+          "",
+          "Chemical vs Daedric",
+          "in"
+        ],
+        [
+          "",
+          "scullen vs chemical",
+          "8:00 PM",
+          "out"
+        ],
+        [
+          "",
+          "",
+          "",
+          "in"
+        ],
+        [
+          "Saturday 3rd",
+          "Solace vs Epic",
+          "7:00 PM",
+          "out"
+        ],
+        [
+          "Week 7",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday 4th",
+          "Evil vs Daedric",
+          "8:30 PM",
+          "in",
+          "",
+          "Solace vs Epic 8 PM",
+          "out"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Scullen vs Solace 10 PM",
+          "out"
+        ],
+        [
+          "Monday 5th",
+          "Solace vs Noplex",
+          "7:30 PM",
+          "in",
+          "",
+          "Solace vs Noplex 9:30 PM",
+          "in"
+        ],
+        [
+          "",
+          "ASpence vs Nkot",
+          "9:00 PM"
+        ],
+        [
+          "Tuesday 6th"
+        ],
+        [
+          "Wednesday 7th",
+          "Chemical vs Daedric",
+          "8:00 PM",
+          "in"
+        ],
+        [
+          "",
+          "Luxe vs chemical",
+          "8:30 PM",
+          "in"
+        ],
+        [
+          "",
+          "ASpence vs Luxe",
+          "9:00 PM",
+          "out"
+        ],
+        [
+          "",
+          "aspence vs chemical",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "",
+          "Chemical vs Squirell",
+          "10:00 PM",
+          "out"
+        ],
+        [
+          "Thursday 8th",
+          "novice vs squirell",
+          "9:30 PM",
+          "in"
+        ],
+        [
+          "",
+          "Squirell vs scullen",
+          "10:30 PM",
+          "in"
+        ],
+        [
+          "Friday 9th"
+        ],
+        [
+          "Saturday 10th"
+        ],
+        [
+          "Week 8",
+          "Bouts",
+          "Times",
+          "",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday 11th"
+        ],
+        [
+          "Monday 12th",
+          "ASpence vs Avenger",
+          "10:00 PM",
+          "out",
+          "",
+          "Evil vs Luxe 9 PM",
+          "in"
+        ],
+        [
+          "",
+          "squirrell vs avenger",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "Tuesday 13th",
+          "KDSkill vs Squirell ",
+          "9:30 PM",
+          "in"
+        ],
+        [
+          "",
+          "squirrell vs Epic",
+          "10:30 PM",
+          "in"
+        ],
+        [
+          "Wednesday 14th",
+          "",
+          "",
+          "",
+          "",
+          "Luxe vs ASpence 9:30 PM",
+          "out"
+        ],
+        [
+          "Thursday 15th",
+          "",
+          "",
+          "",
+          "",
+          "Evil vs Daedric 8 PM",
+          "in"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Evil vs Novice 9 PM",
+          "out"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Evil vs Scullen 9:30 PM",
+          "out"
+        ],
+        [
+          "Friday 16th",
+          "Evil vs Squirell",
+          "9:30 PM",
+          "out"
+        ],
+        [
+          "",
+          "kdskill vs epic",
+          "10:00 PM",
+          "in"
+        ],
+        [
+          "Saturday 17th",
+          "daedric vs novice"
+        ]
+      ]
+    },
+    {
+      "name": "Game History",
+      "hidden": false,
+      "rowCount": 156,
+      "colCount": 21,
+      "rows": [
+        [
+          " ",
+          "Home",
+          "Away",
+          "Score",
+          "Time",
+          "Waypoint URL",
+          "",
+          "VOD",
+          "",
+          "4/5th used Home",
+          "4/5th used Away",
+          "",
+          "Home Win",
+          "Away Win",
+          "",
+          "Team",
+          "Win",
+          "Loss",
+          "Games left",
+          "4th/5th played",
+          "Captain"
+        ],
+        [
+          "Week 1",
+          "Chemical",
+          "KDSkill",
+          "5-1",
+          "16:23",
+          "https://www.halowaypoint.com/en-gb/halo-infinite/players/Chemical/matches/6b04f745-3a8d-4679-85e7-be5c1782c44f"
+        ],
+        [
+          "",
+          "Solace",
+          "ASpence501",
+          "5-4",
+          "19:56",
+          "https://www.halowaypoint.com/en-gb/halo-infinite/players/ASpence501/matches/a559a9da-7b4f-41ca-a85f-17c65d017d54"
+        ],
+        [
+          "",
+          "Luxe",
+          "Nkot",
+          "5-1",
+          "08:22",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/8925f53b-02b3-4889-973f-7f849ee60098"
+        ],
+        [
+          "",
+          "Luxe",
+          "Noplex",
+          "5-2",
+          "09:52",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/979ec3c6-991d-42c9-b022-2d9377c804dd"
+        ],
+        [
+          "",
+          "Noplex",
+          "Luxe",
+          "1-5",
+          "16:26",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/a75c3aae-868c-4e8a-be13-3b5b7e31f39d"
+        ],
+        [
+          "",
+          "Evil",
+          "Avenger",
+          "5-3",
+          "18:27",
+          "https://www.halowaypoint.com/halo-infinite/players/NecessaryEvil10/matches/243ac8c8-bc77-42b5-8577-d8b408f79f92"
+        ],
+        [
+          "",
+          "Avenger",
+          "Evil",
+          "4-5",
+          "23:01",
+          "https://www.halowaypoint.com/halo-infinite/players/NecessaryEvil10/matches/c25a6dca-7d33-41f8-bd7b-e389d5d16b62"
+        ],
+        [
+          "",
+          "Noplex",
+          "Nkot",
+          "5-3",
+          "16:02",
+          "https://www.halowaypoint.com/halo-infinite/players/noplex/matches/4247275d-eb0f-4dfb-8031-baa1ac87b009"
+        ],
+        [
+          "",
+          "Noplex",
+          "Epic",
+          "5-2",
+          "7:51",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/147b7287-6958-4b3c-bfd9-fbfbbbfb5204"
+        ],
+        [
+          "Week 2",
+          "Solace",
+          "KDSkill",
+          "5-1",
+          "25:08",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/562b2b3b-74c6-42b7-988a-bc6061615728"
+        ],
+        [
+          "",
+          "Novice",
+          "Solace",
+          "5-4",
+          "11:24",
+          "https://www.halowaypoint.com/halo-infinite/players/Mungo%20pungo/matches/6127c510-2bf9-4945-94b8-72cec1e79ae9"
+        ],
+        [
+          "",
+          "Chemical",
+          "Nkot",
+          "5-1",
+          "19:30",
+          "https://halodatahive.com/Infinite/Match/fea4d761-ea75-4c72-b4ad-d7f08f76b334?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Chemical",
+          "Noplex",
+          "5-0",
+          "13:02",
+          "https://halodatahive.com/Infinite/Match/7a842a4f-c607-41dd-aa80-b753002d0656?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Noplex",
+          "Chemical",
+          "0-5",
+          "8:23",
+          "https://halodatahive.com/Infinite/Match/22872b17-5658-4660-bc25-69581dba40b7?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Evil",
+          "KDSkill",
+          "5-2",
+          "23:53",
+          "https://www.halowaypoint.com/halo-infinite/players/Kdskill/matches/679cb4ab-bdb3-4436-b407-caf11086a5da"
+        ],
+        [
+          "",
+          "ASpence501",
+          "Evil",
+          "5-4",
+          "33:58",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/2d636f46-43f8-41d1-851f-81ddf09b294d"
+        ],
+        [
+          "",
+          "Luxe",
+          "Scullen",
+          "5-0",
+          "10:00",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/c9dcaa9b-272a-408f-a20a-a75d1507633a"
+        ],
+        [
+          "",
+          "Evil",
+          "Noplex",
+          "5-3",
+          "19:28",
+          "https://halodatahive.com/Infinite/Match/e3b3b9e0-b1fb-479d-ae50-88b33473a98d?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Noplex",
+          "Evil",
+          "2-5",
+          "9:57",
+          "https://halodatahive.com/Infinite/Match/527affdf-9d67-4586-b073-66fa56fd8bcb?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Avenger",
+          "Daedric",
+          "2-5",
+          "13:29",
+          "https://halodatahive.com/Infinite/Match/e3524393-bdfd-446e-994b-dce3e80baa2a?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "Avenger",
+          "2-5",
+          "21:08",
+          "https://halodatahive.com/Infinite/Match/805a2658-b0e4-4106-9fbb-958e3deef4a9?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "Week 3"
+        ],
+        [
+          "",
+          "Evil",
+          "Epic",
+          "5-1",
+          "13:21",
+          "https://halodatahive.com/Infinite/Match/791d8a3d-689b-4dbc-82d4-9c90e35edcde?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Solace",
+          "5-1",
+          "16:11",
+          "https://halodatahive.com/Infinite/Match/0fefe2b0-c9c4-47fd-ba4b-43289929c576?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Solace",
+          "Evil",
+          "4-5",
+          "26:11",
+          "https://halodatahive.com/Infinite/Match/b9cced5e-9dae-458b-ad97-d16572f2e7c3?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Solace",
+          "nkot",
+          "5-1",
+          "9:16",
+          "https://www.halowaypoint.com/halo-infinite/players/solace%20viii/matches/01100ef7-3c69-439a-b46c-956086914c7f"
+        ],
+        [
+          "",
+          "Avenger",
+          "Scullen",
+          "5-1",
+          "11:40",
+          "https://www.halowaypoint.com/halo-infinite/players/Scullen%20cx/matches/ee3e9266-fc11-4f37-b84c-04863b4f162f"
+        ],
+        [
+          "",
+          "Noplex",
+          "Scullen",
+          "5-0",
+          "7:10",
+          "https://halodatahive.com/Infinite/Match/79e753e0-210e-4232-9fe0-965d14a785a6?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "KDSkill",
+          "5-2",
+          "19:23",
+          "https://halodatahive.com/Infinite/Match/ada7be7a-85df-4036-8299-0df24c9c44e1?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Novice",
+          "5-1",
+          "8:30",
+          "https://halodatahive.com/Infinite/Match/b6276562-691c-49b7-a230-dc013f186244?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Chemical",
+          "Evil",
+          "5-1",
+          "7:11",
+          "https://halodatahive.com/Infinite/Match/32906473-85fe-43f4-a535-801d8d6025d3?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Evil",
+          "Chemical",
+          "5-3",
+          "9:44",
+          "https://halodatahive.com/Infinite/Match/633ed321-ec37-416d-8c98-89384ef84853?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Chemical",
+          "Epic",
+          "5-1",
+          "17:22",
+          "https://halodatahive.com/Infinite/Match/4ad5c405-45f0-4c19-94b7-cb0d1b5b884b?gamertag=Chemicall"
+        ],
+        [
+          "",
+          "Novice",
+          "Luxe",
+          "5-3",
+          "12:36",
+          "https://halodatahive.com/Infinite/Match/34f11d6b-1b84-4938-b248-0b92647583c9?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Nkot",
+          "Daedric",
+          "0-5",
+          "22:39",
+          "https://halodatahive.com/Infinite/Match/3ea6823b-92b4-4c91-b67d-b26c975cc620?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "kdskill",
+          "noplex",
+          "5-3",
+          "11:23",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/0e2d86a6-084c-4c23-a551-3f7b8180ad38"
+        ],
+        [
+          "",
+          "Luxe",
+          "Daedric",
+          "5-1",
+          "7:22",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/60d1e8af-39fa-4877-b6b4-b4122991f43c"
+        ],
+        [
+          "",
+          "Daedric",
+          "Luxe",
+          "0-5",
+          "6:20",
+          "https://www.halowaypoint.com/halo-infinite/players/yLuxe/matches/e3128434-4d40-4621-b1df-81277e3af6af"
+        ],
+        [
+          "Week 4",
+          "Epic",
+          "Scullen",
+          "5-1",
+          "12:19",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/6da69fc1-1df4-42cc-89e7-b9119aca057c"
+        ],
+        [
+          "",
+          "Scullen",
+          "Epic",
+          "4-5",
+          "13:59",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/f99675a3-6a15-4db2-b6e5-e9b71edc5efb"
+        ],
+        [
+          "",
+          "KDskill",
+          "Avenger",
+          "5-0",
+          "10:17",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/21113fa8-e7cb-4303-a8af-91df4d69e067"
+        ],
+        [
+          "",
+          "Solace",
+          "Avenger",
+          "5-3",
+          "11:13",
+          "https://www.halowaypoint.com/halo-infinite/players/Deathcrawller/matches/818f7275-8306-4f6f-a140-07da951ce376"
+        ],
+        [
+          "",
+          "Avenger",
+          "Solace",
+          "3-5",
+          "14:35",
+          "https://www.halowaypoint.com/halo-infinite/players/Deathcrawller/matches/d75873f7-3de7-4c49-8865-dd2f2654d599"
+        ],
+        [
+          "",
+          "ASpence501",
+          "NOPLEX",
+          "5-2",
+          "07:55",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/73c7d5b7-9315-4934-99e4-e9d08c1d74a2"
+        ],
+        [
+          "",
+          "Luxe",
+          "Avenger",
+          "5-1",
+          "09:03",
+          "https://halodatahive.com/Infinite/Match/cf2b1f5c-8191-4b4b-99cd-a1b4cb9e3d66?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Avenger",
+          "Luxe",
+          "2-5",
+          "06:58",
+          "https://halodatahive.com/Infinite/Match/acff30f4-b5ac-4438-9001-567dd34720e1?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "ASpence501",
+          "KDSkill",
+          "5-4",
+          "41:57",
+          "https://halodatahive.com/Infinite/Match/dd6efd57-216b-487d-a5d4-2b086dd43433?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "KDskill",
+          "ASpence501",
+          "5-4",
+          "25:51",
+          "https://halodatahive.com/Infinite/Match/eee631e6-c85f-4cc7-becd-c116bb9c9c5c?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Nkot",
+          "5-0",
+          "10:59",
+          "https://halodatahive.com/Infinite/Match/8c1aef70-1da5-463b-aaa2-12cd11f42c96?gamertag=Cosmos5024&page=0"
+        ],
+        [
+          "",
+          "Nkot",
+          "Novice",
+          "2-5",
+          "15:05",
+          "https://halodatahive.com/Infinite/Match/913df4a3-8ec8-4395-827e-adc911256555?gamertag=Cosmos5024&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "NOPLEX",
+          "5-1",
+          "10:41",
+          "https://halodatahive.com/Infinite/Match/3f28200b-9886-4f79-aec3-958097795b2f?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Noplex",
+          "Daedric",
+          "5-4",
+          "15:45",
+          "https://halodatahive.com/Infinite/Match/e31e7af5-781c-4eea-b0fb-812ad1e97f1d?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "Noplex",
+          "5-3",
+          "11:27",
+          "https://halodatahive.com/Infinite/Match/52ef2e5d-bea3-4e30-8f2d-8b27db727037?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "KDSkill",
+          "5-3",
+          "21:16",
+          "https://halodatahive.com/Infinite/Match/a6fa968c-e71b-42a4-bd70-547b24ed179a?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirell",
+          "Solace",
+          "5-4",
+          "15:52",
+          "https://halodatahive.com/Infinite/Match/b41ce6a1-072e-4b29-a3f8-7872d214a0ab?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "Nkot",
+          "5-1",
+          "14:00",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/e4ae3147-798f-4904-9ad9-3a01def54300"
+        ],
+        [
+          "",
+          "Nkot",
+          "Epic",
+          "1-5",
+          "10:27",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/b7cb60d8-7431-49cd-a5ae-4d733a2afae7"
+        ],
+        [
+          "",
+          "Epic",
+          "Luxe",
+          "5-4",
+          "12:32",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/7df59eeb-85f9-4c9b-ba58-8376cd536114"
+        ],
+        [
+          "Week 5"
+        ],
+        [
+          "",
+          "NOPLEX",
+          "Squirell",
+          "5-1",
+          "11:20",
+          "https://halodatahive.com/Infinite/Match/e282b994-efa3-4d87-9f7c-cff9652a8034?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Scullen",
+          "KDSkill",
+          "1-5",
+          "10:38",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/420bed3b-2f2e-4699-acab-f9b5ab0cbed0"
+        ],
+        [
+          "",
+          "KDskill",
+          "Scullen",
+          "5-0",
+          "20:06",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/19a74991-fe3c-4b09-823a-4753e3ec2b82"
+        ],
+        [
+          "",
+          "Chemical",
+          "Solace",
+          "5-1",
+          "10:46",
+          "https://halodatahive.com/Infinite/Match/40ef80ab-9ef2-4c7f-a824-d16b12305d2b?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Solace",
+          "Chemical",
+          "4-5",
+          "26:21",
+          "https://halodatahive.com/Infinite/Match/afb16580-980b-4d90-bd07-0b78c79da320?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Avenger",
+          "Chemical",
+          "5-1",
+          "15:06",
+          "https://halodatahive.com/Infinite/Match/8cc60668-4b84-4d02-8ef0-7ed8fb79c18a?gamertag=CaptainSev004"
+        ],
+        [
+          "",
+          "Chemical",
+          "Avenger",
+          "5-0",
+          "11:57",
+          "https://halodatahive.com/Infinite/Match/db2c6b38-e034-4938-ab0e-0beacbd97c0a?gamertag=Chemical"
+        ],
+        [
+          "",
+          "ASpence",
+          "Scullen",
+          "5-0",
+          "08:31",
+          "https://halodatahive.com/Infinite/Match/e38fc61b-e2f9-4e04-8a2f-9442e7b377ba?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Scullen",
+          "ASpence",
+          "3-5",
+          "14:43",
+          "https://halodatahive.com/Infinite/Match/a273a3a3-0aa0-4bc3-ab67-ad0b48154d38?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Noplex",
+          "Avenger",
+          "5-2",
+          "09:30",
+          "https://halodatahive.com/Infinite/Match/37dc6fc3-4e76-498b-8714-6c316003c952?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Avenger",
+          "Noplex",
+          "1-5",
+          "14:06",
+          "https://halodatahive.com/Infinite/Match/1ac71f87-b5f5-4eb7-a78b-4ffae034adbc?gamertag=NOPLEX&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "ASpence",
+          "5-4",
+          "16:45",
+          "https://halodatahive.com/Infinite/Match/a8d53a85-2d06-4a70-865b-f6c6eaa14743?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Aspence",
+          "Epic",
+          "5-2",
+          "21:28",
+          "https://halodatahive.com/Infinite/Match/cb27dbca-3a77-4741-a782-0e593e235190?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Avenger",
+          "5-4",
+          "13:52",
+          "https://halodatahive.com/Infinite/Match/2953646b-ea67-4f32-8652-4e599c3b32e0?gamertag=Dhlyn&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Epic",
+          "5-1",
+          "16:23",
+          "https://halodatahive.com/Infinite/Match/2eee9b0b-5b17-431c-bb69-079ac3865ca7?gamertag=ill%20shrek%20u&type=Custom&page=0, https://halodatahive.com/Infinite/Match/5a425271-f925-432d-a216-aefbf29dea8e?gamertag=ill%20shrek%20u&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "Novice",
+          "5-2",
+          "09:50",
+          "https://halodatahive.com/Infinite/Match/a7b996ce-84b8-43ca-bf52-e5dd8da3c704?gamertag=ill%20shrek%20u&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "Avenger",
+          "5-0",
+          "4 vs 3",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/7b0744f0-fb71-47b0-ad7c-155788185f30",
+          "",
+          "",
+          "Not allowed - 4 vs 3"
+        ],
+        [
+          "",
+          "Daedric",
+          "Epic",
+          "5-4",
+          "15:24",
+          "https://halodatahive.com/Infinite/Match/7ca58153-9e00-4373-ab32-fda186e2ed21?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "Week 6"
+        ],
+        [
+          "",
+          "Squirell",
+          "Daedric",
+          "5-2",
+          "21:45",
+          "https://halodatahive.com/Infinite/Match/bc5c3f72-50e9-44ce-abc7-9aa901898a93?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "Solace",
+          "5-3",
+          "16:41",
+          "https://halodatahive.com/Infinite/Match/f5e427c2-304d-4d3f-8ef9-86238fc71011?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Solace",
+          "Daedric",
+          "1-5",
+          "11:22",
+          "https://halodatahive.com/Infinite/Match/dd73d33a-db17-4a94-8d84-6485d93039aa?gamertag=KindredDaedric&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Nkot",
+          "Avenger",
+          "5-4",
+          "21:20",
+          "https://halodatahive.com/Infinite/Match/f175023a-f1c8-488e-b55f-d37e65d72632?gamertag=TcT%20AVENGER&type=Custom&page=0"
+        ],
+        [
+          "",
+          "ASpence",
+          "Daedric",
+          "5-3",
+          "21:49",
+          "https://halodatahive.com/Infinite/Match/fc061ee6-ca53-4600-a2b2-9d1523a496f2?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "ASpence",
+          "Squirell",
+          "5-2",
+          "13:19",
+          "https://halodatahive.com/Infinite/Match/24021827-aefc-4881-99c8-2eba2999f67a?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirell",
+          "ASpence",
+          "3-5",
+          "18:34",
+          "http://halodatahive.com/Infinite/Match/b92f4b48-1556-4454-a86c-a53b02a48a6b?gamertag=MasterSquirre&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "Squirell",
+          "5-2",
+          "14:29",
+          "https://halodatahive.com/Infinite/Match/89ae8655-5aad-4383-a028-8ad8e6442ec7?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirel ",
+          "nkot",
+          "FF (5-0)"
+        ],
+        [
+          "",
+          "nkot",
+          "Squirel ",
+          "FF (5-0)"
+        ],
+        [
+          "",
+          "kdskill",
+          "nkot",
+          "5-2",
+          "14:54",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/009788af-d2d9-4266-8fb0-eddc8622ce9d"
+        ],
+        [
+          "",
+          "nkot",
+          "kdskill",
+          "3-5",
+          "18:14",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/93771673-c81d-4c3c-bdd4-4c642373dd4b"
+        ],
+        [
+          "",
+          "Novice",
+          "Kdskill",
+          "5-2",
+          "12:16",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/cc68e3d8-8f33-402b-8f42-ced9cc804671"
+        ],
+        [
+          "",
+          "KDskill",
+          "Novice",
+          "5-3",
+          "22:29",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/3e49182c-f617-4450-94f7-e1dc730277ce"
+        ],
+        [
+          "",
+          "ASpence",
+          "Novice",
+          "5-3",
+          "13:23",
+          "https://halodatahive.com/Infinite/Match/f3d41456-74e4-44cf-9e0c-813e332b0fd7?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Aspence",
+          "3-5",
+          "25:28",
+          "https://halodatahive.com/Infinite/Match/e480f7ee-26e8-4cb6-98f9-627ed56b4288?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Scullen",
+          "5-2",
+          "16:42",
+          "https://halodatahive.com/Infinite/Match/6378b788-9c53-48f1-b483-67ee8a18116d?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Chemical",
+          "Daedric",
+          "5-3",
+          "24:39",
+          "https://halodatahive.com/Infinite/Match/3e14b247-085e-468a-981a-fc787d14261c?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Daedric",
+          "Chemical",
+          "3-5",
+          "15:33",
+          "https://halodatahive.com/Infinite/Match/761b0a7a-7058-4a8b-8c75-18392eff8d21?gamertag=CaptainSev004"
+        ],
+        [
+          "",
+          "Daedric",
+          "Scullen",
+          "5-2",
+          "12:20",
+          "https://halodatahive.com/Infinite/Match/f2f17545-862a-45c0-ae93-7a3398fd63ed?gamertag=Scullen%20cx&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "Solace",
+          "5-2",
+          "13:49",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/6360ec15-2e7a-43b8-8c4a-610dcb436fe4"
+        ],
+        [
+          "",
+          "Solace",
+          "Scullen",
+          "5-0",
+          "07:41",
+          "https://www.halowaypoint.com/halo-infinite/players/Scullen%20cx/matches/7d7652ed-56e7-4ad7-9072-e7c904cc84e3"
+        ],
+        [
+          "Week 7"
+        ],
+        [
+          "",
+          "ASpence",
+          "Nkot",
+          "5-2",
+          "14:32",
+          "https://halodatahive.com/Infinite/Match/1767e57e-c94b-44b1-8466-c808d523437f?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Nkot",
+          "ASpence",
+          "0-5",
+          "06:34",
+          "https://halodatahive.com/Infinite/Match/4d8a102a-1f2b-487c-a6a0-a57b7b6599bb?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Nkot",
+          "FF (5-0)"
+        ],
+        [
+          "",
+          "Solace",
+          "Noplex",
+          "5-1",
+          "12:56",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/e8b70bc1-a94d-470c-b12c-464d8200fcac"
+        ],
+        [
+          "",
+          "Noplex",
+          "Solace",
+          "2-5",
+          "12:26",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/7e94b10e-48c6-4a74-956c-215ef4f3e4cb"
+        ],
+        [
+          "",
+          "Chemical",
+          "Luxe",
+          "5-2",
+          "13:27",
+          "https://halodatahive.com/Infinite/Match/d060fa25-e864-4f23-8ca7-23a77e0588f0?gamertag=Chemical",
+          "",
+          "",
+          "Not allowed - wrong mode"
+        ],
+        [
+          "",
+          "Luxe",
+          "Chemical",
+          "5-3",
+          "21:02",
+          "https://halodatahive.com/Infinite/Match/554a64e5-2a44-4d32-9ff0-75350b18f300?gamertag=Chemical",
+          "",
+          "",
+          "Not allowed - wrong mode"
+        ],
+        [
+          "",
+          "ASpence",
+          "Chemical",
+          "5-2",
+          "05:41",
+          "https://halodatahive.com/Infinite/Match/5565399b-d243-40f1-9426-efd658a4f36f?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Squirel",
+          "5-1",
+          "13:02",
+          "https://halodatahive.com/Infinite/Match/79bebe0a-5850-4fbc-b78a-3d957593ada7?gamertag=Chemical"
+        ],
+        [
+          "",
+          "Novice",
+          "Squirel",
+          "5-0",
+          "5:20",
+          "https://halodatahive.com/Infinite/Match/e4e21230-98fb-4f7b-81e3-17fd320b6d98?gamertag=MysticalNovice&type=Custom&page=0"
+        ],
+        [
+          "Week 8",
+          "Squirel",
+          "Novice",
+          "0-5",
+          "3:53",
+          "https://halodatahive.com/Infinite/Match/163f068f-f916-4121-8fe1-63701a7d89e8?gamertag=MysticalNovice&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Scullen",
+          "5-1",
+          "12:52",
+          "https://halodatahive.com/Infinite/Match/1297f6fc-39ec-4afc-af31-fd6d8577386b?gamertag=MysticalNovice&type=Custom&page=00"
+        ],
+        [
+          "",
+          "Scullen",
+          "Novice",
+          "5-3",
+          "9:34",
+          "https://halodatahive.com/Infinite/Match/aaf995f6-53aa-481b-874a-447a41ddf54c?gamertag=MysticalNovice&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirell",
+          "Scullen",
+          "5-2",
+          "14:09",
+          "https://halodatahive.com/Infinite/Match/09a4f40a-eb85-4b22-b254-97864336f717?gamertag=mxrvine&type=Custom&page=0 ,  https://halodatahive.com/Infinite/Match/ba486f54-78c2-4884-adf7-2f0100596fdf?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Scullen",
+          "Squirell",
+          "1-5",
+          "04:11",
+          "https://halodatahive.com/Infinite/Match/fc2a3b8f-f3e1-47e0-8af6-7726751515c6?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "luxe",
+          "evil",
+          "5-0",
+          "05:03",
+          "https://halodatahive.com/Infinite/Match/8672309c-894d-4291-8c7b-79a03e498985?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "evil",
+          "luxe",
+          "3-5",
+          "13:42",
+          "https://halodatahive.com/Infinite/Match/66428d88-18af-4fe6-aad7-0ece6b3687c8?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "squirell",
+          "avenger",
+          "3-5",
+          "08:40",
+          "https://halodatahive.com/Infinite/Match/443b211d-ec56-4b7f-8246-796bc0f121bf?gamertag=TcT%20AVENGER&type=Custom&page=0"
+        ],
+        [
+          "",
+          "aspence",
+          "avenger",
+          "5-3",
+          "20:31",
+          "https://halodatahive.com/Infinite/Match/99149d70-fd80-4eab-a6af-7e3eccbe6d6f?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "Solace",
+          "5-3",
+          "14:50",
+          "https://halodatahive.com/Infinite/Match/2f224a50-90c0-4af5-b74c-c5d06f13e16f?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Solace",
+          "Luxe",
+          "2-5",
+          "13:59",
+          "https://halodatahive.com/Infinite/Match/b391fdba-a2bb-47c7-9995-58bbcff25f61?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirell",
+          "Kdskill",
+          "5-3",
+          "12:41",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/3c551a00-de8e-4e4d-b804-6e49c75c587b"
+        ],
+        [
+          "",
+          "Kdskill",
+          "Squirell",
+          "5-3",
+          "10:21",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/fd118d75-a338-427b-adae-1d16e70bea46"
+        ],
+        [
+          "",
+          "Epic",
+          "Squirell",
+          "5-3",
+          "19:34",
+          "https://halodatahive.com/Infinite/Match/45ee59d3-8bee-4935-82c9-dd5e74102f84?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Squirell",
+          "Epic",
+          "5-4",
+          "18:14",
+          "https://halodatahive.com/Infinite/Match/ba079122-3325-4ed0-b722-c3f52512d03f?gamertag=mxrvine&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "ASpence",
+          "5-1",
+          "14:31",
+          "https://halodatahive.com/Infinite/Match/b22caac5-90da-4187-9e83-b7177c106375?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "Evil",
+          "5-4",
+          "14:09",
+          "https://halodatahive.com/Infinite/Match/dc16eea7-2893-476e-9b2f-f3b012ee9b91?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Daedric",
+          "5-4",
+          "23:17",
+          "https://halodatahive.com/Infinite/Match/846613ff-cc67-4d37-8369-11ff5aecf024?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Evil",
+          "5-4",
+          "24:58",
+          "https://halodatahive.com/Infinite/Match/30702817-8714-4c96-89ac-16eb0e39e93c?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Scullen",
+          "5-2",
+          "8:30",
+          "https://halodatahive.com/Infinite/Match/71db727a-337b-4590-bfa6-c979a7d7eaff?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Scullen",
+          "Nkot",
+          "FF (5-0)"
+        ],
+        [
+          "",
+          "Nkot",
+          "Scullen",
+          "FF (5-0)"
+        ],
+        [
+          "",
+          "Novice",
+          "Daedric",
+          "5-3",
+          "14:26",
+          "https://halodatahive.com/Infinite/Match/2c29d9c5-e52f-413c-8d50-18567cf54e04?gamertag=MysticalNovice&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Squirell",
+          "5-3",
+          "18:29",
+          "https://halodatahive.com/Infinite/Match/7d3a2f97-d521-4668-bcbe-7c12aac4b226?gamertag=Mavbrid&type=Custom&page=0",
+          "",
+          "Time removed "
+        ],
+        [
+          "",
+          "Kdskill",
+          "Epic",
+          "5-2",
+          "10:34",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/e4653073-847d-4e42-8307-b0cb9bd47ed2"
+        ],
+        [
+          "",
+          "Epic",
+          "KdSkill",
+          "5-3",
+          "28:40",
+          "https://www.halowaypoint.com/halo-infinite/players/Mr%20Epic%20Beast/matches/5b9ef953-a6dd-4015-bd0f-da4eeab474a7"
+        ],
+        [
+          "",
+          "Luxe",
+          "KDskill",
+          "5-1",
+          "12:31",
+          "https://halodatahive.com/Infinite/Match/bc569365-66dd-4c9c-9027-67b57645219f?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "KDSkill",
+          "Luxe",
+          "1-5",
+          "13:43",
+          "https://halodatahive.com/Infinite/Match/230063da-ea4a-4bfb-b51d-82edf611a791?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "playoffs",
+          "Evil",
+          "Novice",
+          "5-2",
+          "12:48",
+          "https://halodatahive.com/Infinite/Match/37da46e1-aa78-44e7-a95a-797650551ac7?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Novice",
+          "Evil",
+          "1-5",
+          "14:14",
+          "https://halodatahive.com/Infinite/Match/16de2ab4-96e7-4be3-9d83-fff422b96360?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "ASpence",
+          "Epic",
+          "5-2",
+          "26:14",
+          "https://halodatahive.com/Infinite/Match/f4fc360d-ee96-4210-a16d-60b65f03eeae?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Epic",
+          "ASpence",
+          "1-5",
+          "10:35",
+          "https://halodatahive.com/Infinite/Match/20f8de1c-19d1-42a0-9e3b-a0eb69a277ff?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Daedric",
+          "5-1",
+          "20:37",
+          "https://halodatahive.com/Infinite/Match/c5e4ffc4-6c0c-4ac8-a60e-d78ef92287e9?gamertag=Chemical&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Daedric",
+          "Chemical",
+          "1-5",
+          "07:07",
+          "https://halodatahive.com/Infinite/Match/e2af9c83-c8ce-4c5c-9f2a-3a5ae517feeb?gamertag=Chemical&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Evil",
+          "5-1",
+          "18:21",
+          "https://halodatahive.com/Infinite/Match/6040bea7-de52-4a83-af85-61904d519b86?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Evil",
+          "Chemical",
+          "4-5",
+          "36:45",
+          "https://halodatahive.com/Infinite/Match/6e50efc6-d900-4a65-a511-a4d1444af8ec?gamertag=Mavbrid&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "ASpence",
+          "1-5",
+          "20:56",
+          "https://halodatahive.com/Infinite/Match/44a0c4a6-7c83-41e9-82d7-4ceb910a8ae9?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "ASpence",
+          "Luxe",
+          "5-4",
+          "31:41",
+          "https://halodatahive.com/Infinite/Match/f6f54456-27d6-4452-b8e7-16594ccbe20b?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "ASpence",
+          "5-2",
+          "16:11",
+          "https://halodatahive.com/Infinite/Match/061ab5b4-05c5-4eca-8c3f-e7040f420466?gamertag=ASpence501&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Chemical",
+          "Luxe",
+          "5-4",
+          "29:54",
+          "https://halodatahive.com/Infinite/Match/55c962b9-eb0a-4888-976d-e4e67b99152e?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "Chemical",
+          "2-1",
+          "8:01",
+          "https://halodatahive.com/Infinite/Match/94665849-9586-4e26-aea9-afb6fc26dbd5?gamertag=yLuxe&type=Custom&page=0",
+          "",
+          "Game stopped"
+        ],
+        [
+          "",
+          "Luxe",
+          "Chemical",
+          "5-4",
+          "22:09",
+          "https://halodatahive.com/Infinite/Match/1b851a88-c22c-424f-beaf-7831830cb29f?gamertag=yLuxe&type=Custom&page=0",
+          "",
+          "Game stopped"
+        ],
+        [
+          "",
+          "Luxe",
+          "Chemical",
+          "5-0",
+          "5:31",
+          "https://halodatahive.com/Infinite/Match/cc15fd80-88e7-4b9f-9db7-7c8e9a0a3612?gamertag=yLuxe&type=Custom&page=0"
+        ],
+        [
+          "",
+          "Luxe",
+          "Chemical",
+          "5-3",
+          "24:24",
+          "https://halodatahive.com/Infinite/Match/af65a0b3-462a-44dc-8cfd-0cc80c3f49c3?gamertag=yLuxe&type=Custom&page=0"
+        ]
+      ]
+    },
+    {
+      "name": "Playoffs",
+      "hidden": false,
+      "rowCount": 45,
+      "colCount": 12,
+      "rows": [
+        [
+          "",
+          "",
+          "Auto Updates"
+        ],
+        [
+          "",
+          "S1",
+          "Chemical Imbalance (chemical)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Day 4"
+        ],
+        [
+          "",
+          "",
+          "vs (2-0)"
+        ],
+        [
+          "",
+          "S8",
+          "Cosmic Oblivion (Daedric)",
+          "",
+          "",
+          "",
+          "Chemical Imbalance (chemical)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "vs (2-0)"
+        ],
+        [
+          "",
+          "S4",
+          "Chick-fil-Ass Grabbers (novice)",
+          "",
+          "",
+          "",
+          "First Strike (evil)"
+        ],
+        [
+          "",
+          "",
+          "vs (2-0)"
+        ],
+        [
+          "",
+          "S5",
+          "First Strike (evil)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Chemical Imbalance (chemical)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Winner"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "vs (3-1)",
+          "",
+          "Like Clockwork (luxe)"
+        ],
+        [
+          "",
+          "S3",
+          "Clip Hunters (aspence)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Like Clockwork (luxe)"
+        ],
+        [
+          "",
+          "",
+          "vs (2-0)"
+        ],
+        [
+          "",
+          "S6",
+          "Hammers are for Losers (epic)",
+          "",
+          "",
+          "",
+          "Clip Hunters (aspence)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "vs (2-1)"
+        ],
+        [
+          "",
+          "S2",
+          "Like Clockwork (luxe)",
+          "",
+          "",
+          "",
+          "Like Clockwork (luxe)"
+        ],
+        [
+          "",
+          "",
+          "vs (2-0)"
+        ],
+        [
+          "",
+          "S7",
+          "Skill Differential (kdskill)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Roster"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Captain"
+        ],
+        [
+          "",
+          "",
+          "",
+          "R1"
+        ],
+        [
+          "",
+          "",
+          "",
+          "R2"
+        ],
+        [
+          "",
+          "",
+          "",
+          "R3"
+        ],
+        [
+          "",
+          "",
+          "",
+          "SUB"
+        ],
+        [
+          "",
+          "",
+          "",
+          "SUB ALT"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "Teams MUST play their full roster. Subs may only be used when a player has quit."
+        ],
+        [
+          "",
+          "",
+          "",
+          "Chemical Imbalance (chemical)",
+          "16",
+          "3",
+          "",
+          "0.8",
+          "",
+          "Seed 1"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Like Clockwork (luxe)",
+          "16",
+          "3",
+          "",
+          "0.8",
+          "",
+          "Seed 2"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Clip Hunters (aspence)",
+          "15",
+          "4",
+          "",
+          "0.75",
+          "",
+          "Seed 3"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Chick-fil-Ass Grabbers (novice)",
+          "14",
+          "5",
+          "",
+          "0.7",
+          "",
+          "Seed 4"
+        ],
+        [
+          "",
+          "",
+          "",
+          "First Strike (evil)",
+          "13",
+          "6",
+          "",
+          "0.65",
+          "",
+          "Seed 5"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Hammers are for Losers (epic)",
+          "11",
+          "8",
+          "",
+          "0.55",
+          "",
+          "Seed 6"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Skill Differential (kdskill)",
+          "10",
+          "9",
+          "",
+          "0.5",
+          "",
+          "Seed 7"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Cosmic Oblivion (Daedric)",
+          "9",
+          "10",
+          "",
+          "0.45",
+          "",
+          "Seed 8"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "0"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "0"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "0"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          " "
+        ],
+        [
+          "",
+          "",
+          "",
+          "Chemical Imbalance (chemical)",
+          "16",
+          "3"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Like Clockwork (luxe)",
+          "16",
+          "3"
+        ],
+        [
+          "",
+          "",
+          "",
+          "First Strike (evil)",
+          "13",
+          "6"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Cosmic Oblivion (Daedric)",
+          "9",
+          "10"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Clip Hunters (aspence)",
+          "15",
+          "4"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Chick-fil-Ass Grabbers (novice)",
+          "14",
+          "5"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Hammers are for Losers (epic)",
+          "11",
+          "8"
+        ],
+        [
+          "",
+          "",
+          "",
+          "Skill Differential (kdskill)",
+          "10",
+          "9"
+        ]
+      ]
+    },
+    {
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 65,
+      "colCount": 24,
+      "rows": [
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "unavailable ",
+          "Available"
+        ],
+        [
+          "",
+          "",
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "",
+          "",
+          "",
+          "Based on top 3 players"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri",
+          "Sat",
+          "aspence",
+          "Captain Sev"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "1",
+          "NecessaryEvil",
+          "-",
+          "-",
+          "-",
+          "8-10",
+          "8-10",
+          "8-10",
+          "-",
+          "3/19, 3/20, 3/26, 3/30-4/1, 4/7-4/10"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "2",
+          "Aspence",
+          "-",
+          "9-12",
+          "9-12",
+          "9-12",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "3",
+          "KDskill",
+          "-",
+          "-",
+          "-",
+          "10-12",
+          "-",
+          "-",
+          "-",
+          "Evil"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "4",
+          "novice",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "5/8-5/11"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "5",
+          "scullen",
+          "8-9",
+          "8-9",
+          "-",
+          "8-9",
+          "8-9",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "6",
+          "chemical",
+          "-",
+          "9-9:30",
+          "-",
+          "9-9:30",
+          "-",
+          "-",
+          "-",
+          "Mav"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "7",
+          "daedric",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "7-8:30",
+          "4/11- 4/13"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "8",
+          "squire",
+          "9-12",
+          "9-12",
+          "9-12",
+          "9-12",
+          "9-12",
+          "9-12",
+          "9-12"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "9",
+          "luxe",
+          "8-9",
+          "-",
+          "8-9",
+          "-",
+          "8-9",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "10",
+          "solace",
+          "7-9:30",
+          "7-9:30",
+          "-",
+          "-",
+          "-",
+          "-",
+          "7-9:30"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "11",
+          "nkot",
+          "-",
+          "7-9",
+          "7-9",
+          "-",
+          "7-9",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "12",
+          "noplex",
+          "-",
+          "7:30-8:30",
+          "7:30-8:30",
+          "-",
+          "7:30-8:30",
+          "7:30-8:30",
+          "-"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "13",
+          "avenger",
+          "-",
+          "7:30-9",
+          "-",
+          "7:30-9",
+          "-",
+          "-",
+          "7:30-9"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "14",
+          "epic",
+          "7-9",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "7-9"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Hammer",
+          "Sword"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "luxe",
+          "novice"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "13",
+          "",
+          "",
+          "solace",
+          "aspence"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "chemical",
+          "nkot"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "necessevil",
+          "kdskill"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "daedrice",
+          "epic"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "noplex",
+          "scullen"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "avenger",
+          "squirell"
+        ],
+        [
+          "",
+          "",
+          "",
+          "March",
+          "May",
+          " "
+        ],
+        [
+          "",
+          "",
+          "",
+          "23rd",
+          "18th"
+        ],
+        [
+          "Week",
+          "Home",
+          "Day",
+          "Date",
+          "Time",
+          "Away",
+          "4th round can?",
+          "Conference"
+        ],
+        [
+          "",
+          "ASpence",
+          "Monday",
+          "3/24/2025",
+          "9:00:00 PM",
+          "Solace",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "ASpence",
+          "Tuesday",
+          "3/25/2025",
+          "9:00:00 PM",
+          "Squirell",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Luxe",
+          "Tuesday",
+          "3/25/2025",
+          "8:00:00 PM",
+          "Nkot",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Wednesday",
+          "3/26/2025",
+          "8:00:00 PM",
+          "avenger",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "KDSkill",
+          "Wednesday",
+          "3/26/2025",
+          "10:00:00 PM",
+          "Squirell",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Nkot",
+          "Thursday",
+          "3/27/2025",
+          "7:30:00 PM",
+          "Noplex",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Friday",
+          "3/28/2025",
+          "9:00 PM",
+          "Squirell",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Daedric",
+          "Saturday",
+          "3/29/2025",
+          "7:00:00 PM",
+          "Solace",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Scullen",
+          "Sunday",
+          "3/30/2025",
+          "8:00:00 PM",
+          "Luxe",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Scullen",
+          "Monday",
+          "3/31/2025",
+          "8:00:00 PM",
+          "Avenger",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Luxe",
+          "Tuesday",
+          "4/1/2025",
+          "8:00:00 PM",
+          "Noplex",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Wednesday",
+          "4/2/2025",
+          "9:00 PM",
+          "Aspence",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Thursday",
+          "4/3/2025",
+          "8:00:00 PM",
+          "Scullen",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Friday",
+          "4/4/2025",
+          "8:00:00 PM",
+          "Noplex",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Daedric",
+          "Saturday",
+          "4/5/2025",
+          "7:00:00 PM",
+          "Avenger",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Scullen",
+          "Sunday",
+          "4/6/2025",
+          "8:00:00 PM",
+          "Solace",
+          "",
+          "out",
+          "",
+          "",
+          "NecessaryEvil",
+          "Aspence",
+          "KDskill",
+          "novice",
+          "scullen",
+          "chemical",
+          "daedric",
+          "squire",
+          "luxe",
+          "solace",
+          "nkot",
+          "noplex",
+          "avenger",
+          "Epic"
+        ],
+        [
+          "",
+          "Scullen",
+          "Monday",
+          "4/7/2025",
+          "8:00:00 PM",
+          "Noplex",
+          "",
+          "out",
+          "",
+          "NecessaryEvil",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Chemical",
+          "Monday",
+          "4/7/2025",
+          "9:00:00 PM",
+          "Squirell",
+          "",
+          "out",
+          "",
+          "Aspence",
+          "|",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Solace",
+          "Monday",
+          "4/7/2025",
+          "7:00:00 PM",
+          "Nkot",
+          "",
+          "out",
+          "",
+          "KDskill",
+          "?",
+          "|",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Wednesday",
+          "4/9/2025",
+          "9:00:00 PM",
+          "Chemical",
+          "",
+          "in",
+          "",
+          "novice",
+          "?",
+          "?",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Thursday",
+          "4/10/2025",
+          "8:00:00 PM",
+          "Luxe",
+          "",
+          "in",
+          "",
+          "scullen",
+          "|",
+          "?",
+          "?",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Daedric",
+          "Saturday",
+          "4/12/2025",
+          "7:00:00 PM",
+          "Epic",
+          "",
+          "out",
+          "",
+          "chemical",
+          "|",
+          "|",
+          "?",
+          "?",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Scullen",
+          "Sunday",
+          "4/13/2025",
+          "8:00:00 PM",
+          "Epic",
+          "",
+          "in",
+          "",
+          "daedric",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "ASpence",
+          "Monday",
+          "4/14/2025",
+          "9:00:00 PM",
+          "Chemical",
+          "",
+          "out",
+          "",
+          "squirell",
+          "|",
+          "|",
+          "|",
+          "?",
+          "?",
+          "|",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Scullen",
+          "Monday",
+          "4/14/2025",
+          "8:00:00 PM",
+          "Nkot",
+          "",
+          "in",
+          "",
+          "luxe",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "?",
+          "?",
+          "?",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Solace",
+          "Monday",
+          "4/14/2025",
+          "7:30:00 PM",
+          "Avenger",
+          "",
+          "in",
+          "",
+          "solace",
+          "?",
+          "|",
+          "?",
+          "?",
+          "|",
+          "|",
+          "|",
+          "|",
+          "|",
+          "-",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "ASpence",
+          "Wednesday",
+          "4/16/2025",
+          "10:00:00 PM",
+          "KDSkill",
+          "",
+          "in",
+          "",
+          "nkot",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "|",
+          "-",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "NecessaryEvil",
+          "Thursday",
+          "4/17/2025",
+          "8:00:00 PM",
+          "Nkot",
+          "",
+          "out",
+          "",
+          "noplex",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "|",
+          "|",
+          "-",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Squirell",
+          "Saturday",
+          "4/19/2025",
+          "9:00:00 PM",
+          "Solace",
+          "",
+          "out",
+          "",
+          "avenger",
+          "|",
+          "?",
+          "?",
+          "?",
+          "|",
+          "?",
+          "|",
+          "?",
+          "?",
+          "|",
+          "|",
+          "|",
+          "-",
+          "-"
+        ],
+        [
+          "",
+          "Avenger",
+          "Saturday",
+          "4/19/2025",
+          "7:30:00 PM",
+          "Epic",
+          "",
+          "out",
+          "",
+          "Epic",
+          "?",
+          "?",
+          "?",
+          "?",
+          "|",
+          "?",
+          "|",
+          "?",
+          "|",
+          "|",
+          "?",
+          "?",
+          "|",
+          "-"
+        ],
+        [
+          "",
+          "Luxe",
+          "Sunday",
+          "4/20/2025",
+          "8:00:00 PM",
+          "Solace",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Chemical",
+          "Monday",
+          "4/21/2025",
+          "9:00:00 PM",
+          "Solace",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Noplex",
+          "Monday",
+          "4/21/2025",
+          "7:30:00 PM",
+          "Avenger",
+          "",
+          "in"
+        ],
+        [
+          "",
+          "Luxe",
+          "Sunday",
+          "4/27/2025",
+          "8:00:00 PM",
+          "Epic",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Nkot",
+          "Monday",
+          "4/28/2025",
+          "7:30:00 PM",
+          "Avenger",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Solace",
+          "Saturday",
+          "5/3/2025",
+          "7:00:00 PM",
+          "Epic",
+          "",
+          "out"
+        ],
+        [
+          "",
+          "Solace",
+          "Monday",
+          "5/5/2025",
+          "7:30:00 PM",
+          "Noplex",
+          "",
+          "in"
+        ]
+      ]
+    },
+    {
+      "name": "Copy of Draft Sheet",
+      "hidden": true,
+      "rowCount": 20,
+      "colCount": 14,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "HALO INFINITE Winter League 2025 GRIFBALL SEASON"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:",
+          "B.U.R.T",
+          "Knocked Goose",
+          "9th Place",
+          "Coup De Puff",
+          "The Shrek Republic",
+          "Employees of the Month",
+          "Ascension",
+          "Like clockwork",
+          "F.C Barcelona",
+          "EXTORTION SZN"
+        ],
+        [
+          "",
+          "Captain:",
+          "Sauted Smurf",
+          "NecessaryEvil10",
+          "MuNgO PuNgO",
+          "Hells Angel cx",
+          "ill shrek u",
+          "Cosmos5024",
+          "Solace VIII",
+          "Sabasauros rex",
+          "MysticalNovice",
+          "SPANKTR0N"
+        ],
+        [
+          "",
+          "1st Round:",
+          "ASpence",
+          "Mavbrid",
+          "KDSkill",
+          "Chemical",
+          "Spanktron",
+          "MasterSquirre",
+          "Scullen cx",
+          "",
+          "",
+          "Cosmos5024(R1P9)"
+        ],
+        [
+          "",
+          "2nd Round:",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Mastersquirrel (R3P9)"
+        ],
+        [
+          "",
+          "3rd Round:",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "TJP37"
+        ],
+        [
+          "",
+          "4th Round:",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "GankedYoAss"
+        ],
+        [
+          "",
+          "Gamertag",
+          "Skill Estimate",
+          "Last Season",
+          "Region",
+          "Input",
+          "",
+          "",
+          "",
+          "",
+          "Captains"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Gamertag"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "NecessaryEvil10",
+          "",
+          "",
+          "Free Sub Pool"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "MysticalNovice"
+        ],
+        [
+          "",
+          "ASpence",
+          "KDSkill",
+          "Mavbrid",
+          "iNf3ktion",
+          "Havoc Puppies",
+          "Chemical",
+          "Mr Epic Beast",
+          "Dhlyn",
+          "Spanktron",
+          "Cosmos5024"
+        ],
+        [
+          "",
+          "Noplex",
+          "MasterSquirre",
+          "Scullen cx",
+          "Grunt Padre",
+          "Psyduck",
+          "Big Al",
+          "Deathcrawller",
+          "Avenger",
+          "AwareMosquito",
+          "Solace VIII"
+        ],
+        [
+          "",
+          "Priest",
+          "itsRiskE",
+          "mxrvine",
+          "Ram Osneb",
+          "BloodenNick",
+          "Reign",
+          "Rechargen",
+          "CaptainSev004",
+          "Panther Lily",
+          "MuNgO PuNgO"
+        ],
+        [
+          "",
+          "Trespa5s",
+          "Endasis zx",
+          "G3ohh",
+          "Clutch Academy",
+          "\nMajesticKittens  ",
+          "KindredDaedric",
+          "",
+          "",
+          "",
+          "Sauted Smurf"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Hells Angel cx"
+        ],
+        [
+          "w",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ill shrek u"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Sabasauros rex"
+        ]
+      ]
+    },
+    {
+      "name": "Substitution List",
+      "hidden": true,
+      "rowCount": 15,
+      "colCount": 12,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "Substitution List"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:",
+          "Bad Intentions",
+          "NeuraLink",
+          " Crazy Guys 2.0",
+          "Wang Industries",
+          "The @MenZ Fan Club",
+          "Chemical Imbalance",
+          "Ken no senshi",
+          "Asking Alexandra",
+          "4G1B",
+          "EXTORTION SZN"
+        ],
+        [
+          "",
+          "Captain:",
+          "NecessaryEvil10",
+          "TcT AVENGER",
+          "PsyDucky54",
+          "Inactive Spoon",
+          "Deathcrawller",
+          "Chemical",
+          "PoisonxPoptart",
+          "Hells Angel cx",
+          "Invayda Zim",
+          "SPANKTR0N"
+        ],
+        [
+          "",
+          "1st Round:",
+          "PapasnipezX",
+          "solace viii",
+          "ASpence501",
+          "MysticalNovice",
+          "Digital Pain",
+          "Sabasauros rex",
+          "mavbrid",
+          "ill Shrek u",
+          "Cosmos5024",
+          "Gingy"
+        ],
+        [
+          "",
+          "",
+          "A",
+          "A",
+          "S",
+          "S",
+          "A",
+          "A",
+          "A",
+          "A",
+          "A",
+          "A"
+        ],
+        [
+          "",
+          "2nd Round:",
+          "Fancy",
+          "KDSkill",
+          "TommyWstSide",
+          "Dhyln",
+          "Scullen cx",
+          "DCleak",
+          "IReign 77",
+          "iNF3ktioN",
+          "AwareMosquito",
+          "NOPLEX"
+        ],
+        [
+          "",
+          "",
+          "A",
+          "B",
+          "B",
+          "B",
+          "B",
+          "C",
+          "D",
+          "B",
+          "C",
+          "D"
+        ],
+        [
+          "",
+          "3rd Round:",
+          "MuNgO PuNgO",
+          "Blooden nick",
+          "Mr Epic Beast",
+          "about73puppies",
+          "Squarebarton",
+          "CaptainSev004",
+          "Endasis zx",
+          "Grunt Padre",
+          "Mastersquirrel",
+          "TJP37"
+        ],
+        [
+          "",
+          "",
+          "C",
+          "UNKNOWN",
+          "C",
+          "UNKNOWN",
+          "UNKNOWN",
+          "C",
+          "UNKNOWN",
+          "C",
+          "UNKNOWN",
+          "D"
+        ],
+        [
+          "",
+          "4th Round:",
+          "Priest XYZ",
+          "TcT J Bomb",
+          "Recharged ",
+          "NinjadYoAss ",
+          "MajesticKittens",
+          "The Goosler",
+          "II Panther Lily",
+          "Trespa5s",
+          "Itsriske",
+          "GankedYoAss"
+        ],
+        [
+          "",
+          "",
+          "D",
+          "UNKNOWN",
+          "D",
+          "UNKNOWN",
+          "E",
+          "E",
+          "UNKNOWN",
+          "E",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        [
+          "",
+          "5th Round:",
+          "OREOTHECAT",
+          "Jceyyy",
+          "DuffyCreates"
+        ],
+        [
+          "",
+          "",
+          "E",
+          "UNKNOWN",
+          "UNKNOWN"
+        ]
+      ]
+    },
+    {
+      "name": "Schedule Lookup Tool",
+      "hidden": true,
+      "rowCount": 316,
+      "colCount": 12,
+      "rows": [
+        [
+          "",
+          "",
+          "",
+          "Use this to search the schedule sheet for your or other captain's games. UPDATES AUTOMATICALLY FROM ADMIN SHEET, refer to schedule for captain name spelling"
+        ],
+        [
+          "Captain Search:",
+          "Death",
+          "",
+          "N/A means there isn't anything in the category"
+        ],
+        [
+          "Scheduled Games",
+          "",
+          "",
+          "",
+          "",
+          "Reschedules",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Free Scheduling"
+        ],
+        [
+          "Date",
+          "",
+          "Matchup/Time",
+          "",
+          "",
+          "Date",
+          "",
+          "",
+          "",
+          "Matchup/Time",
+          "",
+          "Matchup"
+        ],
+        [
+          "Monday Aug 26",
+          "Monday Aug 26",
+          "Ducky vs Death 8 PM",
+          "",
+          "",
+          "Monday Aug 26",
+          "",
+          "Death vs Evil 8:45 PM",
+          "",
+          "Death vs Ducky 8:30 PM",
+          "",
+          "Spoon vs Death"
+        ],
+        [
+          "Monday Aug 26",
+          "",
+          "Death vs Evil 8:45 PM",
+          "",
+          "",
+          "Monday Sept 2",
+          "Monday Sept 2",
+          "Ducky vs Spank 8pm ",
+          "",
+          "Death vs Avenger 8:00 PM",
+          "",
+          "Death vs Avenger"
+        ],
+        [
+          "Saturday Aug 31",
+          "",
+          "Hells vs Death 9:30 PM",
+          "",
+          "",
+          "Monday Sept 2",
+          "",
+          "Evil vs Avenger 9 PM",
+          "",
+          "Death vs Evil 8:30 PM",
+          "",
+          "Death vs Chemical"
+        ],
+        [
+          "Monday Sept 9",
+          "",
+          "Death vs Spoon 8:30 PM",
+          "",
+          "",
+          "Monday Sept 9",
+          "",
+          "Avenger vs Evil 9 PM",
+          "",
+          "Death vs Spoon 10 PM",
+          "",
+          "Death vs Hells"
+        ],
+        [
+          "Wednesday Sept 11",
+          "Wednesday Sept 11",
+          "Death vs Poptart 8:00 PM",
+          "",
+          "",
+          "Wednesday Sept 11",
+          "",
+          "Spank vs Chemical 9:30 PM",
+          "",
+          "Death vs Poptart 9:30 pm",
+          "",
+          "Death vs Zim"
+        ],
+        [
+          "Monday Sept 16",
+          "Monday Sept 16",
+          "Death vs Ducky 8 PM",
+          "",
+          "",
+          "Wednesday Sept 11",
+          "",
+          "",
+          "",
+          "Poptart vs Death 10:00 pm",
+          "",
+          "Death vs Spank"
+        ],
+        [
+          "Monday Sept 16",
+          "",
+          "Avenger vs Death 9 PM",
+          "",
+          "",
+          "Thursday Sept 19",
+          "",
+          "Chemical vs Death 8:30 PM",
+          "",
+          "Evil vs Death 9:00",
+          "",
+          "Chemical vs Death"
+        ],
+        [
+          "Wednesday Sept 18",
+          "Wednesday Sept 18",
+          "Poptart vs Death 8 PM",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Hells vs Death"
+        ],
+        [
+          "Wednesday Sept 18",
+          "",
+          "Death vs Zim 7:30 PM",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Zim vs Death"
+        ],
+        [
+          "Wednesday Sept 18",
+          "",
+          "Zim vs Death 8:00 PM",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Spank vs Death"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Chemical 8 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Chemical vs Death 8:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Hells 9:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Spank 10 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Spank vs Death 10:30 PM"
+        ],
+        [
+          "Monday Sept 23",
+          "Monday Sept 23",
+          "Evil vs Death 8:30 PM"
+        ],
+        [
+          "",
+          "",
+          "IGNORE, RAW INPUT"
+        ],
+        [
+          "Augest 25 - 31 ",
+          "Augest 25 - 31 ",
+          "Week 1",
+          "",
+          "Reschedules",
+          "Free Scheduling"
+        ],
+        [
+          "Sunday Aug 25",
+          "Sunday Aug 25",
+          "Spoon vs Avenger 10 PM",
+          "",
+          "Avenger vs Poptart 9:30 PM",
+          "Ducky vs Hells"
+        ],
+        [
+          "Sunday Aug 25",
+          "",
+          "",
+          "",
+          "Poptart vs Avenger 10 PM",
+          "Spoon vs Death"
+        ],
+        [
+          "Sunday Aug 25",
+          "",
+          "",
+          "",
+          "",
+          "Death vs Avenger"
+        ],
+        [
+          "Monday Aug 26",
+          "Monday Aug 26",
+          "Ducky vs Death 8 PM",
+          "",
+          "Spank vs Avenger 8 PM",
+          "Death vs Chemical"
+        ],
+        [
+          "Monday Aug 26",
+          "",
+          "Death vs Evil 8:45 PM",
+          "",
+          "Death vs Ducky 8:30 PM",
+          "Death vs Hells"
+        ],
+        [
+          "Monday Aug 26",
+          "",
+          "",
+          "",
+          "",
+          "Death vs Zim"
+        ],
+        [
+          "Tuesday Aug 27",
+          "Tuesday Aug 27",
+          "NO GAMES",
+          "",
+          "",
+          "Death vs Spank"
+        ],
+        [
+          "Tuesday Aug 27",
+          "",
+          "",
+          "",
+          "",
+          "Chemical vs Ducky"
+        ],
+        [
+          "Wednesday Aug 28",
+          "Wednesday Aug 28",
+          "NO GAMES",
+          "",
+          "",
+          "Chemical vs Death"
+        ],
+        [
+          "Wednesday Aug 28",
+          "",
+          "",
+          "",
+          "",
+          "Hells vs Ducky"
+        ],
+        [
+          "Wednesday Aug 28",
+          "",
+          "",
+          "",
+          "",
+          "Hells vs Death"
+        ],
+        [
+          "Thursday Aug 29",
+          "Thursday Aug 29",
+          "Ducky vs Chemical 8:30 PM",
+          "",
+          "",
+          "Zim vs Spoon"
+        ],
+        [
+          "Thursday Aug 29",
+          "",
+          "",
+          "",
+          "Zim vs Chemical 8:30 PM",
+          "Zim vs Death"
+        ],
+        [
+          "Thursday Aug 29",
+          "",
+          "",
+          "",
+          "Chemical vs Zim 9:00 PM",
+          "Zim vs Chemical"
+        ],
+        [
+          "Friday Aug 30",
+          "Friday Aug 30",
+          "Ducky vs Zim 8 PM",
+          "",
+          "Evil vs Ducky 8:30 PM",
+          "Zim vs Hells"
+        ],
+        [
+          "Friday Aug 30",
+          "",
+          "Hells vs Zim 9 PM",
+          "",
+          "",
+          "Zim vs Spank"
+        ],
+        [
+          "Friday Aug 30",
+          "",
+          "",
+          "",
+          "",
+          "Spank vs Ducky"
+        ],
+        [
+          "Saturday Aug 31",
+          "Saturday Aug 31",
+          "Hells vs Chemical 10 PM",
+          "",
+          "Ducky vs Chemical 8 PM",
+          "Spank vs Death"
+        ],
+        [
+          "Saturday Aug 31",
+          "",
+          "Hells vs Death 9:30 PM",
+          "",
+          "Chemical vs Ducky 8:30 PM",
+          "Spank vs Zim"
+        ],
+        [
+          "September 1-7",
+          "September 1-7",
+          "Week 2",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday Sept 1",
+          "Sunday Sept 1",
+          "Avenger vs Zim 7 PM",
+          "",
+          "Avenger vs Zim 7:30 PM"
+        ],
+        [
+          "Sunday Sept 1",
+          "",
+          "Ducky vs Avenger 8 PM"
+        ],
+        [
+          "Sunday Sept 1",
+          "",
+          "Hells vs Avenger 10 PM"
+        ],
+        [
+          "Monday Sept 2",
+          "Monday Sept 2",
+          "Ducky vs Spank 8pm ",
+          "",
+          "Death vs Avenger 8:00 PM"
+        ],
+        [
+          "Monday Sept 2",
+          "",
+          "Evil vs Avenger 9 PM",
+          "",
+          "Death vs Evil 8:30 PM"
+        ],
+        [
+          "Monday Sept 2",
+          "",
+          "Spank vs Avenger 9:45 PM"
+        ],
+        [
+          "Monday Sept 2"
+        ],
+        [
+          "Tuesday Sept 3",
+          "Tuesday Sept 3",
+          "NO GAMES",
+          "",
+          "Chemical vs Spank 9:30 PM"
+        ],
+        [
+          "Tuesday Sept 3",
+          "",
+          "",
+          "",
+          "Spank vs Chemical 10 PM"
+        ],
+        [
+          "Wednesday Sept 4",
+          "Wednesday Sept 4",
+          "NO GAMES"
+        ],
+        [
+          "Wednesday Sept 4"
+        ],
+        [
+          "Thursday Sept 5",
+          "Thursday Sept 5",
+          "Evil vs Chemical 8:30 PM"
+        ],
+        [
+          "Thursday Sept 5",
+          "",
+          "Zim vs Evil 9 PM"
+        ],
+        [
+          "Friday Sept 6",
+          "Friday Sept 6",
+          "Ducky vs Spoon 8 PM"
+        ],
+        [
+          "Friday Sept 6",
+          "",
+          "Zim vs Poptart 9 PM",
+          "",
+          "",
+          "s"
+        ],
+        [
+          "Friday Sept 6",
+          "",
+          "Poptart vs Hells 9:45 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "Saturday Sept 7",
+          "Ducky vs Poptart 7 PM",
+          "",
+          "Evil vs Chemical 8 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "Spoon vs Evil 10 PM",
+          "",
+          "Zim vs Spoon 8:30 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Ducky vs Poptart 8:30 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Chemical vs Hells 8:45 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Spoon vs Zim 9 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "Chemical vs Hells 10 PM",
+          "",
+          "Avenger vs Evil 9 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Poptart vs Hells 9:15 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Hells vs Poptart 9:45 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Avenger vs Chemical 9:45 PM"
+        ],
+        [
+          "Saturday Sept 7",
+          "",
+          "",
+          "",
+          "Chemical vs Avenger 10:30 PM"
+        ],
+        [
+          "September 8-14",
+          "September 8-14",
+          "Week 3",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday Sept 8",
+          "Sunday Sept 8",
+          "Avenger vs Spoon 10 PM"
+        ],
+        [
+          "Sunday Sept 8",
+          "",
+          "Ducky vs Hells 8:30 PM"
+        ],
+        [
+          "Monday Sept 9",
+          "Monday Sept 9",
+          "Evil vs Ducky 8:30 PM",
+          "",
+          "Ducky vs Spoon 8 PM"
+        ],
+        [
+          "Monday Sept 9",
+          "",
+          "Death vs Spoon 8:30 PM",
+          "",
+          "Spoon vs Avenger 9 PM"
+        ],
+        [
+          "Monday Sept 9",
+          "",
+          "Avenger vs Evil 9 PM",
+          "",
+          "Death vs Spoon 10 PM"
+        ],
+        [
+          "Monday Sept 9",
+          "",
+          "Avenger vs Spank 9:30 PM"
+        ],
+        [
+          "Monday Sept 9"
+        ],
+        [
+          "Tuesday Sept 10",
+          "Tuesday Sept 10",
+          "Spank vs Spoon 10 PM"
+        ],
+        [
+          "Tuesday Sept 10"
+        ],
+        [
+          "Wednesday Sept 11",
+          "Wednesday Sept 11",
+          "Death vs Poptart 8:00 PM",
+          "",
+          "Spoon vs Poptart 8:30pm"
+        ],
+        [
+          "Wednesday Sept 11",
+          "",
+          "Avenger vs Chemical 8:30 PM",
+          "",
+          "Poptart vs Spoon 9pm"
+        ],
+        [
+          "Wednesday Sept 11",
+          "",
+          "Spank vs Chemical 9:30 PM",
+          "",
+          "Death vs Poptart 9:30 pm"
+        ],
+        [
+          "Wednesday Sept 11",
+          "",
+          "",
+          "",
+          "Poptart vs Death 10:00 pm"
+        ],
+        [
+          "Thursday Sept 12",
+          "Thursday Sept 12",
+          "Poptart vs Evil 8:30 PM"
+        ],
+        [
+          "Thursday Sept 12",
+          "",
+          "Spoon vs Chemical 8:30 PM"
+        ],
+        [
+          "Thursday Sept 12",
+          "",
+          "Chemical vs Poptart 9 PM"
+        ],
+        [
+          "Thursday Sept 12"
+        ],
+        [
+          "Friday Sept 13",
+          "Friday Sept 13",
+          "Zim vs Ducky 8 PM",
+          "",
+          "Ducky vs Zim 8:30 PM"
+        ],
+        [
+          "Friday Sept 13",
+          "",
+          "Spoon vs poptart 8 PM"
+        ],
+        [
+          "Friday Sept 13",
+          "",
+          "Spoon vs Hells 9 PM",
+          "",
+          "Hells vs Spoon 10 PM"
+        ],
+        [
+          "Friday Sept 13"
+        ],
+        [
+          "Saturday Sept 14",
+          "Saturday Sept 14",
+          "Chemical vs Avenger 10 PM",
+          "",
+          "Ducky vs Evil 8:30 PM"
+        ],
+        [
+          "Saturday Sept 14",
+          "",
+          "",
+          "",
+          "Poptart vs Zim 8:30 PM"
+        ],
+        [
+          "Saturday Sept 14",
+          "",
+          "",
+          "",
+          "Zim vs Poptart 9 PM"
+        ],
+        [
+          "Saturday Sept 14",
+          "",
+          "",
+          "",
+          "Evil vs Poptart 9:30 PM"
+        ],
+        [
+          "September 15-21",
+          "September 15-21",
+          "Week 4",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday Sept 15",
+          "Sunday Sept 15",
+          "Zim vs Avenger 7 PM"
+        ],
+        [
+          "Sunday Sept 15",
+          "",
+          "Zim vs Avenger 7:30 PM"
+        ],
+        [
+          "Sunday Sept 15",
+          "",
+          "Avenger vs Ducky 8 PM"
+        ],
+        [
+          "Sunday Sept 15",
+          "",
+          "Hells vs Ducky 8:30 PM"
+        ],
+        [
+          "Sunday Sept 15",
+          "",
+          "Hells vs Spoon 10 PM"
+        ],
+        [
+          "Monday Sept 16",
+          "Monday Sept 16",
+          "Death vs Ducky 8 PM",
+          "",
+          "Ducky vs Spank 8 PM"
+        ],
+        [
+          "Monday Sept 16",
+          "",
+          "Evil vs Spoon 8:30 PM",
+          "",
+          "Spank vs Ducky 8:30 PM"
+        ],
+        [
+          "Monday Sept 16",
+          "",
+          "Avenger vs Death 9 PM"
+        ],
+        [
+          "Monday Sept 16",
+          "",
+          "evil vs spank 9:30 PM"
+        ],
+        [
+          "Tuesday Sept 17",
+          "Tuesday Sept 17",
+          "Poptart vs Spank 9:30"
+        ],
+        [
+          "Tuesday Sept 17"
+        ],
+        [
+          "Tuesday Sept 17",
+          "",
+          "",
+          "",
+          "Spank vs Spoon 10 PM"
+        ],
+        [
+          "Wednesday Sept 18",
+          "Wednesday Sept 18",
+          "Poptart vs Death 8 PM"
+        ],
+        [
+          "Wednesday Sept 18",
+          "",
+          "Poptart vs Avenger 9 PM"
+        ],
+        [
+          "Wednesday Sept 18",
+          "",
+          "Death vs Zim 7:30 PM"
+        ],
+        [
+          "Wednesday Sept 18",
+          "",
+          "Zim vs Death 8:00 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "Thursday Sept 19",
+          "Evil vs Zim 8:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Chemical vs Spoon 8:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Poptart vs Chemical 9 PM",
+          "",
+          "Chemical vs Poptart 9:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Chemical 8 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Chemical vs Death 8:30 PM",
+          "",
+          "Evil vs Death 9:00"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Hells 9:30 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Death vs Spank 10 PM"
+        ],
+        [
+          "Thursday Sept 19",
+          "",
+          "Spank vs Death 10:30 PM"
+        ],
+        [
+          "Friday Sept 20",
+          "Friday Sept 20",
+          "Spoon vs Zim 8 PM",
+          "",
+          "Evil vs Zim 9 PM"
+        ],
+        [
+          "Friday Sept 20",
+          "",
+          "Zim vs Spank 8 PM"
+        ],
+        [
+          "Friday Sept 20",
+          "",
+          "Spank vs Zim 8:30 PM"
+        ],
+        [
+          "Saturday Sept 21",
+          "Saturday Sept 21",
+          "Hells vs Evil 10 PM",
+          "",
+          "Spank vs Hells 9 PM"
+        ],
+        [
+          "September 22-28",
+          "September 22-28",
+          "Week 5",
+          "",
+          "Reschedules"
+        ],
+        [
+          "Sunday Sept 22",
+          "Sunday Sept 22",
+          "Avenger vs Hells 10 PM",
+          "",
+          "Avenger vs Hells 9 PM"
+        ],
+        [
+          "Sunday Sept 22",
+          "",
+          "",
+          "",
+          "Hells vs Avenger 9:30 PM"
+        ],
+        [
+          "Sunday Sept 22",
+          "",
+          "",
+          "",
+          "Hells vs Spank 10 PM"
+        ],
+        [
+          "Monday Sept 23",
+          "Monday Sept 23",
+          "Evil vs Death 8:30 PM",
+          "",
+          "Spoon vs Chemical 9:30 PM"
+        ],
+        [
+          "Monday Sept 23",
+          "",
+          "Spoon vs Ducky 8:30 PM",
+          "",
+          "Chemical vs Spoon 10 PM"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ],
+        [
+          "Monday Sept 23"
+        ]
+      ]
+    },
+    {
+      "name": "Alt Draft Sheet",
+      "hidden": true,
+      "rowCount": 55,
+      "colCount": 16,
+      "rows": [
+        [
+          "7"
+        ],
+        [
+          "",
+          "HALO INFINITE SPRING LEAGUE 2024 GRIFBALL SEASON"
+        ],
+        [
+          "",
+          "Ending"
+        ],
+        [
+          "",
+          "Team Name:",
+          "Buff Oily Men (& Women)",
+          "Post Grif Depression",
+          "Crazy Guys",
+          "Sarge’s Squad",
+          "Operation: Doomsday",
+          "Angry Duck Noises",
+          "Puffy Grifbussy",
+          "Skill Diff",
+          "GET SHREKT",
+          "Separate Intelligence",
+          "Paradox Warriors",
+          "Moist grapefruit"
+        ],
+        [
+          "",
+          "Captain:",
+          "commandstation",
+          "DMar7in69",
+          "Sauted Smurf",
+          "NecessaryEvil10",
+          "Deathcrawller",
+          "PsyDucky54",
+          "iNF3ktioN",
+          "KDSkill",
+          "ill shrek u",
+          "Dhlyn",
+          "PoisonxPoptart",
+          "IxGingy "
+        ],
+        [
+          "",
+          "",
+          "D-",
+          "",
+          "E-",
+          "F+",
+          "E+",
+          "D",
+          "B-",
+          "C+",
+          "S+",
+          "B",
+          "B-",
+          "A+"
+        ],
+        [
+          "",
+          "1st Round:",
+          "MysticalNovice",
+          "Ace B S1lentND1",
+          "ASpence501",
+          "Fanciest Pants",
+          "Solace VIII",
+          "Mavbrid",
+          "SPANKTR0N",
+          "Sabasauros rex",
+          "Papasnipezx ",
+          "Scullen cx",
+          "Sherbetshake",
+          "Icey Tanker"
+        ],
+        [
+          "",
+          "",
+          "B",
+          "S+",
+          "S+",
+          "A",
+          "A",
+          "S",
+          "S-",
+          "A+",
+          "S",
+          "A-",
+          "B+",
+          "D-"
+        ],
+        [
+          "",
+          "2nd Round:",
+          "oh zilly",
+          "Invayda Zim",
+          "TommyWestSide",
+          "TJP37",
+          "Chemical",
+          "DCleak",
+          "Hells Angel cx",
+          "MuNgO PuNgO",
+          "Cosmos5024 ",
+          "Its Rainin Menz",
+          "Inactive Spoon",
+          "Mr epic beast"
+        ],
+        [
+          "",
+          "",
+          "B+",
+          "S-",
+          "B-",
+          "D",
+          "C+",
+          "D+",
+          "A",
+          "C",
+          "A-",
+          "E-",
+          "D+",
+          "C-"
+        ],
+        [
+          "",
+          "3rd Round:",
+          "CaptainSev004",
+          "NOPLEX ",
+          "Grunt Padre",
+          "Reyas",
+          "Doerstopper",
+          "IReign 77",
+          "AwareMosquito",
+          "Listless DK",
+          "TcT AVENGER",
+          "El Diablo X230X",
+          "I iTz Bear I",
+          "JOEPRO v2"
+        ],
+        [
+          "",
+          "",
+          "E+",
+          "E",
+          "C",
+          "D+",
+          "E",
+          "F+",
+          "C-",
+          "F",
+          "F",
+          "F-",
+          "F-",
+          "E"
+        ],
+        [
+          "",
+          "4th Round:",
+          "GamezoWinselot",
+          "Trespa5s",
+          "OREOTHECAT5618"
+        ],
+        [
+          "",
+          "",
+          "",
+          "F-"
+        ],
+        [
+          "",
+          "Draft Pool",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Captains",
+          " "
+        ],
+        [
+          "",
+          "Gamertag",
+          "Skill Estimate",
+          "Last Season",
+          "Current Season",
+          "Region",
+          "Experience:",
+          "",
+          "",
+          "",
+          "",
+          "Gamertag",
+          "",
+          "1"
+        ],
+        [
+          "",
+          "Ace B S1lentND1",
+          "S",
+          "S",
+          "S+",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "IxGingy ",
+          "Banned Player List"
+        ],
+        [
+          "",
+          "ASpence501",
+          "S",
+          "S",
+          "S+",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Dhlyn",
+          "DMar7in69",
+          "",
+          "",
+          "Free Sub Pool"
+        ],
+        [
+          "",
+          "AwareMosquito",
+          "D",
+          "D",
+          "C-",
+          "North Europe",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "PoisonxPoptart"
+        ],
+        [
+          "",
+          "CaptainSev004",
+          "C",
+          "C",
+          "E+",
+          "North Europe",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Deathcrawller"
+        ],
+        [
+          "",
+          "Chemical",
+          "B",
+          "",
+          "C+",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "KDSkill"
+        ],
+        [
+          "",
+          "Cosmos5024 ",
+          "D",
+          "",
+          "A-",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "commandstation "
+        ],
+        [
+          "",
+          "DCleak",
+          "C",
+          "C-",
+          "D+",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Sauted Smurf"
+        ],
+        [
+          "",
+          "Doerstopper",
+          "E",
+          "E-",
+          "E",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "ill shrek u"
+        ],
+        [
+          "",
+          "El Diablo X230X",
+          "D",
+          "",
+          "F-",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "DMar7in69"
+        ],
+        [
+          "",
+          "Fanciest Pants",
+          "B",
+          "A",
+          "A",
+          "Central North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "PsyDucky54"
+        ],
+        [
+          "",
+          "GamezoWinselot",
+          "E",
+          "",
+          "",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "NecessaryEvil10"
+        ],
+        [
+          "",
+          "Grunt Padre",
+          "C",
+          "C",
+          "C",
+          "East North America",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "iNF3ktioN"
+        ],
+        [
+          "",
+          "Hells Angel cx",
+          "B",
+          "",
+          "A",
+          "East North America"
+        ],
+        [
+          "",
+          "I iTz Bear I",
+          "E",
+          "",
+          "F-",
+          "West North America"
+        ],
+        [
+          "",
+          "Icey Tanker",
+          "B",
+          "",
+          "D-",
+          "West North America"
+        ],
+        [
+          "",
+          "Inactive Spoon",
+          "C",
+          "",
+          "D+",
+          "East North America"
+        ],
+        [
+          "",
+          "Invayda Zim",
+          "A",
+          "",
+          "S-",
+          "Central North America"
+        ],
+        [
+          "",
+          "IReign 77",
+          "D",
+          "",
+          "F+",
+          "Central North America"
+        ],
+        [
+          "",
+          "Its Rainin Menz",
+          "C",
+          "E+",
+          "E-",
+          "East North America"
+        ],
+        [
+          "",
+          "JOEPRO v2",
+          "UNKNOWN",
+          "",
+          "E",
+          "West North America"
+        ],
+        [
+          "",
+          "Listless DK",
+          "UNKNOWN",
+          "",
+          "F",
+          "West North America"
+        ],
+        [
+          "",
+          "Mavbrid",
+          "A",
+          "A+",
+          "S",
+          "East North America"
+        ],
+        [
+          "",
+          "Mr epic beast",
+          "C",
+          "C+",
+          "C-",
+          "West North America"
+        ],
+        [
+          "",
+          "MuNgO PuNgO",
+          "C",
+          "D+",
+          "C",
+          "East North America"
+        ],
+        [
+          "",
+          "MysticalNovice",
+          "S",
+          "S",
+          "B",
+          "West North America"
+        ],
+        [
+          "",
+          "NOPLEX ",
+          "C",
+          "C-",
+          "E",
+          "Central North America"
+        ],
+        [
+          "",
+          "oh zilly",
+          "B",
+          "B+",
+          "B+",
+          "Central North America"
+        ],
+        [
+          "",
+          "OREOTHECAT5618",
+          "E",
+          "F-",
+          "",
+          "Australia"
+        ],
+        [
+          "",
+          "Papasnipezx ",
+          "A",
+          "",
+          "S",
+          "Central North America"
+        ],
+        [
+          "",
+          "Reyas",
+          "C",
+          "",
+          "D+",
+          "North Europe"
+        ],
+        [
+          "",
+          "Sabasauros rex",
+          "A",
+          "",
+          "A+",
+          "East North America"
+        ],
+        [
+          "",
+          "Scullen cx",
+          "A",
+          "A+",
+          "A-",
+          "Central North America"
+        ],
+        [
+          "",
+          "Sherbetshake",
+          "B",
+          "",
+          "B+",
+          "Central North America"
+        ],
+        [
+          "",
+          "Solace VIII",
+          "A",
+          "",
+          "A",
+          "Central North America"
+        ],
+        [
+          "",
+          "SPANKTR0N",
+          "A",
+          "A-",
+          "S-",
+          "Central North America"
+        ],
+        [
+          "",
+          "TcT AVENGER",
+          "D",
+          "",
+          "F",
+          "Central North America"
+        ],
+        [
+          "",
+          "TJP37",
+          "B",
+          "B+",
+          "D",
+          "East North America"
+        ],
+        [
+          "",
+          "TommyWestSide",
+          "A",
+          "A",
+          "B-",
+          "Central North America"
+        ],
+        [
+          "",
+          "Trespa5s",
+          "C",
+          "F-",
+          "F-",
+          "East North America"
+        ]
+      ]
+    },
+    {
+      "name": "Sheet5",
+      "hidden": true,
+      "rowCount": 2,
+      "colCount": 1,
+      "rows": [
+        [
+          "https://docs.google.com/spreadsheets/d/1d-JA1rtr6SsQ3KDwXKl9d69yCGp7i6YiLm1GlgrUU-M/edit#gid=1265428282"
+        ],
+        [
+          "#REF!"
+        ]
+      ]
+    },
+    {
+      "name": "Game History (OLD)",
+      "hidden": true,
+      "rowCount": 79,
+      "colCount": 12,
+      "rows": [
+        [
+          " ",
+          "Home",
+          "Away",
+          "Score",
+          "Time",
+          "Waypoint URL",
+          "",
+          "VOD",
+          "",
+          "4/5th used Home",
+          "4/5th used Away"
+        ],
+        [
+          "Week 1",
+          "Avenger",
+          "Poptart",
+          "5-3",
+          "27:45",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/d499aa43-c785-435c-83a6-a5050b9443bb",
+          "",
+          "https://www.youtube.com/watch?v=rI0O9YwUeBA",
+          "",
+          "",
+          "panther lily 4th"
+        ],
+        [
+          "",
+          "Poptart",
+          "Avenger",
+          "5-1",
+          "14:09",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/3eb32b53-159a-456e-925f-cace43cf6f33",
+          "",
+          "https://www.youtube.com/watch?v=rI0O9YwUeBA",
+          "",
+          "",
+          "tct j bomb 4th"
+        ],
+        [
+          "",
+          "Ducky",
+          "Deathcrawller",
+          "5-2",
+          "12:20",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/8334ccd4-6be3-456b-a29a-470db18c98a7",
+          "",
+          "https://www.youtube.com/watch?v=xe_gW5uLgP0",
+          "https://www.youtube.com/watch?v=i1o9OyYhTxs",
+          "",
+          "majestickittens 4th"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Ducky",
+          "5-3",
+          "13:02",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/3dc50d1f-7b2c-4c0b-941c-acf68ecebe6c",
+          "",
+          "https://www.youtube.com/watch?v=xe_gW5uLgP0",
+          "https://www.youtube.com/watch?v=i1o9OyYhTxs",
+          "majestickittens 4th"
+        ],
+        [
+          "",
+          "Avenger",
+          "Spankatron",
+          "5-3",
+          "26:10",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/758ddf71-f680-4309-a927-e4cc67deb427",
+          "",
+          "https://www.youtube.com/watch?v=NCrpquy6Eo0"
+        ],
+        [
+          "",
+          "Invayda Zim",
+          "Chemical",
+          "3-5",
+          "25:28",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/7cbfde02-c8ed-471b-ba15-008fd15c770c"
+        ],
+        [
+          "",
+          "Chemical",
+          "Invayda Zim",
+          "5-2",
+          "13:52",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/a8f552ed-6d75-489c-aba9-4c5d70c4717a, https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/c4cbfc1a-b2b3-4de5-9e45-e2298859d762",
+          "",
+          "https://youtu.be/rttZonE5nAk",
+          "https://youtu.be/842VD3NilSY",
+          "",
+          "riske 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Ducky",
+          "5-2",
+          "20:49",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/5b9e267a-3135-42de-a34f-6130ce72b474",
+          "",
+          "https://youtu.be/DyfXzLx2LgA"
+        ],
+        [
+          "",
+          "Ducky",
+          "Chemical",
+          "5-4",
+          "32:48",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/2beec333-28e4-40f8-9642-f42f32cb5a6a , https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/eee0debe-77fa-477a-a085-3802fd7bdcce  ,  https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/8f25ba83-fe35-49c1-a716-07cef05c012a",
+          "",
+          "https://youtu.be/C3tvPuI_KCc",
+          "https://youtu.be/6fPsh-3dDSk"
+        ],
+        [
+          "",
+          "Chemical",
+          "Ducky",
+          "2-5",
+          "12:33",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/0e35a3b4-4ea6-4df3-acc5-c8d7a593efbb",
+          "",
+          "https://youtu.be/C3tvPuI_KCc"
+        ],
+        [
+          "",
+          "Hells",
+          "Chemical",
+          "1-5",
+          "16:56",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/286885ae-380b-4d28-9a5f-5cd8aed463eb",
+          "",
+          "https://youtu.be/VPVhcmPZSvk",
+          "",
+          "trespass 4th"
+        ],
+        [
+          "",
+          "Hells",
+          "Deathcrawller",
+          "5-0",
+          "06:07",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/b977d1ad-5f5c-437c-9fc4-cc491d6c2fd6",
+          "",
+          "",
+          "",
+          "trespass 4th"
+        ],
+        [
+          "Week 2"
+        ],
+        [
+          "",
+          "Avenger",
+          "Zim",
+          "5-4",
+          "21:53",
+          "https://www.halowaypoint.com/halo-infinite/players/KDSkill/matches/dace01d5-f4e4-467f-a4a4-a71ec1b3e43b",
+          "",
+          "https://youtu.be/GnKqU3PEd8M"
+        ],
+        [
+          "",
+          "Ducky",
+          "Avenger",
+          "5-3",
+          "15:59",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/26e0c67b-b804-4cbe-9843-0a576830c0cb",
+          "",
+          "https://youtu.be/YfmkFymlaO8",
+          "https://youtu.be/ibxQd3DAyqU",
+          "recharged 4th"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Avenger",
+          "2-5",
+          "38:33",
+          "https://www.halowaypoint.com/halo-infinite/players/tct%20avenger/matches/05f1b78b-fd7b-4c06-a561-b729bfefd4ed",
+          "",
+          "https://youtu.be/nAHq7XU4d3g",
+          "https://youtu.be/mXX2RC7Jqlw",
+          "majestickittens 4th"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Evil",
+          "1-5",
+          "11:02",
+          "https://www.halowaypoint.com/halo-infinite/players/dlgital%20pain/matches/ee0426e9-5bda-4260-a5b1-b0d49fd978b9",
+          "",
+          "https://youtu.be/MePKeNTRLzU",
+          "",
+          "majestickittens 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Avenger",
+          "1-5",
+          "10:05",
+          "https://www.halowaypoint.com/halo-infinite/players/tct%20avenger/matches/ec453e42-b5a3-4cdc-be5f-7d63aece1877",
+          "",
+          "https://youtu.be/tdL1OWiP8Jg",
+          "https://youtu.be/wTxtC2Kv3i4",
+          "priest 4th"
+        ],
+        [
+          "",
+          "Chemical",
+          "Spankatron",
+          "5-1",
+          "14:47",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/c8035678-8279-4fc0-8ad1-05274081ee43",
+          "",
+          "https://youtu.be/dAOBCJc3Ff4"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Chemical",
+          "3-5",
+          "21:37",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/1356c312-401b-4669-ba5c-aaf0c3005088",
+          "",
+          "https://youtu.be/cIBGI6FiEWA"
+        ],
+        [
+          "",
+          "Invayda Zim",
+          "Evil",
+          "4-5",
+          "30:03",
+          "https://www.halowaypoint.com/halo-infinite/players/necessaryevil10/matches/8e947422-10c9-4079-abb2-2583a3737e31",
+          "",
+          "https://youtu.be/tXVmC_mSsp4"
+        ],
+        [
+          "",
+          "Evil",
+          "Chemical",
+          "2-5",
+          "26:40",
+          "https://www.halowaypoint.com/halo-infinite/players/chemical/matches/ff5aa4bc-b98a-47e9-b323-827bbf26e48e"
+        ],
+        [
+          "",
+          "Ducky",
+          "Poptart",
+          "5-2",
+          "24:31",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/b7717934-48a6-40c4-8360-e5dcb9eb44ce , https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/9fd23735-63d2-4df9-854d-dbe9e16d68b6",
+          "",
+          "https://youtu.be/OdbfxO1d1J0",
+          "",
+          "recharged 4th"
+        ],
+        [
+          "",
+          "Chemical",
+          "Hells",
+          "5-1",
+          "16:59",
+          "https://www.halowaypoint.com/halo-infinite/players/chemical/matches/b972d93b-4e07-43f5-90c3-d406b81b6ab6",
+          "",
+          "https://youtu.be/3jzKrWpolxE"
+        ],
+        [
+          "",
+          "Zim",
+          "Spoon",
+          "3-5",
+          "10:23",
+          "https://www.halowaypoint.com/halo-infinite/players/Inactive%20Spoon/matches/3577a745-a9ed-4be2-bdbf-b2350251843c"
+        ],
+        [
+          "",
+          "Spoon",
+          "Zim",
+          "5-2",
+          "15:01",
+          "https://www.halowaypoint.com/halo-infinite/players/Inactive%20Spoon/matches/3165a244-f289-4940-9295-a54ea2b66362"
+        ],
+        [
+          "",
+          "Avenger",
+          "Evil",
+          "4-5",
+          "41:06",
+          "https://www.halowaypoint.com/halo-infinite/players/NecessaryEvil10/matches/9d9838e8-eb04-4d91-8740-d65e87e6bdfe",
+          "",
+          "https://www.twitch.tv/videos/2245464514",
+          "",
+          "TcT J Bomb"
+        ],
+        [
+          "",
+          "Poptart",
+          "Hells",
+          "0-5",
+          "15:35",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/12a5ece9-951b-4387-862c-359377d510ac"
+        ],
+        [
+          "",
+          "Hells",
+          "Poptart",
+          "5-1",
+          "09:50",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/e6218524-0d8d-46ca-bfdf-1b507ff6d588",
+          "",
+          "",
+          "",
+          "Trespass",
+          "Panther Lily"
+        ],
+        [
+          "",
+          "Spoon",
+          "Evil",
+          "5-2",
+          "14:42",
+          "https://www.halowaypoint.com/halo-infinite/players/inactive%20spoon/matches/a9d1df5b-1af6-4ac3-9aad-f847b04863d8"
+        ],
+        [
+          "",
+          "Avenger",
+          "Chemical",
+          "5-3",
+          "24:35",
+          "https://www.halowaypoint.com/halo-infinite/players/TcT%20Avenger/matches/2e0dbb70-bbe1-4c37-9452-c12559be0c80",
+          "",
+          "https://youtu.be/alTyLyCAXWM"
+        ],
+        [
+          "",
+          "Chemical",
+          "Avenger",
+          "2-5",
+          "17:28",
+          "https://www.halowaypoint.com/halo-infinite/players/TcT%20Avenger/matches/f72a17e6-c6a4-4be8-abd4-9ccffd36d4fb , https://www.halowaypoint.com/halo-infinite/players/TcT%20Avenger/matches/9a40d417-48cc-44a8-984f-a9d0984cf86f",
+          "",
+          "https://youtu.be/kRh1-tNw5c8",
+          "",
+          "goosler 4th"
+        ],
+        [
+          "Week 3",
+          "Ducky",
+          "Spoon",
+          "5-2",
+          "17:11",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/eb2f8686-35ae-4c21-aceb-b37ef668f447",
+          "",
+          "https://youtu.be/JhZvE035KF4",
+          "",
+          "NinjadYoAss 4th"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Spoon",
+          "1-5",
+          "13:22",
+          "https://www.halowaypoint.com/halo-infinite/players/Inactive%20Spoon/matches/ad0104ef-7c1a-4127-aa85-48b470d3f078",
+          "",
+          "",
+          "",
+          "majestickittens 4th",
+          "NinjadyoAss 4th"
+        ],
+        [
+          "",
+          "Spoon",
+          "Deathcrawller",
+          "5-3",
+          "14:29",
+          "https://www.halowaypoint.com/halo-infinite/players/InactiveSpoon/matches/4a1415c2-1989-4ce1-85b5-0d9239de7eb9",
+          "",
+          "",
+          "",
+          "",
+          "majestickittens 4th"
+        ],
+        [
+          "",
+          "Avenger",
+          "Spankatron",
+          "5-3",
+          "32:07",
+          "https://www.halowaypoint.com/halo-infinite/players/TcT%20Avenger/matches/2bc2d388-07df-486c-adbb-9f37584a9681"
+        ],
+        [
+          "",
+          "Spoon",
+          "Avenger",
+          "5-4",
+          "21:10",
+          "https://www.halowaypoint.com/halo-infinite/players/TcT%20Avenger/matches/372ca0d1-62fa-47b8-a75d-fa4c3108412d"
+        ],
+        [
+          "",
+          "Spoon",
+          "Poptart",
+          "5-4",
+          "21:59",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/1432fced-0913-4163-adc4-737760ac4362",
+          "",
+          "",
+          "",
+          "",
+          "PantherLily 4th"
+        ],
+        [
+          "",
+          "REMAKE",
+          "SPOON V POPTAR",
+          "",
+          "",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/839f9623-e6ae-4dfa-b67c-3d2e2f40283e"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "poptart",
+          "5-1",
+          "12:36",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/a8c19ecb-e9a8-4398-8617-ccdb9555b20a"
+        ],
+        [
+          "",
+          "poptart",
+          "Deathcrawller",
+          "5-0",
+          "7:46",
+          "https://www.halowaypoint.com/halo-infinite/players/poisonxpoptart/matches/3e374a75-3bb9-4b7e-91fd-0c987c6378ac"
+        ],
+        [
+          "",
+          "Hells",
+          "Spoon",
+          "5-3",
+          "23:21",
+          "https://www.halowaypoint.com/halo-infinite/players/Inactive%20Spoon/matches/2415a4d2-9567-4d8b-9d0d-31f53db7de78"
+        ],
+        [
+          "",
+          "Spoon",
+          "Hells",
+          "5-3",
+          "20:51",
+          "https://www.halowaypoint.com/halo-infinite/players/Inactive%20Spoon/matches/80b8d986-0694-4d6d-ad2e-4e762cc6c36d",
+          "",
+          "",
+          "",
+          "",
+          "trespass 4th"
+        ],
+        [
+          "",
+          "Ducky",
+          "Evil",
+          "5-3",
+          "13:59",
+          "https://www.halowaypoint.com/halo-infinite/players/mr%20epic%20beast/matches/4476fd45-6dd6-474c-8cab-98e4ec3af979"
+        ],
+        [
+          "",
+          "Poptart",
+          "Zim",
+          "2-5",
+          "17:45",
+          "https://www.halowaypoint.com/halo-infinite/players/PoisonxPoptart/matches/4da296ad-8561-4257-a021-a29eb81e2e94",
+          "",
+          "",
+          "",
+          "panther lily 4th"
+        ],
+        [
+          "",
+          "Zim",
+          "Poptart",
+          "2-5",
+          "14:58",
+          "https://www.halowaypoint.com/halo-infinite/players/PoisonxPoptart/matches/48d9fdbd-018f-4990-9803-2d50288eeeec",
+          "",
+          "",
+          "",
+          "riske 4th",
+          "panther lily 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Poptart",
+          "5-2",
+          "27:20",
+          "https://www.halowaypoint.com/halo-infinite/players/PoisonxPoptart/matches/2f34cb8c-5e0b-42f1-9527-2c2ea9477894",
+          "",
+          "",
+          "",
+          "",
+          "panther lily 4th"
+        ],
+        [
+          "Week 4",
+          "Zim",
+          "Avenger",
+          "2-5",
+          "20:59",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/aab32f11-6be3-4c84-8e04-a7d54d748c49"
+        ],
+        [
+          "",
+          "Avenger",
+          "Ducky",
+          "FF Ducky Win"
+        ],
+        [
+          "",
+          "Ducky",
+          "Spankatron",
+          "5-1",
+          "18:11",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/a7d23cbe-494e-493e-8d3b-6b323bcf4b6b",
+          "",
+          "",
+          "",
+          "recharged 4th"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Ducky",
+          "1-5",
+          "17:38",
+          "https://www.halowaypoint.com/halo-infinite/players/ASpence501/matches/11344b45-d862-4653-8a7e-e2ee14a77afc"
+        ],
+        [
+          "",
+          "Avenger",
+          "Death",
+          "5-4",
+          "14:35",
+          "https://www.halowaypoint.com/halo-infinite/players/DlGITAL%20PAIN/matches/8a6a32e9-7986-4cfb-84f8-3d1cc7500999",
+          "",
+          "",
+          "",
+          "Tct Jbomb"
+        ],
+        [
+          "",
+          "Evil",
+          "Spankatron",
+          "5-1",
+          "21:34",
+          "https://www.halowaypoint.com/halo-infinite/players/NecessaryEvil10/matches/a9eab66c-e722-4bdc-9fd8-ed57aa1551fd",
+          "",
+          "",
+          "",
+          "priest 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Spoon",
+          "1-5",
+          "13:16",
+          "https://www.halowaypoint.com/halo-infinite/players/inactivespoon/matches/cd2fac03-c253-441e-a667-bc663cf00495",
+          "",
+          "",
+          "",
+          "priest 4th"
+        ],
+        [
+          "",
+          "Poptart",
+          "Spankatron",
+          "2-5",
+          "20:36",
+          "https://www.halowaypoint.com/halo-infinite/players/PoisonxPoptart/matches/af4b5b4b-4805-4a0f-bf7a-3e12010649a9"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Spoon",
+          "5-4",
+          "17:30",
+          "https://www.halowaypoint.com/halo-infinite/players/inactive%20spoon/matches/b7cbcbb3-6d32-4fa8-8c56-c19880cd0f09"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Zim",
+          "3-5",
+          "14:31",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/3f86c4d5-3be9-40e0-9022-e4494d1ced97",
+          "",
+          "",
+          "",
+          "MajesticKittens 4th"
+        ],
+        [
+          "",
+          "Zim",
+          "Death",
+          "5-0",
+          "06:11",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/ec4544a0-cefa-4e49-8ca1-d0804a161d89",
+          "",
+          "",
+          "",
+          "",
+          "MajesticKittens 4th"
+        ],
+        [
+          "",
+          "Deathcrawller",
+          "Chemical",
+          "5-1",
+          "10:11",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/66d0ab7b-d09e-45de-adcb-86d1c89c1ffe",
+          "",
+          "",
+          "",
+          "",
+          "Goosler 4th"
+        ],
+        [
+          "",
+          "Chemical",
+          "Deathcrawller",
+          "5-0",
+          "09:44",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/a116f7f5-4282-4fcb-ac78-14eac6f85fb5",
+          "",
+          "",
+          "",
+          "",
+          "Goosler 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Deathcrawller",
+          "5-1",
+          "25.54",
+          "https://www.halowaypoint.com/halo-infinite/players/necessaryevil10/matches/5037f5d0-08b5-4049-a003-256df0f80591"
+        ],
+        [
+          "",
+          "Hells",
+          "Deathcrawller",
+          "5-1",
+          "06:20",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/a918ab2b-8069-4041-bd1a-89cec355118c",
+          "",
+          "",
+          "",
+          "Trespass 4th"
+        ],
+        [
+          "",
+          "Death",
+          "Spankatron",
+          "5-3",
+          "18:40",
+          "https://www.halowaypoint.com/halo-infinite/players/spanktr0n/matches/20ac27b1-5bf9-40e1-a7a2-3e10c02cf853",
+          "",
+          "",
+          "",
+          "",
+          "gankedyoass 4th"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Death",
+          "5-0",
+          "8:03",
+          "https://www.halowaypoint.com/halo-infinite/players/spanktr0n/matches/79897f05-a0bd-4a07-93e5-6920f37983c1",
+          "",
+          "",
+          "",
+          "gankedyoass 4th"
+        ],
+        [
+          "",
+          "Part 1 Spankatron",
+          "Zim",
+          "0-2",
+          "10:29",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/ca290405-fd28-49d2-9c44-e8329f9e4977",
+          "",
+          "RESUBMIT STATS",
+          "",
+          "",
+          "riske 4th"
+        ],
+        [
+          "",
+          "Part 2 Spankatron",
+          "Zim",
+          "2-3",
+          "19:47",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/cf25769f-10e8-438d-a3e2-64c2627ff7a0",
+          "",
+          "RESUBMIT STATS"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Hells",
+          "3-5",
+          "19:14",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/a8b05cf4-2d3e-40db-a071-8399d4d37489",
+          "",
+          "",
+          "",
+          "ganked 4th"
+        ],
+        [
+          "",
+          "Evil",
+          "Zim",
+          "1-5",
+          "10:25",
+          "https://www.halowaypoint.com/halo-infinite/players/invayda%20zim/matches/a3ed88b8-372e-44e6-9fdf-4aaaa5127089",
+          "",
+          "",
+          "",
+          "",
+          "Riske 4th"
+        ],
+        [
+          "",
+          "Zim",
+          "Spankatron",
+          "2-5",
+          "17:10",
+          "https://www.halowaypoint.com/halo-infinite/players/TJP37/matches/7db163d7-4a65-40f3-9777-5f732b799935"
+        ],
+        [
+          "Week 5",
+          "Avenger",
+          "Hells",
+          "0-5",
+          "8:59",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/c864bd5f-7b53-468d-99a5-9cc9ab26aee7",
+          "",
+          "",
+          "",
+          "J bomb 4th",
+          "",
+          "#DIV/0!"
+        ],
+        [
+          "",
+          "Hells",
+          "Avenger",
+          "5-1",
+          "17:49",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/9d0a7c95-4b1f-4105-95d0-dff894000f62",
+          "",
+          "",
+          "",
+          "",
+          "J bomb 4th",
+          "0"
+        ],
+        [
+          "",
+          "Hells",
+          "Spankatron",
+          "5-1",
+          "15:25",
+          "https://www.halowaypoint.com/halo-infinite/players/Hells%20Angel%20cx/matches/d05d0a23-91a2-4e42-ab61-2d6e7f0dd595",
+          "",
+          "",
+          "",
+          "",
+          "Goosler 4th",
+          "0"
+        ],
+        [
+          "",
+          "Spankatron",
+          "Evil",
+          "5-3",
+          "11:10",
+          "https://www.halowaypoint.com/halo-infinite/players/MuNgO%20PuNgO/matches/f2e70ece-5264-4841-a077-09798a614509",
+          "",
+          "",
+          "",
+          "",
+          "priest 4th"
+        ],
+        [
+          "",
+          "Part 1 Spoon",
+          "Chemical",
+          "4-3",
+          "10:59",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/854f653b-f7ba-4abf-bf74-b92da809fa8c"
+        ],
+        [
+          "",
+          "Part 2 Spoon",
+          "Chemical",
+          "1-0",
+          "02:14",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/672b8a3a-a6d1-4221-ab6f-d5b1a8849564"
+        ],
+        [
+          "",
+          "Chemical",
+          "Spoon",
+          "5-4",
+          "17:39",
+          "https://www.halowaypoint.com/halo-infinite/players/Chemical/matches/63b70f46-7416-46c3-9a86-7ee3bab8cdeb"
+        ],
+        [
+          "Week 6"
+        ],
+        [
+          "Playoffs"
+        ]
+      ]
+    }
+  ]
+}

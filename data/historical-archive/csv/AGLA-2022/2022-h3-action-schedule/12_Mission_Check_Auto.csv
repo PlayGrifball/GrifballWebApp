@@ -1,0 +1,36 @@
+Player,Team,GamesPlayed,GamesHosted,Wins,Loses,Goals,Kills,Assists,Deaths,Spread,Streak,Betrayals,TimeAlive,GameTime,AverageLife,BombStops,KillingSprees,KillingFrenzies,RunningRiots,Rampages,SwordSprees,DoubleKills,TripleKills,Overkills,Killtaculars,Killtrocities,Killamanjaros,Killtastrophe,Killpocalypses,Killionaire,Exterms,Bulltrues,HammerKills,Saboteurs,Revenges,Avengers,ComebackKills,Protectors,CloseCalls,SwordKills,FirstStrikes,BallKills
+NKOTB4evah,0,1,0,1,0,5,79,0,127,-48,6,0,2099,2492,28,3,0,0,0,0,0,10,1,1,0,0,0,0,0,0,0,2,61,1,19,24,16,1,0,11,0,6,Sun Aug  7 05:41:32 2022
+AtoneMilitant,0,1,0,1,0,0,89,1,114,-25,9,3,2129,2492,35,2,3,0,0,0,0,12,0,0,0,0,0,0,0,0,0,4,70,0,12,26,14,0,1,15,0,1,Sun Aug  7 05:41:32 2022
+ACE B S1lentND1,0,1,0,1,0,0,150,1,115,35,12,2,2126,2492,39,4,4,0,0,0,0,26,5,2,0,0,0,0,0,0,0,5,136,0,19,51,9,2,0,6,0,1,Sun Aug  7 05:41:32 2022
+Rage More Nerd,0,1,0,1,0,0,115,0,108,7,9,5,2148,2492,37,5,1,0,0,0,0,16,2,0,0,0,0,0,0,0,0,10,95,0,18,30,12,0,0,12,1,0,Sun Aug  7 05:41:32 2022
+TommyWstSide,1,1,0,0,1,0,124,0,157,-33,10,2,2003,2492,22,5,3,0,0,0,0,21,4,0,0,0,0,0,0,0,0,10,107,0,28,33,19,7,0,16,0,0,Sun Aug  7 05:41:32 2022
+ASpence501,1,1,0,0,1,0,124,0,136,-12,8,6,1814,2244,29,3,0,0,0,0,0,12,4,0,0,0,0,0,0,0,0,8,115,0,15,24,14,4,0,8,1,0,Sun Aug  7 05:41:32 2022
+Icey Tanker,1,1,0,0,1,0,166,0,95,71,12,5,2190,2492,42,7,10,0,0,0,0,29,3,1,0,0,0,0,0,0,0,13,156,0,20,42,6,7,0,3,4,0,Sun Aug  7 05:41:32 2022
+Almighty Tycoon,1,1,0,0,1,0,40,0,59,-19,8,1,2299,2492,70,2,1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,3,13,0,6,20,6,0,7,11,0,15,Sun Aug  7 05:41:32 2022
+,,,,,,Player 1,Player 2,Player 3,Player 4,,Player 1,Player 2,Player 3,Player 4,,,Paste the 8 rows of a match above. You'll find those in match history.  
+Have a player earn a saboteur medal & a KD ratio of 2 in a game,,,,,3,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,Winning team is always top 4. Losing team is always bottom 4
+Have a player earn a saboteur medal & WIN ,,,,,1,TRUE,FALSE,FALSE,FALSE,1,,,,,0,,Formula will check if each mission condition is met.
+Have a player earn 30+ ball kills & 100+ total kills in a game,,,,,2,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,"Cell will turn TRUE if met, FALSE if not."
+Have a player earn 25+ ball kills & 25+ bulltrue medals in a game,,,,,1,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,"Values will increase in the ""Earned"" column as missions are completed."
+Have a player earn a spread of +30 in a game,,,,,1,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,"Green cell to the left of ""Earned"" is their total points earn from the match."
+Have a player earn a spread of +50 in a game & WIN ,,,,,5,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn a spread of +100 in a game & WIN ,,,,,7,FALSE,FALSE,FALSE,FALSE,0,,,,,0,,15min = 900s
+Each player on your team has a spread of +25 in a game,,,,,5,FALSE,Full Team,,,0,FALSE,Full Team,,,0,,20min = 1200s
+Have a player earn a ball kill per minute of 1.5+ in a game,,,,,3,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,25min = 1500s
+Have a player earn 8+ close call medals in a game,,,,,2,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0,,30min = 1800s
+Have a team total of 30+ comeback kill medals in a game & WIN,,,,,2,TRUE,Full Team,,,2,,,,,0
+"Have a team total of 100+ from Avenger, Protector & revenge in a game",,,,,1,TRUE,Full Team,,,1,TRUE,Full Team,,,1
+Have a player earn an average life of 35 seconds & WIN ,,,,,2,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn an average life of 60 seconds & WIN ,,,,,5,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn 15+ bomb stops medals & WIN ,,,,,2,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn 20+ bulltrue medals in a game,,,,,2,FALSE,FALSE,FALSE,FALSE,0,FALSE,FALSE,FALSE,FALSE,0
+Have a player earn 25+ bulltrue medals & 15+ bomb stop medals and WIN ,,,,,5,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn a sword spree & WIN ,,,,,2,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a team total spread of -70 & WIN ,,,,,5,FALSE,Full Team,,,0,,,,,0
+Have a team total spread of -150 & WIN ,,,,,5,FALSE,Full Team,,,0,,,,,0
+Have a team total spread of +50 & LOSE,,,,,-2,,,,,0,FALSE,Full Team,,,0
+Have a team total spread of +100 & LOSE,,,,,-5,,,,,0,FALSE,Full Team,,,0
+Have a team total spread of +150 & LOSE,,,,,-7,,,,,0,FALSE,Full Team,,,0
+Have a player earn a spread of +30 in a game,,,,,1,FALSE,FALSE,TRUE,FALSE,1,FALSE,FALSE,TRUE,FALSE,1,,"Green cell to the left of ""Earned"" is their total points earn from the match."
+Have a player earn a spread of +50 in a game & WIN ,,,,,2,FALSE,FALSE,FALSE,FALSE,0,,,,,0
+Have a player earn a spread of +100 in a game & WIN ,,,,,3,FALSE,FALSE,FALSE,FALSE,0,,,,,0,,15min = 900s

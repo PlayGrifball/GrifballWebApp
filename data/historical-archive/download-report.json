@@ -1,0 +1,933 @@
+[
+  {
+    "id": "2018-sl18-pro-schedule",
+    "title": "SL18 Pro Schedule DEAD",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1JR5LFsvurVDJDan0J41sUvpdEmU_bCrBTQdyvT_QPkc/edit#gid=763392737",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1JR5LFsvurVDJDan0J41sUvpdEmU_bCrBTQdyvT_QPkc/export?format=xlsx"
+  },
+  {
+    "id": "2018-sl18-legacy-schedule",
+    "title": "SL18 Legacy Schedule DEAD",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1RRoDr9bmj5g2RByTBFQDzH3H-fsFm1u_RSEw_NV2MDE/edit#gid=763392737",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1RRoDr9bmj5g2RByTBFQDzH3H-fsFm1u_RSEw_NV2MDE/export?format=xlsx"
+  },
+  {
+    "id": "2018-sl18-ammy-schedule",
+    "title": "SL18 Ammy Schedule DEAD",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1srKzhMz0keQSWpKGQR5P3281KrGCBzL0tLp_FHRez9k/edit#gid=763392737",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1srKzhMz0keQSWpKGQR5P3281KrGCBzL0tLp_FHRez9k/export?format=xlsx"
+  },
+  {
+    "id": "2018-sml18-stats",
+    "title": "SML18 Stats",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "http://grifballstats.com/AGLASML18Stats.php",
+    "type": "web",
+    "formats": [],
+    "status": 0,
+    "error": "fetch failed"
+  },
+  {
+    "id": "2018-sml18-fantasy-rey",
+    "title": "SML18 Fantasy by Rey",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1iHaq1roCJrTSw2_d8DWnqln4jcyBmBdu5-0lucv7bF4",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 178961,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2018-fl18-bid-league",
+    "title": "FL18 Bid League",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1Th2BrmlN6PdYfgoMXv4N5tZQMsfDsQAUZxkB0l3wOUs/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 5864,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2018-fl18-schedule",
+    "title": "FL18 Schedule DEAD",
+    "category": "AGLA-2018",
+    "year": 2018,
+    "url": "https://docs.google.com/spreadsheets/d/1KKf9NQ39c9-0uA4VFGVBCs8trti4JE1xZNe0z-OBV-8/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1KKf9NQ39c9-0uA4VFGVBCs8trti4JE1xZNe0z-OBV-8/export?format=xlsx"
+  },
+  {
+    "id": "2019-wl19-schedule-stats",
+    "title": "WL19 Schedule & Stats",
+    "category": "AGLA-2019",
+    "year": 2019,
+    "url": "https://docs.google.com/spreadsheets/d/1eFkwBB9dPex_Cub0ZKFYmTrqXvBKZcp1LHMafCQYjds/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1318215,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2019-wl19-playoff-bracket",
+    "title": "WL19 Playoff Bracket",
+    "category": "AGLA-2019",
+    "year": 2019,
+    "url": "https://challonge.com/h3wl19",
+    "type": "challonge",
+    "formats": [],
+    "status": 403
+  },
+  {
+    "id": "2019-sl19-schedule-stats",
+    "title": "SL19 Schedule & Stats",
+    "category": "AGLA-2019",
+    "year": 2019,
+    "url": "https://docs.google.com/spreadsheets/d/1hWlxvPYIwlUKDIcnyrVA5FYWiYgLegGy2fbraz9XkPY/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 753717,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2020-wl20-xbox-schedule",
+    "title": "WL20 Xbox Schedule DEAD",
+    "category": "AGLA-2020",
+    "year": 2020,
+    "url": "https://docs.google.com/spreadsheets/d/1U83qbjsQR0Up5mPzxs5IyzB4YclVXVDX7oOgw2oeUio/edit?usp=drivesdk",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1U83qbjsQR0Up5mPzxs5IyzB4YclVXVDX7oOgw2oeUio/export?format=xlsx"
+  },
+  {
+    "id": "2020-sl20-console-h5",
+    "title": "SL20 Console Halo 5",
+    "category": "AGLA-2020",
+    "year": 2020,
+    "url": "https://docs.google.com/spreadsheets/d/1snAr7pMsghrUt5X11vuSEaHIN_2tPNudl2nJUfzuS0M/edit?ts=5e8a3140#gid=1623708663",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 70915,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2020-sl20-console-reach",
+    "title": "SL20 Console Reach",
+    "category": "AGLA-2020",
+    "year": 2020,
+    "url": "https://docs.google.com/spreadsheets/d/1ScAIlAnYjdgMfp-Y9MGiYpb-IaiOOddvwtM4yv02tRU/edit#gid=1715716983",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 13178,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2020-sml20-halo3",
+    "title": "SML20 Halo 3",
+    "category": "AGLA-2020",
+    "year": 2020,
+    "url": "https://docs.google.com/spreadsheets/d/15FUtOUopmoLyQ488O8Z_Z-dEFGfWrOMhmOarHgscUc8/edit#gid=0",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 656639,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2020-fl20-pc-schedule-stats",
+    "title": "FL20 PC schedule, stats, standings",
+    "category": "AGLA-2020",
+    "year": 2020,
+    "url": "https://docs.google.com/spreadsheets/d/1UFQZ6ZXEkmzDpdsUN0hlyTouzB9RtRwJd63V_NgpLnw/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1493349,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-wl21-schedule",
+    "title": "WL21 Schedule",
+    "category": "AGLA-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1XepEDC1U3pi0y0bArKJFog6dA_EVC3YX5O5bVXkoLKQ/edit?ts=60097c1a#gid=1799145928",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1649326,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-wl21-legacy-stats",
+    "title": "WL21 Legacy Stats",
+    "category": "AGLA-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1GmCC5gG6kG2oWfaweC5hKRuUWFc1EfcmKxP8y0iN5Ls/edit#gid=1752549387",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1422630,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-wl21-rookie-stats",
+    "title": "WL21 Rookie stats",
+    "category": "AGLA-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1nJ6ljk9vCgHL6O_PqJyQ8l0nYNFkJ9mxB6S1GnmqXp0/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1065269,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-sml21-pro-stats",
+    "title": "SML21 Pro Stats",
+    "category": "AGLA-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1a4rzrIgmGYJMhAh7OWKqflRBlcojPKbjESd6z-vdYSQ/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1200930,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-sml21-ammy-stats",
+    "title": "SML21 Ammy Stats",
+    "category": "AGLA-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1uyoSop8S-rclI8bKMrxfoHz_gAor6PEr4KYWrzNVeUk/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1509821,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2022-h4-bid-sheet",
+    "title": "ASpence's Halo 4 Bid Season Bid Sheet",
+    "category": "AGLA-2022",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/13mh57_f3lTZ1_J73w79yyzCnDJwUhKI3/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 382147,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2022-h4-bid-draft",
+    "title": "ASpence Halo 4 Bid Season Draft DEAD",
+    "category": "AGLA-2022",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1qAKUcr1MdYW9UVmXRLd0C-MfG8iLtYtIGHuSqXDnGCA/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/1qAKUcr1MdYW9UVmXRLd0C-MfG8iLtYtIGHuSqXDnGCA/export?format=xlsx"
+  },
+  {
+    "id": "2022-h4-bid-stats",
+    "title": "ASpence Halo 4 Bid Season Stats",
+    "category": "AGLA-2022",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1Z9VmOuCMTgaEnOnUU9umVga-2SkJO4_v/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 605139,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2022-h3-action-schedule",
+    "title": "H3 Action League 22 Schedule",
+    "category": "AGLA-2022",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1ceO9r3ZgOOc7IZ5emFypcfYQh9HmWC4UmX5idkBKfv0/edit#gid=1256495517",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 804784,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2022-h3-action-stats",
+    "title": "H3 Action League 22 Stats",
+    "category": "AGLA-2022",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1dti38ND1NcUVgofoJSFban2oeC05lYky/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 779684,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2023-da-wl23-stats",
+    "title": "Grifball DA WL23 Stats",
+    "category": "AGLA-2023",
+    "year": 2023,
+    "url": "https://docs.google.com/spreadsheets/d/1xpraseVR_rQu7LCuUNWuFWf4qSHcLyJlxDN2RtMF240/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1916729,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2023-da-wl23-schedule",
+    "title": "Grifball DA WL23 Schedule",
+    "category": "AGLA-2023",
+    "year": 2023,
+    "url": "https://docs.google.com/spreadsheets/d/10wxiYzEgZb4H6cZhZMw0v-k0yrDvaOpi/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 67379,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2024-da-sl24-stats",
+    "title": "Grifball DA(Post Netcode Change) SL24 Stats",
+    "category": "AGLA-2024",
+    "year": 2024,
+    "url": "https://docs.google.com/spreadsheets/d/1xJE_9vJyvXWAet8VyYdXpZeZDPwEMlQL/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 2166474,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2024-da-sl24-schedule",
+    "title": "Grifball DA(Post Netcode Change) SL24 Schedule",
+    "category": "AGLA-2024",
+    "year": 2024,
+    "url": "https://docs.google.com/spreadsheets/d/13QrNos6NEb8aEFWtYrTn5-8-ayTiQdxs/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 80283,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-wl25-stats",
+    "title": "Octane WL25 Stats",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1L2F7zzUsZ90c7iFxZVn9xkXdj17w7e72/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 2937614,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-wl25-schedule",
+    "title": "Octane WL25 Schedule",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1-zTTfLK4RgxlTJfzWEGhI-vaecS6UOSLhZq3ikTyzA4/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 199349,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-wl25-bid-chart",
+    "title": "Octane WL25 Bid Chart",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1hJcR7bpQIZ7ebopNebq3A6iL0Lde1KQGdX8fnA8LndY/edit?gid=262963722#gid=262963722",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 27447,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-sl25-bid-chart",
+    "title": "Octane SL25 Bid Chart",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/14MbNZubCiUn-IpZscrYvuTL-FA4P2HbJXzMrW7p710M/edit?gid=333209559#gid=333209559",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 301443,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-sl25-bid-schedule",
+    "title": "Octane SL25 Bid Schedule",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/105G1WCYNVSm922_1I_A3-v2QQkBZ4u0q/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 192956,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-octane-sl25-bid-stats",
+    "title": "Octane SL25 Bid Stats",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1tuCF7JpLWUuG1utZlMG6588FQmcRJOt6yRemr5cocZg/edit?usp=drivesdk",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 5117160,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-classic-sml25-draft",
+    "title": "Classic SML25 Pro & Legacy Draft Sheets",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1omgOFqcSiWVgZMffVWhHzejeSSSm9xO6da217L2TIng/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 47865,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-classic-sml25-schedules",
+    "title": "Classic SML25 Pro & Legacy Schedules",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1qC2fJtagt_KPQI73fsZpmms0cXKMpln6a4M5a_8d4aU/edit?gid=446236773#gid=446236773",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 281984,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-classic-sml25-pro-stats",
+    "title": "Classic SML25 Pro League Stats",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1iihXHoOw2vF9klgNPOJSCVQT2rmptwhKX9xLCuCnvNI/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 7906058,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2025-classic-sml25-legacy-stats",
+    "title": "Classic SML25 Legacy League Stats",
+    "category": "AGLA-2025",
+    "year": 2025,
+    "url": "https://docs.google.com/spreadsheets/d/1C8lcTq9HWAFEZWQJYSD189nf7pic_QiLtOfqSGlzxv8/edit?gid=1591366199#gid=1591366199",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 7719805,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2026-sl26-minor-stats-schedule",
+    "title": "SL26 Minor Season Stats & Schedule",
+    "category": "AGLA-2025",
+    "year": 2026,
+    "url": "https://docs.google.com/spreadsheets/d/1oXOghXN493YwkEobhgL3UcDoiG8f0sameZ3QagrYUoI/edit?gid=1536689010#gid=1536689010",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 8069497,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2026-sl26-major-stats",
+    "title": "SL26 Major Season Stats",
+    "category": "AGLA-2025",
+    "year": 2026,
+    "url": "https://docs.google.com/spreadsheets/d/1aN6Q8fq4SEi-TTHsHCB2BNggcWSfjzcGyhiL7Sf2dIQ/edit?gid=1269633556#gid=1269633556",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 6778805,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2026-sl26-major-schedule",
+    "title": "SL26 Major Season Schedule",
+    "category": "AGLA-2025",
+    "year": 2026,
+    "url": "https://docs.google.com/spreadsheets/d/1DBxPmiTg6yGyL7fjy5NmwSL0sr2ei1thnXD-vP32oNk/edit?gid=1882778066#gid=1882778066",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "htmlview",
+        "bytes": 61325
+      },
+      {
+        "format": "csv",
+        "bytes": 893
+      }
+    ]
+  },
+  {
+    "id": "2024-igl-evolved-fl24",
+    "title": "Evolved FL24",
+    "category": "IGL-2024",
+    "year": 2024,
+    "url": "https://docs.google.com/spreadsheets/d/1schmXjzORQ75nk63hR3QZGtUZsONwDsQNiis-5gm33I/edit?pli=1&gid=2107150591#gid=2107150591",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 193995,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2024-igl-evolved-fl24-stats",
+    "title": "Evolved FL24 Stats",
+    "category": "IGL-2024",
+    "year": 2024,
+    "url": "https://docs.google.com/spreadsheets/d/1x3UX4S0ehZdbGlegX8RZ5lxn0ydooIRGkdvXYc_tPMQ/edit?usp=drivesdk",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 2170500,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2024-igl-infektions-fl24-stats",
+    "title": "Infektions Halo Infinite FL24 Stats",
+    "category": "IGL-2024",
+    "year": 2024,
+    "url": "https://1drv.ms/x/c/da0832788fab0c31/Eez6MhXmXjBLpbPcnY6-uUsBD6QtowNmAKlIg3uiBTBLmA?e=bhY4op",
+    "type": "onedrive",
+    "formats": [
+      {
+        "format": "html",
+        "bytes": 36299,
+        "finalUrl": "https://login.live.com/login.srf?wa=wsignin1%2E0&rpsnv=207&ct=1793338740&rver=7%2E5%2E2146%2E0&wp=MBI%5FSSL&wreply=https%3A%2F%2Fonedrive%2Elive%2Ecom%2F%5Fforms%2Fdefault%2Easpx%3Fapr%3D1&lc=1033&id=250206&guests=1&wsucxt=1&cobrandid=11bd8083%2D87e0%2D41b5%2Dbb78%2D0bc43c8a8e8a&aadredir=1&siwa=1&siwg=1",
+        "apiStatus": 401
+      }
+    ]
+  },
+  {
+    "id": "gwl-ts1-halo4",
+    "title": "Tournament Series #1 Halo 4",
+    "category": "GWL",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1x0KQ4bR2jXkjdzjQWx6BJtFsF8XVXAKg/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 311615,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "gwl-ts2-reach",
+    "title": "Tournament Series #2 Halo Reach",
+    "category": "GWL",
+    "year": 2022,
+    "url": "https://docs.google.com/spreadsheets/d/1Dh1cCnsy0Zn5B8iamQ-YajU1wQi94ti_/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 302222,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2023-gwl-sl23-reach-stats",
+    "title": "SL23 Halo Reach Stats",
+    "category": "GWL",
+    "year": 2023,
+    "url": "https://docs.google.com/spreadsheets/d/11cheA4Rt49b97I9fLkROyPxHyZaGz-2e/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 64774,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2023-gwl-sl23-reach-schedule",
+    "title": "SL23 Halo Reach Schedule/Playoffs",
+    "category": "GWL",
+    "year": 2023,
+    "url": "https://docs.google.com/spreadsheets/d/1PWxSocTL6BPYU6XB6QSaS075IG4CD6N5/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1401566,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-side-djblue-reach-stats",
+    "title": "DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo Reach - Stats",
+    "category": "Side-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1J1g1l23icDecoB9yUeDgbmbx5-PAMK75MVv3my70AMU/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 196377,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-side-djblue-h3-stats",
+    "title": "DJBluePDX's Grifball Summer Series Presented By Deamhack - Halo 3 -Stats",
+    "category": "Side-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1_d4c8D42qycl03bs_qb_Lr2a-dvRpKzwkOkGl389_cw/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 174750,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-side-respawn-h4-1",
+    "title": "The Respawn All-Stars Halo 4 Grifball Fall Series (1/3) 10/23/21",
+    "category": "Side-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1Pk64XwoEWeqYVt8_CJAV0DfeOdxU7Uk3M7glmmUW_PQ/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 345866,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-side-respawn-h4-2",
+    "title": "The Respawn All-Stars Halo 4 Grifball Fall Series (2/3) 11/13/21",
+    "category": "Side-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1DAklsSydfZ--N0Frsb3oXlksTidq08Dp/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 319938,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "2021-side-respawn-h4-3",
+    "title": "The Respawn All-Stars Halo 4 Grifball Fall Series (3/3) 12/04/21",
+    "category": "Side-2021",
+    "year": 2021,
+    "url": "https://docs.google.com/spreadsheets/d/1mKxH9c5OmXN_khsivQyx85vufJsPYTw6/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 329765,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "side-slide-league",
+    "title": "Slide League Schedule and Rosters",
+    "category": "Side-Undated",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/115WFH-xdHD4VdTFOclcizC1LqAQhZ5dtn1g0O1xyPAI/edit?usp=sharing",
+    "type": "gsheet",
+    "formats": [],
+    "status": 410,
+    "finalUrl": "https://docs.google.com/spreadsheets/d/115WFH-xdHD4VdTFOclcizC1LqAQhZ5dtn1g0O1xyPAI/export?format=xlsx"
+  },
+  {
+    "id": "side-original-late-league-rankings",
+    "title": "Original Late League Rankings",
+    "category": "Side-Undated",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/15nK7uU3dM37CXFl0y4xRNMMIqsWCZKxhoH2SG5hhC64/edit#gid=1045466237",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 160900,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "side-bum-rush",
+    "title": "Bum Rush Spreadsheet",
+    "category": "Side-Undated",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/1M5vE-uRCkpVCRYcJ1hPocOq4O7Jg7fTyhBtHQTjI2NM/edit#gid=0",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 8534,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "side-reach-pc-stats",
+    "title": "Reach PC Stats",
+    "category": "Side-Undated",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/1svJJBo_jc-ThGabZG-laXX6M8PT0CF9NJYwILq_kEEk/htmlview",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 13249,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "late-league-website",
+    "title": "Late League Website",
+    "category": "Late-League",
+    "year": null,
+    "url": "https://www.lateleague.org",
+    "type": "web",
+    "formats": [
+      {
+        "format": "html",
+        "bytes": 1597,
+        "finalUrl": "https://www.lateleague.org/"
+      }
+    ]
+  },
+  {
+    "id": "late-league-aspence-main",
+    "title": "ASpence Late League Main Sheet",
+    "category": "Late-League",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/1G1zXn-ddqu3f183x8My8w2pG7_SyyVcz/edit?usp=sharing&ouid=115452215758315537570&rtpof=true&sd=true",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 3905590,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "youtube-grifball-channel",
+    "title": "Grifball YouTube Channel",
+    "category": "VODs",
+    "year": null,
+    "url": "https://www.youtube.com/channel/UCTVJapRl-GGwLCfioTb9N8w",
+    "type": "youtube",
+    "formats": [
+      {
+        "format": "html",
+        "bytes": 1279468
+      }
+    ]
+  },
+  {
+    "id": "history-agla-champions",
+    "title": "AGLA Champions",
+    "category": "History",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/1SlO5AU2U0fT8rhik8uarA0TTbVB0TPu5Xm_BZpKsCZg/edit?gid=0#gid=0",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 73497,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "history-all-time-infinite-stats-luxe",
+    "title": "All-time Infinite Stats by Luxe",
+    "category": "History",
+    "year": null,
+    "url": "https://docs.google.com/spreadsheets/d/1Y3NPRp004pzB57-vSysnyhyhMgqM3Yz0Vh_UnU2yIS8/edit?gid=96634953#gid=96634953",
+    "type": "gsheet",
+    "formats": [
+      {
+        "format": "xlsx",
+        "bytes": 1070386,
+        "source": "gsheet-export"
+      }
+    ]
+  },
+  {
+    "id": "website-playgrifball",
+    "title": "PlayGrifball",
+    "category": "Website",
+    "year": null,
+    "url": "http://playgrifball.com/",
+    "type": "web",
+    "formats": [],
+    "status": 404
+  },
+  {
+    "id": "merch-teespring-agla",
+    "title": "Tee Spring Store",
+    "category": "Merchandise",
+    "year": null,
+    "url": "https://teespring.com/stores/agla-store",
+    "type": "web",
+    "formats": [],
+    "status": 410
+  }
+]

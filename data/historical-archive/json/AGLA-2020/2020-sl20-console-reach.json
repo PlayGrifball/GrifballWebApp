@@ -1,0 +1,471 @@
+{
+  "id": "2020-sl20-console-reach",
+  "category": "AGLA-2020",
+  "year": 2020,
+  "title": "SL20 Console Reach",
+  "url": "https://docs.google.com/spreadsheets/d/1ScAIlAnYjdgMfp-Y9MGiYpb-IaiOOddvwtM4yv02tRU/edit#gid=1715716983",
+  "type": "gsheet",
+  "status": "recovered",
+  "sourceFormat": "xlsx",
+  "sheets": [
+    {
+      "index": 1,
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 19,
+      "colCount": 13,
+      "sampleHeader": [
+        "AGLA SL20 Reach Schedule"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-reach/01_Schedule.csv"
+    },
+    {
+      "index": 2,
+      "name": "Standings",
+      "hidden": false,
+      "rowCount": 12,
+      "colCount": 11,
+      "sampleHeader": [
+        "AGLA SL20 Console Circuit: Reach Standings"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-reach/02_Standings.csv"
+    },
+    {
+      "index": 3,
+      "name": "Rosters",
+      "hidden": false,
+      "rowCount": 10,
+      "colCount": 7,
+      "sampleHeader": [
+        "Team",
+        "Captain",
+        "Player 1",
+        "Player 2",
+        "Player 3",
+        "Player 4",
+        "Player 5"
+      ],
+      "csvFile": "csv/AGLA-2020/2020-sl20-console-reach/03_Rosters.csv"
+    }
+  ],
+  "bytes": 13178,
+  "fullSheets": [
+    {
+      "name": "Schedule",
+      "hidden": false,
+      "rowCount": 19,
+      "colCount": 13,
+      "rows": [
+        [
+          "AGLA SL20 Reach Schedule"
+        ],
+        [
+          "Sunday",
+          "",
+          "Monday",
+          "",
+          "Tuesday",
+          "",
+          "Wednesday",
+          "",
+          "Thursday",
+          "",
+          "Friday",
+          "",
+          "Saturday"
+        ],
+        [
+          "17",
+          "",
+          "18",
+          " ",
+          "19",
+          "",
+          "20",
+          "",
+          "21",
+          "",
+          "22",
+          "",
+          "23"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "*8pm: 2 Hype Crew (0) @ No Way Out (5)",
+          "",
+          "",
+          "",
+          "8:30pm: No Way Out (5) @ Rule #76 (3)",
+          "",
+          "*9pm: Power Outage (2) @ Junkyard Dogs (5)"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "*8pm: Zero Gravity (5) @ Oblivion (4)",
+          "",
+          "9pm: Oblivion (3) @ Power Outage (5)",
+          "",
+          "9:30 pm: Gaming So Hard (5) @ 2 Hype Crew (2)",
+          "",
+          "9:30 pm: Gaming So Hard @ Rule #76"
+        ],
+        [
+          "24",
+          "",
+          "25",
+          "",
+          "26",
+          "",
+          "27",
+          "",
+          "28",
+          "",
+          "29",
+          "",
+          "30"
+        ],
+        [
+          "",
+          "",
+          "*8pm: Junkyard Dogs (2) @ No Way Out (5)",
+          "",
+          "8pm: Oblivion @ \n2 Hype Crew",
+          "",
+          "8pm: No Way Out @ Oblivion",
+          "",
+          "9pm: Power Outage @ 2 Hype Crew",
+          "",
+          "8:30pm: Rule #76 @ \nZero Gravity"
+        ],
+        [
+          "",
+          "",
+          "9pm: Rule #76 @ Power Outage",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "*9:30 pm: Zero Gravity (5) @ Gaming So Hard (2)",
+          "",
+          "*9pm: Junkyard Dogs (2) @ Gaming So Hard (5)"
+        ],
+        [
+          "31",
+          "",
+          "1",
+          "",
+          "2",
+          "",
+          "3",
+          "",
+          "4",
+          "",
+          "5",
+          "",
+          "6"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "*7:30pm: 2 Hype Crew (1) @ \nZero Gravity (5)",
+          "",
+          "7:30pm: Rule #76 @ \nJunkyard Dogs",
+          "",
+          "7:30pm: 2 Hype Crew @ \nJunkyard Dogs"
+        ],
+        [
+          "",
+          "",
+          "9:30pm: No Way Out (5) @ Gaming So Hard (0)",
+          "",
+          "8:30pm: Oblivion @ Rule #76",
+          "",
+          "",
+          "",
+          "9pm: Power Outage (1) @ Zero Gravity (5)",
+          "",
+          "9:30pm: Gaming so Hard @ Power Outage"
+        ],
+        [
+          "7",
+          "",
+          "8",
+          "",
+          "9",
+          "",
+          "10",
+          "",
+          "11",
+          "",
+          "12",
+          "",
+          "13"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "8pm: Junkyard Dogs @ Oblivion",
+          "",
+          "8pm: 2 Hype Crew vs. Rule #76",
+          "",
+          "8pm: Junkyard Dogs vs. Zero Gravity"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "9pm: Power Outage vs. No Way Out"
+        ],
+        [
+          "",
+          "",
+          "9:30pm: Zero Gravity @ No Way Out",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "9:30pm: Oblivion vs. Gaming So Hard"
+        ],
+        [
+          "14",
+          "",
+          "15",
+          "",
+          "16",
+          "",
+          "17",
+          "",
+          "18",
+          "",
+          "19",
+          "",
+          "20"
+        ],
+        [
+          "21",
+          "",
+          "22",
+          "",
+          "Notes:"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "© 2012-2019 by Vertex42.com. Free to print.",
+          "",
+          "",
+          "",
+          "Calendar Templates by Vertex42.com"
+        ],
+        [
+          "#REF!"
+        ]
+      ]
+    },
+    {
+      "name": "Standings",
+      "hidden": false,
+      "rowCount": 12,
+      "colCount": 11,
+      "rows": [
+        [
+          "AGLA SL20 Console Circuit: Reach Standings"
+        ],
+        [
+          "Team",
+          "Wins",
+          "Losses",
+          "Goals For",
+          "Goals Against",
+          "Goal Efficiency"
+        ],
+        [
+          "No Way Out",
+          "5",
+          "0",
+          "20",
+          "5",
+          "0.8"
+        ],
+        [
+          "Zero Gravity",
+          "5",
+          "0",
+          "20",
+          "8",
+          "0.7142857143"
+        ],
+        [
+          "Gaming So Hard",
+          "4",
+          "2",
+          "12",
+          "14",
+          "0.4615384615"
+        ],
+        [
+          "Junkyard Dogs",
+          "3",
+          "2",
+          "9",
+          "12",
+          "0.4285714286"
+        ],
+        [
+          "Power Outage",
+          "2",
+          "2",
+          "8",
+          "13",
+          "0.380952381"
+        ],
+        [
+          "2 Hypre Crew",
+          "2",
+          "3",
+          "3",
+          "15",
+          "0.1666666667"
+        ],
+        [
+          "Rule #76",
+          "0",
+          "7",
+          "3",
+          "5",
+          "0.375"
+        ],
+        [
+          "Oblivion",
+          "0",
+          "7",
+          "7",
+          "10",
+          "0.4117647059"
+        ],
+        [
+          "Note: Teams above the green line will make playoffs"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "5"
+        ]
+      ]
+    },
+    {
+      "name": "Rosters",
+      "hidden": false,
+      "rowCount": 10,
+      "colCount": 7,
+      "rows": [
+        [
+          "Team",
+          "Captain",
+          "Player 1",
+          "Player 2",
+          "Player 3",
+          "Player 4",
+          "Player 5"
+        ],
+        [
+          "Junkyard Dogs",
+          "Grunt Padre",
+          "Frenzh",
+          "MsWolv3rine",
+          "TcT J Bomb",
+          "EllisGotMyPills",
+          "I Slenderfisk I"
+        ],
+        [
+          "No Way Out",
+          "Ire Paroxysm (Hide)",
+          "oDhmon",
+          "a man canon",
+          "SIMQ",
+          "Angel9001",
+          "l Copilot l (MvRetrograder)"
+        ],
+        [
+          "Gaming So Hard",
+          "Elementary",
+          "Digital Pain",
+          "Priest XYZ",
+          "Its Rainin MenZ",
+          "Reyas",
+          "CaptainSev004"
+        ],
+        [
+          "Power Outage",
+          "Activehate",
+          "Myst the Cold",
+          "El Diablo",
+          "nkot",
+          "juc",
+          "Revengeinthesky"
+        ],
+        [
+          "Rule #76",
+          "Enfright",
+          "xDreaded Knight (Jiggly Puffs)",
+          "KDSkill",
+          "Hells Angel cx",
+          "Cavalier IV"
+        ],
+        [
+          "2 Hype Crew",
+          "WreckinNerds",
+          "Gigglingreaper",
+          "MuNgO PuNgO",
+          "Trespa5s",
+          "Scullen75",
+          "The Eastbrook"
+        ],
+        [
+          "Oblivion",
+          "IceyTanker",
+          "Skiyttles",
+          "xDevilz Reaper"
+        ],
+        [
+          "Zero Gravity",
+          "xStarBlade",
+          "Rage More Nerd",
+          "MysticalNovice",
+          "nagwas",
+          "RECEPTOR 17"
+        ],
+        [
+          "Gamertag",
+          "Regular Season Restrictions",
+          "Playoff Restrictions"
+        ]
+      ]
+    }
+  ]
+}

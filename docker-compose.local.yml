@@ -1,0 +1,9 @@
+services:
+  sqlserver:
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    ports:
+      - "5434:1433"
+
+volumes:
+  sqlserver-data:
