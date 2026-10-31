@@ -61,7 +61,7 @@ describe('ProfileComponent', () => {
         gamertag: body?.gamertag ?? null,
         displayName: body?.gamertag ?? null,
         isDummyUser: false,
-        aliases: [],
+        pastGamertags: [],
         championships: [],
         careerByGame: [],
         overallCareer: null,
@@ -140,6 +140,16 @@ describe('ProfileComponent', () => {
     expect(name()).toBe('NewTag');
   });
 
+  it('reloads the stats after saving the gamertag (placeholder accounts may have been merged)', () => {
+    personID.set(21);
+    load({ gamertag: null });
+    component.gamertag.set('NewTag');
+    component.setGamertag();
+
+    http.expectOne({ method: 'POST', url: 'api/profile/setgamertag/21?gamertag=NewTag' }).flush({});
+    expect(http.match('api/profile/getprofilestats/21').length).toBe(1);
+  });
+
   it('URL-encodes a gamertag with a space, &, and +', () => {
     personID.set(21);
     load({ gamertag: null });
@@ -215,7 +225,7 @@ describe('ProfileComponent', () => {
       gamertag: 'MasterChief',
       displayName: 'Master Chief',
       isDummyUser: false,
-      aliases: ['John-117'],
+      pastGamertags: ['John-117'],
       championships: [
         {
           playerChampionshipID: 1,
@@ -330,6 +340,11 @@ describe('ProfileComponent', () => {
     expect(el.textContent).toContain('John-117');
     expect(el.textContent).toContain('12 - 2');
     expect(el.textContent).toContain('85.7% Win rate');
+    const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('.hud-tab'));
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+    tabs[1].click();
+    fixture.detectChanges();
+    expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
   });
 });
 

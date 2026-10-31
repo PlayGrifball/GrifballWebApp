@@ -143,7 +143,7 @@ const profileStats = (userID: number, gamertag: string | null) => ({
   gamertag,
   displayName: gamertag ?? `User ${userID}`,
   isDummyUser: false,
-  aliases: [],
+  pastGamertags: [],
   championships: [
     {
       playerChampionshipID: 1,

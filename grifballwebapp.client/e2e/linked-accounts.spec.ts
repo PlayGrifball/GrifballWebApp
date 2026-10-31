@@ -33,7 +33,7 @@ async function openProfile(page: Page, start: { hasPassword: boolean; logins: Lo
     if (request.method() !== 'GET' && request.headers()['x-xsrf-token'] !== 'e2e-xsrf')
       return route.fulfill({ status: 400, headers: { 'X-Antiforgery-Rejected': 'true' }, body: '' });
     if (path === `/api/profile/getgamertag/${USER_ID}`) return json({ gamertag: 'Sgt Grif' });
-    if (path === `/api/profile/getprofilestats/${USER_ID}`) return json({ userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, aliases: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] });
+    if (path === `/api/profile/getprofilestats/${USER_ID}`) return json({ userID: USER_ID, gamertag: 'Sgt Grif', displayName: 'Sgt Grif', isDummyUser: false, pastGamertags: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] });
     if (path === '/api/ExternalLogins/Mine')
       return json({ ...state, providers: [{ name: 'Discord', displayName: 'Discord' }] });
     if (path === '/api/ExternalLogins/StartLink') return json({ token: 'signed-token' });

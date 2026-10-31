@@ -14,12 +14,12 @@
       @if (profileStats()?.championships?.length) {
         <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">🏆 {{profileStats()!.championships.length}} Rings</dd></div>
       }
-      @if (profileStats()?.aliases?.length) {
+      @if (profileStats()?.pastGamertags?.length) {
         <div>
-          <dt class="hud-label">Known Aliases</dt>
+          <dt class="hud-label">Past Gamertags</dt>
           <dd class="aliases-list">
-            @for (alias of profileStats()!.aliases; track alias) {
-              <span class="alias-pill">{{alias}}</span>
+            @for (tag of profileStats()!.pastGamertags; track tag) {
+              <span class="alias-pill">{{tag}}</span>
             }
           </dd>
         </div>
@@ -100,11 +100,11 @@
 
       @if (availableGames().length > 0) {
         <nav class="hud-tabs" aria-label="Game era filter">
-          <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === 'all'" (click)="selectGame('all')">
+          <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === 'all'" [attr.aria-pressed]="selectedGame() === 'all'" (click)="selectGame('all')">
             All Eras
           </button>
           @for (game of availableGames(); track game.gameVersionSlug) {
-            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug)">
+            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" [attr.aria-pressed]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug)">
               {{game.gameVersionName}}
             </button>
           }

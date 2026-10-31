@@ -105,7 +105,7 @@ export interface ProfileStatsDto {
   gamertag?: string | null;
   displayName?: string | null;
   isDummyUser: boolean;
-  aliases: string[];
+  pastGamertags: string[];
   championships: PlayerChampionshipDto[];
   careerByGame: GameCareerSummaryDto[];
   overallCareer?: GameCareerSummaryDto | null;
@@ -214,6 +214,8 @@ export class ProfileComponent implements OnInit {
       .subscribe({
         next: () => {
           this.settingGamertag.set(false);
+          // Setting a gamertag can merge placeholder accounts (and their historical stats) into this one
+          this.getProfileStats();
         },
         error: (e: HttpErrorResponse) => {
           console.log(e);
