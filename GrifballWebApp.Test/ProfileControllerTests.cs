@@ -267,4 +267,25 @@ public class ProfileControllerTests
 
         Assert.That((stats.OverallCareer!.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)));
     }
+
+    [Test]
+    public async Task GetProfileStats_PastGamertags_LeaveOutTheCurrentOne_LatestFirst()
+    {
+        var user = new User { UserName = "renamer", XboxUser = new XboxUser { XboxUserID = 4242, Gamertag = "Alpha" } };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+        DateTime At(int year) => new(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        await _context.XboxGamertagHistory.AddRangeAsync(
+            // Alpha -> Bravo -> Alpha: Alpha is in the history too
+            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Alpha", NormalizedGamertag = "ALPHA", LastSeen = At(2020), Source = GamertagHistorySource.RenameDetected },
+            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Bravo", NormalizedGamertag = "BRAVO", LastSeen = At(2022), Source = GamertagHistorySource.RenameDetected },
+            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Undated B", NormalizedGamertag = "UNDATED B", FirstSeen = At(2019), Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Undated A", NormalizedGamertag = "UNDATED A", FirstSeen = At(2018), Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 4242, Gamertag = "Charlie", NormalizedGamertag = "CHARLIE", LastSeen = At(2016), Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "Bravo", "Charlie", "Undated A", "Undated B" }));
+    }
 }

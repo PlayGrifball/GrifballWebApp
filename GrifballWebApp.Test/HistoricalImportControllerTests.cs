@@ -178,6 +178,21 @@ public class HistoricalImportControllerTests
         Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.EqualTo(2));
     }
 
+
+    [TestCase(nameof(HistoricalImportController.Import))]
+    [TestCase(nameof(HistoricalImportController.Job))]
+    [TestCase(nameof(HistoricalImportController.Claims))]
+    [TestCase(nameof(HistoricalImportController.ApproveClaim))]
+    [TestCase(nameof(HistoricalImportController.RejectClaim))]
+    [TestCase(nameof(HistoricalImportController.GamertagHistory))]
+    public void EveryAction_IsSysadminOnly(string action)
+    {
+        var method = typeof(HistoricalImportController).GetMethod(action)!;
+        var roles = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
+        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
+    }
+
     [Test]
     public async Task TheSignal_WakesOneWaiter_AndDoesntPileUp()
     {

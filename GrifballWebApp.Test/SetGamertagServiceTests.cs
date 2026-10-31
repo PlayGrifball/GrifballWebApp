@@ -413,4 +413,83 @@ public class SetGamertagServiceTests
 
         Assert.That(result, Does.Contain("could not be merged"));
     }
+
+    private async Task<User> PlaceholderWithARow(string gamertag, int seasonYear, string seasonName)
+    {
+        var placeholder = new User { UserName = "historical:" + gamertag, NormalizedUserName = ("historical:" + gamertag).ToUpperInvariant(), DisplayName = gamertag, IsDummyUser = true };
+        _context.Users.Add(placeholder);
+        var season = new Season { SeasonName = seasonName, SeasonStart = new DateTime(seasonYear, 1, 1, 0, 0, 0, DateTimeKind.Utc), SeasonEnd = new DateTime(seasonYear, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = placeholder.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = gamertag });
+        await _context.SaveChangesAsync();
+        return placeholder;
+    }
+
+    [Test]
+    public async Task DummyOfAPastGamertag_FromSeasonsAfterTheAccountLetGoOfIt_IsClaimedNotMerged()
+    {
+        var real = await _context.AddUser("real_ghost");
+        var placeholder = await PlaceholderWithARow("Old Ghost", 2024, "Season 2024");
+        var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.Add(xbox);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", LastSeen = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(result, Is.Null);
+        Assert.That(await fresh.Users.AnyAsync(u => u.Id == placeholder.Id), "Someone else's 2024 Old Ghost, as far as is known");
+        Assert.That(await fresh.GamertagClaims.Select(c => c.PlaceholderUserID).SingleAsync(), Is.EqualTo(placeholder.Id));
+    }
+
+    [Test]
+    public async Task DummyOfAPastGamertag_AnotherAccountAlsoHadThen_IsClaimedNotMerged()
+    {
+        var real = await _context.AddUser("real_ghost");
+        var placeholder = await PlaceholderWithARow("Old Ghost", 2019, "Season 2019");
+        var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.AddRange(xbox, new XboxUser { XboxUserID = 112233, Gamertag = "Someone Else" });
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.RenameDetected },
+            new XboxGamertagHistory { XboxUserID = 112233, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", LastSeen = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.That(await fresh.Users.AnyAsync(u => u.Id == placeholder.Id));
+        Assert.That(await fresh.GamertagClaims.CountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task DummiesOfPastGamertags_AreMergedAllOrNothing()
+    {
+        var real = await _context.AddUser("real_ghost");
+        var first = await PlaceholderWithARow("Old Ghost", 2019, "Season 2019");
+        var second = await PlaceholderWithARow("Older Ghost", 2018, "Season 2018");
+        // The second can't be merged: both it and the real user have stats for 2018
+        var season2018 = await _context.Seasons.SingleAsync(s => s.SeasonName == "Season 2018");
+        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = real.Id, SeasonID = season2018.SeasonID, GameVersionID = 1, Gamertag = "Real" });
+        var xbox = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.Add(xbox);
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.RenameDetected },
+            new XboxGamertagHistory { XboxUserID = 998877, Gamertag = "Older Ghost", NormalizedGamertag = "OLDER GHOST", Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result, Does.Contain("could not be merged"));
+            Assert.That(await fresh.Users.CountAsync(u => u.Id == first.Id || u.Id == second.Id), Is.EqualTo(2), "Neither merged");
+            Assert.That((await fresh.Users.SingleAsync(u => u.Id == real.Id)).XboxUserID, Is.Null, "Nothing changed");
+        });
+    }
 }

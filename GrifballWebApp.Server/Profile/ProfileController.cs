@@ -43,15 +43,23 @@ public class ProfileController : ControllerBase
         if (user is null)
             return NotFound();
 
-        // The gamertags the user's Xbox account had before (its renames)
+        // The gamertags the user's Xbox account had before (its renames), latest first, but not the one it has now (renamed
+        // A to B and back to A, A is in its history too)
+        var current = user.XboxUser is null ? null : Historical.HistoricalKeys.Normalize(user.XboxUser.Gamertag);
         var pastGamertags = user.XboxUserID is null
             ? []
-            : await _context.XboxGamertagHistory
+            : (await _context.XboxGamertagHistory
                 .AsNoTracking()
                 .Where(h => h.XboxUserID == user.XboxUserID)
-                .OrderByDescending(h => h.LastSeen)
+                .OrderBy(h => h.LastSeen == null)
+                .ThenByDescending(h => h.LastSeen)
+                .ThenBy(h => h.FirstSeen)
+                .ThenBy(h => h.XboxGamertagHistoryID)
+                .Select(h => new { h.Gamertag, h.NormalizedGamertag })
+                .ToListAsync(ct))
+                .Where(h => h.NormalizedGamertag != current)
                 .Select(h => h.Gamertag)
-                .ToListAsync(ct);
+                .ToList();
 
         var championships = await _context.PlayerChampionships
             .AsNoTracking()

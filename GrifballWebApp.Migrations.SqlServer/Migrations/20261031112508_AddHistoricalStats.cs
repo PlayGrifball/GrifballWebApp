@@ -612,15 +612,21 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 onDelete: ReferentialAction.Restrict);
             // The renames the XboxUsers table's own history already holds: each account's earlier gamertags, from when the
             // first version with it began to when the last one ended. Read from the history table itself: FOR SYSTEM_TIME leaves out
-            // versions that lasted no time at all (two renames in one transaction's time).
+            // versions that lasted no time at all (two renames in one transaction's time). Gamertags are normalised as the app
+            // does (HistoricalKeys): trimmed, runs of spaces made one (each REPLACE halves them), upper-cased.
             migrationBuilder.Sql("""
+                WITH v AS (
+                    SELECT h.[XboxUserID], h.[PeriodStart], h.[PeriodEnd],
+                        CAST(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(h.[Gamertag], N'  ', N' '), N'  ', N' '), N'  ', N' '), N'  ', N' '))) AS nvarchar(50)) AS [Clean],
+                        CAST(UPPER(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(x.[Gamertag], N'  ', N' '), N'  ', N' '), N'  ', N' '), N'  ', N' ')))) AS nvarchar(50)) AS [Current]
+                    FROM [Xbox].[XboxUsersHistory] AS h
+                    JOIN [Xbox].[XboxUsers] AS x ON x.[XboxUserID] = h.[XboxUserID]
+                )
                 INSERT INTO [Event].[XboxGamertagHistory] ([XboxUserID], [Gamertag], [NormalizedGamertag], [FirstSeen], [LastSeen], [Source], [CreatedAt], [ModifiedAt])
-                SELECT h.[XboxUserID], MAX(CAST(LTRIM(RTRIM(h.[Gamertag])) AS nvarchar(50))), CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50)),
-                    MIN(h.[PeriodStart]), MAX(h.[PeriodEnd]), 1, SYSUTCDATETIME(), SYSUTCDATETIME()
-                FROM [Xbox].[XboxUsersHistory] AS h
-                JOIN [Xbox].[XboxUsers] AS x ON x.[XboxUserID] = h.[XboxUserID]
-                WHERE UPPER(LTRIM(RTRIM(h.[Gamertag]))) <> UPPER(LTRIM(RTRIM(x.[Gamertag])))
-                GROUP BY h.[XboxUserID], CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50));
+                SELECT [XboxUserID], MAX([Clean]), UPPER([Clean]), MIN([PeriodStart]), MAX([PeriodEnd]), 1, SYSUTCDATETIME(), SYSUTCDATETIME()
+                FROM v
+                WHERE UPPER([Clean]) <> [Current]
+                GROUP BY [XboxUserID], UPPER([Clean]);
                 """);
 
         }

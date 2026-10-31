@@ -56,16 +56,22 @@ public class SetGamertagService : ISetGamertagService
         {
             user.XboxUser = xboxUser;
 
-            // Placeholders (historical:<gamertag>) of the gamertags this Xbox account is known to have had are this
-            // player's: merged. A placeholder of the gamertag itself only shares a name with the account (someone else
-            // may have used it years ago), so a commissioner decides: it becomes a pending claim.
-            var pastGamertags = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == xboxUser.XboxUserID)
-                .Select(h => h.Gamertag).ToListAsync(ct);
+            // Placeholders (historical:<gamertag>) of gamertags this Xbox account is known to have had are merged when the
+            // seasons of their rows fit the account's history (it hadn't let go of the gamertag yet) and no other account's
+            // history claims the gamertag for that time. Any other placeholder only shares a name with the account
+            // (someone else may have used it years ago): a sysadmin decides, through a pending claim. All the merges
+            // are in this one transaction: one that can't be made undoes them all.
+            var pastGamertags = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == xboxUser.XboxUserID).ToListAsync(ct);
             foreach (var past in pastGamertags)
             {
-                var placeholder = await Placeholder(past, ct);
+                var placeholder = await Placeholder(past.Gamertag, ct);
                 if (placeholder is null || placeholder.Id == userID)
                     continue;
+                if (!await FitsTheHistory(placeholder.Id, past, ct))
+                {
+                    await Claim(xboxUser.XboxUserID, past.Gamertag, placeholder.Id, ct);
+                    continue;
+                }
                 try
                 {
                     await _userMergeService.Merge(userID, placeholder.Id, null, ct);
@@ -79,22 +85,7 @@ public class SetGamertagService : ISetGamertagService
 
             var namesake = await Placeholder(xboxUser.Gamertag, ct);
             if (namesake is not null && namesake.Id != userID)
-            {
-                var normalized = HistoricalKeys.Normalize(xboxUser.Gamertag);
-                var claimed = await _context.GamertagClaims.AnyAsync(c => c.Kind == GamertagClaimKind.SetGamertag
-                    && c.XboxUserID == xboxUser.XboxUserID && c.NormalizedGamertag == normalized, ct);
-                if (!claimed)
-                {
-                    _context.GamertagClaims.Add(new GamertagClaim
-                    {
-                        Kind = GamertagClaimKind.SetGamertag,
-                        XboxUserID = xboxUser.XboxUserID,
-                        Gamertag = HistoricalKeys.CleanGamertag(xboxUser.Gamertag),
-                        NormalizedGamertag = normalized,
-                        PlaceholderUserID = namesake.Id,
-                    });
-                }
-            }
+                await Claim(xboxUser.XboxUserID, xboxUser.Gamertag, namesake.Id, ct);
         }
         else // Must check if this is a dummy account
         {
@@ -123,8 +114,46 @@ public class SetGamertagService : ISetGamertagService
         return null; // Success, no error message
     }
 
+
+    /// <summary>
+    /// Whether the placeholder's historical rows can be the account's under that past gamertag: none of their seasons
+    /// began after the account let go of it (its LastSeen; FirstSeen is only when the app first saw it, so it bounds
+    /// nothing), and no other account's history has the gamertag at a time that can include them.
+    /// </summary>
+    private async Task<bool> FitsTheHistory(int placeholderId, XboxGamertagHistory past, CancellationToken ct)
+    {
+        var starts = await _context.PlayerSeasonStats.Where(s => s.UserID == placeholderId).Select(s => s.Season.SeasonStart)
+            .Concat(_context.PlayerChampionships.Where(c => c.UserID == placeholderId).Select(c => c.Season.SeasonStart))
+            .ToListAsync(ct);
+        if (past.LastSeen is not null && starts.Any(s => s > past.LastSeen))
+            return false;
+        DateTime? earliest = starts.Count == 0 ? null : starts.Min();
+        var reused = await _context.XboxGamertagHistory.AnyAsync(h => h.XboxUserID != past.XboxUserID
+            && h.NormalizedGamertag == past.NormalizedGamertag
+            && (h.LastSeen == null || earliest == null || h.LastSeen >= earliest), ct);
+        return !reused;
+    }
+
+    /// <summary>A pending claim (once per account and gamertag) for a sysadmin to decide.</summary>
+    private async Task Claim(long xboxUserId, string gamertag, int placeholderId, CancellationToken ct)
+    {
+        var normalized = HistoricalKeys.Normalize(gamertag);
+        var claimed = _context.GamertagClaims.Local.Any(c => c.Kind == GamertagClaimKind.SetGamertag && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized)
+            || await _context.GamertagClaims.AnyAsync(c => c.Kind == GamertagClaimKind.SetGamertag && c.XboxUserID == xboxUserId && c.NormalizedGamertag == normalized, ct);
+        if (claimed)
+            return;
+        _context.GamertagClaims.Add(new GamertagClaim
+        {
+            Kind = GamertagClaimKind.SetGamertag,
+            XboxUserID = xboxUserId,
+            Gamertag = HistoricalKeys.CleanGamertag(gamertag),
+            NormalizedGamertag = normalized,
+            PlaceholderUserID = placeholderId,
+        });
+    }
+
     /// <summary>The placeholder of a gamertag not yet tied to an Xbox account.</summary>
-    private Task<GrifballWebApp.Database.Models.User?> Placeholder(string gamertag, CancellationToken ct)
+    private Task<User?> Placeholder(string gamertag, CancellationToken ct)
     {
         var name = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant();
         return _context.Users.FirstOrDefaultAsync(u => u.IsDummyUser && u.XboxUserID == null && u.NormalizedUserName == name, ct);

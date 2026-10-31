@@ -43,7 +43,7 @@ public class HistoricalImportReport
     public int ChampionshipsUpdated { get; set; }
     public int DummyUsersCreated { get; set; }
     public int WaypointMatchesPulled { get; set; }
-    /// <summary>Roster matches suggested for a commissioner (GamertagClaims).</summary>
+    /// <summary>Roster matches suggested for a sysadmin to decide (GamertagClaims).</summary>
     public int SuggestionsCreated { get; set; }
     /// <summary>Waypoint matches that are not in the database (could not be pulled, or not found), by season and phase:
     /// that phase kept its Manual stats.</summary>
@@ -245,13 +245,18 @@ public class HistoricalImportService : IHistoricalImportService
         var retry = Policy.Handle<Exception>(ex => ex is not OperationCanceledException)
             .WaitAndRetryAsync(Math.Max(_options.MatchPullAttempts - 1, 0),
                 attempt => TimeSpan.FromTicks(_options.MatchPullBackoff.Ticks * (1L << (attempt - 1))),
-                (ex, delay, attempt, _) => _logger.LogWarning(ex, "Pulling a Waypoint match failed (attempt {Attempt}); trying again in {Delay}", attempt, delay));
+                async (ex, delay, attempt, _) =>
+                {
+                    _logger.LogWarning(ex, "Pulling a Waypoint match failed (attempt {Attempt}); trying again in {Delay}", attempt, delay);
+                    // A heartbeat before each wait too, so a slow pull doesn't look like a stopped job
+                    await progress(new HistoricalImportProgress($"Pulling Waypoint matches: retrying in {delay}", 0, seasons));
+                });
         var pulled = 0;
         foreach (var id in toPull)
         {
             ct.ThrowIfCancellationRequested();
-            if (pulled % 10 == 0)
-                await progress(new HistoricalImportProgress($"Pulling Waypoint matches {pulled}/{toPull.Count}", 0, seasons));
+            // Each pull reports (the job's heartbeat): the longest gap is one call with the Halo client's retries
+            await progress(new HistoricalImportProgress($"Pulling Waypoint matches {pulled}/{toPull.Count}", 0, seasons));
             pulled++;
             try
             {
@@ -307,7 +312,7 @@ public class HistoricalImportService : IHistoricalImportService
                 return;
             }
 
-            var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart, season.SeasonEnd);
+            var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
             var waypointUsers = group.Waypoint is null
                 ? new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] }
                 : await ImportWaypointStats(group, season, resolver, counts, ct);
@@ -559,7 +564,7 @@ public class HistoricalImportService : IHistoricalImportService
     /// <summary>
     /// For each phase with Waypoint stats: sheet rows no Xbox account matched (their user has no Waypoint row) and Xbox
     /// accounts no sheet row matched are probably the same players under old gamertags. Pairs on the same team (an
-    /// account's team is its teammates' sheet team, by majority) become suggestions for a commissioner (GamertagClaims,
+    /// account's team is its teammates' sheet team, by majority) become suggestions for a sysadmin (GamertagClaims,
     /// RosterMatch); nothing is merged automatically. The unmatched rows are warned about.
     /// </summary>
     private async Task SuggestRosterMatches(SeasonGroup group, Season season, Dictionary<bool, HashSet<int>> waypointUsers, Dictionary<bool, List<SheetPlayer>> sheetPlayers, HistoricalImportReport counts, CancellationToken ct)

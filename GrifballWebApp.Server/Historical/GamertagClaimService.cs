@@ -36,8 +36,11 @@ public class AddGamertagHistoryRequest
 /// <summary>A gamertag claim or history request that can't be done as asked; the message is for the user (400).</summary>
 public class GamertagClaimException(string message) : Exception(message);
 
+/// <summary>A claim whose placeholder changed since it was made (409).</summary>
+public class GamertagClaimConflictException(string message) : Exception(message);
+
 /// <summary>
-/// Commissioners' decisions on GamertagClaims (roster matches the import suggests, and placeholders a user claimed by
+/// Sysadmins' decisions on GamertagClaims (roster matches the import suggests, and placeholders a user claimed by
 /// setting their gamertag), and sysadmins' additions to an Xbox account's gamertag history.
 /// </summary>
 public class GamertagClaimService
@@ -103,6 +106,14 @@ public class GamertagClaimService
             await _context.SaveChangesAsync(ct);
 
             var owner = claim.XboxUser.User;
+            if (placeholderId is not null && owner?.Id != placeholderId)
+            {
+                // Only an import placeholder is linked or merged on a claim: not a real account, nor one tied to an Xbox
+                // account since the claim was made
+                var placeholder = await _context.Users.FirstAsync(u => u.Id == placeholderId, ct);
+                if (!placeholder.IsDummyUser || placeholder.UserName?.StartsWith(HistoricalKeys.DummyUserNamePrefix, StringComparison.OrdinalIgnoreCase) != true || placeholder.XboxUserID is not null)
+                    throw new GamertagClaimConflictException($"User {placeholderId} is no longer an unlinked placeholder (historical:<gamertag>); reject the claim or merge by hand.");
+            }
             if (placeholderId is not null && owner is null)
             {
                 // Nobody holds the account: the placeholder becomes its user

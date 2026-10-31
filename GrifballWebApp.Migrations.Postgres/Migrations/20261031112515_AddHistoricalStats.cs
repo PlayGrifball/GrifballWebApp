@@ -923,14 +923,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"XboxGamertagHistory\"');");
             // The renames the XboxUsers table's history already holds: each account's earlier gamertags, from when the first
             // version with it began to when the last one ended ('-infinity', the start of rows history was added to, is unknown).
+            // Gamertags are normalised as the app does (HistoricalKeys): trimmed, runs of whitespace made one space, upper-cased.
             migrationBuilder.Sql("""
                 INSERT INTO "Event"."XboxGamertagHistory" ("XboxUserID", "Gamertag", "NormalizedGamertag", "FirstSeen", "LastSeen", "Source", "CreatedAt", "ModifiedAt")
-                SELECT h."XboxUserID", left(max(btrim(h."Gamertag")), 50), left(upper(btrim(h."Gamertag")), 50),
+                SELECT h."XboxUserID", left(max(btrim(regexp_replace(h."Gamertag", '\s+', ' ', 'g'))), 50), left(upper(btrim(regexp_replace(h."Gamertag", '\s+', ' ', 'g'))), 50),
                     min(NULLIF(h."PeriodStart", '-infinity')), max(h."PeriodEnd"), 1, now(), now()
                 FROM "Xbox"."XboxUsersHistory" AS h
                 JOIN "Xbox"."XboxUsers" AS x ON x."XboxUserID" = h."XboxUserID"
-                WHERE upper(btrim(h."Gamertag")) <> upper(btrim(x."Gamertag"))
-                GROUP BY h."XboxUserID", left(upper(btrim(h."Gamertag")), 50);
+                WHERE upper(btrim(regexp_replace(h."Gamertag", '\s+', ' ', 'g'))) <> upper(btrim(regexp_replace(x."Gamertag", '\s+', ' ', 'g')))
+                GROUP BY h."XboxUserID", left(upper(btrim(regexp_replace(h."Gamertag", '\s+', ' ', 'g'))), 50);
                 """);
 
         }

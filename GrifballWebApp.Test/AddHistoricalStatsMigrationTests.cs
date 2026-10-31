@@ -166,7 +166,8 @@ public class AddHistoricalStatsMigrationTests
         await _context.Database.ExecuteSqlRawAsync(Sql(
             "INSERT INTO [Xbox].[XboxUsers] ([XboxUserID], [Gamertag], [CreatedAt], [ModifiedAt]) VALUES (1, N'First', '2025-01-01', '2025-01-01'), (2, N'Never Renamed', '2025-01-01', '2025-01-01')",
             """INSERT INTO "Xbox"."XboxUsers" ("XboxUserID", "Gamertag", "CreatedAt", "ModifiedAt") VALUES (1, 'First', '2025-01-01Z', '2025-01-01Z'), (2, 'Never Renamed', '2025-01-01Z', '2025-01-01Z')"""));
-        foreach (var name in new[] { "Second", "Third" })
+        // The last one only changes case and spacing: no rename of "Third", which isn't a past gamertag then
+        foreach (var name in new[] { "Second", "Third", " THIRD  " })
             await _context.Database.ExecuteSqlRawAsync(Sql(
                 "UPDATE [Xbox].[XboxUsers] SET [Gamertag] = {0} WHERE [XboxUserID] = 1",
                 """UPDATE "Xbox"."XboxUsers" SET "Gamertag" = {0} WHERE "XboxUserID" = 1"""), name);

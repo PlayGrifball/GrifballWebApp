@@ -178,4 +178,28 @@ public class GamertagClaimServiceTests
 
         Assert.That(ex!.Message, Does.Contain(message));
     }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task Approve_APlaceholderThatChangedSinceTheClaim_IsRefusedWith409(bool linkedElsewhere)
+    {
+        var claim = await Claim(xuid: 20, kind: GamertagClaimKind.SetGamertag, withSeason: false);
+        if (linkedElsewhere)
+        {
+            _context.XboxUsers.Add(new XboxUser { XboxUserID = 30, Gamertag = "Elsewhere" });
+            _placeholder.XboxUserID = 30;
+        }
+        else
+        {
+            _placeholder.IsDummyUser = false; // someone made it a real account
+        }
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<GamertagClaimConflictException>(() => _service.Approve(claim.GamertagClaimID));
+
+        Assert.That(ex!.Message, Does.Contain("no longer an unlinked placeholder"));
+        await using var fresh = _context.NewContextLike();
+        Assert.That((await fresh.GamertagClaims.SingleAsync()).Status, Is.EqualTo(GamertagClaimStatus.Pending));
+        Assert.That(await fresh.XboxGamertagHistory.AnyAsync(), Is.False);
+    }
 }

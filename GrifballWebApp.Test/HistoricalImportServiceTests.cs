@@ -506,7 +506,7 @@ public class HistoricalImportServiceTests
         // The account took "Shadow S16" in 2021; before that it was "Rookie"
         var now = new User { UserName = "now", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
         _context.Users.Add(now);
-        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", FirstSeen = Utc(2015), LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", FirstSeen = Utc(2020), LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Input(
@@ -517,7 +517,8 @@ public class HistoricalImportServiceTests
         Assert.Multiple(() =>
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(rows.Single(r => r.Gamertag == "Rookie").UserID, Is.EqualTo(now.Id), "Its history covers 2019");
+            Assert.That(rows.Single(r => r.Gamertag == "Rookie").UserID, Is.EqualTo(now.Id),
+                "Its history still had it after 2019 began; FirstSeen (2020) is only when the app first saw it, not a lower bound");
             Assert.That(rows.Single(r => r.Gamertag == "Shadow S16" && r.Season.SeasonName == "Winter League 2019").User.UserName, Is.EqualTo("historical:Shadow S16"),
                 "Someone else's 2019 gamertag: the account only took it in 2021");
         });
@@ -556,14 +557,14 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
-    public async Task Import_ADatedHistoryRowWins_OverAnotherAccountsUndatedOne()
+    public async Task Import_AnAccountThatLetGoOfTheGamertagBeforeTheSeason_DoesntCompete()
     {
         var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
         var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
         _context.Users.AddRange(a, b);
         _context.XboxGamertagHistory.AddRange(
-            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2018), LastSeen = Utc(2020), Source = GamertagHistorySource.Manual },
-            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "Shared", NormalizedGamertag = "SHARED", Source = GamertagHistorySource.Manual });
+            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2025), LastSeen = Utc(2026), Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "Shared", NormalizedGamertag = "SHARED", LastSeen = Utc(2015), Source = GamertagHistorySource.Manual });
         await _context.SaveChangesAsync();
 
         await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shared"))));
@@ -668,6 +669,56 @@ public class HistoricalImportServiceTests
         var third = await _service.Import(input);
         Assert.That(third.Warnings, Has.None.Contains("Old B"));
         Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == newB.Id), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Import_AGamertagTwoAccountsStillHadAfterTheSeason_IsLeftToItsPlaceholder()
+    {
+        // Reused: both accounts' histories can include 2019, whatever their FirstSeen
+        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
+        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        _context.Users.AddRange(a, b);
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2022), LastSeen = Utc(2023), Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2024), LastSeen = Utc(2025), Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shared"))));
+
+        Assert.That(report.Warnings, Has.One.Contains("more than one Xbox account"));
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).SingleAsync(), Is.EqualTo("historical:Shared"));
+    }
+
+    [Test]
+    public async Task Import_ComparesCurrentGamertagsNormalised()
+    {
+        var spaced = new User { UserName = "spaced", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = " Shadow   S16 " } };
+        var other = new User { UserName = "other", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "ShadowS16" } };
+        _context.Users.AddRange(spaced, other);
+        await _context.SaveChangesAsync();
+
+        await _service.Import(Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("shadow s16"))));
+
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(spaced.Id), "Not the account without the space");
+    }
+
+    [Test]
+    public async Task Import_ReportsProgressBeforeEachMatchPull_AndEachRetry()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var calls = 0;
+        _dataPull.When(d => d.GetAndSaveMatch(first)).Do(_ => { if (calls++ == 0) throw new HttpRequestException("blip"); });
+        var stages = new List<string>();
+
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Someone"))).Seasons,
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [first.ToString(), second.ToString()] } },
+        }, p => { stages.Add(p.Stage); return Task.CompletedTask; });
+
+        Assert.That(stages, Is.SupersetOf(new[] { "Pulling Waypoint matches 0/2", "Pulling Waypoint matches 1/2", "Importing Winter League 2023 (DA)", "Done" }));
+        Assert.That(stages, Has.One.StartsWith("Pulling Waypoint matches: retrying in"));
     }
 
     /// <summary>The compiled archive in the repository imports, and a second run changes no row counts.</summary>

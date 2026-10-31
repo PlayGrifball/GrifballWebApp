@@ -24,8 +24,12 @@ public class HistoricalImportWorkerOptions
 {
     /// <summary>How often the worker looks for queued jobs when it isn't woken by a new one.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(30);
-    /// <summary>A Running job whose heartbeat is older than this was left by a stopped process: it is queued again.</summary>
-    public TimeSpan StaleAfter { get; set; } = TimeSpan.FromMinutes(10);
+    /// <summary>
+    /// A Running job whose heartbeat is older than this was left by a stopped process: it is queued again. The import
+    /// reports before each match pull and each retry wait, so the longest gap is one pull: a few Halo API calls, each
+    /// retried by the Halo client up to 5 times at most 30 s apart (a few minutes), well under this.
+    /// </summary>
+    public TimeSpan StaleAfter { get; set; } = TimeSpan.FromMinutes(30);
 }
 
 /// <summary>Wakes the worker when a job is queued.</summary>

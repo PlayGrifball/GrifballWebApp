@@ -57,7 +57,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         {
             // The name it had goes into its gamertag history first: seasons played under it still find this account.
             // It was current from when it was stored (the row's last change) until now.
-            if (!string.Equals(renamed.Gamertag, response.Result.gamertag, StringComparison.OrdinalIgnoreCase))
+            if (HistoricalKeys.Normalize(renamed.Gamertag) != HistoricalKeys.Normalize(response.Result.gamertag))
             {
                 var since = renamed.ModifiedAt > DateTime.MinValue ? renamed.ModifiedAt : (DateTime?)null;
                 await _grifballContext.UpsertGamertagHistoryAsync(renamed.XboxUserID, renamed.Gamertag, since, DateTime.UtcNow, GamertagHistorySource.RenameDetected, ct);

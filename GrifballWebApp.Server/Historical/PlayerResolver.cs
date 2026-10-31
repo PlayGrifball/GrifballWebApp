@@ -24,16 +24,15 @@ public enum ResolvedBy
 public readonly record struct Resolution(int UserId, ResolvedBy By);
 
 /// <summary>
-/// Finds the user a gamertag of a historical season belongs to, for that season's dates (<c>windowStart</c> to
-/// <c>windowEnd</c>): a gamertag is matched to the account that had it then, never to an account only because it holds
+/// Finds the user a gamertag of a historical season belongs to, for when that season began (<c>windowStart</c>): a gamertag is matched to the account that had it then, never to an account only because it holds
 /// the gamertag now. In order:
 /// <list type="number">
 /// <item>A Waypoint row's XUID: the user linked to that Xbox account.</item>
 /// <item>The user of this season's sheet rows (Source Manual) or titles imported before under that gamertag: a re-run
 /// (also after a commissioner moved them to another user). Waypoint rows don't count: their gamertag is the
 /// account's current one, not the one the season used.</item>
-/// <item>XboxGamertagHistory: an account that had the gamertag at a time overlapping the season (or at an unknown
-/// time, when no other account's history also claims it).</item>
+/// <item>XboxGamertagHistory: an account that still had the gamertag when the season began (its LastSeen is not
+/// before it), when no other account's history also can.</item>
 /// <item>An account whose current gamertag it is, when no rename of that account is known after the season began.</item>
 /// <item>The user of the archive's other seasons' sheet rows or titles under the gamertag (the same player, as far as
 /// is known; a placeholder a commissioner merged into an account keeps being found).</item>
@@ -47,16 +46,14 @@ internal sealed class PlayerResolver
 {
     private readonly GrifballContext _context;
     private readonly DateTime _windowStart;
-    private readonly DateTime _windowEnd;
     private readonly int _seasonId;
     private readonly Dictionary<string, Resolution> _byGamertag = new();
 
-    public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart, DateTime windowEnd)
+    public PlayerResolver(GrifballContext context, int seasonId, DateTime windowStart)
     {
         _context = context;
         _seasonId = seasonId;
         _windowStart = windowStart;
-        _windowEnd = windowEnd;
     }
 
     public int DummiesCreated { get; private set; }
@@ -119,8 +116,13 @@ internal sealed class PlayerResolver
         if (fromHistory is not null)
             return fromHistory;
 
-        var current = await _context.XboxUsers.Where(x => x.Gamertag == gamertag && x.User != null)
-            .Select(x => new { x.XboxUserID, UserId = x.User!.Id }).FirstOrDefaultAsync(ct);
+        // Compared normalised (trimmed, inner whitespace collapsed; case by collation and upper-casing): the spaces are
+        // taken out in SQL to find the candidates, then the normalised forms compared
+        var compact = gamertag.Replace(" ", "");
+        var current = (await _context.XboxUsers.Where(x => x.Gamertag.Replace(" ", "") == compact && x.User != null)
+                .Select(x => new { x.XboxUserID, x.Gamertag, UserId = x.User!.Id }).ToListAsync(ct))
+            .OrderBy(x => x.XboxUserID)
+            .FirstOrDefault(x => HistoricalKeys.Normalize(x.Gamertag) == normalized);
         if (current is not null)
         {
             var history = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == current.XboxUserID).ToListAsync(ct);
@@ -153,8 +155,8 @@ internal sealed class PlayerResolver
     }
 
     /// <summary>
-    /// The account whose history has the gamertag at a time overlapping the season. Dated rows decide; undated rows
-    /// count only when no dated one matches, and only when they all are one account's.
+    /// The account whose history has the gamertag at a time that can include the season (see <see cref="Overlaps"/>).
+    /// When more than one account's history can (a gamertag reused after its owner let go of it), none is chosen.
     /// </summary>
     private async Task<Resolution?> FromHistory(string gamertag, string normalized, CancellationToken ct)
     {
@@ -162,8 +164,7 @@ internal sealed class PlayerResolver
             .Include(h => h.XboxUser).ThenInclude(x => x.User)
             .ToListAsync(ct);
         var candidates = rows.Where(Overlaps).ToList();
-        var dated = candidates.Where(h => h.FirstSeen is not null || h.LastSeen is not null).Select(h => h.XboxUserID).Distinct().ToList();
-        var accounts = dated.Count > 0 ? dated : candidates.Select(h => h.XboxUserID).Distinct().ToList();
+        var accounts = candidates.Select(h => h.XboxUserID).Distinct().ToList();
         if (accounts.Count == 0)
             return null;
         if (accounts.Count > 1)
@@ -184,8 +185,12 @@ internal sealed class PlayerResolver
         return new Resolution(await CreateDummy(gamertag, xboxUser, ct), ResolvedBy.GamertagHistory);
     }
 
-    private bool Overlaps(XboxGamertagHistory h)
-        => (h.FirstSeen is null || h.FirstSeen <= _windowEnd) && (h.LastSeen is null || h.LastSeen >= _windowStart);
+    /// <summary>
+    /// Whether the account may have had the gamertag during the season: it hadn't let go of it before the season began.
+    /// Only LastSeen bounds the period: FirstSeen is when the app first saw the account with it (a rename noticed, a row
+    /// version, an approved season), not when the account took it, and archive seasons are usually older.
+    /// </summary>
+    private bool Overlaps(XboxGamertagHistory h) => h.LastSeen is null || h.LastSeen >= _windowStart;
 
     /// <summary>When the account last changed gamertag, as far as its history knows.</summary>
     private static DateTime? LastRename(List<XboxGamertagHistory> history)

@@ -3,7 +3,7 @@
 namespace GrifballWebApp.Database.Models;
 
 /// <summary>
-/// A suggestion that a placeholder (historical) user's gamertag was an Xbox account's, waiting for a commissioner:
+/// A suggestion that a placeholder (historical) user's gamertag was an Xbox account's, waiting for a sysadmin (approving merges users, which only sysadmins do):
 /// approving it records the gamertag in the account's <see cref="XboxGamertagHistory"/> and merges the placeholder
 /// into the account's user; rejecting it changes nothing (and the same suggestion isn't made again).
 /// </summary>
