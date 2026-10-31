@@ -85,11 +85,12 @@ backend:
     # sha256:...; when set, runs repository:tag@digest. The migrations use the same image.
     digest: ""
     pullPolicy: IfNotPresent
+  # More than 1 needs worker.enabled (and redis): the Discord gateway and the background services
+  # must run in one process only. Scaled out, backend.halo.mode must be Gateway.
   replicas: 1
-  # Recreate: the state volume (persistence) is ReadWriteOnce, so a new pod can't start beside the
-  # old one.
-  strategy:
-    type: Recreate
+  # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
+  # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
+  strategy: {}
   # ASPNETCORE_HTTP_PORTS. The frontend's server proxies to 5295.
   port: 5295
   service:
@@ -135,6 +136,7 @@ backend:
     # ClientSecret and RedirectUrl are set through secretConfig (ClientConfiguration:ClientId, ...).
     # ClientConfiguration:
     #   RedirectUrl: ""
+    # App:Role (all, api, worker) and ConnectionStrings:Redis are set by worker and redis below.
     # Google Sheets imports. Key (the service account's JSON key file) defaults to the file mounted
     # by googleCredentials.
     # GoogleSheets:
@@ -193,10 +195,12 @@ backend:
     # HaloInfinite:Mode: Gateway or Direct.
     mode: Gateway
     gateway:
-      # HaloGateway:BaseUrl (Gateway mode). The backend's NetworkPolicy lets it out to this URL's port
-      # (networkPolicy.backend.haloGatewayTo).
-      url: http://halo-gateway.halo-gateway.svc:8080/
-      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: no key, and the
+      # HaloGateway:BaseUrl (Gateway mode). Empty: the bundled gateway's Service with halo-gateway.enabled,
+      # else the shared one, http://halo-gateway.halo-gateway.svc:8080/. The backend's NetworkPolicy lets it
+      # out to this URL's port (networkPolicy.backend.haloGatewayTo), or to the bundled gateway's pods.
+      url: ""
+      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: the first
+      # halo-gateway.apiKeys entry with a secretName when the gateway is bundled, else no key, and the
       # gateway turns every call down.
       apiKey:
         secretName: ""
@@ -288,6 +292,89 @@ backend:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# Scale-out (off by default). Off: the backend does everything in one process (App:Role all) and runs
+# exactly one replica. On: a second Deployment, grif-worker, runs what must run once - the Discord
+# gateway and the background services (App:Role worker) - always one pod (Recreate), serving only its
+# health endpoints; the backend then runs the API and the SignalR hub (App:Role api), backend.replicas
+# of them, rolling. The worker's SignalR messages (draft picks made in Discord) reach browsers through
+# the backplane, so this needs redis. It also needs backend.halo.mode Gateway (the gateway holds the
+# Halo tokens; in Direct mode they are files in one pod's working directory), and the backend refuses
+# App:Role api or worker in Direct mode. The worker shares the backend's image, settings, secrets,
+# probes and security, and mounts the state volume (persistence) if any.
+worker:
+  enabled: false
+  # Empty: the backend's.
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Added to the backend's.
+  podLabels: {}
+  podAnnotations: {}
+
+# The SignalR backplane (off by default): joins the SignalR hubs of every backend pod and the worker,
+# so a message sent by one (a draft pick, made on the site or in Discord) reaches the browsers
+# connected to the others. worker.enabled needs it. Either the chart's own (enabled), a small Valkey
+# (Redis's protocol) holding nothing, or an existing Redis/Valkey (external). Either way the backend
+# gets ConnectionStrings:Redis; browsers connect over WebSockets without negotiating, so the Service
+# needs no sticky sessions.
+redis:
+  enabled: false
+  image:
+    repository: docker.io/valkey/valkey
+    tag: 9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
+    digest: ""
+    pullPolicy: IfNotPresent
+  port: 6379
+  # An existing server instead: its StackExchange.Redis connection string (host:port,password=...)
+  # from a Secret. Allow the backend to reach it with networkPolicy.redis.
+  external:
+    connectionString:
+      secretName: ""
+      key: ""
+  # SignalR:RedisChannelPrefix, so environments can share one server. Empty: the app's default
+  # (GrifballWebApp).
+  channelPrefix: ""
+  resources:
+    requests:
+      memory: 16Mi
+    limits:
+      memory: 64Mi
+  # The image's valkey user.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  podAnnotations: {}
+  podLabels: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Grunt's Halo gateway in this release (off): the halo-gateway chart (PlayGrifball/grunt), a dependency of
+# this one, for running grif with its own gateway instead of a shared one. Everything under this key is the
+# gateway chart's values (see its values.yaml); README "Bundled Halo gateway". Enabled, the backend calls it
+# (backend.halo.gateway.url empty: http://<release>-halo-gateway:8080/), its NetworkPolicy allows the
+# gateway's pods, the gateway admits the backend and the worker (grif-halo-gateway), and backend.halo.mode
+# must be Gateway. The gateway needs oauth (its Microsoft app and redirect URL) and an apiKeys entry from a
+# Secret, which the backend reads too unless backend.halo.gateway.apiKey names another.
+halo-gateway:
+  enabled: false
+  # oauth:
+  #   redirectUrl: https://halo-gateway.example.com/oauth/callback
+  #   existingSecret: halo-gateway-oauth      # ClientId, ClientSecret
+  # admin:
+  #   existingSecret: halo-gateway-admin      # AdminKey
+  # apiKeys:
+  #   - { name: grif, environment: prod, priority: 0, permitsPerMinute: 600, secretName: halo-gateway-key, secretKey: ApiKey }
 
 frontend:
   image:
@@ -823,7 +910,18 @@ networkPolicy:
       - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
     # Ex: Prometheus scraping, other services calling the API.
     extraIngress: []
+    # The worker's too (worker.enabled).
     extraEgress: []
+  # The worker (worker.enabled) has the backend's egress, and no ingress but this.
+  worker:
+    extraIngress: []
+    extraEgress: []
+  # An external Redis (redis.external): where it is and its port. Empty to: anywhere, on port. The
+  # chart's own (redis.enabled) is allowed from the backend and the worker only.
+  redis:
+    to: []
+    port: 6379
+    extraIngress: []
   mssql:
     # Who may reach the LoadBalancer (mssql.loadBalancer). Empty: anyone.
     loadBalancerFrom: []

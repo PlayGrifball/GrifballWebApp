@@ -424,3 +424,6 @@ node-v*
 
 # master's migration IDs for the backend image (.github/scripts/master-migrations.sh), written by CI.
 .master-migrations/
+
+# The Helm chart's dependencies (helm dependency build, from Chart.lock); never committed.
+charts/grifballwebapp/charts/

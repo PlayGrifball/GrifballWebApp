@@ -1,0 +1,36 @@
+# grif with its own Halo gateway in the release (README, Bundled Halo gateway): the halo-gateway
+# subchart with its Microsoft app, admin key and grif's API key from existing Secrets; the backend
+# reads the same API key Secret and calls the gateway's Service.
+mssql:
+  acceptEula: true
+
+backend:
+  config:
+    BaseUrl: https://grifball.example.com
+    Discord:
+      DraftChannel: "123456789012345678"
+  secretConfig:
+    Discord:ClientId: DiscordClientId
+    Discord:ClientSecret: DiscordClientSecret
+    Discord:Token: DiscordToken
+
+halo-gateway:
+  enabled: true
+  oauth:
+    redirectUrl: https://halo-gateway.example.com/oauth/callback
+    existingSecret: halo-gateway-oauth
+  admin:
+    existingSecret: halo-gateway-admin
+  apiKeys:
+    - name: grif
+      environment: prod
+      priority: 0
+      permitsPerMinute: 600
+      secretName: halo-gateway-key
+      secretKey: ApiKey
+  ingressRoute:
+    enabled: true
+    host: halo-gateway.example.com
+  networkPolicy:
+    ingressController:
+      namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }

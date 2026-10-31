@@ -77,7 +77,7 @@ modes below.
 - **`Direct`**: the backend signs in to Halo itself, as before the gateway: `ClientConfiguration:ClientId`,
   `ClientSecret` and `RedirectUrl` in `secretConfig`, its tokens on the state volume (`backend.persistence`),
   set up from the Infinite Client page. No gateway setting or rule is rendered; Halo is reached over
-  `networkPolicy.backend.httpsTo`.
+  `networkPolicy.backend.httpsTo`. One backend pod only: not with `worker.enabled` (see Scaling out).
 
 ```yaml
 backend:
@@ -91,6 +91,61 @@ Each of these becomes its app setting only when `backend.config` or `backend.sec
 set it (`HaloInfinite:Mode`, `HaloGateway:BaseUrl`, `HaloGateway:ApiKey`, `HaloGateway:AdminUrl`), so there
 is never a second variable for one setting. The `ClientConfiguration:*` secrets can stay in `secretConfig` in
 Gateway mode, unused, ready for Direct.
+
+### Bundled Halo gateway
+
+To run grif with its own gateway instead of a shared one, turn on the `halo-gateway` subchart (Grunt's chart from
+`oci://ghcr.io/playgrifball/charts`, pinned in `Chart.yaml` and `Chart.lock`; off by default). Its values live
+under `halo-gateway:`, as in [its values.yaml](https://github.com/PlayGrifball/grunt/blob/master/charts/halo-gateway/values.yaml).
+The key isn't aliased to `haloGateway`: an alias renames the gateway's objects after it, and Kubernetes names
+can't have capitals. When it's on:
+
+- the backend calls `http://<release>-halo-gateway:8080/` (the gateway chart's own name; the release name alone
+  if it already contains `halo-gateway`), unless `backend.halo.gateway.url` or `config.HaloGateway.BaseUrl` is set;
+- `backend.halo.mode` must be `Gateway`;
+- the backend's and the worker's NetworkPolicies allow the gateway's pods in this namespace (not the
+  `halo-gateway` namespace), and `grif-halo-gateway-ingress` lets the backend and the worker in. The gateway
+  chart's own policy still sets its egress and the ingress controller's access;
+- `HaloGateway:AdminUrl` defaults to `https://<halo-gateway.ingressRoute.host>/admin`.
+
+One API key, one Secret: create it yourself (nothing is generated, so upgrades never change it). Name it in the
+gateway's `apiKeys` entry. The backend reads the first entry that has a `secretName`, unless
+`backend.halo.gateway.apiKey` names another Secret. Without either, the install fails. The gateway's Microsoft
+app (`oauth`) and its admin key (`admin`) come from its own existing Secrets.
+
+```sh
+kubectl -n grif create secret generic halo-gateway-key --from-literal=ApiKey="$(openssl rand -hex 32)"
+kubectl -n grif create secret generic halo-gateway-oauth \
+  --from-literal=ClientId=... --from-literal=ClientSecret=...
+kubectl -n grif create secret generic halo-gateway-admin --from-literal=AdminKey="$(openssl rand -hex 32)"
+```
+
+```yaml
+halo-gateway:
+  enabled: true
+  oauth:
+    # Register this redirect URI on the Microsoft app (Azure app registration).
+    redirectUrl: https://halo-gateway.example.com/oauth/callback
+    existingSecret: halo-gateway-oauth      # ClientId, ClientSecret
+  admin:
+    existingSecret: halo-gateway-admin      # AdminKey (X-Admin-Key on /admin/halo/*)
+  apiKeys:
+    - { name: grif, environment: prod, priority: 0, permitsPerMinute: 600, secretName: halo-gateway-key, secretKey: ApiKey }
+  ingressRoute:                             # the public host for the OAuth callback and /admin (Traefik)
+    enabled: true
+    host: halo-gateway.example.com
+  networkPolicy:
+    ingressController:
+      namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: traefik } }
+  # oidc: { enabled: true, authority: ..., clientId: ..., allowedGroups: [...] }   # browser sign-in to /admin
+```
+
+Then sign the Halo account in at `https://<host>/admin`. That page uses the gateway's OpenID Connect sign-in
+(`halo-gateway.oidc`, which answers 404 while it's off), and it is also linked from grif's Infinite Client page.
+Without OIDC, sign in with the admin key on `/admin/halo/signin`, which returns the Microsoft sign-in link.
+Microsoft then redirects to `https://<host>/oauth/callback`. The gateway keeps the token on its own volume
+(`halo-gateway.persistence`) and refreshes it. `ci/halo-gateway-values.yaml` is a full example, and the e2e
+`scaleout` scenario runs it.
 
 Every value is described in [values.yaml](values.yaml); [values.schema.json](values.schema.json) checks them, so
 a misspelled or unknown key, or a value of the wrong type, fails the install instead of being ignored.
@@ -378,9 +433,44 @@ The Job, the CronJobs and the backend run as the backend image's non-root user (
 Kubernetes (`runAsNonRoot`); SQL Server runs as its own (10001), PostgreSQL as its own (70). Only the
 database servers' permission-fixing init containers and the frontend's server (on port 80) run as root.
 
-The backend runs one replica: the Discord bot's gateway connection, the background queue and events
-services, and Grunt's token file on a ReadWriteOnce volume all assume a single instance. The migrations
-don't: more backend pods would only be more waiters.
+## Scaling out
+
+By default the backend is one pod doing everything (`App:Role` unset, i.e. `all`), and that stays the
+recommended setup until one pod isn't enough. Several pods need Halo Infinite in Gateway mode
+(`backend.halo.mode: Gateway`, the default): the Halo gateway holds the Halo tokens. In Direct mode the
+app's own tokens are files in one pod's working directory, so the chart refuses `worker.enabled` with
+`backend.halo.mode: Direct`, and the backend refuses to start as `App:Role` `api` or `worker` in Direct
+mode. To run several:
+
+```yaml
+backend:
+  replicas: 3              # the API pods (App:Role api), rolling
+  halo:
+    mode: Gateway          # required (the default)
+  persistence:
+    enabled: false         # Gateway mode keeps nothing on the state volume
+worker:
+  enabled: true            # grif-worker (App:Role worker): always 1 pod, Recreate
+redis:
+  enabled: true            # the SignalR backplane; or external.connectionString
+```
+
+- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages) and the
+  queue, events and outbox background services. It answers only its health endpoints and gets no
+  Service; its NetworkPolicy has the backend's egress (the Halo gateway included) and no ingress.
+- **grif-backend** then serves the API and the SignalR hub: no Discord gateway (it sends Discord
+  messages over REST) and no background services. More than one replica without the worker is refused.
+- **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
+  (on the worker), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
+  WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
+  The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
+  Secret holding a StackExchange.Redis connection string instead (allow it with
+  `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
+- **The state volume** (`backend.persistence`) holds only Direct mode's tokens, so in Gateway mode it can
+  be disabled; with `worker.enabled` it's mounted in the worker if left on. Without the volume the
+  backend rolls instead of being recreated (`backend.strategy` empty).
+
+The migrations Job is the same either way; every pod waits for it.
 
 ## Metrics
 
@@ -403,9 +493,12 @@ what it needs.
 | Pod | In | Out |
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port, the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`) |
-| SQL Server | backend, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
-| PostgreSQL | backend, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
+| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo in Direct mode, Google), the OpenTelemetry endpoint's port, the Halo gateway's port in Gateway mode (`backend.haloGatewayTo`, or the bundled gateway's pods), Redis |
+| worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
+| Redis (`redis.enabled`) | backend, worker | - |
+| Halo gateway (`halo-gateway.enabled`) | backend, worker (`grif-halo-gateway-ingress`); the ingress controller per its chart | per its chart: DNS, HTTPS to Microsoft, Xbox Live and Halo |
+| SQL Server | backend, worker, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
+| PostgreSQL | backend, worker, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
 | migration Job | - | DNS, the database |
 | backup CronJobs | - | DNS, the database (PostgreSQL's retention: DNS only, it only deletes files) |
 | sql-exporter | its metrics port from anyone (`sqlExporter.from`) | DNS, the database |
@@ -435,6 +528,7 @@ accept `tag`, `tag@sha256:...` or `sha256:...`, and `*.image.digest` takes a dig
 ## Developing
 
 ```sh
+helm dependency build charts/grifballwebapp     # the halo-gateway subchart (Chart.lock); every render needs it
 helm lint charts/grifballwebapp --strict -f charts/grifballwebapp/ci/full-values.yaml
 helm plugin install https://github.com/helm-unittest/helm-unittest   # once; add --verify=false on Helm 4
 helm unittest charts/grifballwebapp
@@ -443,5 +537,5 @@ helm unittest charts/grifballwebapp
 No version bump needed: master publishes every change as a new patch version. Bump the major or minor
 in `Chart.yaml` for changes that need it.
 
-`e2e/run.sh bundled|external|postgres|minimal` runs the chart on a real cluster (the workflow uses k3s in
+`e2e/run.sh bundled|external|postgres|minimal|scaleout` runs the chart on a real cluster (the workflow uses k3s in
 Docker, with app images built from the checkout): the header of the script lists what it checks.

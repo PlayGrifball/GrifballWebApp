@@ -1,7 +1,7 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
-import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
+import { HttpTransportType, HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
 import { AuthSession } from '../authSession.service';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
@@ -11,13 +11,21 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
   providedIn: 'root'
 })
 export class SignalRService {
+  /** WebSockets only, no negotiate request (see hubConnection). */
+  static readonly connectionOptions = { skipNegotiation: true, transport: HttpTransportType.WebSockets } as const;
+
   /**
    * The Teams hub. The browser's session cookie goes with the connection (same origin), so the hub
    * knows the user. Only in the browser: a page rendered on the server has no connection, and its
    * handlers are registered on one that is never started.
+   *
+   * Straight to a WebSocket, without negotiating first: negotiate and the connection would be two
+   * requests that must reach the same backend pod, which takes sticky sessions once there are
+   * several. A WebSocket is one request, held open on whichever pod took it.
    */
   public hubConnection: HubConnection = new HubConnectionBuilder()
-    .withUrl(isPlatformBrowser(inject(PLATFORM_ID)) ? 'hub/TeamsHub' : 'http://localhost/hub/TeamsHub')
+    .withUrl(isPlatformBrowser(inject(PLATFORM_ID)) ? 'hub/TeamsHub' : 'http://localhost/hub/TeamsHub',
+      SignalRService.connectionOptions)
     .withAutomaticReconnect()
     .build();
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route, type WebSocketRoute } from '@playwright/test';
-import { RS, teamsHubNegotiateBody } from './teamsHubMock.mts';
+import { RS } from './teamsHubMock.mts';
 
 // The client runs without zone.js: nothing re-renders a page unless the component tells
 // Angular to (signals, inputs, events). These tests go through the flows where that
@@ -274,10 +274,12 @@ test('the team builder renders a captain added by another user over SignalR', as
     [`/api/Teams/areCaptainsLocked/${SEASON_ID}`]: route => json(route, true),
   });
 
-  // A minimal SignalR server: negotiate, then the JSON hub protocol over a WebSocket. The shapes
-  // (RS, the negotiate body) are shared with e2e/teamsHubMock.mts, which answers the same hub for
-  // Lighthouse and the layout test (over a real socket there, so it can't share this route-based code).
-  await page.route('**/hub/TeamsHub/negotiate**', route => json(route, teamsHubNegotiateBody()));
+  // A minimal SignalR server: the JSON hub protocol over a WebSocket, which the client opens without
+  // negotiating first (so several backend pods need no sticky sessions): a negotiate request fails
+  // the test. RS is shared with e2e/teamsHubMock.mts, which answers the same hub for Lighthouse and
+  // the layout test (over a real socket there, so it can't share this route-based code).
+  let negotiated = false;
+  await page.route('**/hub/TeamsHub/negotiate**', route => { negotiated = true; return route.abort(); });
   const sockets: WebSocketRoute[] = [];
   await page.routeWebSocket(/\/hub\/TeamsHub/, ws => {
     // The page may restart the connection once the access token is read, so only the
@@ -302,6 +304,7 @@ test('the team builder renders a captain added by another user over SignalR', as
 
   await expect(page.locator('mat-card.item:not(.dndPlaceholder) mat-card-title')).toHaveText(['1 - Red Team', "2 - Blair's Team"]);
   await expect(page.locator('mat-list-item.player-pool-item', { hasText: 'Pool Blair' })).toHaveCount(0);
+  expect(negotiated, 'the client sent a negotiate request').toBe(false);
 });
 
 test('the signup form ticks single slots and whole days, and submits the chosen option ids', async ({ page }) => {
