@@ -21,10 +21,15 @@ public class HealthCheckExtensionsTests
     // Refused at once: nothing listens on port 9.
     private static readonly string UnreachableDatabase = TestDatabase.UnreachableConnectionString();
 
-    private static string ReachableDatabase()
+    // A migrated database, shared by the fixture's tests: the Discord outbox check reads its table.
+    private static readonly Lazy<Task<string>> MigratedDatabase = new(async () =>
     {
-        return TestDatabase.MaintenanceConnectionString(SetUpFixture.DatabaseContainer);
-    }
+        var name = $"TestDb_Health_{Guid.NewGuid():N}";
+        await TestDatabase.CreateMigratedDatabase(SetUpFixture.DatabaseContainer, name);
+        return TestDatabase.ConnectionString(SetUpFixture.DatabaseContainer, name);
+    });
+
+    private static string ReachableDatabase() => MigratedDatabase.Value.GetAwaiter().GetResult();
 
     private static async Task<WebApplication> StartApp(string connectionString, bool discordConnected, int? maxAllocatedMegabytes = null,
         IDictionary<string, string?>? settings = null, int haloStatusCode = 200)

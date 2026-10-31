@@ -4,6 +4,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -173,7 +174,7 @@ public class BackgroundServiceDbTests
         _discordClient.SendMessageAsync(Arg.Any<ulong>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(_ => { sent.TrySetResult(); return Substitute.For<IDiscordRestMessage>(); });
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
-            new QueueRepository(_context), _discordClient, _context, Substitute.For<IDataPullService>());
+            new QueueRepository(_context), _discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
         var logger = new RecordingLogger<QueueBackgroundService>();
         var service = new QueueBackgroundService(logger, ScopeFactory(queueService));
 

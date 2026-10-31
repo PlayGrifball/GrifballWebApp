@@ -2,6 +2,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -21,12 +22,14 @@ public class QueueService
     private readonly IDiscordRestClient _discordClient;
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
+    private readonly IOutbox _outbox;
     public QueueService(ILogger<QueueService> logger,
         IOptions<DiscordOptions> discordOptions,
         IQueueRepository queueRepository,
         IDiscordRestClient discordClient,
         GrifballContext context,
-        IDataPullService dataPullService)
+        IDataPullService dataPullService,
+        IOutbox outbox)
     {
         _logger = logger;
         _discordOptions = discordOptions;
@@ -37,6 +40,7 @@ public class QueueService
         _discordClient = discordClient;
         _context = context;
         _dataPullService = dataPullService;
+        _outbox = outbox;
     }
 
     public async Task Go(CancellationToken ct)
@@ -48,9 +52,8 @@ public class QueueService
             MatchedMatch[] activeMatches;
             List<MatchedMatch> createdMatches;
 
-            // The queue clean up and the new matches are committed together, before anything is sent to Discord: a
-            // Discord or Halo failure later in the tick must not roll them back (and leave threads for matches that no
-            // longer exist, made again on every tick).
+            // The queue clean up, the new matches and their announcements (queued on the outbox, which sends them to
+            // Discord once committed) are committed together: a failure rolls all of them back.
             await using (var transaction = await _context.Database.BeginTransactionAsync(ct))
             {
                 queuePlayers = await _queueRepository.GetQueuePlayersWithInfo(ct);
@@ -59,13 +62,20 @@ public class QueueService
                 queuePlayers = await RemoveActivePlayersFromQueue(queuePlayers, activeMatches, ct);
 
                 createdMatches = await CreateMatches(queuePlayers, ct);
+                foreach (var match in createdMatches)
+                    await _outbox.EnqueueAnnouncementAsync(match.Id, mayBePosted: false, ct);
 
+                await AnnounceMatchesWithoutAnnouncement(activeMatches, ct);
+
+                await _context.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }
 
             var matchedUserIds = createdMatches.SelectMany(PlayersOf).Select(x => x.UserID).ToHashSet();
             var stillQueued = queuePlayers.Where(x => matchedUserIds.Contains(x.UserID) is false).ToArray();
 
+            // Not through the outbox: the message is rebuilt from the database on every tick, so a failed update is
+            // made good by the next one.
             try
             {
                 await UpdateQueueMessage(stillQueued, activeMatches, ct);
@@ -75,25 +85,7 @@ public class QueueService
                 _logger.LogError(ex, "Failed to update the matchmaking queue message");
             }
 
-            // A match is announced once it has its vote message. One whose announcement failed (Discord down) is tried
-            // again on each tick: until then its players can't vote, and IsInMatch keeps them out of the queue.
-            var unannounced = activeMatches.Where(x => x.VoteMessageID is null).Select(x => (Match: x, Retry: true))
-                .Concat(createdMatches.Select(x => (Match: x, Retry: false)));
-            foreach (var (match, retry) in unannounced)
-            {
-                try
-                {
-                    await AnnounceMatch(match, retry, ct);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
-                {
-                    _logger.LogError(ex, "Failed to announce match {MatchId} on Discord", match.Id);
-                    DiscardPendingChanges();
-                    if (DateTime.UtcNow - match.StartedAt > AnnounceDeadline)
-                        await CancelUnannouncedMatch(match, ct);
-                }
-            }
-
+            // A match is announced once it has its vote message: until then its players can't vote.
             await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
         }
         finally
@@ -102,22 +94,29 @@ public class QueueService
         }
     }
 
-    /// <summary>
-    /// How long a match that could not be announced keeps being tried (every tick, 10 seconds) before it is canceled and
-    /// its players go back to the queue. Long enough to ride out a Discord blip or a short outage, short enough that the
-    /// players, who can't queue while it is active, are not left waiting long on a match nobody can see.
-    /// </summary>
-    public static readonly TimeSpan AnnounceDeadline = TimeSpan.FromMinutes(5);
-
-    /// <summary>How many times a match's end (or cancel) post is tried within the tick before giving up.</summary>
-    public const int EndPostAttempts = 3;
-
-    /// <summary>The wait before the second end post attempt, doubled before each one after.</summary>
-    public TimeSpan DiscordRetryDelay { get; set; } = TimeSpan.FromSeconds(2);
-
     private static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
 
     private void DiscardPendingChanges() => _context.DiscardPendingChanges();
+
+    /// <summary>
+    /// Active matches not announced yet with no announcement in the outbox: made before it, by a version of the app
+    /// that announced them straight away and failed to. Their announcement is queued, looking for what was posted.
+    /// </summary>
+    private async Task AnnounceMatchesWithoutAnnouncement(MatchedMatch[] activeMatches, CancellationToken ct)
+    {
+        var unannounced = activeMatches.Where(x => x.VoteMessageID is null).ToList();
+        if (unannounced.Count == 0)
+            return;
+
+        var groups = unannounced.Select(x => MatchOutbox.Group(x.Id)).ToList();
+        var queued = (await _context.Outbox.Where(x => x.GroupKey != null && groups.Contains(x.GroupKey)).Select(x => x.GroupKey!).Distinct().ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var match in unannounced.Where(x => queued.Contains(MatchOutbox.Group(x.Id)) is false))
+        {
+            _logger.LogWarning("Match {MatchId} has no announcement queued; queuing it", match.Id);
+            await _outbox.EnqueueAnnouncementAsync(match.Id, mayBePosted: true, ct);
+        }
+    }
 
     private async Task FinishMatches(MatchedMatch[] activeMatches, CancellationToken ct)
     {
@@ -195,7 +194,7 @@ public class QueueService
             var losers = losingTeam.MatchParticipants.Select(x => x.XboxUser.User!);
             var winnerId = winningTeam.TeamID;
 
-            await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, match, matchFound.Duration, winners, losers, winnerId, ct);
         }
         else if (voteResult is { Key: WinnerVote.Home or WinnerVote.Away })
         {
@@ -207,131 +206,18 @@ public class QueueService
             var winners = winningTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
             var losers = losingTeam.Players.Where(x => x.Kicked is false).Select(x => x.User);
             var winnerId = voteResult.Key == WinnerVote.Home ? 0 : 1;
-            await HandleWinnersAndLosers(_discordOptions, _discordClient, _context, match, null, winners, losers, winnerId, ct);
+            await HandleWinnersAndLosers(_discordOptions, _context, match, null, winners, losers, winnerId, ct);
         }
         else if (voteResult is { Key: WinnerVote.Cancel } || DateTime.UtcNow - match.StartedAt > TimeSpan.FromHours(2))
         {
-            // Cancel the match
+            // Cancel the match: its post and thread close are queued with it.
             match.Active = false;
+            await _outbox.EnqueueCanceledAsync(match.Id, unannounced: false, ct);
             await _context.SaveChangesAsync(ct); // No method calls save changes so do so here
-
-            var mp = new MessageProperties()
-            {
-                Embeds =
-                [
-                    new EmbedProperties()
-                        {
-                            Title = "Match Canceled",
-                            Description = $"Match #{match.Id} has been canceled.",
-                            Color = new Color(255, 0, 0), // Red
-                            Fields =
-                            [
-                                new EmbedFieldProperties()
-                                {
-                                    Name = "Match ID",
-                                    Value = match.Id.ToString(),
-                                    Inline = true,
-                                },
-                            ],
-                        },
-                    ],
-            };
-            await PostToLogChannel(mp, $"cancel of match {match.Id}", ct);
-            await CloseThread(_discordClient, match.ThreadID, ct);
         }
     }
 
-    /// <summary>
-    /// Posts a match's end or cancel to the log channel, trying again within the tick when Discord fails: the match is
-    /// already ended in the database by then, so no later tick sees it again (and the post's MMR changes can't be worked
-    /// out again then). A post that still fails is logged, and the thread is closed anyway.
-    /// </summary>
-    private async Task PostToLogChannel(MessageProperties mp, string what, CancellationToken ct)
-    {
-        var delay = DiscordRetryDelay;
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp, null, ct);
-                return;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
-            {
-                if (attempt >= EndPostAttempts)
-                {
-                    _logger.LogError(ex, "Failed to post the {What} after {Attempts} attempts", what, attempt);
-                    return;
-                }
-                _logger.LogWarning(ex, "Failed to post the {What} (attempt {Attempt}), trying again", what, attempt);
-                await Task.Delay(delay, ct);
-                delay *= 2;
-            }
-        }
-    }
-
-    /// <summary>
-    /// A match Discord never got to see: canceled, and its players put back at the front of the queue, in the order they
-    /// had in it. Their join times went with their queue rows, but they were the longest queued (CreateMatches takes
-    /// those, dealing them out home, away, home...), so they go back just ahead of everyone queued now.
-    /// </summary>
-    private async Task CancelUnannouncedMatch(MatchedMatch match, CancellationToken ct)
-    {
-        int requeued;
-        try
-        {
-            match.Active = false;
-
-            var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
-            var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();
-            var inQueueOrder = Enumerable.Range(0, Math.Max(home.Count, away.Count))
-                .SelectMany(i => new[] { home.ElementAtOrDefault(i), away.ElementAtOrDefault(i) })
-                .Where(x => x is not null && x.Kicked is false)
-                .Select(x => x!.UserID)
-                .Distinct()
-                .ToList();
-
-            var queued = await _context.QueuedPlayer.Select(x => new { x.UserID, x.JoinedAt }).ToListAsync(ct);
-            var queuedIds = queued.Select(x => x.UserID).ToHashSet();
-            var front = queued.Count == 0 || match.StartedAt <= queued.Min(x => x.JoinedAt)
-                ? match.StartedAt
-                : queued.Min(x => x.JoinedAt);
-            var requeue = inQueueOrder.Where(x => queuedIds.Contains(x) is false).ToList();
-            _context.QueuedPlayer.AddRange(requeue.Select((userId, index) => new QueuedPlayer
-            {
-                UserID = userId,
-                JoinedAt = front.AddSeconds(index - requeue.Count),
-            }));
-            await _context.SaveChangesAsync(ct);
-            requeued = requeue.Count;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
-        {
-            _logger.LogError(ex, "Failed to cancel unannounced match {MatchId}", match.Id);
-            DiscardPendingChanges();
-            return;
-        }
-
-        _logger.LogWarning("Canceled match {MatchId}: it could not be announced on Discord within {Deadline}; {Count} players are back in the queue",
-            match.Id, AnnounceDeadline, requeued);
-
-        var mp = new MessageProperties()
-        {
-            Embeds =
-            [
-                new EmbedProperties()
-                {
-                    Title = "Match Canceled",
-                    Description = $"Match #{match.Id} has been canceled: it could not be set up on Discord. Its players are back in the queue.",
-                    Color = new Color(255, 0, 0), // Red
-                },
-            ],
-        };
-        await PostToLogChannel(mp, $"cancel of match {match.Id}", ct);
-        await CloseThread(_discordClient, match.ThreadID, ct);
-    }
-
-    /// <summary>Makes the matches and takes their players off the queue. Only the database: <see cref="AnnounceMatch"/> does Discord.</summary>
+    /// <summary>Makes the matches and takes their players off the queue. Only the database: their announcements are queued on the outbox.</summary>
     private async Task<List<MatchedMatch>> CreateMatches(QueuedPlayer[] queuePlayers, CancellationToken ct)
     {
         var created = new List<MatchedMatch>();
@@ -374,111 +260,6 @@ public class QueueService
 
         await _context.SaveChangesAsync(ct);
         return created;
-    }
-
-    /// <summary>
-    /// The new match's message and thread, its players invited to it, and the vote message in it. Run again for a match
-    /// whose announcement failed part way, it picks up what is there: the thread saved on the match, or the match's
-    /// message (and the thread made from it) found in the log channel, so nothing is posted twice.
-    /// </summary>
-    private async Task AnnounceMatch(MatchedMatch matchedMatch, bool retry, CancellationToken ct)
-    {
-        if (matchedMatch.ThreadID is not { } threadId)
-        {
-            var existing = retry ? await FindMatchCreatedMessage(matchedMatch.Id, ct) : null;
-            if (existing?.StartedThread is { } startedThread)
-            {
-                matchedMatch.ThreadID = startedThread.Id;
-                await _context.SaveChangesAsync(ct);
-                await InviteToThread(startedThread.Id, matchedMatch, ct);
-            }
-            else
-            {
-                await CreateMatchThread(matchedMatch, existing?.Id, ct);
-            }
-        }
-
-        var kickable = PlayersOf(matchedMatch).Select(x => x.User).Distinct().ToArray();
-        MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
-        var voteMessage = await _discordClient.SendMessageAsync(matchedMatch.ThreadID!.Value, voteMessageProperties, null, ct);
-
-        matchedMatch.VoteMessageID = voteMessage.Id;
-        await _context.SaveChangesAsync(ct);
-    }
-
-    /// <summary>The bot's "Match Created" message for the match, among the log channel's latest, if it was posted.</summary>
-    private async Task<IDiscordRestMessage?> FindMatchCreatedMessage(int matchId, CancellationToken ct)
-    {
-        var me = await _discordClient.GetCurrentUserAsync(null, ct);
-        var messages = await _discordClient.GetMessagesAsync(_discordOptions.Value.LogChannel, new PaginationProperties<ulong>()
-        {
-            BatchSize = 50,
-        }).Take(50).ToListAsync(ct);
-        var id = matchId.ToString();
-        return messages
-            .Where(x => x.Author.Id == me.Id)
-            .FirstOrDefault(x => x.Embeds.Any(e => e.Title is "Match Created" && e.Fields.Any(f => f.Name == "Match ID" && f.Value == id)));
-    }
-
-    private async Task InviteToThread(ulong threadId, MatchedMatch matchedMatch, CancellationToken ct)
-    {
-        var discordUsers = PlayersOf(matchedMatch).Select(x => x.User.DiscordUser)
-            .Where(x => x != null)
-            .ToArray();
-        foreach (var user in discordUsers)
-        {
-            // A user who left the guild can't be added.
-            try
-            {
-                await _discordClient.AddGuildThreadUserAsync(threadId, (ulong)user!.DiscordUserID, null, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user!.DiscordUserID);
-            }
-        }
-    }
-
-    private async Task CreateMatchThread(MatchedMatch matchedMatch, ulong? messageId, CancellationToken ct)
-    {
-        var matchEmbed = new EmbedProperties()
-        {
-            Title = "Match Created",
-            Description = $"Match #{matchedMatch.Id} has been created successfully",
-            Fields =
-            [
-                new EmbedFieldProperties()
-                {
-                    Name = "Match ID",
-                    Value = matchedMatch.Id.ToString(),
-                    Inline = true,
-                },
-                new EmbedFieldProperties()
-                {
-                    Name = "Players",
-                    Value = (matchedMatch.HomeTeam.Players.Count + matchedMatch.AwayTeam.Players.Count).ToString(),
-                    Inline = true,
-                },
-            ],
-        };
-
-        var mp = new MessageProperties()
-        {
-            Content = $"Match #{matchedMatch.Id} has been created successfully",
-            Embeds = [matchEmbed],
-        };
-        messageId ??= (await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp)).Id;
-        var thread = await _discordClient.CreateGuildThreadAsync(_discordOptions.Value.LogChannel, messageId.Value, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
-        {
-            Name = $"Match #{matchedMatch.Id}",
-            AutoArchiveDuration = ThreadArchiveDuration.OneHour,
-        }, null, ct);
-
-        // The thread is saved straight away: if the rest fails it is still closed with the match.
-        matchedMatch.ThreadID = thread.Id;
-        await _context.SaveChangesAsync(ct);
-
-        await InviteToThread(thread.Id, matchedMatch, ct);
     }
 
     /// <summary>
@@ -538,7 +319,7 @@ public class QueueService
         }
     }
 
-    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, IDiscordRestClient restClient, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
+    private async Task HandleWinnersAndLosers(IOptions<DiscordOptions> discordOptions, GrifballContext context, MatchedMatch match, TimeSpan? duration, IEnumerable<Database.Models.User> winners, IEnumerable<Database.Models.User> losers, int winnerId, CancellationToken ct)
     {
         // Adjust player MMR
         var oldMMR = new Dictionary<long, int>();
@@ -586,86 +367,13 @@ public class QueueService
             }
         }
 
+        // The end post is worked out now (the MMR changes can't be later) and queued, with its thread close, in the same
+        // save as the result.
+        await _outbox.EnqueueEndedAsync(new MatchEndedPayload(match.Id, winnerId, duration?.ToString() ?? "Unknown",
+            GetMMRChanges(oldMMR, match.HomeTeam), GetMMRChanges(oldMMR, match.AwayTeam)), ct);
         await context.SaveChangesAsync(ct);
 
-        var mp = new MessageProperties()
-        {
-            Embeds =
-            [
-                new EmbedProperties()
-                {
-                    Title = "Match Ended",
-                    Description = $"Match #{match.Id} has ended. Team {winnerId} is the winner",
-                    Color = new Color(0, 255, 0), // Green
-                    Fields =
-                    [
-                        new EmbedFieldProperties()
-                        {
-                            Name = "Match ID",
-                            Value = match.Id.ToString(),
-                            Inline = true,
-                        },
-                        new EmbedFieldProperties()
-                        {
-                            Name = "Winning Team",
-                            Value = winnerId.ToString(),
-                            Inline = true,
-                        },
-                        new EmbedFieldProperties()
-                        {
-                            Name = "Duration",
-                            Value = duration?.ToString() ?? "Unknown",
-                            Inline = true,
-                        },
-                        new EmbedFieldProperties()
-                        {
-                            Name = "Home Team MMR Changes",
-                            Value = GetMMRChanges(oldMMR, match.HomeTeam),
-                            Inline = true,
-                        },
-                        new EmbedFieldProperties()
-                        {
-                            Name = "Away Team MMR Changes",
-                            Value = GetMMRChanges(oldMMR, match.AwayTeam),
-                            Inline = true,
-                        },
-                    ],
-                },
-            ],
-        };
-        await PostToLogChannel(mp, $"end of match {match.Id}", ct);
-        await CloseThread(restClient, match.ThreadID, ct);
-
         // TODO: Requeue players?
-    }
-
-    private async Task CloseThread(IDiscordRestClient restClient, ulong? threadId, CancellationToken ct)
-    {
-        // Delete thread soon...
-        if (threadId is not null)
-        {
-            try
-            {
-                await restClient.SendMessageAsync(threadId.Value, new() { Content = "Match Completed. This thread will be deleted in about 10 seconds..." });
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(10));
-                    try
-                    {
-                        // Needs permission to manage threads
-                        await restClient.DeleteChannelAsync(threadId.Value, null, ct);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to delete thread {ThreadId}", threadId.Value);
-                    }
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to send message to thread {ThreadId}", threadId.Value);
-            }
-        }
     }
 
     public static MessageProperties CreateVoteMessage(int matchId, Database.Models.User[] kickablePlayers)

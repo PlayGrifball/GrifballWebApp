@@ -17,6 +17,7 @@ using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Notifications;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
@@ -134,7 +135,8 @@ public class Program
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
             options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
-                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
+                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>(),
+                    services.GetRequiredService<OutboxSignalInterceptor>());
         });
 
         // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
@@ -194,6 +196,9 @@ public class Program
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
+        // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
+        builder.Services.AddDiscordOutbox(builder.Configuration);
+        builder.Services.AddMatchmakingOutboxHandlers();
         if (!discordOff)
             builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
