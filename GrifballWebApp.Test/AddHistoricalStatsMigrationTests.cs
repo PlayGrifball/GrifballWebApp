@@ -127,7 +127,7 @@ public class AddHistoricalStatsMigrationTests
         Assert.That(async () => await _context.Database.ExecuteSqlRawAsync(deleting, user.Id), Throws.Exception, "The foreign key is restricted");
     }
 
-    [Test]
+    [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server
     public async Task Down_RemovesHistoricalSeasonsAndPlaceholders_MakesNamesFit_AndUpAgain()
     {
         var user = new User { UserName = "historical:Someone", NormalizedUserName = "HISTORICAL:SOMEONE", IsDummyUser = true };

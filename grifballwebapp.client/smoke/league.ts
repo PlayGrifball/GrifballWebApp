@@ -63,6 +63,7 @@ export async function createLeague(baseURL: string, admin: Api, label: string,
   const season: SeasonDto = {
     seasonID: 0,
     seasonName: name,
+    gameVersionID: 6,
     signupsOpen: new Date(now - day).toISOString(),
     signupsClose: new Date(now + 7 * day).toISOString(),
     ...FUTURE,

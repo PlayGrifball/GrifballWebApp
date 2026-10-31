@@ -46,7 +46,7 @@ public class MakeSeasonPublicAtOptionalMigrationTests
         });
     }
 
-    [Test]
+    [Test, NonParallelizable] // Its Down alters system-versioned tables, which deadlocks with another Down on SQL Server
     public async Task Down_FillsNullsInTheHistoryToo_SoPublicAtCanBeRequiredAgain()
     {
         // A season made not public, then made public: its old version, in the history table, has no PublicAt
