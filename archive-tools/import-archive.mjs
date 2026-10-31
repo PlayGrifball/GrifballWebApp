@@ -85,6 +85,9 @@ async function main() {
   form.append('championships', new Blob([championsBuf], { type: 'application/json' }), 'agla-champions.json');
   // Each workbook's link, stored on its seasons (HistoricalSourceUrl)
   form.append('catalog', new Blob([await fs.readFile(path.join(COMPILED_DIR, 'catalog.json'))], { type: 'application/json' }), 'catalog.json');
+  // Halo Infinite seasons' match IDs (archive-tools/extract-waypoint-matches.mjs): the import pulls those matches and derives
+  // the seasons' stats from them
+  form.append('waypointMatches', new Blob([await fs.readFile(path.join(COMPILED_DIR, 'waypoint-matches.json'))], { type: 'application/json' }), 'waypoint-matches.json');
 
   const headers = {};
   if (token) {

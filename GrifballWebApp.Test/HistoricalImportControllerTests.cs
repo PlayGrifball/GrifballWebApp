@@ -114,6 +114,32 @@ public class HistoricalKeysTests
         Assert.That(HistoricalKeys.FallbackSeasonSourceId("agla", "Winter League 2019"), Is.EqualTo("agla/winter-league-2019"));
     }
 
+    /// <summary>compiled/waypoint-matches.json (archive-tools/extract-waypoint-matches.mjs) is keyed by Halo Infinite
+    /// seasons' HistoricalSourceIDs and holds match IDs only, so the import uses all of it.</summary>
+    [Test]
+    public async Task TheCompiledWaypointMatches_KeyHaloInfiniteSeasons_AndAreMatchIds()
+    {
+        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "data", "historical-archive")))
+            directory = directory.Parent;
+        var compiled = Path.Combine(directory!.FullName, "data", "historical-archive", "compiled");
+        await using var seasonsFile = File.OpenRead(Path.Combine(compiled, "unified-historical-seasons.json"));
+        await using var matchesFile = File.OpenRead(Path.Combine(compiled, "waypoint-matches.json"));
+        var seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasonsFile);
+        var matches = await HistoricalArchiveInput.ReadAsync<Dictionary<string, WaypointSeasonMatches>>(matchesFile);
+
+        var infinite = seasons.Seasons.Where(s => s.GameVersion == "infinite" && !s.IsPlayoffs)
+            .Select(s => HistoricalKeys.SeasonSourceId(s.SourceWorkbook!, s.SourceSheet!)).ToHashSet();
+        var ids = matches.Values.SelectMany(m => m.Regular.Concat(m.Playoffs)).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(matches.Keys, Is.SubsetOf(infinite));
+            Assert.That(matches, Has.Count.GreaterThanOrEqualTo(6));
+            Assert.That(ids.Select(HistoricalKeys.MatchId), Has.None.Null);
+            Assert.That(ids, Is.Unique, "No match in two seasons, or twice in one");
+        });
+    }
+
     [Test]
     public void DummyUserName_HasThePrefix() => Assert.That(HistoricalKeys.DummyUserName(" Old  Tag"), Is.EqualTo("historical:Old Tag"));
 }
