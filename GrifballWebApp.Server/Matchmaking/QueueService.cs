@@ -75,26 +75,45 @@ public class QueueService
                 _logger.LogError(ex, "Failed to update the matchmaking queue message");
             }
 
-            foreach (var match in createdMatches)
+            // A match is announced once it has its vote message. One whose announcement failed (Discord down) is tried
+            // again on each tick: until then its players can't vote, and IsInMatch keeps them out of the queue.
+            var unannounced = activeMatches.Where(x => x.VoteMessageID is null).Select(x => (Match: x, Retry: true))
+                .Concat(createdMatches.Select(x => (Match: x, Retry: false)));
+            foreach (var (match, retry) in unannounced)
             {
                 try
                 {
-                    await AnnounceMatch(match, ct);
+                    await AnnounceMatch(match, retry, ct);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
                 {
                     _logger.LogError(ex, "Failed to announce match {MatchId} on Discord", match.Id);
                     DiscardPendingChanges();
+                    if (DateTime.UtcNow - match.StartedAt > AnnounceDeadline)
+                        await CancelUnannouncedMatch(match, ct);
                 }
             }
 
-            await FinishMatches(activeMatches, ct);
+            await FinishMatches(activeMatches.Where(x => x.Active && x.VoteMessageID is not null).ToArray(), ct);
         }
         finally
         {
             _sempaphoreSlim.Release();
         }
     }
+
+    /// <summary>
+    /// How long a match that could not be announced keeps being tried (every tick, 10 seconds) before it is canceled and
+    /// its players go back to the queue. Long enough to ride out a Discord blip or a short outage, short enough that the
+    /// players, who can't queue while it is active, are not left waiting long on a match nobody can see.
+    /// </summary>
+    public static readonly TimeSpan AnnounceDeadline = TimeSpan.FromMinutes(5);
+
+    /// <summary>How many times a match's end (or cancel) post is tried within the tick before giving up.</summary>
+    public const int EndPostAttempts = 3;
+
+    /// <summary>The wait before the second end post attempt, doubled before each one after.</summary>
+    public TimeSpan DiscordRetryDelay { get; set; } = TimeSpan.FromSeconds(2);
 
     private static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
 
@@ -217,9 +236,99 @@ public class QueueService
                         },
                     ],
             };
-            await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp);
+            await PostToLogChannel(mp, $"cancel of match {match.Id}", ct);
             await CloseThread(_discordClient, match.ThreadID, ct);
         }
+    }
+
+    /// <summary>
+    /// Posts a match's end or cancel to the log channel, trying again within the tick when Discord fails: the match is
+    /// already ended in the database by then, so no later tick sees it again (and the post's MMR changes can't be worked
+    /// out again then). A post that still fails is logged, and the thread is closed anyway.
+    /// </summary>
+    private async Task PostToLogChannel(MessageProperties mp, string what, CancellationToken ct)
+    {
+        var delay = DiscordRetryDelay;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp, null, ct);
+                return;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
+            {
+                if (attempt >= EndPostAttempts)
+                {
+                    _logger.LogError(ex, "Failed to post the {What} after {Attempts} attempts", what, attempt);
+                    return;
+                }
+                _logger.LogWarning(ex, "Failed to post the {What} (attempt {Attempt}), trying again", what, attempt);
+                await Task.Delay(delay, ct);
+                delay *= 2;
+            }
+        }
+    }
+
+    /// <summary>
+    /// A match Discord never got to see: canceled, and its players put back at the front of the queue, in the order they
+    /// had in it. Their join times went with their queue rows, but they were the longest queued (CreateMatches takes
+    /// those, dealing them out home, away, home...), so they go back just ahead of everyone queued now.
+    /// </summary>
+    private async Task CancelUnannouncedMatch(MatchedMatch match, CancellationToken ct)
+    {
+        int requeued;
+        try
+        {
+            match.Active = false;
+
+            var home = match.HomeTeam.Players.OrderBy(x => x.Id).ToList();
+            var away = match.AwayTeam.Players.OrderBy(x => x.Id).ToList();
+            var inQueueOrder = Enumerable.Range(0, Math.Max(home.Count, away.Count))
+                .SelectMany(i => new[] { home.ElementAtOrDefault(i), away.ElementAtOrDefault(i) })
+                .Where(x => x is not null && x.Kicked is false)
+                .Select(x => x!.UserID)
+                .Distinct()
+                .ToList();
+
+            var queued = await _context.QueuedPlayer.Select(x => new { x.UserID, x.JoinedAt }).ToListAsync(ct);
+            var queuedIds = queued.Select(x => x.UserID).ToHashSet();
+            var front = queued.Count == 0 || match.StartedAt <= queued.Min(x => x.JoinedAt)
+                ? match.StartedAt
+                : queued.Min(x => x.JoinedAt);
+            var requeue = inQueueOrder.Where(x => queuedIds.Contains(x) is false).ToList();
+            _context.QueuedPlayer.AddRange(requeue.Select((userId, index) => new QueuedPlayer
+            {
+                UserID = userId,
+                JoinedAt = front.AddSeconds(index - requeue.Count),
+            }));
+            await _context.SaveChangesAsync(ct);
+            requeued = requeue.Count;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested is false)
+        {
+            _logger.LogError(ex, "Failed to cancel unannounced match {MatchId}", match.Id);
+            DiscardPendingChanges();
+            return;
+        }
+
+        _logger.LogWarning("Canceled match {MatchId}: it could not be announced on Discord within {Deadline}; {Count} players are back in the queue",
+            match.Id, AnnounceDeadline, requeued);
+
+        var mp = new MessageProperties()
+        {
+            Embeds =
+            [
+                new EmbedProperties()
+                {
+                    Title = "Match Canceled",
+                    Description = $"Match #{match.Id} has been canceled: it could not be set up on Discord. Its players are back in the queue.",
+                    Color = new Color(255, 0, 0), // Red
+                },
+            ],
+        };
+        await PostToLogChannel(mp, $"cancel of match {match.Id}", ct);
+        await CloseThread(_discordClient, match.ThreadID, ct);
     }
 
     /// <summary>Makes the matches and takes their players off the queue. Only the database: <see cref="AnnounceMatch"/> does Discord.</summary>
@@ -267,8 +376,70 @@ public class QueueService
         return created;
     }
 
-    /// <summary>The new match's message and thread, its players invited to it, and the vote message in it.</summary>
-    private async Task AnnounceMatch(MatchedMatch matchedMatch, CancellationToken ct)
+    /// <summary>
+    /// The new match's message and thread, its players invited to it, and the vote message in it. Run again for a match
+    /// whose announcement failed part way, it picks up what is there: the thread saved on the match, or the match's
+    /// message (and the thread made from it) found in the log channel, so nothing is posted twice.
+    /// </summary>
+    private async Task AnnounceMatch(MatchedMatch matchedMatch, bool retry, CancellationToken ct)
+    {
+        if (matchedMatch.ThreadID is not { } threadId)
+        {
+            var existing = retry ? await FindMatchCreatedMessage(matchedMatch.Id, ct) : null;
+            if (existing?.StartedThread is { } startedThread)
+            {
+                matchedMatch.ThreadID = startedThread.Id;
+                await _context.SaveChangesAsync(ct);
+                await InviteToThread(startedThread.Id, matchedMatch, ct);
+            }
+            else
+            {
+                await CreateMatchThread(matchedMatch, existing?.Id, ct);
+            }
+        }
+
+        var kickable = PlayersOf(matchedMatch).Select(x => x.User).Distinct().ToArray();
+        MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
+        var voteMessage = await _discordClient.SendMessageAsync(matchedMatch.ThreadID!.Value, voteMessageProperties, null, ct);
+
+        matchedMatch.VoteMessageID = voteMessage.Id;
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>The bot's "Match Created" message for the match, among the log channel's latest, if it was posted.</summary>
+    private async Task<IDiscordRestMessage?> FindMatchCreatedMessage(int matchId, CancellationToken ct)
+    {
+        var me = await _discordClient.GetCurrentUserAsync(null, ct);
+        var messages = await _discordClient.GetMessagesAsync(_discordOptions.Value.LogChannel, new PaginationProperties<ulong>()
+        {
+            BatchSize = 50,
+        }).Take(50).ToListAsync(ct);
+        var id = matchId.ToString();
+        return messages
+            .Where(x => x.Author.Id == me.Id)
+            .FirstOrDefault(x => x.Embeds.Any(e => e.Title is "Match Created" && e.Fields.Any(f => f.Name == "Match ID" && f.Value == id)));
+    }
+
+    private async Task InviteToThread(ulong threadId, MatchedMatch matchedMatch, CancellationToken ct)
+    {
+        var discordUsers = PlayersOf(matchedMatch).Select(x => x.User.DiscordUser)
+            .Where(x => x != null)
+            .ToArray();
+        foreach (var user in discordUsers)
+        {
+            // A user who left the guild can't be added.
+            try
+            {
+                await _discordClient.AddGuildThreadUserAsync(threadId, (ulong)user!.DiscordUserID, null, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user!.DiscordUserID);
+            }
+        }
+    }
+
+    private async Task CreateMatchThread(MatchedMatch matchedMatch, ulong? messageId, CancellationToken ct)
     {
         var matchEmbed = new EmbedProperties()
         {
@@ -296,8 +467,8 @@ public class QueueService
             Content = $"Match #{matchedMatch.Id} has been created successfully",
             Embeds = [matchEmbed],
         };
-        var newMatchMessage = await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp);
-        var thread = await _discordClient.CreateGuildThreadAsync(_discordOptions.Value.LogChannel, newMatchMessage.Id, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
+        messageId ??= (await _discordClient.SendMessageAsync(_discordOptions.Value.LogChannel, mp)).Id;
+        var thread = await _discordClient.CreateGuildThreadAsync(_discordOptions.Value.LogChannel, messageId.Value, new GuildThreadFromMessageProperties($"Match #{matchedMatch.Id}")
         {
             Name = $"Match #{matchedMatch.Id}",
             AutoArchiveDuration = ThreadArchiveDuration.OneHour,
@@ -307,28 +478,7 @@ public class QueueService
         matchedMatch.ThreadID = thread.Id;
         await _context.SaveChangesAsync(ct);
 
-        var discordUsers = PlayersOf(matchedMatch).Select(x => x.User.DiscordUser)
-            .Where(x => x != null)
-            .ToArray();
-        foreach (var user in discordUsers)
-        {
-            // A user who left the guild can't be added.
-            try
-            {
-                await thread.AddUserAsync((ulong)user!.DiscordUserID, null, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to add user to thread {UserId}", user!.DiscordUserID);
-            }
-        }
-
-        var kickable = PlayersOf(matchedMatch).Select(x => x.User).Distinct().ToArray();
-        MessageProperties voteMessageProperties = CreateVoteMessage(matchedMatch.Id, kickable);
-        var voteMessage = await _discordClient.SendMessageAsync(thread.Id, voteMessageProperties, null, ct);
-
-        matchedMatch.VoteMessageID = voteMessage.Id;
-        await _context.SaveChangesAsync(ct);
+        await InviteToThread(thread.Id, matchedMatch, ct);
     }
 
     /// <summary>
@@ -483,7 +633,7 @@ public class QueueService
                 },
             ],
         };
-        await restClient.SendMessageAsync(discordOptions.Value.LogChannel, mp);
+        await PostToLogChannel(mp, $"end of match {match.Id}", ct);
         await CloseThread(restClient, match.ThreadID, ct);
 
         // TODO: Requeue players?
