@@ -24,9 +24,14 @@ public class Season : AuditableEntity
     public DateTime SeasonStart { get; set; }
     public DateTime SeasonEnd { get; set; }
     public int? GameVersionID { get; set; }
-    public int? LeagueID { get; set; }
+    /// <summary>The league the season is in; the app's own seasons are in <see cref="League.DefaultLeagueID"/>.</summary>
+    public int LeagueID { get; set; } = League.DefaultLeagueID;
     public string Division { get; set; }
+    /// <summary>Imported from the historical archive: no signups, teams or matches in the app, only player stats and
+    /// championships. Left out of the app's season lists.</summary>
     public bool IsHistorical { get; set; }
+    /// <summary>The archive's key for a historical season, "{league slug}/{season name slug}": what a re-run of the
+    /// import finds it by. Unique where set; null for the app's own seasons.</summary>
     public string HistoricalSourceID { get; set; }
     public virtual GameVersion GameVersion { get; set; }
     public virtual League League { get; set; }

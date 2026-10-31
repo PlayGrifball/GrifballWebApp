@@ -107,6 +107,10 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.LeagueConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
+        // A historical season's archive key is unique where set. Written out for both databases in their own quoting: SQL
+        // Server needs the filter (its unique indexes count NULLs as equal), Postgres gets the same partial index.
+        modelBuilder.Entity<Season>().HasIndex(e => e.HistoricalSourceID)
+            .HasFilter(Database.IsNpgsql() ? "\"HistoricalSourceID\" IS NOT NULL" : "[HistoricalSourceID] IS NOT NULL");
         modelBuilder.ApplyConfiguration(new Configuration.PlayerSeasonStatConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.PlayerAliasConfiguration());

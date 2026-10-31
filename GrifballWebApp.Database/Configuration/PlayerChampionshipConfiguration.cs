@@ -12,23 +12,35 @@ public class PlayerChampionshipConfiguration : IEntityTypeConfiguration<PlayerCh
 
         entity.HasKey(e => e.PlayerChampionshipID);
 
-        entity.Property(e => e.SeasonName).HasMaxLength(100).IsRequired();
-        entity.Property(e => e.LeagueName).HasMaxLength(50).IsRequired();
         entity.Property(e => e.Tier).HasMaxLength(50).IsRequired();
         entity.Property(e => e.TeamName).HasMaxLength(100).IsRequired();
         entity.Property(e => e.GamertagUsed).HasMaxLength(50).IsRequired();
 
+        // Restrict: deleting a user with championships is refused; a merge moves them first.
         entity.HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserID)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(e => e.Season)
+            .WithMany()
+            .HasForeignKey(e => e.SeasonID)
             .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(e => e.League)
+            .WithMany()
+            .HasForeignKey(e => e.LeagueID)
+            .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasOne(e => e.GameVersion)
             .WithMany()
             .HasForeignKey(e => e.GameVersionID)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
 
+        // What the import upserts by: a player holds one title per season and tier.
+        entity.HasIndex(e => new { e.SeasonID, e.Tier, e.UserID }).IsUnique();
         entity.HasIndex(e => e.UserID);
-        entity.HasIndex(e => new { e.SeasonName, e.TeamName });
+        entity.HasIndex(e => e.GamertagUsed);
     }
 }

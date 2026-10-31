@@ -22,10 +22,11 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
         entity.Property(e => e.KdRatio).HasColumnType("decimal(6, 3)");
         entity.Property(e => e.AverageLifeSeconds).HasColumnType("decimal(6, 2)");
 
+        // Restrict: deleting a user with stats is refused; a merge moves them first.
         entity.HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserID)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasOne(e => e.Season)
             .WithMany()
@@ -37,7 +38,10 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
             .HasForeignKey(e => e.GameVersionID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        entity.HasIndex(e => new { e.UserID, e.SeasonID, e.StintIndex, e.IsPlayoffs });
+        // One row per player, stint and phase of a season: what the import upserts by, and why a Waypoint row
+        // replaces the Manual one rather than sitting beside it.
+        entity.HasIndex(e => new { e.SeasonID, e.UserID, e.StintIndex, e.IsPlayoffs }).IsUnique();
+        entity.HasIndex(e => e.UserID);
         entity.HasIndex(e => e.Gamertag);
     }
 }

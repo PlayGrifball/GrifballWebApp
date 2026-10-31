@@ -15,7 +15,10 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
         entity.Property(e => e.Division).HasMaxLength(50);
         entity.Property(e => e.HistoricalSourceID).HasMaxLength(100);
 
-        entity.HasIndex(e => e.SeasonName).IsUnique();
+        // Season names are unique within a league: two leagues can each have a "Winter League 2019".
+        entity.HasIndex(e => new { e.LeagueID, e.SeasonName }).IsUnique();
+        // Unique where set (the filter is the provider's own syntax, set in GrifballContext).
+        entity.HasIndex(e => e.HistoricalSourceID).IsUnique();
 
         entity.HasOne(e => e.GameVersion)
             .WithMany(g => g.Seasons)
@@ -27,7 +30,7 @@ public partial class SeasonConfiguration : IEntityTypeConfiguration<Season>
             .WithMany(l => l.Seasons)
             .HasForeignKey(e => e.LeagueID)
             .OnDelete(DeleteBehavior.Restrict)
-            .IsRequired(false);
+            .IsRequired(true);
 
         OnConfigurePartial(entity);
     }
