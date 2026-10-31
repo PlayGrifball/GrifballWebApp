@@ -3,6 +3,8 @@
 public class SeasonDto
 {
     public int SeasonID { get; set; }
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(100)] // the column's length (historical seasons have long names)
     public string SeasonName { get; set; } = null!;
     /// <summary>When the season is announced (Discord events channel); null keeps it unannounced.</summary>
     public DateTime? PublicAt { get; set; }

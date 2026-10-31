@@ -9,7 +9,7 @@
       <h2 id="season-details" class="hud-kicker">Details</h2>
       <mat-form-field appearance="outline">
         <mat-label>Season name</mat-label>
-        <input matInput required [ngModel]="model().seasonName" (ngModelChange)="patch({ seasonName: $event })" name="seasonName">
+        <input matInput required maxlength="100" [ngModel]="model().seasonName" (ngModelChange)="patch({ seasonName: $event })" name="seasonName">
         <mat-hint>What players see, e.g. "Autumn Brawl".</mat-hint>
         <app-error-message [control]="seasonForm.controls['seasonName']" />
       </mat-form-field>

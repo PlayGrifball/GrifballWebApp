@@ -133,6 +133,22 @@ describe('SeasonEditComponent', () => {
     expect(el().textContent).toContain('Edit Availability');
   });
 
+  it('allows season names up to the 100 characters the database holds', async () => {
+    await render();
+    const name = el().querySelector<HTMLInputElement>('input[name="seasonName"]')!;
+    name.value = 'x'.repeat(100);
+    name.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(name.classList).toContain('ng-valid');
+
+    name.value = 'x'.repeat(101);
+    name.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(name.classList).toContain('ng-invalid');
+  });
+
   it('replaces the model on form edits instead of mutating the loaded season', async () => {
     await render();
     const loaded = component.model();

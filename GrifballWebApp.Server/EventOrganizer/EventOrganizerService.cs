@@ -15,6 +15,7 @@ public class EventOrganizerService
     public Task<List<SeasonDto>> GetSeasons(CancellationToken ct = default)
     {
         return _context.Seasons
+            .Where(x => !x.IsHistorical) // imported from the archive: nothing to organize
             .Select(x => new SeasonDto()
             {
                 SeasonID = x.SeasonID,
@@ -88,6 +89,7 @@ public class EventOrganizerService
                 .Include(x => x.Teams)
                     .ThenInclude(x => x.TeamPlayers)
                 .Include(x => x.SeasonAvailability)
+                .Where(x => !x.IsHistorical)
                 .Where(x => x.SeasonName == dto.CopyFrom).FirstOrDefaultAsync(ct)
                 ?? throw new Exception($"Cannot copy from season {dto.CopyFrom}, it was not found");
 

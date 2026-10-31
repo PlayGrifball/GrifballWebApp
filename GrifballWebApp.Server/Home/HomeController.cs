@@ -63,7 +63,7 @@ public class HomeController : ControllerBase
     public async Task<PaginationResult<Event>> PastSeasons([FromQuery] PaginationFilter filter, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
-        var query = _context.Seasons.Where(s => now > s.SeasonEnd)
+        var query = _context.Seasons.Where(s => now > s.SeasonEnd && !s.IsHistorical)
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
