@@ -45,7 +45,7 @@
 
 .archival-pill {
   padding: 1px 6px;
-  font: 11px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
   background: rgba(255, 210, 94, 0.15);
   border: 1px solid var(--hud-gold);
   color: var(--hud-gold);
@@ -55,7 +55,7 @@
 
 .alias-pill, .league-pill, .game-pill, .game-pill-sm {
   padding: 1px 5px;
-  font: 11px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
   background: var(--hud-well);
   border: 1px solid var(--hud-hairline);
   color: var(--hud-muted-2);
@@ -104,7 +104,7 @@
 .trophy-title {
   display: flex;
   justify-content: space-between;
-  font: 11px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
 }
 
 .trophy-tier { font-weight: 700; color: var(--hud-gold); }
@@ -128,7 +128,7 @@
 
 .captain-badge {
   padding: 1px 4px;
-  font: 10px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
   background: rgba(124, 203, 255, 0.2);
   color: var(--hud-accent);
   border: 1px solid var(--hud-accent);
@@ -154,7 +154,7 @@
   color: var(--hud-heading);
 }
 
-.stat-sub { font: 11px var(--hud-font-mono); }
+.stat-sub { font: 12px var(--hud-font-mono); }
 .positive-spread { color: #72E3AD !important; }
 .negative-spread { color: var(--hud-red-text) !important; }
 
@@ -167,7 +167,7 @@
     white-space: nowrap;
   }
   th {
-    font: 600 11px var(--hud-font-mono);
+    font: 600 12px var(--hud-font-mono);
     text-transform: uppercase;
     color: var(--hud-muted);
     text-align: left;
@@ -177,13 +177,13 @@
 
 .table-season-cell, .team-cell { display: flex; flex-direction: column; gap: 1px; }
 .season-name { font-weight: 600; color: var(--hud-heading); }
-.league-sub, .trade-sub { font: 11px var(--hud-font-mono); }
+.league-sub, .trade-sub { font: 12px var(--hud-font-mono); }
 .league-sub { color: var(--hud-muted); }
 .trade-sub { color: var(--hud-gold); }
 
 .phase-pill {
   padding: 1px 4px;
-  font: 10px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
   background: rgba(14, 36, 56, 0.8);
   border: 1px solid var(--hud-border);
   color: var(--hud-muted-2);
@@ -191,7 +191,7 @@
 }
 
 .source-tag {
-  font: 11px var(--hud-font-mono);
+  font: 12px var(--hud-font-mono);
   color: var(--hud-muted);
   &.waypoint { color: var(--hud-accent); font-weight: 600; }
 }
