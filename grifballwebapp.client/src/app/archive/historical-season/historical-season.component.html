@@ -1,0 +1,194 @@
+<div class="hud-page" [class.hud-waiting]="loading()">
+
+  @if (season(); as s) {
+    <div class="hud-page-head">
+      <a class="hud-kicker" routerLink="/">&gt; Campaign Archive</a>
+      <h1 class="hud-title">{{s.seasonName}}</h1>
+      <div class="season-meta-pills">
+        @if (s.year) {
+          <span class="hud-pill hud-gold font-bold">{{s.year}}</span>
+        }
+        <span class="hud-pill league-pill">{{s.leagueName}}</span>
+        @if (s.gameVersionName) {
+          <span class="hud-pill game-pill">{{s.gameVersionName}}</span>
+        }
+        @if (s.division) {
+          <span class="hud-pill tier-pill">{{s.division}}</span>
+        }
+        @if (s.historicalSourceUrl) {
+          <a [href]="s.historicalSourceUrl" target="_blank" rel="noopener noreferrer" class="source-link hud-text-link">
+            Original Google Sheet ↗
+          </a>
+        }
+      </div>
+    </div>
+
+    <!-- Champions Banner -->
+    @if (s.champions.length > 0) {
+      <section class="champions-section hud-panel hud-panel--chamfer" aria-labelledby="champions-title">
+        <span class="hud-kicker">&gt; Season Champions</span>
+        <h2 id="champions-title" class="hud-h2 champions-title">🏆 Trophy Presentation</h2>
+        <div class="champions-grid">
+          @for (champ of s.champions; track champ.tier + champ.teamSlug) {
+            <div class="champion-card hud-panel">
+              <div class="champion-tier">{{champ.tier}} Champions</div>
+              <div class="champion-team">
+                <a [routerLink]="['/archive/team', champ.teamSlug]" class="hud-text-link team-name">{{champ.teamName}}</a>
+              </div>
+              <div class="champion-roster">
+                @for (player of champ.roster; track player.userID) {
+                  <div class="roster-badge">
+                    <a [routerLink]="['/profile', player.userID]" class="alias-pill hud-text-link">{{player.gamertag}}</a>
+                    @if (player.isCaptain) {
+                      <span class="captain-badge">C</span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Tabs: Teams & Standings vs Player Stats -->
+    <nav class="hud-tabs" aria-label="Season views">
+      <button type="button" class="hud-tab" [class.hud-tab--active]="activeTab() === 'teams'" [attr.aria-pressed]="activeTab() === 'teams'" (click)="setTab('teams')">
+        Teams & Rosters ({{s.teams.length}})
+      </button>
+      <button type="button" class="hud-tab" [class.hud-tab--active]="activeTab() === 'stats'" [attr.aria-pressed]="activeTab() === 'stats'" (click)="setTab('stats')">
+        Player Leaderboard ({{s.playerStats.length}})
+      </button>
+    </nav>
+
+    <!-- Tab 1: Teams & Rosters -->
+    @if (activeTab() === 'teams') {
+      <div class="teams-grid">
+        @for (team of s.teams; track team.teamSlug) {
+          <div class="team-card hud-panel hud-panel--chamfer" [class.champion-team-card]="team.wonChampionship">
+            <div class="team-card-head">
+              <div class="team-title-wrap">
+                <h3 class="team-card-title">
+                  <a [routerLink]="['/archive/team', team.teamSlug]" class="hud-text-link">{{team.teamName}}</a>
+                </h3>
+                @if (team.wonChampionship) {
+                  <span class="gold-ring-pill">🏆 Ring Winner</span>
+                }
+              </div>
+              <div class="team-card-record font-mono">
+                <span class="hud-label">Record:</span> {{team.wins}}-{{team.losses}}
+                @if (team.winPercent != null) {
+                  <span class="hud-gold">({{team.winPercent}}%)</span>
+                }
+                &middot; <span class="hud-accent">{{team.goals}} Goals</span>
+              </div>
+            </div>
+
+            <div class="team-roster-list">
+              <span class="hud-label roster-label">Roster ({{team.roster.length}})</span>
+              <div class="roster-grid">
+                @for (player of team.roster; track player.userID + '-' + player.stintIndex) {
+                  <div class="roster-item">
+                    <span class="hud-avatar" aria-hidden="true">{{player.gamertag.charAt(0)}}</span>
+                    <div class="player-info">
+                      <a [routerLink]="['/profile', player.userID]" class="player-name hud-text-link">{{player.gamertag}}</a>
+                      <span class="player-sub font-mono hud-muted">
+                        {{player.gamesPlayed}} GP &middot; {{player.goals}} G &middot; {{player.kdRatio != null ? player.kdRatio + ' K/D' : player.kills + ' K'}}
+                        @if (player.tradeNote) {
+                          <span class="trade-sub">{{player.tradeNote}}</span>
+                        }
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Tab 2: Player Stats -->
+    @if (activeTab() === 'stats') {
+      <div class="stats-controls">
+        <div class="phase-filters">
+          <button type="button" class="phase-btn" [class.phase-btn--active]="selectedPhase() === 'all'" (click)="setPhase('all')">All</button>
+          <button type="button" class="phase-btn" [class.phase-btn--active]="selectedPhase() === 'regular'" (click)="setPhase('regular')">Regular Season</button>
+          <button type="button" class="phase-btn" [class.phase-btn--active]="selectedPhase() === 'playoffs'" (click)="setPhase('playoffs')">Playoffs</button>
+        </div>
+        <div class="search-wrap">
+          <input type="text" [(ngModel)]="playerFilter" placeholder="Filter by gamertag or team..." class="hud-input search-input" aria-label="Search players">
+        </div>
+      </div>
+
+      <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Historical season player stats">
+        <table class="season-table" aria-label="Player stats table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Team</th>
+              <th>Phase</th>
+              <th class="hud-num">GP</th>
+              <th class="hud-num">W-L</th>
+              <th class="hud-num">Win %</th>
+              <th class="hud-num">Goals</th>
+              <th class="hud-num">K</th>
+              <th class="hud-num">D</th>
+              <th class="hud-num">+/-</th>
+              <th class="hud-num">K/D</th>
+              <th class="hud-num">Stops</th>
+              <th class="hud-num">Medals</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of filteredPlayerStats(); track p.playerSeasonStatID) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/profile', p.userID]" class="hud-text-link font-bold">{{p.gamertag}}</a>
+                </td>
+                <td>
+                  @if (p.teamSlug) {
+                    <a [routerLink]="['/archive/team', p.teamSlug]" class="hud-text-link">{{p.teamName}}</a>
+                  } @else {
+                    <span class="hud-muted">{{p.teamName || 'Independent'}}</span>
+                  }
+                  @if (p.tradeNote) {
+                    <span class="trade-sub">{{p.tradeNote}}</span>
+                  }
+                </td>
+                <td>
+                  <span class="phase-pill" [class.playoffs]="p.isPlayoffs">
+                    {{p.isPlayoffs ? 'Playoffs' : 'Regular'}}
+                  </span>
+                </td>
+                <td class="hud-num">{{p.gamesPlayed}}</td>
+                <td class="hud-num font-mono">{{p.wins}}-{{p.losses}}</td>
+                <td class="hud-num font-mono">{{p.winPercent != null ? p.winPercent + '%' : '-'}}</td>
+                <td class="hud-num font-mono hud-accent">{{p.goals}}</td>
+                <td class="hud-num font-mono">{{p.kills}}</td>
+                <td class="hud-num font-mono">{{p.deaths}}</td>
+                <td class="hud-num font-mono" [class.positive-spread]="(p.kdSpread ?? 0) >= 0" [class.negative-spread]="(p.kdSpread ?? 0) < 0">
+                  {{(p.kdSpread ?? 0) >= 0 ? '+' : ''}}{{p.kdSpread ?? (p.kills - p.deaths)}}
+                </td>
+                <td class="hud-num font-mono">{{p.kdRatio != null ? p.kdRatio : '-'}}</td>
+                <td class="hud-num font-mono">{{p.carrierKills}}</td>
+                <td class="hud-num font-mono hud-muted">{{p.sprees + p.multiKills}}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+  } @else if (!loading()) {
+    <div class="hud-panel hud-panel--chamfer">
+      <span class="hud-kicker">&gt; Archive Error</span>
+      <h1 class="hud-title">Season Not Found</h1>
+      <p class="hud-muted">Historical season #{{seasonID()}} was not found in the database.</p>
+      <div class="hud-actions" style="margin-top: 1rem;">
+        <a routerLink="/" class="hud-btn hud-btn--primary">Return Home</a>
+      </div>
+    </div>
+  }
+
+</div>
