@@ -231,4 +231,142 @@ public class HistoricalControllerTests
             Assert.That(dto.AllTimePlayers[0].ChampionshipsWon, Is.EqualTo(1));
         });
     }
+
+    [Test]
+    public async Task Catalog_ReturnsHistoricalSeasons_WithSummaryCountsAndChampions()
+    {
+        var league = await _context.Leagues.SingleAsync(l => l.Slug == "agla");
+        var h3 = await _context.GameVersions.SingleAsync(g => g.Slug == "halo3");
+
+        var season = new Season
+        {
+            SeasonName = "Summer League 2011",
+            LeagueID = league.LeagueID,
+            GameVersionID = h3.GameVesionID,
+            IsHistorical = true,
+            SeasonStart = new DateTime(2011, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2011, 8, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var player = new User { UserName = "catalogplayer", DisplayName = "Catalog Player" };
+        await _context.Users.AddAsync(player);
+        await _context.SaveChangesAsync();
+
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat
+        {
+            SeasonID = season.SeasonID,
+            GameVersionID = h3.GameVesionID,
+            UserID = player.Id,
+            Gamertag = "CatalogChamp",
+            TeamName = "Catalog Stars",
+            GamesPlayed = 10,
+            Goals = 15,
+            Kills = 40,
+            Deaths = 20,
+            CarrierKills = 5
+        });
+
+        await _context.PlayerChampionships.AddAsync(new PlayerChampionship
+        {
+            UserID = player.Id,
+            SeasonID = season.SeasonID,
+            LeagueID = league.LeagueID,
+            GameVersionID = h3.GameVesionID,
+            Tier = "Pro",
+            TeamName = "Catalog Stars",
+            GamertagUsed = "CatalogChamp"
+        });
+        await _context.SaveChangesAsync();
+
+        var actionResult = await _controller.Catalog(CancellationToken.None);
+        var catalog = actionResult.Value;
+
+        Assert.That(catalog, Is.Not.Null);
+        var item = catalog!.FirstOrDefault(s => s.SeasonID == season.SeasonID);
+        Assert.That(item, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(item!.SeasonName, Is.EqualTo("Summer League 2011"));
+            Assert.That(item.Year, Is.EqualTo(2011));
+            Assert.That(item.TeamCount, Is.EqualTo(1));
+            Assert.That(item.PlayerCount, Is.EqualTo(1));
+            Assert.That(item.Champions, Has.Count.EqualTo(1));
+            Assert.That(item.Champions[0].TeamName, Is.EqualTo("Catalog Stars"));
+        });
+    }
+
+    [Test]
+    public async Task Leaderboards_ReturnsRingLeadersAndCoreMetricLeaders()
+    {
+        var league = await _context.Leagues.SingleAsync(l => l.Slug == "agla");
+        var h3 = await _context.GameVersions.SingleAsync(g => g.Slug == "halo3");
+
+        var season = new Season
+        {
+            SeasonName = "Summer League 2012",
+            LeagueID = league.LeagueID,
+            GameVersionID = h3.GameVesionID,
+            IsHistorical = true,
+            SeasonStart = new DateTime(2012, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2012, 8, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        var legend = new User { UserName = "legendaryspartan", DisplayName = "Legendary Spartan" };
+        await _context.Users.AddAsync(legend);
+        await _context.SaveChangesAsync();
+
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat
+        {
+            SeasonID = season.SeasonID,
+            GameVersionID = h3.GameVesionID,
+            UserID = legend.Id,
+            Gamertag = "LegendarySpartan",
+            TeamName = "Dynasty",
+            GamesPlayed = 20,
+            Goals = 50,
+            Kills = 120,
+            Deaths = 60,
+            CarrierKills = 15
+        });
+
+        await _context.PlayerChampionships.AddAsync(new PlayerChampionship
+        {
+            UserID = legend.Id,
+            SeasonID = season.SeasonID,
+            LeagueID = league.LeagueID,
+            GameVersionID = h3.GameVesionID,
+            Tier = "Pro",
+            TeamName = "Dynasty",
+            GamertagUsed = "LegendarySpartan"
+        });
+        await _context.SaveChangesAsync();
+
+        var actionResult = await _controller.Leaderboards(CancellationToken.None);
+        var leaderboards = actionResult.Value;
+
+        Assert.That(leaderboards, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(leaderboards!.RingLeaders, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(leaderboards.RingLeaders[0].Gamertag, Is.EqualTo("LegendarySpartan"));
+            Assert.That(leaderboards.RingLeaders[0].RingsCount, Is.EqualTo(1));
+
+            Assert.That(leaderboards.FranchiseDynasties, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(leaderboards.FranchiseDynasties[0].TeamName, Is.EqualTo("Dynasty"));
+
+            Assert.That(leaderboards.GoalLeaders, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(leaderboards.GoalLeaders[0].StatValue, Is.EqualTo(50));
+            Assert.That(leaderboards.GoalLeaders[0].PerGame, Is.EqualTo(2.5m));
+
+            Assert.That(leaderboards.KillLeaders, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(leaderboards.KillLeaders[0].StatValue, Is.EqualTo(120));
+
+            Assert.That(leaderboards.CarrierStopLeaders, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(leaderboards.CarrierStopLeaders[0].StatValue, Is.EqualTo(15));
+        });
+    }
 }

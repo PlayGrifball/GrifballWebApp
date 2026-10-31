@@ -1,0 +1,310 @@
+<div class="hud-page" [class.hud-waiting]="loadingCatalog()">
+
+  <!-- Page Header -->
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; UNSC Historical Archive</span>
+    <h1 class="hud-title">Grifball Campaign Records</h1>
+    <p class="hud-lead">
+      18 years of competitive Grifball history across 5 Halo engines, preserving 52 seasons, team dynasties, and legendary Spartans.
+    </p>
+
+    <div class="archive-summary-stats">
+      <div class="summary-stat-pill">
+        <span class="stat-num font-mono hud-accent">{{catalog().length}}</span>
+        <span class="stat-text">Seasons</span>
+      </div>
+      <div class="summary-stat-pill">
+        <span class="stat-num font-mono hud-gold">🏆 {{totalChampionshipsCount()}}</span>
+        <span class="stat-text">Titles Awarded</span>
+      </div>
+      <div class="summary-stat-pill">
+        <span class="stat-num font-mono">5</span>
+        <span class="stat-text">Halo Generations</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Primary Navigation Tabs -->
+  <nav class="hud-tabs" aria-label="Archive navigation">
+    <button type="button" class="hud-tab" [class.hud-tab--active]="activeTab() === 'catalog'" [attr.aria-pressed]="activeTab() === 'catalog'" (click)="setTab('catalog')">
+      Campaign Catalog ({{catalog().length}})
+    </button>
+    <button type="button" class="hud-tab" [class.hud-tab--active]="activeTab() === 'leaderboards'" [attr.aria-pressed]="activeTab() === 'leaderboards'" (click)="setTab('leaderboards')">
+      All-Time Records & Dynasties 🏆
+    </button>
+  </nav>
+
+  <!-- TAB 1: SEASON CATALOG -->
+  @if (activeTab() === 'catalog') {
+    <section class="catalog-section" aria-label="Season catalog">
+      
+      <!-- Filters Toolbar -->
+      <div class="catalog-controls hud-panel hud-panel--chamfer">
+        <div class="filter-group">
+          <span class="hud-label">Halo Generation:</span>
+          <div class="pill-buttons">
+            <button type="button" class="filter-pill" [class.filter-pill--active]="selectedGame() === 'all'" (click)="setGame('all')">
+              All
+            </button>
+            @for (game of availableGames(); track game) {
+              <button type="button" class="filter-pill" [class.filter-pill--active]="selectedGame() === game" (click)="setGame(game)">
+                {{game}}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <span class="hud-label">League:</span>
+          <div class="pill-buttons">
+            <button type="button" class="filter-pill" [class.filter-pill--active]="selectedLeague() === 'all'" (click)="setLeague('all')">
+              All
+            </button>
+            @for (league of availableLeagues(); track league) {
+              <button type="button" class="filter-pill" [class.filter-pill--active]="selectedLeague() === league" (click)="setLeague(league)">
+                {{league}}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="search-wrap">
+          <input type="text" [(ngModel)]="searchQuery" placeholder="Search seasons, years, or champions..." class="hud-input search-input" aria-label="Search seasons">
+        </div>
+      </div>
+
+      <!-- Catalog Season Cards Grid -->
+      <div class="seasons-grid">
+        @for (item of filteredCatalog(); track item.seasonID) {
+          <article class="season-card hud-panel hud-panel--chamfer">
+            <div class="season-card-top">
+              <div class="season-title-wrap">
+                <h2 class="season-card-title">
+                  <a [routerLink]="['/archive/season', item.seasonID]" class="hud-text-link">{{item.seasonName}}</a>
+                </h2>
+              </div>
+              <div class="season-badges">
+                @if (item.year) {
+                  <span class="hud-pill hud-gold font-mono">{{item.year}}</span>
+                }
+                <span class="hud-pill league-pill">{{item.leagueName}}</span>
+                @if (item.gameVersionName) {
+                  <span class="hud-pill game-pill">{{item.gameVersionName}}</span>
+                }
+              </div>
+            </div>
+
+            <div class="season-card-body">
+              @if (item.champions.length > 0) {
+                <div class="champions-preview">
+                  <span class="hud-label">Champions:</span>
+                  <div class="champions-chips">
+                    @for (champ of item.champions; track champ.tier + champ.teamSlug) {
+                      <div class="champ-chip">
+                        <span class="champ-tier font-mono">{{champ.tier}}:</span>
+                        <a [routerLink]="['/archive/team', champ.teamSlug]" class="champ-team hud-text-link">🏆 {{champ.teamName}}</a>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              <div class="season-card-foot">
+                <div class="counts-wrap font-mono hud-muted">
+                  <span>{{item.teamCount}} Teams</span> &middot;
+                  <span>{{item.playerCount}} Spartans</span>
+                </div>
+                <a [routerLink]="['/archive/season', item.seasonID]" class="hud-btn hud-btn--sm">View Season &gt;</a>
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <div class="hud-panel hud-panel--chamfer empty-panel">
+            <span class="hud-kicker">&gt; No Results</span>
+            <p class="hud-muted">No historical campaigns match your filter criteria.</p>
+          </div>
+        }
+      </div>
+
+    </section>
+  }
+
+  <!-- TAB 2: LEADERBOARDS & DYNASTIES -->
+  @if (activeTab() === 'leaderboards') {
+    <section class="leaderboards-section" aria-label="Historical leaderboards">
+      
+      <!-- Leaderboard Sub-nav Metrics -->
+      <nav class="metric-selector" aria-label="Leaderboard metrics">
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'rings'" (click)="setMetric('rings')">
+          🏆 Ring Leaders
+        </button>
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'dynasties'" (click)="setMetric('dynasties')">
+          👑 Franchise Dynasties
+        </button>
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'goals'" (click)="setMetric('goals')">
+          ⚽ All-Time Goals
+        </button>
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'kills'" (click)="setMetric('kills')">
+          ⚔️ All-Time Kills
+        </button>
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'stops'" (click)="setMetric('stops')">
+          🛡️ Carrier Stops
+        </button>
+        <button type="button" class="metric-btn" [class.metric-btn--active]="leaderboardMetric() === 'games'" (click)="setMetric('games')">
+          🏃 Games Played
+        </button>
+      </nav>
+
+      @if (loadingLeaderboards()) {
+        <div class="hud-panel loading-box">
+          <p class="hud-muted">Computing 18 years of historical leaderboards...</p>
+        </div>
+      } @else if (leaderboards(); as lb) {
+
+        <!-- 1. Ring Leaders Table -->
+        @if (leaderboardMetric() === 'rings') {
+          <div class="hud-panel hud-panel--chamfer table-panel">
+            <div class="panel-head">
+              <span class="hud-kicker">&gt; The Ring Club</span>
+              <h2 class="hud-h2">Championship Ring Leaders</h2>
+              <p class="hud-muted">Spartans who have lifted championship hardware across the decades.</p>
+            </div>
+
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Championship ring leaders table">
+              <table class="leaderboard-table" aria-label="Ring leaders">
+                <thead>
+                  <tr>
+                    <th class="rank-col">Rank</th>
+                    <th>Spartan</th>
+                    <th class="hud-num">Rings Won</th>
+                    <th>Championship Titles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of lb.ringLeaders; track p.userID; let idx = $index) {
+                    <tr [class.gold-row]="idx === 0" [class.silver-row]="idx === 1" [class.bronze-row]="idx === 2">
+                      <td class="rank-col font-mono">
+                        @if (idx === 0) { 🥇 1 }
+                        @else if (idx === 1) { 🥈 2 }
+                        @else if (idx === 2) { 🥉 3 }
+                        @else { #{{idx + 1}} }
+                      </td>
+                      <td>
+                        <a [routerLink]="['/profile', p.userID]" class="hud-text-link font-bold">{{p.gamertag}}</a>
+                      </td>
+                      <td class="hud-num font-mono hud-gold font-bold rings-val">
+                        🏆 {{p.ringsCount}}
+                      </td>
+                      <td class="titles-cell font-mono hud-muted">
+                        {{p.titles.slice(0, 3).join(', ')}}{{p.titles.length > 3 ? ' +' + (p.titles.length - 3) + ' more' : ''}}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        <!-- 2. Franchise Dynasties Table -->
+        @if (leaderboardMetric() === 'dynasties') {
+          <div class="hud-panel hud-panel--chamfer table-panel">
+            <div class="panel-head">
+              <span class="hud-kicker">&gt; Championship Franchises</span>
+              <h2 class="hud-h2">All-Time Franchise Dynasties</h2>
+              <p class="hud-muted">Most decorated team franchises in Grifball history.</p>
+            </div>
+
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Franchise dynasties table">
+              <table class="leaderboard-table" aria-label="Franchise dynasties">
+                <thead>
+                  <tr>
+                    <th class="rank-col">Rank</th>
+                    <th>Franchise</th>
+                    <th class="hud-num">Championships</th>
+                    <th class="hud-num">Seasons Active</th>
+                    <th>Championship Titles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of lb.franchiseDynasties; track t.teamSlug; let idx = $index) {
+                    <tr [class.gold-row]="idx === 0" [class.silver-row]="idx === 1" [class.bronze-row]="idx === 2">
+                      <td class="rank-col font-mono">
+                        @if (idx === 0) { 🥇 1 }
+                        @else if (idx === 1) { 🥈 2 }
+                        @else if (idx === 2) { 🥉 3 }
+                        @else { #{{idx + 1}} }
+                      </td>
+                      <td>
+                        <a [routerLink]="['/archive/team', t.teamSlug]" class="hud-text-link font-bold">{{t.teamName}}</a>
+                      </td>
+                      <td class="hud-num font-mono hud-gold font-bold rings-val">
+                        🏆 {{t.championshipsCount}}
+                      </td>
+                      <td class="hud-num font-mono">{{t.seasonsActive}}</td>
+                      <td class="titles-cell font-mono hud-muted">
+                        {{t.titles.slice(0, 3).join(', ')}}{{t.titles.length > 3 ? ' +' + (t.titles.length - 3) + ' more' : ''}}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+        <!-- 3. Core Metric Tables (Goals, Kills, Stops, Games) -->
+        @if (leaderboardMetric() === 'goals' || leaderboardMetric() === 'kills' || leaderboardMetric() === 'stops' || leaderboardMetric() === 'games') {
+          @let metricList = leaderboardMetric() === 'goals' ? lb.goalLeaders : (leaderboardMetric() === 'kills' ? lb.killLeaders : (leaderboardMetric() === 'stops' ? lb.carrierStopLeaders : lb.gamesPlayedLeaders));
+          @let metricName = leaderboardMetric() === 'goals' ? 'Goals' : (leaderboardMetric() === 'kills' ? 'Kills' : (leaderboardMetric() === 'stops' ? 'Carrier Stops' : 'Games Played'));
+
+          <div class="hud-panel hud-panel--chamfer table-panel">
+            <div class="panel-head">
+              <span class="hud-kicker">&gt; All-Time Leaders</span>
+              <h2 class="hud-h2">Career {{metricName}} Leaders</h2>
+              <p class="hud-muted">Top 25 performers in {{metricName.toLowerCase()}} across all historical seasons.</p>
+            </div>
+
+            <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="metricName + ' leaderboard table'">
+              <table class="leaderboard-table" [attr.aria-label]="metricName + ' leaders'">
+                <thead>
+                  <tr>
+                    <th class="rank-col">Rank</th>
+                    <th>Spartan</th>
+                    <th class="hud-num">{{metricName}}</th>
+                    <th class="hud-num">Games Played</th>
+                    <th class="hud-num">Avg / Game</th>
+                    <th class="hud-num">Seasons</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of metricList; track p.userID; let idx = $index) {
+                    <tr [class.gold-row]="idx === 0" [class.silver-row]="idx === 1" [class.bronze-row]="idx === 2">
+                      <td class="rank-col font-mono">
+                        @if (idx === 0) { 🥇 1 }
+                        @else if (idx === 1) { 🥈 2 }
+                        @else if (idx === 2) { 🥉 3 }
+                        @else { #{{idx + 1}} }
+                      </td>
+                      <td>
+                        <a [routerLink]="['/profile', p.userID]" class="hud-text-link font-bold">{{p.gamertag}}</a>
+                      </td>
+                      <td class="hud-num font-mono hud-accent font-bold stat-val">
+                        {{p.statValue}}
+                      </td>
+                      <td class="hud-num font-mono">{{p.gamesPlayed}}</td>
+                      <td class="hud-num font-mono">{{p.perGame != null ? p.perGame : '-'}}</td>
+                      <td class="hud-num font-mono hud-muted">{{p.seasonsCount}}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+
+      }
+    </section>
+  }
+
+</div>

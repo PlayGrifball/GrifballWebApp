@@ -60,6 +60,7 @@ export class AppComponent implements OnDestroy, OnInit, AfterViewInit {
 
   readonly navLinks = signal<SideBarDto[]>([
     { title: "Home", path: "", show: computed(() => true) },
+    { title: "Archive", path: "/archive", show: computed(() => true) },
     { title: "Season Manager", path: "/seasonManager", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "Commissioner Dashboard", path: "/commissioner-dashboard", show: computed(() => this.accountService.isEventOrganizer()) },
     { title: "User Management", path: "/usermanagement", show: computed(() => this.accountService.isSysAdmin()) },

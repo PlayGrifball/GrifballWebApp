@@ -16,6 +16,264 @@ public class HistoricalController : ControllerBase
         _context = context;
     }
 
+    [HttpGet(Name = "GetHistoricalCatalog")]
+    public async Task<ActionResult<List<HistoricalCatalogItemDto>>> Catalog(CancellationToken ct)
+    {
+        var seasons = await _context.Seasons
+            .AsNoTracking()
+            .Where(s => s.IsHistorical)
+            .Include(s => s.League)
+            .Include(s => s.GameVersion)
+            .ToListAsync(ct);
+
+        var seasonIds = seasons.Select(s => s.SeasonID).ToList();
+
+        var championships = await _context.PlayerChampionships
+            .AsNoTracking()
+            .Where(c => seasonIds.Contains(c.SeasonID))
+            .Include(c => c.User)
+                .ThenInclude(u => u.XboxUser)
+            .ToListAsync(ct);
+
+        var champBySeason = championships
+            .GroupBy(c => c.SeasonID)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(c => new { c.Tier, Team = c.TeamName ?? "Champions" })
+                      .Select(tg => new HistoricalSeasonChampionDto
+                      {
+                          Tier = tg.Key.Tier,
+                          TeamName = tg.Key.Team,
+                          TeamSlug = HistoricalKeys.Slug(tg.Key.Team),
+                          Roster = tg.Select(c => new HistoricalChampionRosterDto
+                          {
+                              UserID = c.UserID,
+                              Gamertag = c.GamertagUsed ?? c.User?.XboxUser?.Gamertag ?? c.User?.DisplayName ?? "Unknown",
+                              IsCaptain = c.IsCaptain
+                          }).ToList()
+                      }).ToList()
+            );
+
+        var stats = await _context.PlayerSeasonStats
+            .AsNoTracking()
+            .Where(s => seasonIds.Contains(s.SeasonID) && !s.IsCombined)
+            .Select(s => new { s.SeasonID, s.TeamName, s.UserID })
+            .ToListAsync(ct);
+
+        var statsBySeason = stats
+            .GroupBy(s => s.SeasonID)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    TeamCount = g.Where(x => !string.IsNullOrWhiteSpace(x.TeamName))
+                                 .Select(x => HistoricalKeys.Slug(x.TeamName!))
+                                 .Distinct()
+                                 .Count(),
+                    PlayerCount = g.Select(x => x.UserID).Distinct().Count()
+                }
+            );
+
+        var catalog = seasons.Select(s =>
+        {
+            var year = s.SeasonStart.Year > 1990 ? s.SeasonStart.Year : HistoricalKeys.Year(s.SeasonName);
+            champBySeason.TryGetValue(s.SeasonID, out var champs);
+            statsBySeason.TryGetValue(s.SeasonID, out var st);
+
+            return new HistoricalCatalogItemDto
+            {
+                SeasonID = s.SeasonID,
+                SeasonName = s.SeasonName,
+                Year = year,
+                LeagueID = s.LeagueID,
+                LeagueName = s.League?.LeagueName ?? "AGLA",
+                LeagueSlug = s.League?.Slug ?? "agla",
+                GameVersionID = s.GameVersionID,
+                GameVersionName = s.GameVersion?.GameVersionName ?? "Halo",
+                GameVersionSlug = s.GameVersion?.Slug ?? "halo3",
+                Division = s.Division,
+                HistoricalSourceUrl = s.HistoricalSourceUrl,
+                TeamCount = st?.TeamCount ?? 0,
+                PlayerCount = st?.PlayerCount ?? 0,
+                Champions = champs ?? []
+            };
+        })
+        .OrderByDescending(s => s.Year)
+        .ThenByDescending(s => s.SeasonID)
+        .ToList();
+
+        return catalog;
+    }
+
+    [HttpGet(Name = "GetHistoricalLeaderboards")]
+    public async Task<ActionResult<HistoricalLeaderboardsDto>> Leaderboards(CancellationToken ct)
+    {
+        var championships = await _context.PlayerChampionships
+            .AsNoTracking()
+            .Include(c => c.Season)
+            .Include(c => c.User)
+                .ThenInclude(u => u.XboxUser)
+            .ToListAsync(ct);
+
+        var ringLeaders = championships
+            .GroupBy(c => c.UserID)
+            .Select(g =>
+            {
+                var gamertag = g.OrderByDescending(c => c.PlayerChampionshipID)
+                    .Select(c => c.GamertagUsed ?? c.User?.XboxUser?.Gamertag ?? c.User?.DisplayName)
+                    .FirstOrDefault(gt => !string.IsNullOrWhiteSpace(gt)) ?? "Spartan";
+
+                return new HistoricalPlayerRingLeaderDto
+                {
+                    UserID = g.Key,
+                    Gamertag = gamertag,
+                    RingsCount = g.Count(),
+                    Titles = g.Select(c => $"{c.Season.SeasonName} ({c.Tier})").Distinct().ToList()
+                };
+            })
+            .OrderByDescending(r => r.RingsCount)
+            .Take(25)
+            .ToList();
+
+        var franchiseDynasties = championships
+            .Where(c => !string.IsNullOrWhiteSpace(c.TeamName))
+            .GroupBy(c => HistoricalKeys.Slug(c.TeamName!))
+            .Select(g =>
+            {
+                var canonicalName = g.OrderByDescending(c => c.TeamName.Length).First().TeamName;
+                var titlesCount = g.Select(c => new { c.SeasonID, c.Tier }).Distinct().Count();
+                return new HistoricalTeamRingLeaderDto
+                {
+                    TeamName = canonicalName,
+                    TeamSlug = g.Key,
+                    ChampionshipsCount = titlesCount,
+                    SeasonsActive = g.Select(c => c.SeasonID).Distinct().Count(),
+                    Titles = g.Select(c => $"{c.Season.SeasonName} ({c.Tier})").Distinct().ToList()
+                };
+            })
+            .OrderByDescending(t => t.ChampionshipsCount)
+            .Take(20)
+            .ToList();
+
+        var stats = await _context.PlayerSeasonStats
+            .AsNoTracking()
+            .Where(s => !s.IsCombined)
+            .Select(s => new
+            {
+                s.UserID,
+                s.Gamertag,
+                s.SeasonID,
+                s.Goals,
+                s.Kills,
+                s.Deaths,
+                s.GamesPlayed,
+                s.CarrierKills
+            })
+            .ToListAsync(ct);
+
+        var playerAggregates = stats
+            .GroupBy(s => s.UserID)
+            .Select(g =>
+            {
+                var gamertag = g.OrderByDescending(s => s.SeasonID).First().Gamertag;
+                var gp = g.Sum(s => s.GamesPlayed);
+                var goals = g.Sum(s => s.Goals);
+                var kills = g.Sum(s => s.Kills);
+                var deaths = g.Sum(s => s.Deaths);
+                var stops = g.Sum(s => s.CarrierKills);
+                var seasonsCount = g.Select(s => s.SeasonID).Distinct().Count();
+                var kd = deaths > 0 ? Math.Round((decimal)kills / deaths, 2) : kills;
+
+                return new
+                {
+                    UserID = g.Key,
+                    Gamertag = gamertag,
+                    GamesPlayed = gp,
+                    Goals = goals,
+                    Kills = kills,
+                    Deaths = deaths,
+                    CarrierKills = stops,
+                    SeasonsCount = seasonsCount,
+                    KdRatio = kd
+                };
+            })
+            .ToList();
+
+        var goalLeaders = playerAggregates
+            .Where(p => p.Goals > 0)
+            .OrderByDescending(p => p.Goals)
+            .Take(25)
+            .Select(p => new HistoricalPlayerMetricLeaderDto
+            {
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                StatValue = p.Goals,
+                GamesPlayed = p.GamesPlayed,
+                PerGame = p.GamesPlayed > 0 ? Math.Round((decimal)p.Goals / p.GamesPlayed, 2) : 0,
+                SeasonsCount = p.SeasonsCount,
+                SecondaryStat = $"{p.GamesPlayed} GP"
+            })
+            .ToList();
+
+        var killLeaders = playerAggregates
+            .Where(p => p.Kills > 0)
+            .OrderByDescending(p => p.Kills)
+            .Take(25)
+            .Select(p => new HistoricalPlayerMetricLeaderDto
+            {
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                StatValue = p.Kills,
+                GamesPlayed = p.GamesPlayed,
+                PerGame = p.GamesPlayed > 0 ? Math.Round((decimal)p.Kills / p.GamesPlayed, 2) : 0,
+                SeasonsCount = p.SeasonsCount,
+                SecondaryStat = $"{p.KdRatio} K/D"
+            })
+            .ToList();
+
+        var gamesPlayedLeaders = playerAggregates
+            .Where(p => p.GamesPlayed > 0)
+            .OrderByDescending(p => p.GamesPlayed)
+            .Take(25)
+            .Select(p => new HistoricalPlayerMetricLeaderDto
+            {
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                StatValue = p.GamesPlayed,
+                GamesPlayed = p.GamesPlayed,
+                PerGame = null,
+                SeasonsCount = p.SeasonsCount,
+                SecondaryStat = $"{p.SeasonsCount} Seasons"
+            })
+            .ToList();
+
+        var carrierStopLeaders = playerAggregates
+            .Where(p => p.CarrierKills > 0)
+            .OrderByDescending(p => p.CarrierKills)
+            .Take(25)
+            .Select(p => new HistoricalPlayerMetricLeaderDto
+            {
+                UserID = p.UserID,
+                Gamertag = p.Gamertag,
+                StatValue = p.CarrierKills,
+                GamesPlayed = p.GamesPlayed,
+                PerGame = p.GamesPlayed > 0 ? Math.Round((decimal)p.CarrierKills / p.GamesPlayed, 2) : 0,
+                SeasonsCount = p.SeasonsCount,
+                SecondaryStat = $"{p.GamesPlayed} GP"
+            })
+            .ToList();
+
+        return new HistoricalLeaderboardsDto
+        {
+            RingLeaders = ringLeaders,
+            FranchiseDynasties = franchiseDynasties,
+            GoalLeaders = goalLeaders,
+            KillLeaders = killLeaders,
+            GamesPlayedLeaders = gamesPlayedLeaders,
+            CarrierStopLeaders = carrierStopLeaders
+        };
+    }
+
     [HttpGet("{seasonID:int}", Name = "GetHistoricalSeason")]
     public async Task<ActionResult<HistoricalSeasonDto>> Season([FromRoute] int seasonID, CancellationToken ct)
     {

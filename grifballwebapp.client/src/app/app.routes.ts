@@ -134,6 +134,11 @@ export const APP_ROUTES: Routes = [
     title: 'Spartan Profile'
   },
   {
+    path: 'archive',
+    loadComponent: () => import('./archive/archive-hub/archive-hub.component').then(m => m.ArchiveHubComponent),
+    title: 'Historical Archive'
+  },
+  {
     path: 'archive/season/:seasonID',
     loadComponent: () => import('./archive/historical-season/historical-season.component').then(m => m.HistoricalSeasonComponent),
     title: 'Historical Season'

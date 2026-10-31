@@ -135,3 +135,60 @@ public class HistoricalTeamAllTimePlayerDto
     public int Goals { get; set; }
     public int ChampionshipsWon { get; set; }
 }
+
+public class HistoricalCatalogItemDto
+{
+    public int SeasonID { get; set; }
+    public required string SeasonName { get; set; }
+    public int? Year { get; set; }
+    public int LeagueID { get; set; }
+    public required string LeagueName { get; set; }
+    public required string LeagueSlug { get; set; }
+    public int? GameVersionID { get; set; }
+    public string? GameVersionName { get; set; }
+    public string? GameVersionSlug { get; set; }
+    public string? Division { get; set; }
+    public string? HistoricalSourceUrl { get; set; }
+    public int TeamCount { get; set; }
+    public int PlayerCount { get; set; }
+    public List<HistoricalSeasonChampionDto> Champions { get; set; } = [];
+}
+
+public class HistoricalLeaderboardsDto
+{
+    public List<HistoricalPlayerRingLeaderDto> RingLeaders { get; set; } = [];
+    public List<HistoricalTeamRingLeaderDto> FranchiseDynasties { get; set; } = [];
+    public List<HistoricalPlayerMetricLeaderDto> GoalLeaders { get; set; } = [];
+    public List<HistoricalPlayerMetricLeaderDto> KillLeaders { get; set; } = [];
+    public List<HistoricalPlayerMetricLeaderDto> GamesPlayedLeaders { get; set; } = [];
+    public List<HistoricalPlayerMetricLeaderDto> CarrierStopLeaders { get; set; } = [];
+}
+
+public class HistoricalPlayerRingLeaderDto
+{
+    public int UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public int RingsCount { get; set; }
+    public List<string> Titles { get; set; } = [];
+}
+
+public class HistoricalTeamRingLeaderDto
+{
+    public required string TeamName { get; set; }
+    public required string TeamSlug { get; set; }
+    public int ChampionshipsCount { get; set; }
+    public int SeasonsActive { get; set; }
+    public List<string> Titles { get; set; } = [];
+}
+
+public class HistoricalPlayerMetricLeaderDto
+{
+    public int UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public int StatValue { get; set; }
+    public int GamesPlayed { get; set; }
+    public decimal? PerGame { get; set; }
+    public int SeasonsCount { get; set; }
+    public string? SecondaryStat { get; set; }
+}
+

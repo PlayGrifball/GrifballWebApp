@@ -21,6 +21,7 @@ import { EditUserComponent } from './userManagement/editUser/editUser.component'
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { ProfileComponent } from './profile/profile.component';
 import { PlayerRedirectComponent } from './player-redirect/player-redirect.component';
+import { ArchiveHubComponent } from './archive/archive-hub/archive-hub.component';
 import { HistoricalSeasonComponent } from './archive/historical-season/historical-season.component';
 import { HistoricalTeamComponent } from './archive/historical-team/historical-team.component';
 import { ExcelComponent } from './excel/excel.component';
@@ -130,6 +131,12 @@ describe('APP_ROUTES', () => {
     expect(playerRoute?.title).toBe('Spartan Profile');
   });
 
+  it('should have archive hub route', () => {
+    const archiveRoute = APP_ROUTES.find(r => r.path === 'archive');
+    expect(archiveRoute).toBeDefined();
+    expect(archiveRoute?.title).toBe('Historical Archive');
+  });
+
   it('should have archive season route', () => {
     const archiveSeasonRoute = APP_ROUTES.find(r => r.path === 'archive/season/:seasonID');
     expect(archiveSeasonRoute).toBeDefined();
@@ -190,6 +197,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
     'profile/:userID': ProfileComponent,
     'player/:gamertag': PlayerRedirectComponent,
+    'archive': ArchiveHubComponent,
     'archive/season/:seasonID': HistoricalSeasonComponent,
     'archive/team/:teamSlug': HistoricalTeamComponent,
     'excel': ExcelComponent,
