@@ -52,11 +52,12 @@ check "the PR's own migration regenerated: reset" 10 "none of them master's: $OL
 list "$work/applied" $M1 $M2 $OLD "$OLD-b"
 check "several of the PR's own, all reset" 10 "$OLD $OLD-b"
 
-list "$work/applied" $M1 $M2 $OLD
+# The database never got master's newest (it came after the PR's last deploy).
+list "$work/applied" $M1 $OLD
 list "$work/build" $M1 $NEW
 check "master migration missing from the build (behind master): refuse" 1 "lacks master's migration(s): $M2"
 
-list "$work/applied" $M1 $M2 $OLD
+list "$work/applied" $M1 $OLD
 list "$work/build" $M1 $NEW
 list "$work/current" $M1 $M2
 check "behind master: says to merge master" 1 "merge master into the PR"
