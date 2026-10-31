@@ -103,6 +103,19 @@ spec:
       {{- end }}
     {{- end }}
     {{- end }}
+    {{- $haloGateway := include "grif.haloGatewayUrl" . }}
+    {{- if and (eq (include "grif.haloMode" .) "gateway") $haloGateway }}
+    {{- $u := urlParse $haloGateway }}
+    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+    # The Halo gateway (backend.halo, Gateway mode).
+    - ports:
+        - protocol: TCP
+          port: {{ $port | int }}
+      {{- with $np.backend.haloGatewayTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
     {{- with $np.backend.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}

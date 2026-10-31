@@ -229,3 +229,73 @@ tests:
     documentIndex: 1
     asserts:
       - isKind: { of: Deployment }
+
+  - it: runs Halo Infinite through the gateway in the cluster by default, with no key unless one is named
+    documentIndex: 1
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Gateway } }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://halo-gateway.halo-gateway.svc:8080/" }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__ApiKey }, any: true }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__AdminUrl }, any: true }
+
+  - it: reads the gateway's API key from an existing Secret, and takes its URL and admin page
+    documentIndex: 1
+    set:
+      backend.halo.gateway:
+        url: https://gateway.example/
+        apiKey: { secretName: halo-gateway-key, key: ApiKey }
+        adminUrl: https://gateway.example/admin
+    asserts:
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: halo-gateway-key, key: ApiKey } } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__BaseUrl, value: https://gateway.example/ } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__AdminUrl, value: https://gateway.example/admin } }
+
+  - it: in Direct mode sets only the mode, and keeps the ClientConfiguration secrets
+    documentIndex: 1
+    set:
+      backend.halo.mode: Direct
+      backend.halo.gateway.apiKey.secretName: halo-gateway-key
+      backend.secretConfig:
+        ClientConfiguration:ClientId: InfiniteClientId
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Direct } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__BaseUrl }, any: true }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__ApiKey }, any: true }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: ClientConfiguration__ClientId, valueFrom: { secretKeyRef: { name: grif-secrets, key: InfiniteClientId } } }
+
+  - it: leaves a Halo setting to config or secretConfig when they set it, without a second variable
+    documentIndex: 1
+    set:
+      backend.config:
+        HaloInfinite: { Mode: Gateway }
+        HaloGateway: { BaseUrl: "http://gw.example:9000/" }
+      backend.halo.mode: Direct
+      backend.halo.gateway.apiKey.secretName: halo-gateway-key
+      backend.secretConfig:
+        HaloGateway:ApiKey: { secretName: other-key, key: Key }
+    asserts:
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Gateway } }
+      - notContains: { path: "spec.template.spec.containers[0].env", content: { name: HaloInfinite__Mode, value: Direct } }
+      - contains: { path: "spec.template.spec.containers[0].env", content: { name: HaloGateway__BaseUrl, value: "http://gw.example:9000/" } }
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__BaseUrl, value: "http://halo-gateway.halo-gateway.svc:8080/" }
+      - contains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: other-key, key: Key } } }
+      - notContains:
+          path: "spec.template.spec.containers[0].env"
+          content: { name: HaloGateway__ApiKey, valueFrom: { secretKeyRef: { name: halo-gateway-key, key: ApiKey } } }
+
+  - it: refuses an unknown Halo mode
+    set:
+      backend.halo.mode: Sideways
+    asserts:
+      - failedTemplate:
+          errorPattern: "/backend/halo/mode"

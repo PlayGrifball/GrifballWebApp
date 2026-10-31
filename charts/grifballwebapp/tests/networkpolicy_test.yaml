@@ -148,3 +148,34 @@ tests:
     asserts:
       - isKind: { of: ConfigMap }
       - equal: { path: metadata.name, value: grif-x-extra }
+
+  - it: lets the backend reach the Halo gateway's namespace on its URL's port, in Gateway mode
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: "spec.egress[3]"
+          value:
+            ports: [{ protocol: TCP, port: 8080 }]
+            to: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } } }]
+
+  - it: takes the gateway's port from the scheme, and allows anywhere on it when told no peers
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.halo.gateway.url: https://gateway.example/
+      networkPolicy.backend.haloGatewayTo: []
+    asserts:
+      - equal: { path: "spec.egress[3]", value: { ports: [{ protocol: TCP, port: 443 }] } }
+
+  - it: has no gateway rule in Direct mode
+    template: templates/networkpolicy.yaml
+    documentIndex: 1
+    set:
+      backend.halo.mode: Direct
+    asserts:
+      - notContains:
+          path: spec.egress
+          content: { ports: [{ protocol: TCP, port: 8080 }] }
+          any: true
+      - lengthEqual: { path: spec.egress, count: 3 }

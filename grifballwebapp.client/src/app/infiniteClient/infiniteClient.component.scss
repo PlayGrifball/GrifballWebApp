@@ -11,3 +11,30 @@
 .ic-actions {
   margin-top: 16px;
 }
+
+.ic-note {
+  margin: 0 0 12px;
+}
+
+.ic-gateway {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+
+  dt {
+    color: var(--hud-muted);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.ic-good {
+  color: var(--hud-accent);
+}
+
+.ic-bad {
+  color: var(--hud-red-text);
+}

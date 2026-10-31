@@ -131,8 +131,8 @@ backend:
       # LossThreshold: 3
       # PenaltyPerLoss: 10
       # MaxPenalty: 20
-    # Halo Infinite API client (Grunt): ClientId, ClientSecret and RedirectUrl, set through
-    # secretConfig (ClientConfiguration:ClientId, ...).
+    # Halo Infinite in Direct mode (backend.halo.mode) only: the app's own Microsoft app. ClientId,
+    # ClientSecret and RedirectUrl are set through secretConfig (ClientConfiguration:ClientId, ...).
     # ClientConfiguration:
     #   RedirectUrl: ""
     # Google Sheets imports. Key (the service account's JSON key file) defaults to the file mounted
@@ -184,6 +184,27 @@ backend:
   # ClientConfiguration:RedirectUrl: InfiniteRedirectUrl
   # BaseUrl: { secretName: grif-urls, key: BaseUrl }
 
+  # Halo Infinite (the app's readme, "Halo Infinite"). Gateway: every Halo call goes through the Halo
+  # gateway (PlayGrifball/grunt), which holds the one signed-in Halo account, with this release's API key.
+  # Direct: the app signs in to Halo itself, with ClientConfiguration:* in secretConfig (above) and its
+  # tokens on the state volume (persistence); its Infinite Client page sets it up. Each value here becomes
+  # its app setting unless config or secretConfig already sets that setting.
+  halo:
+    # HaloInfinite:Mode: Gateway or Direct.
+    mode: Gateway
+    gateway:
+      # HaloGateway:BaseUrl (Gateway mode). The backend's NetworkPolicy lets it out to this URL's port
+      # (networkPolicy.backend.haloGatewayTo).
+      url: http://halo-gateway.halo-gateway.svc:8080/
+      # HaloGateway:ApiKey (sent as X-Api-Key) from an existing Secret. Empty secretName: no key, and the
+      # gateway turns every call down.
+      apiKey:
+        secretName: ""
+        key: ApiKey
+      # HaloGateway:AdminUrl: the gateway's admin page, where its Halo account is signed in; the Infinite
+      # Client page links to it. Empty: the app's default (https://grunt.grifball.xyz/admin).
+      adminUrl: ""
+
   # OpenTelemetry: logs, metrics and traces pushed over OTLP. Off: the app exports nothing.
   telemetry:
     enabled: false
@@ -210,9 +231,10 @@ backend:
     mountPath: /etc/google-credentials
     optional: false
 
-  # Grunt (the Halo Infinite client) keeps its OAuth tokens (tokens.json) and the one-time account
-  # authorization code (AccountAuthorization.txt) in the working directory, so the working directory
-  # is this volume. Disabled: an emptyDir, and the account is authorized again after each restart.
+  # In Direct mode (halo.mode), Grunt (the Halo Infinite client) keeps its OAuth tokens (tokens.json)
+  # and the one-time account authorization code (AccountAuthorization.txt) in the working directory,
+  # so the working directory is this volume. Disabled: an emptyDir, and the account is authorized
+  # again after each restart. Gateway mode keeps nothing here.
   persistence:
     enabled: true
     # Use this PVC instead of creating one.
@@ -796,6 +818,9 @@ networkPolicy:
           except: [fc00::/7, fe80::/10]
     # OpenTelemetry (backend.telemetry): the collector, on the endpoint's port. Empty: anywhere.
     telemetryTo: []
+    # The Halo gateway (backend.halo, Gateway mode), on its URL's port. Empty: anywhere on that port.
+    haloGatewayTo:
+      - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: halo-gateway } }
     # Ex: Prometheus scraping, other services calling the API.
     extraIngress: []
     extraEgress: []

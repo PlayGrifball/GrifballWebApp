@@ -17,12 +17,12 @@ public class GetsertXboxUserService : IGetsertXboxUserService
 {
     private readonly ILogger<GetsertXboxUserService> _logger;
     private readonly GrifballContext _grifballContext;
-    private readonly IHaloInfiniteClientFactory _infiniteClientFactory;
-    public GetsertXboxUserService(ILogger<GetsertXboxUserService> logger, GrifballContext context, IHaloInfiniteClientFactory factory)
+    private readonly IHaloInfiniteClient _haloInfiniteClient;
+    public GetsertXboxUserService(ILogger<GetsertXboxUserService> logger, GrifballContext context, IHaloInfiniteClient haloInfiniteClient)
     {
         _logger = logger;
         _grifballContext = context;
-        _infiniteClientFactory = factory;
+        _haloInfiniteClient = haloInfiniteClient;
     }
 
     public async Task<(XboxUser?, string?)> GetsertXboxUserByGamertag(string gamertag, CancellationToken ct = default)
@@ -35,7 +35,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (xboxUser is not null)
             return (xboxUser, null);
 
-        var response = await _infiniteClientFactory.UserByGamertag(gamertag);
+        var response = await _haloInfiniteClient.UserByGamertag(gamertag);
 
         if (response is null || response.Result is null || string.IsNullOrEmpty(response.Result.gamertag))
         {
@@ -96,7 +96,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         var xuidStr = xuid
             .Except(existing.Select(x => x.XboxUserID)) // But do not query for existing users.
             .Select(x => x.ToString());
-        var users = await _infiniteClientFactory.Users(xuidStr);
+        var users = await _haloInfiniteClient.Users(xuidStr);
 
         if (users.Result is null)
             throw new Exception("Failed to resolved gamertag: " + users.Error.Message);
@@ -135,7 +135,7 @@ public class GetsertXboxUserService : IGetsertXboxUserService
             return xboxUser;
 
         var xuidStr = xuid.ToString();//.AddXUIDWrapper();
-        var users = await _infiniteClientFactory.Users([xuidStr]);
+        var users = await _haloInfiniteClient.Users([xuidStr]);
 
         if (users.Result is null)
             throw new Exception("Failed to resolved gamertag: " + users.Error.Message);
