@@ -1,0 +1,4 @@
+D	GrifballWebApp.Migrations.SqlServer/Migrations/20261031053312_AddDiscordOutbox.cs
+D	GrifballWebApp.Migrations.SqlServer/Migrations/20261031053312_AddDiscordOutbox.Designer.cs
+A	GrifballWebApp.Migrations.SqlServer/Migrations/20261101120000_AddDiscordOutbox.cs
+A	GrifballWebApp.Migrations.SqlServer/Migrations/20261101120000_AddDiscordOutbox.Designer.cs
