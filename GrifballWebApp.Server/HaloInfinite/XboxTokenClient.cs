@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Surprenant.Grunt.Authentication;
 using Surprenant.Grunt.Models;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GrifballWebApp.Server.HaloInfinite;
 
@@ -15,6 +16,8 @@ public interface IXboxTokenClient
 }
 
 /// <summary>Grunt's <see cref="XboxAuthenticationClient"/>, which calls Microsoft's OAuth endpoint.</summary>
+/// <remarks>Not covered: its only work is Microsoft's live endpoint, which Grunt calls with its own HttpClient.</remarks>
+[ExcludeFromCodeCoverage]
 public sealed class XboxTokenClient(IOptionsMonitor<ClientConfiguration> options) : IXboxTokenClient
 {
     public Task<OAuthToken?> RequestTokenAsync(string code)

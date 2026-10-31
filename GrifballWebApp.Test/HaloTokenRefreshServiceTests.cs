@@ -245,4 +245,41 @@ public class HaloTokenRefreshServiceTests
 
         Assert.That(await _store.LegacyFilesImportedAsync(), Is.True);
     }
+
+    [Test]
+    public async Task Import_SkipsATokenFileWithoutAToken_AndAnEmptyCodeFile()
+    {
+        await File.WriteAllTextAsync(Path.Combine(_directory, HaloTokenRefreshService.TokenFile), "{}");
+        await File.WriteAllTextAsync(Path.Combine(_directory, HaloTokenRefreshService.CodeFile), " \n");
+
+        Assert.That(await Service().ImportLegacyFilesAsync(), Is.False);
+        Assert.That(await _store.GetTokenAsync(), Is.Null);
+        Assert.That(await _store.TakeCodeAsync(), Is.Null);
+        Assert.That(await _store.LegacyFilesImportedAsync(), Is.True);
+    }
+
+    [Test]
+    public void TheLegacyDirectory_DefaultsToTheWorkingDirectory()
+    {
+        var config = new ConfigurationBuilder().Build();
+        var service = new HaloTokenRefreshService(_store, _client, _time, config, NullLogger<HaloTokenRefreshService>.Instance);
+
+        Assert.That(service.CheckInterval, Is.EqualTo(HaloTokenRefreshService.DefaultCheckInterval));
+    }
+
+    [Test]
+    public async Task AsAHostedService_AnUnreadableTokenFile_DoesNotStopTheRefresh()
+    {
+        await File.WriteAllTextAsync(Path.Combine(_directory, HaloTokenRefreshService.TokenFile), "not json");
+        await _store.SetCodeAsync("code-1");
+        var signedIn = new TaskCompletionSource();
+        _client.RequestTokenAsync("code-1").Returns(_ => { signedIn.TrySetResult(); return Token(); });
+        var service = Service();
+
+        await service.StartAsync(CancellationToken.None);
+        await signedIn.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await service.StopAsync(CancellationToken.None);
+
+        Assert.That(await _store.LegacyFilesImportedAsync(), Is.False, "The import failed and will be tried again at the next start");
+    }
 }

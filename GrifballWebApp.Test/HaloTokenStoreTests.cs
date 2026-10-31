@@ -73,6 +73,14 @@ public class HaloTokenStoreTests
     }
 
     [Test]
+    public async Task SetToken_WithoutExpiresIn_StoresNoExpiry()
+    {
+        await Store().SetTokenAsync(Token(expiresIn: 0));
+
+        Assert.That((await Store().GetTokenAsync())!.ExpiresAt, Is.Null);
+    }
+
+    [Test]
     public async Task SetToken_Twice_KeepsTheNewer()
     {
         await Store().SetTokenAsync(Token("old"));
