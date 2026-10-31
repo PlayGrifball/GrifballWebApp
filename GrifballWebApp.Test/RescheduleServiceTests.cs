@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,7 @@ public class RescheduleServiceTests
         _logger = Substitute.For<ILogger<RescheduleService>>();
         _options = Substitute.For<IOptions<DiscordOptions>>();
         _options.Value.Returns(new DiscordOptions { ReschedulesChannel = 123UL });
-        _service = new RescheduleService(_context, _discordClient, _logger, _options);
+        _service = new RescheduleService(_context, new ContextOutbox(_context), _logger, _options);
     }
 
     [TearDown]

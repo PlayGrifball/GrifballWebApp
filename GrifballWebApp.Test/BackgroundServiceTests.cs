@@ -202,21 +202,25 @@ public class BackgroundServiceDbTests
             SeasonEnd = now.AddDays(30),
         });
         await _context.SaveChangesAsync();
-        var upserted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _discordClient.UpsertMessageAsync(Arg.Any<ulong>(), Arg.Any<ulong?>(), Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
-            .Returns(_ => { upserted.TrySetResult(); return Substitute.For<IDiscordRestMessage>(); });
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["BaseUrl"] = "https://example.test" }).Build();
         var eventsService = new EventsService(Substitute.For<ILogger<EventsService>>(), Options.Create(new DiscordOptions { EventsChannel = 66 }),
-            _discordClient, _context, new UrlService(config));
+            new ContextOutbox(_context), _context, new UrlService(config));
         var logger = new RecordingLogger<EventsBackgroundService>();
         var service = new EventsBackgroundService(logger, ScopeFactory(eventsService));
 
         await service.StartAsync(CancellationToken.None);
-        var finished = await Task.WhenAny(upserted.Task, Task.Delay(TimeSpan.FromSeconds(30))) == upserted.Task;
+        // The announcement is queued on the outbox, which sends it.
+        OutboxMessage? queued = null;
+        for (var deadline = DateTime.UtcNow.AddSeconds(30); queued is null && DateTime.UtcNow < deadline; await Task.Delay(100))
+        {
+            await using var check = _context.NewContextLike();
+            queued = await check.Outbox.SingleOrDefaultAsync();
+        }
         await service.StopAsync(CancellationToken.None);
 
-        Assert.That(finished, Is.True);
-        await _discordClient.Received(1).UpsertMessageAsync(66ul, null, Arg.Is<MessageProperties>(m => m.Content == "BG Season"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        Assert.That(queued, Is.Not.Null);
+        Assert.That(queued!.Kind, Is.EqualTo(EventsOutbox.SeasonUpsert));
+        Assert.That(queued.Payload, Does.Contain("\"seasonName\":\"BG Season\""));
         Assert.That(logger.Entries, Is.Empty);
     }
 }

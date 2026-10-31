@@ -1,26 +1,23 @@
-using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Extensions;
-using GrifballWebApp.Server.Preview;
+using GrifballWebApp.Server.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Text;
-using System.Threading;
 
 namespace GrifballWebApp.Server.Reschedule;
 
 public class RescheduleService
 {
     private readonly GrifballContext _context;
-    private readonly IDiscordRestClient _discordClient;
+    private readonly IOutbox _outbox;
     private readonly ILogger<RescheduleService> _logger;
     private readonly IOptions<DiscordOptions> _options;
 
-    public RescheduleService(GrifballContext context, IDiscordRestClient discordClient, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
+    public RescheduleService(GrifballContext context, IOutbox outbox, ILogger<RescheduleService> logger, IOptions<DiscordOptions> options)
     {
         _context = context;
-        _discordClient = discordClient;
+        _outbox = outbox;
         _logger = logger;
         _options = options;
     }
@@ -82,17 +79,7 @@ public class RescheduleService
 
     public async Task<MatchReschedule> ProcessRescheduleAsync(int rescheduleId, ProcessRescheduleDto dto, int commissionerUserId, CancellationToken ct = default)
     {
-        var reschedule = await SaveDecisionAsync(rescheduleId, dto, commissionerUserId, ct);
-
-        // After the commit: the decision stands whether or not Discord hears about it.
-        if (reschedule.DiscordThreadID is not null)
-            await NotifyThreadAsync(reschedule.DiscordThreadID.Value, reschedule.Status, commissionerUserId, ct);
-
-        return reschedule;
-    }
-
-    private async Task<MatchReschedule> SaveDecisionAsync(int rescheduleId, ProcessRescheduleDto dto, int commissionerUserId, CancellationToken ct)
-    {
+        // The decision and the message telling its thread are committed together; the outbox sends the message.
         using var transaction = await _context.Database.BeginTransactionAsync(ct);
 
         try
@@ -121,6 +108,13 @@ public class RescheduleService
             // Clear the active request if processed
             reschedule.SeasonMatch.ActiveRescheduleRequestId = null;
 
+            // Told in its thread, if it has one or one is on its way.
+            if (reschedule.DiscordThreadID is not null || await ThreadQueuedAsync(rescheduleId, ct))
+            {
+                var approver = await ApproverNameAsync(commissionerUserId, ct);
+                await _outbox.EnqueueDecisionAsync(rescheduleId, $"Your request has been {reschedule.Status} by {approver}", ct);
+            }
+
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
 
@@ -130,29 +124,6 @@ public class RescheduleService
         {
             await transaction.RollbackAsync(ct);
             throw;
-        }
-    }
-
-    /// <summary>
-    /// Tells the request's Discord thread the decision and who made it. Never fails the decision: in a preview without
-    /// Discord every call throws <see cref="PreviewDiscordDisabledException"/>, and Discord can be down; both are logged.
-    /// </summary>
-    private async Task NotifyThreadAsync(ulong threadID, RescheduleStatus status, int approverUserID, CancellationToken ct)
-    {
-        try
-        {
-            var approver = await ApproverNameAsync(approverUserID, ct);
-            await _discordClient.SendMessageAsync(threadID,
-                new NetCord.Rest.MessageProperties { Content = $"Your request has been {status} by {approver}" },
-                cancellationToken: ct);
-        }
-        catch (PreviewDiscordDisabledException ex)
-        {
-            _logger.LogInformation(ex, "Preview without Discord: not telling thread {ThreadId} the reschedule was {Status}", threadID, status);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Failed to tell thread {ThreadId} the reschedule was {Status}", threadID, status);
         }
     }
 
@@ -235,6 +206,10 @@ public class RescheduleService
         }).ToList();
     }
 
+    /// <summary>
+    /// Queues the request's Discord thread on the outbox (posted, made and its captains and commissioners added once
+    /// saved). Nothing when it has a thread already, or one is queued.
+    /// </summary>
     public async Task CreateDiscordThreadAsync(int rescheduleId, CancellationToken ct = default)
     {
         var reschedule = await _context.MatchReschedules
@@ -248,10 +223,8 @@ public class RescheduleService
         if (reschedule == null)
             throw new ArgumentException("Reschedule request not found");
 
-        if (reschedule.DiscordThreadID.HasValue)
-            return; // Thread already exists
-
-        var channelId = _options.Value.ReschedulesChannel;
+        if (reschedule.DiscordThreadID.HasValue || await ThreadQueuedAsync(rescheduleId, ct))
+            return; // Thread already exists, or is on its way
 
         // Create a message first to create thread from
         var messageContent = $"🔄 **Match Reschedule Request**\n" +
@@ -261,75 +234,17 @@ public class RescheduleService
                             $"**Requested By:** {reschedule.RequestedByUser.XboxUser?.Gamertag}\n" +
                             $"**Reason:** {reschedule.Reason}";
 
-        var message = await _discordClient.SendMessageAsync(channelId, new NetCord.Rest.MessageProperties { Content = messageContent }, cancellationToken: ct);
-
         var threadName = $"Reschedule: {reschedule.SeasonMatch.HomeTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"} vs {reschedule.SeasonMatch.AwayTeam?.Captain?.User.XboxUser?.Gamertag ?? "UNKNOWN"}";
-        var thread = await _discordClient.CreateGuildThreadAsync(channelId, message.Id,
-            new NetCord.Rest.GuildThreadFromMessageProperties(threadName), cancellationToken: ct);
 
-        await AddUsersToThread(reschedule, thread, ct);
-
-        reschedule.DiscordThreadID = thread.Id;
+        await _outbox.EnqueueThreadAsync(rescheduleId, messageContent, threadName, ct);
         await _context.SaveChangesAsync(ct);
     }
 
-    private async Task AddUsersToThread(MatchReschedule reschedule, IDiscordGuildThread thread, CancellationToken ct)
+    /// <summary>Whether the request's thread is queued and not given up on.</summary>
+    private Task<bool> ThreadQueuedAsync(int rescheduleId, CancellationToken ct)
     {
-        var sb = new StringBuilder();
-        await AddCaptainToThread(reschedule.SeasonMatch.HomeTeam, thread, sb, ct);
-        await AddCaptainToThread(reschedule.SeasonMatch.AwayTeam, thread, sb, ct);
-
-        var commisioners = await _context.Users
-            .Where(u => u.UserRoles.Any(ur => ur.Role.Name == "Commissioner"))
-            .ToListAsync(ct);
-        foreach (var commisioner in commisioners)
-        {
-            await AddUserToThread(commisioner, thread, sb, ct);
-        }
-        var finalErrors = sb.ToString();
-        if (!string.IsNullOrEmpty(finalErrors))
-        {
-            await _discordClient.SendMessageAsync(thread.Id,
-                new NetCord.Rest.MessageProperties { Content = finalErrors },
-                cancellationToken: ct);
-        }
-    }
-
-    private async Task AddCaptainToThread(Team? team, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
-    {
-        if (team is null)
-        {
-            sb.AppendLine("Could not add a captain to thread, the match is missing a team.");
-            return;
-        }
-
-        if (team.Captain is null)
-        {
-            sb.AppendLine($"Could not add {team.TeamName} captain to thread, team has no captain.");
-            return;
-        }
-
-        await AddUserToThread(team.Captain.User, thread, sb, ct);
-    }
-
-    private async Task AddUserToThread(User user, IDiscordGuildThread thread, StringBuilder sb, CancellationToken ct)
-    {
-        var discordUserId = (ulong?)user.DiscordUserID;
-        if (discordUserId.HasValue)
-        {
-            try
-            {
-                await thread.AddUserAsync(discordUserId.Value, null, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to add {DiscordUserId} to thread {ThreadId}", discordUserId.Value, thread.Id);   
-                sb.Append($"Could not add {user.DisplayName ?? user.UserName} to thread, exception thrown");
-            }
-        }
-        else
-        {
-            sb.AppendLine($"Could not add {user.DisplayName ?? user.UserName} to thread, missing discord id.");
-        }
+        var group = RescheduleOutbox.Group(rescheduleId);
+        return _context.Outbox.AnyAsync(x => x.GroupKey == group && x.Kind == RescheduleOutbox.ThreadCreate
+            && x.Status != OutboxStatus.DeadLettered && x.Status != OutboxStatus.Skipped, ct);
     }
 }

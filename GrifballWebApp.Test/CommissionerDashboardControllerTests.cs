@@ -4,6 +4,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Commissioner;
 using GrifballWebApp.Server.MatchPlanner;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +28,7 @@ public class CommissionerDashboardControllerTests
         _context = await SetUpFixture.NewGrifballContext();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { ReschedulesChannel = 1UL });
-        var service = new RescheduleService(_context, Substitute.For<IDiscordRestClient>(), Substitute.For<ILogger<RescheduleService>>(), options);
+        var service = new RescheduleService(_context, new ContextOutbox(_context), Substitute.For<ILogger<RescheduleService>>(), options);
         _controller = new CommissionerDashboardController(service);
     }
 

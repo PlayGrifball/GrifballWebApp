@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -28,6 +29,7 @@ public class RescheduleServiceWorkflowTests
     private IDiscordRestClient _discordClient;
     private ILogger<RescheduleService> _logger;
     private IDiscordGuildThread _thread;
+    private OutboxTestDriver _outbox;
 
     [SetUp]
     public async Task Setup()
@@ -47,11 +49,16 @@ public class RescheduleServiceWorkflowTests
         _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .Returns(_thread);
 
-        _service = new RescheduleService(_context, _discordClient, _logger, options);
+        _service = new RescheduleService(_context, new ContextOutbox(_context), _logger, options);
+        _outbox = new OutboxTestDriver(_context, _discordClient, options.Value);
     }
 
     [TearDown]
-    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+    public async Task TearDown()
+    {
+        await _outbox.DisposeAsync();
+        await _context.DropDatabaseAndDispose();
+    }
 
     private List<string> SentContents(ulong channel) => _discordClient.ReceivedCalls()
         .Where(c => c.GetMethodInfo().Name == nameof(IDiscordRestClient.SendMessageAsync) && c.GetArguments().Length == 4 && (ulong)c.GetArguments()[0]! == channel)
@@ -205,6 +212,7 @@ public class RescheduleServiceWorkflowTests
 
         var before = DateTime.UtcNow.AddSeconds(-5);
         await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true, CommissionerNotes = "ok" }, s.AwayCaptain.Id);
+        await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID);
@@ -231,6 +239,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id);
+        await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
         Assert.That((await ctx.SeasonMatches.SingleAsync()).ScheduledTime, Is.EqualTo(scheduled));
@@ -248,6 +257,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false, CommissionerNotes = "no" }, s.HomeCaptain.Id);
+        await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
         var sm = await ctx.SeasonMatches.SingleAsync();
@@ -270,6 +280,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, commissioner.Id);
+        await _outbox.DrainAsync();
 
         Assert.That(SentContents(4445UL), Is.EqualTo(new[] { "Your request has been Approved by GT_commish" }));
     }
@@ -286,12 +297,14 @@ public class RescheduleServiceWorkflowTests
             .ThrowsAsync(new GrifballWebApp.Server.Preview.PreviewDiscordDisabledException("Discord is disabled in preview mode"));
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id);
+        await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
         Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Approved));
         Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Approved));
         Assert.That((await ctx.SeasonMatches.SingleAsync(x => x.SeasonMatchID == s.Match.SeasonMatchID)).ActiveRescheduleRequestId, Is.Null);
-        Assert.That(_logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "Log" && (LogLevel)c.GetArguments()[0]! == LogLevel.Information), Is.EqualTo(1));
+        Assert.That((await _outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Skipped), "Skipped, not retried");
+        Assert.That(_outbox.Entries.Where(x => x.Level >= LogLevel.Warning), Is.Empty);
     }
 
     [Test]
@@ -304,11 +317,15 @@ public class RescheduleServiceWorkflowTests
             .ThrowsAsync(new HttpRequestException("Discord is down"));
 
         var result = await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
+        await _outbox.DrainAsync();
 
         await using var ctx = _context.NewContextLike();
         Assert.That(result.Status, Is.EqualTo(RescheduleStatus.Rejected));
         Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Rejected));
-        Assert.That(_logger.ReceivedCalls().Count(c => c.GetMethodInfo().Name == "Log" && (LogLevel)c.GetArguments()[0]! == LogLevel.Error), Is.EqualTo(1));
+        var decision = (await _outbox.MessagesAsync()).Single();
+        Assert.That(decision.Status, Is.EqualTo(OutboxStatus.DeadLettered), "Tried until given up on");
+        Assert.That(decision.Attempts, Is.EqualTo(_outbox.Options.MaxAttempts));
+        Assert.That(_outbox.Entries.Count(x => x.Level == LogLevel.Error), Is.EqualTo(1));
     }
 
     // ---------- GetPendingReschedulesAsync ----------
@@ -467,6 +484,7 @@ public class RescheduleServiceWorkflowTests
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 55UL);
 
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
 
         Assert.That(_discordClient.ReceivedCalls(), Is.Empty);
     }
@@ -484,6 +502,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
 
         var channelMessages = SentContents(Channel);
         Assert.That(channelMessages, Has.Count.EqualTo(1));
@@ -497,9 +516,9 @@ public class RescheduleServiceWorkflowTests
         });
         await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
             Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: GT_homecap vs GT_awaycap"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
-        await _thread.Received(1).AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
-        await _thread.Received(1).AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
-        await _thread.Received(1).AddUserAsync(5004UL, null, Arg.Any<CancellationToken>());
+        await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await _discordClient.Received(1).AddGuildThreadUserAsync(888UL, 5004UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         Assert.That(SentContents(888UL), Is.EqualTo(new[] { "Could not add Commish Two to thread, missing discord id." + Environment.NewLine }));
 
         await using var ctx = _context.NewContextLike();
@@ -513,7 +532,7 @@ public class RescheduleServiceWorkflowTests
         var original = new DateTime(2025, 6, 1, 20, 0, 0, DateTimeKind.Utc);
         var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, original: original, newTime: original.AddDays(1));
         // requester is not involved in the thread; make adding fail for any user to exercise the catch branch
-        _thread.AddUserAsync(Arg.Any<ulong>(), Arg.Any<RestRequestProperties?>(), Arg.Any<CancellationToken>()).ThrowsAsync(new Exception("boom"));
+        _discordClient.AddGuildThreadUserAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).ThrowsAsync(new Exception("boom"));
         var commissionerRole = await _context.Roles.SingleAsync(x => x.Name == "Commissioner");
         var commish = await RescheduleTestData.AddUser(_context, "commish", 1004, 5004);
         _context.UserRoles.Add(new UserRole { UserId = commish.Id, RoleId = commissionerRole.Id });
@@ -521,6 +540,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
 
         var channelMessage = SentContents(Channel).Single();
         Assert.Multiple(() =>
@@ -548,6 +568,7 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
 
         var channelMessage = SentContents(Channel).Single();
         Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
@@ -559,8 +580,8 @@ public class RescheduleServiceWorkflowTests
             Assert.That(errors, Does.Contain("Could not add Home captain to thread, team has no captain."));
             Assert.That(errors, Does.Contain("Could not add Away captain to thread, team has no captain."));
         });
-        await _thread.DidNotReceive().AddUserAsync(5001UL, null, Arg.Any<CancellationToken>());
-        await _thread.DidNotReceive().AddUserAsync(5002UL, null, Arg.Any<CancellationToken>());
+        await _discordClient.DidNotReceive().AddGuildThreadUserAsync(888UL, 5001UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await _discordClient.DidNotReceive().AddGuildThreadUserAsync(888UL, 5002UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
     }
 
     [Test]
@@ -581,10 +602,99 @@ public class RescheduleServiceWorkflowTests
         _context.ChangeTracker.Clear();
 
         await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
 
         var channelMessage = SentContents(Channel).Single();
         Assert.That(channelMessage, Does.Contain("**Match:** UNKNOWN vs UNKNOWN"));
         await _discordClient.Received(1).CreateGuildThreadAsync(Channel, 777UL,
             Arg.Is<GuildThreadFromMessageProperties>(p => p.Name == "Reschedule: UNKNOWN vs UNKNOWN"), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Process_IsQueuedWithTheDecision_AndRolledBackWithIt()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id, threadId: 4448UL);
+        _context.ChangeTracker.Clear();
+        _context.SavingChanges += (_, _) =>
+        {
+            if (_context.ChangeTracker.Entries<OutboxMessage>().Any(x => x.State == EntityState.Added))
+                throw new InvalidOperationException("database down");
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id));
+
+        await using var ctx = _context.NewContextLike();
+        Assert.That((await ctx.MatchReschedules.SingleAsync()).Status, Is.EqualTo(RescheduleStatus.Pending));
+        Assert.That(await ctx.Outbox.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task Process_WhileTheThreadIsStillQueued_TellsItOnceItIsMade()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = false }, s.HomeCaptain.Id);
+        await _outbox.DrainAsync();
+
+        var messages = await _outbox.MessagesAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(messages.Select(x => x.Kind), Is.EqualTo(new[] { RescheduleOutbox.RequestPost, RescheduleOutbox.ThreadCreate, RescheduleOutbox.ThreadInvite, RescheduleOutbox.DecisionPost }), "The thread queued once");
+            Assert.That(messages.Select(x => x.Status), Is.All.EqualTo(OutboxStatus.Sent));
+            Assert.That(SentContents(888UL).Last(), Is.EqualTo("Your request has been Rejected by <@5001>"), "After the thread was made");
+        });
+    }
+
+    [Test]
+    public async Task Process_WithoutAThread_QueuesNothing()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        _context.ChangeTracker.Clear();
+
+        await _service.ProcessRescheduleAsync(r.MatchRescheduleID, new ProcessRescheduleDto { Approved = true }, s.HomeCaptain.Id);
+
+        Assert.That(await _outbox.MessagesAsync(), Is.Empty);
+    }
+
+    [Test]
+    public async Task CreateThread_RetriedAfterPartialSuccess_PostsAndMakesNothingTwice()
+    {
+        // The post went out but its try failed; then the thread was made but its try failed too.
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var r = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        _context.ChangeTracker.Clear();
+        var threads = 0;
+        var posted = Substitute.For<IDiscordRestMessage>();
+        posted.Id.Returns(777UL);
+        posted.StartedThread.Returns(_ => threads > 0 ? _thread : null);
+        var me = Substitute.For<IDiscordCurrentUser>();
+        _discordClient.GetCurrentUserAsync(Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(me);
+        var posts = 0;
+        _discordClient.SendMessageAsync(Channel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(c =>
+            {
+                posted.Content.Returns(((MessageProperties)c.ArgAt<MessageProperties>(1)).Content);
+                return ++posts == 1 ? Task.FromException<IDiscordRestMessage>(new TaskCanceledException("timed out")) : Task.FromResult(posted);
+            });
+        _discordClient.GetMessagesAsync(Channel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>()).Returns(_ => (posts > 0 ? new[] { posted } : []).ToAsyncEnumerable());
+        _discordClient.GetMessageAsync(Channel, 777UL, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(posted);
+        _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(_ => ++threads == 1 ? Task.FromException<IDiscordGuildThread>(new TaskCanceledException("timed out")) : Task.FromResult(_thread));
+
+        await _service.CreateDiscordThreadAsync(r.MatchRescheduleID);
+        await _outbox.DrainAsync();
+
+        await using var ctx = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((posts, threads), Is.EqualTo((1, 1)), "Each found on the retry, not made again");
+            Assert.That((await ctx.MatchReschedules.SingleAsync()).DiscordThreadID, Is.EqualTo(888UL));
+        });
     }
 }

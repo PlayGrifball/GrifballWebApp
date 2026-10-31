@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -33,7 +34,7 @@ public class RescheduleControllerTests
         _discordClient = Substitute.For<IDiscordRestClient>();
         var options = Substitute.For<IOptions<DiscordOptions>>();
         options.Value.Returns(new DiscordOptions { ReschedulesChannel = 1UL });
-        var service = new RescheduleService(_context, _discordClient, Substitute.For<ILogger<RescheduleService>>(), options);
+        var service = new RescheduleService(_context, new ContextOutbox(_context), Substitute.For<ILogger<RescheduleService>>(), options);
         _controller = new RescheduleController(service);
     }
 
