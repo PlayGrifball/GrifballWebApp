@@ -673,6 +673,12 @@ migrations:
     #   nfs: { server: nas.example, path: /backups/grif-test, readOnly: true }
     #   persistentVolumeClaim: { claimName: grif-test-backups, readOnly: true }
     volume: {}
+  # Previews only, no value of its own: with backend.config.Preview.Enabled true (the app's preview
+  # mode, off by default and never on in a real environment), a database with migrations the image
+  # lacks, none of them master's (the PR's own, regenerated or renamed), is dropped and started again
+  # as on a first deploy (restore or convert below, then migrate). Any of them master's, or the image
+  # behind master's migrations: the Job fails, saying to merge master. Master's lists come from the
+  # image (/app/master-migrations, written by CI). README, Migrations, "Preview reset".
   # On a release's first deploy - its database doesn't exist yet, or exists with no tables - copy
   # another GrifballWebApp database into it, SQL Server or PostgreSQL either way round: how an
   # environment moves from one server to the other. The image's converter (/app/convert) creates the

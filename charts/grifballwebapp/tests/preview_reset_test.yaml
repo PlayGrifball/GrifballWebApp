@@ -1,0 +1,104 @@
+suite: preview database reset
+templates:
+  - templates/migrations-job.yaml
+release:
+  namespace: grif-pr-1
+set:
+  mssql.acceptEula: true
+tests:
+  - it: is off by default
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-reset }, any: true }
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-recheck }, any: true }
+      - notMatchRegex: { path: "spec.template.spec.initContainers[1].args[0]", pattern: preview_reset_decide }
+
+  - it: is off with restore on but no preview (grif-test, staging, prod)
+    set:
+      migrations.restore.enabled: true
+      backend.config: { BaseUrl: https://grifball.example, Preview: { Enabled: false } }
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-reset }, any: true }
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-recheck }, any: true }
+
+  - it: is off with Preview set but not enabled
+    set:
+      backend.config.Preview: { SmokeUserPassword: x }
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-reset }, any: true }
+
+  - it: is off with migrations off, even in a preview
+    set:
+      migrations.enabled: false
+      backend.config.Preview.Enabled: true
+    asserts:
+      - hasDocuments: { count: 0 }
+
+  - it: in a preview, checks after check-pending and before the restore, then rechecks after it
+    set:
+      backend.config.Preview.Enabled: true
+      migrations.restore.enabled: true
+      migrations.backup.enabled: false
+    asserts:
+      - lengthEqual: { path: spec.template.spec.initContainers, count: 5 }
+      - equal: { path: "spec.template.spec.initContainers[1].name", value: check-pending }
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
+      - equal: { path: "spec.template.spec.initContainers[3].name", value: restore }
+      - equal: { path: "spec.template.spec.initContainers[4].name", value: preview-recheck }
+      - equal: { path: "spec.template.spec.containers[0].name", value: migrate }
+
+  - it: takes Preview.Enabled as a string too ("true")
+    set:
+      backend.config.Preview.Enabled: "true"
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
+
+  - it: decides from the database's, the image's and master's lists, and resets only on 10
+    set:
+      backend.config.Preview.Enabled: true
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide\\(\\) \\{" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/migrations.txt /app/master-migrations/sqlserver-ever.txt /app/master-migrations/sqlserver.txt /work \\|\\| rc=\\$\\?\n\\[ \"\\$rc\" = 10 \\] \\|\\| exit \"\\$rc\"\n" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "if \\[ ! -e /work/db-exists \\] \\|\\| \\[ -e /work/db-empty \\]; then echo \"A new database: nothing to reset.\"; exit 0; fi" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "ALTER DATABASE \\[\\\\\\$\\$\\(DB_NAME\\)\\] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;\n *DROP DATABASE \\[\\\\\\$\\$\\(DB_NAME\\)\\];" }
+      # A first deploy's again: the restore and convert steps' guard (db-exists) lets them run.
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "rm -f /work/db-exists /work/db-empty\n: > /work/applied.txt\nawk .*/work/applied.txt /app/migrations.txt > /work/pending.txt\ntouch /work/preview-reset\n" }
+      # The script's comments stay in the chart, not the Job.
+      - notMatchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "(?m)^# " }
+      - contains: { path: "spec.template.spec.initContainers[2].env", content: { name: DB_USER, value: sa } }
+      - contains: { path: "spec.template.spec.initContainers[2].volumeMounts", content: { name: migrations-work, mountPath: /work } }
+
+  - it: has no recheck without restore or convert (the reset database is migrated from empty)
+    set:
+      backend.config.Preview.Enabled: true
+    asserts:
+      - notContains: { path: spec.template.spec.initContainers, content: { name: preview-recheck }, any: true }
+
+  - it: rechecks after convert
+    set:
+      backend.config.Preview.Enabled: true
+      migrations.convert: { enabled: true, source: { provider: SqlServer, connectionString: { secretName: s, key: k } } }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[3].name", value: convert }
+      - equal: { path: "spec.template.spec.initContainers[4].name", value: preview-recheck }
+
+  - it: rechecks the restored database's migrations against the image's
+    set:
+      backend.config.Preview.Enabled: true
+      migrations.restore.enabled: true
+    asserts:
+      - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "^set -eu\nif \\[ ! -e /work/preview-reset \\]; then echo \"No preview reset: nothing to check.\"; exit 0; fi\n" }
+      - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "preview_reset_recheck /work/applied-now.txt /app/migrations.txt /work" }
+      - equal: { path: "spec.template.spec.initContainers[5].name", value: backup }
+
+  - it: uses PostgreSQL's lists and drops with FORCE
+    set:
+      database.provider: postgres
+      backend.config.Preview.Enabled: true
+      migrations.restore: { enabled: true, volume: { nfs: { server: nas.example, path: /pg, readOnly: true } } }
+    asserts:
+      - equal: { path: "spec.template.spec.initContainers[2].name", value: preview-reset }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "preview_reset_decide /work/applied.txt /app/postgres/migrations.txt /app/master-migrations/postgres-ever.txt /app/master-migrations/postgres.txt /work" }
+      - matchRegex: { path: "spec.template.spec.initContainers[2].args[0]", pattern: "SELECT format\\('DROP DATABASE IF EXISTS %I WITH \\(FORCE\\)', :'db'\\) \\\\gexec" }
+      - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "applied_migrations > /work/applied.txt" }
+      - matchRegex: { path: "spec.template.spec.initContainers[4].args[0]", pattern: "preview_reset_recheck /work/applied-now.txt /app/postgres/migrations.txt /work" }

@@ -128,6 +128,13 @@ dotnet ef migrations remove --project GrifballWebApp.Migrations.SqlServer --star
 dotnet ef migrations script --project GrifballWebApp.Migrations.SqlServer --startup-project GrifballWebApp.Migrations.SqlServer
 ```
 
+Never edit, delete, rename or regenerate a migration that is already on master (its `.cs` or
+`.Designer.cs`; the `GrifballContextModelSnapshot.cs` files are expected to change): databases apply a
+migration's ID once and never again. Add a new migration instead. The "Master migrations unchanged"
+check (`.github/workflows/migrations.yml`) fails any PR that does. A PR's own new migrations can be
+regenerated freely: its preview resets its database when they no longer match
+(charts/grifballwebapp/README.md, "Preview reset").
+
 ### Database Connection
 - **Development**: SQL Server via Docker Compose (localhost:5434)
 - **Connection String**: `Server=localhost,5434;Database=GrifballWebApp;Encrypt=False;User Id=sa;Password=Pass@word;`

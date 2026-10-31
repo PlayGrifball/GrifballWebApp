@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 [TestFixture]
@@ -30,7 +32,7 @@ public class TeamsControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _controller = new TeamsController(new TeamService(_context, _publisher));
+        _controller = new TeamsController(new TeamService(_context, _publisher, new ContextOutbox(_context)));
         SetUser(null);
     }
 
@@ -129,10 +131,10 @@ public class TeamsControllerTests
         var season = await _context.AddSeason();
 
         await _controller.LockCaptains(season.SeasonID, "h", CancellationToken.None);
-        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher)).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.True);
 
         await _controller.UnlockCaptains(season.SeasonID, "h", CancellationToken.None);
-        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher)).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
+        Assert.That(await new TeamsController(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID, CancellationToken.None), Is.False);
 
         Assert.That(_publisher.ReceivedCalls().Select(c => c.GetArguments()[0]).OfType<LockChanged>().Select(l => l.Value), Is.EqualTo(new[] { true, false }));
     }

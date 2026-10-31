@@ -286,6 +286,31 @@ migrations:
       nfs: { server: nas.example, path: /pg-backups, readOnly: true }
 ```
 
+**Preview reset** (previews only: `backend.config.Preview.Enabled: true`, the app's preview mode, which
+is off by default and never on in a real environment; no other value turns it on). A preview keeps its
+database across a PR's pushes, so when the PR regenerates or renames a migration of its own, the
+database still has the old ID applied and the new one fails, making what is already there. With the
+preview mode on, the Job has a `preview-reset` step after `check-pending` that compares three lists:
+
+- the database's applied migrations (`__EFMigrationsHistory`) and the image's (`/app/migrations.txt`);
+- master's migrations when the image was built, now and every one master has ever had, which CI writes
+  into the image at `/app/master-migrations` (`.github/scripts/master-migrations.sh`, from the
+  `origin/master` of the full clone it builds from: the tree for "now", every migration file a commit
+  on master's first-parent line added for "ever", so a migration a PR regenerated before it merged was
+  never master's).
+
+| The database has, of migrations the image lacks | The Job |
+| --- | --- |
+| none | migrates as usual |
+| only ones master never had, and the image has all of master's | drops the database; restore (or convert) then fills it as on a first deploy, and it's migrated |
+| any master has or had | fails, naming them: the PR is behind master, merge master into it |
+| only the PR's own, but the image lacks some of master's | fails: a reset would restore a backup with master's newer migrations, merge master into the PR |
+| some, and the image has no master lists (built without CI) | fails, saying to reset by hand |
+
+After a reset with restore or convert on, a `preview-recheck` step fails the Job if what was restored
+has migrations the image lacks (master moved on since the image was built). The database is never
+touched in the failing cases; the failed Job's log says why (`kubectl logs job/<name> -c preview-reset`).
+
 **Convert** (`migrations.convert.enabled`, off by default; not with restore). On a release's first
 deploy, the Job copies another GrifballWebApp database into the new one instead: how an environment
 moves between SQL Server and PostgreSQL (either way round, or the same kind). The image's converter

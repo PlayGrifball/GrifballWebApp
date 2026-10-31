@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Events;
+using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -34,7 +35,7 @@ namespace GrifballWebApp.Test
             var config = Substitute.For<IConfiguration>();
             config["BaseUrl"].Returns("https://localhost:4200");
             _urlService = new UrlService(config);
-            _service = new EventsService(_logger, _discordOptions, _discordClient, _context, _urlService);
+            _service = new EventsService(_logger, _discordOptions, new ContextOutbox(_context), _context, _urlService);
         }
 
         [TearDown]
@@ -74,6 +75,8 @@ namespace GrifballWebApp.Test
 
             // Act
             await _service.Go(CancellationToken.None);
+            await using (var outbox = new OutboxTestDriver(_context, _discordClient, _discordOptions.Value))
+                await outbox.DrainAsync();
             
             // Assert: UpsertMessageAsync should be called to send a new message
             await _discordClient.Received(1).UpsertMessageAsync(
@@ -121,6 +124,8 @@ namespace GrifballWebApp.Test
 
             // Act
             await _service.Go(CancellationToken.None);
+            await using (var outbox = new OutboxTestDriver(_context, _discordClient, _discordOptions.Value))
+                await outbox.DrainAsync();
 
             // Assert: UpsertMessageAsync should be called to modify the existing message
             await _discordClient.Received(1).UpsertMessageAsync(

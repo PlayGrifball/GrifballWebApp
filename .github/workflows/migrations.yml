@@ -1,0 +1,37 @@
+name: Migrations
+
+# Master's EF Core migrations are never edited, deleted, renamed or regenerated: a database applies a
+# migration's ID once and never again, so a changed master migration never reaches grif-test, staging,
+# prod or the previews. Every pull request (no path filter, so the check always reports): fails, listing
+# the files, if it changes a migration file that already exists on master
+# (.github/scripts/check-master-migrations.sh). New migrations and the model snapshots are fine.
+on:
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  master-migrations-unchanged:
+    name: Master migrations unchanged
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # The PR's head, diffed from its merge base with master.
+          ref: ${{ github.event.pull_request.head.sha || '' }}
+
+      # The guard and master's migration list (master-migrations.sh, for the images) on fixtures and
+      # throwaway repositories first, so a broken script can't pass everything.
+      - name: Test the scripts
+        run: bash .github/scripts/tests/run.sh
+
+      - name: No master migration modified, deleted or renamed
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin master
+          .github/scripts/check-master-migrations.sh origin/master

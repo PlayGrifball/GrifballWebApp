@@ -238,6 +238,12 @@ jobs:
             type=sha
             type=ref,event=pr
 
+      # master's migration IDs into the build context (.master-migrations), which the image carries at
+      # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
+      # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
+      - name: Master's migration list
+        run: .github/scripts/master-migrations.sh .master-migrations origin/master
+
       # Build backend without pushing first to populate builder cache and allow preview-label.yml to complete
       - name: Build Docker image for backend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -353,6 +359,12 @@ jobs:
       # multi-platform images and export cache
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # master's migration IDs into the build context (.master-migrations), which the image carries at
+      # /app/master-migrations: a preview's migration Job resets its database only when what it has that the
+      # image lacks is none of master's (charts/grifballwebapp). origin/master is in the full clone above.
+      - name: Master's migration list
+        run: .github/scripts/master-migrations.sh .master-migrations origin/master
 
       # Build the arm64 frontend image to check that it compiles
       - name: Build the arm64 frontend image

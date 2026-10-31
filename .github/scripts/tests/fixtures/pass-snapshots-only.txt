@@ -1,0 +1,2 @@
+M	GrifballWebApp.Migrations.SqlServer/Migrations/GrifballContextModelSnapshot.cs
+M	GrifballWebApp.Migrations.Postgres/Migrations/GrifballContextModelSnapshot.cs
