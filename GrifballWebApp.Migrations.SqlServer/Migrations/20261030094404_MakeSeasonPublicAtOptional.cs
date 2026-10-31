@@ -32,9 +32,21 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Seasons that are not public stay so, at the end of time
+            // Seasons that are not public stay so, at the end of time. Their old versions in the history table can be null
+            // too, and SQL Server makes the history column NOT NULL with the table's: it can only be written to with
+            // versioning off. The current rows go first, as updating them adds their null versions to the history.
             migrationBuilder.Sql("""
                 UPDATE [Event].[Seasons] SET [PublicAt] = '9999-12-31T23:59:59' WHERE [PublicAt] IS NULL;
+                """);
+            // Each its own batch: SQL Server checks a batch that writes to the history table before versioning is off.
+            migrationBuilder.Sql("""
+                ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = OFF);
+                """);
+            migrationBuilder.Sql("""
+                UPDATE [Event].[SeasonsHistory] SET [PublicAt] = '9999-12-31T23:59:59' WHERE [PublicAt] IS NULL;
+                """);
+            migrationBuilder.Sql("""
+                ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = [Event].[SeasonsHistory]));
                 """);
 
             migrationBuilder.AlterColumn<DateTime>(

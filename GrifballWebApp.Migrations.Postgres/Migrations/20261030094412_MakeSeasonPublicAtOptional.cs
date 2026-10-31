@@ -32,7 +32,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Seasons that are not public stay so, at the end of time
+            // Seasons that are not public stay so, at the end of time. The history table's columns all take null here, so its
+            // old versions can stay as they are.
             migrationBuilder.Sql("""
                 UPDATE "Event"."Seasons" SET "PublicAt" = 'infinity' WHERE "PublicAt" IS NULL;
                 """);
