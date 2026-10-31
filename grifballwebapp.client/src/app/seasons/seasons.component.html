@@ -1,0 +1,64 @@
+<div class="hud-page" [class.hud-waiting]="!loaded() && seasons().length === 0">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Every season</span>
+    <h1 class="hud-title">Seasons</h1>
+  </div>
+
+  <div class="seasons-filters">
+    <label class="seasons-filter">
+      <span class="hud-label">League</span>
+      <select (change)="setLeague($event)">
+        <option value="">All leagues</option>
+        @for (l of leagues(); track l.id) {
+          <option [value]="l.id">{{l.name}}</option>
+        }
+      </select>
+    </label>
+    <label class="seasons-filter">
+      <span class="hud-label">Game</span>
+      <select (change)="setGame($event)">
+        <option value="">All games</option>
+        @for (g of games(); track g.id) {
+          <option [value]="g.id">{{g.name}}</option>
+        }
+      </select>
+    </label>
+    <label class="seasons-filter seasons-filter--search">
+      <span class="hud-label">Search</span>
+      <input type="search" placeholder="Season or champion" [value]="query()" (input)="search($event)">
+    </label>
+  </div>
+
+  <ul class="seasons-list">
+    @for (s of shown(); track s.seasonID) {
+      <li class="season-card hud-panel">
+        <div class="season-card__head">
+          <a class="season-card__name" [routerLink]="['/season', s.seasonID]">{{s.name}}</a>
+          @if (s.isCurrent) {
+            <span class="hud-label hud-label--accent">Current</span>
+          }
+        </div>
+        <p class="season-card__meta">
+          <span>{{s.year}}</span>
+          <span>{{s.leagueName}}</span>
+          @if (s.gameVersionName) {
+            <span>{{s.gameVersionName}}</span>
+          }
+          <span>{{s.teamCount}} teams · {{s.playerCount}} players</span>
+        </p>
+        @for (c of s.champions; track c.tier + c.teamID) {
+          <p class="season-card__champion">
+            <span class="hud-label hud-label--gold">{{c.tier}} champions</span>
+            <a [routerLink]="['/season', s.seasonID, 'team', c.teamID]">{{c.teamName}}</a>
+          </p>
+        }
+        @if (s.historicalSourceUrl) {
+          <a class="season-card__source" [href]="s.historicalSourceUrl" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
+        }
+      </li>
+    }
+  </ul>
+  @if (loaded() && shown().length === 0) {
+    <p class="hud-muted">No seasons match.</p>
+  }
+</div>

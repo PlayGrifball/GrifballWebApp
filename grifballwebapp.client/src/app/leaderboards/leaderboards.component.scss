@@ -1,0 +1,30 @@
+:host { display: block; }
+
+.hud-tabs { margin-bottom: 16px; }
+
+.board {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.board th,
+.board td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+}
+
+.board .hud-num { text-align: right; }
+
+.board a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.board__titles {
+  color: var(--hud-muted);
+  font-size: 13px;
+}

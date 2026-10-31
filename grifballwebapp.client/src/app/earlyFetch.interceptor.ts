@@ -12,7 +12,7 @@ export interface EarlyResponse {
 export interface EarlyFetches {
   /** When the fetches started (Date.now()). */
   at: number;
-  /** Each fetch by path and query (e.g. /api/Home/PastSeasons?pageSize=10&pageNumber=1); null when it failed. */
+  /** Each fetch by path and query (e.g. /api/Season/GetSeasons?ended=true&pageSize=10&pageNumber=1); null when it failed. */
   responses: Record<string, Promise<EarlyResponse | null> | undefined>;
 }
 

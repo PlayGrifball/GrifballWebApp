@@ -201,7 +201,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (s of filteredSeasons(); track s.playerSeasonStatID) {
+              @for (s of filteredSeasons(); track s.seasonID + '-' + s.isPlayoffs + '-' + s.stintIndex + '-' + s.teamID) {
                 <tr>
                   <td>
                     <div class="table-season-cell">
@@ -239,7 +239,7 @@
                   <td class="hud-num font-mono">{{s.kdRatio != null ? s.kdRatio : '-'}}</td>
                   <td class="hud-num font-mono">{{s.carrierKills}}</td>
                   <td>
-                    <span class="source-tag" [class.waypoint]="s.source === 'Waypoint'">
+                    <span class="source-tag" [class.waypoint]="s.source === 'Matches'">
                       {{s.source}}
                     </span>
                   </td>

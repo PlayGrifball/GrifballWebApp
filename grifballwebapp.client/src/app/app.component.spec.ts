@@ -255,7 +255,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
 
     // 250px toolbar, 100px links: two fit (100, 200), the third would need 300.
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Archive']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
     expect(component.overflowNavLinks().length).toBe(shown() - 2);
   });
 
@@ -263,7 +263,7 @@ describe('AppComponent behaviour', () => {
     fixture.detectChanges();
     const toolbarLinks = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.toolbar-links a:not(#hidden)'))
       .map(a => a.textContent!.trim());
-    expect(toolbarLinks).toEqual(['Home', 'Archive']);
+    expect(toolbarLinks).toEqual(['Home', 'Seasons']);
   });
 
   it('puts every link in the overflow on a mobile-width screen', () => {
@@ -340,7 +340,7 @@ describe('AppComponent behaviour', () => {
     (document.getElementById as jasmine.Spy).calls.reset();
     (document.querySelector as jasmine.Spy).calls.reset();
 
-    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Archive']);
+    expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home', 'Seasons']);
     expect(document.getElementById).not.toHaveBeenCalled();
     expect(document.querySelector).not.toHaveBeenCalled();
   });
@@ -408,9 +408,9 @@ describe('AppComponent behaviour', () => {
     account.isEventOrganizer.set(false);
     toolbarWidth = 150;
     fixture.detectChanges();
-    // Home fits and Archive (everyone's) overflows; the organizer and admin links are neither shown nor counted.
+    // Home fits and Seasons and Leaderboards (everyone's) overflow; the organizer and admin links are neither shown nor counted.
     expect(component.visibleNavLinks().map(n => n.title)).toEqual(['Home']);
-    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Archive']);
+    expect(component.overflowNavLinks().map(n => n.title)).toEqual(['Seasons', 'Leaderboards']);
   });
 
   it('has no Login link: the header\'s Login button (or the user\'s name) is the way in', () => {
@@ -422,7 +422,7 @@ describe('AppComponent behaviour', () => {
   it('puts the Current Season link right after Home', () => {
     api.getCurrentSeasonID.and.returnValue(of(4));
     fixture.detectChanges();
-    expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Archive']);
+    expect(component.navLinks().map(n => n.title).slice(0, 3)).toEqual(['Home', 'Current Season', 'Seasons']);
   });
 
   it('measures again once the web fonts have loaded', async () => {

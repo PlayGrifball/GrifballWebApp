@@ -61,7 +61,10 @@
   }
 
   <section class="hud-section" aria-labelledby="home-archive">
-    <h2 id="home-archive" class="hud-h2">Campaign archive</h2>
+    <div class="home-archive__head">
+      <h2 id="home-archive" class="hud-h2">Past seasons</h2>
+      <a class="home-archive__all" routerLink="/seasons">All seasons</a>
+    </div>
     <div class="hud-table-wrap">
       <table mat-table [dataSource]="pastSeasons" matSort class="home-archive">
         <ng-container matColumnDef="name">

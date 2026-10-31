@@ -286,6 +286,14 @@ const historicalStats = [
   historicalStat(4, 'Truthless', 43, 3), historicalStat(5, 'Legendary', 41, 4, true),
 ];
 
+/** A season in the season list (GET /api/Season/GetSeasons), played in the app unless changed. */
+const seasonListItem = (seasonID: number, name: string, start: string, end: string, changes: Record<string, unknown> = {}) => ({
+  seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season', year: Number(start.slice(0, 4)), isCurrent: false,
+  leagueID: 1, leagueName: 'AGLA', leagueSlug: 'agla', gameVersionID: 6, gameVersionName: 'Halo Infinite', gameVersionSlug: 'infinite',
+  division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 6, playerCount: 30, champions: [], ...changes,
+});
+const leader = (userID: number, gamertag: string, statValue: number, perGame: number | null) => ({ userID, gamertag, statValue, gamesPlayed: 30, perGame, seasonsCount: 3 });
+
 /** The mocked endpoints, by path (without the query string). */
 export function mockRoutes(role: Role): Record<string, MockBody> {
   return {
@@ -301,11 +309,27 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
       { seasonID: 12, name: 'Autumn Brawl', start: '2026-09-07T00:00:00Z', end: '2026-11-30T00:00:00Z', eventType: 'Season' },
       { seasonID: 13, name: 'Winter Campaign', start: '2026-11-20T00:00:00Z', end: '2027-02-15T00:00:00Z', eventType: 'Season' },
     ],
-    '/api/Home/PastSeasons': {
-      totalCount: 11,
-      results: ([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
-        ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
-        .map(([name, start, end, seasonID]) => ({ seasonID, name, start: start + 'T00:00:00Z', end: end + 'T00:00:00Z', eventType: 'Season' })),
+    // The season list: the home page's past seasons and the seasons page (the backfilled season 5 among them)
+    '/api/Season/GetSeasons': {
+      totalCount: 7,
+      results: [
+        seasonListItem(12, 'Autumn Brawl', '2026-09-07', '2026-11-30', { isCurrent: true }),
+        ...([['Summer Smash', '2026-06-01', '2026-08-20', 11], ['Spring Showdown', '2026-03-02', '2026-05-18', 10],
+          ['Frostbite Cup', '2025-12-01', '2026-02-15', 9], ['Harvest Hammer', '2025-09-01', '2025-11-20', 8], ['Season 7', '2025-06-02', '2025-08-18', 7]] as [string, string, string, number][])
+          .map(([name, start, end, seasonID]) => seasonListItem(seasonID, name, start, end)),
+        seasonListItem(5, 'Summer League 2010', '2010-01-01', '2010-12-31', {
+          gameVersionID: 1, gameVersionName: 'Halo 3', gameVersionSlug: 'halo3', division: 'Pro', isHistorical: true, historicalSourceUrl: HISTORICAL_SOURCE,
+          teamCount: 3, playerCount: 12, champions: [{ tier: 'Pro', teamID: 41, teamName: 'Relentless', roster: [] }] }),
+      ],
+    },
+    '/api/Leaderboards/GetLeaderboards': {
+      ringLeaders: [{ userID: 501, gamertag: 'Legendary', ringsCount: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)', 'Frostbite Cup (Open)'] },
+        { userID: 117, gamertag: 'MasterChief117', ringsCount: 1, titles: ['Autumn Brawl (Open)'] }],
+      dynasties: [{ teamName: 'Relentless', latestTeamID: 41, latestSeasonID: 5, championshipsCount: 2, seasonsActive: 3, titles: ['Summer League 2010 (Pro)', 'Summer Smash (Open)'] }],
+      goalLeaders: [leader(501, 'Legendary', 120, 4), leader(117, 'MasterChief117', 88, 2.93)],
+      killLeaders: [leader(117, 'MasterChief117', 640, 21.33)],
+      gamesPlayedLeaders: [leader(501, 'Legendary', 30, null)],
+      carrierStopLeaders: [leader(501, 'Legendary', 45, 1.5)],
     },
     ...Object.fromEntries(Object.entries(seasonNames).map(([id, name]) => [`/api/Season/getSeasonName/${id}`, { text: name }])),
     ...Object.fromEntries(Object.keys(seasonNames).map(id => [`/api/Season/getSeasonSummary/${id}`, summary(Number(id))])),

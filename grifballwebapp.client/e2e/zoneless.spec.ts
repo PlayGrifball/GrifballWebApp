@@ -49,7 +49,7 @@ test('home renders the events and past seasons that load after navigation', asyn
     '/api/Home/CurrentAndFutureEvents/': route => json(route, [
       { seasonID: 4, name: 'Spring', start: '2026-03-01T00:00:00Z', end: '2026-05-01T00:00:00Z', eventType: 'Season' },
     ]),
-    '/api/Home/PastSeasons': route => json(route, {
+    '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),
@@ -65,7 +65,7 @@ test('home renders the events and past seasons that load after navigation', asyn
 test('a season page reached by an in-app link renders the data it loads', async ({ page }) => {
   await mockBackend(page, {
     '/api/Home/CurrentAndFutureEvents/': route => json(route, []),
-    '/api/Home/PastSeasons': route => json(route, {
+    '/api/Season/GetSeasons': route => json(route, {
       totalCount: 1,
       results: [{ seasonID: 3, name: 'Winter', start: '2025-12-01T00:00:00Z', end: '2026-02-01T00:00:00Z', eventType: 'Season' }],
     }),

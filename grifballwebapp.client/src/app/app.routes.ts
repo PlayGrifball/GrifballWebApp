@@ -129,10 +129,17 @@ export const APP_ROUTES: Routes = [
     title: 'User Profile'
   },
   {
-    path: 'archive',
-    loadComponent: () => import('./archive/archive-hub/archive-hub.component').then(m => m.ArchiveHubComponent),
-    title: 'Historical Archive'
+    path: 'seasons',
+    loadComponent: () => import('./seasons/seasons.component').then(m => m.SeasonsComponent),
+    title: 'Seasons'
   },
+  {
+    path: 'leaderboards',
+    loadComponent: () => import('./leaderboards/leaderboards.component').then(m => m.LeaderboardsComponent),
+    title: 'Leaderboards'
+  },
+  // The seasons page was the archive: its old links still work
+  { path: 'archive', redirectTo: 'seasons', pathMatch: 'full' },
   {
     path: 'excel',
     loadComponent: () => import('./excel/excel.component').then(m => m.ExcelComponent),

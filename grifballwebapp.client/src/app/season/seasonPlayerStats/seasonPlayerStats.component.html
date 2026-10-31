@@ -25,7 +25,7 @@
       </tr>
     </thead>
     <tbody>
-      @for (p of shown(); track p.playerSeasonStatID) {
+      @for (p of shown(); track p.userID + '-' + p.isPlayoffs + '-' + p.stintIndex + '-' + p.teamID) {
         <tr>
           <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
           <td>

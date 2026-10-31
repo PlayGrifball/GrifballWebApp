@@ -1,0 +1,89 @@
+:host { display: block; }
+
+.seasons-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.seasons-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.seasons-filter--search { flex: 1 1 220px; }
+
+.seasons-filter select,
+.seasons-filter input {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-input);
+  color: var(--hud-text);
+  font-size: 14px;
+}
+
+.seasons-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.season-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.season-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.season-card__name {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--hud-heading);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.season-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--hud-muted);
+  font-size: 13px;
+}
+
+.season-card__champion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+.season-card__source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+}

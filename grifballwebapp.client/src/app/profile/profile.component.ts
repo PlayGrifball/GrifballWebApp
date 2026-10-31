@@ -64,7 +64,7 @@ export interface GameCareerSummaryDto {
 }
 
 export interface PlayerSeasonStatDetailDto {
-  playerSeasonStatID: number;
+  playerSeasonStatID: number | null;
   seasonID: number;
   seasonName: string;
   seasonSourceUrl?: string | null;

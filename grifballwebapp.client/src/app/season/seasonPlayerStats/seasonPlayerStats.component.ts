@@ -4,7 +4,8 @@ import { RouterLink } from '@angular/router';
 
 /** A player's totals for one stint of the season (regular season or playoffs). */
 export interface SeasonPlayerStatDto {
-  playerSeasonStatID: number;
+  /** The stored row, for stored season totals; null for stats from the season's games. */
+  playerSeasonStatID: number | null;
   userID: number;
   gamertag: string;
   teamID?: number | null;

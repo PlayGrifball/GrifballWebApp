@@ -20,7 +20,8 @@ import { CreateUserComponent } from './userManagement/createUser/createUser.comp
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { ProfileComponent } from './profile/profile.component';
-import { ArchiveHubComponent } from './archive/archive-hub/archive-hub.component';
+import { SeasonsComponent } from './seasons/seasons.component';
+import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
@@ -122,10 +123,12 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('should have archive hub route', () => {
-    const archiveRoute = APP_ROUTES.find(r => r.path === 'archive');
-    expect(archiveRoute).toBeDefined();
-    expect(archiveRoute?.title).toBe('Historical Archive');
+  it('has the seasons and leaderboards pages, and sends the old archive link to the seasons page', () => {
+    expect(APP_ROUTES.find(r => r.path === 'seasons')?.title).toBe('Seasons');
+    expect(APP_ROUTES.find(r => r.path === 'leaderboards')?.title).toBe('Leaderboards');
+    const archive = APP_ROUTES.find(r => r.path === 'archive')!;
+    expect(archive.pathMatch).toBe('full');
+    expect(archive.redirectTo).toBe('seasons');
   });
 
   it('has no separate pages for historical seasons, teams or gamertags', () => {
@@ -133,7 +136,7 @@ describe('APP_ROUTES', () => {
   });
 
   it('should have all routes with lazy loading', () => {
-    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
+    const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**' && !r.redirectTo);
     routesWithComponents.forEach(route => {
       expect(route.loadComponent).toBeDefined();
     });
@@ -179,7 +182,8 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
     'profile/:userID': ProfileComponent,
-    'archive': ArchiveHubComponent,
+    'seasons': SeasonsComponent,
+    'leaderboards': LeaderboardsComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,
@@ -188,7 +192,7 @@ describe('APP_ROUTES lazy loading', () => {
   };
 
   it('covers every route in the table above', () => {
-    expect(APP_ROUTES.map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
+    expect(APP_ROUTES.filter(r => !r.redirectTo).map(r => r.path!).sort()).toEqual(Object.keys(expected).sort());
   });
 
   for (const [path, component] of Object.entries(expected)) {

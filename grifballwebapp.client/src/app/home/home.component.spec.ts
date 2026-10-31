@@ -105,7 +105,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Home/PastSeasons' &&
+        request.url === '/api/Season/GetSeasons' &&
         request.params.get('pageSize') === '10' &&
         request.params.get('pageNumber') === '1'
       );
@@ -126,7 +126,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Home/PastSeasons' &&
+        request.url === '/api/Season/GetSeasons' &&
         request.params.get('sortDirection') === 'asc' &&
         request.params.get('sortColumn') === 'name'
       );
@@ -147,7 +147,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => {
-        return request.url === '/api/Home/PastSeasons' &&
+        return request.url === '/api/Season/GetSeasons' &&
                !request.params.has('sortDirection') &&
                !request.params.has('sortColumn');
       });
@@ -172,7 +172,7 @@ describe('HomeComponent', () => {
         }
       });
 
-      const req = httpTestingController.expectOne((request) => request.url === '/api/Home/PastSeasons');
+      const req = httpTestingController.expectOne((request) => request.url === '/api/Season/GetSeasons');
       req.flush(mockResult);
     });
 
@@ -191,7 +191,7 @@ describe('HomeComponent', () => {
         }
       });
 
-      const req = httpTestingController.expectOne((request) => request.url === '/api/Home/PastSeasons');
+      const req = httpTestingController.expectOne((request) => request.url === '/api/Season/GetSeasons');
       req.flush(mockResult);
     });
   });
@@ -210,7 +210,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Home/PastSeasons' &&
+        request.url === '/api/Season/GetSeasons' &&
         request.params.get('pageSize') === '25'
       );
       req.flush(mockResult);
@@ -229,7 +229,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Home/PastSeasons' &&
+        request.url === '/api/Season/GetSeasons' &&
         request.params.get('pageNumber') === '3'
       );
       req.flush(mockResult);
@@ -248,7 +248,7 @@ describe('HomeComponent', () => {
       });
 
       const req = httpTestingController.expectOne((request) => 
-        request.url === '/api/Home/PastSeasons' &&
+        request.url === '/api/Season/GetSeasons' &&
         request.params.get('sortDirection') === 'desc' &&
         request.params.get('sortColumn') === 'name'
       );
@@ -291,7 +291,7 @@ describe('HomeComponent paginator and sort wiring', () => {
   }
 
   function pastSeasonsRequest() {
-    const reqs = http.match(r => r.url === '/api/Home/PastSeasons');
+    const reqs = http.match(r => r.url === '/api/Season/GetSeasons');
     expect(reqs.length).withContext('one past-seasons request').toBeGreaterThan(0);
     return reqs[reqs.length - 1];
   }
@@ -395,7 +395,7 @@ describe('Home page events', () => {
     const load = (events: Event[]) => {
       fixture.detectChanges();
       http.expectOne('/api/Home/CurrentAndFutureEvents/').flush(events);
-      http.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      http.match(r => r.url === '/api/Season/GetSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
       fixture.detectChanges();
     };
 
@@ -437,7 +437,7 @@ describe('Home page events', () => {
       const page = () => el().querySelector('.hud-page')!;
       expect(page().classList).toContain('hud-waiting');
       http.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
-      http.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      http.match(r => r.url === '/api/Season/GetSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
       fixture.detectChanges();
       expect(page().classList).not.toContain('hud-waiting');
       expect(el().textContent).toContain('There are no current or upcoming events');

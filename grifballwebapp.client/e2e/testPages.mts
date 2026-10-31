@@ -15,6 +15,7 @@ export const PUBLIC = [
   '/reschedule-request/31', '/no-such-page',
   // A season backfilled from the historical archive: its banner, champions, stats and what-is-missing notices
   '/season/5', '/season/5?tab=schedule', '/season/5/team/41',
+  '/seasons', '/leaderboards',
 ];
 export const VISITOR = ['/profile/117', '/login', '/register', '/reset-password?token=e2e-reset-token'];
 // The commissioners' and admins' pages (a visitor is sent home from them)

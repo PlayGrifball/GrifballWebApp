@@ -5,7 +5,7 @@ export interface SeasonEvent {
   start: string,
   end: string,
   eventType: 'Signup' | 'Draft' | 'Season',
-  /** A past season backfilled from the historical archive: its source spreadsheet (/api/Home/PastSeasons). */
+  /** A past season backfilled from the historical archive: its source spreadsheet (/api/Season/GetSeasons). */
   historicalSourceUrl?: string | null,
 }
 
