@@ -32,6 +32,61 @@ public class ProfileController : ControllerBase
             .FirstOrDefaultAsync(ct);
     }
 
+    [HttpGet("{gamertag}", Name = "ResolveGamertag")]
+    public async Task<ActionResult<int>> ResolveGamertag([FromRoute] string gamertag, CancellationToken ct)
+    {
+        var cleaned = Historical.HistoricalKeys.CleanGamertag(gamertag);
+        if (string.IsNullOrWhiteSpace(cleaned))
+            return NotFound();
+
+        var normalized = Historical.HistoricalKeys.Normalize(gamertag);
+
+        // 1. Direct active XboxUser gamertag match
+        var userByXbox = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.XboxUser != null && u.XboxUser.Gamertag == cleaned)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (userByXbox != 0)
+            return Ok(userByXbox);
+
+        // 2. Renamed XboxGamertagHistory match
+        var userByHistory = await _context.XboxGamertagHistory
+            .AsNoTracking()
+            .Where(h => h.NormalizedGamertag == normalized)
+            .OrderByDescending(h => h.LastSeen == null)
+            .ThenByDescending(h => h.LastSeen)
+            .Select(h => (int?)h.XboxUser.User.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (userByHistory.HasValue && userByHistory.Value != 0)
+            return Ok(userByHistory.Value);
+
+        // 3. Historical dummy placeholder user: "historical:<gamertag>"
+        var dummyName = Historical.HistoricalKeys.DummyUserName(cleaned);
+        var dummyUser = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.UserName == dummyName)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (dummyUser != 0)
+            return Ok(dummyUser);
+
+        // 4. Match against Gamertag on PlayerSeasonStats
+        var userByStat = await _context.PlayerSeasonStats
+            .AsNoTracking()
+            .Where(s => s.Gamertag == cleaned)
+            .Select(s => s.UserID)
+            .FirstOrDefaultAsync(ct);
+
+        if (userByStat != 0)
+            return Ok(userByStat);
+
+        return NotFound();
+    }
+
     [HttpGet("{userID:int}", Name = "GetProfileStats")]
     public async Task<ActionResult<ProfileStatsDto>> GetProfileStats([FromRoute] int userID, CancellationToken ct)
     {
@@ -74,6 +129,7 @@ public class ProfileController : ControllerBase
                 PlayerChampionshipID = c.PlayerChampionshipID,
                 SeasonID = c.SeasonID,
                 SeasonName = c.Season.SeasonName,
+                IsHistorical = c.Season.IsHistorical,
                 SeasonSourceUrl = c.Season.HistoricalSourceUrl,
                 LeagueID = c.LeagueID,
                 LeagueName = c.League.LeagueName,
@@ -83,6 +139,7 @@ public class ProfileController : ControllerBase
                 GameVersionSlug = c.GameVersion != null ? c.GameVersion.Slug : null,
                 Tier = c.Tier,
                 TeamName = c.TeamName,
+                TeamSlug = string.IsNullOrWhiteSpace(c.TeamName) ? null : Historical.HistoricalKeys.Slug(c.TeamName),
                 IsCaptain = c.IsCaptain,
                 GamertagUsed = c.GamertagUsed,
                 Year = c.Season.SeasonStart.Year
@@ -106,6 +163,7 @@ public class ProfileController : ControllerBase
             PlayerSeasonStatID = s.PlayerSeasonStatID,
             SeasonID = s.SeasonID,
             SeasonName = s.Season.SeasonName,
+            IsHistorical = s.Season.IsHistorical,
             SeasonSourceUrl = s.Season.HistoricalSourceUrl,
             LeagueID = s.Season.LeagueID,
             LeagueName = s.Season.League != null ? s.Season.League.LeagueName : "AGLA",
@@ -115,6 +173,7 @@ public class ProfileController : ControllerBase
             GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : "unknown",
             Division = s.Division,
             TeamName = s.TeamName,
+            TeamSlug = string.IsNullOrWhiteSpace(s.TeamName) ? null : Historical.HistoricalKeys.Slug(s.TeamName),
             TradeNote = s.TradeNote,
             RoleNote = s.RoleNote,
             StintIndex = s.StintIndex,

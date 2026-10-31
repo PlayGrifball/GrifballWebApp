@@ -185,10 +185,14 @@ public class ProfileControllerTests
             Assert.That(stats.Championships, Has.Count.EqualTo(1));
             Assert.That(stats.Championships[0].Tier, Is.EqualTo("Pro"));
             Assert.That(stats.Championships[0].TeamName, Is.EqualTo("Dynasty"));
+            Assert.That(stats.Championships[0].TeamSlug, Is.EqualTo("dynasty"));
+            Assert.That(stats.Championships[0].IsHistorical, Is.True);
             Assert.That(stats.Championships[0].IsCaptain, Is.True);
             Assert.That(stats.Championships[0].Year, Is.EqualTo(2018));
             Assert.That(stats.Championships[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
             Assert.That(stats.Seasons[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
+            Assert.That(stats.Seasons[0].TeamSlug, Is.EqualTo("dynasty"));
+            Assert.That(stats.Seasons[0].IsHistorical, Is.True);
 
             Assert.That(stats.OverallCareer, Is.Not.Null);
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(10));
@@ -287,5 +291,112 @@ public class ProfileControllerTests
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
         Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "Bravo", "Charlie", "Undated A", "Undated B" }));
+    }
+
+    [Test]
+    public async Task ResolveGamertag_DirectXboxUser_ReturnsUserId()
+    {
+        var user = new User { UserName = "gamer1", XboxUser = new XboxUser { XboxUserID = 101, Gamertag = "MasterChief" } };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.ResolveGamertag("MasterChief", CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result.Result!;
+        Assert.That(ok.Value, Is.EqualTo(user.Id));
+    }
+
+    [Test]
+    public async Task ResolveGamertag_PastGamertag_ReturnsUserId()
+    {
+        var user = new User { UserName = "gamer2", XboxUser = new XboxUser { XboxUserID = 202, Gamertag = "CurrentTag" } };
+        await _context.Users.AddAsync(user);
+        await _context.XboxGamertagHistory.AddAsync(new XboxGamertagHistory
+        {
+            XboxUserID = 202,
+            Gamertag = "OldTag",
+            NormalizedGamertag = "OLDTAG",
+            Source = GamertagHistorySource.RenameDetected
+        });
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.ResolveGamertag("oldtag", CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result.Result!;
+        Assert.That(ok.Value, Is.EqualTo(user.Id));
+    }
+
+    [Test]
+    public async Task ResolveGamertag_HistoricalDummyUser_ReturnsUserId()
+    {
+        var user = new User { UserName = "historical:OLDLEGEND", DisplayName = "OldLegend", IsDummyUser = true };
+        await _context.Users.AddAsync(user);
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.ResolveGamertag("OldLegend", CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result.Result!;
+        Assert.That(ok.Value, Is.EqualTo(user.Id));
+    }
+
+    [Test]
+    public async Task ResolveGamertag_NotFound_ReturnsNotFound()
+    {
+        var result = await _controller.ResolveGamertag("NonExistentSpartan", CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
+    }
+
+    [Test]
+    public async Task GetProfileStats_PopulatesTeamSlugAndIsHistorical()
+    {
+        var user = new User { UserName = "slugtester" };
+        await _context.Users.AddAsync(user);
+        var season = new Season
+        {
+            SeasonName = "Summer League 2021 (Pro)",
+            GameVersionID = 1,
+            IsHistorical = true,
+            HistoricalSourceID = "sml21/stats",
+            SeasonStart = new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2021, 8, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+
+        await _context.PlayerChampionships.AddAsync(new PlayerChampionship
+        {
+            UserID = user.Id,
+            SeasonID = season.SeasonID,
+            LeagueID = 1,
+            Tier = "Pro",
+            TeamName = "B E N C H W A R M E R S",
+            GamertagUsed = "slugtester"
+        });
+
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat
+        {
+            UserID = user.Id,
+            SeasonID = season.SeasonID,
+            GameVersionID = 1,
+            Gamertag = "slugtester",
+            TeamName = "Relentless",
+            GamesPlayed = 10,
+            Goals = 5
+        });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stats.Championships.Single().TeamSlug, Is.EqualTo("b-e-n-c-h-w-a-r-m-e-r-s"));
+            Assert.That(stats.Championships.Single().IsHistorical, Is.True);
+            Assert.That(stats.Seasons.Single().TeamSlug, Is.EqualTo("relentless"));
+            Assert.That(stats.Seasons.Single().IsHistorical, Is.True);
+        });
     }
 }

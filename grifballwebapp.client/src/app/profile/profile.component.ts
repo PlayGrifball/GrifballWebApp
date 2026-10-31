@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AccountService } from '../account.service';
 import { FormsModule } from '@angular/forms';
 import { ErrorMessageComponent } from '../validation/errorMessage.component';
@@ -25,9 +25,11 @@ export interface PlayerChampionshipDto {
   gameVersionSlug?: string | null;
   tier: string;
   teamName: string;
+  teamSlug?: string | null;
   isCaptain: boolean;
   gamertagUsed: string;
   year?: number | null;
+  isHistorical: boolean;
 }
 
 export interface GameCareerSummaryDto {
@@ -74,6 +76,7 @@ export interface PlayerSeasonStatDetailDto {
   gameVersionSlug: string;
   division?: string | null;
   teamName?: string | null;
+  teamSlug?: string | null;
   tradeNote?: string | null;
   roleNote?: string | null;
   stintIndex: number;
@@ -98,6 +101,7 @@ export interface PlayerSeasonStatDetailDto {
   damageTaken?: number | null;
   score?: number | null;
   year?: number | null;
+  isHistorical: boolean;
 }
 
 export interface ProfileStatsDto {
@@ -119,6 +123,7 @@ export interface ProfileDto {
 @Component({
   selector: 'app-profile',
   imports: [
+    RouterLink,
     FormsModule,
     DecimalPipe,
     ErrorMessageComponent,

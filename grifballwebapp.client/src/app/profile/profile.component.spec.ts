@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ProfileComponent, ProfileStatsDto } from './profile.component';
 import { AccountService } from '../account.service';
@@ -28,6 +28,7 @@ describe('ProfileComponent', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]
@@ -239,6 +240,8 @@ describe('ProfileComponent', () => {
           gameVersionSlug: 'halo3',
           tier: 'Pro',
           teamName: 'Blue Team',
+          teamSlug: 'blue-team',
+          isHistorical: true,
           isCaptain: true,
           gamertagUsed: 'MasterChief',
           year: 2021
@@ -304,6 +307,8 @@ describe('ProfileComponent', () => {
           gameVersionSlug: 'halo3',
           division: 'Pro',
           teamName: 'Blue Team',
+          teamSlug: 'blue-team',
+          isHistorical: true,
           stintIndex: 1,
           isPlayoffs: false,
           isCombined: false,
@@ -340,6 +345,16 @@ describe('ProfileComponent', () => {
     expect(el.textContent).toContain('John-117');
     expect(el.textContent).toContain('12 - 2');
     expect(el.textContent).toContain('85.7% Win rate');
+
+    // Verify router links exist for historical season and team
+    const seasonLink = el.querySelector('.trophy-season a');
+    expect(seasonLink).not.toBeNull();
+    expect(seasonLink?.getAttribute('href')).toBe('/archive/season/10');
+
+    const teamLink = el.querySelector('.trophy-meta a.trophy-team');
+    expect(teamLink).not.toBeNull();
+    expect(teamLink?.getAttribute('href')).toBe('/archive/team/blue-team');
+
     const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('.hud-tab'));
     expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
     tabs[1].click();
@@ -360,6 +375,7 @@ describe('ProfileComponent linked accounts', () => {
       providers: [
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: AccountService, useValue: { personID } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '21' } } } },
       ]

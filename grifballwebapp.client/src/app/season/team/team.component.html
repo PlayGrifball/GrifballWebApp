@@ -21,7 +21,11 @@
             @for (player of team()?.players; track player.teamPlayerID) {
                 <div class="team-player">
                     <span class="hud-avatar" aria-hidden="true">{{(player.gamertag ?? '?').charAt(0)}}</span>
-                    <span class="team-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+                    @if (player.userID) {
+                        <a [routerLink]="['/profile', player.userID]" class="team-player__name hud-text-link">{{player.gamertag ?? 'Unknown Spartan'}}</a>
+                    } @else {
+                        <span class="team-player__name">{{player.gamertag ?? 'Unknown Spartan'}}</span>
+                    }
                     @if (player.draftCaptainOrder != null) {
                         <span class="hud-label hud-label--gold">Captain</span>
                     } @else {

@@ -20,6 +20,9 @@ import { CreateUserComponent } from './userManagement/createUser/createUser.comp
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { ProfileComponent } from './profile/profile.component';
+import { PlayerRedirectComponent } from './player-redirect/player-redirect.component';
+import { HistoricalSeasonComponent } from './archive/historical-season/historical-season.component';
+import { HistoricalTeamComponent } from './archive/historical-team/historical-team.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
@@ -121,6 +124,24 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
+  it('should have player route with gamertag parameter', () => {
+    const playerRoute = APP_ROUTES.find(r => r.path === 'player/:gamertag');
+    expect(playerRoute).toBeDefined();
+    expect(playerRoute?.title).toBe('Spartan Profile');
+  });
+
+  it('should have archive season route', () => {
+    const archiveSeasonRoute = APP_ROUTES.find(r => r.path === 'archive/season/:seasonID');
+    expect(archiveSeasonRoute).toBeDefined();
+    expect(archiveSeasonRoute?.title).toBe('Historical Season');
+  });
+
+  it('should have archive team route', () => {
+    const archiveTeamRoute = APP_ROUTES.find(r => r.path === 'archive/team/:teamSlug');
+    expect(archiveTeamRoute).toBeDefined();
+    expect(archiveTeamRoute?.title).toBe('Historical Team');
+  });
+
   it('should have all routes with lazy loading', () => {
     const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
     routesWithComponents.forEach(route => {
@@ -143,7 +164,7 @@ describe('APP_ROUTES', () => {
 
 describe('APP_ROUTES lazy loading', () => {
   // Each route lazily imports its page. Resolving every loader catches broken import paths
-  // and routes wired to the wrong component.
+  // without having to start the whole Angular application or a router.
   const expected: Record<string, unknown> = {
     '': HomeComponent,
     'theme': ThemeComponent,
@@ -168,6 +189,9 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
     'profile/:userID': ProfileComponent,
+    'player/:gamertag': PlayerRedirectComponent,
+    'archive/season/:seasonID': HistoricalSeasonComponent,
+    'archive/team/:teamSlug': HistoricalTeamComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,
