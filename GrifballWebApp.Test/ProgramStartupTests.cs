@@ -410,7 +410,7 @@ public class ProgramStartupTests
     public async Task NormalMode_Should_PublishNotifications_ToTheTeamsHub()
     {
         // The real IPublisher from Program.cs's registration: LockChanged reaches LockChangeHandler, which tells every
-        // other connection to lock the captains (and LockChangeDiscordHandler, with Discord disabled, does nothing).
+        // other connection to lock the captains (and the draft channel message it queues is skipped, Discord being disabled).
         var others = Substitute.For<ITeamsHubClient>();
         var clients = Substitute.For<IHubClients<ITeamsHubClient>>();
         clients.AllExcept(Arg.Any<IReadOnlyList<string>>()).Returns(others);

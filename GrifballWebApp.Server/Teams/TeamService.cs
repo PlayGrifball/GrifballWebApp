@@ -2,6 +2,7 @@
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Teams.Handlers;
 using GrifballWebApp.Server.Notifications;
+using GrifballWebApp.Server.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Teams;
@@ -10,9 +11,11 @@ public class TeamService
 {
     private readonly GrifballContext _context;
     private readonly IPublisher _publisher;
+    private readonly IOutbox _outbox;
 
-    public TeamService(GrifballContext context, IPublisher publisher)
+    public TeamService(GrifballContext context, IPublisher publisher, IOutbox outbox)
     {
+        _outbox = outbox;
         _publisher = publisher;
         _context = context;
     }
@@ -227,6 +230,9 @@ public class TeamService
         }
 
         await _context.SaveChangesAsync(ct);
+        // The draft channel is told with the change: the outbox sends it once committed.
+        await _outbox.EnqueuePlayerRemovedAsync(_context, this, dto, ct);
+        await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
@@ -297,6 +303,9 @@ public class TeamService
             throw new TeamServiceException("Could not find team with that captain and season");
         await _context.TeamPlayers.AddAsync(player);
 
+        await _context.SaveChangesAsync(ct);
+        // The draft channel is told with the change: the outbox sends it once committed.
+        await _outbox.EnqueuePlayerAddedAsync(_context, this, dto, ct);
         await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
@@ -374,6 +383,9 @@ public class TeamService
         }
 
         await _context.SaveChangesAsync(ct);
+        // The draft channel is told with the change: the outbox sends it once committed.
+        await _outbox.EnqueuePlayerMovedAsync(_context, this, dto, ct);
+        await _context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
         _ = _publisher.Publish(Notification.Create(signalRConnectionID, dto));
@@ -434,7 +446,12 @@ public class TeamService
 
         season.CaptainsLocked = @lock;
 
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         await _context.SaveChangesAsync(ct);
+        // The draft channel is told with the change: the outbox sends it once committed.
+        await _outbox.EnqueueLockChangedAsync(_context, this, seasonID, @lock, ct);
+        await _context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         _ = _publisher.Publish(new LockChanged(@lock, seasonID, signalRConnectionID));
     }

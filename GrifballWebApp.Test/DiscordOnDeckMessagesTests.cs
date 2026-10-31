@@ -8,6 +8,8 @@ using GrifballWebApp.Server.Notifications;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 [TestFixture]
@@ -18,21 +20,31 @@ public class DiscordOnDeckMessagesTests
     private const ulong DraftChannel = 555_000_111;
     private GrifballContext _context = null!;
     private FakeRestRequestHandler _handler = null!;
-    private DiscordOnDeckMessages _sut = null!;
+    private TeamService _teams = null!;
+    private OutboxTestDriver _outbox = null!;
 
     [SetUp]
     public async Task SetUp()
     {
         _context = await SetUpFixture.NewGrifballContext();
         var rest = FakeRestRequestHandler.CreateClient(out _handler);
-        var teamService = new TeamService(_context, Substitute.For<IPublisher>());
-        _sut = new DiscordOnDeckMessages(teamService, rest, _context, Options.Create(new DiscordOptions { DraftChannel = DraftChannel }));
+        _teams = new TeamService(_context, Substitute.For<IPublisher>(), new ContextOutbox(_context));
+        _outbox = new OutboxTestDriver(_context, new DiscordInterface.Generated.DiscordRestClient(rest), new DiscordOptions { DraftChannel = DraftChannel });
     }
 
     [TearDown]
     public async Task TearDown()
     {
+        await _outbox.DisposeAsync();
         await _context.DropDatabaseAndDispose();
+    }
+
+    /// <summary>The on-deck messages queued as a draft change queues them, then sent.</summary>
+    private async Task SendOnDeck(int seasonId)
+    {
+        await new ContextOutbox(_context).EnqueueOnDeckAsync(_context, _teams, seasonId, CancellationToken.None);
+        await _context.SaveChangesAsync();
+        await _outbox.DrainAsync();
     }
 
     internal static List<JsonElement> StringMenus(JsonElement body)
@@ -66,7 +78,7 @@ public class DiscordOnDeckMessagesTests
     {
         var season = await _context.AddSeason();
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(1));
@@ -82,7 +94,7 @@ public class DiscordOnDeckMessagesTests
         await _context.AddSignup(season, cap);
         await _context.AddTeam(season, "T", cap, 1);
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(1));
@@ -102,7 +114,7 @@ public class DiscordOnDeckMessagesTests
         await _context.AddSignup(season, zed);
         await _context.AddSignup(season, amy);
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(1), _handler.Requests.FirstOrDefault()?.Body);
@@ -130,7 +142,7 @@ public class DiscordOnDeckMessagesTests
         var p = await _context.AddUser("p", gamertag: "P");
         await _context.AddSignup(season, p);
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         Assert.That(Content(_handler.SentMessages().Single().Body), Is.EqualTo("<@424242> is on deck"));
     }
@@ -146,7 +158,7 @@ public class DiscordOnDeckMessagesTests
         var p = await _context.AddUser("p", gamertag: "P");
         await _context.AddSignup(season, p);
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         Assert.That(Content(_handler.SentMessages().Single().Body), Is.EqualTo("Captain Display is on deck"));
     }
@@ -160,7 +172,7 @@ public class DiscordOnDeckMessagesTests
         var p = await _context.AddUser("p", gamertag: "P");
         await _context.AddSignup(season, p);
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         Assert.That(Content(_handler.SentMessages().Single().Body), Is.EqualTo($"{cap.Id} is on deck"));
     }
@@ -181,7 +193,7 @@ public class DiscordOnDeckMessagesTests
         _context.SeasonSignups.AddRange(userIds.Select(id => new SeasonSignup { SeasonID = season.SeasonID, UserID = id, Timestamp = new DateTime(2024, 12, 1) }));
         await _context.SaveChangesAsync();
 
-        await _sut.SendMessageAsync(season.SeasonID);
+        await SendOnDeck(season.SeasonID);
 
         var sent = _handler.SentMessages();
         Assert.That(sent, Has.Count.EqualTo(2));
