@@ -52,6 +52,14 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 maxLength: 100,
                 nullable: true);
 
+            migrationBuilder.AddColumn<string>(
+                name: "HistoricalSourceUrl",
+                schema: "Event",
+                table: "Seasons",
+                type: "nvarchar(500)",
+                maxLength: 500,
+                nullable: true);
+
             migrationBuilder.AddColumn<bool>(
                 name: "IsHistorical",
                 schema: "Event",
@@ -598,6 +606,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
             migrationBuilder.DropColumn(
                 name: "HistoricalSourceID",
+                schema: "Event",
+                table: "Seasons");
+
+            migrationBuilder.DropColumn(
+                name: "HistoricalSourceUrl",
                 schema: "Event",
                 table: "Seasons");
 

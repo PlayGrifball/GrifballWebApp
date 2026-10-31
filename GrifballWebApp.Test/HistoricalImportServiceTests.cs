@@ -42,10 +42,10 @@ public class HistoricalImportServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
-            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EqualTo(new[] { "agla/winter-league-2019", "late-league/late-league-season-8-halo-3" }));
+            Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EquivalentTo(new[] { "winter-league-2019/Stats", "late-league-season-8-halo-3/Stats" }));
             Assert.That(seasons.Select(s => s.IsHistorical), Is.All.True);
             Assert.That(seasons.Select(s => s.PublicAt), Is.All.Null);
-            Assert.That(seasons[0].SeasonStart, Is.EqualTo(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2019").SeasonStart, Is.EqualTo(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
             Assert.That(users.Select(u => u.IsDummyUser), Is.All.True);
             Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "historical:Shadow S16", "historical:x0 pie x0" }));
@@ -177,7 +177,7 @@ public class HistoricalImportServiceTests
             Assert.That(titles.Where(t => t.GamertagUsed == "oDhmon").Select(t => t.UserID).Distinct().Count(), Is.EqualTo(1));
             var created = titles.Where(t => t.Tier is "Pro" or "Amateur" && t.Season.SeasonName.StartsWith("Winter")).Select(t => t.Season).ToList();
             Assert.That(created.Select(s => s.SeasonID).Distinct().Count(), Is.EqualTo(1), "Both tiers' titles in one season, whatever its name's case");
-            Assert.That(created[0].HistoricalSourceID, Is.EqualTo("agla/winter-league-2011"));
+            Assert.That(created[0].HistoricalSourceID, Is.EqualTo("history-agla-champions/Winter League 2011"));
             Assert.That(created[0].GameVersionID, Is.EqualTo(2));
             Assert.That(titles.Select(t => t.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
             Assert.That(await _context.Seasons.CountAsync(), Is.EqualTo(3));
@@ -232,7 +232,7 @@ public class HistoricalImportServiceTests
             },
             WaypointMatches = new()
             {
-                ["agla/winter-league-2023-da"] = new WaypointSeasonMatches
+                ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches
                 {
                     Regular = [first.ToString(), $"https://www.halowaypoint.com/halo-infinite/players/x/matches/{second}"],
                     Playoffs = [playoff.ToString(), "not a match"],
@@ -284,7 +284,7 @@ public class HistoricalImportServiceTests
         var report = await _service.Import(new HistoricalArchiveInput
         {
             Seasons = input.Seasons,
-            WaypointMatches = new() { ["agla/winter-league-2023-da"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
         });
 
         var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
@@ -308,7 +308,7 @@ public class HistoricalImportServiceTests
         await _service.Import(new HistoricalArchiveInput
         {
             Seasons = input.Seasons,
-            WaypointMatches = new() { ["agla/winter-league-2023-da"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
         });
 
         var user = await _context.Users.AsNoTracking().SingleAsync();
@@ -326,7 +326,7 @@ public class HistoricalImportServiceTests
         var report = await _service.Import(new HistoricalArchiveInput
         {
             Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Someone"))] },
-            WaypointMatches = new() { ["agla/winter-league-2023-da"] = new WaypointSeasonMatches { Regular = [missing.ToString()] } },
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [missing.ToString()] } },
         });
 
         Assert.That(report.Skipped, Has.Some.Contains("could not be pulled"));
@@ -341,7 +341,7 @@ public class HistoricalImportServiceTests
             Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: new string('x', 101))),
             Entry("Spring League 2019", "halo3", "AGLA", false, Player("Silva"))));
 
-        Assert.That(report.Errors, Has.One.StartsWith("agla/winter-league-2019"));
+        Assert.That(report.Errors, Has.One.StartsWith("winter-league-2019/Stats"));
         Assert.That(await _context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Spring League 2019" }));
         Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1));
     }
@@ -364,11 +364,11 @@ public class HistoricalImportServiceTests
             Seasons = seasons,
             WaypointMatches = new()
             {
-                ["agla/winter-league-2023-da"] = new WaypointSeasonMatches { Regular = [match.ToString()] },
-                ["agla/winter-league-2019"] = new WaypointSeasonMatches { Regular = [Guid.NewGuid().ToString()] },
+                ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] },
+                ["winter-league-2019/Stats"] = new WaypointSeasonMatches { Regular = [Guid.NewGuid().ToString()] },
             },
         });
-        Assert.That(report.Skipped, Has.Some.Contains("agla/winter-league-2019"), "Waypoint is Halo Infinite only");
+        Assert.That(report.Skipped, Has.Some.Contains("winter-league-2019/Stats"), "Waypoint is Halo Infinite only");
 
         var again = await _service.Import(new HistoricalArchiveInput { Seasons = seasons });
 
@@ -405,6 +405,93 @@ public class HistoricalImportServiceTests
         });
     }
 
+    [Test]
+    public async Task Import_KeysASeasonByTheWorkbookAndSheetOfItsRegularSeason_AndStoresTheWorkbooksLink()
+    {
+        var regular = Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva"));
+        var playoffs = Entry("Winter League 2019", "halo3", "AGLA", true, Player("Silva"));
+        var input = new HistoricalArchiveInput
+        {
+            // The playoffs first: the regular season's sheet is still the key
+            Seasons = new UnifiedArchive
+            {
+                Seasons =
+                [
+                    With(playoffs, "2019-wl19-schedule-stats", "Playoff Stats"),
+                    With(regular, "2019-wl19-schedule-stats", "Team and Player Stats "),
+                ],
+            },
+            Catalog = new ArchiveCatalog
+            {
+                Sources =
+                [
+                    new CatalogSource { Id = "2019-wl19-schedule-stats", Url = "https://docs.google.com/spreadsheets/d/wl19" },
+                    new CatalogSource { Id = "2018-sl18-pro-schedule", Url = "https://docs.google.com/spreadsheets/d/dead" },
+                ],
+            },
+        };
+
+        var report = await _service.Import(input);
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That(season.HistoricalSourceID, Is.EqualTo("2019-wl19-schedule-stats/Team and Player Stats"));
+        Assert.That(season.HistoricalSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/wl19"));
+        Assert.That(report.Warnings, Is.Empty);
+    }
+
+    [Test]
+    public async Task Import_AfterTheSeasonsNameIsCorrected_FindsTheSameSeason()
+    {
+        await _service.Import(Input(With(Entry("Winter Leauge 2019", "halo3", "AGLA", false, Player("Silva", kills: 1)), "2019-wl19-schedule-stats", "Stats")));
+        var id = await _context.Seasons.Select(s => s.SeasonID).SingleAsync();
+
+        var again = await _service.Import(Input(With(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", kills: 2)), "2019-wl19-schedule-stats", "Stats")));
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.SeasonID, season.SeasonName), Is.EqualTo((id, "Winter League 2019")));
+        Assert.That((again.SeasonsCreated, again.SeasonsUpdated, again.StatsInserted), Is.EqualTo((0, 1, 0)));
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.Kills).SingleAsync(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task Import_AnEntryWithoutWorkbookAndSheet_IsKeyedByItsLeagueAndName_WithAWarning()
+    {
+        var report = await _service.Import(Input(With(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva")), null, null)));
+
+        Assert.That(await _context.Seasons.Select(s => s.HistoricalSourceID).SingleAsync(), Is.EqualTo("agla/winter-league-2019"));
+        Assert.That(report.Warnings, Has.One.Contains("no source workbook and sheet"));
+    }
+
+    [Test]
+    public async Task Import_ASeasonOnlyATitleNames_GetsTheChampionsWorkbooksKeyAndLink()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive(),
+            Championships = new ChampionsArchive
+            {
+                SourceId = "history-agla-champions",
+                SourceUrl = "https://docs.google.com/spreadsheets/d/champs",
+                Champions = [new ArchiveChampionship { Season = "Original 8 Tounament", Game = "Halo 3", Tier = "Open", Team = "SG1", Roster = ["Kroze"] }],
+            },
+        });
+
+        var season = await _context.Seasons.AsNoTracking().SingleAsync();
+        Assert.That((season.HistoricalSourceID, season.HistoricalSourceUrl, season.SeasonStart.Year), Is.EqualTo(("history-agla-champions/Original 8 Tounament", "https://docs.google.com/spreadsheets/d/champs", 2008)));
+    }
+
+    private static ArchiveSeason With(ArchiveSeason entry, string? workbook, string? sheet) => new()
+    {
+        SeasonName = entry.SeasonName,
+        GameVersion = entry.GameVersion,
+        League = entry.League,
+        Division = entry.Division,
+        IsPlayoffs = entry.IsPlayoffs,
+        SourceWorkbook = workbook,
+        SourceSheet = sheet,
+        Players = entry.Players,
+    };
+
     /// <summary>The compiled archive in the repository imports, and a second run changes no row counts.</summary>
     [Test]
     public async Task Import_TheCompiledArchive_IsIdempotent()
@@ -413,11 +500,13 @@ public class HistoricalImportServiceTests
         HistoricalArchiveInput input;
         await using (var seasons = File.OpenRead(Path.Combine(compiled, "unified-historical-seasons.json")))
         await using (var champions = File.OpenRead(Path.Combine(compiled, "agla-champions.json")))
+        await using (var catalog = File.OpenRead(Path.Combine(compiled, "catalog.json")))
         {
             input = new HistoricalArchiveInput
             {
                 Seasons = await HistoricalArchiveInput.ReadAsync<UnifiedArchive>(seasons),
                 Championships = await HistoricalArchiveInput.ReadAsync<ChampionsArchive>(champions),
+                Catalog = await HistoricalArchiveInput.ReadAsync<ArchiveCatalog>(catalog),
             };
         }
 
@@ -433,6 +522,8 @@ public class HistoricalImportServiceTests
             Assert.That(await Counts(), Is.EqualTo(before));
             Assert.That((again.SeasonsCreated, again.StatsInserted, again.ChampionshipsInserted, again.DummyUsersCreated), Is.EqualTo((0, 0, 0, 0)));
             Assert.That(again.Errors, Is.Empty);
+            Assert.That(report.Warnings, Is.Empty, "Every entry names its workbook and sheet");
+            Assert.That(await _context.Seasons.CountAsync(s => s.HistoricalSourceUrl == null), Is.Zero, "Every season links its workbook");
         });
     }
 
@@ -489,6 +580,8 @@ public class HistoricalImportServiceTests
         League = league,
         Division = "Open",
         IsPlayoffs = playoffs,
+        SourceWorkbook = HistoricalKeys.Slug(name),
+        SourceSheet = playoffs ? "Playoff Stats" : "Stats",
         Players = [.. players],
     };
 

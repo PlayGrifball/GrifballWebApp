@@ -58,6 +58,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 nullable: true,
                 collation: "case_insensitive");
 
+            migrationBuilder.AddColumn<string>(
+                name: "HistoricalSourceUrl",
+                schema: "Event",
+                table: "SeasonsHistory",
+                type: "character varying(500)",
+                maxLength: 500,
+                nullable: true,
+                collation: "case_insensitive");
+
             migrationBuilder.AddColumn<bool>(
                 name: "IsHistorical",
                 schema: "Event",
@@ -107,6 +116,15 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Seasons",
                 type: "character varying(100)",
                 maxLength: 100,
+                nullable: true,
+                collation: "case_insensitive");
+
+            migrationBuilder.AddColumn<string>(
+                name: "HistoricalSourceUrl",
+                schema: "Event",
+                table: "Seasons",
+                type: "character varying(500)",
+                maxLength: 500,
                 nullable: true,
                 collation: "case_insensitive");
 
@@ -869,6 +887,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "SeasonsHistory");
 
             migrationBuilder.DropColumn(
+                name: "HistoricalSourceUrl",
+                schema: "Event",
+                table: "SeasonsHistory");
+
+            migrationBuilder.DropColumn(
                 name: "IsHistorical",
                 schema: "Event",
                 table: "SeasonsHistory");
@@ -890,6 +913,11 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.DropColumn(
                 name: "HistoricalSourceID",
+                schema: "Event",
+                table: "Seasons");
+
+            migrationBuilder.DropColumn(
+                name: "HistoricalSourceUrl",
                 schema: "Event",
                 table: "Seasons");
 

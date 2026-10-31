@@ -13,7 +13,9 @@ public class HistoricalArchiveInput
 {
     public required UnifiedArchive Seasons { get; init; }
     public ChampionsArchive? Championships { get; init; }
-    /// <summary>Halo Infinite seasons' Waypoint matches, by the season's <c>HistoricalSourceID</c>.</summary>
+    /// <summary>catalog.json: each workbook's Google Sheets link, stored on its seasons (HistoricalSourceUrl).</summary>
+    public ArchiveCatalog? Catalog { get; init; }
+    /// <summary>Halo Infinite seasons' Waypoint matches, by the season's <c>HistoricalSourceID</c> ("{sourceWorkbook}/{sourceSheet}").</summary>
     public Dictionary<string, WaypointSeasonMatches>? WaypointMatches { get; init; }
 
     internal static readonly JsonSerializerOptions JsonOptions = new()
@@ -48,7 +50,7 @@ public class ArchiveSeason
     public string? SourceSheet { get; init; }
     public bool IsPlayoffs { get; init; }
     public bool IsCombined { get; init; }
-    /// <summary>Overrides the derived key ("{league slug}/{season name slug}") when the archive sets one.</summary>
+    /// <summary>Overrides the derived key ("{sourceWorkbook}/{sourceSheet}") when the archive sets one.</summary>
     public string? HistoricalSourceId { get; init; }
     public List<ArchivePlayer> Players { get; init; } = [];
 }
@@ -90,6 +92,9 @@ public class ArchivePlayer
 /// <summary>agla-champions.json: every AGLA title and its roster.</summary>
 public class ChampionsArchive
 {
+    /// <summary>The workbook's ID, e.g. history-agla-champions: the key prefix of a season only a title names.</summary>
+    public string? SourceId { get; init; }
+    public string? SourceUrl { get; init; }
     public List<ArchiveChampionship> Champions { get; init; } = [];
 }
 
@@ -105,6 +110,18 @@ public class ArchiveChampionship
     public required string Team { get; init; }
     public string? Captain { get; init; }
     public List<string> Roster { get; init; } = [];
+}
+
+/// <summary>catalog.json: every source workbook of the archive.</summary>
+public class ArchiveCatalog
+{
+    public List<CatalogSource> Sources { get; init; } = [];
+}
+
+public class CatalogSource
+{
+    public required string Id { get; init; }
+    public string? Url { get; init; }
 }
 
 /// <summary>A Halo Infinite season's Waypoint matches: match IDs or Waypoint match URLs (the ID is the URL's last segment).</summary>
@@ -133,7 +150,12 @@ public static partial class HistoricalKeys
     /// summer-league-2021-pro.</summary>
     public static string Slug(string text) => NonAlphanumeric().Replace(text.Trim().ToLowerInvariant(), "-").Trim('-');
 
-    public static string SeasonSourceId(string leagueSlug, string seasonName) => $"{leagueSlug}/{Slug(seasonName)}";
+    /// <summary>A historical season's key: the workbook and sheet its stats come from, "2018-sml18-fantasy-rey/Total Stats".
+    /// A season name corrected in the archive keeps it, so a re-import finds the same season.</summary>
+    public static string SeasonSourceId(string sourceWorkbook, string sourceSheet) => $"{sourceWorkbook.Trim()}/{sourceSheet.Trim()}";
+
+    /// <summary>The key of a season whose entry has no workbook or sheet: "{league slug}/{season name slug}".</summary>
+    public static string FallbackSeasonSourceId(string leagueSlug, string seasonName) => $"{leagueSlug}/{Slug(seasonName)}";
 
     /// <summary>The first year (1990-2099) in a season's name.</summary>
     public static int? Year(string seasonName)

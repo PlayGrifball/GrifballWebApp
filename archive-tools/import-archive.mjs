@@ -83,6 +83,8 @@ async function main() {
   const form = new FormData();
   form.append('seasons', new Blob([seasonsBuf], { type: 'application/json' }), 'unified-historical-seasons.json');
   form.append('championships', new Blob([championsBuf], { type: 'application/json' }), 'agla-champions.json');
+  // Each workbook's link, stored on its seasons (HistoricalSourceUrl)
+  form.append('catalog', new Blob([await fs.readFile(path.join(COMPILED_DIR, 'catalog.json'))], { type: 'application/json' }), 'catalog.json');
 
   const headers = {};
   if (token) {

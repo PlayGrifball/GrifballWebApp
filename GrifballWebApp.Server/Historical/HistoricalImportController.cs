@@ -23,11 +23,12 @@ public class HistoricalImportController : ControllerBase
     /// <param name="seasons">compiled/unified-historical-seasons.json</param>
     /// <param name="championships">compiled/agla-champions.json (optional)</param>
     /// <param name="waypointMatches">Halo Infinite seasons' Waypoint match IDs or URLs by HistoricalSourceID (optional):
-    /// <c>{ "agla/winter-league-2023-da": { "regular": ["…"], "playoffs": ["…"] } }</c></param>
+    /// <c>{ "2023-da-wl23-stats/Halo Infinite Stats": { "regular": ["…"], "playoffs": ["…"] } }</c></param>
+    /// <param name="catalog">compiled/catalog.json (optional): each workbook's link, stored on its seasons.</param>
     [HttpPost(Name = "ImportHistoricalArchive")]
     [RequestSizeLimit(64 * 1024 * 1024)]
     [RequestFormLimits(MultipartBodyLengthLimit = 64 * 1024 * 1024)]
-    public async Task<ActionResult<HistoricalImportReport>> Import(IFormFile seasons, IFormFile? championships, IFormFile? waypointMatches, CancellationToken ct)
+    public async Task<ActionResult<HistoricalImportReport>> Import(IFormFile seasons, IFormFile? championships, IFormFile? waypointMatches, IFormFile? catalog, CancellationToken ct)
     {
         HistoricalArchiveInput input;
         try
@@ -37,6 +38,7 @@ public class HistoricalImportController : ControllerBase
                 Seasons = await Read<UnifiedArchive>(seasons, ct),
                 Championships = championships is null ? null : await Read<ChampionsArchive>(championships, ct),
                 WaypointMatches = waypointMatches is null ? null : await Read<Dictionary<string, WaypointSeasonMatches>>(waypointMatches, ct),
+                Catalog = catalog is null ? null : await Read<ArchiveCatalog>(catalog, ct),
             };
         }
         catch (Exception e) when (e is System.Text.Json.JsonException or InvalidDataException)

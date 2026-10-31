@@ -29,12 +29,14 @@ public class HistoricalImportControllerTests
             File("""{ "seasons": [ { "seasonName": "S 2019", "gameVersion": "halo3", "league": "AGLA", "players": [ { "gamertag": "a", "kills": "3" } ] } ] }"""),
             File("""{ "champions": [ { "season": "S 2019", "league": "Pro", "team": "T", "roster": ["a"] } ] }"""),
             File("""{ "agla/s-2019": { "regular": ["x"] } }"""),
+            File("""{ "sources": [ { "id": "w", "url": "https://example.org/w" } ] }"""),
             CancellationToken.None);
 
         Assert.That(result.Value, Is.SameAs(report));
         Assert.That(passed!.Seasons.Seasons.Single().Players.Single().Kills, Is.EqualTo(3));
         Assert.That(passed.Championships!.Champions.Single().Tier, Is.EqualTo("Pro"));
         Assert.That(passed.WaypointMatches!["agla/s-2019"].Regular, Is.EqualTo(new[] { "x" }));
+        Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
     }
 
     [Test]
@@ -42,10 +44,10 @@ public class HistoricalImportControllerTests
     {
         var service = Substitute.For<IHistoricalImportService>();
         service.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
-        var result = await new HistoricalImportController(service).Import(File("""{ "seasons": [] }"""), null, null, CancellationToken.None);
+        var result = await new HistoricalImportController(service).Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None);
 
         Assert.That(result.Value, Is.Not.Null);
-        await service.Received(1).Import(Arg.Is<HistoricalArchiveInput>(i => i.Championships == null && i.WaypointMatches == null), Arg.Any<CancellationToken>());
+        await service.Received(1).Import(Arg.Is<HistoricalArchiveInput>(i => i.Championships == null && i.WaypointMatches == null && i.Catalog == null), Arg.Any<CancellationToken>());
     }
 
     [TestCase("not json")]
@@ -53,7 +55,7 @@ public class HistoricalImportControllerTests
     public async Task Import_AFileThatIsNotTheArchive_IsABadRequest(string json)
     {
         var service = Substitute.For<IHistoricalImportService>();
-        var result = await new HistoricalImportController(service).Import(File(json), null, null, CancellationToken.None);
+        var result = await new HistoricalImportController(service).Import(File(json), null, null, null, CancellationToken.None);
 
         Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
         await service.DidNotReceiveWithAnyArgs().Import(default!, default);
@@ -103,6 +105,13 @@ public class HistoricalKeysTests
             Assert.That(HistoricalKeys.MatchId($"https://www.halowaypoint.com/halo-infinite/players/a/matches/{id}/?x=1"), Is.EqualTo(id));
             Assert.That(HistoricalKeys.MatchId("https://www.halowaypoint.com/halo-infinite/players/a"), Is.Null);
         });
+    }
+
+    [Test]
+    public void SeasonSourceId_IsTheWorkbookAndSheet()
+    {
+        Assert.That(HistoricalKeys.SeasonSourceId("2018-sml18-fantasy-rey", "Total Stats "), Is.EqualTo("2018-sml18-fantasy-rey/Total Stats"));
+        Assert.That(HistoricalKeys.FallbackSeasonSourceId("agla", "Winter League 2019"), Is.EqualTo("agla/winter-league-2019"));
     }
 
     [Test]

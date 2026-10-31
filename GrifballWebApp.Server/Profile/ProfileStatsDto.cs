@@ -18,6 +18,8 @@ public class PlayerChampionshipDto
     public int PlayerChampionshipID { get; set; }
     public int SeasonID { get; set; }
     public required string SeasonName { get; set; }
+    /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>
+    public string? SeasonSourceUrl { get; set; }
     public int LeagueID { get; set; }
     public required string LeagueName { get; set; }
     public required string LeagueSlug { get; set; }
@@ -68,6 +70,8 @@ public class PlayerSeasonStatDetailDto
     public int PlayerSeasonStatID { get; set; }
     public int SeasonID { get; set; }
     public required string SeasonName { get; set; }
+    /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>
+    public string? SeasonSourceUrl { get; set; }
     public int LeagueID { get; set; }
     public required string LeagueName { get; set; }
     public required string LeagueSlug { get; set; }

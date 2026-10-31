@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261031070402_AddHistoricalStats")]
+    [Migration("20261031081127_AddHistoricalStats")]
     partial class AddHistoricalStats
     {
         /// <inheritdoc />
@@ -2167,6 +2167,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<string>("HistoricalSourceID")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HistoricalSourceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<bool>("IsHistorical")
                         .HasColumnType("bit");

@@ -16,6 +16,7 @@ export interface PlayerChampionshipDto {
   playerChampionshipID: number;
   seasonID: number;
   seasonName: string;
+  seasonSourceUrl?: string | null;
   leagueID: number;
   leagueName: string;
   leagueSlug: string;
@@ -64,6 +65,7 @@ export interface PlayerSeasonStatDetailDto {
   playerSeasonStatID: number;
   seasonID: number;
   seasonName: string;
+  seasonSourceUrl?: string | null;
   leagueID: number;
   leagueName: string;
   leagueSlug: string;
