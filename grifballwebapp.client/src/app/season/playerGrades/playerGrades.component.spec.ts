@@ -430,7 +430,7 @@ describe('PlayerGradesComponent rendering', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PlayerGradesComponent, HttpClientTestingModule],
-      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }]
+      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }, { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, matchCount: 1, bracketMatchCount: 0 }) } }]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);
