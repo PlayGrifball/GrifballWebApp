@@ -24,7 +24,7 @@
     <div class="enlist-sub">
       <mat-form-field appearance="outline" class="app-full-width">
         <mat-label>Team name</mat-label>
-        <input matInput required [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
+        <input matInput required [maxlength]="teamNameMaxLength" [ngModel]="model().teamName" (ngModelChange)="patch({ teamName: $event })" name="teamName" [disabled]="!model().willCaptain" >
         <app-error-message [control]="signupForm.controls['teamName']" />
       </mat-form-field>
 

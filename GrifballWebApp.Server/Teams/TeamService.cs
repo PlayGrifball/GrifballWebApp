@@ -406,7 +406,9 @@ public class TeamService
             .FirstOrDefaultAsync(ct) ?? "";
     }
 
-    private const int TeamNameMaxLength = 30;
+    // Signups can't have a longer team name (SignupsController), so this only cuts a generated "Name's Team", one with
+    // the uniqueness suffix, or a name signed up before that check.
+    private const int TeamNameMaxLength = global::GrifballWebApp.Database.Models.Team.TeamNameMaxLength;
 
     private static string Truncate(string value, int length) => value.Length <= length ? value : value[..length];
 

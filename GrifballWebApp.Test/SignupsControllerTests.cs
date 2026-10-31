@@ -12,6 +12,7 @@ using NetCord.JsonModels;
 using NetCord.Rest;
 using NetCord.Services.ComponentInteractions;
 using User = GrifballWebApp.Database.Models.User;
+using Team = GrifballWebApp.Database.Models.Team;
 using DiscordUser = GrifballWebApp.Database.Models.DiscordUser;
 using SignupButtonInteractions = GrifballWebApp.Server.Signups.ButtonInteractions;
 
@@ -138,5 +139,44 @@ public class SignupsControllerTests
         var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID }, CancellationToken.None);
 
         Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Signups are closed for this season"));
+    }
+
+    [Test]
+    public async Task UpsertSignup_CaptainTeamNameTooLong_ReturnsBadRequest_AndSavesNothing()
+    {
+        var user = await AddUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        _controller.WithUser(user.Id.ToString());
+
+        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = new string('x', Team.TeamNameMaxLength + 1) }, CancellationToken.None);
+
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Team name must be 30 characters or fewer"));
+        Assert.That(await _context.SeasonSignups.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task UpsertSignup_CaptainTeamNameAtTheLimit_IsSavedWhole()
+    {
+        var user = await AddUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        _controller.WithUser(user.Id.ToString());
+        var name = new string('x', Team.TeamNameMaxLength);
+
+        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = true, TeamName = name }, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<OkResult>());
+        Assert.That((await _context.SeasonSignups.SingleAsync()).TeamName, Is.EqualTo(name));
+    }
+
+    [Test]
+    public async Task UpsertSignup_NotCaptain_LongOldTeamName_DoesNotBlockTheSignup()
+    {
+        var user = await AddUser();
+        var season = await SignupTestData.OpenSeason(_context);
+        _controller.WithUser(user.Id.ToString());
+
+        var result = await _controller.UpsertSignup(new SignupRequestDto { SeasonID = season.SeasonID, WillCaptain = false, TeamName = new string('x', 40) }, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<OkResult>());
     }
 }
