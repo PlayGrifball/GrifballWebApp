@@ -226,6 +226,7 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.IHistoricalImportService, GrifballWebApp.Server.Historical.HistoricalImportService>();
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
