@@ -24,6 +24,10 @@ backend:
     Discord:ClientId: DiscordClientId
     Discord:ClientSecret: DiscordClientSecret
     Discord:Token: DiscordToken
+  # Previews read Halo through the gateway too, with the previews' shared key.
+  halo:
+    gateway:
+      apiKey: { secretName: halo-gateway-key, key: ApiKey }
 migrations:
   backup:
     enabled: false

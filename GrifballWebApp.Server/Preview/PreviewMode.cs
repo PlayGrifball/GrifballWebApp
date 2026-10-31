@@ -3,8 +3,10 @@ using NetCord.Rest;
 namespace GrifballWebApp.Server.Preview;
 
 /// <summary>
-/// Ephemeral PR preview environments run with <c>Preview__Enabled=true</c> and no Halo Infinite or Google settings.
-/// Without a Discord bot token as well, the app never connects to Discord: no gateway, slash commands, component
+/// Ephemeral PR preview environments run with <c>Preview__Enabled=true</c> and no Google settings. Halo Infinite is
+/// not part of preview mode: previews run in the default <c>HaloInfinite:Mode</c> Gateway, with the previews' own
+/// gateway key (<c>HaloGateway:ApiKey</c>), and so read real Halo data like any environment.
+/// Without a Discord bot token, the app never connects to Discord: no gateway, slash commands, component
 /// interactions or Discord sign-in, and the queue/events background services don't run. A preview that holds one of
 /// the preview slots gets that slot's bot and test server (<c>Discord:Token</c>, its channels, its OAuth app) and runs
 /// Discord exactly as in normal mode (<see cref="HasDiscord"/>).
@@ -18,7 +20,7 @@ public static class PreviewMode
 
     public const string StartupMessage = "Preview mode is ON (Preview:Enabled=true): Discord gateway, commands, sign-in and the queue/events background services are disabled, and Discord REST calls fail locally";
 
-    public const string DiscordStartupMessage = "Preview mode is ON with Discord (Preview:Enabled=true and Discord:Token set): Discord runs as in normal mode, against this preview's own bot and server; the Halo Infinite health check is off";
+    public const string DiscordStartupMessage = "Preview mode is ON with Discord (Preview:Enabled=true and Discord:Token set): Discord runs as in normal mode, against this preview's own bot and server";
 
     public static bool IsEnabled(IConfiguration configuration) => configuration.GetValue<bool>(ConfigurationKey);
 

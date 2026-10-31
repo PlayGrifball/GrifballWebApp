@@ -38,11 +38,7 @@ using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
 using Serilog;
-using Surprenant.Grunt.Core;
-using Surprenant.Grunt.Util;
-using System.Net;
-using Polly;
-using Polly.Extensions.Http;
+using GrifballWebApp.Server.HaloInfinite;
 
 namespace GrifballWebApp.Server;
 
@@ -85,8 +81,13 @@ public class Program
 
         var telemetry = TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment, GitInfo.CommitShortHash);
         builder.AddSerilogLogging(telemetry);
+        // Gateway (the default, previews included) or Direct; logged so the active mode is in the startup logs.
+        var haloSettings = HaloInfiniteSettings.FromConfiguration(builder.Configuration);
+        Log.Logger.ForContext<Program>().Information("{HaloInfinite}", haloSettings);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
-        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff, haloInfinite: !previewMode);
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff,
+            // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
+            haloInfinite: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
 
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -283,36 +284,11 @@ public class Program
             });
         }
 
-        builder.RegisterHaloInfiniteClientFactory();
-
         var retryDelayCalculator = new RetryDelayCalculator();
         builder.Services.AddSingleton<IRetryDelayCalculator>(retryDelayCalculator);
 
-        builder.Services.AddHttpClient<IHaloInfiniteClient, HaloInfiniteClient>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
-            {
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
-            })
-            .AddPolicyHandler((services, request) =>
-            {
-                var logger = services.GetRequiredService<ILogger<Program>>();
-                const int maxRetries = 5;
-
-                return HttpPolicyExtensions.HandleTransientHttpError()
-                    .OrResult(msg => (int)msg.StatusCode == 429)
-                    .WaitAndRetryAsync(
-                        maxRetries,
-                        (int retryAttempt, DelegateResult<HttpResponseMessage> outcome, Context ctx) =>
-                        {
-                            return retryDelayCalculator.CalculateDelay(retryAttempt, outcome?.Result);
-                        },
-                        (outcome, timespan, retryNumber, ctx) =>
-                        {
-                            var status = outcome?.Result?.StatusCode.ToString() ?? (outcome?.Exception?.GetType().Name ?? "Unknown");
-                            logger.LogWarning("Received HTTP {Status} for {Method} {Uri}. Retry {Retry}/{MaxRetries}. Next delay {Delay}.", status, request.Method, request.RequestUri, retryNumber, maxRetries, timespan);
-                            return Task.CompletedTask;
-                        });
-            });
+        // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
+        builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
 
         var app = builder.Build();
 

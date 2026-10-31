@@ -12,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NetCord;
 using NetCord.Gateway;
+using Surprenant.Grunt.Core;
 
 namespace GrifballWebApp.Test;
 
@@ -43,7 +44,7 @@ public class HealthCheckExtensionsTests
 
         builder.Services.AddDbContext<GrifballContext>(options => options.UseGrifballDatabase(TestDatabase.Provider, connectionString));
         builder.Services.AddSingleton(new DiscordGatewayHealthCheck(discordConnected));
-        builder.Services.AddSingleton(HaloInfiniteHealthCheckTests.Answering(haloStatusCode));
+        builder.Services.AddSingleton<IHaloInfiniteClient>(HaloInfiniteHealthCheckTests.Answering(haloStatusCode));
         builder.Services.AddAppHealthChecks(builder.Configuration);
 
         var app = builder.Build();
