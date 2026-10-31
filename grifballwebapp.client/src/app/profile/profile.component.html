@@ -2,37 +2,251 @@
 
   <aside class="profile-card hud-panel hud-panel--chamfer" aria-labelledby="profile-name">
     <span class="hud-kicker">&gt; Service record</span>
-    <div class="profile-emblem" aria-hidden="true">{{gamertag()?.charAt(0) ?? '?'}}</div>
-    <h1 id="profile-name" class="profile-name">{{gamertag() ?? 'Unknown Spartan'}}</h1>
+    <div class="profile-emblem" aria-hidden="true">{{(gamertag() || profileStats()?.displayName)?.charAt(0) ?? '?'}}</div>
+    <h1 id="profile-name" class="profile-name">{{gamertag() || profileStats()?.displayName || 'Unknown Spartan'}}</h1>
+
     <dl class="profile-facts">
       <div><dt class="hud-label">Gamertag</dt><dd>{{gamertag() ?? 'Not set'}}</dd></div>
       <div><dt class="hud-label">Service no.</dt><dd>{{userID}}</dd></div>
+      @if (profileStats()?.isDummyUser) {
+        <div><dt class="hud-label">Status</dt><dd><span class="archival-pill">Historical Archive</span></dd></div>
+      }
+      @if (profileStats()?.championships?.length) {
+        <div><dt class="hud-label">Championships</dt><dd class="hud-gold font-bold">🏆 {{profileStats()!.championships.length}} Rings</dd></div>
+      }
+      @if (profileStats()?.aliases?.length) {
+        <div>
+          <dt class="hud-label">Known Aliases</dt>
+          <dd class="aliases-list">
+            @for (alias of profileStats()!.aliases; track alias) {
+              <span class="alias-pill">{{alias}}</span>
+            }
+          </dd>
+        </div>
+      }
     </dl>
   </aside>
 
-  @if (accountService.personID() === userID) {
   <div class="profile-main">
-    @if (settingGamertag()) {
-    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
-      <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
-      <p>Please set your gamertag to assist with stat tracking</p>
-      <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
-        <mat-form-field appearance="outline" class="app-full-width">
-          <mat-label>Gamertag</mat-label>
-          <input matInput required [(ngModel)]="gamertag" name="gamertag">
-          <app-error-message [control]="form.controls['gamertag']" />
-        </mat-form-field>
-        <button mat-flat-button [disabled]="!form.form.valid">
-          Set Gamertag
-        </button>
-      </form>
-    </section>
+    @if (accountService.personID() === userID) {
+      @if (settingGamertag()) {
+      <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="profile-gamertag">
+        <h2 id="profile-gamertag" class="hud-h2">Gamertag</h2>
+        <p>Please set your gamertag to assist with stat tracking</p>
+        <form class="app-form" #form="ngForm" (ngSubmit)="setGamertag()">
+          <mat-form-field appearance="outline" class="app-full-width">
+            <mat-label>Gamertag</mat-label>
+            <input matInput required [(ngModel)]="gamertag" name="gamertag">
+            <app-error-message [control]="form.controls['gamertag']" />
+          </mat-form-field>
+          <button mat-flat-button [disabled]="!form.form.valid">
+            Set Gamertag
+          </button>
+        </form>
+      </section>
+      }
+
+      <section class="hud-section hud-panel hud-panel--soft">
+        <app-linked-accounts />
+      </section>
     }
 
-    <section class="hud-section hud-panel hud-panel--soft">
-      <app-linked-accounts />
+    <!-- Trophy Room / Rings -->
+    <section class="hud-section hud-panel hud-panel--soft trophy-section" aria-labelledby="trophy-heading">
+      <div class="section-header">
+        <span class="hud-kicker">&gt; Championships</span>
+        <h2 id="trophy-heading" class="hud-h2">Trophy Cabinet</h2>
+      </div>
+
+      @if (profileStats()?.championships?.length) {
+        <div class="trophy-grid">
+          @for (title of profileStats()!.championships; track title.playerChampionshipID) {
+            <div class="trophy-card hud-panel hud-panel--chamfer">
+              <div class="trophy-ring-icon" aria-hidden="true">🏆</div>
+              <div class="trophy-info">
+                <div class="trophy-title">
+                  <span class="trophy-tier">{{title.tier}} Tier</span>
+                  <span class="trophy-year">{{title.year ?? ''}}</span>
+                </div>
+                <div class="trophy-season">{{title.seasonName}}</div>
+                <div class="trophy-meta">
+                  <span class="trophy-team">{{title.teamName}}</span>
+                  @if (title.isCaptain) {
+                    <span class="captain-badge">Captain</span>
+                  }
+                  <span class="league-pill">{{title.leagueName}}</span>
+                  @if (title.gameVersionName) {
+                    <span class="game-pill">{{title.gameVersionName}}</span>
+                  }
+                </div>
+                @if (title.gamertagUsed && title.gamertagUsed !== gamertag()) {
+                  <div class="trophy-roster-tag">As: {{title.gamertagUsed}}</div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="hud-muted empty-state">No championship rings recorded on this service record.</p>
+      }
     </section>
+
+    <!-- Multi-Game Career Record -->
+    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="career-heading">
+      <div class="section-header">
+        <span class="hud-kicker">&gt; Career metrics</span>
+        <h2 id="career-heading" class="hud-h2">Career Record</h2>
+      </div>
+
+      @if (availableGames().length > 0) {
+        <nav class="hud-tabs" aria-label="Game era filter">
+          <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === 'all'" (click)="selectGame('all')">
+            All Eras
+          </button>
+          @for (game of availableGames(); track game.gameVersionSlug) {
+            <button type="button" class="hud-tab" [class.hud-tab--active]="selectedGame() === game.gameVersionSlug" (click)="selectGame(game.gameVersionSlug)">
+              {{game.gameVersionName}}
+            </button>
+          }
+        </nav>
+      }
+
+      @if (activeCareer(); as career) {
+        <div class="stat-card-grid">
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Record (W-L)</span>
+            <span class="stat-val">{{career.wins}} - {{career.losses}}</span>
+            <span class="stat-sub hud-gold">{{career.winPercent != null ? career.winPercent + '%' : '-'}} Win rate</span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Games Played</span>
+            <span class="stat-val">{{career.gamesPlayed}}</span>
+            <span class="stat-sub hud-muted">{{career.seasonsCount}} seasons</span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Goals Scored</span>
+            <span class="stat-val hud-accent">{{career.goals}}</span>
+            <span class="stat-sub hud-muted">{{career.goalsPerGame != null ? career.goalsPerGame + '/game' : '-'}}</span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">K/D Ratio</span>
+            <span class="stat-val">{{career.kdRatio != null ? career.kdRatio : '-'}}</span>
+            <span class="stat-sub" [class.positive-spread]="career.kdSpread >= 0" [class.negative-spread]="career.kdSpread < 0">
+              {{career.kdSpread >= 0 ? '+' : ''}}{{career.kdSpread}} spread
+            </span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Combat (K / D / A)</span>
+            <span class="stat-val">{{career.kills}} / {{career.deaths}}</span>
+            <span class="stat-sub hud-muted">{{career.assists}} assists</span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Carrier Stops</span>
+            <span class="stat-val">{{career.carrierKills}}</span>
+            <span class="stat-sub hud-muted">{{career.stopsPerGame != null ? career.stopsPerGame + '/game' : '-'}}</span>
+          </div>
+
+          <div class="stat-card hud-panel">
+            <span class="hud-label">Medals</span>
+            <span class="stat-val">{{career.sprees + career.multiKills}}</span>
+            <span class="stat-sub hud-muted">{{career.sprees}} sprees &middot; {{career.exterminations}} exts</span>
+          </div>
+
+          @if (career.damageDealt != null) {
+            <div class="stat-card hud-panel">
+              <span class="hud-label">Damage Dealt</span>
+              <span class="stat-val">{{career.damageDealt | number}}</span>
+              <span class="stat-sub hud-muted">{{career.damageTaken != null ? (career.damageTaken | number) + ' taken' : ''}}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="hud-muted empty-state">No career match stats recorded for this selection.</p>
+      }
+    </section>
+
+    <!-- Chronological Season History Table -->
+    <section class="hud-section hud-panel hud-panel--soft" aria-labelledby="seasons-heading">
+      <div class="section-header">
+        <span class="hud-kicker">&gt; Archive history</span>
+        <h2 id="seasons-heading" class="hud-h2">Season History</h2>
+      </div>
+
+      @if (filteredSeasons().length > 0) {
+        <div class="hud-table-wrap">
+          <table class="season-table" aria-label="Player season records">
+            <thead>
+              <tr>
+                <th>Season</th>
+                <th>Game</th>
+                <th>Team</th>
+                <th>Phase</th>
+                <th class="hud-num">GP</th>
+                <th class="hud-num">W-L</th>
+                <th class="hud-num">Win %</th>
+                <th class="hud-num">Goals</th>
+                <th class="hud-num">K</th>
+                <th class="hud-num">D</th>
+                <th class="hud-num">+/-</th>
+                <th class="hud-num">K/D</th>
+                <th class="hud-num">Stops</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of filteredSeasons(); track s.playerSeasonStatID) {
+                <tr>
+                  <td>
+                    <div class="table-season-cell">
+                      <span class="season-name">{{s.seasonName}}</span>
+                      <span class="league-sub">{{s.leagueName}}</span>
+                    </div>
+                  </td>
+                  <td><span class="game-pill-sm">{{s.gameVersionName}}</span></td>
+                  <td>
+                    <div class="team-cell">
+                      <span>{{s.teamName || 'Independent'}}</span>
+                      @if (s.tradeNote) {
+                        <span class="trade-sub">{{s.tradeNote}}</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <span class="phase-pill" [class.playoffs]="s.isPlayoffs">
+                      {{s.isPlayoffs ? 'Playoffs' : 'Regular'}}
+                    </span>
+                  </td>
+                  <td class="hud-num">{{s.gamesPlayed}}</td>
+                  <td class="hud-num font-mono">{{s.wins}}-{{s.losses}}</td>
+                  <td class="hud-num font-mono">{{s.winPercent != null ? s.winPercent + '%' : '-'}}</td>
+                  <td class="hud-num font-mono hud-accent">{{s.goals}}</td>
+                  <td class="hud-num font-mono">{{s.kills}}</td>
+                  <td class="hud-num font-mono">{{s.deaths}}</td>
+                  <td class="hud-num font-mono" [class.positive-spread]="(s.kdSpread ?? 0) >= 0" [class.negative-spread]="(s.kdSpread ?? 0) < 0">
+                    {{(s.kdSpread ?? 0) >= 0 ? '+' : ''}}{{s.kdSpread ?? (s.kills - s.deaths)}}
+                  </td>
+                  <td class="hud-num font-mono">{{s.kdRatio != null ? s.kdRatio : '-'}}</td>
+                  <td class="hud-num font-mono">{{s.carrierKills}}</td>
+                  <td>
+                    <span class="source-tag" [class.waypoint]="s.source === 'Waypoint'">
+                      {{s.source}}
+                    </span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="hud-muted empty-state">No historical season participation records found.</p>
+      }
+    </section>
+
   </div>
-  }
 
 </div>
