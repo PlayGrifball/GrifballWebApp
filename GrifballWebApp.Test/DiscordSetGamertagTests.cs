@@ -95,6 +95,7 @@ public class DiscordSetGamertagTests
             Assert.That(user?.DiscordUser, Is.Not.Null, "DiscordUser should be created");
             Assert.That(user?.DiscordUser?.DiscordUserID, Is.EqualTo((long)1234567890), "DiscordUserID should match the interaction user ID");
             Assert.That(user?.DiscordUser?.DiscordUsername, Is.EqualTo("discorduser"), "DiscordUsername should match the interaction username");
+            Assert.That(await _userManager.IsInRoleAsync(user!, "Player"), Is.True, "A new account is a Player, as with sign-up");
             await Assert.DoesNotThrowAsync(async () =>
             {
                 await _interactionContext.Interaction.Received(1)

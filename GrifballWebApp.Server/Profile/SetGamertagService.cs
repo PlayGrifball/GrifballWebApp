@@ -64,7 +64,15 @@ public class SetGamertagService : ISetGamertagService
                 return "That gamertag is already attached to a user. Contact sysadmin if you believe this is incorrect";
             }
 
-            await _userMergeService.Merge(userID, existingUser.Id, null, ct);
+            try
+            {
+                await _userMergeService.Merge(userID, existingUser.Id, null, ct);
+            }
+            catch (MergeConflictException e)
+            {
+                await _context.RollbackTransactionAsync(ct);
+                return "That gamertag's placeholder account could not be merged into yours: " + e.Message + " Contact a commissioner.";
+            }
         }
 
         await _context.SaveChangesAsync(ct);

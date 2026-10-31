@@ -287,8 +287,8 @@ export class TeamBuilderComponent {
 
   /**
    * Why the server refused a change. TeamService's refusals come back from GlobalExceptionHandler
-   * as ProblemDetails ({ title: "Server error", detail: "<message>" }); a few endpoints answer
-   * with a plain string.
+   * as a 400 ProblemDetails ({ title: "Request refused", detail: "<message>" }); an unexpected error
+   * is a 500 whose detail is a generic message. A few endpoints answer with a plain string.
    */
   private static refusalReason(e: any): string {
     const error = e?.error;

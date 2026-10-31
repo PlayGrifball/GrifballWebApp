@@ -245,7 +245,6 @@ public class Program
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
         builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();
         builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
-        builder.Services.AddTransient<TransferLegacyDiscordService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
         builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
@@ -342,9 +341,6 @@ public class Program
                 await context.Database.MigrateAsync();
                 logger.LogInformation("Migrations applied");
             }
-
-            var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
-            await legacyTransferService.TransferAllAsync();
 
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);

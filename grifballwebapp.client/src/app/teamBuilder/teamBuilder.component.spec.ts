@@ -439,7 +439,7 @@ describe('TeamBuilderComponent', () => {
     for (const [name, request, act] of refusals) {
       it(`says why and reloads the real draft when the server refuses a drop (${name})`, () => {
         // As GlobalExceptionHandler sends a TeamServiceException.
-        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', status: 500, detail: 'It is not your turn to be making a draft pick' } })));
+        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', status: 400, detail: 'It is not your turn to be making a draft pick' } })));
         const loads = mockApiClient.getTeams.calls.count();
 
         act();
@@ -521,7 +521,7 @@ describe('TeamBuilderComponent', () => {
       fixture.destroy();
       expect(saved.observed).toBeTrue(); // still being sent
 
-      saved.error(new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } }));
+      saved.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).not.toHaveBeenCalled();
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
     });
@@ -580,7 +580,7 @@ describe('TeamBuilderComponent', () => {
       try {
         // A null AddCaptain answer makes the name lookup throw inside the save's callback.
         mockApiClient.addCaptain.and.returnValue(of(null as any));
-        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } })));
+        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
         const pending = new Subject<Object>();
         mockApiClient.addPlayerToTeam.and.returnValue(pending);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
@@ -635,7 +635,7 @@ describe('TeamBuilderComponent', () => {
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
       const loads = mockApiClient.getTeams.calls.count();
 
-      refused.error(new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } }));
+      refused.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: No', 'Close');
       expect(mockApiClient.getTeams.calls.count()).toBe(loads); // the pick is still on its way
 

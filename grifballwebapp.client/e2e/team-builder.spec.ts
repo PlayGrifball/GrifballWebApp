@@ -68,7 +68,7 @@ async function openTeamBuilder(page: Page, opts: { captainsLocked?: boolean; ref
       // TeamService rejects with a message (e.g. not your turn), which GlobalExceptionHandler
       // sends as ProblemDetails; nothing changes on the server.
       if (opts.refuse)
-        return route.fulfill({ status: 500, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Server error', status: 500, detail: opts.refuse }) });
+        return route.fulfill({ status: 400, contentType: 'application/problem+json', body: JSON.stringify({ title: 'Request refused', status: 400, detail: opts.refuse }) });
       // Like TeamService.AddCaptain: the new team is named after the captain's signup, and the
       // response carries that name (CaptainAddedResponseDto).
       if (path === '/api/Teams/AddCaptain/') {

@@ -259,4 +259,54 @@ public class SetGamertagServiceTests
             Assert.That(user2After?.SeasonSignups.ElementAtOrDefault(0)?.Season.SeasonName, Is.EqualTo("Test Season"));
         });
     }
+
+    [Test]
+    public async Task DummyTakeover_WhenBothHaveExperiencesAndSignupsForTheSameSeason_Merges()
+    {
+        // The automatic merge used to fail (500) on UserExperience's key and the (UserID, SeasonID) signup index.
+        var season = await _context.AddSeason();
+        var dummy = await _context.AddUser("dummy", gamertag: "Placeholder GT");
+        dummy.IsDummyUser = true;
+        var real = await _context.AddUser("real");
+        _context.UserExperiences.AddRange(
+            new UserExperience { UserID = dummy.Id, GameVersionID = 1 },
+            new UserExperience { UserID = real.Id, GameVersionID = 1 });
+        await _context.SaveChangesAsync();
+        await _context.AddSignup(season, dummy);
+        await _context.AddSignup(season, real);
+        var xbox = await _context.XboxUsers.Include(x => x.User).SingleAsync(x => x.XboxUserID == dummy.XboxUserID);
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Placeholder GT", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Placeholder GT");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.False);
+            Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.EqualTo(xbox.XboxUserID));
+            Assert.That(await fresh.SeasonSignups.CountAsync(), Is.EqualTo(1));
+            Assert.That(await fresh.UserExperiences.Select(x => x.UserID).ToListAsync(), Is.EqualTo(new[] { real.Id }));
+        });
+    }
+
+    [Test]
+    public async Task DummyTakeover_WhenOnDifferentTeamsInOneSeason_SaysWhy()
+    {
+        var season = await _context.AddSeason("S1");
+        var dummy = await _context.AddUser("dummy", gamertag: "Placeholder GT");
+        dummy.IsDummyUser = true;
+        await _context.SaveChangesAsync();
+        var real = await _context.AddUser("real");
+        await _context.AddTeam(season, "A", dummy, 1);
+        await _context.AddTeam(season, "B", real, 2);
+        var xbox = await _context.XboxUsers.Include(x => x.User).SingleAsync(x => x.XboxUserID == dummy.XboxUserID);
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Placeholder GT", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Placeholder GT");
+
+        Assert.That(result, Does.Contain("on different teams in season S1"));
+        await using var fresh = _context.NewContextLike();
+        Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.Null, "Nothing changed");
+    }
 }
