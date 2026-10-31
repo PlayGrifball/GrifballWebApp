@@ -68,6 +68,7 @@ public class GlobalExceptionHandlerTests
         yield return new TestCaseData(new GrifballWebApp.Server.Teams.TeamServiceException("Player is already on a team"), 400, "Player is already on a team").SetName("TeamServiceException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Server.Signups.SignupsClosedException(), 400, "Signups are closed for this season").SetName("SignupsClosedException_Is400");
         yield return new TestCaseData(new GrifballWebApp.Server.Profile.MergeConflictException("Both users are on different teams"), 409, "Both users are on different teams").SetName("MergeConflictException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Server.Profile.UserHasHistoricalStatsException(7), 409, "User has historical stats; merge instead.").SetName("UserHasHistoricalStatsException_Is409");
         yield return new TestCaseData(new GrifballWebApp.Server.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
     }
 
