@@ -231,6 +231,32 @@ describe('SignupFormComponent', () => {
     expect(component.model().timeslots.map(t => [t.optionID, t.isChecked])).toEqual([[41, true], [42, true], [57, false]]);
   });
 
+  it('caps the team name at 30 characters, and an old longer one shows an error and is not submitted', async () => {
+    setup('5');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/Signups/getSignup/5?offset=0').flush({
+      seasonID: 5, userID: 7, teamName: 'x'.repeat(31), willCaptain: true, requiresAssistanceDrafting: false, timeslots: timeslots(),
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input[name="teamName"]') as HTMLInputElement;
+    expect(input.getAttribute('maxlength')).toBe('30');
+    const control = component.signupForm().controls['teamName'];
+    expect(control.errors?.['maxlength']).toEqual(jasmine.objectContaining({ requiredLength: 30 }));
+    control.markAsTouched();
+    fixture.detectChanges();
+    expect(input.closest('mat-form-field')!.textContent).toContain('Maximum length 30');
+
+    component.onSubmit();
+    httpMock.expectNone('/api/Signups/UpsertSignup/');
+
+    input.value = 'x'.repeat(30);
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(control.errors?.['maxlength']).toBeUndefined();
+  });
+
   describe('onSubmit', () => {
     // signupForm is a viewChild() signal; swap it for one that returns a stand-in form.
     const stubForm = (valid: boolean) => (component as any).signupForm = () => ({ valid });

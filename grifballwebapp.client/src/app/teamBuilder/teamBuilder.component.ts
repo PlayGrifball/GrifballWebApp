@@ -144,7 +144,7 @@ export class TeamBuilderComponent {
     // removed again when the page is destroyed.
     const offs = [
       this.signalR.addCaptain(dto => this.applyRemote(dto.seasonID,
-        draft => addCaptain(draft, dto.personID, dto.teamName, dto.captainName, dto.orderNumber))),
+        draft => addCaptain(draft, dto.personID, dto.teamName, dto.captainName, dto.orderNumber, dto.teamID))),
       this.signalR.resortCaptain(dto => this.applyRemote(dto.seasonID,
         draft => resortCaptain(draft, dto.personID, dto.orderNumber))),
       this.signalR.removeCaptain(dto => this.applyRemote(dto.seasonID,
@@ -323,7 +323,7 @@ export class TeamBuilderComponent {
       // The server names the team (the signup's team name, or "<display name>'s Team") and
       // answers with that name; the broadcast to others skips this connection.
       this.save(this.api.addCaptain(dto, this.signalR.hubConnection.connectionId),
-        added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName)));
+        added => this.applyDraft(draft => renameTeam(draft, player.personID, added.teamName, added.teamID)));
       console.log('Added new captain ' + added.captain.name + ' with pick order ' + added.captain.order);
     }
     // Team -> Team = Resort team

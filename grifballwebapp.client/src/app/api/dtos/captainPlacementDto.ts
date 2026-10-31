@@ -7,6 +7,7 @@ export class CaptainPlacementDto {
 export class CaptainAddedDto {
   seasonID: number = 0;
   personID: number = 0;
+  teamID: number = 0;
   teamName: string = '';
   captainName: string = '';
   orderNumber: number = 0;
@@ -20,4 +21,5 @@ export class RemoveCaptainDto {
 /** GrifballWebApp.Server.Teams.CaptainAddedResponseDto: the answer to AddCaptain. */
 export interface CaptainAddedResponseDto {
   teamName: string;
+  teamID: number;
 }

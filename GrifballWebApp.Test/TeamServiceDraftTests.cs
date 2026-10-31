@@ -172,6 +172,7 @@ public class TeamServiceDraftTests
         {
             SeasonID = season.SeasonID,
             PersonID = newCap.Id,
+            TeamID = team.TeamID,
             CaptainName = "New Captain",
             TeamName = "The Hammers",
             OrderNumber = 2,
@@ -331,7 +332,7 @@ public class TeamServiceDraftTests
 
     private async Task<(Season season, User capA, User capB, Team teamA, Team teamB)> TwoTeamDraft()
     {
-        var season = await _context.AddSeason();
+        var season = await _context.AddSeason(captainsLocked: true); // The draft has started
         var capA = await _context.AddUser("capA", "Cap A");
         var capB = await _context.AddUser("capB", "Cap B");
         var teamA = await _context.AddTeam(season, "Team A", capA, 1);

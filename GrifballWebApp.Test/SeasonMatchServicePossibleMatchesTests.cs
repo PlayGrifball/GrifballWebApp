@@ -121,4 +121,46 @@ public class SeasonMatchServicePossibleMatchesTests
             Assert.That(second.AwayTeam.Players.Count(p => p.IsOnTeam), Is.EqualTo(3));
         });
     }
+
+    [Test]
+    public async Task GetPossibleMatches_WithMoreThan200Candidates_ReturnsTheNewest200()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context);
+        var start = new DateTime(2025, 3, 1, 20, 0, 0, DateTimeKind.Utc);
+        for (var i = 0; i < 200; i++)
+            _context.Matches.Add(Candidate(start.AddMinutes(i)));
+        var newest = Candidate(start.AddDays(1));
+        _context.Matches.Add(newest);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await _service.GetPossibleMatches(seeded.SeasonMatch.SeasonMatchID);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Has.Count.EqualTo(200));
+            Assert.That(result[0].MatchID, Is.EqualTo(newest.MatchID), "The newest is never the one cut");
+            Assert.That(result.Select(x => x.MatchID), Does.Not.Contain(MatchAt(start)), "The oldest is");
+        });
+
+        Guid MatchAt(DateTime time) => _context.Matches.Single(x => x.StartTime == time).MatchID;
+    }
+
+    private static Match Candidate(DateTime start)
+    {
+        var matchID = Guid.NewGuid();
+        MatchTeam Team(int teamId, long[] players, Outcomes outcome) => new()
+        {
+            MatchID = matchID, TeamID = teamId, Score = 1, Outcome = outcome,
+            MatchParticipants = players.Select(x => new MatchParticipant { MatchID = matchID, TeamID = teamId, XboxUserID = x }).ToList(),
+        };
+        return new Match
+        {
+            MatchID = matchID,
+            StartTime = start,
+            EndTime = start.AddMinutes(10),
+            Duration = TimeSpan.FromMinutes(10),
+            MatchTeams = [Team(0, SeasonMatchTestData.HomeXbox, Outcomes.Won), Team(1, SeasonMatchTestData.AwayXbox, Outcomes.Lost)],
+        };
+    }
 }

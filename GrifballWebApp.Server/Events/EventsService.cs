@@ -40,7 +40,8 @@ public class EventsService
         }).Take(20).ToListAsync(ct)).OrderByDescending(x => x.CreatedAt).ToArray();
 
         var now = DateTime.UtcNow;
-        var seasons = await _context.Seasons.Where(season => now >= season.PublicAt && now < season.SeasonEnd).ToArrayAsync();
+        // A season with no PublicAt is not public yet: it is not announced.
+        var seasons = await _context.Seasons.Where(season => season.PublicAt != null && season.PublicAt <= now && now < season.SeasonEnd).ToArrayAsync();
 
         foreach (var season in seasons)
         {

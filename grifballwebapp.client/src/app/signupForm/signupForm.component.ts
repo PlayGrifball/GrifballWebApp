@@ -42,6 +42,8 @@ export class SignupFormComponent {
   accountService = inject(AccountService);
 
   readonly eventTitles = eventTitles;
+  /** The longest team name the server takes (Team.TeamNameMaxLength): a longer one is refused, not cut. */
+  readonly teamNameMaxLength = 30;
   readonly seasonID = signal(0);
   readonly seasonName = signal<string | null>(null);
   /** When the page was opened. */

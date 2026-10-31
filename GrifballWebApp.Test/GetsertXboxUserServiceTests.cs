@@ -148,4 +148,27 @@ public class GetsertXboxUserServiceTests
         Assert.That(result.Any(x => x.XboxUserID == 1), Is.True);
         Assert.That(result.Any(x => x.XboxUserID == 2), Is.True);
     }
+
+    [Test]
+    public async Task GetsertXboxUserByGamertag_RenamedPlayer_UpdatesTheStoredGamertag_InsteadOfInsertingAgain()
+    {
+        var owner = new GrifballWebApp.Database.Models.User { UserName = "owner" };
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "OldName", User = owner });
+        await _context.SaveChangesAsync();
+        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+            new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
+        _haloInfiniteClientFactory.UserByGamertag("newname").Returns(Task.FromResult(apiResponse));
+
+        var (result, error) = await _service.GetsertXboxUserByGamertag("newname");
+
+        await using var fresh = _context.NewContextLike();
+        var stored = fresh.XboxUsers.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(error, Is.Null);
+            Assert.That(result!.XboxUserID, Is.EqualTo(789));
+            Assert.That(result.User?.UserName, Is.EqualTo("owner"), "Still the same account's, so it can't be taken");
+            Assert.That(stored.Gamertag, Is.EqualTo("NewName"), "Halo's spelling");
+        });
+    }
 }

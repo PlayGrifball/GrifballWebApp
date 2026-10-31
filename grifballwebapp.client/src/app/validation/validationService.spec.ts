@@ -27,6 +27,11 @@ describe('ValidationService', () => {
       expect(result).toBe('Minimum length 8');
     });
 
+    it('should return maxlength message with required length', () => {
+      const result = ValidationService.getValidatorErrorMessage('maxlength', { requiredLength: 30, actualLength: 31 });
+      expect(result).toBe('Maximum length 30');
+    });
+
     it('should return regex validation message with custom error', () => {
       const result = ValidationService.getValidatorErrorMessage('regexValidation', { errorMessage: 'Custom error' });
       expect(result).toBe('Custom error');

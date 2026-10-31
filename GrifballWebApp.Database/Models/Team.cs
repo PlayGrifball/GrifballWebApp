@@ -3,6 +3,9 @@
 namespace GrifballWebApp.Database.Models;
 public class Team : AuditableEntity
 {
+    /// <summary>The longest a team name can be (its column's length).</summary>
+    public const int TeamNameMaxLength = 30;
+
     public Team()
     {
         TeamPlayers = new HashSet<TeamPlayer>();

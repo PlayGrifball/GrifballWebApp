@@ -53,6 +53,7 @@ describe('ApiClientService', () => {
           expect(data!.seasonName).toBe('Season 1');
           expect(data!.signupsOpen instanceof DateTime).toBeTrue();
           expect(data!.signupsOpen.toMillis()).toBe(Date.parse('2026-01-01T00:00:00Z'));
+          expect(data!.publicAt).toBeNull(); // not announced
           done();
         }
       });
@@ -60,6 +61,17 @@ describe('ApiClientService', () => {
       const req = httpTestingController.expectOne('/api/EventOrganizer/GetSeason/1');
       expect(req.request.method).toBe('GET');
       req.flush(mockSeason);
+    });
+
+    it('reads when a season is public from', (done) => {
+      service.getSeason(2).subscribe({
+        next: (data) => {
+          expect(data!.publicAt!.toMillis()).toBe(Date.parse('2025-12-01T00:00:00Z'));
+          done();
+        }
+      });
+
+      httpTestingController.expectOne('/api/EventOrganizer/GetSeason/2').flush({ seasonID: 2, seasonName: 'S2', publicAt: '2025-12-01T00:00:00Z', signupsOpen: '2026-01-01T00:00:00Z', signupsClose: '2026-01-08T00:00:00Z', draftStart: '2026-01-09T00:00:00Z', seasonStart: '2026-01-10T00:00:00Z', seasonEnd: '2026-03-01T00:00:00Z' });
     });
 
     it('gives null for a season that does not exist (204)', (done) => {

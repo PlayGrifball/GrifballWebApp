@@ -256,4 +256,19 @@ public class SeasonMatchServiceReportMatchTests
 
         Assert.That(ex!.Message, Is.EqualTo("Unable to verify teams"));
     }
+
+    [Test]
+    public async Task ReportMatch_RosteredPlayerWithoutAGamertag_IsLeftOut()
+    {
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        _context.TeamPlayers.Add(new TeamPlayer { TeamID = seeded.Home.TeamID, User = new User { UserName = "nogamertag" } });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+
+        await _service.ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+
+        var sm = await Reload(seeded.SeasonMatch.SeasonMatchID);
+        Assert.That(sm.HomeTeamResult, Is.EqualTo(SeasonMatchResult.Won));
+    }
 }

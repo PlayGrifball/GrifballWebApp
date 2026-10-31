@@ -19,6 +19,7 @@ public class EventOrganizerService
             {
                 SeasonID = x.SeasonID,
                 SeasonName = x.SeasonName,
+                PublicAt = x.PublicAt,
                 SignupsOpen = x.SignupsOpen,
                 SignupsClose = x.SignupsClose,
                 DraftStart = x.DraftStart,
@@ -35,6 +36,7 @@ public class EventOrganizerService
             {
                 SeasonID = x.SeasonID,
                 SeasonName = x.SeasonName,
+                PublicAt = x.PublicAt,
                 SignupsOpen = x.SignupsOpen,
                 SignupsClose = x.SignupsClose,
                 DraftStart = x.DraftStart,
@@ -69,6 +71,7 @@ public class EventOrganizerService
         }
 
         season.SeasonName = dto.SeasonName;
+        season.PublicAt = dto.PublicAt;
         season.SignupsOpen = dto.SignupsOpen;
         season.SignupsClose = dto.SignupsClose;
         season.DraftStart = dto.DraftStart;

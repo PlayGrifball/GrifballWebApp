@@ -67,7 +67,7 @@ public class DraftStringMenuInteractionsTests
 
     private async Task<(Season season, User captain, User player)> SeedDraft()
     {
-        var season = await _context.AddSeason();
+        var season = await _context.AddSeason(captainsLocked: true); // Discord picks start once captains are locked
         var captain = await _context.AddUser("cap", "Cap", gamertag: "CapGT");
         captain.DiscordUser = new DiscordUser { DiscordUserID = (long)DiscordId, DiscordUsername = "capdiscord" };
         await _context.SaveChangesAsync();
