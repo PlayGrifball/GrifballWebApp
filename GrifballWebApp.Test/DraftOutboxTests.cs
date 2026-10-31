@@ -220,4 +220,41 @@ public class DraftOutboxTests
         Assert.That(calls, Is.EqualTo(1));
         Assert.That((await outbox.MessagesAsync()).Single().Status, Is.EqualTo(OutboxStatus.Sent));
     }
+
+    [Test]
+    public async Task Post_GivenUpOn_DoesNotHoldBackTheOnDeckMessages_AndOnesAllSent_AreDone()
+    {
+        var discord = Substitute.For<IDiscordRestClient>();
+        var sent = new List<string?>();
+        discord.SendMessageAsync(DraftChannel, Arg.Any<NetCord.Rest.MessageProperties>(), Arg.Any<NetCord.Rest.RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(c =>
+            {
+                var content = c.ArgAt<NetCord.Rest.MessageProperties>(1).Content;
+                if (content == "Captains are now locked")
+                    return Task.FromException<IDiscordRestMessage>(new HttpRequestException("403"));
+                sent.Add(content);
+                return Task.FromResult(Substitute.For<IDiscordRestMessage>());
+            });
+        discord.GetCurrentUserAsync(Arg.Any<NetCord.Rest.RestRequestProperties>(), Arg.Any<CancellationToken>()).Returns(Substitute.For<IDiscordCurrentUser>());
+        discord.GetMessagesAsync(DraftChannel, Arg.Any<NetCord.Rest.PaginationProperties<ulong>>(), Arg.Any<NetCord.Rest.RestRequestProperties>())
+            .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
+        await using var outbox = new OutboxTestDriver(_context, discord, new DiscordOptions { DraftChannel = DraftChannel });
+        await new ContextOutbox(_context).EnqueueLockChangedAsync(_context, _teams, _season.SeasonID, true, CancellationToken.None);
+        _context.Outbox.Add(new OutboxMessage
+        {
+            Kind = DraftOutbox.OnDeck,
+            Payload = """{"seasonId":1,"messages":[{"content":"x","menus":[]}]}""",
+            Result = """{"posted":1}""",
+        });
+        await _context.SaveChangesAsync();
+
+        await outbox.DrainAsync();
+
+        var messages = await outbox.MessagesAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(messages.Select(x => x.Status), Is.EqualTo(new[] { OutboxStatus.DeadLettered, OutboxStatus.Sent, OutboxStatus.Sent }));
+            Assert.That(sent, Is.EqualTo(new[] { "<@111222333> is on deck" }), "The on-deck message still went; the one already sent did not go again");
+        });
+    }
 }
