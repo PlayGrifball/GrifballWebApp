@@ -1,6 +1,7 @@
 {{- $b := .Values.backend -}}
 {{- if and $b.persistence.enabled (not $b.persistence.existingClaim) }}
-# Grunt's Halo Infinite tokens and account authorization (the backend's working directory).
+# The backend's working directory, where Grunt kept the Halo Infinite tokens before they moved to the
+# database (imported from here once).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -35,10 +36,8 @@ spec:
   selector:
     matchLabels:
       app: grif-backend
-  {{- with $b.strategy }}
   strategy:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- toYaml (include "grif.backendStrategy" . | fromYaml) | nindent 4 }}
   template:
     metadata:
       labels:

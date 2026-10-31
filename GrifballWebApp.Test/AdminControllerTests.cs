@@ -1,5 +1,6 @@
 using GrifballWebApp.Server.Controllers;
 using GrifballWebApp.Server.Dtos;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,7 @@ public class AdminControllerTests
     private IDataPullService _dataPullService;
     private IOptionsMonitor<ClientConfiguration> _options;
     private IUserManagementService _userManagementService;
+    private IHaloTokenStore _tokenStore;
     private AdminController _controller;
 
     [SetUp]
@@ -36,7 +38,8 @@ public class AdminControllerTests
         _dataPullService = Substitute.For<IDataPullService>();
         _options = Substitute.For<IOptionsMonitor<ClientConfiguration>>();
         _userManagementService = Substitute.For<IUserManagementService>();
-        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService);
+        _tokenStore = Substitute.For<IHaloTokenStore>();
+        _controller = new AdminController(_logger, _haloInfiniteClientFactory, _accountAuthorization, _dataPullService, _options, _userManagementService, _tokenStore);
     }
 
     [Test]
@@ -62,18 +65,23 @@ public class AdminControllerTests
     }
 
     [Test]
-    public async Task SetCode_ShouldCallSetCodeAsync_AndReturnOk()
+    public async Task SetCode_ShouldClearTheStoredToken_ThenCallSetCodeAsync_AndReturnOk()
     {
         var code = "testcode";
         var result = await _controller.SetCode(code);
-        await _accountAuthorization.Received(1).SetCodeAsync(code);
+        Received.InOrder(() =>
+        {
+            _tokenStore.ClearAsync(Arg.Any<CancellationToken>());
+            _accountAuthorization.SetCodeAsync(code);
+        });
         Assert.That(result, Is.TypeOf<OkResult>());
     }
 
     [Test]
-    public void DeleteTokens_ShouldReturnOk()
+    public async Task DeleteTokens_ShouldClearTheStoredToken_AndReturnOk()
     {
-        var result = _controller.DeleteTokens();
+        var result = await _controller.DeleteTokens();
+        await _tokenStore.Received(1).ClearAsync(Arg.Any<CancellationToken>());
         Assert.That(result, Is.TypeOf<OkResult>());
     }
 

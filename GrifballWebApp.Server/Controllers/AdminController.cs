@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Server.Services;
+﻿using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.UserManagement;
 using GrifballWebApp.Server.Dtos;
 using Microsoft.AspNetCore.Authorization;
@@ -21,11 +22,14 @@ public class AdminController : ControllerBase
     private readonly IDataPullService _dataPullService;
     private readonly IOptionsMonitor<ClientConfiguration> _options;
     private readonly IUserManagementService _userManagementService;
+    private readonly IHaloTokenStore _tokenStore;
 
     public AdminController(ILogger<AdminController> logger, IHaloInfiniteClientFactory haloInfiniteClientFactory,
         IAccountAuthorization accountAuthorization, IDataPullService dataPullService,
-        IOptionsMonitor<ClientConfiguration> optionsMonitor, IUserManagementService userManagementService)
+        IOptionsMonitor<ClientConfiguration> optionsMonitor, IUserManagementService userManagementService,
+        IHaloTokenStore tokenStore)
     {
+        _tokenStore = tokenStore;
         _logger = logger;
         _haloInfiniteClientFactory = haloInfiniteClientFactory;
         _accountAuthorization = accountAuthorization;
@@ -63,17 +67,9 @@ public class AdminController : ControllerBase
         if (string.IsNullOrWhiteSpace(code))
             return BadRequest("Missing code");
 
-        // Ensure blank slate
-
-        if (System.IO.File.Exists("AccountAuthorization.txt"))
-        {
-            System.IO.File.Delete("AccountAuthorization.txt");
-        }
-
-        if (System.IO.File.Exists("tokens.json"))
-        {
-            System.IO.File.Delete("tokens.json");
-        }
+        // Ensure blank slate: the process that owns the sign-in exchanges the new code for a token
+        // (HaloTokenRefreshService), within a minute, or on the next Halo Infinite call.
+        await _tokenStore.ClearAsync();
 
         await _accountAuthorization.SetCodeAsync(code);
 
@@ -82,17 +78,9 @@ public class AdminController : ControllerBase
 
     [Authorize(Roles = "Sysadmin")]
     [HttpPost(Name = "DeleteTokens")]
-    public ActionResult DeleteTokens()
+    public async Task<ActionResult> DeleteTokens()
     {
-        if (System.IO.File.Exists("AccountAuthorization.txt"))
-        {
-            System.IO.File.Delete("AccountAuthorization.txt");
-        }
-
-        if (System.IO.File.Exists("tokens.json"))
-        {
-            System.IO.File.Delete("tokens.json");
-        }
+        await _tokenStore.ClearAsync();
 
         return Ok();
     }

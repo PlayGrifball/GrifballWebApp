@@ -86,10 +86,9 @@ backend:
     digest: ""
     pullPolicy: IfNotPresent
   replicas: 1
-  # Recreate: the state volume (persistence) is ReadWriteOnce, so a new pod can't start beside the
-  # old one.
-  strategy:
-    type: Recreate
+  # The Deployment's strategy. Empty: Recreate while the state volume (persistence) is mounted here,
+  # since it is ReadWriteOnce and a new pod can't start beside the old one; RollingUpdate without it.
+  strategy: {}
   # ASPNETCORE_HTTP_PORTS. The frontend's server proxies to 5295.
   port: 5295
   service:
@@ -210,9 +209,12 @@ backend:
     mountPath: /etc/google-credentials
     optional: false
 
-  # Grunt (the Halo Infinite client) keeps its OAuth tokens (tokens.json) and the one-time account
-  # authorization code (AccountAuthorization.txt) in the working directory, so the working directory
-  # is this volume. Disabled: an emptyDir, and the account is authorized again after each restart.
+  # The working directory. Grunt (the Halo Infinite client) used to keep its OAuth token
+  # (tokens.json) and the one-time account authorization code (AccountAuthorization.txt) here; the app
+  # now keeps them in the database (encrypted) and imports these files once, at its first start, so
+  # an existing deployment needn't authorize the account again. Once it has started, the volume is
+  # no longer needed: disabled, the working directory is an emptyDir and the Deployment can roll
+  # (strategy).
   persistence:
     enabled: true
     # Use this PVC instead of creating one.

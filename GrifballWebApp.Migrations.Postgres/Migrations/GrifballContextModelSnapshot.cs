@@ -427,6 +427,29 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     b.HasAnnotation("Grif:HistoryOf", "GameVersions");
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.HaloInfiniteCredential", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProtectedValue")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .UseCollation("case_insensitive");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("HaloInfiniteCredentials", "Auth");
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.Match", b =>
                 {
                     b.Property<Guid>("MatchID")

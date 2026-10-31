@@ -159,6 +159,17 @@ skipped. Takes dict "name" (prefix, "" at the top) and "value".
 {{- . | replace ":" "__" -}}
 {{- end }}
 
+{{/* The backend Deployment's strategy: backend.strategy, else Recreate while the ReadWriteOnce state
+volume is mounted in its pods, RollingUpdate otherwise. */}}
+{{- define "grif.backendStrategy" -}}
+{{- $b := .Values.backend -}}
+{{- if $b.strategy -}}
+{{- toYaml $b.strategy -}}
+{{- else -}}
+type: {{ ternary "Recreate" "RollingUpdate" (and $b.persistence.enabled true) }}
+{{- end -}}
+{{- end }}
+
 {{- define "grif.backendHealthPath" -}}
 {{- $hc := .root.Values.backend.config.HealthChecks | default dict -}}
 {{- if eq .probe "live" -}}{{- $hc.LivePath | default "/health/live" -}}

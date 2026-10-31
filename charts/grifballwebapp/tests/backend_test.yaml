@@ -229,3 +229,25 @@ tests:
     documentIndex: 1
     asserts:
       - isKind: { of: Deployment }
+
+  - it: recreates the pod while the ReadWriteOnce state volume is mounted (the default)
+    documentIndex: 1
+    asserts:
+      - equal: { path: spec.strategy, value: { type: Recreate } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, persistentVolumeClaim: { claimName: grif-backend-state } } }
+
+  - it: rolls without the state volume
+    documentIndex: 0
+    set:
+      backend.persistence.enabled: false
+    asserts:
+      - isKind: { of: Deployment }
+      - equal: { path: spec.strategy, value: { type: RollingUpdate } }
+      - contains: { path: spec.template.spec.volumes, content: { name: state, emptyDir: {} } }
+
+  - it: takes backend.strategy as it is
+    documentIndex: 1
+    set:
+      backend.strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+    asserts:
+      - equal: { path: spec.strategy, value: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } } }

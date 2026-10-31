@@ -8,6 +8,7 @@ using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
@@ -283,6 +284,8 @@ public class Program
             });
         }
 
+        // Grunt's tokens in the database, not files in the working directory (before Grunt adds its file-based storage).
+        builder.Services.AddHaloTokenStore(ownsRefresh: true);
         builder.RegisterHaloInfiniteClientFactory();
 
         var retryDelayCalculator = new RetryDelayCalculator();
