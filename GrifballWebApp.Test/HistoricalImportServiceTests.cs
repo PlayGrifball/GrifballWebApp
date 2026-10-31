@@ -261,7 +261,7 @@ public class HistoricalImportServiceTests
             Assert.That(season.SeasonStart, Is.EqualTo(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(ended, Is.InRange(before, DateTime.UtcNow));
             Assert.That((await _context.Seasons.AsNoTracking().SingleAsync()).SeasonEnd, Is.EqualTo(ended), "A re-run keeps it");
-            Assert.That(await new GrifballWebApp.Server.Seasons.SeasonService(_context).GetCurrentSeasonID(), Is.Zero, "Not a current season");
+            Assert.That(await new GrifballWebApp.Server.Seasons.SeasonService(_context, new SeasonStatsService(_context)).GetCurrentSeasonID(), Is.Zero, "Not a current season");
         });
     }
 

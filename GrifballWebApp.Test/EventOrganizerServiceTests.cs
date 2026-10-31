@@ -343,10 +343,10 @@ public class EventOrganizerServiceTests
 
         var badGame = Dto("Bad", id);
         badGame.GameVersionID = 999;
-        Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(badGame));
+        await Assert.ThatAsync(() => _service.UpsertSeason(badGame), Throws.TypeOf<SeasonRefusedException>());
         var badLeague = Dto("Bad", id);
         badLeague.LeagueID = 999;
-        Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(badLeague));
+        await Assert.ThatAsync(() => _service.UpsertSeason(badLeague), Throws.TypeOf<SeasonRefusedException>());
     }
 
     [Test]

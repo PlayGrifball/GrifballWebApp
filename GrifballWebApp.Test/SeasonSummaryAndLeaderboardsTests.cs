@@ -140,7 +140,7 @@ public class SeasonSummaryAndLeaderboardsTests
     {
         var (season, champs, bench, _, _, _) = await SeedHistorical();
 
-        var stats = await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonPlayerStats(season.SeasonID, CancellationToken.None);
+        var stats = await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonPlayerStats(season.SeasonID, null, CancellationToken.None);
 
         Assert.That(stats.Select(s => (s.Gamertag, s.Goals, s.TeamID, s.TeamName, s.IsPlayoffs, s.Source)), Is.EqualTo(new[]
         {
