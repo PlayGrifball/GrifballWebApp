@@ -2,6 +2,7 @@ using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Outbox;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -61,6 +62,7 @@ public class AppRoleTests
         services.AddHostedService<QueueBackgroundService>();
         services.AddHostedService<EventsBackgroundService>();
         services.AddHostedService<HaloTokenRefreshService>();
+        services.AddHostedService<OutboxDispatcher>();
         services.AddHostedService<OtherHostedService>();
         services.AddKeyedSingleton<IHostedService, OtherHostedService>("keyed");
         return services;
@@ -69,6 +71,14 @@ public class AppRoleTests
     private static List<Type?> HostedTypes(IServiceCollection services)
         => services.Where(d => d.ServiceType == typeof(IHostedService))
             .Select(d => d.IsKeyedService ? d.KeyedImplementationType : d.ImplementationType).ToList();
+
+    [Test]
+    public void TheOutboxDispatcher_RunsOnlyInTheWorkerRoles()
+    {
+        Assert.That(AppRole.WorkerHostedServices, Does.Contain(typeof(OutboxDispatcher)));
+        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Api))), Does.Not.Contain(typeof(OutboxDispatcher)));
+        Assert.That(HostedTypes(Services().ApplyAppRole(new AppRole(AppRoleKind.Worker))), Does.Contain(typeof(OutboxDispatcher)));
+    }
 
     [Test]
     public void ApplyAppRole_InTheApiRole_DropsOnlyTheWorkersHostedServices()
@@ -85,6 +95,6 @@ public class AppRoleTests
     {
         var services = Services().ApplyAppRole(new AppRole(kind));
 
-        Assert.That(HostedTypes(services), Has.Count.EqualTo(5));
+        Assert.That(HostedTypes(services), Has.Count.EqualTo(6));
     }
 }

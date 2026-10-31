@@ -2,6 +2,7 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.HaloInfinite;
 using GrifballWebApp.Server.Hosting;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
@@ -246,6 +247,7 @@ public class ProgramStartupTests
             Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
             // App:Role unset: all, today's single process, which also owns the Halo Infinite sign-in.
             Assert.That(hostedTypes, Does.Contain(typeof(HaloTokenRefreshService)));
+            Assert.That(hostedTypes, Does.Contain(typeof(OutboxDispatcher)));
             // They were removed before start, so nothing connected to Discord.
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
                 Has.None.StartsWith("NetCord"));
