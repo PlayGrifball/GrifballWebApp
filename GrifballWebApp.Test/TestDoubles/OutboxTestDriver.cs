@@ -6,6 +6,7 @@ using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Reschedule;
+using GrifballWebApp.Server.Teams;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -60,7 +61,8 @@ public sealed class OutboxTestDriver : IAsyncDisposable
             .AddSingleton<OutboxProcessor>()
             .AddMatchmakingOutboxHandlers()
             .AddRescheduleOutboxHandlers()
-            .AddEventsOutboxHandlers();
+            .AddEventsOutboxHandlers()
+            .AddDraftOutboxHandlers();
         configure?.Invoke(services);
         _provider = services.BuildServiceProvider();
         Processor = _provider.GetRequiredService<OutboxProcessor>();
