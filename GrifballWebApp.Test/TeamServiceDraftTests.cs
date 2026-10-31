@@ -6,6 +6,8 @@ using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 [TestFixture]
@@ -22,7 +24,7 @@ public class TeamServiceDraftTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher);
+        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
     }
 
     [TearDown]
@@ -425,7 +427,7 @@ public class TeamServiceDraftTests
         Assert.That(note.ConnectionId, Is.EqualTo("conn-a"));
 
         // Team A now has more members, so B is on deck
-        var fresh = new TeamService(_context.NewContextLike(), _publisher);
+        var fresh = new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>());
         var onDeck = await fresh.OnDeck(season.SeasonID, CancellationToken.None);
         Assert.That(onDeck!.Captain.UserID, Is.EqualTo(capB.Id));
     }
@@ -583,10 +585,10 @@ public class TeamServiceDraftTests
         Assert.That(await _service.AreCaptainsLocked(season.SeasonID), Is.False);
 
         await _service.LockCaptains(season.SeasonID, true, "conn-l");
-        Assert.That(await new TeamService(_context.NewContextLike(), _publisher).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>()).AreCaptainsLocked(season.SeasonID), Is.True);
 
         await _service.LockCaptains(season.SeasonID, false);
-        Assert.That(await new TeamService(_context.NewContextLike(), _publisher).AreCaptainsLocked(season.SeasonID), Is.False);
+        Assert.That(await new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>()).AreCaptainsLocked(season.SeasonID), Is.False);
 
         Assert.That(Published<LockChanged>(), Is.EqualTo(new[]
         {

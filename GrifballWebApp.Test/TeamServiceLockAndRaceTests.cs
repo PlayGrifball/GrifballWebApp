@@ -5,6 +5,8 @@ using GrifballWebApp.Server.Teams.Handlers;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 /// <summary>
@@ -25,7 +27,7 @@ public class TeamServiceLockAndRaceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher);
+        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
     }
 
     [TearDown]
@@ -90,7 +92,7 @@ public class TeamServiceLockAndRaceTests
         var contexts = Enumerable.Range(0, 6).Select(_ => _context.NewContextLike()).ToList();
         var results = await Task.WhenAll(contexts.Select(async (ctx, i) =>
         {
-            var service = new TeamService(ctx, Substitute.For<IPublisher>());
+            var service = new TeamService(ctx, Substitute.For<IPublisher>(), new ContextOutbox(ctx));
             try
             {
                 await service.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = i % 2 == 0 ? capA.Id : capB.Id, PersonID = player.Id }, commish.Id);

@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 [TestFixture]
@@ -31,7 +33,7 @@ public class TeamsHubTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _hub = new TeamsHub(new TeamService(_context, _publisher));
+        _hub = new TeamsHub(new TeamService(_context, _publisher, new ContextOutbox(_context)));
         _callerContext = Substitute.For<HubCallerContext>();
         _callerContext.ConnectionId.Returns("hub-conn");
         _hub.Context = _callerContext;
@@ -81,7 +83,7 @@ public class TeamsHubTests
         await _hub.AddPlayerToTeam(new AddPlayerToTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c1.Id, PersonID = p.Id });
         await _hub.MovePlayerToTeam(new MovePlayerToTeamRequestDto { SeasonID = season.SeasonID, PreviousCaptainID = c1.Id, NewCaptainID = c2.Id, PersonID = p.Id, RoundNumber = 1 });
 
-        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher)).GetTeams(season.SeasonID);
+        var teams = await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).GetTeams(season.SeasonID);
         Assert.That(teams.Select(t => t.TeamName), Is.EqualTo(new[] { "Two", "One" }));
         Assert.That(teams[0].Players.Select(x => x.PersonID), Is.EqualTo(new[] { p.Id }));
         Assert.That(await _hub.GetPlayerPool(season.SeasonID), Is.Empty);
@@ -89,9 +91,9 @@ public class TeamsHubTests
         await _hub.RemovePlayerFromTeam(new RemovePlayerFromTeamRequestDto { SeasonID = season.SeasonID, CaptainID = c2.Id, PersonID = p.Id });
         await _hub.RemoveCaptain(new RemoveCaptainDto { SeasonID = season.SeasonID, PersonID = c1.Id });
         await _hub.LockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher)).AreCaptainsLocked(season.SeasonID), Is.True);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID), Is.True);
         await _hub.UnlockCaptains(season.SeasonID);
-        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher)).AreCaptainsLocked(season.SeasonID), Is.False);
+        Assert.That(await new TeamsHub(new TeamService(_context.NewContextLike(), _publisher, Substitute.For<IOutbox>())).AreCaptainsLocked(season.SeasonID), Is.False);
 
         var published = Published();
         Assert.That(published, Has.Count.EqualTo(9));

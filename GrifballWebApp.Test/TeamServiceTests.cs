@@ -5,6 +5,8 @@ using GrifballWebApp.Server.Notifications;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
+using GrifballWebApp.Server.Outbox;
+
 namespace GrifballWebApp.Test;
 
 [TestFixture]
@@ -21,7 +23,7 @@ public class TeamServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _publisher = Substitute.For<IPublisher>();
-        _service = new TeamService(_context, _publisher);
+        _service = new TeamService(_context, _publisher, new ContextOutbox(_context));
     }
 
     [TearDown]
