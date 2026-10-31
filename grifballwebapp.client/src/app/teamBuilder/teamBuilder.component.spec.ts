@@ -60,7 +60,8 @@ describe('TeamBuilderComponent', () => {
       'movePlayerToTeam',
       'removePlayerFromTeam',
       'lockCaptains',
-      'unlockCaptains'
+      'unlockCaptains',
+      'connected'
     ]);
 
     mockSignalR.hubConnection = { connectionId: 'test-connection-id' } as any;
@@ -385,7 +386,7 @@ describe('TeamBuilderComponent', () => {
       ]));
       mockApiClient.getPlayerPool.and.returnValue(of([player(3), player(4), player(5)]));
       for (const m of ['addCaptain', 'resortCaptain', 'removeCaptain', 'addPlayerToTeam', 'movePlayerToTeam', 'removePlayerFromTeam'] as const) {
-        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named' } : {}));
+        (mockApiClient[m] as jasmine.Spy).and.returnValue(of(m === 'addCaptain' ? { teamName: 'Named', teamID: 9 } : {}));
       }
       spyOn(console, 'log');
       fixture.detectChanges();
@@ -408,11 +409,12 @@ describe('TeamBuilderComponent', () => {
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[0]);
       const loads = mockApiClient.getTeams.calls.count();
 
-      saved.next({ teamName: 'The Fours' });
+      saved.next({ teamName: 'The Fours', teamID: 44 });
       saved.complete();
 
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
       expect(component.teams()[1].teamName).toBe('The Fours');
+      expect(component.teams()[1].teamID).toBe(44);
       expect(roster(101)).toEqual(['1:1', '2:2', '3:3']);
     });
 
@@ -438,7 +440,7 @@ describe('TeamBuilderComponent', () => {
     for (const [name, request, act] of refusals) {
       it(`says why and reloads the real draft when the server refuses a drop (${name})`, () => {
         // As GlobalExceptionHandler sends a TeamServiceException.
-        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', status: 500, detail: 'It is not your turn to be making a draft pick' } })));
+        (mockApiClient[request] as jasmine.Spy).and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', status: 400, detail: 'It is not your turn to be making a draft pick' } })));
         const loads = mockApiClient.getTeams.calls.count();
 
         act();
@@ -455,6 +457,61 @@ describe('TeamBuilderComponent', () => {
 
 
 
+    describe('when the hub connection comes up after the draft loaded', () => {
+      const connected = () => (mockSignalR.connected.calls.mostRecent().args[0] as () => void)();
+      const loads = () => mockApiClient.getTeams.calls.count();
+
+      it('loads the draft again, once: a change sent before the connection was up was missed', () => {
+        const before = loads();
+        connected();
+        expect(loads()).toBe(before + 1);
+        // That load does not bring the connection up again: no loop
+        fixture.detectChanges();
+        expect(loads()).toBe(before + 1);
+        expect(mockSignalR.connected).toHaveBeenCalledTimes(1);
+      });
+
+      it('loads again on every reconnect', () => {
+        const before = loads();
+        connected();
+        connected();
+        expect(loads()).toBe(before + 2);
+      });
+
+      it('waits for a drag under way to end', () => {
+        const before = loads();
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        connected();
+        expect(loads()).toBe(before);
+        component.onDragEnd();
+        expect(loads()).toBe(before + 1);
+        // A later drag ends with nothing waiting
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDragEnd();
+        expect(loads()).toBe(before + 1);
+      });
+
+      it('waits for a save on its way, as other reloads do', () => {
+        const saved = new Subject<Object>();
+        mockApiClient.addPlayerToTeam.and.returnValue(saved);
+        grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
+        component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
+        component.onDragEnd();
+        const before = loads();
+        connected();
+        expect(loads()).toBe(before);
+        saved.next({});
+        saved.complete();
+        expect(loads()).toBe(before + 1);
+      });
+
+      it('stops listening once the page is gone', () => {
+        const off = mockSignalR.connected.calls.mostRecent().returnValue as jasmine.Spy;
+        fixture.destroy();
+        expect(off).toHaveBeenCalled();
+      });
+    });
+
     it('lets a save finish after the page is gone, without touching it', () => {
       const saved = new Subject<Object>();
       mockApiClient.addPlayerToTeam.and.returnValue(saved);
@@ -465,7 +522,7 @@ describe('TeamBuilderComponent', () => {
       fixture.destroy();
       expect(saved.observed).toBeTrue(); // still being sent
 
-      saved.error(new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } }));
+      saved.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).not.toHaveBeenCalled();
       expect(mockApiClient.getTeams.calls.count()).toBe(loads);
     });
@@ -524,7 +581,7 @@ describe('TeamBuilderComponent', () => {
       try {
         // A null AddCaptain answer makes the name lookup throw inside the save's callback.
         mockApiClient.addCaptain.and.returnValue(of(null as any));
-        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } })));
+        mockApiClient.resortCaptain.and.returnValue(throwError(() => new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } })));
         const pending = new Subject<Object>();
         mockApiClient.addPlayerToTeam.and.returnValue(pending);
         grab(component.playerPool()[0], GrabbedThing.AvailablePlayer);
@@ -579,7 +636,7 @@ describe('TeamBuilderComponent', () => {
       component.onDropPickInTeam(drop(component.playerPool()[0]), component.teams()[1]);
       const loads = mockApiClient.getTeams.calls.count();
 
-      refused.error(new HttpErrorResponse({ status: 500, error: { title: 'Server error', detail: 'No' } }));
+      refused.error(new HttpErrorResponse({ status: 400, error: { title: 'Request refused', detail: 'No' } }));
       expect(mockSnackBar.open).toHaveBeenCalledWith('Draft change not saved: No', 'Close');
       expect(mockApiClient.getTeams.calls.count()).toBe(loads); // the pick is still on its way
 
@@ -903,8 +960,9 @@ describe('TeamBuilderComponent', () => {
       fixture.autoDetectChanges();
       await fixture.whenStable();
 
-      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
+      handler<any>(mockSignalR.addCaptain)({ seasonID: SEASON, personID: 4, teamID: 31, teamName: 'Charlie', captainName: 'Player 4', orderNumber: 1 });
       await fixture.whenStable();
+      expect(component.teams()[0].teamID).toBe(31);
 
       const titles = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-card.item:not(.dndPlaceholder) mat-card-title'))
         .map(t => t.textContent!.trim());
@@ -1084,7 +1142,8 @@ describe('TeamBuilderComponent remove captain request (HttpTestingController)', 
       'movePlayerToTeam',
       'removePlayerFromTeam',
       'lockCaptains',
-      'unlockCaptains'
+      'unlockCaptains',
+      'connected'
     ]);
     mockSignalR.hubConnection = { connectionId: 'conn-42' } as any;
     // Each registration returns its own unregister function, like the real service.

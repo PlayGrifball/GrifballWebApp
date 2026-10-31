@@ -1,54 +1,80 @@
-<form #form="ngForm">
-  <h3>Bulk Modify</h3>
-  <mat-form-field>
-    <mat-label>Frequency in minutes</mat-label>
-    <input matInput [(ngModel)]="minutes" required name="minutes" type="number" pattern="^[0-9]+([0-9]{0,0})?$">
-  </mat-form-field>
-
-  <mat-form-field>
-    <mat-label>From</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="start" required name="start">
-    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
-    <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time" />
-  </mat-form-field>
-
-  <mat-form-field>
-    <mat-label>To</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="end" required name="end">
-    <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
-    <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time" />
-  </mat-form-field>
-
-  <label>On the following days:</label>
-  @for (checkbox of checkboxes; track checkbox) {
-  <mat-checkbox [(ngModel)]="checkbox.isChecked" [name]="checkbox.name + 'checkbox'">{{checkbox.name}}</mat-checkbox>
-  }
-
-  <button mat-raised-button (click)="bulkModify()" [disabled]="!form.valid">Bulk Modify</button>
-</form>
-
-<form #form2="ngForm">
-  <button mat-raised-button (click)="saveChanges()" [disabled]="!form2.valid">Save Changes</button>
-  <button mat-raised-button (click)="add()">Add</button>
-
-  @for (option of options(); track $index) {
-  <div>
-    <mat-form-field>
-      <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="option.time" (ngModelChange)="setOption($index, { time: $event })" required [name]="'picker' + $index">
-      <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
-      <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" />
-    </mat-form-field>
-
-    <mat-form-field>
-      <mat-select [ngModel]="option.dayOfWeek" (ngModelChange)="setOption($index, { dayOfWeek: $event })" required [name]="'select' + $index">
-        @for (dayOfWeek of daysOfWeek(); track dayOfWeek) {
-        <mat-option [value]="dayOfWeek">{{dayOfWeek}}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
-
-    <button mat-raised-button (click)="delete($index)">Delete</button>
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <a class="hud-kicker" [routerLink]="['/seasonEdit', seasonID()]">&gt; Edit season</a>
+    <h1 class="hud-title hud-title--md">Season availability</h1>
   </div>
+  <p class="hud-lede">The times players can pick from when they sign up.</p>
 
-  }
-</form>
+  <form class="hud-panel hud-form-group" #form="ngForm" aria-labelledby="bulk-title">
+    <h2 id="bulk-title" class="hud-kicker">Bulk Modify</h2>
+    <p class="hud-muted">Replaces the list below with a timeslot every few minutes between two times, on the days ticked. Nothing is saved until you press Save Changes.</p>
+    <div class="hud-field-grid">
+      <mat-form-field appearance="outline">
+        <mat-label>Frequency in minutes</mat-label>
+        <input matInput [(ngModel)]="minutes" required name="minutes" type="number" pattern="^[0-9]+([0-9]{0,0})?$">
+        <mat-hint>e.g. 30 for every half hour</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>From</mat-label>
+        <input matInput [mtxDatetimepicker]="datetimePicker1" [(ngModel)]="start" required name="start">
+        <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
+        <mtx-datetimepicker #datetimePicker1 [twelvehour]="true" type="time" />
+        <mat-hint>The first timeslot</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>To</mat-label>
+        <input matInput [mtxDatetimepicker]="datetimePicker2" [(ngModel)]="end" required name="end">
+        <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+        <mtx-datetimepicker #datetimePicker2 [twelvehour]="true" type="time" />
+        <mat-hint>The last timeslot</mat-hint>
+      </mat-form-field>
+    </div>
+
+    <fieldset class="avail-days">
+      <legend class="hud-label">On the following days</legend>
+      @for (checkbox of checkboxes; track checkbox) {
+      <mat-checkbox [(ngModel)]="checkbox.isChecked" [name]="checkbox.name + 'checkbox'">{{checkbox.name}}</mat-checkbox>
+      }
+    </fieldset>
+
+    <div class="hud-actions">
+      <button mat-stroked-button type="button" (click)="bulkModify()" [disabled]="!form.valid">Bulk Modify</button>
+    </div>
+  </form>
+
+  <form class="hud-panel hud-form-group" #form2="ngForm" aria-labelledby="slots-title">
+    <div class="avail-slots-head">
+      <h2 id="slots-title" class="hud-kicker">Timeslots · {{options().length}}</h2>
+      <div class="hud-actions">
+        <button mat-stroked-button type="button" (click)="add()">Add</button>
+        <button mat-flat-button type="button" (click)="saveChanges()" [disabled]="!form2.valid">Save Changes</button>
+      </div>
+    </div>
+
+    @for (option of options(); track $index) {
+    <div class="avail-slot">
+      <mat-form-field appearance="outline">
+        <mat-label>Time</mat-label>
+        <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="option.time" (ngModelChange)="setOption($index, { time: $event })" required [name]="'picker' + $index">
+        <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
+        <mtx-datetimepicker #datetimePicker3 [twelvehour]="true" type="time" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Day</mat-label>
+        <mat-select [ngModel]="option.dayOfWeek" (ngModelChange)="setOption($index, { dayOfWeek: $event })" required [name]="'select' + $index">
+          @for (dayOfWeek of daysOfWeek(); track dayOfWeek) {
+          <mat-option [value]="dayOfWeek">{{dayOfWeek}}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-button type="button" class="avail-slot__delete" (click)="delete($index)">Delete</button>
+    </div>
+    } @empty {
+      <p class="hud-empty">No timeslots. Add one, or fill them in with Bulk Modify.</p>
+    }
+  </form>
+</div>

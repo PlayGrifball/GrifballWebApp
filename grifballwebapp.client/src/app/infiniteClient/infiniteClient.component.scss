@@ -1,3 +1,13 @@
 :host {
   display: block;
 }
+
+.ic-status {
+  padding: 14px 16px;
+  color: var(--hud-heading);
+  overflow-wrap: anywhere;
+}
+
+.ic-actions {
+  margin-top: 16px;
+}

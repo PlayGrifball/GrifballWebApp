@@ -1,3 +1,4 @@
+import { PLATFORM_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -22,7 +23,7 @@ describe('LinkedAccountsComponent', () => {
   const button = (label: string) => buttons().find(b => b.textContent!.trim() === label);
   const status = () => el().querySelector('[role="status"]')?.textContent?.trim();
 
-  function create(userID?: number): void {
+  function create(userID?: number, platform: 'browser' | 'server' = 'browser'): void {
     TestBed.configureTestingModule({
       imports: [LinkedAccountsComponent],
       providers: [
@@ -31,6 +32,7 @@ describe('LinkedAccountsComponent', () => {
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } } },
         { provide: Location, useValue: location },
         { provide: BROWSER_NAVIGATE, useValue: navigate },
+        { provide: PLATFORM_ID, useValue: platform },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -159,6 +161,21 @@ describe('LinkedAccountsComponent', () => {
     flushMine(mine());
 
     expect(status()).toBe('Linked Discord');
+  });
+
+  it('leaves a link to the browser while rendering on the server: no call, the URL untouched', () => {
+    queryParams = { linkCallback: 'true' };
+    create(undefined, 'server');
+
+    // http.verify (afterEach): neither LinkCallback nor the list is asked for on the server
+    expect(location.replaceState).not.toHaveBeenCalled();
+    expect(status()).toBeUndefined();
+  });
+
+  it('still lists your logins while rendering on the server', () => {
+    create(undefined, 'server');
+    flushMine(mine());
+    expect(button('Unlink')).toBeDefined();
   });
 
   it('explains a login already linked to another account', () => {

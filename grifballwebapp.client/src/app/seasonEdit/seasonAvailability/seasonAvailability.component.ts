@@ -9,6 +9,8 @@ import { AvailabilityOption } from '../../api/dtos/availabilityOption';
 import { MatSelect, MatSelectModule } from '@angular/material/select';
 import { HttpClient } from '@angular/common/http';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideDatePickers } from '../../shared/datePickers';
+import { RouterLink } from '@angular/router';
 
 @Component({
     selector: 'app-season-availability',
@@ -19,10 +21,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
         FormsModule,
         MatFormField,
         MatButton,
-        MatSelectModule
+        MatSelectModule,
+        RouterLink,
     ],
     templateUrl: './seasonAvailability.component.html',
     styleUrl: './seasonAvailability.component.scss',
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SeasonAvailabilityComponent implements OnInit {

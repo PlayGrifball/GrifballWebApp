@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Config, MatchWithMetadata, ViewerData } from 'brackets-viewer';
 import { HttpClient } from '@angular/common/http';
@@ -10,6 +11,7 @@ import { SeedOrderingDialogComponent } from './seedOrderingDialog/seedOrderingDi
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AccountService } from '../../account.service';
 import { Locale } from 'brackets-viewer/dist/lang';
+import { loadBracketsViewer } from '../../shared/loadBracketsViewer';
 
 @Component({
     selector: 'app-playoff-bracket',
@@ -30,16 +32,23 @@ export class PlayoffBracketComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private snackBar = inject(MatSnackBar);
   accountService = inject(AccountService);
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private seasonID: number = 0;
 
   hasBracket = signal(false);
+  /** The bracket (or that there is none) is known: until then the page shows neither. */
+  loaded = signal(false);
+  /** The viewer has drawn the bracket: the legend goes below it then, not before. */
+  drawn = signal(false);
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
     
-    if (this.seasonID === 0)
+    if (this.seasonID === 0) {
+      this.loaded.set(true);
       return;
+    }
 
     this.getViewerData();
   }
@@ -51,6 +60,7 @@ export class PlayoffBracketComponent implements OnInit {
           next: r => this.render(r),
           error: e => {
             // 404: the season does not exist, so there is no bracket to show.
+            this.loaded.set(true);
             if (e?.status === 404) {
               this.hasBracket.set(false);
               return;
@@ -61,12 +71,22 @@ export class PlayoffBracketComponent implements OnInit {
         });
   }
 
-  render(viewerData: ViewerData) {
+  async render(viewerData: ViewerData): Promise<void> {
+    this.loaded.set(true);
     if (viewerData.participants.length === 0) {
       this.hasBracket.set(false);
       return;
     } else {
       this.hasBracket.set(true);
+    }
+    // The viewer draws into the page in the browser; on the server the box is left for it.
+    if (!this.isBrowser)
+      return;
+    try {
+      await loadBracketsViewer();
+    } catch {
+      this.snackBar.open('Failed to load the bracket viewer', 'Close');
+      return;
     }
     window.bracketsViewer.addLocale('en', {
       common: {
@@ -89,7 +109,8 @@ export class PlayoffBracketComponent implements OnInit {
       this.router.navigate(['/seasonmatch/' + match.id]);
     };
 
-    window.bracketsViewer.render(viewerData, config);
+    await window.bracketsViewer.render(viewerData, config);
+    this.drawn.set(true);
   }
 
   openDialog() {

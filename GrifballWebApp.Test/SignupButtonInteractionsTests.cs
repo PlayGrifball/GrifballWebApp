@@ -88,6 +88,18 @@ public class SignupButtonInteractionsTests
     }
 
     [Test]
+    public async Task Signup_SignupsClosed_SaysSo()
+    {
+        var user = await AddLinkedUser();
+        var season = await SignupTestData.OpenSeason(_context, open: false);
+
+        await _handler.Signup(_discordContext, season.SeasonID);
+
+        Assert.That(LastMessage(), Is.EqualTo("Signups for this season are closed."));
+        Assert.That(await _context.SeasonSignups.AnyAsync(s => s.UserID == user.Id), Is.False);
+    }
+
+    [Test]
     public async Task Signup_AlreadySignedUp_RepliesWithoutDuplicating()
     {
         var user = await AddLinkedUser();

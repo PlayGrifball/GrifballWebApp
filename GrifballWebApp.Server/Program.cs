@@ -17,6 +17,7 @@ using GrifballWebApp.Server.Scheduler;
 using GrifballWebApp.Server.SeasonMatchPage;
 using GrifballWebApp.Server.Seasons;
 using GrifballWebApp.Server.Notifications;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using GrifballWebApp.Server.SignalR;
 using GrifballWebApp.Server.Signups;
@@ -24,8 +25,6 @@ using GrifballWebApp.Server.Teams;
 using GrifballWebApp.Server.TeamStandings;
 using GrifballWebApp.Server.Telemetry;
 using GrifballWebApp.Server.UserManagement;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -99,7 +98,9 @@ public class Program
             options.AddFilter<UserContextHubFilter>();
         });
 
-        builder.Services.AddControllers()
+        // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
+        builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
+        builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -134,7 +135,8 @@ public class Program
         builder.Services.AddDbContext<GrifballContext>((services, options) =>
         {
             options.UseGrifballDatabase(services.GetRequiredService<IConfiguration>())
-                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>());
+                .AddInterceptors(services.GetRequiredService<Database.Interceptors.AuditInterceptor>(),
+                    services.GetRequiredService<OutboxSignalInterceptor>());
         });
 
         // For some reason I need to have my own implementation of IDbContextFactory<GrifballContext> otherwise it conflicts with the scoped context
@@ -156,30 +158,10 @@ public class Program
         .AddSignInManager<SignInManager<User>>()
         .AddEntityFrameworkStores<GrifballContext>();
 
-        builder.Services.ConfigureApplicationCookie(o =>
-        {
-            o.Events = new CookieAuthenticationEvents()
-            {
-                OnRedirectToLogin = (ctx) =>
-                {
-                    if (ctx.Response.StatusCode == 200)
-                    {
-                        ctx.Response.StatusCode = 401;
-                    }
-
-                    return Task.CompletedTask;
-                },
-                OnRedirectToAccessDenied = (ctx) =>
-                {
-                    if (ctx.Response.StatusCode == 200)
-                    {
-                        ctx.Response.StatusCode = 403;
-                    }
-
-                    return Task.CompletedTask;
-                }
-            };
-        });
+        // The browser's session: an HttpOnly, Secure, SameSite=Lax cookie (BrowserAuth).
+        builder.Services.ConfigureApplicationCookie(BrowserAuth.ConfigureCookie);
+        // Check sessions against the security stamp often (default 30 min), so Logout ends copies of the cookie.
+        builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = BrowserAuth.SecurityStampValidationInterval);
 
         if (discordOff)
         {
@@ -214,6 +196,9 @@ public class Program
         builder.Services.AddTransient<UrlService>();
         builder.Services.AddTransient<IQueueRepository, QueueRepository>();
         builder.Services.AddTransient<QueueService>();
+        // Discord side effects queued with their database changes, sent by OutboxDispatcher (Discord off: skipped).
+        builder.Services.AddDiscordOutbox(builder.Configuration);
+        builder.Services.AddMatchmakingOutboxHandlers();
         if (!discordOff)
             builder.Services.AddHostedService<QueueBackgroundService>();
         builder.Services.AddTransient<EventsService>();
@@ -264,33 +249,28 @@ public class Program
         builder.Services.AddTransient<IGetsertXboxUserService, GetsertXboxUserService>();
         builder.Services.AddTransient<IUserMergeService, UserMergeService>();
         builder.Services.AddTransient<IExternalLoginService, ExternalLoginService>();
-        builder.Services.AddTransient<TransferLegacyDiscordService>();
+        builder.Services.AddScoped<IDiscordAccountLinkService, DiscordAccountLinkService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Reschedule.RescheduleService>();
 
         builder.Services.AddDataProtection().PersistKeysToDbContext<GrifballContext>();
 
+        // A request is authenticated by its bearer token if it has one (scripts, the smoke suite), otherwise by
+        // the browser's cookie. Challenges and forbids go the same way: 401/403, never a redirect.
+        // The default sign-in scheme stays Identity's external cookie (Discord's round trip).
         var authentication = builder.Services.AddAuthentication(options =>
         {
-            options.DefaultScheme = IdentityConstants.BearerScheme;
-            options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+            options.DefaultScheme = BrowserAuth.Scheme;
+            options.DefaultAuthenticateScheme = BrowserAuth.Scheme;
+            options.DefaultChallengeScheme = BrowserAuth.Scheme;
+            options.DefaultForbidScheme = BrowserAuth.Scheme;
         })
-        .AddBearerToken("Identity.Bearer", options =>
+        .AddPolicyScheme(BrowserAuth.Scheme, "Cookie or bearer token", options =>
+        {
+            options.ForwardDefaultSelector = BrowserAuth.SelectScheme;
+        })
+        .AddBearerToken(IdentityConstants.BearerScheme, options =>
         {
             options.BearerTokenExpiration = TimeSpan.FromMinutes(15);
-
-            options.Events = new BearerTokenEvents()
-            {
-                OnMessageReceived = context =>
-                {
-                    var accessToken = context.Request.Query["access_token"];
-                    var path = context.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/api/TeamsHub")))
-                    {
-                        context.Token = accessToken;
-                    }
-                    return Task.CompletedTask;
-                }
-            };
         });
 
         if (!discordOff)
@@ -367,9 +347,6 @@ public class Program
                 logger.LogInformation("Migrations applied");
             }
 
-            var legacyTransferService = scope.ServiceProvider.GetRequiredService<TransferLegacyDiscordService>();
-            await legacyTransferService.TransferAllAsync();
-
             // Preview mode only (it checks): the smoke suite's accounts.
             await PreviewSmokeUsers.EnsureAsync(app.Configuration, scope.ServiceProvider.GetRequiredService<UserManager<User>>(), logger);
         }
@@ -389,11 +366,18 @@ public class Program
 
         //app.UseHttpsRedirection();
 
+        // Explicitly, after the forwarded headers: left out, WebApplication adds it at the start of the
+        // pipeline, where the Discord callback (/signin-discord) would see the frontend's http and send
+        // Discord a redirect_uri other than the https one the sign-in started with (invalid_grant).
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapAppHealthChecks();
 
         app.MapControllers();
+
+        // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
+        app.Use(BrowserAuth.RefuseForeignHubRequests);
 
         app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
 

@@ -5,6 +5,7 @@
   <title>Play Grifball</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060B13">
   <meta name="description" content="Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 
@@ -24,10 +25,81 @@
   <meta name="twitter:description" content="Halo Infinite Grifball seasons, teams, schedules, brackets and match stats.">
   <meta name="twitter:image" content="https://grifball.xyz/assets/og-image.png">
   <meta name="twitter:image:alt" content="Play Grifball logo with the text: Halo Infinite Grifball seasons, teams, schedules and match stats">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <!-- The fonts are self-hosted (src/styles/_fonts.scss). The text fonts every page uses are
+       fetched at once rather than after the app has rendered, so the text does not reflow. -->
+  <link rel="preload" href="fonts/rajdhani-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/rajdhani-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/rajdhani-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/share-tech-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- The page, rendered on the server, is painted before those fonts are in: its text would be laid
+       out in a fallback font first, then move (layout shift). So the faces of the preloaded fonts are
+       declared here too (as in src/styles/_fonts.scss), not only in the stylesheet that loads later,
+       and the page stays hidden (its background shows) until they are in, for 3 s at most. -->
+  <style>
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 500; src: url('/fonts/rajdhani-latin-500-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 600; src: url('/fonts/rajdhani-latin-600-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Rajdhani'; font-style: normal; font-display: block; font-weight: 700; src: url('/fonts/rajdhani-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    @font-face { font-family: 'Share Tech Mono'; font-style: normal; font-display: block; font-weight: 400; src: url('/fonts/share-tech-mono-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+    html.fonts-loading app-root { visibility: hidden; }
+  </style>
+  <script>
+    (function () {
+      var fonts = document.fonts, root = document.documentElement;
+      if (!fonts || !fonts.load || !window.Promise) return;
+      root.classList.add('fonts-loading');
+      var show = function () { root.classList.remove('fonts-loading'); };
+      Promise.all(['500 1em Rajdhani', '600 1em Rajdhani', '700 1em Rajdhani', '400 1em "Share Tech Mono"']
+        .map(function (font) { return fonts.load(font); })).then(show, show);
+      setTimeout(show, 3000);
+    })();
+  </script>
+  <!-- Shown until the app starts (Angular replaces what is inside <app-root>): the page background
+       and the header bar, so something is on screen while the scripts load. Matches the real header. -->
+  <style>
+    body { margin: 0; background: #060B13; }
+    .boot-shell { min-height: 100vh; background: radial-gradient(ellipse at 70% 0%, #12304A 0%, #08131F 45%, #060B13 100%); }
+    .boot-shell__bar { border-bottom: 1px solid #1E3A52; }
+    .boot-shell__brand { box-sizing: border-box; max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 68px; display: flex; align-items: center;
+      font: 700 26px Rajdhani, system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #FFFFFF; }
+    @media (max-width: 720px) { .boot-shell__brand { height: 60px; padding: 0 16px 0 68px; font-size: 20px; letter-spacing: 0.18em; } }
+  </style>
 </head>
 <body class="mat-typography mat-app-background">
-  <app-root></app-root>
+  <app-root>
+    <div class="boot-shell" aria-hidden="true"><div class="boot-shell__bar"><div class="boot-shell__brand">Grifball</div></div></div>
+  </app-root>
+  <!-- Starts the API calls of the page being opened while the app's scripts download; the app uses
+       each answer once, instead of asking again (src/app/earlyFetch.interceptor.ts). The URLs must
+       match what the pages ask for (with the same query): a URL nobody asks for is just not used.
+       Not for a page the server rendered (app-root has ng-server-context then): the server sends
+       its API answers with the page, and the app uses those. -->
+  <script>
+    (function () {
+      if (!window.fetch || !window.Promise || document.querySelector('app-root[ng-server-context]')) return;
+      var path = location.pathname.replace(/\/+$/, '') || '/';
+      var tab = new URLSearchParams(location.search).get('tab');
+      // Who is signed in (the session cookie goes with every call; a visitor gets 204)
+      var m, urls = ['/api/Season/getCurrentSeasonID/', '/api/CommitHash', '/api/CommitDate', '/api/Identity/Me'];
+      if (path === '/') {
+        urls.push('/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons?pageSize=10&pageNumber=1');
+      } else if ((m = /^\/season\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/Season/getSeasonName/' + m[1]);
+        if (tab === 'schedule') urls.push('/api/MatchPlanner/GetUnscheduledMatches/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
+        else if (tab === 'bracket') urls.push('/api/Brackets/GetViewerData?seasonID=' + m[1]);
+        else urls.push('/api/TeamStandings/GetTeamStandings/' + m[1], '/api/MatchPlanner/GetScheduledMatches/' + m[1]);
+      } else if ((m = /^\/seasonmatch\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/SeasonMatch/GetSeasonMatchPage/' + m[1]);
+      } else if ((m = /^\/profile\/([1-9]\d*)$/.exec(path))) {
+        urls.push('/api/profile/getgamertag/' + m[1]);
+      }
+      var responses = {};
+      urls.forEach(function (url) {
+        responses[url] = fetch(url, { credentials: 'same-origin' })
+          .then(function (r) { return r.text().then(function (body) { return { status: r.status, contentType: r.headers.get('Content-Type'), body: body }; }); })
+          .catch(function () { return null; });
+      });
+      window.grifEarly = { at: Date.now(), responses: responses };
+    })();
+  </script>
 </body>
 </html>

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -29,6 +30,7 @@ public class IdentityControllerActionTests
     private IOptionsMonitor<BearerTokenOptions> _optionsMonitor;
     private ISecureDataFormat<AuthenticationTicket> _refreshProtector;
     private IUserManagementService _userManagementService;
+    private IDiscordAccountLinkService _discordLinks;
     private IdentityController _controller;
 
     [SetUp]
@@ -43,9 +45,12 @@ public class IdentityControllerActionTests
         _optionsMonitor = Substitute.For<IOptionsMonitor<BearerTokenOptions>>();
         _optionsMonitor.Get(IdentityConstants.BearerScheme).Returns(new BearerTokenOptions { RefreshTokenProtector = _refreshProtector });
         _userManagementService = Substitute.For<IUserManagementService>();
+        _discordLinks = Substitute.For<IDiscordAccountLinkService>();
+        _discordLinks.InTransactionAsync(Arg.Any<Func<Task<bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<Func<Task<bool>>>()());
 
         _controller = new IdentityController(Substitute.For<ILogger<IdentityController>>(), _userManager, _signInManager,
-            _optionsMonitor, new FixedTimeProvider(Now), _userManagementService);
+            _optionsMonitor, new FixedTimeProvider(Now), _userManagementService, _discordLinks);
     }
 
     // ---------- Login ----------
@@ -69,15 +74,26 @@ public class IdentityControllerActionTests
     }
 
     [Test]
-    public async Task Login_Success_ReturnsEmptyAndUsesBearerSchemeWithLockout()
+    public async Task Login_Success_ReturnsEmptyAndUsesCookieSchemeWithLockout()
     {
         _signInManager.PasswordSignInAsync("bob", "pw", true, true).Returns(IdentitySignInResult.Success);
 
         var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<EmptyResult>());
-        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
         await _signInManager.Received(1).PasswordSignInAsync("bob", "pw", true, lockoutOnFailure: true);
+    }
+
+    [Test]
+    public async Task Login_WithoutCookies_UsesBearerScheme()
+    {
+        _signInManager.PasswordSignInAsync("bob", "pw", true, true).Returns(IdentitySignInResult.Success);
+
+        var result = await _controller.Login(new LoginDto { Username = "bob", Password = "pw" }, CancellationToken.None, useCookies: false);
+
+        Assert.That(result, Is.TypeOf<EmptyResult>());
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.BearerScheme));
     }
 
     [Test]
@@ -171,17 +187,46 @@ public class IdentityControllerActionTests
         Assert.That(challenge.Properties, Is.SameAs(props));
     }
 
-    [Test]
-    public void ExternalLogin_WithFollowUp_AppendsUnescapedFollowUp()
+    // The query value arrives decoded; it goes back out escaped, as one query value
+    [TestCase("/season/3", "%2Fseason%2F3")]
+    [TestCase("/season/3?tab=bracket&x=1", "%2Fseason%2F3%3Ftab%3Dbracket%26x%3D1")]
+    [TestCase("/profile/5#linked", "%2Fprofile%2F5%23linked")]
+    [TestCase("/a b", "%2Fa%20b")]
+    public void ExternalLogin_WithFollowUp_AppendsItEscaped(string followUp, string escaped)
     {
         var props = new AuthenticationProperties();
         _signInManager.ConfigureExternalAuthenticationProperties("Discord", Arg.Any<string>()).Returns(props);
 
-        var result = _controller.ExternalLogin("%2Fseason%2F3");
+        var result = _controller.ExternalLogin(followUp);
 
         Assert.That(result, Is.TypeOf<ChallengeResult>());
-        _signInManager.Received(1).ConfigureExternalAuthenticationProperties("Discord", "login?callback=true&followUp=/season/3");
+        _signInManager.Received(1).ConfigureExternalAuthenticationProperties("Discord", "login?callback=true&followUp=" + escaped);
     }
+
+    [TestCase("https://evil.example/")]
+    [TestCase("//evil.example")]
+    [TestCase("/\\evil.example")]
+    [TestCase("javascript:alert(1)")]
+    [TestCase("season/3")]
+    [TestCase("")]
+    [TestCase("/a\nb")]
+    public void ExternalLogin_WithAFollowUpOffThisSite_DropsIt(string followUp)
+    {
+        _signInManager.ConfigureExternalAuthenticationProperties("Discord", Arg.Any<string>()).Returns(new AuthenticationProperties());
+
+        _controller.ExternalLogin(followUp);
+
+        _signInManager.Received(1).ConfigureExternalAuthenticationProperties("Discord", "login?callback=true");
+    }
+
+    [TestCase("/", true)]
+    [TestCase("/season/3?tab=bracket", true)]
+    [TestCase("//evil.example", false)]
+    [TestCase("/\\evil.example", false)]
+    [TestCase("https://evil.example", false)]
+    [TestCase(null, false)]
+    public void IsAppRelativePath_Cases(string? path, bool expected)
+        => Assert.That(IdentityController.IsAppRelativePath(path), Is.EqualTo(expected));
 
     // ---------- ExternalLoginCallback ----------
 
@@ -319,8 +364,9 @@ public class IdentityControllerActionTests
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
     }
 
-    [Test]
-    public async Task ExternalLoginCallback_NewUser_CreatesUserAddsRoleLoginClaimsAndSignsIn()
+    [TestCase(true)]
+    [TestCase(false)]
+    public async Task ExternalLoginCallback_NewUser_CreatesUserAddsRoleLoginClaimsAndSignsIn(bool useCookies)
     {
         var info = Info();
         _signInManager.GetExternalLoginInfoAsync().Returns(info);
@@ -328,14 +374,24 @@ public class IdentityControllerActionTests
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
         _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
         _userManager.AddLoginAsync(Arg.Any<User>(), info).Returns(IdentityResult.Success);
+        var authentication = Substitute.For<IAuthenticationService>();
+        _controller.WithAnonymousUser();
+        _controller.HttpContext.RequestServices = new ServiceCollection().AddSingleton(authentication).BuildServiceProvider();
 
-        var result = await _controller.ExternalLoginCallback(false, CancellationToken.None);
+        var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
 
-        Assert.That(((OkObjectResult)result).Value, Is.EqualTo("Signed In"));
+        // Empty for both: for a bearer token, SignInAsync has already written the response
+        Assert.That(result, Is.TypeOf<EmptyResult>());
+        // Discord's half-finished sign-in cookie is dropped, before signing in (a bearer sign-in writes the response)
+        Received.InOrder(() =>
+        {
+            authentication.SignOutAsync(Arg.Any<HttpContext>(), IdentityConstants.ExternalScheme, Arg.Any<AuthenticationProperties?>());
+            _signInManager.SignInAsync(Arg.Any<User>(), true, null);
+        });
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u => u.UserName == "discordName" && u.Email == "a@b.c"));
         await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Player");
         await _userManager.Received(1).AddClaimsAsync(Arg.Any<User>(), Arg.Is<IEnumerable<Claim>>(c => c.Count() == 3));
-        await _signInManager.Received(1).SignInAsync(Arg.Is<User>(u => u.UserName == "discordName"), false, null);
+        await _signInManager.Received(1).SignInAsync(Arg.Is<User>(u => u.UserName == "discordName"), true, null);
     }
 
     [Test]
@@ -353,6 +409,101 @@ public class IdentityControllerActionTests
         Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add role"));
         await _userManager.DidNotReceiveWithAnyArgs().AddLoginAsync(default!, default!);
         await _signInManager.DidNotReceiveWithAnyArgs().SignInAsync(default!, default(bool), default);
+    }
+
+    [TestCase(true, "Identity.Application")]
+    [TestCase(false, "Identity.Bearer")]
+    public async Task ExternalLoginCallback_FirstSignInOfBotLinkedUser_AddsLoginToThemAndSignsIn(bool useCookies, string scheme)
+    {
+        var info = Info();
+        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
+        _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Success);
+        ExternalResult(IdentitySignInResult.Success);
+
+        var result = await _controller.ExternalLoginCallback(useCookies, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<EmptyResult>());
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(scheme));
+        Received.InOrder(() =>
+        {
+            _userManager.AddLoginAsync(botLinked, info);
+            _discordLinks.TryLinkAsync(botLinked, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+        });
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _userManager.DidNotReceiveWithAnyArgs().AddToRoleAsync(default!, default!);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_BotLinkedAddLoginFails_ReturnsErrorWithoutNewAccount()
+    {
+        var info = Info();
+        var botLinked = new User { Id = 9, UserName = "bob", DiscordUserID = 1 };
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        _discordLinks.FindBotLinkedUserAsync("Discord", "key-1", Arg.Any<CancellationToken>()).Returns(botLinked);
+        _userManager.AddLoginAsync(botLinked, info).Returns(IdentityResult.Failed());
+
+        var result = await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        Assert.That(((BadRequestObjectResult)result).Value, Is.EqualTo("Failed to add the Discord login to your existing account"));
+        await _userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+        await _signInManager.DidNotReceiveWithAnyArgs().ExternalLoginSignInAsync(default!, default!, default, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_ExistingLogin_BackfillsDiscordLinkBeforeSigningIn()
+    {
+        var user = new User { Id = 4, UserName = "alice" };
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        _userManager.FindByLoginAsync("Discord", "key-1").Returns(user);
+        ExternalResult(IdentitySignInResult.Success);
+
+        await _controller.ExternalLoginCallback(false, CancellationToken.None);
+
+        Received.InOrder(() =>
+        {
+            _discordLinks.TryLinkAsync(user, "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.ExternalLoginSignInAsync("Discord", "key-1", true, true);
+        });
+        await _discordLinks.DidNotReceiveWithAnyArgs().FindBotLinkedUserAsync(default!, default!, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_NewUser_LinksDiscordInsideTheTransaction()
+    {
+        var info = Info();
+        _signInManager.GetExternalLoginInfoAsync().Returns(info);
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
+        _userManager.AddLoginAsync(Arg.Any<User>(), info).Returns(IdentityResult.Success);
+        _controller.WithAnonymousUser();
+        _controller.HttpContext.RequestServices = new ServiceCollection().AddSingleton(Substitute.For<IAuthenticationService>()).BuildServiceProvider();
+
+        await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        await _discordLinks.Received(1).InTransactionAsync(Arg.Any<Func<Task<bool>>>(), Arg.Any<CancellationToken>());
+        Received.InOrder(() =>
+        {
+            _userManager.AddLoginAsync(Arg.Any<User>(), info);
+            _discordLinks.LinkAsync(Arg.Is<User>(u => u.UserName == "discordName"), "Discord", "key-1", "discordName", Arg.Any<CancellationToken>());
+            _signInManager.SignInAsync(Arg.Any<User>(), true, null);
+        });
+        await _discordLinks.DidNotReceiveWithAnyArgs().TryLinkAsync(default!, default!, default!, default, default);
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_NewUserFails_DoesNotLinkDiscord()
+    {
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        ExternalResult(IdentitySignInResult.Failed);
+        _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Failed());
+
+        await _controller.ExternalLoginCallback(true, CancellationToken.None);
+
+        await _discordLinks.DidNotReceiveWithAnyArgs().LinkAsync(default!, default!, default!, default, default);
     }
 
     // ---------- Refresh ----------
@@ -477,6 +628,103 @@ public class IdentityControllerActionTests
         Assert.That(_controller.MetaInfo().UserID, Is.EqualTo(0));
     }
 
+    [Test]
+    public void ExternalLoginCallback_IsPostOnly()
+    {
+        var attributes = typeof(IdentityController).GetMethod(nameof(IdentityController.ExternalLoginCallback))!
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute), true)
+            .Cast<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>();
+        Assert.That(attributes.SelectMany(a => a.HttpMethods), Is.EquivalentTo(new[] { "POST" }));
+    }
+
+    [Test]
+    public async Task ExternalLoginCallback_UsesCookiesByDefault()
+    {
+        _signInManager.GetExternalLoginInfoAsync().Returns(Info());
+        ExternalResult(IdentitySignInResult.Success);
+
+        await _controller.ExternalLoginCallback();
+
+        Assert.That(_signInManager.AuthenticationScheme, Is.EqualTo(IdentityConstants.ApplicationScheme));
+    }
+
+    // ---------- Me ----------
+
+    [Test]
+    public void Me_SignedIn_ReturnsMetaInfo()
+    {
+        _controller.WithUser("17", "Bob", "Commissioner");
+
+        var me = _controller.Me();
+
+        Assert.That(me, Is.EqualTo(new MetaInfoResponse
+        {
+            IsSysAdmin = false,
+            IsCommissioner = true,
+            IsPlayer = false,
+            DisplayName = "Bob",
+            UserID = 17,
+        }));
+    }
+
+    [Test]
+    public void Me_Visitor_ReturnsNull()
+    {
+        _controller.WithAnonymousUser();
+
+        Assert.That(_controller.Me(), Is.Null);
+    }
+
+    [Test]
+    public void Me_NoIdentity_ReturnsNull()
+    {
+        _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal() } };
+
+        Assert.That(_controller.Me(), Is.Null);
+    }
+
+    // ---------- Antiforgery ----------
+
+    [Test]
+    public void Antiforgery_ReturnsTheRequestToken()
+    {
+        _controller.WithAnonymousUser();
+        var antiforgery = Substitute.For<Microsoft.AspNetCore.Antiforgery.IAntiforgery>();
+        antiforgery.GetAndStoreTokens(_controller.HttpContext)
+            .Returns(new Microsoft.AspNetCore.Antiforgery.AntiforgeryTokenSet("request-token", "cookie-token", "form", "X-XSRF-TOKEN"));
+
+        var response = _controller.Antiforgery(antiforgery);
+
+        Assert.That(response.Token, Is.EqualTo("request-token"));
+    }
+
+    // ---------- Logout ----------
+
+    [Test]
+    public async Task Logout_SignsOutAndReturnsNoContent()
+    {
+        var result = await _controller.Logout();
+
+        Assert.That(result, Is.TypeOf<NoContentResult>());
+        await _signInManager.Received(1).SignOutAsync();
+        await _userManager.DidNotReceiveWithAnyArgs().UpdateSecurityStampAsync(default!);
+    }
+
+    [Test]
+    public async Task Logout_ChangesTheSignedInUsersSecurityStamp()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "5")], "Identity.Application"));
+        _controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } };
+        var user = new User { Id = 5, UserName = "grif" };
+        _userManager.GetUserAsync(principal).Returns(user);
+
+        var result = await _controller.Logout();
+
+        Assert.That(result, Is.TypeOf<NoContentResult>());
+        await _userManager.Received(1).UpdateSecurityStampAsync(user);
+        await _signInManager.Received(1).SignOutAsync();
+    }
+
     // ---------- Authorization attributes ----------
 
     [Test]
@@ -489,7 +737,7 @@ public class IdentityControllerActionTests
             var meta = ControllerTestHelpers.ActionAuthorize(t, nameof(IdentityController.MetaInfo));
             Assert.That(meta, Is.Not.Null);
             Assert.That(meta!.Roles, Is.Null);
-            foreach (var action in new[] { "Login", "Register", "ExternalLogin", "ExternalLoginCallback", "Refresh", "ResetPassword" })
+            foreach (var action in new[] { "Login", "Register", "ExternalLogin", "ExternalLoginCallback", "Refresh", "ResetPassword", "Me", "Antiforgery", "Logout" })
                 Assert.That(ControllerTestHelpers.ActionAuthorize(t, action), Is.Null, action);
         });
     }

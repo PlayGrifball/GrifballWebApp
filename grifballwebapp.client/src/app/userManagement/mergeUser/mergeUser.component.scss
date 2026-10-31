@@ -2,6 +2,15 @@
   display: block;
 }
 
+.merge-actions {
+  margin-top: 16px;
+}
+
+.merge-result {
+  margin: 12px 0 0;
+  color: var(--hud-heading);
+}
+
 .merge-error {
   color: var(--mat-sys-error);
 }

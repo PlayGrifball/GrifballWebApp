@@ -34,6 +34,14 @@ public class RescheduleController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (RescheduleNotAllowedException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (RescheduleForbiddenException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+        }
     }
 
     [HttpPost("{rescheduleId:int}", Name = "ProcessReschedule")]

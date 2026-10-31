@@ -49,7 +49,7 @@ export class CreateBracketDialogComponent {
       .set('participantsCount', this.participantsCount!)
       .set('doubleElimination', this.doubleElimination)
       .set('bestOf', this.bestOf!);
-    this.http.get("api/Brackets/CreateBracket", { params })
+    this.http.post("api/Brackets/CreateBracket", null, { params })
       .subscribe({
         next: r => {
           this.bracketCreated.next();

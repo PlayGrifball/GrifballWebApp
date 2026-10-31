@@ -55,10 +55,40 @@ public class GlobalExceptionHandlerTests
             Assert.That(context.Response.ContentType, Does.StartWith("application/json"));
             Assert.That(problem!.Status, Is.EqualTo(500));
             Assert.That(problem.Title, Is.EqualTo("Server error"));
-            Assert.That(problem.Detail, Is.EqualTo("boom"));
+            Assert.That(problem.Detail, Is.EqualTo("An unexpected error occurred. If it keeps happening, report it with the trace id."), "The exception's message is not sent");
+            Assert.That(problem.Extensions.ContainsKey("traceId"), Is.True);
             Assert.That(entry.Level, Is.EqualTo(LogLevel.Error));
             Assert.That(entry.Message, Is.EqualTo("Exception occurred: boom"));
             Assert.That(entry.Exception, Is.SameAs(exception));
+        });
+    }
+
+    private static IEnumerable<TestCaseData> ExpectedRefusals()
+    {
+        yield return new TestCaseData(new GrifballWebApp.Server.Teams.TeamServiceException("Player is already on a team"), 400, "Player is already on a team").SetName("TeamServiceException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Server.Signups.SignupsClosedException(), 400, "Signups are closed for this season").SetName("SignupsClosedException_Is400");
+        yield return new TestCaseData(new GrifballWebApp.Server.Profile.MergeConflictException("Both users are on different teams"), 409, "Both users are on different teams").SetName("MergeConflictException_Is409");
+        yield return new TestCaseData(new GrifballWebApp.Server.Profile.UserNotFoundException(7), 404, "Did not find user 7").SetName("UserNotFoundException_Is404");
+    }
+
+    [TestCaseSource(nameof(ExpectedRefusals))]
+    public async Task TryHandleAsync_ExpectedRefusal_KeepsItsMessage_WithA4xx(Exception exception, int status, string detail)
+    {
+        var (handler, logger) = Create();
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+
+        await handler.TryHandleAsync(context, exception, CancellationToken.None);
+
+        context.Response.Body.Position = 0;
+        var problem = await JsonSerializer.DeserializeAsync<ProblemDetails>(context.Response.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Multiple(() =>
+        {
+            Assert.That(context.Response.StatusCode, Is.EqualTo(status));
+            Assert.That(problem!.Status, Is.EqualTo(status));
+            Assert.That(problem.Detail, Is.EqualTo(detail));
+            Assert.That(problem.Extensions.ContainsKey("traceId"), Is.True);
+            Assert.That(Entries(logger).Single().Level, Is.EqualTo(LogLevel.Information), "A refusal is not an error");
         });
     }
 

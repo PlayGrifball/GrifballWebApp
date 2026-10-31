@@ -1,7 +1,8 @@
-import { Injectable, effect, inject } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { CaptainAddedDto, CaptainPlacementDto, RemoveCaptainDto } from './dtos/captainPlacementDto';
 import { HubConnection, HubConnectionBuilder } from '@microsoft/signalr';
-import { AccountService } from '../account.service';
+import { AuthSession } from '../authSession.service';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
@@ -10,36 +11,77 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
   providedIn: 'root'
 })
 export class SignalRService {
+  /**
+   * The Teams hub. The browser's session cookie goes with the connection (same origin), so the hub
+   * knows the user. Only in the browser: a page rendered on the server has no connection, and its
+   * handlers are registered on one that is never started.
+   */
+  public hubConnection: HubConnection = new HubConnectionBuilder()
+    .withUrl(isPlatformBrowser(inject(PLATFORM_ID)) ? 'hub/TeamsHub' : 'http://localhost/hub/TeamsHub')
+    .withAutomaticReconnect()
+    .build();
+
+  /** Called each time the connection comes up (see connected). */
+  private connectedListeners?: Set<() => void>;
+
+  /**
+   * The connection's starts and restarts, one after another: a start while another is still under way
+   * throws ("Cannot start a HubConnection that is not in the 'Disconnected' state").
+   */
+  private lifecycle: Promise<void> = Promise.resolve();
+  /** A restart is queued and has not begun: another sign-in or out meanwhile needs no second one. */
+  private restartQueued = false;
+
   constructor() {
-    const accountService = inject(AccountService);
+    if (!isPlatformBrowser(inject(PLATFORM_ID)))
+      return;
 
-    this.hubConnection = new HubConnectionBuilder()
-      .withUrl('hub/TeamsHub', {
-        accessTokenFactory: () => accountService.accessToken() ?? ""
-      })
-      .withAutomaticReconnect()
-      .build();
+    // Back after a drop: whatever was sent meanwhile was missed
+    this.hubConnection.onreconnected(() => this.notifyConnected());
+    this.lifecycle = this.startConnection();
 
-    console.log('starting connection');
-    this.startConnection();
-    console.log('finished connection');
-
-    effect(() => {
-      const accessToken = accountService.accessToken();
-      console.log("SignalR servie access token change");
-      this.hubConnection.stop()
-        .then(() => this.startConnection())
-        .catch(err => console.log('Error while trying to restart the connection: ' + err));
+    // The connection's user is fixed when it connects: connect again as whoever signed in (or out),
+    // once any start or restart under way is done.
+    inject(AuthSession).changed$.subscribe(() => {
+      if (this.restartQueued)
+        return;
+      this.restartQueued = true;
+      this.queue(() => {
+        this.restartQueued = false;
+        return this.hubConnection.stop()
+          .then(() => this.startConnection())
+          .catch(err => console.log('Error while trying to restart the connection: ' + err));
+      });
     });
   }
 
-  public hubConnection: HubConnection;
+  private queue(step: () => Promise<void>): void {
+    this.lifecycle = this.lifecycle.then(step);
+  }
 
-  private startConnection = () => {
-    this.hubConnection
+  private startConnection = (): Promise<void> => {
+    return this.hubConnection
       .start()
-      .then(() => console.log('Connection started'))
+      .then(() => {
+        console.log('Connection started');
+        this.notifyConnected();
+      })
       .catch(err => console.log('Error while starting connection: ' + err));
+  }
+
+  /**
+   * Calls `callback` each time the connection comes up: when it starts (also again, as another
+   * user) and when it reconnects. Not for a connection that is already up. Anything sent while it
+   * was down was missed, so pages that show hub updates reload then. Returns the unregister function.
+   */
+  public connected(callback: () => void): () => void {
+    const listeners = this.connectedListeners ??= new Set();
+    listeners.add(callback);
+    return () => listeners.delete(callback);
+  }
+
+  private notifyConnected(): void {
+    this.connectedListeners?.forEach(listener => listener());
   }
 
   /**

@@ -12,6 +12,7 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccounts.component';
+import { provideDatePickers } from '../../shared/datePickers';
 
 @Component({
     selector: 'app-edit-user',
@@ -27,6 +28,7 @@ import { LinkedAccountsComponent } from '../../shared/linkedAccounts/linkedAccou
     ],
     templateUrl: './editUser.component.html',
     styleUrl: './editUser.component.scss',
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class EditUserComponent {

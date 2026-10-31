@@ -1,3 +1,58 @@
 :host {
   display: block;
 }
+
+.enlist {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.enlist-form {
+  flex: 3 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.enlist-who {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.enlist-who__avatar { width: 44px; height: 44px; }
+.enlist-who__text { display: flex; flex-direction: column; min-width: 0; }
+.enlist-who__name { font-weight: 700; font-size: 20px; color: var(--hud-heading); overflow-wrap: anywhere; }
+
+.enlist-captain { display: flex; flex-direction: column; }
+.enlist-option { font-weight: 700; font-size: 19px; color: var(--hud-heading); }
+.enlist-hint { padding-left: 40px; font-size: 15px; color: var(--hud-muted); }
+
+.enlist-sub {
+  margin-left: 20px;
+  padding-left: 18px;
+  border-left: 2px solid var(--hud-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enlist-timeline {
+  flex: 1 1 260px;
+}
+
+.enlist-step {
+  padding: 16px 18px;
+  border: 1px solid var(--hud-hairline);
+  border-left: 3px solid var(--hud-border);
+  background: var(--hud-panel-faint);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enlist-step--now { border-left-color: var(--hud-accent); }
+.enlist-step__title { font-weight: 700; }

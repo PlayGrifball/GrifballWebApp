@@ -1,8 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { KillsDto } from './dtos/killsDto';
-import { map, Observable } from 'rxjs';
-import { parseSeason, SeasonDto } from './dtos/seasonDto';
+import { map, Observable, switchMap } from 'rxjs';
+import type { SeasonDto } from './dtos/seasonDto';
 import { SignupResponseDto, TimeslotDto } from './dtos/signupResponseDto';
 import { SignupRequestDto } from './dtos/signupRequestDto';
 import { TeamResponseDto } from './dtos/teamResponseDto';
@@ -11,8 +10,7 @@ import { CaptainAddedResponseDto, CaptainPlacementDto, RemoveCaptainDto } from '
 import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamRequestDto';
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
-import { DateTime } from 'luxon';
-import { fromApiDate } from '../shared/apiDates';
+import { SeasonEvent } from '../shared/seasonEvents';
 
 @Injectable({
   providedIn: 'root'
@@ -26,20 +24,21 @@ export class ApiClientService {
   };
 
 
-  getKills(): Observable<KillsDto[]> {
-    return this.http.get<KillsDto[]>('/api/stats/TopKills');
-  }
-
+  // A season's dates are Luxon DateTimes, and Luxon is only loaded with the pages that need it
+  // (season editing), not with the app: the parser is imported when a season arrives.
   getSeasons(): Observable<SeasonDto[]> {
     return this.http.get<unknown[]>('/api/EventOrganizer/GetSeasons')
       // A list never holds nulls (List<SeasonDto> on the server).
-      .pipe(map(seasons => seasons.map(season => parseSeason(season)!)));
+      .pipe(switchMap(async seasons => {
+        const { parseSeason } = await import('./dtos/seasonDto');
+        return seasons.map(season => parseSeason(season)!);
+      }));
   }
 
   /** Null when there is no such season (the API answers 204). */
   getSeason(seasonID: number): Observable<SeasonDto | null> {
     return this.http.get<unknown>('/api/EventOrganizer/GetSeason/' + seasonID)
-      .pipe(map(parseSeason));
+      .pipe(switchMap(async season => (await import('./dtos/seasonDto')).parseSeason(season)));
   }
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
@@ -48,6 +47,11 @@ export class ApiClientService {
 
   getCurrentSeasonID(): Observable<number> {
     return this.http.get<number>('/api/Season/getCurrentSeasonID/');
+  }
+
+  /** Signups, drafts and seasons that have not ended yet (shared/seasonEvents.ts). */
+  getCurrentAndFutureEvents(): Observable<SeasonEvent[]> {
+    return this.http.get<SeasonEvent[]>('/api/Home/CurrentAndFutureEvents/');
   }
 
   getSeasonName(seasonID: number): Observable<string | null> {
@@ -122,11 +126,11 @@ export class ApiClientService {
   }
 
   lockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.get('/api/Teams/lockCaptains/' + seasonID, this.prepareHeaders(connectionID));
+    return this.http.post('/api/Teams/lockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
   }
 
   unlockCaptains(seasonID: number, connectionID: string | null): Observable<Object> {
-    return this.http.get('/api/Teams/unlockCaptains/' + seasonID, this.prepareHeaders(connectionID));
+    return this.http.post('/api/Teams/unlockCaptains/' + seasonID, null, this.prepareHeaders(connectionID));
   }
 
   areCaptainsLocked(seasonID: number): Observable<boolean> {
@@ -137,8 +141,9 @@ export class ApiClientService {
     return this.http.get<string>('/api/CommitHash', this.text);
   }
 
-  commitDate(): Observable<DateTime | null> {
+  /** The build's date (ISO 8601 from the API) as a native Date, which the date pipe formats as it would a DateTime. */
+  commitDate(): Observable<Date | null> {
     return this.http.get<string>('/api/CommitDate', this.text)
-      .pipe(map(x => fromApiDate(x)));
+      .pipe(map(x => x ? new Date(x) : null));
   }
 }

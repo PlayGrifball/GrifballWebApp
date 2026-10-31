@@ -2,6 +2,43 @@
   display: block;
 }
 
-.inline {
-  display: inline;
+.avail-days {
+  margin: 8px 0 16px;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+
+  > legend { padding: 0; margin-bottom: 4px; }
+}
+
+.avail-slots-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  > .hud-kicker { margin: 0; }
+}
+
+// One timeslot: its time and day side by side, with Delete at the end; stacked on a phone.
+.avail-slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0 12px;
+  align-items: start;
+  border-top: 1px solid var(--hud-hairline);
+  padding-top: 12px;
+
+  > mat-form-field { min-width: 0; }
+}
+
+.avail-slot__delete { margin-top: 6px; }
+
+@media (max-width: 600px) {
+  .avail-slot { grid-template-columns: minmax(0, 1fr) auto; }
+  .avail-slot > mat-form-field:first-child { grid-column: 1 / -1; }
 }

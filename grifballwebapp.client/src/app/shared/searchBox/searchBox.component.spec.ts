@@ -134,4 +134,12 @@ describe('SearchBoxComponent', () => {
     
     expect(componentNumber.componentInstance.value()).toBe(123);
   });
+
+  it('is labelled "Search" unless given a label', () => {
+    const label = () => (fixture.nativeElement as HTMLElement).querySelector('mat-label')!.textContent!.trim();
+    expect(label()).toBe('Search');
+    fixture.componentRef.setInput('label', 'User ID');
+    fixture.detectChanges();
+    expect(label()).toBe('User ID');
+  });
 });

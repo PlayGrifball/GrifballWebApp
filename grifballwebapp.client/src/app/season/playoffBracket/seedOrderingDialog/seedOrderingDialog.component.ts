@@ -90,6 +90,16 @@ export class SeedOrderingDialogComponent implements OnInit {
     }
   }
 
+  /** Moves the team at `index` one place up (-1) or down (1), as the buttons beside it do. */
+  move(index: number, delta: -1 | 1): void {
+    const teams = [...this.teams()];
+    const to = index + delta;
+    if (to < 0 || to >= teams.length)
+      return;
+    [teams[index], teams[to]] = [teams[to], teams[index]];
+    this.teams.set(teams.map((team, i) => ({ ...team, seed: i + 1 })));
+  }
+
   onSubmit(): void {
     const customSeeding = this.teams().map(team => ({
       teamID: team.teamID,

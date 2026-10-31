@@ -45,7 +45,8 @@ public class TeamsDiscordHandlersTests
 
         _season = await _context.AddSeason();
         _cap = await _context.AddUser("cap", "Cap Display");
-        _context.UserClaims.Add(new UserClaim { UserId = _cap.Id, ClaimType = ClaimTypes.NameIdentifier, ClaimValue = "111222333" });
+        // Linked to Discord the way the bot and the profile page link accounts: a DiscordUserID, no claim.
+        _cap.DiscordUser = new GrifballWebApp.Database.Models.DiscordUser { DiscordUserID = 111222333, DiscordUsername = "capdisc" };
         await _context.SaveChangesAsync();
         _cap2 = await _context.AddUser("cap2", "Cap Two");
         _player = await _context.AddUser("player", "Player Display", gamertag: "PlayerGT");
@@ -151,7 +152,7 @@ public class TeamsDiscordHandlersTests
     public async Task CaptainDiscordHandlers_Should_CurrentlySendNothing()
     {
         await new AddCaptainDiscordHandler(_rest, _options, _factory)
-            .Handle(Notification.Create("c", new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamName = "T", CaptainName = "C", OrderNumber = 1 }), CancellationToken.None);
+            .Handle(Notification.Create("c", new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 }), CancellationToken.None);
         await new RemoveCaptainDiscordHandler(_rest, _options, _factory)
             .Handle(Notification.Create("c", new RemoveCaptainDto { SeasonID = 1, PersonID = 2 }), CancellationToken.None);
         await new ResortCaptainDiscordHandler(_rest, _options, _factory)

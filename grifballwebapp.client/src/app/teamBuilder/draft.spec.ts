@@ -120,4 +120,15 @@ describe('team builder draft operations', () => {
     expect(renameTeam(draft, 102, 'T102')).toBe(draft);
     expect(renameTeam(draft, 99, 'Gone')).toBe(draft);
   });
+
+  it('addCaptain keeps the team id the server gave the team', () => {
+    const next = addCaptain(draft, 4, 'New', 'P4', 2, 42)!;
+    expect(next.teams[1].teamID).toBe(42);
+  });
+
+  it('renameTeam also sets the team id the server chose, and only changes what differs', () => {
+    const next = renameTeam(draft, 102, 'T102', 77);
+    expect(next.teams[1]).toEqual(jasmine.objectContaining({ teamName: 'T102', teamID: 77 }));
+    expect(renameTeam(next, 102, 'T102', 77)).toBe(next);
+  });
 });

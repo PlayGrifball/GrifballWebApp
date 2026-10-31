@@ -14,7 +14,7 @@ const table = (page: Page) => page.locator('app-availability-table table');
 const row = (page: Page, day: string) => table(page).locator('tbody tr').filter({ has: page.locator('td', { hasText: day }) });
 const box = (page: Page, day: string, column: number) =>
   row(page, day).locator('td').nth(column).locator('input[type="checkbox"]');
-const timeHeader = (page: Page, time: string) => table(page).locator('thead th', { hasText: time });
+const timeHeader = (page: Page, time: string) => table(page).locator('thead th button', { hasText: time });
 
 /** Ticked cells as "Day column" (columns 1-4 are 7, 8, 9, 10 PM). */
 async function ticked(page: Page): Promise<string[]> {
@@ -52,9 +52,9 @@ test.describe('signup form', () => {
     await expect.poll(() => ticked(page)).toEqual(['Monday 1', 'Monday 3', 'Tuesday 3', 'Wednesday 3']);
 
     // A day header with something ticked unticks the day; clicked again it ticks all of it.
-    await row(page, 'Wednesday').locator('td').first().click();
+    await row(page, 'Wednesday').locator('td button').first().click();
     await expect.poll(() => ticked(page)).toEqual(['Monday 1', 'Monday 3', 'Tuesday 3']);
-    await row(page, 'Wednesday').locator('td').first().click();
+    await row(page, 'Wednesday').locator('td button').first().click();
     const expected = ['Monday 1', 'Monday 3', 'Tuesday 3', 'Wednesday 1', 'Wednesday 2', 'Wednesday 3', 'Wednesday 4'];
     await expect.poll(() => ticked(page)).toEqual(expected);
 

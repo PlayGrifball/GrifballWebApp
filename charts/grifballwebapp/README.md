@@ -1,6 +1,6 @@
 # grifballwebapp Helm chart
 
-Deploys GrifballWebApp: the frontend (nginx with the Angular build), the backend (ASP.NET Core) and,
+Deploys GrifballWebApp: the frontend (the Angular app's Node server, which renders the public pages), the backend (ASP.NET Core) and,
 optionally, its database: SQL Server (the default) or PostgreSQL. A migration Job backs up the database when it has migrations to apply, then
 applies them with the EF Core bundle of the backend image being deployed; the backend waits for it.
 
@@ -81,7 +81,7 @@ busybox, sql_exporter) are pinned by digest.
 
 ## One release per namespace
 
-The frontend's nginx proxies `/api` to `grifballwebapp-server:5295` (`grifballwebapp.client/default.conf`),
+The frontend's server proxies `/api` to `grifballwebapp-server:5295` (`API_URL` in `grifballwebapp.client/src/server.ts`),
 so object names are fixed rather than prefixed with the release name: `grif-backend`, `grif-frontend`,
 `grif-mssql`, `sqlserver`, `grif-postgres`, `postgres`, `grifballwebapp-server`. Install each environment
 in its own namespace. Volume claim names (`backend.persistence.claimName`, `mssql.persistence.claimName`,
@@ -323,7 +323,7 @@ the Job; the source is still there.
 
 The Job, the CronJobs and the backend run as the backend image's non-root user (1654), checked by
 Kubernetes (`runAsNonRoot`); SQL Server runs as its own (10001), PostgreSQL as its own (70). Only the
-database servers' permission-fixing init containers and the frontend's nginx start as root.
+database servers' permission-fixing init containers and the frontend's server (on port 80) run as root.
 
 The backend runs one replica: the Discord bot's gateway connection, the background queue and events
 services, and Grunt's token file on a ReadWriteOnce volume all assume a single instance. The migrations

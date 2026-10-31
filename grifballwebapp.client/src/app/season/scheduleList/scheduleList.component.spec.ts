@@ -14,7 +14,6 @@ import { AccountService } from '../../account.service';
 import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialog/createRegularMatchesDialog.component';
 import { of, Subject } from 'rxjs';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { JWT_OPTIONS, JwtHelperService } from '@auth0/angular-jwt';
 
 describe('ScheduleListComponent', () => {
   let component: ScheduleListComponent;
@@ -27,8 +26,6 @@ describe('ScheduleListComponent', () => {
         provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideAnimations(),
-        { provide: JWT_OPTIONS, useValue: {} },
-        JwtHelperService,
         {
           provide: ActivatedRoute,
           useValue: {
@@ -140,6 +137,18 @@ describe('ScheduleListComponent behaviour', () => {
     expect(component.scheduledMatches().length).toBe(3);
     expect(component.scheduledMatches().map(w => w.games.map(g => g.seasonMatchID))).toEqual([[1], [2], [3]]);
     expect(component.scheduledMatches().map(w => w.weekNumber)).toEqual([1, 2, 3]);
+  });
+
+  it('shows the lists once both have loaded, also when one fails', () => {
+    fixture.detectChanges();
+    const lists = () => (fixture.nativeElement as HTMLElement).querySelector('.sched-lists')!;
+    expect(lists().classList).toContain('hud-waiting');
+    http.expectOne('/api/MatchPlanner/GetUnscheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(lists().classList).toContain('hud-waiting');
+    http.expectOne('/api/MatchPlanner/GetScheduledMatches/4').flush('x', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(lists().classList).not.toContain('hud-waiting');
   });
 
   it('renders weeks, matchups and unscheduled matches, striking completed ones', () => {

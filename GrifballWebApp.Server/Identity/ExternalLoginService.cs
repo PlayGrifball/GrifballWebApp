@@ -1,5 +1,6 @@
 using GrifballWebApp.Database.Models;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Identity;
 
@@ -65,10 +66,12 @@ public class LinkedLoginsDto
 public class ExternalLoginService : IExternalLoginService
 {
     private readonly UserManager<User> _userManager;
+    private readonly IDiscordAccountLinkService _discordLinks;
 
-    public ExternalLoginService(UserManager<User> userManager)
+    public ExternalLoginService(UserManager<User> userManager, IDiscordAccountLinkService discordLinks)
     {
         _userManager = userManager;
+        _discordLinks = discordLinks;
     }
 
     public async Task<LinkedLoginsDto?> GetLogins(int userId)
@@ -100,11 +103,16 @@ public class ExternalLoginService : IExternalLoginService
             return LinkLoginResult.UserNotFound;
 
         var owner = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
-        if (owner is not null)
-            return owner.Id == user.Id ? LinkLoginResult.AlreadyLinked : LinkLoginResult.LinkedToAnotherUser;
+        if (owner is not null && owner.Id != user.Id)
+            return LinkLoginResult.LinkedToAnotherUser;
 
-        var result = await _userManager.AddLoginAsync(user, info);
-        return result.Succeeded ? LinkLoginResult.Linked : LinkLoginResult.Failed;
+        if (owner is null && !(await _userManager.AddLoginAsync(user, info)).Succeeded)
+            return LinkLoginResult.Failed;
+
+        // Like a Discord sign-in: the bot's Discord link too, when the account has none and nobody else holds it
+        var discordUsername = (info as ExternalLoginInfo)?.Principal.FindFirstValue(ClaimTypes.Name);
+        await _discordLinks.TryLinkAsync(user, info.LoginProvider, info.ProviderKey, discordUsername);
+        return owner is null ? LinkLoginResult.Linked : LinkLoginResult.AlreadyLinked;
     }
 
     public async Task<UnlinkLoginResult> Unlink(int userId, string loginProvider, string providerKey)

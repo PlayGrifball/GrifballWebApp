@@ -50,6 +50,47 @@ public class SeasonMatchControllerTests
         Assert.That(page!.HomeTeamName, Is.EqualTo("Home Team"));
     }
 
+    // ---------- CanRequestReschedule: who sees the Reschedule button ----------
+
+    private async Task<bool> CanRequest(int seasonMatchID, int? userID)
+    {
+        if (userID is not null)
+            _controller.WithUser(userID.Value.ToString());
+        return (await _controller.GetSeasonMatchPage(seasonMatchID, CancellationToken.None))!.CanRequestReschedule;
+    }
+
+    [Test]
+    public async Task CanRequestReschedule_ForEitherTeamsPlayers_AndCommissioners_NotOthers()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var outsider = await RescheduleTestData.AddUser(_context, "outsider");
+        var commissioner = await RescheduleTestData.AddUser(_context, "commish");
+        await RescheduleTestData.MakeCommissioner(_context, commissioner);
+
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, null), Is.False, "visitor");
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, outsider.Id), Is.False, "on neither team");
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.Requester.Id), Is.True, "home player");
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.AwayCaptain.Id), Is.True, "away captain");
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, commissioner.Id), Is.True, "commissioner");
+    }
+
+    [Test]
+    public async Task CanRequestReschedule_IsFalse_ForADecidedMatch_AMatchMissingATeam_OrWithARequestActive()
+    {
+        var s = await RescheduleTestData.SeedAsync(_context);
+        var decided = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = s.Away.TeamID, BestOf = 1, HomeTeamResult = SeasonMatchResult.Bye };
+        var waiting = new SeasonMatch { SeasonID = s.Season.SeasonID, HomeTeamID = s.Home.TeamID, AwayTeamID = null, BestOf = 1 };
+        _context.SeasonMatches.AddRange(decided, waiting);
+        await _context.SaveChangesAsync();
+        var active = await RescheduleTestData.AddReschedule(_context, s.Match.SeasonMatchID, s.Requester.Id);
+        s.Match.ActiveRescheduleRequestId = active.MatchRescheduleID;
+        await _context.SaveChangesAsync();
+
+        Assert.That(await CanRequest(decided.SeasonMatchID, s.HomeCaptain.Id), Is.False, "decided (BYE)");
+        Assert.That(await CanRequest(waiting.SeasonMatchID, s.HomeCaptain.Id), Is.False, "missing a team");
+        Assert.That(await CanRequest(s.Match.SeasonMatchID, s.HomeCaptain.Id), Is.False, "request already active");
+    }
+
     [Test]
     public async Task ReportMatch_ReturnsBadRequest_ForEmptyGuid_WithoutCallingService()
     {

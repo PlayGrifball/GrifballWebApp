@@ -1,8 +1,10 @@
 import { inject } from '@angular/core';
-import type { ActivatedRouteSnapshot, CanActivateFn, RouterStateSnapshot } from '@angular/router';
+import type { CanActivateFn } from '@angular/router';
+import { map } from 'rxjs';
 import { AccountService } from './account.service';
 
-export const isSysAdminGuard: CanActivateFn = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
-  const accountService = inject(AccountService)
-  return accountService.isSysAdmin();
+/** Sysadmins only. Waits until the API has said who is signed in (the session is a cookie the app cannot read). */
+export const isSysAdminGuard: CanActivateFn = () => {
+  const accountService = inject(AccountService);
+  return accountService.whenKnown().pipe(map(() => accountService.isSysAdmin()));
 };

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal, DestroyRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -24,6 +24,7 @@ import { CreateRegularMatchesDialogComponent } from './createRegularMatchesDialo
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
+import { provideDatePickers } from '../../shared/datePickers';
 @Component({
     selector: 'app-schedule-list',
     templateUrl: './scheduleList.component.html',
@@ -42,6 +43,7 @@ import { ToDatePipe } from '../../shared/toDate.pipe';
         MatDialogModule,
         ToDatePipe,
     ],
+    providers: [provideDatePickers()],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScheduleListComponent  implements OnInit {
@@ -55,6 +57,11 @@ export class ScheduleListComponent  implements OnInit {
   readonly unscheduledMatches = signal<UnscheduledMatchDto[]>([]);
   readonly scheduledMatches = signal<WeekDto[]>([]);
   readonly isEditing = signal(false);
+  /** Both lists have loaded (or failed to): shown then together, so the unscheduled list does
+   * not jump down when the weeks above it arrive. */
+  private readonly scheduledLoaded = signal(false);
+  private readonly unscheduledLoaded = signal(false);
+  readonly loaded = computed(() => this.scheduledLoaded() && this.unscheduledLoaded());
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
@@ -86,7 +93,11 @@ export class ScheduleListComponent  implements OnInit {
   GetUnscheduledMatches(): void {
     this.http.get<UnscheduledMatchDto[]>('/api/MatchPlanner/GetUnscheduledMatches/' + this.seasonID)
     .subscribe({
-      next: r => this.unscheduledMatches.set(r),
+      next: r => {
+        this.unscheduledMatches.set(r);
+        this.unscheduledLoaded.set(true);
+      },
+      error: () => this.unscheduledLoaded.set(true),
     });
   }
 
@@ -94,7 +105,11 @@ export class ScheduleListComponent  implements OnInit {
     this.http.get<unknown[]>('/api/MatchPlanner/GetScheduledMatches/' + this.seasonID)
     .pipe(mapResponse(matches => matches.map(parseScheduledMatch)))
     .subscribe({
-      next: r => this.gotScheduledMatches(r),
+      next: r => {
+        this.gotScheduledMatches(r);
+        this.scheduledLoaded.set(true);
+      },
+      error: () => this.scheduledLoaded.set(true),
     });
   }
 

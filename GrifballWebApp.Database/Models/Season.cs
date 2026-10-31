@@ -14,9 +14,10 @@ public class Season : AuditableEntity
     public string SeasonName { get; set; }
     public bool CaptainsLocked { get; set; }
     /// <summary>
-    /// The date and time when the season is/was made public. If this date has not passed then the season will only be visible to admins and commissioner.
+    /// The date and time when the season is/was made public (posted to the Discord events channel). Null: not public
+    /// yet, as a season is when it is created, until a commissioner sets it.
     /// </summary>
-    public DateTime PublicAt { get; set; }
+    public DateTime? PublicAt { get; set; }
     public DateTime SignupsOpen { get; set; }
     public DateTime SignupsClose { get; set; }
     public DateTime DraftStart { get; set; }

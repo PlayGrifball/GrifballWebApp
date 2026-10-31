@@ -1,8 +1,18 @@
-<h1>Export to Google Sheet</h1>
+<div class="hud-page">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Commissioner tools</span>
+    <h1 class="hud-title hud-title--md">Export to Google Sheet</h1>
+  </div>
+  <p class="hud-lede">Writes a match's stats into a sheet of a Google spreadsheet.</p>
 
-@for (sheet of sheetInfo(); track sheet) {
-    <app-excel-form class="inline-block px-4"
-    [inputSpreadsheetId]="sheet.spreadsheetID"
-    [inputSheetName]="sheet.sheetName"
-    [inputName]="sheet.name" />
-}
+  <div class="hud-grid">
+    @for (sheet of sheetInfo(); track sheet) {
+      <app-excel-form class="hud-panel"
+      [inputSpreadsheetId]="sheet.spreadsheetID"
+      [inputSheetName]="sheet.sheetName"
+      [inputName]="sheet.name" />
+    } @empty {
+      <p class="hud-empty">No sheets are set up to export to.</p>
+    }
+  </div>
+</div>

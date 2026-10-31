@@ -40,7 +40,7 @@ export class InfiniteClientComponent implements OnInit {
 
   setCode() {
     const params = new HttpParams().set('code', this.code);
-    this.http.get("api/Admin/SetCode", { params }).subscribe({
+    this.http.post("api/Admin/SetCode", null, { params }).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);
@@ -61,7 +61,7 @@ export class InfiniteClientComponent implements OnInit {
   }
 
   deleteTokens() {
-    this.http.get("api/Admin/DeleteTokens").subscribe({
+    this.http.post("api/Admin/DeleteTokens", null).subscribe({
       next: r => this.snackbar.open('Success', "Close"),
       error: r => {
         console.log(r);

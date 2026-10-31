@@ -36,7 +36,7 @@ describe('RescheduleRequestComponent', () => {
 
   afterEach(() => http.verify());
 
-  const buttons = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-card-actions button')) as HTMLButtonElement[];
+  const buttons = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.rr-actions button')) as HTMLButtonElement[];
   const submitButton = () => buttons().find(b => b.textContent!.includes('Submit'))!;
 
   it('reads the season match from the route', () => {

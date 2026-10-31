@@ -1,3 +1,22 @@
 :host {
   display: block;
 }
+
+// The tone over its hex, each on its own line, small enough for a 64px tile. 12px: Lighthouse's
+// font-size audit (and WCAG) want legible text; anything under 12px fails it.
+.tile {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 5px;
+  font-family: var(--hud-font-mono);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.tile__tone { font-weight: 700; }
+
+.tile__hex { white-space: nowrap; }

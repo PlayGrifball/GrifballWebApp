@@ -22,8 +22,9 @@ describe('SeasonEditComponent', () => {
 
   beforeEach(async () => {
     seasonID = '4';
-    api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'upsertSeason']);
+    api = jasmine.createSpyObj('ApiClientService', ['getSeason', 'getSeasons', 'upsertSeason']);
     api.getSeason.and.returnValue(of(season()));
+    api.getSeasons.and.returnValue(of([season({ seasonID: 3, seasonName: 'Season 3' }), season()]));
 
     await TestBed.configureTestingModule({
       imports: [SeasonEditComponent],
@@ -48,6 +49,15 @@ describe('SeasonEditComponent', () => {
   const el = () => fixture.nativeElement as HTMLElement;
   const saveButton = () => el().querySelector('form button[mat-flat-button]') as HTMLButtonElement;
 
+  /** Opens "Copy from" and picks the season with this name. */
+  async function pickCopyFrom(name: string): Promise<void> {
+    (el().querySelector('mat-select[name="copyFrom"] .mat-mdc-select-trigger') as HTMLElement).click();
+    await fixture.whenStable();
+    const option = Array.from(document.querySelectorAll<HTMLElement>('mat-option')).find(o => o.textContent!.trim() === name)!;
+    option.click();
+    await fixture.whenStable();
+  }
+
   it('starts a new, invalid season when the id is 0', async () => {
     seasonID = '0';
     await render();
@@ -65,8 +75,8 @@ describe('SeasonEditComponent', () => {
     expect(component.model().seasonName).toBe('Season 4');
     expect(saveButton().textContent).toContain('Save Season');
     expect(saveButton().disabled).toBeFalse();
-    const availability = Array.from(el().querySelectorAll('button')).find(b => b.textContent!.includes('Edit Availability'))!;
-    expect(availability).toBeDefined();
+    const availability = Array.from(el().querySelectorAll('a')).find(a => a.textContent!.includes('Edit Availability'))!;
+    expect(availability.getAttribute('href')).toBe('/seasonAvailability/4');
   });
 
   it('only shows the copy options when copying from another season', async () => {
@@ -129,15 +139,60 @@ describe('SeasonEditComponent', () => {
     const name = el().querySelector<HTMLInputElement>('input[name="seasonName"]')!;
     name.value = 'Renamed';
     name.dispatchEvent(new Event('input'));
-    const copyFrom = el().querySelector<HTMLInputElement>('input[name="copyFrom"]')!;
-    copyFrom.value = '3';
-    copyFrom.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
+    await pickCopyFrom('Season 3');
 
     expect(component.model()).not.toBe(loaded);
     expect(component.model().seasonName).toBe('Renamed');
     expect(loaded.seasonName).toBe('Season 4');
+    expect(component.model().copyFrom).toBe('Season 3');
     expect(el().querySelectorAll('mat-checkbox').length).toBe(3);
+  });
+
+  it('offers the other seasons to copy from, by name, and copying nothing', async () => {
+    await render();
+    (el().querySelector('mat-select[name="copyFrom"] .mat-mdc-select-trigger') as HTMLElement).click();
+    await fixture.whenStable();
+
+    const options = Array.from(document.querySelectorAll('mat-option')).map(o => o.textContent!.trim());
+    // Not the season being edited (Season 4) itself
+    expect(options).toEqual(['Nothing (start empty)', 'Season 3']);
+    (document.querySelectorAll('mat-option')[0] as HTMLElement).click();
+    await fixture.whenStable();
+    expect(component.model().copyFrom).toBeNull();
+    expect(el().querySelectorAll('mat-checkbox').length).toBe(0);
+  });
+
+  it('still works when the season list fails to load', async () => {
+    const err = spyOn(console, 'error');
+    api.getSeasons.and.returnValue(throwError(() => 'down'));
+    await render();
+    expect(err).toHaveBeenCalledWith('down');
+    expect(component.copyableSeasons()).toEqual([]);
+    expect(saveButton().disabled).toBeFalse();
+  });
+
+  it('labels its fields for people, not with the field names', async () => {
+    await render();
+    const labels = Array.from(el().querySelectorAll('mat-label')).map(l => l.textContent!.trim());
+    expect(labels).toEqual(['Season name', 'Public from', 'Signups open', 'Signups close', 'Draft start', 'Season start', 'Season end', 'Copy from']);
+  });
+
+  it('keeps a new season unannounced until a time is set', async () => {
+    seasonID = '0';
+    await render();
+    expect(component.model().publicAt ?? null).toBeNull();
+    expect(el().querySelector<HTMLInputElement>('input[name="publicAt"]')!.required).toBeFalse();
+  });
+
+  it('shows and saves when a season is public from', async () => {
+    const publicAt = DateTime.fromISO('2026-04-01T12:00:00');
+    api.getSeason.and.returnValue(of(season({ publicAt })));
+    api.upsertSeason.and.returnValue(of(4));
+    await render();
+
+    component.onSubmit();
+
+    expect(api.upsertSeason).toHaveBeenCalledWith(jasmine.objectContaining({ publicAt }));
   });
 
   it('keeps the empty form for a season that does not exist', async () => {

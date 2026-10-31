@@ -15,13 +15,8 @@ export class TileComponent {
   paletteName = input.required<palette>();
   i = input.required<number | null>();
 
-  textColor = computed(() => {
-    const i = this.i();
-    if (i == null || i < 80)
-      return `text-white`;
-    else
-      return `text-black`;
-  });
+  /** Black or white, whichever reads better on the tile's colour (by its luminance). */
+  textColor = computed(() => readableOn(this.hex()));
 
   bg = computed(() => {
     const i = this.i();
@@ -39,4 +34,19 @@ export class TileComponent {
     else
       return document.querySelector('html')?.style.getPropertyValue(`--${this.paletteName()}-${i}`);
   });
+}
+
+/**
+ * The text colour that reads best on a #rrggbb background: black on light colours, white on dark
+ * ones (WCAG relative luminance; the two give equal contrast at 0.179). White when it is unknown.
+ */
+export function readableOn(hex: string | undefined): '#000000' | '#ffffff' {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((hex ?? '').trim());
+  if (!m)
+    return '#ffffff';
+  const [r, g, b] = m.slice(1).map(c => {
+    const v = parseInt(c, 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? '#000000' : '#ffffff';
 }

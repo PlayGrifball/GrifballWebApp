@@ -34,7 +34,7 @@ public class AvailabilityService
         {
             DayOfWeek = x.DayOfWeek,
             Time = x.Time,
-        }).ToList();
+        }).Distinct(_comparer).ToList();
 
         var existing = await _context.Availability
             .Include(x => x.SeasonAvailability.Where(s => s.SeasonID == a.SeasonID))
@@ -42,6 +42,9 @@ public class AvailabilityService
             .Where(x => mapped.Select(x => x.Time).Contains(x.Time))
             .AsSplitQuery()
             .ToListAsync();
+        // The query narrows by day and by time separately (all it can translate), which also finds the other days at the
+        // picked times: keep only the exact (day, time) pairs picked.
+        existing = existing.Where(x => mapped.Contains(x, _comparer)).ToList();
 
         // Add missing options
         var missing = mapped.Except(existing, _comparer).ToList();

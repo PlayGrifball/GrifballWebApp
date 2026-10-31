@@ -6,10 +6,116 @@
   bottom: 0;
   left: 0;
   right: 0;
+  background: var(--hud-bg-glow);
+  background-color: var(--hud-bg);
 }
 
 .app-sidenav-container {
   /* When the sidenav is not fixed, stretch the sidenav container to fill the available space. This
      causes `<mat-sidenav-content>` to act as our scrolling element for desktop layouts. */
   flex: 1;
+  background: transparent;
+}
+
+.app-content {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  /* Room for the scrollbar from the start: a scrollbar that appears once data loads would
+     narrow the page and shift everything sideways. */
+  scrollbar-gutter: stable;
+}
+
+main {
+  flex: 1 0 auto;
+  /* At least a screen tall, so the footer starts below the fold and does not jump down as data loads. */
+  min-height: 100%;
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 10;
+  padding: 10px 16px;
+  background: var(--hud-accent);
+  color: var(--hud-on-accent);
+  font-weight: 700;
+}
+
+.skip-link:focus { top: 8px; }
+
+/* The links between the brand and the user chip; links that do not fit go to the sidenav. */
+.toolbar-links {
+  position: relative; /* clips the hidden measuring link too */
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.nav-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--hud-muted);
+}
+
+.nav-link:hover { color: var(--hud-heading); }
+
+.nav-link:focus-visible { outline-offset: -2px; }
+
+.nav-link--active {
+  color: var(--hud-heading);
+  border-bottom-color: var(--hud-accent);
+}
+
+.app-drawer {
+  width: min(320px, 86vw);
+  border-right: 1px solid var(--hud-border);
+}
+
+.app-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 20px;
+  border-bottom: 1px solid var(--hud-hairline);
+}
+
+.app-drawer__links {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.app-drawer__link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-text);
+}
+
+.app-drawer__link:hover { background: var(--hud-accent-tint); color: var(--hud-heading); }
+
+.app-drawer__link:focus-visible { outline-offset: -2px; }
+
+.app-drawer__link--active {
+  box-shadow: inset 3px 0 0 var(--hud-accent);
+  background: var(--hud-accent-tint);
 }

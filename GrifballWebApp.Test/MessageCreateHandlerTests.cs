@@ -40,7 +40,7 @@ public class MessageCreateHandlerTests
         _handler = new MessageCreateHandler(_discordClient, config, _scopeFactory, new AmbientCurrentUser(), _logger);
     }
 
-    private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null)
+    private static NetCord.Gateway.Message Message(ulong authorId, ulong[]? mentions = null, (ulong ChannelId, ulong MessageId)? reference = null, RestClient? restClient = null)
     {
         var json = new Dictionary<string, object?>
         {
@@ -63,7 +63,7 @@ public class MessageCreateHandlerTests
         if (reference is { } r)
             json["message_reference"] = new { channel_id = r.ChannelId, message_id = r.MessageId };
         var model = JsonSerializer.Deserialize<NetCord.JsonModels.JsonMessage>(JsonSerializer.Serialize(json))!;
-        return new NetCord.Gateway.Message(model, null, null, new RestClient());
+        return new NetCord.Gateway.Message(model, null, null, restClient ?? new RestClient());
     }
 
     private void AssertNoResponse()
@@ -169,7 +169,7 @@ public class MessageCreateHandlerTests
         _db = null;
     }
 
-    private async Task<MessageCreateHandler> HandlerWithDatabase()
+    private async Task<MessageCreateHandler> HandlerWithDatabase(string ollamaUrl = "http://127.0.0.1:9/")
     {
         _db = await SetUpFixture.NewGrifballContext();
         var connectionString = _db.Database.GetConnectionString()!;
@@ -185,7 +185,7 @@ public class MessageCreateHandlerTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Discord:ClientId"] = BotId.ToString(),
-            ["Ollama:Url"] = "http://127.0.0.1:9/", // refused at once
+            ["Ollama:Url"] = ollamaUrl, // by default refused at once
         }).Build();
         return new MessageCreateHandler(_discordClient, config, services.GetRequiredService<IServiceScopeFactory>(), _ambient, _logger);
     }
@@ -242,5 +242,108 @@ public class MessageCreateHandlerTests
             Assert.That(author.ModifiedAt, Is.Not.EqualTo(default(DateTime)));
             Assert.That(author.CreatedByID, Is.Null);
         });
+    }
+
+    [Test]
+    public async Task HandleAsync_StreamedReplyAlreadyShownInFull_IsStillSaved()
+    {
+        // The first chunk is long enough for a streamed update, which is sent once a second has passed with the second
+        // chunk: that update already shows the whole reply, so the final step has nothing left to change.
+        const string first = "This first chunk is over 25 characters";
+        const string second = "!";
+        using var ollama = FakeOllama.Start((TimeSpan.Zero, first), (TimeSpan.FromMilliseconds(1300), second));
+        var handler = await HandlerWithDatabase(ollama.Url);
+        var rest = new RestClient(new RestClientConfiguration { RequestHandler = new FakeRestRequestHandler { EchoContent = true } });
+
+        await handler.HandleAsync(Message(5, [BotId], restClient: rest));
+
+        Assert.That(_logger.Entries, Is.Empty, string.Join("\n", _logger.Entries.Select(x => x.Exception?.ToString() ?? x.Message)));
+        using var read = _db!.NewContextLike();
+        var reply = await read.DiscordMessages.SingleOrDefaultAsync(x => x.FromDiscordUserId == (long)BotId);
+        Assert.That(reply?.Content, Is.EqualTo(first + second), "The bot's reply is kept for the conversation's history");
+    }
+
+    [Test]
+    public async Task HandleAsync_StreamedReplyGrewAfterTheLastUpdate_IsEditedAndSaved()
+    {
+        // The streamed update shows the first two chunks; the third comes too soon after it for another, so the final step
+        // edits the reply to the whole of it.
+        const string first = "This first chunk is over 25 characters";
+        using var ollama = FakeOllama.Start((TimeSpan.Zero, first), (TimeSpan.FromMilliseconds(1300), "!"), (TimeSpan.Zero, " The end."));
+        var handler = await HandlerWithDatabase(ollama.Url);
+        var discord = new FakeRestRequestHandler { EchoContent = true };
+        var rest = new RestClient(new RestClientConfiguration { RequestHandler = discord });
+
+        await handler.HandleAsync(Message(5, [BotId], restClient: rest));
+
+        using var read = _db!.NewContextLike();
+        var reply = await read.DiscordMessages.SingleOrDefaultAsync(x => x.FromDiscordUserId == (long)BotId);
+        Assert.Multiple(() =>
+        {
+            Assert.That(reply?.Content, Is.EqualTo(first + "! The end."));
+            Assert.That(discord.Requests.Count(r => r.Method == HttpMethod.Patch), Is.EqualTo(1), "The reply was edited once, at the end");
+        });
+    }
+
+    /// <summary>Answers Ollama's /api/chat with a streamed reply in two chunks.</summary>
+    private sealed class FakeOllama : IDisposable
+    {
+        private readonly System.Net.HttpListener _listener = new();
+        public string Url { get; }
+
+        private FakeOllama(string url)
+        {
+            Url = url;
+            _listener.Prefixes.Add(url);
+        }
+
+        /// <summary>Streams each chunk after its delay.</summary>
+        public static FakeOllama Start(params (TimeSpan Delay, string Text)[] chunks)
+        {
+            var port = FreePort();
+            var fake = new FakeOllama($"http://127.0.0.1:{port}/");
+            fake._listener.Start();
+            _ = Task.Run(async () =>
+            {
+                while (fake._listener.IsListening)
+                {
+                    System.Net.HttpListenerContext ctx;
+                    try { ctx = await fake._listener.GetContextAsync(); }
+                    catch { return; }
+                    ctx.Response.ContentType = "application/x-ndjson";
+                    ctx.Response.SendChunked = true;
+                    await using var writer = new StreamWriter(ctx.Response.OutputStream);
+                    foreach (var (delay, text) in chunks)
+                    {
+                        await Task.Delay(delay);
+                        await writer.WriteLineAsync(Chunk(text, done: false));
+                        await writer.FlushAsync();
+                    }
+                    await writer.WriteLineAsync(Chunk("", done: true));
+                    await writer.FlushAsync();
+                }
+            });
+            return fake;
+        }
+
+        private static string Chunk(string content, bool done) => JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["model"] = "llama3.1:latest",
+            ["created_at"] = "2024-01-01T00:00:00Z",
+            ["message"] = new { role = "assistant", content },
+            ["done"] = done,
+            ["done_reason"] = done ? "stop" : null,
+        });
+
+        private static int FreePort()
+        {
+            var socket = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            socket.Start();
+            var port = ((System.Net.IPEndPoint)socket.LocalEndpoint).Port;
+            socket.Stop();
+            return port;
+        }
+
+        public void Dispose() => _listener.Close();
     }
 }

@@ -152,12 +152,27 @@ public class UserManagementServiceBranchTests
         var xbox = new XboxUser { XboxUserID = 50, Gamertag = "NewGT" };
         _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
 
         var result = await _service.CreateUser(CreateReq(), CancellationToken.None);
 
         Assert.That(result, Is.Null);
         await _userManager.Received(1).CreateAsync(Arg.Is<User>(u =>
             u.UserName == "newbie" && u.DisplayName == "New Person" && u.XboxUser == xbox));
+        await _userManager.Received(1).AddToRoleAsync(Arg.Is<User>(u => u.UserName == "newbie"), "Player");
+    }
+
+    [Test]
+    public async Task CreateUser_PlayerRoleFails_ReturnsError()
+    {
+        var xbox = new XboxUser { XboxUserID = 50, Gamertag = "NewGT" };
+        _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((xbox, (string?)null));
+        _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Failed());
+
+        var result = await _service.CreateUser(CreateReq(), CancellationToken.None);
+
+        Assert.That(result, Is.EqualTo("Failed to add the Player role"));
     }
 
     [Test]
@@ -167,6 +182,7 @@ public class UserManagementServiceBranchTests
         var aliceXbox = await _context.XboxUsers.Include(x => x.User).SingleAsync(x => x.XboxUserID == 11);
         _getsert.GetsertXboxUserByGamertag("NewGT", Arg.Any<CancellationToken>()).Returns((aliceXbox, (string?)null));
         _userManager.CreateAsync(Arg.Any<User>()).Returns(IdentityResult.Success);
+        _userManager.AddToRoleAsync(Arg.Any<User>(), "Player").Returns(IdentityResult.Success);
 
         var result = await _service.CreateUser(CreateReq(), CancellationToken.None);
 

@@ -1,5 +1,5 @@
-# GrifballWebApp chart. One release per namespace: the frontend's nginx reaches the backend at
-# grifballwebapp-server:5295 (grifballwebapp.client/default.conf), so object names are fixed, not
+# GrifballWebApp chart. One release per namespace: the frontend's server reaches the backend at
+# grifballwebapp-server:5295 (API_URL in grifballwebapp.client/src/server.ts), so object names are fixed, not
 # prefixed with the release name. Each name can still be overridden below.
 
 # The Secret secrets are read from by default: the database's password (mssql.saPassword,
@@ -90,7 +90,7 @@ backend:
   # old one.
   strategy:
     type: Recreate
-  # ASPNETCORE_HTTP_PORTS. The frontend's nginx proxies to 5295.
+  # ASPNETCORE_HTTP_PORTS. The frontend's server proxies to 5295.
   port: 5295
   service:
     name: grifballwebapp-server
@@ -155,7 +155,7 @@ backend:
       #   Interval: "00:05:00"
       #   Timeout: "00:00:10"
       #   MatchId: 1fde4c2a-7935-4fb0-9706-e226f4d13683
-    # Who may set the client address. The backend's only peer is the frontend's nginx, which passes
+    # Who may set the client address. The backend's only peer is the frontend's server, which passes
     # on X-Real-IP; trust the pod network it runs in (Ex: 10.0.0.0/16).
     # ForwardedHeaders:
     #   KnownIPNetworks: []
@@ -286,11 +286,12 @@ frontend:
   livenessProbe:
     periodSeconds: 20
     timeoutSeconds: 3
+  # Node, rendering pages on the server: about 120-160 MiB resident under load.
   resources:
     requests:
-      memory: 16Mi
+      memory: 128Mi
     limits:
-      memory: 64Mi
+      memory: 256Mi
   podSecurityContext:
     seccompProfile:
       type: RuntimeDefault

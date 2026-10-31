@@ -2,7 +2,7 @@ import { ComponentFixture, ComponentFixtureAutoDetect } from '@angular/core/test
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { HomeComponent } from './home.component';
+import { Event, eventLink, heroKicker, heroLede, HomeComponent, pickFeatured } from './home.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('HomeComponent', () => {
@@ -332,5 +332,121 @@ describe('HomeComponent paginator and sort wiring', () => {
     expect(req.request.params.get('sortColumn')).toBe('name');
     expect(req.request.params.get('sortDirection')).toBe('desc');
     req.flush(page(['z'], 1));
+  });
+});
+
+describe('Home page events', () => {
+  const now = Date.parse('2026-03-10T12:00:00Z');
+  const ev = (eventType: Event['eventType'], start: string, end: string, seasonID = 4, name = 'Spring'): Event =>
+    ({ seasonID, name, start, end, eventType });
+  const signup = ev('Signup', '2026-03-01T00:00:00Z', '2026-03-20T00:00:00Z');
+  const draft = ev('Draft', '2026-03-25T19:00:00Z', '2026-03-25T23:00:00Z');
+  const season = ev('Season', '2026-02-01T00:00:00Z', '2026-05-01T00:00:00Z', 3, 'Winter');
+  const later = ev('Season', '2026-04-01T00:00:00Z', '2026-06-01T00:00:00Z');
+
+  it('features the event under way, signups before the draft before a season', () => {
+    expect(pickFeatured([season, signup, draft], now)).toBe(signup);
+    expect(pickFeatured([season, draft], now)).toBe(season);
+  });
+
+  it('features the next event to start when none is under way, and nothing without events', () => {
+    expect(pickFeatured([later, draft], now)).toBe(draft);
+    expect(pickFeatured([], now)).toBeNull();
+  });
+
+  it('says whether the featured event is under way or coming', () => {
+    expect(heroKicker(signup, now)).toBe('Signups online');
+    expect(heroKicker(signup, Date.parse('2026-02-01T00:00:00Z'))).toBe('Signups incoming');
+    expect(heroKicker(draft, now)).toBe('Draft incoming');
+    expect(heroKicker(draft, Date.parse('2026-03-25T20:00:00Z'))).toBe('Draft in progress');
+    expect(heroKicker(season, now)).toBe('Season live');
+    expect(heroKicker(later, now)).toBe('Season incoming');
+  });
+
+  it("describes the featured event, with the draft date for that season's signups", () => {
+    const format = (iso: string) => iso.slice(0, 10);
+    expect(heroLede(signup, [signup, draft], format)).toBe('Signups close 2026-03-20. Captains draft on 2026-03-25. Pick up a hammer.');
+    expect(heroLede(signup, [signup, { ...draft, seasonID: 9 }], format)).toBe('Signups close 2026-03-20. Pick up a hammer.');
+    expect(heroLede(draft, [], format)).toBe('The draft starts 2026-03-25 and runs until all picks are made.');
+    expect(heroLede(season, [], format)).toBe('The season runs from 2026-02-01 to 2026-05-01.');
+  });
+
+  it('links each kind of event to its page', () => {
+    expect(eventLink(signup)).toEqual(['/season', 4, 'signups']);
+    expect(eventLink(draft)).toEqual(['/season', 4, 'teams']);
+    expect(eventLink(season)).toEqual(['/season', 3]);
+  });
+
+  describe('rendered', () => {
+    let fixture: ComponentFixture<HomeComponent>;
+    let http: HttpTestingController;
+
+    beforeEach(async () => {
+      await TestBed.configureTestingModule({
+        imports: [HomeComponent, HttpClientTestingModule, NoopAnimationsModule],
+        providers: [provideRouter([])],
+      }).compileComponents();
+      fixture = TestBed.createComponent(HomeComponent);
+      fixture.componentInstance.now.set(now);
+      http = TestBed.inject(HttpTestingController);
+    });
+
+    const el = () => fixture.nativeElement as HTMLElement;
+    const load = (events: Event[]) => {
+      fixture.detectChanges();
+      http.expectOne('/api/Home/CurrentAndFutureEvents/').flush(events);
+      http.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      fixture.detectChanges();
+    };
+
+    it('puts the featured season in the hero with its calls to action, and every event in a card', () => {
+      load([season, signup, draft]);
+      expect(el().querySelector('h1')!.textContent).toBe('Spring');
+      expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups online');
+      const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => [a.textContent!.trim(), a.getAttribute('href')]);
+      expect(actions).toEqual([['Sign up', '/season/4/signupForm'], ['View roster', '/season/4/signups']]);
+      const cards = Array.from(el().querySelectorAll('a.hud-card'));
+      expect(cards.map(c => c.getAttribute('href'))).toEqual(['/season/3', '/season/4/signups', '/season/4/teams']);
+      expect(cards.map(c => c.classList.contains('hud-card--active'))).toEqual([true, true, false]);
+      expect(cards[2].textContent).toContain('Objective 03');
+    });
+
+    it('offers Sign up only while the featured signups are open, not before they open', () => {
+      const upcoming = ev('Signup', '2026-03-15T00:00:00Z', '2026-03-20T00:00:00Z');
+      load([upcoming]);
+      expect(el().querySelector('.hud-kicker')!.textContent).toContain('Signups incoming');
+      const actions = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim());
+      expect(actions).toEqual(['View roster']);
+
+      fixture.componentInstance.now.set(Date.parse('2026-03-16T00:00:00Z'));
+      fixture.detectChanges();
+      expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Sign up', 'View roster']);
+    });
+
+    it('offers the draft or the season when that is the featured event', () => {
+      load([draft]);
+      expect(Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.textContent!.trim())).toEqual(['Watch the draft', 'Season overview']);
+      fixture.componentInstance.currentAndFutureEvents.set([later]);
+      fixture.detectChanges();
+      const links = Array.from(el().querySelectorAll('.home-hero__actions a')).map(a => a.getAttribute('href'));
+      expect(links).toEqual(['/season/4', '/season/4?tab=schedule']);
+    });
+
+    it('keeps the page hidden until the events are in, then shows it', () => {
+      fixture.detectChanges();
+      const page = () => el().querySelector('.hud-page')!;
+      expect(page().classList).toContain('hud-waiting');
+      http.expectOne('/api/Home/CurrentAndFutureEvents/').flush('x', { status: 500, statusText: 'Server Error' });
+      http.match(r => r.url === '/api/Home/PastSeasons').forEach(r => r.flush({ totalCount: 0, results: [] }));
+      fixture.detectChanges();
+      expect(page().classList).not.toContain('hud-waiting');
+      expect(el().textContent).toContain('There are no current or upcoming events');
+    });
+
+    it('says so when there are no events', () => {
+      load([]);
+      expect(el().textContent).toContain('There are no current or upcoming events');
+      expect(el().querySelector('a.hud-card')).toBeNull();
+    });
   });
 });

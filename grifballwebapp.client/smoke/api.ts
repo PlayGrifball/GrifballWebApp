@@ -1,7 +1,17 @@
 import { request, type APIRequestContext, type APIResponse } from '@playwright/test';
 import type { Credentials } from './env';
 
-/** The app's API (/api/...) as one signed-in user, with a bearer token like the client uses. */
+/**
+ * How long one API call may take. Signing in and registering hash a password, which on a small
+ * preview busy with both workers' setup has taken over 15 seconds (the suite's action timeout).
+ */
+const API_TIMEOUT = 60_000;
+
+/**
+ * The app's API (/api/...) as one signed-in user, with a bearer token: the browser signs in with
+ * a cookie, but the API still gives scripts a token (Login?useCookies=false), and a request with
+ * one needs no antiforgery token.
+ */
 export class Api {
   private constructor(
     private readonly http: APIRequestContext,
@@ -11,7 +21,7 @@ export class Api {
   ) {}
 
   static async login(baseURL: string, credentials: Credentials): Promise<Api> {
-    const http = await request.newContext({ baseURL });
+    const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
     const token = await Api.token(http, credentials);
     const meta = await http.get('/api/Identity/MetaInfo', { headers: { Authorization: `Bearer ${token}` } });
     await ok(meta, `MetaInfo for ${credentials.username}`);
@@ -20,7 +30,7 @@ export class Api {
   }
 
   private static async token(http: APIRequestContext, credentials: Credentials): Promise<string> {
-    const res = await http.post('/api/Identity/Login', { data: credentials });
+    const res = await http.post('/api/Identity/Login?useCookies=false', { data: credentials });
     await ok(res, `login as ${credentials.username}`);
     return (await res.json() as { accessToken: string }).accessToken;
   }
@@ -36,7 +46,7 @@ export class Api {
     return body<T>(res);
   }
 
-  async post<T = unknown>(path: string, data: unknown): Promise<T> {
+  async post<T = unknown>(path: string, data?: unknown): Promise<T> {
     const res = await this.http.post(`/api/${path}`, { headers: this.headers(), data });
     await ok(res, `POST ${path}`);
     return body<T>(res);
@@ -53,7 +63,7 @@ export class Api {
 
 /** Anyone may register; used for the throwaway players. */
 export async function register(baseURL: string, credentials: Credentials): Promise<void> {
-  const http = await request.newContext({ baseURL });
+  const http = await request.newContext({ baseURL, timeout: API_TIMEOUT });
   try {
     await ok(await http.post('/api/Identity/Register', { data: credentials }), `register ${credentials.username}`);
   } finally {

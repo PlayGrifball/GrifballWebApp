@@ -1,0 +1,21 @@
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.home-hero__actions { margin-top: 8px; }
+
+
+.home-archive__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 19px;
+  text-decoration: none;
+
+  &:hover { color: var(--hud-heading); }
+}
+
+.mat-mdc-paginator { border-top: 1px solid var(--hud-hairline); }

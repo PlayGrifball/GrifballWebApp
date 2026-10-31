@@ -1,6 +1,6 @@
 # Stage 1
-# Build on the build machine's own platform: the output is static files, served by nginx for each
-# image platform (linux/amd64, linux/arm64; docker-publish.yml).
+# Build on the build machine's own platform: the output is JavaScript, run by Node for each image
+# platform (linux/amd64, linux/arm64; docker-publish.yml).
 FROM --platform=$BUILDPLATFORM node:26.12.1-alpine AS build
 WORKDIR /usr/build
 COPY package.json ./
@@ -16,10 +16,15 @@ COPY src src
 RUN npm run build
 
 # Stage 2
-FROM nginx:1.31.8-alpine-slim
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY default.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /usr/build/dist/grifballwebapp.client/browser /usr/share/nginx/html
+# The app's server (src/server.ts): the built files, the pages rendered on the server, and /api,
+# /hub and /signin-discord passed on to the backend (API_URL). Bundled with everything it needs, so
+# no node_modules. It listens on port 80 as nginx did, so it runs as root as nginx's master did; it
+# writes nothing (a read-only root filesystem is fine).
+FROM node:26.12.1-alpine
+ENV NODE_ENV=production \
+    PORT=80
+WORKDIR /app
+COPY --from=build /usr/build/dist/grifballwebapp.client ./
 
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server/server.mjs"]

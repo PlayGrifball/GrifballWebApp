@@ -34,7 +34,7 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged to get timeslots");
+            return Unauthorized("You must be logged in to get timeslots");
 
         return Ok(await _signupsService.GetTimeslots(seasonID: seasonID, offset: offset, userID: userID, ct));
     }
@@ -45,7 +45,7 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged to get signup data");
+            return Unauthorized("You must be logged in to get signup data");
 
         return Ok(await _signupsService.GetSignup(seasonID: seasonID, offset: offset, userID: userID, ct));
     }
@@ -56,9 +56,16 @@ public class SignupsController : ControllerBase
     {
         var userID = GetUserID();
         if (userID == 0)
-            return Forbid("You must be logged in to signup for a season");
+            return Unauthorized("You must be logged in to sign up for a season");
 
         signupDto.UserID = userID;
+
+        // A captain's team name becomes the team's at the draft, which can't be longer: refused here rather than cut
+        // there. Only a captain's: the form doesn't let anyone else change it, so an old long one must not block them.
+        const int maxLength = global::GrifballWebApp.Database.Models.Team.TeamNameMaxLength;
+        if (signupDto.WillCaptain && signupDto.TeamName?.Length > maxLength)
+            return BadRequest($"Team name must be {maxLength} characters or fewer");
+
         try
         {
             await _signupsService.UpsertSignup(signupDto, ct);

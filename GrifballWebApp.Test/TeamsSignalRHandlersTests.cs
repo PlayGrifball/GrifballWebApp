@@ -40,7 +40,7 @@ public class TeamsSignalRHandlersTests
     [Test]
     public async Task AddCaptainHandler_Should_BroadcastToOthers()
     {
-        var dto = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
+        var dto = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
         await new AddCaptainHandler(_hub).Handle(Notification.Create("conn-1", dto), CancellationToken.None);
         await _others.Received(1).AddCaptain(dto);
     }
@@ -105,7 +105,7 @@ public class TeamsSignalRHandlersTests
     {
         var all = Substitute.For<ITeamsHubClient>();
         _hub.Clients.All.Returns(all);
-        var added = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
+        var added = new CaptainAddedDto { SeasonID = 1, PersonID = 2, TeamID = 3, TeamName = "T", CaptainName = "C", OrderNumber = 1 };
         var placed = new CaptainPlacementDto { SeasonID = 1, PersonID = 2, OrderNumber = 3 };
         var removed = new RemoveCaptainDto { SeasonID = 1, PersonID = 2 };
         var addPlayer = new AddPlayerToTeamRequestDto { SeasonID = 1, CaptainID = 2, PersonID = 3 };

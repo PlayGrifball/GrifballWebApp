@@ -4,6 +4,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Seeder;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -55,7 +56,7 @@ public class QueueServiceTests
         });
 
         // Initialize the service
-        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
+        _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService, new ContextOutbox(_context));
 
         // Seed ranks
         await new RankSeeder(_context, new TestReader()).SeedRanks();
@@ -137,6 +138,11 @@ public class QueueServiceTests
 
         // Check the dataPullerService check match has been called 
         await _dataPullService.Received(1).DownloadRecentMatchesForPlayers(Arg.Is<List<long>>(x => x.Count == 0), 0, 0, 2, Arg.Any<CancellationToken>());
+
+        // The match is announced (its vote message posted) by the outbox: only then can it end.
+        await using (var outbox = new OutboxTestDriver(_context, _discordClient, _discordOptions.Value))
+            await outbox.DrainAsync();
+        _context.ChangeTracker.Clear();
 
         // Arrange - Fake match
         var start = now.AddSeconds(10);

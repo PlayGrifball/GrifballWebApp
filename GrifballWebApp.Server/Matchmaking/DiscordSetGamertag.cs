@@ -85,6 +85,9 @@ public class DiscordSetGamertag
                 await Context.ModifyTempResponse("Failed to create user account");
                 return;
             }
+            // Every account plays, as with sign-up: without the role the website's signup form and profile are forbidden.
+            await _userManager.AddToRoleAsync(discordUser.User, "Player");
+
             // Setup extenal auth similar to result = await _userManager.AddLoginAsync(user, info); from IdentityController.cs
             await _userManager.AddLoginAsync(discordUser.User, new UserLoginInfo("Discord", discordUser.DiscordUserID.ToString(), "Discord"));
 

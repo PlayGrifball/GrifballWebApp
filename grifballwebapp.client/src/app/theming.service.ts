@@ -1,5 +1,4 @@
 import { Injectable, signal } from '@angular/core';
-import { argbFromHex, hexFromArgb, TonalPalette } from '@material/material-color-utilities';
 
 type Theme = {
   name: string;
@@ -9,7 +8,20 @@ type Theme = {
   neutral: string;
   neutralVariant: string;
   error: string;
+  font?: string;
 };
+
+/** The default theme: the seed colours of the Spartan HUD design (see styles/_hud-tokens.scss). */
+export const SPARTAN_HUD = {
+  name: 'Spartan HUD',
+  primary: '#7CCBFF',
+  secondary: '#2A5373',
+  tertiary: '#FFD25E',
+  neutral: '#5F7F96',
+  neutralVariant: '#4F7391',
+  error: '#E5484D',
+  font: 'Rajdhani',
+} as const satisfies Theme;
 
 export type ShadeApplied = {
   name: string,
@@ -20,13 +32,15 @@ export type ShadeApplied = {
   providedIn: 'root',
 })
 export class ThemingService {
-  font = signal('Roboto');
-  primary = signal('#f35700');
-  secondary = signal('#8e0003');
-  tertiary = signal('#000582');
-  neutral = signal('#919093');
-  neutralVariant = signal('#8E9098');
-  error = signal('#FF5449');
+  // Spartan HUD is the default theme. The picker edits these seed colours: the accent
+  // (primary), gold (tertiary) and team red (error) of the HUD follow them, see styles/_hud-tokens.scss.
+  font = signal<string>(SPARTAN_HUD.font);
+  primary = signal<string>(SPARTAN_HUD.primary);
+  secondary = signal<string>(SPARTAN_HUD.secondary);
+  tertiary = signal<string>(SPARTAN_HUD.tertiary);
+  neutral = signal<string>(SPARTAN_HUD.neutral);
+  neutralVariant = signal<string>(SPARTAN_HUD.neutralVariant);
+  error = signal<string>(SPARTAN_HUD.error);
 
   shadeApplied = signal<ShadeApplied>({
     name: '',
@@ -37,8 +51,9 @@ export class ThemingService {
   }
 
   definedThemes: Theme[] = [
+    SPARTAN_HUD,
     {
-      name: 'Default',
+      name: 'Classic',
       primary: '#FFDE03',
       secondary: '#806f00',
       tertiary: '#A288A6',
@@ -48,8 +63,15 @@ export class ThemingService {
     },
   ];
 
+  /** Puts the picker back to the Spartan HUD colours and font. */
+  reset(): void {
+    this.applyTheme(SPARTAN_HUD);
+  }
+
   applyTheme(theme: Theme) {
-    const { primary, secondary, tertiary, neutral, neutralVariant, error } = theme;
+    const { primary, secondary, tertiary, neutral, neutralVariant, error, font } = theme;
+    if (font)
+      this.font.set(font);
     this.primary.set(primary);
     this.secondary.set(secondary);
     this.tertiary.set(tertiary);
@@ -63,6 +85,7 @@ export class ThemingService {
     if (root == null) {
       return;
     }
+    loadFont(font);
     root?.style.setProperty(`--sys-body-small-font`, font);
     root?.style.setProperty(`--sys-body-medium-font`, font);
     root?.style.setProperty(`--sys-body-large-font`, font);
@@ -81,30 +104,35 @@ export class ThemingService {
   }
 
   setPrimaryShade(hex: string) {
-    this.setShade('primary', hex);
+    return this.setShade('primary', hex);
   }
 
   setSecondaryShade(hex: string) {
-    this.setShade('secondary', hex);
+    return this.setShade('secondary', hex);
   }
 
   setTertiaryShade(hex: string) {
-    this.setShade('tertiary', hex);
+    return this.setShade('tertiary', hex);
   }
 
   setNeutralShade(hex: string) {
-    this.setShade('neutral', hex);
+    return this.setShade('neutral', hex);
   }
 
   setNeutralVariantShade(hex: string) {
-    this.setShade('neutral-variant', hex);
+    return this.setShade('neutral-variant', hex);
   }
 
   setErrorShade(hex: string) {
-    this.setShade('error', hex);
+    return this.setShade('error', hex);
   }
 
-  private setShade(color: string, hex: string) {
+  /**
+   * Sets a seed colour (which the Spartan HUD accent, gold and red follow at once), then its tonal
+   * palette (--<color>-0 to -100, for the picker's tiles and Tailwind's palette classes). The colour
+   * utilities that make the palette are loaded on first use, so they are not in the initial bundle.
+   */
+  private async setShade(color: string, hex: string): Promise<void> {
     const root = document.querySelector('html');
     if (!root)
     {
@@ -113,6 +141,7 @@ export class ThemingService {
     }
 
     root.style.setProperty(`--${color}`, hex);
+    const { argbFromHex, hexFromArgb, TonalPalette } = await import('@material/material-color-utilities');
     const palette = TonalPalette.fromInt(argbFromHex(hex));
 
     let increment = 10;
@@ -129,4 +158,20 @@ export class ThemingService {
       hex: hex,
     });
   }
+}
+
+/** Fonts the picker offers that are not self-hosted: their Google Fonts stylesheet, loaded when picked. */
+const ON_DEMAND_FONTS: Record<string, string> = {
+  Roboto: 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap',
+};
+
+/** Adds the stylesheet of an on-demand font to the page, once. */
+export function loadFont(font: string): void {
+  const href = ON_DEMAND_FONTS[font];
+  if (!href || document.head.querySelector(`link[href="${href}"]`))
+    return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
 }

@@ -1,6 +1,7 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Brackets;
+using GrifballWebApp.Server.Reschedule;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Match = GrifballWebApp.Database.Models.Match;
@@ -19,7 +20,11 @@ public class SeasonMatchService
         _bracketService = bracketService;
     }
 
-    public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
+    public Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, CancellationToken ct = default)
+        => GetSeasonMatchPage(seasonMatchID, null, ct);
+
+    /// <param name="userID">The signed-in user, for <see cref="SeasonMatchPageDto.CanRequestReschedule"/>; null for a visitor.</param>
+    public async Task<SeasonMatchPageDto?> GetSeasonMatchPage(int seasonMatchID, int? userID, CancellationToken ct)
     {
         var seasonMatch = await _context.SeasonMatches
             .Include(x => x.MatchLinks)
@@ -81,6 +86,7 @@ public class SeasonMatchService
                 IsGrandFinal = seasonMatch.BracketMatch.Bracket is Bracket.GrandFinal or Bracket.GrandFinalSuddenDeath,
             },
             ActiveRescheduleRequestId = seasonMatch.ActiveRescheduleRequestId,
+            CanRequestReschedule = await RescheduleRules.CanRequestAsync(_context, seasonMatch, userID, ct),
         };
     }
 
@@ -133,8 +139,8 @@ public class SeasonMatchService
             .Where(x => x.MatchTeams.All(x => x.MatchParticipants.Count == 4))
             .Where(x => x.MatchLink == null)
             .Where(x => x.MatchTeams.Any(x => x.Outcome == Outcomes.Won))
+            .OrderByDescending(x => x.StartTime) // The newest 200, not any 200
             .Take(200)
-            .OrderByDescending(x => x.StartTime)
             //.AsSplitQuery() // Include does not work correctly when running as split query, with take 100, and order by desc.
             // Split query causes the include to silently fail. Disabling split query for now but may want to revist this later
             // and write multiple smaller queries to get matches
@@ -244,8 +250,9 @@ public class SeasonMatchService
         if (seasonMatch.HomeTeamResult is not null || seasonMatch.AwayTeamResult is not null)
             throw new Exception("Results for this match have already been decided");
 
-        var homeTeamIDs = seasonMatch.HomeTeam.TeamPlayers.Select(x => x.User.XboxUser.XboxUserID).ToList();
-        var awayTeamIDs = seasonMatch.AwayTeam.TeamPlayers.Select(x => x.User.XboxUser.XboxUserID).ToList();
+        // A rostered player without a gamertag can't have played the match: they are left out, not a 500.
+        var homeTeamIDs = seasonMatch.HomeTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
+        var awayTeamIDs = seasonMatch.AwayTeam.TeamPlayers.Where(x => x.User.XboxUser is not null).Select(x => x.User.XboxUser.XboxUserID).ToList();
 
         seasonMatch.MatchLinks.Add(new MatchLink()
         {

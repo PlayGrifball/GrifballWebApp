@@ -230,4 +230,28 @@ public class EventOrganizerServiceTests
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].SignupsCount, Is.EqualTo(1));
     }
+
+    [Test]
+    public async Task UpsertSeason_NewSeason_IsNotPublic_UntilPublicAtIsSet()
+    {
+        var now = DateTime.UtcNow;
+        var dto = new SeasonDto { SeasonName = "Draft Season", SeasonStart = now, SeasonEnd = now.AddDays(30), SignupsOpen = now, SignupsClose = now, DraftStart = now };
+
+        var seasonId = await _service.UpsertSeason(dto, CancellationToken.None);
+        var created = await _service.GetSeason(seasonId, CancellationToken.None);
+
+        var publicAt = new DateTime(2026, 11, 1, 18, 0, 0, DateTimeKind.Utc);
+        dto.SeasonID = seasonId;
+        dto.PublicAt = publicAt;
+        await _service.UpsertSeason(dto, CancellationToken.None);
+        var updated = await _service.GetSeason(seasonId, CancellationToken.None);
+        var listed = await _service.GetSeasons(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(created!.PublicAt, Is.Null, "A new season is not announced");
+            Assert.That(updated!.PublicAt, Is.EqualTo(publicAt));
+            Assert.That(listed.Single().PublicAt, Is.EqualTo(publicAt));
+        });
+    }
 }

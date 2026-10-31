@@ -15,12 +15,20 @@ public class ScheduleService
         _logger = logger;
     }
 
+    /// <summary>
+    /// The league's time zone, US Eastern. By its IANA id, which every platform knows (Windows maps it since .NET 6);
+    /// the Windows id only resolves where ICU can map it and needs the tz database too, which the Alpine image adds (tzdata).
+    /// </summary>
+    public const string LeagueTimeZoneId = "America/New_York";
+
+    public static TimeZoneInfo LeagueTimeZone() => TimeZoneInfo.FindSystemTimeZoneById(LeagueTimeZoneId);
+
     public async Task<List<SeasonMatchGene>> GetTimeRecommendations(int seasonID, CancellationToken ct = default)
     {
         var season = await _context.Seasons.Where(x => x.SeasonID == seasonID).FirstOrDefaultAsync(ct)
             ?? throw new Exception("Season not found");
 
-        var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        var timeZone = LeagueTimeZone();
         var start = TimeZoneInfo.ConvertTimeFromUtc(season.SeasonStart, timeZone);
         var end = TimeZoneInfo.ConvertTimeFromUtc(season.SeasonEnd, timeZone);
 

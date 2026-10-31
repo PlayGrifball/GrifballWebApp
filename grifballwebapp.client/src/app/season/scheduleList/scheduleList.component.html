@@ -1,74 +1,67 @@
 @if (accountService.isEventOrganizer()) {
-<button mat-flat-button color="primary" (click)="toggleEdit()">
-  {{isEditing() ? 'Close Edit' : 'Show Edit'}}
-</button>
-
-<button mat-flat-button color="primary" (click)="createRegularSeasonMatches()">
-  Create Regular Season Matches
-</button>
+<div class="hud-actions sched-tools">
+  <button mat-stroked-button (click)="toggleEdit()">
+    {{isEditing() ? 'Close Edit' : 'Show Edit'}}
+  </button>
+  <button mat-flat-button (click)="createRegularSeasonMatches()">
+    Create Regular Season Matches
+  </button>
+</div>
 }
 
-<div style="">
-
+<div class="sched-lists" [class.hud-waiting]="!loaded()">
+<div class="sched-weeks">
   @for (week of scheduledMatches(); track week.weekNumber) {
-  <mat-card style="max-width: 300px; margin: 5px; display: inline-flex">
-    <mat-card-header>
-      <mat-card-title>Week {{week.weekNumber}}</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      @for (match of week.games; track match.seasonMatchID) {
-      <mat-divider />
-      <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
-            [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
+  <section class="sched-week" [attr.aria-label]="'Week ' + week.weekNumber">
+    <h3 class="sched-week__title">Week {{week.weekNumber}}</h3>
+    @for (match of week.games; track match.seasonMatchID) {
+    <div class="sched-match">
+      <a class="sched-match__link" [routerLink]="['/seasonmatch', match.seasonMatchID]">
+        <span class="hud-label" [class.hud-label--accent]="!match.complete">
+          {{match.time | toDate | date:'EEEE'}} {{match.time | toDate | date:'short'}}@if (match.complete) { · Final }
+        </span>
+        <span class="sched-match__teams" [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptainName}} vs {{match.awayCaptainName}}</span>
+      </a>
       @if (accountService.isEventOrganizer() && isEditing()) {
-      <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)">
-        <mat-form-field>
-          <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="match.time" name="time">
+      <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="match.time" name="time" aria-label="Match time">
           <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
           <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
           <app-error-message [control]="f.controls['time']" />
         </mat-form-field>
-
-        <button mat-flat-button color="primary" [disabled]="!f.form.valid">
-          Update
-        </button>
-      </form>
-      }
-      @else {
-      <span style="display: block">{{match.time | toDate | date:'EEEE'}} {{match.time | toDate | date:'short'}}</span>
-      }
-      }
-    </mat-card-content>
-  </mat-card>
-  }
-</div>
-
-
-<mat-card>
-  <mat-card-header>
-    <mat-card-title>Unscheduled Matches</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    @for (match of unscheduledMatches(); track match.seasonMatchID) {
-    <mat-divider />
-    <div>
-      <span [routerLink]="['/seasonmatch', match.seasonMatchID]"
-            [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
-      @if (accountService.isEventOrganizer() && isEditing()) {
-      <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)">
-        <mat-form-field>
-          <input matInput [mtxDatetimepicker]="datetimePicker2" ngModel name="time">
-          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
-          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
-          <app-error-message [control]="f.controls['time']" />
-        </mat-form-field>
-
-        <button mat-flat-button color="primary" [disabled]="!f.form.valid">
-          Update
-        </button>
+        <button mat-flat-button [disabled]="!f.form.valid">Update</button>
       </form>
       }
     </div>
     }
-  </mat-card-content>
-</mat-card>
+  </section>
+  } @empty {
+  <p class="hud-empty">No matches have been scheduled yet.</p>
+  }
+</div>
+
+<section class="sched-week sched-unscheduled" aria-label="Unscheduled matches">
+  <h3 class="sched-week__title">Unscheduled Matches</h3>
+  @for (match of unscheduledMatches(); track match.seasonMatchID) {
+  <div class="sched-match">
+    <a class="sched-match__link" [routerLink]="['/seasonmatch', match.seasonMatchID]">
+      <span class="sched-match__teams" [ngClass]="match.complete === true ? 'strike': ''">{{match.homeCaptain}} vs {{match.awayCaptain}}</span>
+    </a>
+    @if (accountService.isEventOrganizer() && isEditing()) {
+    <form #f="ngForm" (ngSubmit)="onSubmit(match, f.value.time)" class="sched-match__form">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <input matInput [mtxDatetimepicker]="datetimePicker2" ngModel name="time" aria-label="Match time">
+        <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+        <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
+        <app-error-message [control]="f.controls['time']" />
+      </mat-form-field>
+      <button mat-flat-button [disabled]="!f.form.valid">Update</button>
+    </form>
+    }
+  </div>
+  } @empty {
+  <p class="hud-muted sched-none">Every match has a time.</p>
+  }
+</section>
+</div>

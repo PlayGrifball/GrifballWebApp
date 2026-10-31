@@ -56,10 +56,21 @@ internal static class RescheduleTestData
         var requester = await AddUser(context, "requester", 1003, 5003);
         var home = await AddTeamWithCaptain(context, season, "Home", homeCap);
         var away = await AddTeamWithCaptain(context, season, "Away", awayCap);
+        // The requester plays for the home team: only players on either team (or a commissioner) may ask.
+        context.TeamPlayers.Add(new TeamPlayer { TeamID = home.TeamID, UserID = requester.Id });
+        await context.SaveChangesAsync();
         var match = new SeasonMatch { SeasonID = season.SeasonID, HomeTeamID = home.TeamID, AwayTeamID = away.TeamID, BestOf = 3, ScheduledTime = scheduled };
         context.SeasonMatches.Add(match);
         await context.SaveChangesAsync();
         return new Seeded(season, home, away, homeCap, awayCap, requester, match);
+    }
+
+    /// <summary>Gives the user the Commissioner role.</summary>
+    public static async Task MakeCommissioner(GrifballContext context, User user)
+    {
+        var role = await context.Roles.SingleAsync(x => x.Name == "Commissioner");
+        context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+        await context.SaveChangesAsync();
     }
 
     public static async Task<MatchReschedule> AddReschedule(GrifballContext context, int seasonMatchID, int requesterId,

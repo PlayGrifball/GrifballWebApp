@@ -2,6 +2,7 @@
 using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.UserManagement;
 
@@ -67,6 +68,15 @@ public class UserManagementController : ControllerBase
         catch (ArgumentException e)
         {
             return BadRequest(e.Message);
+        }
+        catch (MergeConflictException e)
+        {
+            return Conflict(e.Message);
+        }
+        catch (DbUpdateException)
+        {
+            // Data the merge rules don't cover: nothing was changed (the transaction is not committed).
+            return Conflict("The users could not be merged because their data conflicts. Nothing was changed.");
         }
         return Ok();
     }

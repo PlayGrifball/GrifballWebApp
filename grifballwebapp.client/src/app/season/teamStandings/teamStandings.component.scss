@@ -1,3 +1,22 @@
 :host {
   display: block;
 }
+
+.standings__rank {
+  width: 48px;
+  color: var(--hud-muted);
+  font-weight: 700;
+}
+
+.standings__team {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 19px;
+  text-decoration: none;
+}
+
+.standings__leader { background: rgba(124, 203, 255, 0.06); }
+
+.standings__empty { margin: 0; padding: 16px 18px; }

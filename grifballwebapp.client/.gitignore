@@ -50,3 +50,7 @@ Thumbs.db
 /playwright-report
 /smoke/report
 /smoke/results
+
+# Layout test screenshots and contact sheets, Lighthouse CI results
+/screenshots
+/.lighthouseci

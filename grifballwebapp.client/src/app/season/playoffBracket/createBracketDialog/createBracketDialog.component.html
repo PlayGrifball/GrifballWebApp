@@ -1,6 +1,6 @@
 <form #bracketForm="ngForm" (ngSubmit)="onSubmit()" style="margin: 20px">
   <div>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label>Participants Count</mat-label>
       <input matInput required [(ngModel)]="participantsCount" name="participantsCount" type="number">
       <app-error-message [control]="bracketForm.controls['participantsCount']" />
@@ -15,7 +15,7 @@
   </div>
 
   <div>
-    <mat-form-field>
+    <mat-form-field appearance="outline">
       <mat-label>Best Of</mat-label>
       <input matInput required [(ngModel)]="bestOf" name="bestOf" type="number">
       <app-error-message [control]="bracketForm.controls['bestOf']" />

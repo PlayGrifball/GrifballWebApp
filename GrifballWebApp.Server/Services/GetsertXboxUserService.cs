@@ -46,6 +46,19 @@ public class GetsertXboxUserService : IGetsertXboxUserService
         if (parsed is false)
             return (null, "Failed to parse xuid. Contact sysadmin");
 
+        // Not found by gamertag, but the account may be known under the name it had before it was renamed: it is the
+        // same xuid, so the stored gamertag is brought up to date instead of inserting the xuid again.
+        var renamed = await _grifballContext.XboxUsers
+            .Include(x => x.User)
+            .Where(x => x.XboxUserID == xboxUserID)
+            .FirstOrDefaultAsync(ct);
+        if (renamed is not null)
+        {
+            renamed.Gamertag = response.Result.gamertag;
+            await _grifballContext.SaveChangesAsync(ct);
+            return (renamed, null);
+        }
+
         var newXboxUser = new XboxUser()
         {
             XboxUserID = xboxUserID,

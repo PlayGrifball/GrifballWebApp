@@ -242,4 +242,44 @@ public class AvailabilityServiceTests
         Assert.That(finalAvailabilityCount, Is.EqualTo(initialAvailabilityCount), 
             "Should reuse existing AvailabilityOption instead of creating a new one");
     }
+
+    [Test]
+    public async Task UpdateSeasonAvailability_AttachesOnlyTheExactSlotsPicked_AndDetachesTheRest()
+    {
+        var season = new Season { SeasonName = "S", SeasonStart = DateTime.UtcNow, SeasonEnd = DateTime.UtcNow.AddDays(30) };
+        _context.Seasons.Add(season);
+        // Options that exist already, from earlier seasons: Monday 18:00 and Tuesday 20:00
+        _context.Availability.AddRange(
+            new AvailabilityOption { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(18, 0) },
+            new AvailabilityOption { DayOfWeek = DayOfWeek.Tuesday, Time = new TimeOnly(20, 0) });
+        await _context.SaveChangesAsync();
+
+        // Monday 20:00 and Tuesday 18:00: the same days and times, crossed
+        await _service.UpdateSeasonAvailability(new SeasonAvailabilityDto
+        {
+            SeasonID = season.SeasonID,
+            Timeslots =
+            [
+                new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(20, 0) },
+                new TimeslotDto { DayOfWeek = DayOfWeek.Tuesday, Time = new TimeOnly(18, 0) },
+                new TimeslotDto { DayOfWeek = DayOfWeek.Tuesday, Time = new TimeOnly(18, 0) },
+            ],
+        }, CancellationToken.None);
+        var first = await _service.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
+
+        // Then deselect Tuesday 18:00
+        await _service.UpdateSeasonAvailability(new SeasonAvailabilityDto
+        {
+            SeasonID = season.SeasonID,
+            Timeslots = [new TimeslotDto { DayOfWeek = DayOfWeek.Monday, Time = new TimeOnly(20, 0) }],
+        }, CancellationToken.None);
+        var second = await _service.GetSeasonAvailability(season.SeasonID, CancellationToken.None);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(first.Select(x => (x.DayOfWeek, x.Time)), Is.EquivalentTo(new[] { (DayOfWeek.Monday, new TimeOnly(20, 0)), (DayOfWeek.Tuesday, new TimeOnly(18, 0)) }));
+            Assert.That(second.Select(x => (x.DayOfWeek, x.Time)), Is.EqualTo(new[] { (DayOfWeek.Monday, new TimeOnly(20, 0)) }));
+            Assert.That(await _context.Availability.CountAsync(), Is.EqualTo(4), "Options stay for other seasons");
+        });
+    }
 }

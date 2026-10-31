@@ -134,7 +134,7 @@ export async function createLockedOutUser(baseURL: string, admin: Api): Promise<
  * Registers a user and signs in as them, which gives their ID (no lookup by name: the user search
  * isn't needed, and fails on PostgreSQL).
  */
-async function newUser(baseURL: string, admin: Api, username: string):
+export async function newUser(baseURL: string, admin: Api, username: string):
   Promise<{ credentials: Credentials; user: UserResponseDto; api: Api }> {
   const credentials = { username, password: randomPassword() };
   await register(baseURL, credentials);

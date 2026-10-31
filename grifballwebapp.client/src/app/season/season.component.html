@@ -1,19 +1,45 @@
-<h2>{{seasonName()}}</h2>
+<div class="hud-page" [class.hud-waiting]="!ready()">
 
-<a class="space" mat-flat-button [routerLink]="['signups']">View Signups</a>
+  <div class="season-head">
+    <div class="hud-page-head">
+      <span class="hud-kicker">&gt; {{kicker()}}</span>
+      <h1 class="hud-title">{{seasonName()}}</h1>
+    </div>
+    @if (canSignUp()) {
+    <div class="hud-actions">
+      <a class="hud-btn" [routerLink]="['signupForm']">Sign up</a>
+    </div>
+    }
+  </div>
 
-<!--IF closed THEN signups closed ELIF Player THEN signup here ELIF not login in THEN register so you sign up ELSE only playes can signup  -->
-<a class="space" mat-flat-button [routerLink]="['signupForm']">Signup Here</a>
+  <app-season-tabs [seasonID]="seasonID()" [active]="view()" />
 
-<a class="space" mat-flat-button [routerLink]="['teams']">View Teams</a>
+  @switch (view()) {
+    @case ('schedule') {
+      <section class="hud-section" aria-labelledby="season-schedule">
+        <h2 id="season-schedule" class="hud-h2">Regular season schedule</h2>
+        <app-schedule-list />
+      </section>
+    }
+    @case ('bracket') {
+      <section class="hud-section" aria-labelledby="season-bracket">
+        <h2 id="season-bracket" class="hud-h2">Playoffs</h2>
+        <app-playoff-bracket />
+      </section>
+    }
+    @default {
+      <div class="season-overview">
+        <section class="hud-section season-overview__standings" aria-labelledby="season-standings">
+          <h2 id="season-standings" class="hud-h2">Standings</h2>
+          <app-team-standings #standings />
+        </section>
+        <!-- Below the standings on phones: shown once they are in, so they do not push it down. -->
+        <aside class="hud-section season-overview__week" aria-labelledby="season-week" [class.hud-waiting]="!standings.loaded()">
+          <h2 id="season-week" class="hud-h2">This week</h2>
+          <app-season-this-week [seasonID]="seasonID()" />
+        </aside>
+      </div>
+    }
+  }
 
-<a class="space" mat-flat-button [routerLink]="['playergrades']">Player Grades</a>
-
-<p>Team Standings</p>
-<app-team-standings />
-
-<p>Regular Season Schedule</p>
-<app-schedule-list />
-
-<p>Playoffs</p>
-<app-playoff-bracket />
+</div>

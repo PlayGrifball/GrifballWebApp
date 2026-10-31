@@ -327,7 +327,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --platform linux/arm64 --entrypoint sh backend-arm64 -c \
-            'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3'
+            'set -e; uname -m; dotnet --list-runtimes; sqlcmd --version; /app/efbundle --help | head -n 3; test -f /usr/share/zoneinfo/America/New_York'
 
   # On PRs, build arm64 in a separate parallel job so any arm64 breakage is caught without delaying preview deployment.
   check-arm64:

@@ -45,6 +45,10 @@ public class UserMergeService : IUserMergeService
             .Where(u => u.Id == mergeFromId)
             .FirstOrDefaultAsync(ct) ?? throw new UserNotFoundException(mergeFromId);
 
+        // So are the conflicts no merge rule can settle.
+        if (options.TransferTeamPlayers)
+            await ThrowIfOnDifferentTeamsInASeason(mergeToId, mergeFromId, ct);
+
         await _context.StartTransactionAsync(ct);
 
         // External logins (Auth.UserLogins) are what an external sign-in such as "Sign in with Discord" looks up.
@@ -80,22 +84,18 @@ public class UserMergeService : IUserMergeService
         }
 
         if (options.TransferTeamPlayers)
-        {
-            var teamPlayers = await _context.TeamPlayers.Where(tp => tp.UserID == mergeFromId).ToListAsync(ct);
-            teamPlayers.ForEach(tp => tp.UserID = mergeToId);
-        }
-        
+            await TransferTeamPlayers(mergeToId, mergeFromId, ct);
+
         if (options.TransferExperiences)
-        {
-            var experience = await _context.UserExperiences.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-            experience.ForEach(x => x.UserID = mergeToId);
-        }
-        
+            await TransferExperiences(mergeToId, mergeFromId, ct);
+
         if (options.TransferSignups)
-        {
-            var signups = await _context.SeasonSignups.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-            signups.ForEach(x => x.UserID = mergeToId);
-        }
+            await TransferSignups(mergeToId, mergeFromId, ct);
+
+        // Matchmaking history and reschedule requests always move: deleting the source would otherwise take its
+        // matched players (and their votes) with it, or fail on the reschedules' restricted foreign keys.
+        await TransferMatchmaking(mergeTo, mergeFrom, ct);
+        await TransferReschedules(mergeToId, mergeFromId, ct);
 
         if (options.TransferSeasonStats)
         {
@@ -145,6 +145,133 @@ public class UserMergeService : IUserMergeService
         await _context.CommitTransactionAsync(ct);
     }
 
+    /// <summary>
+    /// One user can't be on two teams in a season, and which of the two the merged user should keep is a commissioner's
+    /// call: refused before anything changes.
+    /// </summary>
+    private async Task ThrowIfOnDifferentTeamsInASeason(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var target = await _context.TeamPlayers.Where(tp => tp.UserID == mergeToId)
+            .Select(tp => new { tp.TeamID, tp.Team.SeasonID, tp.Team.Season.SeasonName })
+            .ToListAsync(ct);
+        var source = await _context.TeamPlayers.Where(tp => tp.UserID == mergeFromId)
+            .Select(tp => new { tp.TeamID, tp.Team.SeasonID })
+            .ToListAsync(ct);
+        var clash = target.FirstOrDefault(t => source.Any(s => s.SeasonID == t.SeasonID && s.TeamID != t.TeamID));
+        if (clash is not null)
+            throw new MergeConflictException($"Both users are on different teams in season {clash.SeasonName}. Remove one of them from their team first.");
+    }
+
+    /// <summary>
+    /// The source's team memberships move to the target. Where both are on the same team the target keeps its own row
+    /// (which becomes the captain's if the source's was), and the source's goes: (UserID, TeamID) is unique.
+    /// </summary>
+    private async Task TransferTeamPlayers(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var teamPlayers = await _context.TeamPlayers.Where(tp => tp.UserID == mergeFromId).ToListAsync(ct);
+        var targetRows = await _context.TeamPlayers.Where(tp => tp.UserID == mergeToId).ToDictionaryAsync(tp => tp.TeamID, ct);
+        foreach (var tp in teamPlayers)
+        {
+            if (targetRows.TryGetValue(tp.TeamID, out var targetRow))
+            {
+                var captainOf = await _context.Teams.FirstOrDefaultAsync(t => t.CaptainID == tp.TeamPlayerID, ct);
+                if (captainOf is not null)
+                {
+                    captainOf.CaptainID = targetRow.TeamPlayerID;
+                    targetRow.DraftCaptainOrder ??= tp.DraftCaptainOrder;
+                }
+                _context.TeamPlayers.Remove(tp);
+            }
+            else
+            {
+                tp.UserID = mergeToId;
+            }
+        }
+        // The captain moves before the source's row goes (Teams.CaptainID has no cascade).
+        await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// UserExperience is only which game versions a user has played, keyed (UserID, GameVersionID): the key can't be
+    /// changed, so the source's rows are removed and the target gets any versions it doesn't already have.
+    /// </summary>
+    private async Task TransferExperiences(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var experiences = await _context.UserExperiences.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+        var targetVersions = await _context.UserExperiences.Where(x => x.UserID == mergeToId).Select(x => x.GameVersionID).ToListAsync(ct);
+        foreach (var experience in experiences)
+        {
+            _context.UserExperiences.Remove(experience);
+            if (targetVersions.Contains(experience.GameVersionID) is false)
+                _context.UserExperiences.Add(new UserExperience { UserID = mergeToId, GameVersionID = experience.GameVersionID });
+        }
+    }
+
+    /// <summary>
+    /// The source's signups move to the target, except for seasons the target signed up for itself: (UserID, SeasonID)
+    /// is unique, and the target's own signup (and availability) is the one kept.
+    /// </summary>
+    private async Task TransferSignups(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var signups = await _context.SeasonSignups.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+        var targetSeasons = await _context.SeasonSignups.Where(x => x.UserID == mergeToId).Select(x => x.SeasonID).ToListAsync(ct);
+        foreach (var signup in signups)
+        {
+            if (targetSeasons.Contains(signup.SeasonID))
+                _context.SeasonSignups.Remove(signup);
+            else
+                signup.UserID = mergeToId;
+        }
+    }
+
+    /// <summary>
+    /// The source's matched players (and through them its winner and kick votes) move to the target, and its record
+    /// is combined: wins and losses add up, MMR is the average of the two weighted by games played (the target's if
+    /// neither played), and the streaks are those of whichever account has the games (the target's if both).
+    /// A queued source leaves the queue.
+    /// </summary>
+    private async Task TransferMatchmaking(User mergeTo, User mergeFrom, CancellationToken ct)
+    {
+        var matchedPlayers = await _context.MatchedPlayers.Where(x => x.UserID == mergeFrom.Id).ToListAsync(ct);
+        matchedPlayers.ForEach(x => x.UserID = mergeTo.Id);
+
+        var targetGames = mergeTo.Wins + mergeTo.Losses;
+        var sourceGames = mergeFrom.Wins + mergeFrom.Losses;
+        if (sourceGames > 0)
+        {
+            mergeTo.MMR = (int)Math.Round(((double)mergeTo.MMR * targetGames + (double)mergeFrom.MMR * sourceGames) / (targetGames + sourceGames));
+            if (targetGames == 0)
+            {
+                mergeTo.WinStreak = mergeFrom.WinStreak;
+                mergeTo.LossStreak = mergeFrom.LossStreak;
+            }
+            mergeTo.Wins += mergeFrom.Wins;
+            mergeTo.Losses += mergeFrom.Losses;
+            mergeFrom.Wins = 0;
+            mergeFrom.Losses = 0;
+        }
+
+        var queued = await _context.QueuedPlayer.FirstOrDefaultAsync(x => x.UserID == mergeFrom.Id, ct);
+        if (queued is not null)
+            _context.QueuedPlayer.Remove(queued);
+    }
+
+    /// <summary>Reschedule requests the source made or decided are the target's (both foreign keys are restricted).</summary>
+    private async Task TransferReschedules(int mergeToId, int mergeFromId, CancellationToken ct)
+    {
+        var reschedules = await _context.MatchReschedules
+            .Where(x => x.RequestedByUserID == mergeFromId || x.ApprovedByUserID == mergeFromId)
+            .ToListAsync(ct);
+        foreach (var reschedule in reschedules)
+        {
+            if (reschedule.RequestedByUserID == mergeFromId)
+                reschedule.RequestedByUserID = mergeToId;
+            if (reschedule.ApprovedByUserID == mergeFromId)
+                reschedule.ApprovedByUserID = mergeToId;
+        }
+    }
+
+
     private async Task LinkDiscordFromLogin(User mergeTo, List<UserLogin> logins, CancellationToken ct)
     {
         var discordLogin = logins.FirstOrDefault(l => l.LoginProvider == DiscordProvider);
@@ -183,3 +310,6 @@ public class MergeOptions
     public bool TransferAliases { get; set; } = true;
     public bool DeleteMergeFrom { get; set; } = true;
 }
+
+/// <summary>The two users can't be merged as they are, e.g. both are on different teams in one season.</summary>
+public class MergeConflictException(string message) : Exception(message);

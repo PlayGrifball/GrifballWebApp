@@ -60,7 +60,7 @@ export class ProfileComponent implements OnInit {
 
   setGamertag(): void {
     const params = new HttpParams().set('gamertag', this.gamertag() ?? '');
-    this.http.get("api/profile/setgamertag/" + this.userID, { params })
+    this.http.post("api/profile/setgamertag/" + this.userID, null, { params })
       .subscribe({
         next: r => {
           this.settingGamertag.set(false);

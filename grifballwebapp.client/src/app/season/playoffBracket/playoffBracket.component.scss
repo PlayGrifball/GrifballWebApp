@@ -1,65 +1,69 @@
-//Then apply global css but only to host context. But ng-deep is deprecated
-/*:host ::ng-deep .name.bye {
-  font-style: italic;
-  color: var(--hint-color);
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-:host ::ng-deep h1 {
-  display: none;
+// The bracket scrolls inside its box on narrow screens, never the page.
+.bracket-box {
+  overflow-x: auto;
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
 }
 
-:host ::ng-deep h2 {
-  margin-top: 30px !important;
-  margin-bottom: 40px !important;
-  font-size: 2em !important;
-  color: black !important;
-}
-
-:host ::ng-deep h3 {
-  display: none;
-}*/
-
-
-// Another option is to set encapsulation: ViewEncapsulation.None in ts file.
-// Include link to the external css in html
-// Then do overrides like below so css is not encapsulated yet still contained to only this component
-/*app-playoff-bracket {
-  .name.bye {
-    font-style: italic;
-    color: var(--hint-color);
-  }
-
-  h1 {
-    display: none;
-  }
-
-  h2 {
-    margin-top: 30px !important;
-    margin-bottom: 40px !important;
-    font-size: 2em !important;
-    color: black !important;
-  }
-
-  h3 {
-    display: none;
-  }
-}*/
-
-// TODO: setup better with theming light/dark
 .brackets-viewer {
-  --font-color: #ffffff;
-  --primary-background: none; // Background of entire div
-  --secondary-background: #333333; // Match hover color (overriden below) / round header
-  --match-background: #444444;
-  //--label-color: #000dc9; // Not sure
-  //--hint-color: #b4b4b4; // Seed numbers and previous match hint
-  --connector-color: #fff;
-  --border-color: #868686;
-  --border-hover-color: var(--primary);
-  //--border-selected-color: #48e200; // Not sure
+  --font-color: var(--hud-text);
+  --primary-background: transparent;
+  --secondary-background: rgba(14, 36, 56, 0.9); // round headers
+  --match-background: var(--hud-panel-soft);
+  --label-color: var(--hud-muted);
+  --hint-color: var(--hud-muted);
+  --win-color: var(--hud-accent);
+  --loss-color: var(--hud-red-text);
+  --connector-color: var(--hud-border);
+  --border-color: var(--hud-border);
+  --border-hover-color: var(--hud-accent);
+  --border-selected-color: var(--hud-accent);
+  --text-size: 15px;
+  --match-width: 190px;
+  --match-border-radius: 0;
+  --match-vertical-padding: 9px;
+  --match-horizontal-padding: 12px;
+  font-family: var(--hud-font);
+  padding: 16px 24px;
 }
 
-::ng-deep .brackets-viewer .participant:hover {
-  background-color: var(--primary-50) !important; // Override secondary-background so hover color does not need to match the round header
-  cursor: pointer;
+::ng-deep .brackets-viewer {
+  h1 { display: none; }
+  h2, h3 {
+    font-family: var(--hud-font-mono);
+    font-weight: 400;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--hud-muted);
+  }
+  .participant { font-weight: 600; }
+  .participant.win { box-shadow: inset 3px 0 0 var(--hud-accent); color: var(--hud-heading); font-weight: 700; }
+  .participant:hover { background-color: var(--hud-accent-tint) !important; cursor: pointer; }
+  .name.bye { font-style: normal; color: var(--hud-muted); font-family: var(--hud-font-mono); }
+}
+
+.bracket-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-family: var(--hud-font-mono);
+  font-size: 13px;
+  text-transform: uppercase;
+  color: var(--hud-muted);
+}
+
+.bracket-legend__key { display: flex; align-items: center; gap: 8px; }
+
+.bracket-legend__swatch {
+  width: 14px;
+  height: 14px;
+  background: var(--hud-panel-soft);
+  box-shadow: inset 3px 0 0 var(--hud-accent);
 }

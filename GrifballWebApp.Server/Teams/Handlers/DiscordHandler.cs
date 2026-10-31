@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NetCord.Rest;
 using NetCord.Services;
-using System.Security.Claims;
 
 namespace GrifballWebApp.Server.Teams.Handlers;
 
@@ -25,27 +24,9 @@ public abstract class DiscordHandler<T>(RestClient restClient, IOptions<DiscordO
 
     public abstract Task HandleEvent(T request, CancellationToken cancellationToken);
 
-    // TODO: Refactor into class
     protected async Task<string> GetUsername(int userID)
     {
         using var _context = await _contextFactory.CreateDbContextAsync();
-        var claimValue = await _context.UserClaims
-            .Where(x => x.UserId == userID && x.ClaimType == ClaimTypes.NameIdentifier)
-            .Select(x => x.ClaimValue)
-            .FirstOrDefaultAsync();
-
-        if (claimValue is not null)
-        {
-            if (ulong.TryParse(claimValue, out var discordUserID))
-            {
-                return new UserId(discordUserID).ToString();
-            }
-        }
-
-        var name = await _context.Users
-            .Where(x => x.Id == userID)
-            .Select(x => x.DisplayName)
-            .FirstOrDefaultAsync();
-        return name ?? userID.ToString();
+        return await DiscordMention.ForUser(_context, userID);
     }
 }

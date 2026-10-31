@@ -1,19 +1,41 @@
-.example-form {
-  min-width: 150px;
-  max-width: 500px;
+.login {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.login-panel {
+  flex: 3 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.login-panel form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.login-side {
+  flex: 1 1 260px;
+  align-items: flex-start;
+}
+
+.login-discord {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: 100%;
+  min-height: 72px;
+  padding: 16px 20px;
+  background: #F2F4FF;
+  border: 1px solid var(--hud-border);
 }
 
-.example-full-width {
-  width: 100%;
-}
+.login-discord:hover { outline: 2px solid var(--hud-accent); }
 
-.space {
-  height: 42px;
-}
-
-.ext-login-card {
-  margin: 20px;
-  padding: 20px;
-  
-}
+.login-discord img { max-width: 180px; width: 100%; height: auto; }

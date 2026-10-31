@@ -1,0 +1,768 @@
+// Spartan HUD: global look, shared page building blocks and Material component overrides.
+// Pages compose these classes; component stylesheets only hold their own layout.
+@use '@angular/material' as mat;
+
+// ---------------------------------------------------------------------------
+// Base
+// ---------------------------------------------------------------------------
+
+body {
+  background: var(--hud-bg);
+  color: var(--hud-text);
+  font-size: 17px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  color: var(--hud-heading);
+  font-family: var(--hud-font);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+// One visible focus style for everything that can be focused with a keyboard.
+:focus-visible {
+  outline: 2px solid var(--hud-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(124, 203, 255, 0.35);
+  color: var(--hud-heading);
+}
+
+// Plain text links in content (not nav, buttons or cards).
+.hud-text-link,
+.mat-mdc-cell a,
+.hud-prose a {
+  color: var(--hud-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--hud-border);
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--hud-heading);
+    text-decoration-color: var(--hud-accent);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Page layout
+// ---------------------------------------------------------------------------
+
+.hud-page {
+  box-sizing: border-box;
+  max-width: var(--hud-max-width);
+  margin: 0 auto;
+  padding: 36px var(--hud-gutter) 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.hud-page--narrow {
+  max-width: 1040px;
+}
+
+.hud-page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-kicker,
+.hud-label {
+  font-family: var(--hud-font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hud-accent);
+}
+
+.hud-label {
+  font-size: 13px;
+  color: var(--hud-muted);
+}
+
+// A kicker that links somewhere (the breadcrumb above a team or match page) is one line of small
+// text, under the 44px tap target (WCAG 2.5.8). Padding it out, with a matching negative margin,
+// grows the clickable area without the compact label growing visually or pushing the heading below
+// it down. All on top (never on the bottom): it is always the page head's first line, with the
+// heading right under it (8px gap) - padding there instead would reach into the heading's own box.
+a.hud-kicker {
+  display: inline-block;
+  padding-top: 23px;
+  margin-top: -23px;
+}
+
+.hud-label--gold { color: var(--hud-gold); }
+.hud-label--accent { color: var(--hud-accent); }
+
+.hud-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(2.25rem, 7vw, 4rem);
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hud-heading);
+  text-shadow: var(--hud-glow);
+  overflow-wrap: anywhere;
+}
+
+.hud-title--xl { font-size: clamp(2.5rem, 9vw, 4.5rem); }
+.hud-title--md { font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1; letter-spacing: 0.06em; }
+
+.hud-h2 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--hud-heading);
+}
+
+.hud-lede {
+  margin: 0;
+  font-size: 19px;
+  color: var(--hud-muted-2);
+  max-width: 540px;
+}
+
+.hud-muted { color: var(--hud-muted); }
+
+.hud-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hud-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--hud-border);
+  background: var(--hud-well);
+  color: var(--hud-muted);
+}
+
+.hud-empty--error {
+  border-color: var(--hud-red);
+  color: var(--hud-red-text);
+}
+
+// A page head with its actions (Create, Merge, ...) beside the title, wrapping under it when there
+// is no room.
+.hud-page-head--actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+
+  > .hud-page-head__text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Forms: titled groups of labelled fields, each group a panel
+// ---------------------------------------------------------------------------
+
+.hud-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.hud-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+
+  > .hud-kicker { margin: 0 0 2px; }
+  > p.hud-muted { margin: -4px 0 4px; font-size: 16px; }
+  > mat-form-field { width: 100%; }
+}
+
+// Fields side by side where they fit, one per row on a phone.
+.hud-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 12px 16px;
+
+  > mat-form-field { width: 100%; min-width: 0; }
+}
+
+// Checkboxes and toggles, one per line.
+.hud-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// A label and its value, e.g. a user's details.
+.hud-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+  align-items: baseline;
+
+  > dt { font-family: var(--hud-font-mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hud-muted); }
+  > dd { margin: 0; color: var(--hud-heading); font-weight: 600; overflow-wrap: anywhere; }
+}
+
+// ---------------------------------------------------------------------------
+// Panels and cards
+// ---------------------------------------------------------------------------
+
+.hud-panel {
+  box-sizing: border-box;
+  padding: 24px;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-border);
+}
+
+.hud-panel--soft { --panel-bg: var(--hud-panel-soft); background: var(--hud-panel-soft); }
+
+// Chamfered corners (top right, bottom left). clip-path cuts the border off the corners, so a
+// thin diagonal is drawn back in along each cut.
+.hud-panel--chamfer,
+.hud-panel--chamfer-lg {
+  --cut: 28px;
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1.5px), var(--hud-border) calc(50% - 1.5px) 50%, transparent 50%) top right / var(--cut) var(--cut) no-repeat border-box,
+    linear-gradient(to bottom left, transparent calc(50% - 1.5px), var(--hud-border) calc(50% - 1.5px) 50%, transparent 50%) bottom left / var(--cut) var(--cut) no-repeat border-box,
+    var(--panel-bg, var(--hud-panel));
+}
+
+.hud-panel--chamfer-lg { --cut: 36px; padding: clamp(24px, 4vw, 40px); }
+
+@media (max-width: 600px) {
+  .hud-panel--chamfer, .hud-panel--chamfer-lg { --cut: 20px; }
+}
+
+.hud-well {
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
+}
+
+// Objective-style card: a link or block with a coloured top rule.
+.hud-card {
+  box-sizing: border-box;
+  padding: 22px;
+  background: var(--hud-panel-faint);
+  border: 1px solid var(--hud-hairline);
+  border-top: 3px solid var(--hud-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--hud-muted-2);
+}
+
+a.hud-card:hover { background: var(--hud-panel-soft); border-color: var(--hud-border); }
+.hud-card--active { border-top-color: var(--hud-accent); }
+
+.hud-card__title {
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hud-heading);
+}
+
+.hud-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 16px;
+}
+
+// Square avatar placeholder with the player's initial.
+.hud-avatar {
+  flex: none;
+  box-sizing: border-box;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hud-avatar);
+  border: 1px solid var(--hud-border);
+  color: var(--hud-muted-2);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hud-avatar--accent { border-color: var(--hud-accent); color: var(--hud-heading); }
+
+// ---------------------------------------------------------------------------
+// Buttons and tabs (for links and native buttons; Material buttons are themed below)
+// ---------------------------------------------------------------------------
+
+.hud-btn {
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 0 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--hud-accent);
+  background: transparent;
+  color: var(--hud-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  cursor: pointer;
+
+  &:hover { background: var(--hud-accent-tint); color: var(--hud-heading); }
+  &:disabled, &[aria-disabled='true'] { opacity: 0.5; cursor: default; }
+}
+
+// The parallelogram: clip-path would cut an outside focus ring, so it is drawn inside.
+.hud-btn--primary {
+  border: 0;
+  padding: 0 32px;
+  background: var(--hud-accent);
+  color: var(--hud-on-accent);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  clip-path: var(--hud-slant);
+
+  &:hover { background: #A6DCFF; color: var(--hud-on-accent); }
+  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+}
+
+.hud-btn--block { width: 100%; }
+
+.hud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hud-more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-accent);
+
+  &:hover { color: var(--hud-heading); }
+}
+
+.hud-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hud-tab {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--hud-border);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hud-text);
+
+  &:hover { border-color: var(--hud-accent); color: var(--hud-heading); }
+}
+
+.hud-tab--active {
+  border-color: transparent;
+  background: var(--hud-accent);
+  color: var(--hud-on-accent);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+
+  &:hover { color: var(--hud-on-accent); }
+  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+}
+
+// ---------------------------------------------------------------------------
+// Tables: a scroll box so wide tables never widen the page
+// ---------------------------------------------------------------------------
+
+.hud-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--hud-hairline);
+  background: var(--hud-well);
+  -webkit-overflow-scrolling: touch;
+
+  > table, > .mat-mdc-table { width: 100%; }
+}
+
+.hud-num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.hud-gold { color: var(--hud-gold) !important; }
+
+// ---------------------------------------------------------------------------
+// Team colours (match lobby, schedules)
+// ---------------------------------------------------------------------------
+
+.hud-vs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--hud-heading);
+
+  > :first-child { border-left: 3px solid var(--hud-red); padding-left: 10px; overflow-wrap: anywhere; }
+  > :last-child { border-right: 3px solid var(--hud-blue); padding-right: 10px; text-align: right; overflow-wrap: anywhere; }
+}
+
+.hud-vs__mid { color: var(--hud-muted); text-align: center; padding: 0 4px; }
+
+// ---------------------------------------------------------------------------
+// Material components on the HUD tokens
+// ---------------------------------------------------------------------------
+
+body {
+  @include mat.button-overrides((
+    filled-container-shape: 0,
+    filled-container-height: 44px,
+    filled-horizontal-padding: 26px,
+    filled-label-text-font: var(--hud-font),
+    filled-label-text-size: 16px,
+    filled-label-text-weight: 700,
+    filled-label-text-tracking: 0.16em,
+    filled-label-text-transform: uppercase,
+    outlined-container-shape: 0,
+    outlined-container-height: 44px,
+    outlined-outline-color: var(--hud-accent),
+    outlined-label-text-color: var(--hud-text),
+    outlined-label-text-font: var(--hud-font),
+    outlined-label-text-size: 16px,
+    outlined-label-text-weight: 600,
+    outlined-label-text-tracking: 0.14em,
+    outlined-label-text-transform: uppercase,
+    text-container-shape: 0,
+    text-container-height: 44px,
+    text-label-text-font: var(--hud-font),
+    text-label-text-size: 16px,
+    text-label-text-weight: 600,
+    text-label-text-tracking: 0.12em,
+    text-label-text-transform: uppercase,
+    protected-container-shape: 0,
+    protected-container-height: 44px,
+    protected-label-text-transform: uppercase,
+    protected-label-text-tracking: 0.14em,
+    tonal-container-shape: 0,
+    tonal-container-height: 44px,
+    tonal-label-text-transform: uppercase,
+    tonal-label-text-tracking: 0.14em,
+  ));
+
+  // 48px: big enough to tap (Material's default is 40)
+  @include mat.icon-button-overrides((
+    icon-color: var(--hud-text),
+    container-shape: 0,
+    state-layer-size: 48px,
+  ));
+
+  @include mat.table-overrides((
+    background-color: transparent,
+    header-headline-color: var(--hud-muted),
+    header-headline-font: var(--hud-font-mono),
+    header-headline-size: 13px,
+    header-headline-weight: 400,
+    header-headline-tracking: 0.06em,
+    header-container-height: 46px,
+    row-item-label-text-color: var(--hud-text),
+    row-item-label-text-font: var(--hud-font),
+    row-item-label-text-size: 17px,
+    row-item-label-text-weight: 500,
+    row-item-outline-color: var(--hud-hairline),
+    row-item-container-height: 52px,
+  ));
+
+  @include mat.paginator-overrides((
+    container-background-color: transparent,
+    container-text-color: var(--hud-muted),
+    container-text-font: var(--hud-font-mono),
+    container-text-size: 13px,
+    enabled-icon-color: var(--hud-text),
+    disabled-icon-color: #4F7391,
+  ));
+
+  @include mat.form-field-overrides((
+    outlined-container-shape: 0,
+    outlined-outline-color: var(--hud-control-outline),
+    outlined-hover-outline-color: var(--hud-muted-2),
+    outlined-focus-outline-color: var(--hud-accent),
+    outlined-input-text-color: var(--hud-heading),
+    outlined-label-text-color: var(--hud-muted),
+    outlined-focus-label-text-color: var(--hud-accent),
+    outlined-caret-color: var(--hud-accent),
+    filled-container-shape: 0,
+    filled-container-color: var(--hud-input),
+    container-text-font: var(--hud-font),
+    container-text-size: 18px,
+  ));
+
+  @include mat.select-overrides((
+    panel-background-color: #0E2438,
+    enabled-trigger-text-color: var(--hud-heading),
+  ));
+
+  @include mat.checkbox-overrides((
+    selected-icon-color: var(--hud-accent),
+    selected-focus-icon-color: var(--hud-accent),
+    selected-hover-icon-color: var(--hud-accent),
+    selected-checkmark-color: var(--hud-on-accent),
+    unselected-icon-color: var(--hud-control-outline),
+    unselected-hover-icon-color: var(--hud-muted-2),
+    label-text-color: var(--hud-text),
+    label-text-font: var(--hud-font),
+    label-text-size: 17px,
+  ));
+
+  @include mat.sidenav-overrides((
+    container-background-color: #08131F,
+    container-text-color: var(--hud-text),
+    container-shape: 0,
+    container-divider-color: var(--hud-border),
+    content-background-color: transparent,
+    content-text-color: var(--hud-text),
+    scrim-color: rgba(2, 6, 11, 0.7),
+  ));
+
+  @include mat.list-overrides((
+    list-item-label-text-color: var(--hud-text),
+    list-item-label-text-font: var(--hud-font),
+    list-item-label-text-size: 16px,
+    list-item-label-text-weight: 600,
+    list-item-label-text-tracking: 0.14em,
+    list-item-hover-label-text-color: var(--hud-heading),
+    list-item-container-shape: 0,
+    list-item-one-line-container-height: 48px,
+    active-indicator-shape: 0,
+    active-indicator-color: var(--hud-accent-tint),
+  ));
+
+  @include mat.menu-overrides((
+    container-color: #0E2438,
+    container-shape: 0,
+    item-label-text-color: var(--hud-text),
+    item-label-text-font: var(--hud-font),
+    item-label-text-size: 16px,
+    item-label-text-weight: 600,
+    item-icon-color: var(--hud-accent),
+  ));
+
+  @include mat.card-overrides((
+    elevated-container-color: var(--hud-panel-soft),
+    elevated-container-shape: 0,
+    elevated-container-elevation: none,
+    outlined-container-color: var(--hud-panel-faint),
+    outlined-container-shape: 0,
+    outlined-outline-color: var(--hud-border),
+    filled-container-color: var(--hud-panel-soft),
+    filled-container-shape: 0,
+    title-text-font: var(--hud-font),
+    title-text-weight: 700,
+    title-text-size: 20px,
+    subtitle-text-color: var(--hud-muted),
+    subtitle-text-font: var(--hud-font),
+  ));
+
+  @include mat.dialog-overrides((
+    container-color: #0B1B2A,
+    container-shape: 0,
+    subhead-color: var(--hud-heading),
+    subhead-font: var(--hud-font),
+    subhead-weight: 700,
+    supporting-text-color: var(--hud-text),
+    supporting-text-font: var(--hud-font),
+  ));
+
+  @include mat.snack-bar-overrides((
+    container-color: #12304A,
+    supporting-text-color: var(--hud-text),
+    supporting-text-font: var(--hud-font),
+    button-color: var(--hud-accent),
+  ));
+
+  @include mat.divider-overrides((
+    color: var(--hud-hairline),
+  ));
+
+  @include mat.tabs-overrides((
+    active-indicator-color: var(--hud-accent),
+    active-label-text-color: var(--hud-heading),
+    inactive-label-text-color: var(--hud-muted),
+    label-text-font: var(--hud-font),
+    label-text-tracking: 0.14em,
+  ));
+}
+
+// Material does not expose these through tokens.
+.mat-mdc-header-cell { text-transform: uppercase; }
+
+.mat-mdc-header-row,
+.mat-mdc-row { background: transparent; }
+
+.mat-mdc-row:hover { background: rgba(124, 203, 255, 0.04); }
+
+.mdc-text-field--outlined:not(.mdc-text-field--disabled) { background: var(--hud-input); }
+
+// Material's own CSS for the outlined text field's wrapper (.mdc-text-field--outlined) sets its
+// horizontal padding with a max() of an unthemed corner-radius token, which loses to a later,
+// equal-specificity Material rule here (likely from a third override chain inside its compiled
+// theme output); the net effect is the wrapper's padding collapses to 0, so the value text and the
+// mat-select trigger text sit flush against the outline (the label is unaffected: it is positioned,
+// not padded). !important is needed because plain overrides of the same specificity lose to
+// Material's own later declaration. 16px matches the label's inset.
+.mdc-text-field--outlined {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+// Fields with a suffix (the colour picker's toggle button) want no padding on that side, so their
+// icon sits where Material placed it.
+.mat-mdc-form-field-has-icon-suffix .mdc-text-field--outlined {
+  padding-right: 0 !important;
+}
+
+.mat-mdc-card { border: 1px solid var(--hud-border); }
+
+// Filled (primary) Material buttons get the HUD parallelogram, with the focus ring inside.
+.mat-mdc-unelevated-button:not(.mat-mdc-button-disabled) {
+  clip-path: var(--hud-slant);
+
+  &:focus-visible { outline: 2px solid var(--hud-on-accent); outline-offset: -6px; }
+}
+
+.mat-mdc-unelevated-button.mat-mdc-button-disabled {
+  border: 1px solid var(--hud-hairline);
+}
+
+// Tap targets: Material's list and menu rows are at least 48px already; icon buttons too.
+.mat-mdc-paginator .mat-mdc-icon-button { width: 48px; height: 48px; }
+
+// The paginator's page-size mat-select, dense by default (Material's own
+// --mat-paginator-form-field-container-vertical-padding: 8px), comes out at 40-42px: under the
+// 44px minimum tap target (WCAG 2.5.8).
+.mat-mdc-paginator .mat-mdc-text-field-wrapper { min-height: 44px; }
+
+// A sortable column header's clickable element (.mat-sort-header-container) only wraps its label,
+// so it is as short as one line of text (about 20px) inside a taller header cell: 46px, matching
+// the table's own header-container-height above, makes most of the row tappable instead (WCAG
+// 2.5.8). height: 100% does not work here: percentage heights do not resolve against a table cell.
+.mat-sort-header-container { height: 46px; }
+
+// A checkbox, radio button or slide toggle (with its label) is only as tall as its text line, 32-40px:
+// under the 44px minimum tap target (WCAG 2.5.8). The extra height is invisible (the control and
+// label stay the same size, just with more room to tap around them).
+mat-checkbox .mdc-form-field,
+mat-radio-button .mdc-form-field,
+mat-slide-toggle .mdc-form-field { min-height: 44px; align-items: center; }
+
+// Snack bars are short notices; keep them inside a phone screen.
+.mat-mdc-snack-bar-container { margin: 8px !important; }
+
+// A button that fills a table cell (e.g. tick a whole row or column).
+.hud-cell-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted var(--hud-border);
+  text-underline-offset: 4px;
+
+  &:hover { color: var(--hud-heading); text-decoration-color: var(--hud-accent); }
+}
+
+// Icon fonts are ligatures: headings' uppercase and tracking would break them.
+.mat-icon, .material-icons {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+// Pages that do not lay themselves out with .hud-page still get the page width and gutter.
+main > :not(router-outlet):not(:has(> .hud-page)) {
+  display: block;
+  box-sizing: border-box;
+  max-width: var(--hud-max-width);
+  margin: 0 auto;
+  padding: 36px var(--hud-gutter) 72px;
+
+  > h1:first-child, > h2:first-child {
+    margin: 0 0 24px;
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-shadow: var(--hud-glow);
+  }
+}
+
+// The icon font (self-hosted from @fontsource/material-icons). What Google's Material Icons
+// stylesheet sets for <mat-icon>, which uses this class by default.
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+// A page (or part) whose data is still loading: laid out but not shown, so content arriving later
+// does not visibly push it around (layout shift). Shown in one go once the data is in.
+.hud-waiting {
+  visibility: hidden;
+}
+
+// The date and time pickers (@ng-matero/extensions): the header's year, date, hours, minutes and
+// AM/PM not being edited are dimmed to 60%, under 4.5:1 against the header. Dimmed less, they
+// still read as not selected and are legible. AM and PM are stacked at 18px a line on phones:
+// 24px each, the least a touch target may be (WCAG 2.5.8). In the overlay, to outweigh their own
+// styles, which load later.
+.cdk-overlay-container .mtx-calendar-header {
+  // The time while the date is being picked, the same
+  .mtx-calendar-header-time:not(.active) { opacity: 0.85; }
+
+  .mtx-calendar-header-year, .mtx-calendar-header-date, .mtx-calendar-header-hours,
+  .mtx-calendar-header-minutes, .mtx-calendar-header-ampm {
+    &:not(.active) { opacity: 0.85; }
+  }
+
+  .mtx-calendar-header-ampm { min-height: 24px; min-width: 24px; }
+}
+
+// The colour picker's (@acrodata/color-picker) labels under its inputs (HEX, R, G, B, A): #969696
+// on white is 2.9:1; this grey is 5.3:1.
+.cdk-overlay-container .color-input-field span { color: #6b6b6b; }

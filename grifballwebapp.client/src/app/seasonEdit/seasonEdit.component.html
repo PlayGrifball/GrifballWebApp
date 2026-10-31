@@ -1,71 +1,112 @@
-<h2>Season Edit</h2>
+<div class="hud-page hud-page--narrow">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/seasonManager">&gt; Season Manager</a>
+    <h1 class="hud-title hud-title--md">{{model().seasonID > 0 ? 'Edit season' : 'New season'}}</h1>
+  </div>
 
-<form class="app-form" #seasonForm="ngForm" (ngSubmit)="onSubmit()">
-  <mat-form-field class="app-full-width">
-    <mat-label>seasonName</mat-label>
-    <input matInput required [ngModel]="model().seasonName" (ngModelChange)="patch({ seasonName: $event })" name="seasonName">
-    <app-error-message [control]="seasonForm.controls['seasonName']" />
-  </mat-form-field>
+  <form class="hud-form" #seasonForm="ngForm" (ngSubmit)="onSubmit()">
+    <section class="hud-panel hud-form-group" aria-labelledby="season-details">
+      <h2 id="season-details" class="hud-kicker">Details</h2>
+      <mat-form-field appearance="outline">
+        <mat-label>Season name</mat-label>
+        <input matInput required [ngModel]="model().seasonName" (ngModelChange)="patch({ seasonName: $event })" name="seasonName">
+        <mat-hint>What players see, e.g. "Autumn Brawl".</mat-hint>
+        <app-error-message [control]="seasonForm.controls['seasonName']" />
+      </mat-form-field>
+    </section>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>signupsOpen</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().signupsOpen" (ngModelChange)="patch({ signupsOpen: $event })" required name="signupsOpen">
-    <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
-    <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="seasonForm.controls['signupsOpen']" />
-  </mat-form-field>
+    <section class="hud-panel hud-form-group" aria-labelledby="season-timeline">
+      <h2 id="season-timeline" class="hud-kicker">Timeline</h2>
+      <p class="hud-muted">In your local time. Each date should come after the one before it.</p>
+      <div class="hud-field-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Public from</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker0" [ngModel]="model().publicAt" (ngModelChange)="patch({ publicAt: $event })" name="publicAt">
+          <mtx-datetimepicker-toggle [for]="datetimePicker0" matSuffix />
+          <mtx-datetimepicker #datetimePicker0 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>Announced on Discord from here. Leave empty to keep it hidden.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['publicAt']" />
+        </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>signupsClose</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="model().signupsClose" (ngModelChange)="patch({ signupsClose: $event })" required name="signupsClose">
-    <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
-    <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="seasonForm.controls['signupsClose']" />
-  </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Signups open</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker1" [ngModel]="model().signupsOpen" (ngModelChange)="patch({ signupsOpen: $event })" required name="signupsOpen">
+          <mtx-datetimepicker-toggle [for]="datetimePicker1" matSuffix />
+          <mtx-datetimepicker #datetimePicker1 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>Players can sign up from here.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['signupsOpen']" />
+        </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>draftStart</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="model().draftStart" (ngModelChange)="patch({ draftStart: $event })" required name="draftStart">
-    <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
-    <mtx-datetimepicker #datetimePicker3 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="seasonForm.controls['draftStart']" />
-  </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Signups close</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker2" [ngModel]="model().signupsClose" (ngModelChange)="patch({ signupsClose: $event })" required name="signupsClose">
+          <mtx-datetimepicker-toggle [for]="datetimePicker2" matSuffix />
+          <mtx-datetimepicker #datetimePicker2 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>The last moment to sign up.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['signupsClose']" />
+        </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>seasonStart</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker4" [ngModel]="model().seasonStart" (ngModelChange)="patch({ seasonStart: $event })" required name="seasonStart">
-    <mtx-datetimepicker-toggle [for]="datetimePicker4" matSuffix />
-    <mtx-datetimepicker #datetimePicker4 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="seasonForm.controls['seasonStart']" />
-  </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Draft start</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker3" [ngModel]="model().draftStart" (ngModelChange)="patch({ draftStart: $event })" required name="draftStart">
+          <mtx-datetimepicker-toggle [for]="datetimePicker3" matSuffix />
+          <mtx-datetimepicker #datetimePicker3 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>When captains start picking.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['draftStart']" />
+        </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>seasonEnd</mat-label>
-    <input matInput [mtxDatetimepicker]="datetimePicker5" [ngModel]="model().seasonEnd" (ngModelChange)="patch({ seasonEnd: $event })" required name="seasonEnd">
-    <mtx-datetimepicker-toggle [for]="datetimePicker5" matSuffix />
-    <mtx-datetimepicker #datetimePicker5 [timeInput]="true" [twelvehour]="true" type="datetime" />
-    <app-error-message [control]="seasonForm.controls['seasonEnd']" />
-  </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Season start</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker4" [ngModel]="model().seasonStart" (ngModelChange)="patch({ seasonStart: $event })" required name="seasonStart">
+          <mtx-datetimepicker-toggle [for]="datetimePicker4" matSuffix />
+          <mtx-datetimepicker #datetimePicker4 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>First week of matches.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['seasonStart']" />
+        </mat-form-field>
 
-  <mat-form-field class="app-full-width">
-    <mat-label>Copy From</mat-label>
-    <input matInput [ngModel]="model().copyFrom" (ngModelChange)="patch({ copyFrom: $event })" name="copyFrom">
-    <app-error-message [control]="seasonForm.controls['copyFrom']" />
-  </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Season end</mat-label>
+          <input matInput [mtxDatetimepicker]="datetimePicker5" [ngModel]="model().seasonEnd" (ngModelChange)="patch({ seasonEnd: $event })" required name="seasonEnd">
+          <mtx-datetimepicker-toggle [for]="datetimePicker5" matSuffix />
+          <mtx-datetimepicker #datetimePicker5 [timeInput]="true" [twelvehour]="true" type="datetime" />
+          <mat-hint>The season is over after this.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['seasonEnd']" />
+        </mat-form-field>
+      </div>
+    </section>
 
-  @if (model().copyFrom != null) {
-  <mat-checkbox [ngModel]="model().copyAvailability" (ngModelChange)="patch({ copyAvailability: $event })" name="copyAvailability">Copy Availability</mat-checkbox>
-  <mat-checkbox [ngModel]="model().copySignups" (ngModelChange)="patch({ copySignups: $event })" name="copySignups">Copy Signups</mat-checkbox>
-  <mat-checkbox [ngModel]="model().copyTeams" (ngModelChange)="patch({ copyTeams: $event })" name="copyTeams">Copy Teams</mat-checkbox>
-  }
+    <section class="hud-panel hud-form-group" aria-labelledby="season-copy">
+      <h2 id="season-copy" class="hud-kicker">Copy from another season</h2>
+      <mat-form-field appearance="outline">
+        <mat-label>Copy from</mat-label>
+        <mat-select [ngModel]="model().copyFrom" (ngModelChange)="patch({ copyFrom: $event })" name="copyFrom">
+          <mat-option [value]="null">Nothing (start empty)</mat-option>
+          @for (season of copyableSeasons(); track season.seasonID) {
+            <mat-option [value]="season.seasonName">{{season.seasonName}}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>On save, the parts ticked below replace this season's own.</mat-hint>
+        <app-error-message [control]="seasonForm.controls['copyFrom']" />
+      </mat-form-field>
 
-  <button mat-flat-button color="primary" [disabled]="!seasonForm.form.valid">
-    {{model().seasonID > 0 ? 'Save Season' : 'Create New Season'}}
-  </button>
-</form>
+      @if (model().copyFrom != null) {
+      <div class="hud-options">
+        <mat-checkbox [ngModel]="model().copyAvailability" (ngModelChange)="patch({ copyAvailability: $event })" name="copyAvailability">Copy Availability</mat-checkbox>
+        <mat-checkbox [ngModel]="model().copySignups" (ngModelChange)="patch({ copySignups: $event })" name="copySignups">Copy Signups</mat-checkbox>
+        <mat-checkbox [ngModel]="model().copyTeams" (ngModelChange)="patch({ copyTeams: $event })" name="copyTeams">Copy Teams</mat-checkbox>
+      </div>
+      }
+    </section>
 
-@if (model().seasonID > 0) {
-<button mat-flat-button color="primary" [routerLink]="['/seasonAvailability', model().seasonID]">
-  Edit Availability
-</button>
-}
+    <div class="hud-actions">
+      <button mat-flat-button [disabled]="!seasonForm.form.valid">
+        {{model().seasonID > 0 ? 'Save Season' : 'Create New Season'}}
+      </button>
+      @if (model().seasonID > 0) {
+      <a mat-stroked-button [routerLink]="['/seasonAvailability', model().seasonID]">
+        Edit Availability
+      </a>
+      }
+    </div>
+  </form>
+</div>

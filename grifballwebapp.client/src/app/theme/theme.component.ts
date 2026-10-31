@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { MatDialogRef } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { PaletteComponent } from './palette/palette.component';
 import { MatFormField, MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
@@ -11,7 +14,9 @@ import { ThemingService } from '../theming.service';
         PaletteComponent,
         MatFormFieldModule,
         MatSelectModule,
-        ReactiveFormsModule
+        ReactiveFormsModule,
+        MatButtonModule,
+        MatIconModule,
     ],
     templateUrl: './theme.component.html',
     styleUrl: './theme.component.scss',
@@ -19,6 +24,13 @@ import { ThemingService } from '../theming.service';
 })
 export class ThemeComponent implements OnInit {
   private themingService = inject(ThemingService);
+  /** Set when shown as the header's dialog (not on the /theme page): it then has Close and Done. */
+  readonly dialogRef = inject(MatDialogRef<ThemeComponent>, { optional: true });
+
+  /** Closes the dialog; the focus goes back to the button that opened it. */
+  close(): void {
+    this.dialogRef?.close();
+  }
 
 
   ngOnInit(): void {
@@ -34,6 +46,15 @@ export class ThemeComponent implements OnInit {
     })
   }
 
-  fonts: string[] = ['Roboto', 'sans-serif'];
+  fonts: string[] = ['Rajdhani', 'Roboto', 'sans-serif'];
+  /** Counts resets: the palette editors are rebuilt on each one. */
+  readonly resets = signal(0);
+
+  /** Back to the Spartan HUD colours and font. */
+  reset(): void {
+    this.themingService.reset();
+    this.font.setValue(this.themingService.font(), { emitEvent: false });
+    this.resets.update(n => n + 1);
+  }
   font!: FormControl<string>;
 }

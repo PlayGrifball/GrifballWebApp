@@ -223,9 +223,11 @@ In future updates, users should be able to interact with the bot using natural l
             }
             
         }
-        else if (restMessage.Content.Length != finalResponse.Length)
+        else
         {
-            restMessage = await restMessage.ModifyAsync(x => x.WithContent(finalResponse));
+            // The last streamed update may already show all of it; it is saved either way (only full messages are).
+            if (restMessage.Content != finalResponse)
+                restMessage = await restMessage.ModifyAsync(x => x.WithContent(finalResponse));
             await SaveMessageToDb(UserId, BotID, context, restMessage);
         }
     }

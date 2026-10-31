@@ -7,6 +7,7 @@ export class ValidationService {
         invalidPassword:
           'Invalid password. Password must be at least 6 characters long, and contain a number.',
         minlength: `Minimum length ${validatorValue.requiredLength}`,
+        maxlength: `Maximum length ${validatorValue.requiredLength}`,
         regexValidation: `${validatorValue.errorMessage}`,
         matchOtherValidator: `Must match ${validatorValue.otherControlName}`
       };

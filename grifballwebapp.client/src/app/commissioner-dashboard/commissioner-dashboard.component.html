@@ -1,103 +1,67 @@
-<div class="dashboard-container">
-  <h1>Commissioner Dashboard</h1>
-  
-  @if (loading()) {
-  <div class="loading-container">
-    <mat-icon>hourglass_empty</mat-icon>
-    <p>Loading dashboard data...</p>
+<div class="hud-page">
+  <div class="hud-page-head">
+    <span class="hud-kicker">&gt; Commissioner tools</span>
+    <h1 class="hud-title hud-title--md">Commissioner Dashboard</h1>
   </div>
+
+  @if (loading()) {
+  <p class="hud-empty" role="status">Loading dashboard data...</p>
   }
 
   @if (error()) {
-  <div class="error-container">
-    <mat-icon color="warn">error</mat-icon>
-    <p>{{ error() }}</p>
-    <button mat-raised-button color="primary" (click)="loadDashboardData()">Retry</button>
+  <div class="hud-empty hud-empty--error cd-error" role="alert">
+    <span>{{ error() }}</span>
+    <button mat-stroked-button type="button" (click)="loadDashboardData()">Retry</button>
   </div>
   }
 
   @if (dashboardData(); as data) {
   @if (!loading()) {
-  <div class="dashboard-content">
-    
-    <!-- Summary Cards -->
-    <div class="summary-cards">
-      <mat-card class="summary-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>schedule</mat-icon>
-            Pending Reschedules
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric">
-            <span class="metric-value">{{ data.summary.pendingRescheduleCount }}</span>
-          </div>
-        </mat-card-content>
-      </mat-card>
 
-      <mat-card class="summary-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>warning</mat-icon>
-            Overdue Matches
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric">
-            <span class="metric-value">{{ data.summary.overdueMatchCount }}</span>
-          </div>
-        </mat-card-content>
-      </mat-card>
-      
+    <!-- Summary -->
+    <div class="hud-grid cd-summary">
+      <div class="hud-panel hud-panel--chamfer cd-metric">
+        <span class="hud-label"><mat-icon aria-hidden="true">schedule</mat-icon> Pending reschedules</span>
+        <span class="metric-value">{{ data.summary.pendingRescheduleCount }}</span>
+      </div>
+
+      <div class="hud-panel hud-panel--chamfer cd-metric">
+        <span class="hud-label"><mat-icon aria-hidden="true">warning</mat-icon> Overdue matches</span>
+        <span class="metric-value">{{ data.summary.overdueMatchCount }}</span>
+      </div>
+
       @if (data.summary.criticalOverdueCount > 0) {
-      <mat-card class="summary-card critical">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>priority_high</mat-icon>
-            Critical Overdue
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric">
-            <span class="metric-value">{{ data.summary.criticalOverdueCount }}</span>
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <div class="hud-panel hud-panel--chamfer cd-metric cd-metric--critical">
+        <span class="hud-label"><mat-icon aria-hidden="true">priority_high</mat-icon> Critical overdue</span>
+        <span class="metric-value">{{ data.summary.criticalOverdueCount }}</span>
+      </div>
       }
     </div>
 
-    <!-- Tabs for detailed data -->
-    <mat-tab-group class="dashboard-tabs">
-      
+    <!-- Details -->
+    <mat-tab-group class="cd-tabs" mat-stretch-tabs="false" mat-align-tabs="start">
+
       <!-- Pending Reschedules Tab -->
       <mat-tab>
         <ng-template mat-tab-label>
-          <mat-icon>schedule</mat-icon>
-          Pending Reschedules
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <span class="cd-tab-label">Pending Reschedules</span>
           @if (data.pendingReschedules.length > 0) {
-          <span class="tab-badge">
-            {{ data.pendingReschedules.length }}
-          </span>
+          <span class="cd-badge">{{ data.pendingReschedules.length }}</span>
           }
         </ng-template>
-        
-        <div class="tab-content">
+
+        <div class="cd-tab-content">
           @if (data.pendingReschedules.length === 0) {
-          <div class="empty-state">
-            <mat-icon>check_circle</mat-icon>
-            <p>No pending reschedule requests</p>
-          </div>
-          }
-          
-          @if (data.pendingReschedules.length > 0) {
-          <div>
-            <mat-table [dataSource]="data.pendingReschedules" class="reschedule-table">
-              
+          <p class="hud-empty">No pending reschedule requests.</p>
+          } @else {
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Pending reschedules">
+            <mat-table [dataSource]="data.pendingReschedules" class="cd-table cd-table--wide">
+
               <ng-container matColumnDef="match">
                 <mat-header-cell *matHeaderCellDef>Match</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  <strong>{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</strong>
+                  <strong class="cd-match">{{ reschedule.homeCaptain }} vs {{ reschedule.awayCaptain }}</strong>
                 </mat-cell>
               </ng-container>
 
@@ -125,7 +89,7 @@
               <ng-container matColumnDef="reason">
                 <mat-header-cell *matHeaderCellDef>Reason</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  <div class="reason-cell">{{ reschedule.reason }}</div>
+                  <span class="cd-reason">{{ reschedule.reason }}</span>
                 </mat-cell>
               </ng-container>
 
@@ -139,12 +103,10 @@
               <ng-container matColumnDef="process">
                 <mat-header-cell *matHeaderCellDef>Process</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
-                  <div class="action-buttons">
-                    <button mat-raised-button color="primary" (click)="openProcessRescheduleDialog(reschedule)">
-                      <mat-icon>gavel</mat-icon>
-                      Process
-                    </button>
-                  </div>
+                  <button mat-flat-button type="button" (click)="openProcessRescheduleDialog(reschedule)">
+                    <mat-icon aria-hidden="true">gavel</mat-icon>
+                    Process
+                  </button>
                 </mat-cell>
               </ng-container>
 
@@ -152,16 +114,14 @@
                 <mat-header-cell *matHeaderCellDef>Thread</mat-header-cell>
                 <mat-cell *matCellDef="let reschedule">
                     @if (!reschedule.discordThreadID) {
-                    <button mat-icon-button 
+                    <button mat-icon-button type="button"
                             (click)="createDiscordThread(reschedule)"
-                            matTooltip="Create Discord Thread">
+                            matTooltip="Create Discord Thread"
+                            aria-label="Create Discord thread">
                       <mat-icon>forum</mat-icon>
                     </button>
                     } @else {
-                      <mat-chip color="accent">
-                      <mat-icon>forum</mat-icon>
-                      Thread Created
-                      </mat-chip>
+                    <span class="hud-label hud-label--accent">Thread created</span>
                     }
                 </mat-cell>
               </ng-container>
@@ -177,31 +137,24 @@
       <!-- Overdue Matches Tab -->
       <mat-tab>
         <ng-template mat-tab-label>
-          <mat-icon>warning</mat-icon>
-          Overdue Matches
+          <mat-icon aria-hidden="true">warning</mat-icon>
+          <span class="cd-tab-label">Overdue Matches</span>
           @if (data.overdueMatches.length > 0) {
-          <span class="tab-badge">
-            {{ data.overdueMatches.length }}
-          </span>
+          <span class="cd-badge">{{ data.overdueMatches.length }}</span>
           }
         </ng-template>
-        
-        <div class="tab-content">
+
+        <div class="cd-tab-content">
           @if (data.overdueMatches.length === 0) {
-          <div class="empty-state">
-            <mat-icon>check_circle</mat-icon>
-            <p>No overdue matches</p>
-          </div>
-          }
-          
-          @if (data.overdueMatches.length > 0) {
-          <div>
-            <mat-table [dataSource]="data.overdueMatches" class="overdue-table">
-              
+          <p class="hud-empty">No overdue matches.</p>
+          } @else {
+          <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Overdue matches">
+            <mat-table [dataSource]="data.overdueMatches" class="cd-table">
+
               <ng-container matColumnDef="match">
                 <mat-header-cell *matHeaderCellDef>Match</mat-header-cell>
                 <mat-cell *matCellDef="let match">
-                  <strong>{{ match.homeCaptain }} vs {{ match.awayCaptain }}</strong>
+                  <a class="cd-match hud-text-link" [routerLink]="['/seasonmatch', match.seasonMatchID]">{{ match.homeCaptain }} vs {{ match.awayCaptain }}</a>
                 </mat-cell>
               </ng-container>
 
@@ -222,10 +175,10 @@
               <ng-container matColumnDef="severity">
                 <mat-header-cell *matHeaderCellDef>Severity</mat-header-cell>
                 <mat-cell *matCellDef="let match">
-                  <mat-chip [color]="getOverdueSeverityColor(match.hoursOverdue)">
-                    <mat-icon>{{ match.hoursOverdue > 72 ? 'priority_high' : match.hoursOverdue > 48 ? 'warning' : 'info' }}</mat-icon>
+                  <span class="cd-severity" [attr.data-severity]="getOverdueSeverity(match.hoursOverdue)">
+                    <mat-icon aria-hidden="true">{{ match.hoursOverdue > 72 ? 'priority_high' : match.hoursOverdue > 48 ? 'warning' : 'info' }}</mat-icon>
                     {{ getOverdueSeverity(match.hoursOverdue) | titlecase }}
-                  </mat-chip>
+                  </span>
                 </mat-cell>
               </ng-container>
 
@@ -239,7 +192,6 @@
         </div>
       </mat-tab>
     </mat-tab-group>
-  </div>
   }
   }
 </div>

@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Server.Outbox;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -23,7 +24,7 @@ public static class HealthCheckExtensions
     /// <list type="bullet">
     /// <item><b>ready</b>: the database, and the host having started and not begun stopping.</item>
     /// <item><b>not gating</b>: the Discord gateway, the Halo Infinite API (probed at most every few minutes,
-    /// see <see cref="HaloInfiniteHealthCheck"/>) and managed memory, reported as Degraded only. A Discord or
+    /// see <see cref="HaloInfiniteHealthCheck"/>), managed memory and the Discord outbox's dead letters, reported as Degraded only. A Discord or
     /// Halo outage must not take the website out of service.</item>
     /// </list>
     /// Every result is also published as <c>dotnet.health_check.*</c> metrics every 30 s.
@@ -54,6 +55,9 @@ public static class HealthCheckExtensions
             services.TryAddSingleton(sp => HaloInfiniteHealthCheck.FromConfiguration(sp, configuration));
             checks.AddCheck<HaloInfiniteHealthCheck>("halo_infinite", HealthStatus.Degraded);
         }
+
+        // Discord messages the outbox gave up on.
+        checks.AddCheck<OutboxHealthCheck>("discord_outbox", HealthStatus.Degraded);
 
         checks.AddProcessAllocatedMemoryHealthCheck(maxAllocated, "memory", HealthStatus.Degraded);
 

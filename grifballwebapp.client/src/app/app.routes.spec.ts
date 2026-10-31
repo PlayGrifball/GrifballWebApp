@@ -8,7 +8,6 @@ import { TeamBuilderComponent } from './teamBuilder/teamBuilder.component';
 import { TeamComponent } from './season/team/team.component';
 import { PlayerGradesComponent } from './season/playerGrades/playerGrades.component';
 import { SeasonMatchComponent } from './season/seasonMatch/seasonMatch.component';
-import { TopStatsComponent } from './top-stats/top-stats.component';
 import { LoginComponent } from './login/login.component';
 import { RegisterComponent } from './register/register.component';
 import { PasswordResetComponent } from './password-reset/password-reset.component';
@@ -22,7 +21,6 @@ import { EditUserComponent } from './userManagement/editUser/editUser.component'
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { ProfileComponent } from './profile/profile.component';
 import { ExcelComponent } from './excel/excel.component';
-import { LateLeagueComponent } from './lateLeague/lateLeague.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
 import { NotFoundComponent } from './notFound/notFound.component';
@@ -55,12 +53,6 @@ describe('APP_ROUTES', () => {
     const themeRoute = APP_ROUTES.find(r => r.path === 'theme');
     expect(themeRoute).toBeDefined();
     expect(themeRoute?.title).toBe('Theme');
-  });
-
-  it('should have topstats route', () => {
-    const topStatsRoute = APP_ROUTES.find(r => r.path === 'topstats');
-    expect(topStatsRoute).toBeDefined();
-    expect(topStatsRoute?.title).toBe('Top Stats');
   });
 
   it('should have wildcard route for 404', () => {
@@ -129,12 +121,6 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('should have lateLeague route', () => {
-    const lateLeagueRoute = APP_ROUTES.find(r => r.path === 'lateLeague');
-    expect(lateLeagueRoute).toBeDefined();
-    expect(lateLeagueRoute?.title).toBe('Late League');
-  });
-
   it('should have all routes with lazy loading', () => {
     const routesWithComponents = APP_ROUTES.filter(r => r.path !== '**');
     routesWithComponents.forEach(route => {
@@ -168,7 +154,6 @@ describe('APP_ROUTES lazy loading', () => {
     'season/:seasonID/team/:teamID': TeamComponent,
     'season/:seasonID/playergrades': PlayerGradesComponent,
     'seasonmatch/:seasonMatchID': SeasonMatchComponent,
-    'topstats': TopStatsComponent,
     'login': LoginComponent,
     'register': RegisterComponent,
     'reset-password': PasswordResetComponent,
@@ -185,7 +170,6 @@ describe('APP_ROUTES lazy loading', () => {
     'profile/:userID': ProfileComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
-    'lateLeague': LateLeagueComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,
     'reschedule-request/:seasonMatchID': RescheduleRequestComponent,
     '**': NotFoundComponent,

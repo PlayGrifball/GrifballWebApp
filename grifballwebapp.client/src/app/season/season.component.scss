@@ -2,6 +2,19 @@
   display: block;
 }
 
-.space {
-  margin: 4px;
+.season-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
 }
+
+.season-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+
+.season-overview__standings { flex: 3 1 520px; }
+.season-overview__week { flex: 2 1 320px; }

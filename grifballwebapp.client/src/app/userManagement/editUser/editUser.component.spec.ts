@@ -75,7 +75,7 @@ describe('EditUserComponent', () => {
   it('loads the user and renders a checkbox per role', async () => {
     await load();
 
-    expect(el().querySelector('h2')!.textContent).toBe('Edit User 15');
+    expect(el().querySelector('h1')!.textContent).toBe('Edit User 15');
     expect(component.model().userName).toBe('grif');
     const labels = Array.from(el().querySelectorAll('mat-checkbox')).map(c => c.textContent!.trim());
     expect(labels).toEqual(['Lockout Enabled', 'Is Dummy User', 'Sysadmin', 'Commissioner']);
@@ -144,7 +144,7 @@ describe('EditUserComponent', () => {
     http.expectOne('/api/usermanagement/getuser/15').flush(structuredClone(user));
     await fixture.whenStable();
 
-    expect(el().querySelector('h2')?.textContent).toContain('Edit User 15');
+    expect(el().querySelector('h1')?.textContent).toContain('Edit User 15');
     expect(el().querySelector<HTMLInputElement>('input[name="userName"]')?.value).toBe('grif');
   });
 

@@ -382,5 +382,11 @@ describe('UserManagementComponent user table', () => {
     expect(table.current().results[0].lockoutEnd instanceof DateTime).toBeTrue();
     const cells = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('tr.mat-mdc-row td')).map(td => td.textContent!.trim());
     expect(cells).toContain(new DatePipe('en-US').transform('2026-03-04T05:06:00Z', 'short')!);
+    // People's words: yes/no, and nothing written out for a missing value
+    expect(cells).toContain('Yes');
+    expect(cells).not.toContain('null');
+    expect(cells).not.toContain('true');
+    const headers = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('th')).map(th => th.textContent!.trim());
+    expect(headers).toEqual(['User ID', 'Username', 'Lockout ends', 'Lockout enabled', 'Failed sign-ins', 'Region', 'Display name', 'Gamertag', 'Discord', 'Linked logins', 'Actions']);
   });
 });

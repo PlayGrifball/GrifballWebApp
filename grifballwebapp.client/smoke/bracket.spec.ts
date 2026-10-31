@@ -25,17 +25,17 @@ test.describe('playoff bracket', () => {
     consoleErrors.allow(new RegExp(`status of 404.*${missing}`));
 
     const viewer = viewerData(page);
-    await page.goto(`/season/${missing}`);
+    await page.goto(`/season/${missing}?tab=bracket`);
     expect((await viewer).status()).toBe(404);
     await expect(page.getByText('No bracket created')).toBeVisible();
     await expect(page.locator('mat-snack-bar-container')).toHaveCount(0);
   });
 
   test('creating a bracket shows unseeded "Seed N" slots, locked; seeding fills in the teams', async ({ adminPage: page, admin }) => {
-    await page.goto(`/season/${league.seasonID}`);
+    await page.goto(`/season/${league.seasonID}?tab=bracket`);
     await expect(page.getByText('No bracket created')).toBeVisible();
 
-    await page.locator('a', { hasText: 'Create Bracket' }).click(); // an <a> without href: no link role
+    await page.getByRole('button', { name: 'Create Bracket' }).click();
     const dialog = page.locator('mat-dialog-container');
     await dialog.locator('input[name="participantsCount"]').fill('4');
     await dialog.getByRole('checkbox', { name: 'Double Elimination' }).uncheck();
@@ -60,10 +60,11 @@ test.describe('playoff bracket', () => {
     }
 
     // Seeding by standings puts the teams in the first round.
-    await admin.get(`Brackets/SetSeeds/${league.seasonID}`);
-    const seeded = viewerData(page);
+    await admin.post(`Brackets/SetSeeds/${league.seasonID}`);
+    // The reloaded page is drawn on the server, which fetches the bracket itself (the browser then
+    // makes no request for it): the data straight from the API, then the page.
+    const data = await admin.get<ViewerData>(`Brackets/GetViewerData?seasonID=${league.seasonID}`);
     await page.reload();
-    const data = await (await seeded).json() as ViewerData;
     for (const match of data.matches) {
       expect(typeof match.status).toBe('number');
     }

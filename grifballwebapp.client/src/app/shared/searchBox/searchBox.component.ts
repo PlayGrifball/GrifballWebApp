@@ -17,6 +17,8 @@ export class SearchBoxComponent<T> implements OnDestroy {
   private inputSubject = new Subject<T>();
   value = model.required<T>();
   type = input<'text' | 'number'>('text');
+  /** The field's label. */
+  label = input('Search');
 
   constructor() {
     this.inputSubject.pipe(

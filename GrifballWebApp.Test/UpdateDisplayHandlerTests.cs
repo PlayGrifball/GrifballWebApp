@@ -4,6 +4,7 @@ using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +37,7 @@ public class UpdateDisplayHandlerTests
         discordClient.GetMessagesAsync(Arg.Any<ulong>(), Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
             .Returns(_ => AsyncEnumerable.Empty<IDiscordRestMessage>());
         var queueService = new QueueService(Substitute.For<ILogger<QueueService>>(), Options.Create(new DiscordOptions { QueueChannel = 55 }),
-            new QueueRepository(_context), discordClient, _context, Substitute.For<IDataPullService>());
+            new QueueRepository(_context), discordClient, _context, Substitute.For<IDataPullService>(), new ContextOutbox(_context));
 
         await new UpdateDisplayHandler(queueService).Handle(new UpdateDisplayNotification(), CancellationToken.None);
 

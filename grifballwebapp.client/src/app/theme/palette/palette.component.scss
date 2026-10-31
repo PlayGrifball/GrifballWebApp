@@ -1,3 +1,34 @@
 :host {
   display: block;
+  margin-bottom: 20px;
+}
+
+.palette-picker { width: 100%; max-width: 320px; }
+
+.palette-seed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.palette-name {
+  text-transform: capitalize;
+  min-width: 0;
+}
+
+.palette-seed .palette-tile { width: 96px; height: 48px; }
+
+// The tones wrap onto as many rows as the width needs, never wider than the dialog.
+.palette-tones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 4px;
+}
+
+.palette-tones .palette-tile { height: 52px; }
+
+// Wide enough (the dialog at full width): all eleven tones in one row.
+@media (min-width: 760px) {
+  .palette-tones { grid-template-columns: repeat(11, minmax(0, 1fr)); }
 }
