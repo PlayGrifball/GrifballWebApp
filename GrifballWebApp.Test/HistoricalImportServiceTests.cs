@@ -334,6 +334,77 @@ public class HistoricalImportServiceTests
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.Source).SingleAsync(), Is.EqualTo(StatSource.Manual));
     }
 
+    [Test]
+    public async Task Import_ASeasonThatFails_IsRolledBack_AndTheOthersImport()
+    {
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: new string('x', 101))),
+            Entry("Spring League 2019", "halo3", "AGLA", false, Player("Silva"))));
+
+        Assert.That(report.Errors, Has.One.StartsWith("agla/winter-league-2019"));
+        Assert.That(await _context.Seasons.Select(s => s.SeasonName).ToListAsync(), Is.EqualTo(new[] { "Spring League 2019" }));
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Import_WithoutTheWaypointMatches_KeepsTheWaypointStatsImportedEarlier()
+    {
+        var match = Guid.NewGuid();
+        await AddMatch(match, (100, "Hells Angel cx", Outcomes.Won, 30, 10));
+        var seasons = new UnifiedArchive
+        {
+            Seasons =
+            [
+                Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx", kills: 1)),
+                Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva")),
+            ],
+        };
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = seasons,
+            WaypointMatches = new()
+            {
+                ["agla/winter-league-2023-da"] = new WaypointSeasonMatches { Regular = [match.ToString()] },
+                ["agla/winter-league-2019"] = new WaypointSeasonMatches { Regular = [Guid.NewGuid().ToString()] },
+            },
+        });
+        Assert.That(report.Skipped, Has.Some.Contains("agla/winter-league-2019"), "Waypoint is Halo Infinite only");
+
+        var again = await _service.Import(new HistoricalArchiveInput { Seasons = seasons });
+
+        var stat = await _context.PlayerSeasonStats.AsNoTracking().SingleAsync(s => s.Gamertag == "Hells Angel cx");
+        Assert.That((stat.Source, stat.Kills), Is.EqualTo((StatSource.Waypoint, 30)), "The sheet's totals never replace Waypoint stats");
+        Assert.That(again.ManualReplacedByWaypoint, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ImportedRows_LoadWithTheirRelations()
+    {
+        await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = new UnifiedArchive { Seasons = [Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva"))] },
+            Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = "T", Roster = ["Silva"] }] },
+        });
+        var user = await _context.Users.SingleAsync();
+        _context.PlayerAliases.Add(new PlayerAlias { UserID = user.Id, GameVersionID = 1, Alias = "Silva Two", NormalizedAlias = "SILVA TWO", IsPrimary = false, Source = "test" });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var stat = await _context.PlayerSeasonStats.Include(s => s.Season).ThenInclude(s => s.GameVersion).Include(s => s.GameVersion).Include(s => s.User).SingleAsync();
+        var title = await _context.PlayerChampionships.Include(c => c.User).Include(c => c.League).Include(c => c.GameVersion).SingleAsync();
+        var alias = await _context.PlayerAliases.Include(a => a.User).Include(a => a.GameVersion).SingleAsync();
+        var halo3 = await _context.GameVersions.Include(g => g.Seasons).SingleAsync(g => g.Slug == "halo3");
+        Assert.Multiple(() =>
+        {
+            Assert.That(stat.Season.GameVersion.Slug, Is.EqualTo("halo3"));
+            Assert.That(stat.GameVersion.Slug, Is.EqualTo("halo3"));
+            Assert.That(title.PlayerChampionshipID, Is.GreaterThan(0));
+            Assert.That((title.User.Id, title.League.Slug, title.GameVersion.Slug), Is.EqualTo((user.Id, "agla", "halo3")));
+            Assert.That((alias.PlayerAliasID > 0, alias.User.Id, alias.GameVersion.Slug, alias.GameVersionID, alias.IsPrimary, alias.Source), Is.EqualTo((true, user.Id, "halo3", 1, false, "test")));
+            Assert.That(halo3.Seasons.Select(s => s.SeasonName), Is.EqualTo(new[] { "Winter League 2019" }));
+        });
+    }
+
     /// <summary>The compiled archive in the repository imports, and a second run changes no row counts.</summary>
     [Test]
     public async Task Import_TheCompiledArchive_IsIdempotent()

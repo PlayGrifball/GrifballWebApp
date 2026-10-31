@@ -106,6 +106,17 @@ public class UserMergeServiceHistoricalTests
     }
 
     [Test]
+    public async Task Merge_BothWithPlayoffStatsForOneSeason_IsRefused_NamingThePlayoffs()
+    {
+        _context.PlayerSeasonStats.AddRange(Stat(_real, _season, kills: 1, playoffs: true), Stat(_dummy, _season, kills: 2, playoffs: true));
+        await _context.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<MergeConflictException>(() => _service.Merge(_real.Id, _dummy.Id));
+
+        Assert.That(ex!.Message, Does.Contain("the playoffs of season Winter League 2019"));
+    }
+
+    [Test]
     public async Task Merge_DifferentStintsOfOneSeason_AreBothKept()
     {
         _context.PlayerSeasonStats.AddRange(Stat(_real, _season, kills: 1), Stat(_dummy, _season, kills: 2, stint: 2));
