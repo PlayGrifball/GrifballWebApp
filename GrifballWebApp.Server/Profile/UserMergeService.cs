@@ -109,6 +109,8 @@ public class UserMergeService : IUserMergeService
         if (options.TransferChampionships)
             await TransferChampionships(mergeToId, mergeFromId, ct);
 
+        await SettleClaims(mergeTo, mergeFromId, ct);
+
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
         _context.UserRoles.RemoveRange(rolesToDelete);
@@ -221,13 +223,38 @@ public class UserMergeService : IUserMergeService
     private async Task TransferChampionships(int mergeToId, int mergeFromId, CancellationToken ct)
     {
         var championships = await _context.PlayerChampionships.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-        var held = await _context.PlayerChampionships.Where(x => x.UserID == mergeToId).Select(x => new { x.SeasonID, x.Tier }).ToListAsync(ct);
+        var held = await _context.PlayerChampionships.Where(x => x.UserID == mergeToId).ToListAsync(ct);
         foreach (var championship in championships)
         {
-            if (held.Any(h => h.SeasonID == championship.SeasonID && string.Equals(h.Tier, championship.Tier, StringComparison.OrdinalIgnoreCase)))
+            var same = held.FirstOrDefault(h => h.SeasonID == championship.SeasonID && string.Equals(h.Tier, championship.Tier, StringComparison.OrdinalIgnoreCase));
+            if (same is not null)
+            {
+                // One title per player: the target keeps its own, the captaincy too if the source had it
+                same.IsCaptain |= championship.IsCaptain;
                 _context.PlayerChampionships.Remove(championship);
+            }
             else
                 championship.UserID = mergeToId;
+        }
+    }
+
+    /// <summary>
+    /// Pending gamertag claims about the source (its placeholder) can't stay as they are once it is gone: merged into
+    /// another placeholder, they are about that one; merged into a real user, the user's own claim is settled as approved
+    /// (the placeholder is theirs now) and anyone else's as rejected (it can't be theirs any more), so approving one never
+    /// writes history onto the wrong account.
+    /// </summary>
+    private async Task SettleClaims(User mergeTo, int mergeFromId, CancellationToken ct)
+    {
+        var claims = await _context.GamertagClaims
+            .Where(c => c.PlaceholderUserID == mergeFromId && c.Status == GamertagClaimStatus.Pending)
+            .ToListAsync(ct);
+        foreach (var claim in claims)
+        {
+            if (mergeTo.IsDummyUser)
+                claim.PlaceholderUserID = mergeTo.Id;
+            else
+                claim.Status = mergeTo.XboxUserID == claim.XboxUserID ? GamertagClaimStatus.Approved : GamertagClaimStatus.Rejected;
         }
     }
 

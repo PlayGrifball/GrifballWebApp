@@ -25,7 +25,8 @@ public class HistoricalImportServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
-        _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance);
+        _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance,
+            new GrifballWebApp.Server.Championships.ChampionshipService(_context), new GamertagMatching(_context), TimeProvider.System);
     }
 
     [TearDown]
@@ -46,7 +47,7 @@ public class HistoricalImportServiceTests
             Assert.That(report.Errors, Is.Empty);
             Assert.That(seasons.Select(s => s.HistoricalSourceID), Is.EquivalentTo(new[] { "winter-league-2019/Stats", "late-league-season-8-halo-3/Stats" }));
             Assert.That(seasons.Select(s => s.IsHistorical), Is.All.True);
-            Assert.That(seasons.Select(s => s.PublicAt), Is.All.Null);
+            Assert.That(seasons.Select(s => s.PublicAt), Is.EqualTo(seasons.Select(s => (DateTime?)s.SeasonStart)), "Public since they began");
             Assert.That(seasons.Single(s => s.SeasonName == "Winter League 2019").SeasonStart, Is.EqualTo(new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
             Assert.That(users, Has.Count.EqualTo(2), "One per player, whatever the case and spacing of their gamertag");
             Assert.That(users.Select(u => u.IsDummyUser), Is.All.True);
@@ -180,7 +181,7 @@ public class HistoricalImportServiceTests
             Assert.That(created.Select(s => s.SeasonID).Distinct().Count(), Is.EqualTo(1), "Both tiers' titles in one season, whatever its name's case");
             Assert.That(created[0].HistoricalSourceID, Is.EqualTo("history-agla-champions/Winter League 2011"));
             Assert.That(created[0].GameVersionID, Is.EqualTo(2));
-            Assert.That(titles.Select(t => t.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
+            Assert.That(titles.Select(t => t.Season.LeagueID), Is.All.EqualTo(League.DefaultLeagueID));
             Assert.That(await _context.Seasons.CountAsync(), Is.EqualTo(3));
         });
     }
@@ -494,18 +495,18 @@ public class HistoricalImportServiceTests
         _context.ChangeTracker.Clear();
 
         var stat = await _context.PlayerSeasonStats.Include(s => s.Season).ThenInclude(s => s.GameVersion).Include(s => s.GameVersion).Include(s => s.User).SingleAsync();
-        var title = await _context.PlayerChampionships.Include(c => c.User).Include(c => c.League).Include(c => c.GameVersion).SingleAsync();
+        var title = await _context.PlayerChampionships.Include(c => c.User).Include(c => c.Season).ThenInclude(s => s.League).Include(c => c.GameVersion).SingleAsync();
         var history = await _context.XboxGamertagHistory.Include(h => h.XboxUser).SingleAsync();
-        var claim = await _context.GamertagClaims.Include(c => c.XboxUser).Include(c => c.PlaceholderUser).Include(c => c.Season).SingleAsync();
+        var claim = await _context.GamertagClaims.Include(c => c.XboxUser).Include(c => c.PlaceholderUser).Include(c => c.Season).Include(c => c.Team).SingleAsync();
         var halo3 = await _context.GameVersions.Include(g => g.Seasons).SingleAsync(g => g.Slug == "halo3");
         Assert.Multiple(() =>
         {
             Assert.That(stat.Season.GameVersion.Slug, Is.EqualTo("halo3"));
             Assert.That(stat.GameVersion.Slug, Is.EqualTo("halo3"));
             Assert.That(title.PlayerChampionshipID, Is.GreaterThan(0));
-            Assert.That((title.User.Id, title.League.Slug, title.GameVersion.Slug), Is.EqualTo((user.Id, "agla", "halo3")));
+            Assert.That((title.User.Id, title.Season.League.Slug, title.GameVersion.Slug), Is.EqualTo((user.Id, "agla", "halo3")));
             Assert.That((history.XboxGamertagHistoryID > 0, history.XboxUser.Gamertag, history.FirstSeen, history.LastSeen), Is.EqualTo((true, "Silva Now", (DateTime?)null, (DateTime?)null)));
-            Assert.That((claim.GamertagClaimID > 0, claim.XboxUser.Gamertag, claim.PlaceholderUser.Id, claim.Season.SeasonName, claim.TeamName, claim.Status), Is.EqualTo((true, "Silva Now", user.Id, "Winter League 2019", (string?)null, GamertagClaimStatus.Pending)));
+            Assert.That((claim.GamertagClaimID > 0, claim.XboxUser.Gamertag, claim.PlaceholderUser.Id, claim.Season.SeasonName, claim.Team, claim.Status), Is.EqualTo((true, "Silva Now", user.Id, "Winter League 2019", (Team?)null, GamertagClaimStatus.Pending)));
             Assert.That(halo3.Seasons.Select(s => s.SeasonName), Is.EqualTo(new[] { "Winter League 2019" }));
         });
     }
@@ -740,12 +741,12 @@ public class HistoricalImportServiceTests
 
         var report = await _service.Import(input);
 
-        var claim = await _context.GamertagClaims.AsNoTracking().SingleAsync();
+        var claim = await _context.GamertagClaims.AsNoTracking().Include(c => c.Team).SingleAsync();
         Assert.Multiple(() =>
         {
             Assert.That(report.SuggestionsCreated, Is.EqualTo(1));
             Assert.That(report.Warnings, Has.One.Contains("Old B matches no Xbox account"));
-            Assert.That((claim.Kind, claim.XboxUserID, claim.Gamertag, claim.TeamName, claim.Status), Is.EqualTo((GamertagClaimKind.RosterMatch, 2L, "Old B", "Ram Ranch", GamertagClaimStatus.Pending)));
+            Assert.That((claim.Kind, claim.XboxUserID, claim.Gamertag, claim.Team!.TeamName, claim.Status), Is.EqualTo((GamertagClaimKind.RosterMatch, 2L, "Old B", "Ram Ranch", GamertagClaimStatus.Pending)));
         });
         var again = await _service.Import(input);
         Assert.That((again.SuggestionsCreated, await _context.GamertagClaims.CountAsync()), Is.EqualTo((0, 1)), "Not suggested twice");
@@ -861,6 +862,113 @@ public class HistoricalImportServiceTests
         while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "data", "historical-archive")))
             directory = directory.Parent;
         return directory?.FullName ?? throw new DirectoryNotFoundException("data/historical-archive");
+    }
+
+    [Test]
+    public async Task Import_AGamertagCorrectedInTheArchive_LeavesNoRowForTheOldOne()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silvaa", kills: 5, team: "Rooster"))));
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", kills: 5, team: "Rooster"))));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+        Assert.That(await _context.TeamPlayers.Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+        Assert.That(report.StatsRemoved, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Import_ATeamRenamedInTheArchive_IsReplaced_WithItsRosterRecordAndTitle()
+    {
+        var champions = (string team) => new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = team, Roster = ["Silva"] }] };
+        HistoricalArchiveInput Archive(string team) => new()
+        {
+            Seasons = Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: team, wins: 9, losses: 1))).Seasons,
+            Championships = champions(team),
+        };
+        await _service.Import(Archive("Roostr"));
+
+        var report = await _service.Import(Archive("Rooster"));
+
+        _context.ChangeTracker.Clear();
+        var team = await _context.Teams.AsNoTracking().Include(t => t.TeamPlayers).SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((team.TeamName, team.RecordedWins, team.TeamPlayers.Count), Is.EqualTo(("Rooster", (int?)9, 1)), "The old team, its roster and record are gone");
+            Assert.That(await _context.PlayerChampionships.Select(c => c.TeamID).ToListAsync(), Is.EqualTo(new[] { team.TeamID }));
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.TeamID).ToListAsync(), Is.EqualTo(new int?[] { team.TeamID }));
+            Assert.That(report.TeamsRemoved, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task Import_APlayerTakenOffTheSheet_LosesTheRowAndRosterSpot()
+    {
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Gone", team: "Rooster"))));
+
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"))));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+        Assert.That(await _context.TeamPlayers.Select(tp => tp.User.DisplayName).ToListAsync(), Is.EqualTo(new[] { "Silva" }));
+    }
+
+    [Test]
+    public async Task Import_ATierRemovedOrItsTitleMoved_IsReflected()
+    {
+        var input = (params ArchiveChampionship[] titles) => new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva", team: "Rooster"), Player("Hen", team: "Hens"))).Seasons,
+            Championships = new ChampionsArchive { Champions = [.. titles] },
+        };
+        await _service.Import(input(
+            new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Pro", Team = "Rooster", Roster = ["Silva"] },
+            new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Amateur", Team = "Hens", Roster = ["Hen"] }));
+
+        // The Amateur title is gone from the record; the Pro one went to the Hens
+        await _service.Import(input(new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Pro", Team = "Hens", Roster = ["Hen"] }));
+
+        _context.ChangeTracker.Clear();
+        var titles = await _context.PlayerChampionships.AsNoTracking().Select(c => new { c.Tier, c.Team.TeamName, c.GamertagUsed }).ToListAsync();
+        Assert.That(titles.Select(t => (t.Tier, t.TeamName, t.GamertagUsed)), Is.EqualTo(new[] { ("Pro", "Hens", "Hen") }));
+    }
+
+    [Test]
+    public async Task Import_ASeasonOfEntriesOfMoreThanOneGame_IsItsRegularSeasonsGame_EachRowItsEntrys_WithAWarning()
+    {
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Silva")),
+            Entry("Winter League 2019", "reach", "AGLA", true, Player("Silva"))));
+
+        var season = await _context.Seasons.AsNoTracking().Include(s => s.GameVersion).SingleAsync();
+        var rows = await _context.PlayerSeasonStats.AsNoTracking().Include(s => s.GameVersion).OrderBy(s => s.IsPlayoffs).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(season.GameVersion!.Slug, Is.EqualTo("halo3"));
+            Assert.That(rows.Select(r => r.GameVersion.Slug), Is.EqualTo(new[] { "halo3", "reach" }));
+            Assert.That(report.Warnings, Has.One.Contains("more than one game"));
+        });
+    }
+
+    [Test]
+    public async Task Import_WaypointGamesNoLongerListed_StopBeingTheSeasonsMatches()
+    {
+        var kept = Guid.NewGuid();
+        var dropped = Guid.NewGuid();
+        await AddMatch(kept, (100, "Hells Angel cx", Outcomes.Won, 30, 10));
+        await AddMatch(dropped, (100, "Hells Angel cx", Outcomes.Won, 10, 10));
+        HistoricalArchiveInput Archive(params Guid[] games) => new()
+        {
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx", team: "Ram Ranch"))).Seasons,
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [.. games.Select(g => g.ToString())] } },
+        };
+        await _service.Import(Archive(kept, dropped));
+
+        var report = await _service.Import(Archive(kept));
+
+        Assert.That(await _context.MatchLinks.Select(l => l.MatchID).ToListAsync(), Is.EqualTo(new[] { kept }));
+        Assert.That(report.SeasonMatchesRemoved, Is.EqualTo(1));
+        Assert.That((await Lines()).Single().Kills, Is.EqualTo(30));
     }
 
     private Task<List<SeasonStatLine>> Lines() => new SeasonStatsService(_context).GetAsync();

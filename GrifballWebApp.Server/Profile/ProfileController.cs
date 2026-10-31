@@ -15,11 +15,11 @@ public class ProfileController : ControllerBase
     private readonly ISetGamertagService _setGamertagService;
     private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
 
-    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
+    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService, GrifballWebApp.Server.Stats.SeasonStatsService stats)
     {
         _context = context;
         _setGamertagService = setGamertagService;
-        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
+        _stats = stats;
     }
 
     [HttpGet("{userID:int}", Name = "GetGamertag")]
@@ -66,9 +66,6 @@ public class ProfileController : ControllerBase
         var championships = await _context.PlayerChampionships
             .AsNoTracking()
             .Where(c => c.UserID == userID)
-            .Include(c => c.Season)
-            .Include(c => c.League)
-            .Include(c => c.GameVersion)
             .OrderByDescending(c => c.Season.SeasonStart)
             .ThenBy(c => c.Tier)
             .Select(c => new PlayerChampionshipDto
@@ -78,9 +75,9 @@ public class ProfileController : ControllerBase
                 SeasonName = c.Season.SeasonName,
                 IsHistorical = c.Season.IsHistorical,
                 SeasonSourceUrl = c.Season.HistoricalSourceUrl,
-                LeagueID = c.LeagueID,
-                LeagueName = c.League.LeagueName,
-                LeagueSlug = c.League.Slug,
+                LeagueID = c.Season.LeagueID,
+                LeagueName = c.Season.League.LeagueName,
+                LeagueSlug = c.Season.League.Slug,
                 GameVersionID = c.GameVersionID,
                 GameVersionName = c.GameVersion != null ? c.GameVersion.GameVersionName : null,
                 GameVersionSlug = c.GameVersion != null ? c.GameVersion.Slug : null,
@@ -106,9 +103,11 @@ public class ProfileController : ControllerBase
             LeagueID = s.LeagueID,
             LeagueName = s.LeagueName,
             LeagueSlug = s.LeagueSlug,
-            GameVersionID = s.GameVersionID ?? 0,
-            GameVersionName = s.GameVersionName ?? "Unknown",
-            GameVersionSlug = s.GameVersionSlug ?? "unknown",
+            GameVersionID = s.GameVersionID,
+            GameVersionName = s.GameVersionName,
+            GameVersionSlug = s.GameVersionSlug,
+            UserID = s.UserID,
+            Gamertag = s.Gamertag,
             Division = s.Division,
             TeamID = s.TeamID,
             TeamName = s.TeamName,
@@ -138,8 +137,7 @@ public class ProfileController : ControllerBase
             Year = s.SeasonStart.Year
         }).ToList();
 
-        // A traded player's stored stint rows and the row combining them: the combined one is not counted twice
-        var counted = rawStats.Where(s => !s.IsCombined).ToList();
+        var counted = rawStats;
         var careerByGame = counted
             .GroupBy(s => s.GameVersionID)
             .Select(g =>
@@ -158,8 +156,8 @@ public class ProfileController : ControllerBase
                 return new GameCareerSummaryDto
                 {
                     GameVersionID = g.Key,
-                    GameVersionName = gv.GameVersionName ?? "Unknown",
-                    GameVersionSlug = gv.GameVersionSlug ?? "unknown",
+                    GameVersionName = gv.GameVersionName,
+                    GameVersionSlug = gv.GameVersionSlug,
                     SeasonsCount = distinctSeasons,
                     GamesPlayed = gp,
                     Wins = w,

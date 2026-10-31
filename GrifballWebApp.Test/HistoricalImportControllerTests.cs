@@ -22,6 +22,7 @@ public class HistoricalImportControllerTests
     private GrifballContext _context;
     private HistoricalImportSignal _signal;
     private HistoricalImportController _controller;
+    private GamertagClaimsController _claims = null!;
     private IHistoricalImportService _import;
 
     [SetUp]
@@ -29,7 +30,8 @@ public class HistoricalImportControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _signal = new HistoricalImportSignal();
-        _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal), new GamertagClaimService(_context, new UserMergeService(_context)));
+        _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal));
+        _claims = new GamertagClaimsController(new GamertagClaimService(_context, new UserMergeService(_context)));
         _import = Substitute.For<IHistoricalImportService>();
     }
 
@@ -110,6 +112,25 @@ public class HistoricalImportControllerTests
     }
 
     [Test]
+    public async Task FinishedJobs_AreDeletedAfterTheirRetention_AndAReportsListsAreCapped()
+    {
+        var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+        _context.HistoricalImportJobs.AddRange(
+            new HistoricalImportJob { Status = HistoricalImportJobStatus.Succeeded, FinishedAt = now.AddDays(-40) },
+            new HistoricalImportJob { Status = HistoricalImportJobStatus.Failed, FinishedAt = now.AddDays(-2) });
+        await _context.SaveChangesAsync();
+
+        Assert.That(await Worker(new FixedTimeProvider(now)).RunNextAsync(CancellationToken.None), Is.False);
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _context.HistoricalImportJobs.Select(j => j.Status).ToListAsync(), Is.EqualTo(new[] { HistoricalImportJobStatus.Failed }));
+        var report = new HistoricalImportReport { Warnings = [.. Enumerable.Range(0, 7).Select(i => $"w{i}")], Skipped = ["one"] };
+        HistoricalImportWorker.Cap(report, 5);
+        Assert.That(report.Warnings, Is.EqualTo(new[] { "w0", "w1", "w2", "w3", "w4", "... and 2 more" }));
+        Assert.That(report.Skipped, Is.EqualTo(new[] { "one" }));
+    }
+
+    [Test]
     public async Task AJobLeftRunningByAStoppedProcess_IsQueuedAgain_OnceItsHeartbeatIsStale()
     {
         _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
@@ -167,28 +188,32 @@ public class HistoricalImportControllerTests
             new GamertagClaim { Kind = GamertagClaimKind.SetGamertag, XboxUserID = 2, Gamertag = "Other", NormalizedGamertag = "OTHER" });
         await _context.SaveChangesAsync();
 
-        var pending = await _controller.Claims(ct: CancellationToken.None);
+        var pending = await _claims.GetClaims(ct: CancellationToken.None);
         Assert.That(pending, Has.Count.EqualTo(2));
-        Assert.That(await _controller.RejectClaim(pending[1].GamertagClaimID, CancellationToken.None), Is.InstanceOf<OkResult>());
-        Assert.That(await _controller.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<OkResult>());
-        Assert.That(await _controller.GamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<OkResult>());
+        Assert.That(await _claims.RejectClaim(pending[1].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        Assert.That(await _claims.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<NoContentResult>());
+        Assert.That(await _claims.AddGamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<NoContentResult>());
 
-        Assert.That(await _controller.Claims(ct: CancellationToken.None), Is.Empty);
-        Assert.That(await _controller.Claims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
+        Assert.That(await _claims.GetClaims(ct: CancellationToken.None), Is.Empty);
+        Assert.That(await _claims.GetClaims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
         Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.EqualTo(2));
     }
 
 
     [TestCase(nameof(HistoricalImportController.Import))]
     [TestCase(nameof(HistoricalImportController.Job))]
-    [TestCase(nameof(HistoricalImportController.Claims))]
-    [TestCase(nameof(HistoricalImportController.ApproveClaim))]
-    [TestCase(nameof(HistoricalImportController.RejectClaim))]
-    [TestCase(nameof(HistoricalImportController.GamertagHistory))]
     public void EveryAction_IsSysadminOnly(string action)
     {
         var method = typeof(HistoricalImportController).GetMethod(action)!;
         var roles = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
+        Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
+    }
+
+    [Test]
+    public void TheClaimsController_IsSysadminOnly()
+    {
+        var roles = typeof(GamertagClaimsController).GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true)
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).ToList();
         Assert.That(roles, Is.EqualTo(new[] { "Sysadmin" }), "Approving a claim merges users, which only a sysadmin does");
     }

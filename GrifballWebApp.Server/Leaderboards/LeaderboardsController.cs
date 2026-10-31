@@ -1,6 +1,9 @@
 using GrifballWebApp.Database;
 using Microsoft.AspNetCore.Mvc;
+using GrifballWebApp.Server.Extensions;
+using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace GrifballWebApp.Server.Leaderboards;
 
@@ -14,59 +17,93 @@ public class LeaderboardsController : ControllerBase
 
     private readonly GrifballContext _context;
     private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
+    private readonly IMemoryCache _cache;
+    private const string CacheKey = "leaderboards";
+    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
 
-    public LeaderboardsController(GrifballContext context, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
+    public LeaderboardsController(GrifballContext context, GrifballWebApp.Server.Stats.SeasonStatsService stats, IMemoryCache cache)
     {
         _context = context;
-        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
+        _stats = stats;
+        _cache = cache;
     }
 
     [HttpGet(Name = "GetLeaderboards")]
     public async Task<LeaderboardsDto> GetLeaderboards(CancellationToken ct)
     {
-        var titles = await _context.PlayerChampionships.AsNoTracking()
-            .Select(c => new
-            {
-                c.PlayerChampionshipID,
-                c.UserID,
-                c.GamertagUsed,
-                Current = c.User.XboxUser != null ? c.User.XboxUser.Gamertag : null,
-                c.SeasonID,
-                c.Season.SeasonName,
-                c.Season.SeasonStart,
-                c.Tier,
-                c.TeamID,
-                c.Team.TeamName,
-            })
-            .ToListAsync(ct);
+        // Every season's titles and stats change only when a result is reported or an import runs: a few minutes stale is fine
+        return (await _cache.GetOrCreateAsync(CacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = CacheFor;
+            return await Compute(ct);
+        }))!;
+    }
 
-        var ringLeaders = titles
+    private async Task<LeaderboardsDto> Compute(CancellationToken ct)
+    {
+        // The names the app shows for users (gamertag, Discord name, display name)
+        var names = (await _context.Users.AsNoTracking()
+            .Select(u => new { u.Id, Gamertag = u.XboxUser != null ? u.XboxUser.Gamertag : null, Discord = u.DiscordUser != null ? u.DiscordUser.DiscordUsername : null, u.DisplayName, u.UserName })
+            .ToListAsync(ct))
+            .ToDictionary(u => u.Id, u => (string?)UserNames.Pick(u.Gamertag, u.Discord, u.DisplayName, u.UserName));
+
+        // Who holds the most titles: counted in the database, the top players' titles then loaded
+        var top = await _context.PlayerChampionships.AsNoTracking()
             .GroupBy(c => c.UserID)
-            .Select(g => new RingLeaderDto
+            .Select(g => new { UserID = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.UserID)
+            .Take(PlayersShown)
+            .ToListAsync(ct);
+        var topIDs = top.Select(t => t.UserID).ToList();
+        var topTitles = await _context.PlayerChampionships.AsNoTracking()
+            .Where(c => topIDs.Contains(c.UserID))
+            .Select(c => new { c.UserID, c.GamertagUsed, c.Season.SeasonName, c.Season.SeasonStart, c.Tier })
+            .ToListAsync(ct);
+        var ringLeaders = top.Select(t =>
+        {
+            var held = topTitles.Where(c => c.UserID == t.UserID).OrderBy(c => c.SeasonStart).ToList();
+            return new RingLeaderDto
             {
-                UserID = g.Key,
-                Gamertag = g.Select(c => c.Current).FirstOrDefault(n => n is not null) ?? g.MaxBy(c => c.SeasonStart)!.GamertagUsed,
-                RingsCount = g.Count(),
-                Titles = g.OrderBy(c => c.SeasonStart).Select(c => $"{c.SeasonName} ({c.Tier})").Distinct().ToList(),
-            })
+                UserID = t.UserID,
+                Gamertag = names.GetValueOrDefault(t.UserID) ?? held.Last().GamertagUsed,
+                RingsCount = t.Count,
+                Titles = held.Select(c => $"{c.SeasonName} ({c.Tier})").Distinct().ToList(),
+            };
+        })
             .OrderByDescending(r => r.RingsCount)
             .ThenBy(r => r.Gamertag)
-            .Take(PlayersShown)
             .ToList();
 
-        var dynasties = titles
-            .GroupBy(c => c.TeamName.Trim(), StringComparer.OrdinalIgnoreCase)
+        // A team is one season's: a dynasty is the teams of one league that carried a name from season to season. Only
+        // title-winning teams are loaded.
+        var champions = await _context.Teams.AsNoTracking()
+            .Where(t => t.PlayerChampionships.Any())
+            .Select(t => new
+            {
+                t.TeamID,
+                t.TeamName,
+                t.SeasonID,
+                t.Season.LeagueID,
+                t.Season.SeasonName,
+                t.Season.SeasonStart,
+                Tiers = t.PlayerChampionships.Select(c => c.Tier).Distinct().ToList(),
+            })
+            .ToListAsync(ct);
+        var dynasties = champions
+            .GroupBy(t => (t.LeagueID, Name: HistoricalKeys.Normalize(t.TeamName)))
             .Select(g =>
             {
-                var latest = g.MaxBy(c => c.SeasonStart)!;
+                var latest = g.MaxBy(t => t.SeasonStart)!;
+                var titles = g.OrderBy(t => t.SeasonStart).SelectMany(t => t.Tiers.Select(tier => $"{t.SeasonName} ({tier})")).Distinct().ToList();
                 return new DynastyDto
                 {
                     TeamName = latest.TeamName,
                     LatestTeamID = latest.TeamID,
                     LatestSeasonID = latest.SeasonID,
-                    ChampionshipsCount = g.Select(c => (c.SeasonID, c.Tier)).Distinct().Count(),
-                    SeasonsActive = g.Select(c => c.SeasonID).Distinct().Count(),
-                    Titles = g.OrderBy(c => c.SeasonStart).Select(c => $"{c.SeasonName} ({c.Tier})").Distinct().ToList(),
+                    ChampionshipsCount = titles.Count,
+                    SeasonsActive = g.Select(t => t.SeasonID).Distinct().Count(),
+                    Titles = titles,
                 };
             })
             .OrderByDescending(t => t.ChampionshipsCount)
@@ -74,11 +111,8 @@ public class LeaderboardsController : ControllerBase
             .Take(TeamsShown)
             .ToList();
 
-        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season). A
-        // traded player's stored row combining their stints is left out: the stints are counted.
-        var stats = (await _stats.GetAsync(ct: ct)).Where(s => !s.IsCombined).ToList();
-        var current = await _context.Users.AsNoTracking().Where(u => u.XboxUser != null)
-            .Select(u => new { u.Id, u.XboxUser!.Gamertag }).ToDictionaryAsync(u => u.Id, u => u.Gamertag, ct);
+        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season)
+        var stats = await _stats.GetAsync(ct: ct);
 
         var players = stats
             .GroupBy(s => s.UserID)
@@ -88,7 +122,7 @@ public class LeaderboardsController : ControllerBase
                 var deaths = g.Sum(s => s.Deaths);
                 return new PlayerTotals(
                     g.Key,
-                    current.GetValueOrDefault(g.Key) ?? g.MaxBy(s => s.SeasonStart)!.Gamertag,
+                    names.GetValueOrDefault(g.Key) ?? g.MaxBy(s => s.SeasonStart)!.Gamertag,
                     g.Sum(s => s.GamesPlayed),
                     g.Sum(s => s.Goals),
                     kills,

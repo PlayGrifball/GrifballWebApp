@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace GrifballWebApp.Server.Historical;
 
 /// <summary>
-/// The historical import and the gamertag claims it leaves for a decision: sysadmin only, like the other data pulls in
-/// AdminController and like merging users (approving a claim merges a placeholder). The archive is uploaded rather than read from disk: the data/ folder is not in the image,
+/// The historical import: sysadmin only, like the other data pulls in AdminController (the gamertag claims it leaves
+/// for a decision are GamertagClaimsController's). The archive is uploaded rather than read from disk: the data/ folder is not in the image,
 /// and an upload works the same on every environment. The import runs in the background (HistoricalImportWorker): the
 /// upload returns 202 with the job's ID, and <see cref="Job"/> reports its progress and result. Running it again with
 /// the same files changes nothing.
@@ -16,12 +16,10 @@ namespace GrifballWebApp.Server.Historical;
 public class HistoricalImportController : ControllerBase
 {
     private readonly HistoricalImportJobs _jobs;
-    private readonly GamertagClaimService _claims;
 
-    public HistoricalImportController(HistoricalImportJobs jobs, GamertagClaimService claims)
+    public HistoricalImportController(HistoricalImportJobs jobs)
     {
         _jobs = jobs;
-        _claims = claims;
     }
 
     /// <param name="seasons">compiled/unified-historical-seasons.json</param>
@@ -61,38 +59,6 @@ public class HistoricalImportController : ControllerBase
     [Authorize(Roles = "Sysadmin")]
     public async Task<ActionResult<HistoricalImportJobDto>> Job([FromRoute] int jobId, CancellationToken ct)
         => await _jobs.Get(jobId, ct) is { } job ? job : NotFound();
-
-    /// <summary>Gamertag claims, pending by default: roster matches the import suggests and placeholders users claimed.</summary>
-    [HttpGet(Name = "GetGamertagClaims")]
-    [Authorize(Roles = "Sysadmin")]
-    public Task<List<GamertagClaimDto>> Claims([FromQuery] GamertagClaimStatus? status = GamertagClaimStatus.Pending, CancellationToken ct = default)
-        => _claims.List(status, ct);
-
-    /// <summary>Records the gamertag as the Xbox account's and merges the placeholder into the account's user.</summary>
-    [HttpPost("{claimId:int}", Name = "ApproveGamertagClaim")]
-    [Authorize(Roles = "Sysadmin")]
-    public async Task<IActionResult> ApproveClaim([FromRoute] int claimId, CancellationToken ct)
-    {
-        await _claims.Approve(claimId, ct);
-        return Ok();
-    }
-
-    [HttpPost("{claimId:int}", Name = "RejectGamertagClaim")]
-    [Authorize(Roles = "Sysadmin")]
-    public async Task<IActionResult> RejectClaim([FromRoute] int claimId, CancellationToken ct)
-    {
-        await _claims.Reject(claimId, ct);
-        return Ok();
-    }
-
-    /// <summary>Adds a gamertag an Xbox account is known to have had (a rename the app didn't see).</summary>
-    [HttpPost(Name = "AddGamertagHistory")]
-    [Authorize(Roles = "Sysadmin")]
-    public async Task<IActionResult> GamertagHistory([FromBody] AddGamertagHistoryRequest request, CancellationToken ct)
-    {
-        await _claims.AddHistory(request, ct);
-        return Ok();
-    }
 
     private static async Task<T> Read<T>(IFormFile file, CancellationToken ct)
     {

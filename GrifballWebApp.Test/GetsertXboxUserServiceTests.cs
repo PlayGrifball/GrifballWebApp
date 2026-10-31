@@ -25,7 +25,7 @@ public class GetsertXboxUserServiceTests
         _context = await SetUpFixture.NewGrifballContext();
         _logger = Substitute.For<ILogger<GetsertXboxUserService>>();
         _haloInfiniteClientFactory = Substitute.For<IHaloInfiniteClientFactory>();
-        _service = new GetsertXboxUserService(_logger, _context, _haloInfiniteClientFactory);
+        _service = new GetsertXboxUserService(_logger, _context, _haloInfiniteClientFactory, TimeProvider.System);
     }
 
     [TearDown]

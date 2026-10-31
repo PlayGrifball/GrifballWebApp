@@ -33,7 +33,7 @@ public class SeasonAndAvailabilityControllerTests
         var current = new Season { SeasonName = "Current", SeasonStart = now.AddDays(-1), SeasonEnd = now.AddDays(10) };
         _context.Seasons.AddRange(past, current);
         await _context.SaveChangesAsync();
-        var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context));
+        var controller = new SeasonController(new EventOrganizerService(_context), new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context)));
 
         Assert.That(await controller.GetCurrentSeasonID(CancellationToken.None), Is.EqualTo(current.SeasonID));
         Assert.That(await controller.GetSeasonName(past.SeasonID, CancellationToken.None), Is.EqualTo("Past"));

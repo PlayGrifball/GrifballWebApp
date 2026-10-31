@@ -30,7 +30,8 @@ public class SetGamertagServiceTests
         _setGamertagService = new SetGamertagService(
             _context,
             _getsertXboxUserService,
-            _userMergeService
+            _userMergeService,
+            new GrifballWebApp.Server.Historical.GamertagMatching(_context)
         );
     }
 
@@ -490,6 +491,33 @@ public class SetGamertagServiceTests
             Assert.That(result, Does.Contain("could not be merged"));
             Assert.That(await fresh.Users.CountAsync(u => u.Id == first.Id || u.Id == second.Id), Is.EqualTo(2), "Neither merged");
             Assert.That((await fresh.Users.SingleAsync(u => u.Id == real.Id)).XboxUserID, Is.Null, "Nothing changed");
+        });
+    }
+
+    [Test]
+    public async Task TheXuidHeldByAnImportPlaceholder_AndARenamedPastGamertag_AreBothMerged()
+    {
+        var real = await _context.AddUser("real_ghost");
+        var xbox = new XboxUser { XboxUserID = 778899, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.Add(xbox);
+        await _context.SaveChangesAsync();
+        // The import tied a placeholder to the XUID (its Waypoint games), and the sheets of an older season have the old name
+        var holding = new User { UserName = "historical:Ghost Spartan", NormalizedUserName = "HISTORICAL:GHOST SPARTAN", DisplayName = "Ghost Spartan", IsDummyUser = true, XboxUserID = 778899 };
+        var older = await PlaceholderWithARow("Old Ghost", 2019, "Winter League 2019");
+        _context.Users.Add(holding);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 778899, Gamertag = "Old Ghost", NormalizedGamertag = "OLD GHOST", Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>()).Returns((xbox, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result, Is.Null);
+            Assert.That((await fresh.Users.SingleAsync(u => u.Id == real.Id)).XboxUserID, Is.EqualTo(778899L));
+            Assert.That(await fresh.Users.AnyAsync(u => u.Id == holding.Id || u.Id == older.Id), Is.False, "Both placeholders merged");
+            Assert.That(await fresh.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(real.Id));
         });
     }
 }

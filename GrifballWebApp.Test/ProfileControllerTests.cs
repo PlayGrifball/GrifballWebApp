@@ -21,7 +21,7 @@ public class ProfileControllerTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _setGamertagService = Substitute.For<ISetGamertagService>();
-        _controller = new ProfileController(_context, _setGamertagService);
+        _controller = new ProfileController(_context, _setGamertagService, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
     }
 
     [TearDown]
@@ -139,7 +139,6 @@ public class ProfileControllerTests
         {
             UserID = user.Id,
             SeasonID = season.SeasonID,
-            LeagueID = league.LeagueID,
             GameVersionID = h3.GameVesionID,
             Tier = "Pro",
             TeamID = dynasty.TeamID,

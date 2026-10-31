@@ -18,6 +18,8 @@ public class SeasonSummaryDto
     /// <summary>Backfilled from the historical archive: <see cref="HistoricalSourceUrl"/> is its source spreadsheet.</summary>
     public bool IsHistorical { get; set; }
     public string? HistoricalSourceUrl { get; set; }
+    /// <summary>The season is over: a section with nothing to show says it wasn't recorded.</summary>
+    public bool HasEnded { get; set; }
     public int TeamCount { get; set; }
     public int SignupCount { get; set; }
     /// <summary>Regular season matches (not in the bracket).</summary>

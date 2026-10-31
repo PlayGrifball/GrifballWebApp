@@ -34,11 +34,6 @@ public class PlayerChampionshipConfiguration : IEntityTypeConfiguration<PlayerCh
             .HasForeignKey(e => e.TeamID)
             .OnDelete(DeleteBehavior.NoAction);
 
-        entity.HasOne(e => e.League)
-            .WithMany()
-            .HasForeignKey(e => e.LeagueID)
-            .OnDelete(DeleteBehavior.Restrict);
-
         entity.HasOne(e => e.GameVersion)
             .WithMany()
             .HasForeignKey(e => e.GameVersionID)

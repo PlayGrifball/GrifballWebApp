@@ -13,7 +13,6 @@ public class PlayerSeasonStatConfiguration : IEntityTypeConfiguration<PlayerSeas
         entity.HasKey(e => e.PlayerSeasonStatID);
 
         entity.Property(e => e.Gamertag).HasMaxLength(50).IsRequired();
-        entity.Property(e => e.Division).HasMaxLength(50);
         entity.Property(e => e.TradeNote).HasMaxLength(100);
         entity.Property(e => e.RoleNote).HasMaxLength(50);
 

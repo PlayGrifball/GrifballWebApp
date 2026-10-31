@@ -26,6 +26,9 @@ public class Season : AuditableEntity
     public int? GameVersionID { get; set; }
     /// <summary>The league the season is in; the app's own seasons are in <see cref="League.DefaultLeagueID"/>.</summary>
     public int LeagueID { get; set; } = League.DefaultLeagueID;
+    /// <summary>The season's division (Pro, Legacy, ...), the tier its champions win; null: one open tier. Archive
+    /// seasons of different divisions are separate seasons (often named "... (Pro)"), so a stat row has no division of
+    /// its own.</summary>
     public string Division { get; set; }
     /// <summary>Imported from the historical archive (teams, rosters, player stats and championships from its
     /// spreadsheets, see <see cref="HistoricalSourceUrl"/>). Otherwise a season like any other: what it lacks (signups, a

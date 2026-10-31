@@ -351,9 +351,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<string>("TeamName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int?>("TeamID")
+                        .HasColumnType("int");
 
                     b.Property<long>("XboxUserID")
                         .HasColumnType("bigint");
@@ -366,10 +365,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("TeamID");
+
                     b.HasIndex("XboxUserID");
 
                     b.HasIndex("Kind", "XboxUserID", "NormalizedGamertag")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[Status] IN (1, 2)");
 
                     b.ToTable("GamertagClaims", "Event");
 
@@ -1670,9 +1672,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Property<bool>("IsCaptain")
                         .HasColumnType("bit");
 
-                    b.Property<int>("LeagueID")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("ModifiedAt")
                         .HasColumnType("datetime2");
 
@@ -1708,8 +1707,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("GameVersionID");
 
                     b.HasIndex("GamertagUsed");
-
-                    b.HasIndex("LeagueID");
 
                     b.HasIndex("TeamID");
 
@@ -1769,10 +1766,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
 
                     b.Property<int>("Deaths")
                         .HasColumnType("int");
-
-                    b.Property<string>("Division")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ExtendedMetricsJson")
                         .HasColumnType("nvarchar(max)");
@@ -3159,11 +3152,11 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.HasIndex("XboxUserID", "NormalizedGamertag")
                         .IsUnique();
 
-                    b.ToTable("XboxGamertagHistory", "Event");
+                    b.ToTable("PastGamertags", "Xbox");
 
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
-                                ttb.UseHistoryTable("XboxGamertagHistoryHistory", "Event");
+                                ttb.UseHistoryTable("PastGamertagsHistory", "Xbox");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -3376,6 +3369,10 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("SeasonID")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("GrifballWebApp.Database.Models.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamID");
+
                     b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
                         .WithMany()
                         .HasForeignKey("XboxUserID")
@@ -3385,6 +3382,8 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("PlaceholderUser");
 
                     b.Navigation("Season");
+
+                    b.Navigation("Team");
 
                     b.Navigation("XboxUser");
                 });
@@ -3627,12 +3626,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("GameVersionID")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("GrifballWebApp.Database.Models.League", "League")
-                        .WithMany()
-                        .HasForeignKey("LeagueID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
                         .WithMany()
                         .HasForeignKey("SeasonID")
@@ -3652,8 +3645,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .IsRequired();
 
                     b.Navigation("GameVersion");
-
-                    b.Navigation("League");
 
                     b.Navigation("Season");
 

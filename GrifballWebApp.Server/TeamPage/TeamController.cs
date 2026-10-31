@@ -9,16 +9,14 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamController : ControllerBase
 {
     private readonly GrifballContext _context;
-    private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
-    public TeamController(GrifballContext context, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
+    public TeamController(GrifballContext context)
     {
         _context = context;
-        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
     }
 
     /// <summary>
     /// The team: its record (from its matches, or the one its source spreadsheet gives for a season whose matches are
-    /// not in the app), roster, titles and its players' season stats where the season has them.
+    /// not in the app), roster and titles; its players' stats are Season/GetSeasonPlayerStats?teamID=.
     /// </summary>
     [HttpGet("{teamID:int}", Name = "Team")]
     public async Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct)
@@ -30,17 +28,19 @@ public class TeamController : ControllerBase
                 SeasonID = x.SeasonID,
                 IsHistorical = x.Season.IsHistorical,
                 HistoricalSourceUrl = x.Season.HistoricalSourceUrl,
-                RecordFromSource = x.RecordedWins != null || x.RecordedLosses != null,
-                Wins = x.RecordedWins ?? x.HomeMatches.Count(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won) + x.AwayMatches.Count(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won),
-                Losses = x.RecordedLosses ?? x.HomeMatches.Count(x => x.HomeTeamResult != Database.Models.SeasonMatchResult.Won && x.HomeTeamResult != null) + x.AwayMatches.Count(x => x.AwayTeamResult != Database.Models.SeasonMatchResult.Won && x.AwayTeamResult != null),
+                SeasonHasEnded = x.Season.SeasonEnd < DateTime.UtcNow,
+                Wins = 0,
+                Losses = 0,
                 TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
                 Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
                 Players = x.TeamPlayers.Select(x => new PlayerDto()
                 {
                     TeamPlayerID = x.TeamPlayerID,
                     UserID = x.UserID,
-                    // A placeholder for a player of an imported season has no Xbox account: the name the sheet gave
-                    Gamertag = x.User.XboxUser != null ? x.User.XboxUser.Gamertag : x.User.DisplayName,
+                    // As the app names a user everywhere (UserNames): a placeholder of an imported season has no Xbox account
+                    Gamertag = x.User.XboxUser != null ? x.User.XboxUser.Gamertag
+                        : x.User.DiscordUser != null ? x.User.DiscordUser.DiscordUsername
+                        : x.User.DisplayName ?? x.User.UserName,
                     DraftCaptainOrder = x.DraftCaptainOrder,
                     DraftRound = x.DraftRound,
                     IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
@@ -50,27 +50,12 @@ public class TeamController : ControllerBase
             .FirstOrDefaultAsync(ct);
         if (team is null)
             return null;
-        // Its players' stats for it: from the season's games where it has them, otherwise the stored season totals
-        team.Stats = (await _stats.GetAsync(seasonID: team.SeasonID, ct: ct))
-            .Where(s => s.TeamID == teamID)
-            .OrderBy(s => s.IsPlayoffs).ThenByDescending(s => s.Goals).ThenByDescending(s => s.Kills)
-            .Select(s => new TeamPlayerStatDto()
-            {
-                UserID = s.UserID,
-                Gamertag = s.Gamertag,
-                IsPlayoffs = s.IsPlayoffs,
-                StintIndex = s.StintIndex,
-                TradeNote = s.TradeNote,
-                RoleNote = s.RoleNote,
-                GamesPlayed = s.GamesPlayed,
-                Wins = s.Wins,
-                Losses = s.Losses,
-                Goals = s.Goals,
-                Kills = s.Kills,
-                Deaths = s.Deaths,
-                KdRatio = s.KdRatio,
-                CarrierKills = s.CarrierKills,
-            }).ToArray();
+        // Counted as the standings count it
+        var record = await _context.Teams.Where(x => x.TeamID == teamID).Select(GrifballWebApp.Server.TeamStandings.TeamRecord.Of).FirstAsync(ct);
+        (team.Wins, team.Losses, team.RecordFromSource) = (record.Wins, record.Losses, record.FromSource);
+        // A placeholder of the import is shown by its gamertag, never its internal user name
+        foreach (var player in team.Players)
+            player.Gamertag = GrifballWebApp.Server.Extensions.UserNames.WithoutPlaceholderPrefix(player.Gamertag) ?? "";
         return team;
     }
 
@@ -119,9 +104,10 @@ public class TeamDto
     public string? HistoricalSourceUrl { get; set; }
     /// <summary>Wins and Losses are the source spreadsheet's (the season's matches are not in the app).</summary>
     public bool RecordFromSource { get; set; }
+    /// <summary>The team's season has ended: a section without data says it wasn't recorded.</summary>
+    public bool SeasonHasEnded { get; set; }
     /// <summary>The tiers whose title the team won.</summary>
     public string[] Titles { get; set; } = [];
-    public TeamPlayerStatDto[] Stats { get; set; } = [];
     public required int Wins { get; set; }
     public required int Losses { get; set; }
     public required int TBD { get; set; }
@@ -139,23 +125,7 @@ public class PlayerDto
     public bool IsCaptain { get; set; }
 }
 
-/// <summary>A player's totals for the team in one phase of the season.</summary>
-public class TeamPlayerStatDto
-{
-    public int UserID { get; set; }
-    public required string Gamertag { get; set; }
-    public bool IsPlayoffs { get; set; }
-    public int StintIndex { get; set; }
-    public string? TradeNote { get; set; }
-    public string? RoleNote { get; set; }
-    public int GamesPlayed { get; set; }
-    public int Wins { get; set; }
-    public int Losses { get; set; }
-    public int Goals { get; set; }
-    public int Kills { get; set; }
-    public int Deaths { get; set; }
-    public decimal? KdRatio { get; set; }
-    public int CarrierKills { get; set; }
+
 }
 
 public class MatchDto

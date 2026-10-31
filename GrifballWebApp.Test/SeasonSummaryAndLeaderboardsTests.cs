@@ -27,7 +27,7 @@ public class SeasonSummaryAndLeaderboardsTests
     public async Task Setup()
     {
         _context = await SetUpFixture.NewGrifballContext();
-        _service = new SeasonService(_context);
+        _service = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
     }
 
     [TearDown]
@@ -212,7 +212,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await new ChampionshipService(_context).SetChampionsAsync(later.SeasonID, "Open", relentless.TeamID, null, null);
         _context.ChangeTracker.Clear();
 
-        var boards = await new LeaderboardsController(_context).GetLeaderboards(CancellationToken.None);
+        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -223,10 +223,10 @@ public class SeasonSummaryAndLeaderboardsTests
             var dynasty = boards.Dynasties.Single();
             Assert.That((dynasty.TeamName, dynasty.LatestTeamID, dynasty.LatestSeasonID, dynasty.ChampionshipsCount, dynasty.SeasonsActive),
                 Is.EqualTo(("relentless", relentless.TeamID, later.SeasonID, 2, 2)), "One name across seasons, linked to its latest title");
-            Assert.That(boards.GoalLeaders.Select(g => (g.UserID, g.StatValue)), Is.EqualTo(new[] { (captain.Id, 17), (benchy.Id, 7), (runner.Id, 5) }),
-                "A combined row is not counted twice");
-            Assert.That(boards.GoalLeaders[0].PerGame, Is.EqualTo(0.85m));
-            Assert.That(boards.GoalLeaders[0].SeasonsCount, Is.EqualTo(2));
+            Assert.That(boards.GoalLeaders.Select(g => (g.UserID, g.StatValue)), Is.EqualTo(new[] { (benchy.Id, 37), (captain.Id, 17), (runner.Id, 5) }),
+                "A combined row (a sheet with the regular season and playoffs together, the season's only row) counts");
+            Assert.That(boards.GoalLeaders[1].PerGame, Is.EqualTo(0.85m));
+            Assert.That(boards.GoalLeaders[1].SeasonsCount, Is.EqualTo(2));
             Assert.That(boards.GamesPlayedLeaders.First().PerGame, Is.Null);
             Assert.That(boards.KillLeaders.First().SecondaryStat, Does.EndWith("K/D"));
             Assert.That(boards.CarrierStopLeaders.Select(c => c.UserID), Does.Contain(benchy.Id));

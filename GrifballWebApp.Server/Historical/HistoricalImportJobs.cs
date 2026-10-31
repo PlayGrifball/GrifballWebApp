@@ -30,6 +30,11 @@ public class HistoricalImportWorkerOptions
     /// retried by the Halo client up to 5 times at most 30 s apart (a few minutes), well under this.
     /// </summary>
     public TimeSpan StaleAfter { get; set; } = TimeSpan.FromMinutes(30);
+    /// <summary>Finished jobs (their reports) are kept this long, then deleted.</summary>
+    public TimeSpan KeepFinishedFor { get; set; } = TimeSpan.FromDays(30);
+    /// <summary>A report's lists (skipped, warnings, missing matches, errors) keep at most this many lines each, then
+    /// say how many more there were: a report stays a few hundred KB at most.</summary>
+    public int ReportLinesKept { get; set; } = 500;
 }
 
 /// <summary>Wakes the worker when a job is queued.</summary>
@@ -155,6 +160,11 @@ public sealed class HistoricalImportWorker : BackgroundService
             var context = scope.ServiceProvider.GetRequiredService<GrifballContext>();
             var now = _time.GetUtcNow().UtcDateTime;
             var stale = now - _options.Value.StaleAfter;
+            // Retention: finished jobs older than KeepFinishedFor go
+            var expired = now - _options.Value.KeepFinishedFor;
+            await context.HistoricalImportJobs
+                .Where(j => (j.Status == HistoricalImportJobStatus.Succeeded || j.Status == HistoricalImportJobStatus.Failed) && j.FinishedAt < expired)
+                .ExecuteDeleteAsync(ct);
             await context.HistoricalImportJobs
                 .Where(j => j.Status == HistoricalImportJobStatus.Running && (j.HeartbeatAt == null || j.HeartbeatAt < stale))
                 .ExecuteUpdateAsync(s => s.SetProperty(j => j.Status, HistoricalImportJobStatus.Queued).SetProperty(j => j.Stage, "Queued again after a restart"), ct);
@@ -187,6 +197,7 @@ public sealed class HistoricalImportWorker : BackgroundService
                 ?? throw new InvalidDataException("The job's archive is empty");
             var import = scope.ServiceProvider.GetRequiredService<IHistoricalImportService>();
             var report = await import.Import(input, progress => Progress(jobId, progress, ct), ct);
+            Cap(report, _options.Value.ReportLinesKept);
             await Finish(jobId, HistoricalImportJobStatus.Succeeded, JsonSerializer.Serialize(report, HistoricalArchiveInput.JsonOptions), null, ct);
             _logger.LogInformation("Historical import job {JobID} finished", jobId);
         }
@@ -199,6 +210,19 @@ public sealed class HistoricalImportWorker : BackgroundService
         {
             _logger.LogError(ex, "Historical import job {JobID} failed", jobId);
             await Finish(jobId, HistoricalImportJobStatus.Failed, null, ex.GetBaseException().Message, CancellationToken.None);
+        }
+    }
+
+    /// <summary>Keeps each of the report's lists to <paramref name="lines"/> lines, the last saying how many more there were.</summary>
+    public static void Cap(HistoricalImportReport report, int lines)
+    {
+        foreach (var list in new[] { report.Skipped, report.Warnings, report.MissingMatches, report.Errors })
+        {
+            if (list.Count <= lines)
+                continue;
+            var more = list.Count - lines;
+            list.RemoveRange(lines, more);
+            list.Add($"... and {more} more");
         }
     }
 

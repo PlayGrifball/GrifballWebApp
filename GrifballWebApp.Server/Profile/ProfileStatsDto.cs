@@ -39,8 +39,8 @@ public class PlayerChampionshipDto
 public class GameCareerSummaryDto
 {
     public int? GameVersionID { get; set; }
-    public required string GameVersionName { get; set; }
-    public required string GameVersionSlug { get; set; }
+    public string? GameVersionName { get; set; }
+    public string? GameVersionSlug { get; set; }
     public int SeasonsCount { get; set; }
     public int GamesPlayed { get; set; }
     public int Wins { get; set; }
@@ -68,10 +68,10 @@ public class GameCareerSummaryDto
     public int? Score { get; set; }
 }
 
-public class PlayerSeasonStatDetailDto
+/// <summary>A profile's season line: the season stats row every page shows (<see cref="GrifballWebApp.Server.Seasons.SeasonPlayerStatDto"/>),
+/// with the season it is of.</summary>
+public class PlayerSeasonStatDetailDto : GrifballWebApp.Server.Seasons.SeasonPlayerStatDto
 {
-    /// <summary>The stored row, for stored season totals; null for stats from the season's games.</summary>
-    public int? PlayerSeasonStatID { get; set; }
     public int SeasonID { get; set; }
     public required string SeasonName { get; set; }
     /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>
@@ -79,35 +79,13 @@ public class PlayerSeasonStatDetailDto
     public int LeagueID { get; set; }
     public required string LeagueName { get; set; }
     public required string LeagueSlug { get; set; }
-    public int GameVersionID { get; set; }
-    public required string GameVersionName { get; set; }
-    public required string GameVersionSlug { get; set; }
-    public string? Division { get; set; }
-    public int? TeamID { get; set; }
-    public string? TeamName { get; set; }
-    public string? TradeNote { get; set; }
-    public string? RoleNote { get; set; }
-    public int StintIndex { get; set; }
-    public bool IsPlayoffs { get; set; }
-    public bool IsCombined { get; set; }
-    public required string Source { get; set; }
-    public int GamesPlayed { get; set; }
-    public int Wins { get; set; }
-    public int Losses { get; set; }
-    public decimal? WinPercent { get; set; }
-    public int Goals { get; set; }
-    public int Kills { get; set; }
-    public int Deaths { get; set; }
-    public int Assists { get; set; }
-    public decimal? KdRatio { get; set; }
-    public int? KdSpread { get; set; }
-    public int CarrierKills { get; set; }
-    public int Sprees { get; set; }
-    public int MultiKills { get; set; }
-    public int Exterminations { get; set; }
+    public int? GameVersionID { get; set; }
+    public string? GameVersionName { get; set; }
+    public string? GameVersionSlug { get; set; }
     public int? DamageDealt { get; set; }
     public int? DamageTaken { get; set; }
     public int? Score { get; set; }
-    public int? Year { get; set; }
+    public int Year { get; set; }
     public bool IsHistorical { get; set; }
+}
 }

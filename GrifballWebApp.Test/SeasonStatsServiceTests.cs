@@ -42,8 +42,8 @@ public class SeasonStatsServiceTests
         var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow.AddMinutes(-20),
             SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
         _context.ChangeTracker.Clear();
-        var bracketService = new BracketService(_context, new TeamStandingsService(_context));
-        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService).ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
+        var bracketService = new BracketService(_context, new TeamStandingsService(_context), new GrifballWebApp.Server.Championships.ChampionshipService(_context));
+        await new SeasonMatchService(_context, Substitute.For<IDataPullService>(), bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context)).ReportMatch(seeded.SeasonMatch.SeasonMatchID, match.MatchID);
         _context.ChangeTracker.Clear();
         return seeded;
     }
@@ -52,12 +52,12 @@ public class SeasonStatsServiceTests
     public async Task ALiveSeason_HasStatsOnItsPages_WithNoImportInvolved()
     {
         var seeded = await PlayALiveSeason();
-        var seasons = new SeasonService(_context);
+        var seasons = new SeasonService(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context));
 
         var stats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID);
         var summary = (await seasons.GetSeasonSummary(seeded.Season.SeasonID))!;
-        var team = (await new TeamController(_context).Team(seeded.Home.TeamID, CancellationToken.None))!;
-        var boards = await new LeaderboardsController(_context).GetLeaderboards(CancellationToken.None);
+        var teamStats = await seasons.GetSeasonPlayerStats(seeded.Season.SeasonID, seeded.Home.TeamID);
+        var boards = await new LeaderboardsController(_context, new GrifballWebApp.Server.Stats.SeasonStatsService(_context), new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions())).GetLeaderboards(CancellationToken.None);
 
         Assert.Multiple(async () =>
         {
@@ -68,7 +68,7 @@ public class SeasonStatsServiceTests
             Assert.That((top.Gamertag, top.Goals, top.GamesPlayed, top.Wins, top.TeamID, top.TeamName), Is.EqualTo(("GT104", 4, 1, 1, (int?)seeded.Home.TeamID, "Home Team")));
             Assert.That(stats.Where(s => s.TeamID == seeded.Away.TeamID).Select(s => (s.Wins, s.Losses)), Is.All.EqualTo((0, 1)));
             Assert.That(summary.PlayerStatCount, Is.EqualTo(8));
-            Assert.That(team.Stats.Select(s => s.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT102", "GT103", "GT104" }));
+            Assert.That(teamStats.Select(s => s.Gamertag), Is.EquivalentTo(new[] { "GT101", "GT102", "GT103", "GT104" }));
             Assert.That(boards.GoalLeaders.Select(g => g.Gamertag).First(), Is.EqualTo("GT104"));
             Assert.That(boards.KillLeaders, Has.Count.EqualTo(8));
         });
@@ -89,6 +89,25 @@ public class SeasonStatsServiceTests
         var lines = (await _service.GetAsync(userID: user.Id)).Select(l => (l.IsPlayoffs, l.FromMatches, l.Goals, l.GamesPlayed));
 
         Assert.That(lines, Is.EquivalentTo(new[] { (false, true, 1, 1), (true, false, 7, 2) }));
+    }
+
+    [Test]
+    public async Task ACombinedRow_CoversBothPhases_SoGamesInEitherReplaceIt()
+    {
+        var seeded = await PlayALiveSeason();
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 101);
+        var other = await _context.Users.SingleAsync(u => u.XboxUserID == 102);
+        var old = await _context.AddSeason("Old Season");
+        _context.PlayerSeasonStats.AddRange(
+            new PlayerSeasonStat { UserID = user.Id, SeasonID = seeded.Season.SeasonID, GameVersionID = 6, Gamertag = "x", Goals = 50, IsCombined = true, IsPlayoffs = true },
+            new PlayerSeasonStat { UserID = other.Id, SeasonID = old.SeasonID, GameVersionID = 6, Gamertag = "y", Goals = 9, IsCombined = true });
+        await _context.SaveChangesAsync();
+
+        var mine = await _service.GetAsync(userID: user.Id);
+        var theirs = await _service.GetAsync(userID: other.Id);
+
+        Assert.That(mine.Select(l => (l.FromMatches, l.Goals)), Is.EqualTo(new[] { (true, 1) }), "The regular season's games replace the combined row");
+        Assert.That(theirs.Single(l => !l.FromMatches).Goals, Is.EqualTo(9), "Without games it counts");
     }
 
     [Test]

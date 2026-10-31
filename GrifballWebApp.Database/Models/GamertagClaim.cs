@@ -5,7 +5,8 @@ namespace GrifballWebApp.Database.Models;
 /// <summary>
 /// A suggestion that a placeholder (historical) user's gamertag was an Xbox account's, waiting for a sysadmin (approving merges users, which only sysadmins do):
 /// approving it records the gamertag in the account's <see cref="XboxGamertagHistory"/> and merges the placeholder
-/// into the account's user; rejecting it changes nothing (and the same suggestion isn't made again).
+/// into the account's user; rejecting it changes nothing. One pending or approved claim per kind, account and gamertag: a
+/// rejected one doesn't stop the same claim being made again.
 /// </summary>
 public class GamertagClaim : AuditableEntity
 {
@@ -20,9 +21,11 @@ public class GamertagClaim : AuditableEntity
     public int? PlaceholderUserID { get; set; }
     /// <summary>The season the suggestion comes from (roster matches); the history row's dates on approval.</summary>
     public int? SeasonID { get; set; }
-    public string TeamName { get; set; }
+    /// <summary>The team of the season the roster match comes from.</summary>
+    public int? TeamID { get; set; }
 
     public virtual XboxUser XboxUser { get; set; }
+    public virtual Team Team { get; set; }
     public virtual User PlaceholderUser { get; set; }
     public virtual Season Season { get; set; }
 }

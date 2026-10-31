@@ -36,13 +36,13 @@ public class SeasonController : ControllerBase
     }
 
     [HttpGet("{seasonID:int}", Name = "GetSeasonPlayerStats")]
-    public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, CancellationToken ct)
+    public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, [FromQuery] int? teamID, CancellationToken ct)
     {
-        return _seasonService.GetSeasonPlayerStats(seasonID, ct);
+        return _seasonService.GetSeasonPlayerStats(seasonID, teamID, ct);
     }
 
     /// <summary>The season list (home page's past seasons, the seasons page): filtered, sorted and paged.</summary>
-    [HttpGet(Name = "GetSeasons")]
+    [HttpGet(Name = "GetSeasonList")]
     public Task<GrifballWebApp.Server.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {
         return _seasonService.GetSeasons(filter, ct);

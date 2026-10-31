@@ -9,7 +9,8 @@ public class XboxGamertagHistoryConfiguration : IEntityTypeConfiguration<XboxGam
 {
     public void Configure(EntityTypeBuilder<XboxGamertagHistory> entity)
     {
-        entity.ToTable("XboxGamertagHistory", "Event", tb => tb.IsTemporal());
+        // With the Xbox accounts it belongs to; its row history is PastGamertagsHistory
+        entity.ToTable("PastGamertags", "Xbox", tb => tb.IsTemporal());
 
         entity.HasKey(e => e.XboxGamertagHistoryID);
 

@@ -108,9 +108,9 @@ internal sealed class PlayerResolver
     private async Task<Resolution?> Find(string gamertag, string normalized, CancellationToken ct)
     {
         // A re-run of this season: whoever its rows under the gamertag are (also after a commissioner moved them)
-        var thisSeason = await EarlierRows(gamertag, s => s == _seasonId, ct);
-        if (thisSeason is not null)
-            return new Resolution(thisSeason.Value, ResolvedBy.EarlierRows);
+        var sameSeason = await EarlierRows(gamertag, thisSeason: true, ct);
+        if (sameSeason is not null)
+            return new Resolution(sameSeason.Value, ResolvedBy.EarlierRows);
 
         var fromHistory = await FromHistory(gamertag, normalized, ct);
         if (fromHistory is not null)
@@ -132,7 +132,7 @@ internal sealed class PlayerResolver
         }
 
         // No account had it then, as far as is known: the archive's other seasons under the gamertag are the same player
-        var otherSeasons = await EarlierRows(gamertag, s => s != _seasonId, ct);
+        var otherSeasons = await EarlierRows(gamertag, thisSeason: false, ct);
         if (otherSeasons is not null)
             return new Resolution(otherSeasons.Value, ResolvedBy.EarlierRows);
 
@@ -142,16 +142,16 @@ internal sealed class PlayerResolver
 
     /// <summary>The user of the sheet rows (Source Manual) or titles under the gamertag, in the seasons chosen. Waypoint rows
     /// don't count: their gamertag is the account's current one, not the one the season used.</summary>
-    private async Task<int?> EarlierRows(string gamertag, Func<int, bool> inSeason, CancellationToken ct)
+    private async Task<int?> EarlierRows(string gamertag, bool thisSeason, CancellationToken ct)
     {
-        var stats = await _context.PlayerSeasonStats.Where(s => s.Gamertag == gamertag && s.Source == StatSource.Manual)
-            .OrderBy(s => s.PlayerSeasonStatID).Select(s => new { s.SeasonID, s.UserID }).ToListAsync(ct);
-        var fromStats = stats.FirstOrDefault(s => inSeason(s.SeasonID));
+        var fromStats = await _context.PlayerSeasonStats
+            .Where(s => s.Gamertag == gamertag && s.Source == StatSource.Manual && (s.SeasonID == _seasonId) == thisSeason)
+            .OrderBy(s => s.PlayerSeasonStatID).Select(s => (int?)s.UserID).FirstOrDefaultAsync(ct);
         if (fromStats is not null)
-            return fromStats.UserID;
-        var titles = await _context.PlayerChampionships.Where(c => c.GamertagUsed == gamertag)
-            .OrderBy(c => c.PlayerChampionshipID).Select(c => new { c.SeasonID, c.UserID }).ToListAsync(ct);
-        return titles.FirstOrDefault(c => inSeason(c.SeasonID))?.UserID;
+            return fromStats;
+        return await _context.PlayerChampionships
+            .Where(c => c.GamertagUsed == gamertag && (c.SeasonID == _seasonId) == thisSeason)
+            .OrderBy(c => c.PlayerChampionshipID).Select(c => (int?)c.UserID).FirstOrDefaultAsync(ct);
     }
 
     /// <summary>
@@ -190,17 +190,13 @@ internal sealed class PlayerResolver
     /// Only LastSeen bounds the period: FirstSeen is when the app first saw the account with it (a rename noticed, a row
     /// version, an approved season), not when the account took it, and archive seasons are usually older.
     /// </summary>
-    private bool Overlaps(XboxGamertagHistory h) => h.LastSeen is null || h.LastSeen >= _windowStart;
+    private bool Overlaps(XboxGamertagHistory h) => GamertagMatching.Covers(h, _windowStart);
 
     /// <summary>When the account last changed gamertag, as far as its history knows.</summary>
     private static DateTime? LastRename(List<XboxGamertagHistory> history)
         => history.Where(h => h.LastSeen is not null).Max(h => h.LastSeen);
 
-    private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct)
-    {
-        var name = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant();
-        return _context.Users.FirstOrDefaultAsync(u => u.IsDummyUser && u.NormalizedUserName == name, ct);
-    }
+    private Task<User?> PlaceholderOf(string gamertag, CancellationToken ct) => new GamertagMatching(_context).PlaceholderAsync(gamertag, untiedOnly: false, ct);
 
     private async Task<int> CreateDummy(string gamertag, XboxUser? xboxUser, CancellationToken ct)
     {

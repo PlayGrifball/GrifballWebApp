@@ -15,12 +15,12 @@ public class SeasonMatchService
     private readonly IDataPullService _dataPullService;
     private readonly IBracketService _bracketService;
     private readonly ChampionshipService _championshipService;
-    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, IBracketService bracketService, ChampionshipService? championshipService = null)
+    public SeasonMatchService(GrifballContext context, IDataPullService dataPullService, IBracketService bracketService, ChampionshipService championshipService)
     {
         _context = context;
         _dataPullService = dataPullService;
         _bracketService = bracketService;
-        _championshipService = championshipService ?? new ChampionshipService(context);
+        _championshipService = championshipService;
     }
 
     /// <summary>A bracket match's result can decide (or, undone, undecide) the season's champion: its title follows,

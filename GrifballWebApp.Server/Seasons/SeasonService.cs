@@ -12,10 +12,10 @@ public class SeasonService
 {
     private readonly GrifballContext _context;
     private readonly SeasonStatsService _stats;
-    public SeasonService(GrifballContext context, SeasonStatsService? stats = null)
+    public SeasonService(GrifballContext context, SeasonStatsService stats)
     {
         _context = context;
-        _stats = stats ?? new SeasonStatsService(context);
+        _stats = stats;
     }
 
     public Task<int> GetCurrentSeasonID(CancellationToken ct = default)
@@ -39,6 +39,7 @@ public class SeasonService
     /// there is no such season.</summary>
     public async Task<SeasonSummaryDto?> GetSeasonSummary(int seasonID, CancellationToken ct = default)
     {
+        var now = DateTime.UtcNow;
         var summary = await _context.Seasons.AsNoTracking()
             .Where(s => s.SeasonID == seasonID)
             .Select(s => new SeasonSummaryDto
@@ -53,6 +54,7 @@ public class SeasonService
                 Division = s.Division,
                 IsHistorical = s.IsHistorical,
                 HistoricalSourceUrl = s.HistoricalSourceUrl,
+                HasEnded = s.SeasonEnd < now,
                 TeamCount = s.Teams.Count,
                 SignupCount = s.SeasonSignups.Count,
                 MatchCount = s.SeasonMatches.Count(m => m.BracketMatch == null),
@@ -69,10 +71,10 @@ public class SeasonService
 
     /// <summary>Every player's stats of the season (regular season and playoffs, each team), most goals first:
     /// from its games where it has them, otherwise the totals stored for it (<see cref="SeasonStatsService"/>).</summary>
-    public async Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats(int seasonID, CancellationToken ct = default)
+    public async Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats(int seasonID, int? teamID = null, CancellationToken ct = default)
     {
         var lines = await _stats.GetAsync(seasonID: seasonID, ct: ct);
-        return lines.Select(s => new SeasonPlayerStatDto
+        return lines.Where(l => teamID is null || l.TeamID == teamID).Select(s => new SeasonPlayerStatDto
         {
             PlayerSeasonStatID = s.PlayerSeasonStatID,
             UserID = s.UserID,

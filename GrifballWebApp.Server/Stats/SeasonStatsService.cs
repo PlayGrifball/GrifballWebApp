@@ -32,7 +32,8 @@ public class SeasonStatLine
     public string? RoleNote { get; set; }
     public int StintIndex { get; set; } = 1;
     public bool IsPlayoffs { get; set; }
-    /// <summary>A stored row combining a traded player's stints (also stored one by one): left out of totals.</summary>
+    /// <summary>A stored row of a sheet that has the regular season and the playoffs together (the season's only row for
+    /// the player): it covers both phases.</summary>
     public bool IsCombined { get; set; }
 
     public int GamesPlayed { get; set; }
@@ -103,7 +104,7 @@ public class SeasonStatsService
             Gamertag = s.Gamertag,
             TeamID = s.TeamID,
             TeamName = s.Team != null ? s.Team.TeamName : null,
-            Division = s.Division,
+            Division = s.Season.Division,
             TradeNote = s.TradeNote,
             RoleNote = s.RoleNote,
             StintIndex = s.StintIndex,
@@ -132,8 +133,8 @@ public class SeasonStatsService
             DamageDealt = s.DamageDealt,
             DamageTaken = s.DamageTaken,
         }).ToListAsync(ct))
-            // The games, where there are any, are the player's stats for that phase of the season
-            .Where(l => !covered.Contains((l.SeasonID, l.UserID, l.IsPlayoffs)));
+            // The games, where there are any, are the player's stats for that phase of the season; a combined row covers both
+            .Where(l => !covered.Contains((l.SeasonID, l.UserID, l.IsPlayoffs)) && !(l.IsCombined && covered.Contains((l.SeasonID, l.UserID, !l.IsPlayoffs))));
 
         return fromMatches.Concat(storedLines)
             .OrderByDescending(l => l.SeasonStart)

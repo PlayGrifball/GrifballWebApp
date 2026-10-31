@@ -665,12 +665,13 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
             // The renames the XboxUsers table's own history already holds: each account's earlier gamertags, from when the
             // first version with it began to when the last one ended. Read from the history table itself: FOR SYSTEM_TIME leaves out
             // versions that lasted no time at all (two renames in one transaction's time). Gamertags are normalised as the app
-            // does (HistoricalKeys): trimmed, runs of spaces made one (each REPLACE halves them), upper-cased.
+            // does (HistoricalKeys): every run of whitespace (spaces, tabs, line breaks) made one space (each space marked <>, the
+            // marks between two spaces taken out: gamertags have no < or >), trimmed, upper-cased.
             migrationBuilder.Sql("""
                 WITH v AS (
                     SELECT h.[XboxUserID], h.[PeriodStart], h.[PeriodEnd],
-                        CAST(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(h.[Gamertag], N'  ', N' '), N'  ', N' '), N'  ', N' '), N'  ', N' '))) AS nvarchar(50)) AS [Clean],
-                        CAST(UPPER(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(x.[Gamertag], N'  ', N' '), N'  ', N' '), N'  ', N' '), N'  ', N' ')))) AS nvarchar(50)) AS [Current]
+                        CAST(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(h.[Gamertag], NCHAR(9), N' '), NCHAR(10), N' '), NCHAR(13), N' '), N' ', N'<>'), N'><', N''), N'<>', N' '))) AS nvarchar(50)) AS [Clean],
+                        CAST(UPPER(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(x.[Gamertag], NCHAR(9), N' '), NCHAR(10), N' '), NCHAR(13), N' '), N' ', N'<>'), N'><', N''), N'<>', N' ')))) AS nvarchar(50)) AS [Current]
                     FROM [Xbox].[XboxUsersHistory] AS h
                     JOIN [Xbox].[XboxUsers] AS x ON x.[XboxUserID] = h.[XboxUserID]
                 )
@@ -681,11 +682,273 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 GROUP BY [XboxUserID], UPPER([Clean]);
                 """);
 
+        
+            // The app's own seasons so far are Halo Infinite's: a season now always has its game
+            migrationBuilder.Sql("UPDATE [Event].[Seasons] SET [GameVersionID] = 6 WHERE [GameVersionID] IS NULL;");
+
+            // Round 3 of the review: championships take their league from the season, claims link their team, stat rows
+            // have no division of their own, and the gamertag history moves to the Xbox schema as PastGamertags
+            migrationBuilder.DropForeignKey(
+                name: "FK_PlayerChampionships_Leagues_LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
+                schema: "Event",
+                table: "XboxGamertagHistory");
+
+            migrationBuilder.DropIndex(
+                name: "IX_PlayerChampionships_LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_XboxGamertagHistory",
+                schema: "Event",
+                table: "XboxGamertagHistory");
+
+            migrationBuilder.DropColumn(
+                name: "Division",
+                schema: "Event",
+                table: "PlayerSeasonStats");
+
+            migrationBuilder.DropColumn(
+                name: "LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships");
+
+            migrationBuilder.DropColumn(
+                name: "TeamName",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.RenameTable(
+                name: "XboxGamertagHistory",
+                schema: "Event",
+                newName: "PastGamertags",
+                newSchema: "Xbox")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "XboxGamertagHistoryHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag",
+                schema: "Xbox",
+                table: "PastGamertags",
+                newName: "IX_PastGamertags_XboxUserID_NormalizedGamertag");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_XboxGamertagHistory_NormalizedGamertag",
+                schema: "Xbox",
+                table: "PastGamertags",
+                newName: "IX_PastGamertags_NormalizedGamertag");
+
+            migrationBuilder.AlterTable(
+                name: "PastGamertags",
+                schema: "Xbox")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "PastGamertagsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Xbox")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart")
+                .OldAnnotation("SqlServer:IsTemporal", true)
+                .OldAnnotation("SqlServer:TemporalHistoryTableName", "XboxGamertagHistoryHistory")
+                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.AddColumn<int>(
+                name: "TeamID",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_PastGamertags",
+                schema: "Xbox",
+                table: "PastGamertags",
+                column: "XboxGamertagHistoryID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true,
+                filter: "[Status] IN (1, 2)");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_TeamID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "TeamID");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_GamertagClaims_Teams_TeamID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "TeamID",
+                principalSchema: "Event",
+                principalTable: "Teams",
+                principalColumn: "TeamID");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_PastGamertags_XboxUsers_XboxUserID",
+                schema: "Xbox",
+                table: "PastGamertags",
+                column: "XboxUserID",
+                principalSchema: "Xbox",
+                principalTable: "XboxUsers",
+                principalColumn: "XboxUserID",
+                onDelete: ReferentialAction.Cascade);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Round 3 undone first (see the end of Up)
+            migrationBuilder.DropForeignKey(
+                name: "FK_GamertagClaims_Teams_TeamID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_PastGamertags_XboxUsers_XboxUserID",
+                schema: "Xbox",
+                table: "PastGamertags");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropIndex(
+                name: "IX_GamertagClaims_TeamID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.DropPrimaryKey(
+                name: "PK_PastGamertags",
+                schema: "Xbox",
+                table: "PastGamertags");
+
+            migrationBuilder.DropColumn(
+                name: "TeamID",
+                schema: "Event",
+                table: "GamertagClaims");
+
+            migrationBuilder.RenameTable(
+                name: "PastGamertags",
+                schema: "Xbox",
+                newName: "XboxGamertagHistory",
+                newSchema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "PastGamertagsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Xbox")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_PastGamertags_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                newName: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag");
+
+            migrationBuilder.RenameIndex(
+                name: "IX_PastGamertags_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                newName: "IX_XboxGamertagHistory_NormalizedGamertag");
+
+            migrationBuilder.AlterTable(
+                name: "XboxGamertagHistory",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "XboxGamertagHistoryHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart")
+                .OldAnnotation("SqlServer:IsTemporal", true)
+                .OldAnnotation("SqlServer:TemporalHistoryTableName", "PastGamertagsHistory")
+                .OldAnnotation("SqlServer:TemporalHistoryTableSchema", "Xbox")
+                .OldAnnotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .OldAnnotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.AddColumn<string>(
+                name: "Division",
+                schema: "Event",
+                table: "PlayerSeasonStats",
+                type: "nvarchar(50)",
+                maxLength: 50,
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+            // Back from the season, which has the league now
+            migrationBuilder.Sql("UPDATE c SET [LeagueID] = s.[LeagueID] FROM [Event].[PlayerChampionships] AS c JOIN [Event].[Seasons] AS s ON s.[SeasonID] = c.[SeasonID];");
+
+            migrationBuilder.AddColumn<string>(
+                name: "TeamName",
+                schema: "Event",
+                table: "GamertagClaims",
+                type: "nvarchar(100)",
+                maxLength: 100,
+                nullable: true);
+
+            migrationBuilder.AddPrimaryKey(
+                name: "PK_XboxGamertagHistory",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                column: "XboxGamertagHistoryID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PlayerChampionships_LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships",
+                column: "LeagueID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_PlayerChampionships_Leagues_LeagueID",
+                schema: "Event",
+                table: "PlayerChampionships",
+                column: "LeagueID",
+                principalSchema: "Event",
+                principalTable: "Leagues",
+                principalColumn: "LeagueID",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                column: "XboxUserID",
+                principalSchema: "Xbox",
+                principalTable: "XboxUsers",
+                principalColumn: "XboxUserID",
+                onDelete: ReferentialAction.Cascade);
+        
+
             // Data-lossy by necessity: historical seasons go (their stats and titles with them, by cascade), and so do their
             // old versions. SeasonName is 30 long again and unique on its own: a longer name, or one two leagues share, gets
             // its ID ("Name~12") so that it fits and the index can be made. The history can only be written to with

@@ -101,6 +101,7 @@ public class Program
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
+        builder.Services.AddMemoryCache();
         builder.Services.AddControllers(options => options.Filters.Add<CookieAntiforgeryFilter>())
             .AddJsonOptions(options => ApiJson.Configure(options.JsonSerializerOptions));
 
@@ -233,6 +234,7 @@ public class Program
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.IHistoricalImportService, GrifballWebApp.Server.Historical.HistoricalImportService>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportJobs>();
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagClaimService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagMatching>();
         builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
         builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
         builder.Services.AddTransient<IBracketService, BracketService>();

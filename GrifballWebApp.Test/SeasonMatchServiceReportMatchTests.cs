@@ -26,7 +26,7 @@ public class SeasonMatchServiceReportMatchTests
         _context = await SetUpFixture.NewGrifballContext();
         _dataPullService = Substitute.For<IDataPullService>();
         _bracketService = Substitute.For<IBracketService>();
-        _service = new SeasonMatchService(_context, _dataPullService, _bracketService);
+        _service = new SeasonMatchService(_context, _dataPullService, _bracketService, new GrifballWebApp.Server.Championships.ChampionshipService(_context));
     }
 
     [TearDown]

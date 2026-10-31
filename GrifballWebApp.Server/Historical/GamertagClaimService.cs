@@ -19,6 +19,7 @@ public class GamertagClaimDto
     public int? PlaceholderUserID { get; set; }
     public int? SeasonID { get; set; }
     public string? SeasonName { get; set; }
+    public int? TeamID { get; set; }
     public string? TeamName { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -70,7 +71,8 @@ public class GamertagClaimService
                 PlaceholderUserID = c.PlaceholderUserID,
                 SeasonID = c.SeasonID,
                 SeasonName = c.Season != null ? c.Season.SeasonName : null,
-                TeamName = c.TeamName,
+                TeamID = c.TeamID,
+                TeamName = c.Team != null ? c.Team.TeamName : null,
                 CreatedAt = c.CreatedAt,
             })
             .ToListAsync(ct);

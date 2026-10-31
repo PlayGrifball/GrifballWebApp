@@ -117,6 +117,8 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.XboxGamertagHistoryConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.GamertagClaimConfiguration());
+        modelBuilder.Entity<GamertagClaim>().HasIndex(e => new { e.Kind, e.XboxUserID, e.NormalizedGamertag }).IsUnique()
+            .HasFilter(Database.IsNpgsql() ? "\"Status\" IN (1, 2)" : "[Status] IN (1, 2)");
         modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportJobConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());

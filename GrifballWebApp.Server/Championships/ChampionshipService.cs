@@ -1,5 +1,6 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Server.Championships;
@@ -36,7 +37,6 @@ public class ChampionshipService
     public async Task<ChampionshipChanges> SetChampionsAsync(int seasonID, string tier, int? teamID, IReadOnlyCollection<ChampionMember>? members, int? gameVersionID, CancellationToken ct = default)
     {
         tier = tier.Trim();
-        var leagueID = await _context.Seasons.Where(s => s.SeasonID == seasonID).Select(s => s.LeagueID).FirstAsync(ct);
         var existing = await _context.PlayerChampionships.Where(c => c.SeasonID == seasonID && c.Tier == tier).ToListAsync(ct);
         // The tier as its titles already spell it (tiers compare case-insensitively)
         tier = existing.FirstOrDefault()?.Tier ?? tier;
@@ -62,7 +62,6 @@ public class ChampionshipService
                     updated++;
                 }
                 row.TeamID = teamID.Value;
-                row.LeagueID = leagueID;
                 row.GameVersionID = gameVersionID;
                 row.IsCaptain = member.IsCaptain;
                 row.GamertagUsed = member.Gamertag.Length > 50 ? member.Gamertag[..50] : member.Gamertag;
@@ -77,17 +76,18 @@ public class ChampionshipService
 
     /// <summary>
     /// Awards the season's title from its playoff bracket: the bracket's champion, once it is decided, gets the title of
-    /// the season's division (<see cref="DefaultTier"/> without one), and an undecided bracket (an undone final) has none.
-    /// Does nothing for a season without a bracket. Reads what is saved. Returns what changed, null without a bracket.
+    /// the season's division (<see cref="DefaultTier"/> without one); an undecided bracket (an undone final, a bracket
+    /// made again or reseeded, or none any more) has none. A season imported from the archive keeps its record's titles
+    /// (its bracket is rebuilt from game order and decides nothing). Reads what is saved. Returns what changed.
     /// </summary>
     public async Task<ChampionshipChanges?> AwardFromBracketAsync(int seasonID, CancellationToken ct = default)
     {
+        if (await _context.Seasons.AnyAsync(s => s.SeasonID == seasonID && s.IsHistorical, ct))
+            return null;
         var bracket = await _context.SeasonMatches.AsNoTracking()
             .Where(m => m.SeasonID == seasonID && m.BracketMatch != null)
             .Select(m => new BracketResult(m.BracketMatch!.Bracket, m.BracketMatch.RoundNumber, m.HomeTeamID, m.HomeTeamResult, m.AwayTeamID, m.AwayTeamResult))
             .ToListAsync(ct);
-        if (bracket.Count == 0)
-            return null;
 
         var season = await _context.Seasons.AsNoTracking().Where(s => s.SeasonID == seasonID)
             .Select(s => new { s.Division, s.GameVersionID }).FirstAsync(ct);
@@ -138,13 +138,16 @@ public class ChampionshipService
                 {
                     tp.TeamPlayerID,
                     tp.UserID,
-                    Gamertag = tp.User.XboxUser != null ? tp.User.XboxUser.Gamertag : tp.User.DisplayName ?? tp.User.UserName,
+                    Gamertag = tp.User.XboxUser != null ? tp.User.XboxUser.Gamertag : null,
+                    Discord = tp.User.DiscordUser != null ? tp.User.DiscordUser.DiscordUsername : null,
+                    tp.User.DisplayName,
+                    tp.User.UserName,
                 }).ToList(),
             })
             .FirstAsync(ct);
         return team.Players
             .OrderBy(p => p.TeamPlayerID)
-            .Select(p => new ChampionMember(p.UserID, p.Gamertag ?? "", p.TeamPlayerID == team.CaptainID))
+            .Select(p => new ChampionMember(p.UserID, UserNames.Pick(p.Gamertag, p.Discord, p.DisplayName, p.UserName), p.TeamPlayerID == team.CaptainID))
             .ToList();
     }
 }
