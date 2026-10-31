@@ -1,0 +1,2 @@
+M	GrifballWebApp.Server/Program.cs
+M	grifballwebapp.client/src/main.ts

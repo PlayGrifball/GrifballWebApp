@@ -64,6 +64,47 @@ if [ -e /work/db-exists ] && [ ! -e /work/db-empty ]; then echo "Database $DB_NA
 {{- end }}
 
 {{/*
+"true" for a preview (backend.config.Preview.Enabled true, the app's preview mode, never set in a real
+environment): only then does the Job reset a database whose migrations no longer match the PR's
+(preview-reset). Off by default.
+*/}}
+{{- define "grif.previewReset" -}}
+{{- if and .Values.migrations.enabled (eq (lower (toString (dig "Preview" "Enabled" false (.Values.backend.config | default dict)))) "true") }}true{{ end -}}
+{{- end }}
+
+{{/*
+master's migration IDs when the image was built, from CI (.github/scripts/master-migrations.sh): its
+current ones and every one it has ever had, the provider's.
+*/}}
+{{- define "grif.masterMigrationList" -}}
+{{- include "grif.byProvider" (dict "root" . "sql" "/app/master-migrations/sqlserver.txt" "pg" "/app/master-migrations/postgres.txt") -}}
+{{- end }}
+{{- define "grif.masterEverMigrationList" -}}
+{{- include "grif.byProvider" (dict "root" . "sql" "/app/master-migrations/sqlserver-ever.txt" "pg" "/app/master-migrations/postgres-ever.txt") -}}
+{{- end }}
+
+{{/* files/preview-reset.sh's functions, its comments left out. */}}
+{{- define "grif.previewResetFunctions" -}}
+{{- regexReplaceAll "(?m)^#.*\n" (.Files.Get "files/preview-reset.sh") "" | trim -}}
+{{- end }}
+
+{{/* Drops the database DB_NAME, its connections closed first: the preview reset's. */}}
+{{- define "grif.dropDatabaseScript" -}}
+{{- if include "grif.postgres" . -}}
+psql -X -q -v ON_ERROR_STOP=1 -d postgres -v db="$DB_NAME" <<'SQL'
+SELECT format('DROP DATABASE IF EXISTS %I WITH (FORCE)', :'db') \gexec
+SQL
+{{- else -}}
+sqlcmd -S "$DB_HOST,$DB_PORT" -U "$DB_USER" -N -C -b -v DB_NAME="$DB_NAME" -Q "SET NOCOUNT ON;
+  IF DB_ID(N'\$$(DB_NAME)') IS NOT NULL
+  BEGIN
+    ALTER DATABASE [\$$(DB_NAME)] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE [\$$(DB_NAME)];
+  END"
+{{- end -}}
+{{- end }}
+
+{{/*
 The image's migrations the database lacks (/work/applied.txt), one per line. awk, not grep -vxF -f: BusyBox
 grep (Alpine, the backend image) matches every line against an empty pattern file, so a database with
 no migrations would look up to date.
@@ -214,6 +255,41 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
       mountPath: /work
   resources:
     {{- include "grif.migrationSmallResources" . | nindent 4 }}
+{{- if include "grif.previewReset" . }}
+# Previews only (backend.config.Preview.Enabled). The database has migrations the image lacks, and
+# none of them is or was master's (CI's lists, /app/master-migrations): the PR's own, regenerated or
+# renamed since. It's dropped, and the steps below start it again as a first deploy's (restore or
+# convert, then migrate). Any of them master's, or the image behind master: the Job fails, saying so,
+# and the database is left alone (files/preview-reset.sh).
+- name: preview-reset
+  {{- include "grif.migrationStepImage" . | nindent 2 }}
+  command: ["/bin/sh", "-c"]
+  args:
+    - |
+      set -eu
+      {{- include "grif.previewResetFunctions" . | nindent 6 }}
+      if [ ! -e /work/db-exists ] || [ -e /work/db-empty ]; then echo "A new database: nothing to reset."; exit 0; fi
+      rc=0
+      preview_reset_decide /work/applied.txt {{ include "grif.migrationList" . }} {{ include "grif.masterEverMigrationList" . }} {{ include "grif.masterMigrationList" . }} /work || rc=$?
+      [ "$rc" = 10 ] || exit "$rc"
+      echo "Dropping $DB_NAME."
+      {{- include "grif.dropDatabaseScript" . | nindent 6 }}
+      rm -f /work/db-exists /work/db-empty
+      : > /work/applied.txt
+      {{ include "grif.pendingMigrations" . }} > /work/pending.txt
+      touch /work/preview-reset
+      echo "Dropped $DB_NAME: it starts again as a new preview's."
+  env:
+    {{- include "grif.dbEnv" . | nindent 4 }}
+    {{- with $m.extraEnv }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  volumeMounts:
+    - name: migrations-work
+      mountPath: /work
+  resources:
+    {{- include "grif.migrationSmallResources" . | nindent 4 }}
+{{- end }}
 {{- if $m.restore.enabled }}
 # Only a database that doesn't exist yet, or has no tables (a first deploy): the newest backup in the
 # restore folder, then which migrations it lacks, so migrate applies only those. The backup step
@@ -315,6 +391,34 @@ changing anything. The app starts as soon as the Job is done, rather than crashi
   resources:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
+{{- if and (include "grif.previewReset" .) (or $m.restore.enabled $m.convert.enabled) }}
+# After a preview reset, what was restored (or converted) again: it must have no migration the image
+# lacks, or master has moved on since the image was built and the Job fails, saying to merge master.
+- name: preview-recheck
+  {{- include "grif.migrationStepImage" . | nindent 2 }}
+  command: ["/bin/sh", "-c"]
+  args:
+    - |
+      set -eu
+      if [ ! -e /work/preview-reset ]; then echo "No preview reset: nothing to check."; exit 0; fi
+      {{- include "grif.previewResetFunctions" . | nindent 6 }}
+      {{- with include "grif.migrationQueryFunctions" . }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- include "grif.readAppliedMigrations" . | nindent 6 }} || { echo "Reading $DB_NAME's migrations failed:"; cat /work/applied.txt; exit 1; }
+      grep -vxF NO_DATABASE /work/applied.txt > /work/applied-now.txt || true
+      preview_reset_recheck /work/applied-now.txt {{ include "grif.migrationList" . }} /work
+  env:
+    {{- include "grif.dbEnv" . | nindent 4 }}
+    {{- with $m.extraEnv }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  volumeMounts:
+    - name: migrations-work
+      mountPath: /work
+  resources:
+    {{- include "grif.migrationSmallResources" . | nindent 4 }}
 {{- end }}
 {{- if $m.backup.enabled }}
 {{- if $pg }}

@@ -86,6 +86,24 @@ RUN list() { \
  && mkdir -p /app/postgres \
  && list GrifballWebApp.Migrations.Postgres /app/postgres/migrations.txt
 
+# master's migration IDs when this image was built, per provider (now, and every one it has ever had),
+# into /app/master-migrations: a preview's migration Job resets its database only when the migrations
+# it has that this image lacks are none of master's (charts/grifballwebapp, files/preview-reset.sh). CI
+# writes them to .master-migrations in the build context (.github/scripts/master-migrations.sh); a
+# build without them (a local one) leaves the folder empty, and a preview then never resets on its own.
+RUN mkdir -p /app/master-migrations \
+ && if [ -d .master-migrations ]; then \
+      for f in sqlserver sqlserver-ever postgres postgres-ever; do \
+        test -s ".master-migrations/$f.txt" \
+        && ! grep -v -E '^[0-9]{14}_[A-Za-z0-9_]+$' ".master-migrations/$f.txt" \
+        && cp ".master-migrations/$f.txt" /app/master-migrations/ \
+        || { echo ".master-migrations/$f.txt is missing, empty or not migration IDs" >&2; exit 1; }; \
+      done; \
+      echo "master's migrations:"; cat /app/master-migrations/sqlserver.txt /app/master-migrations/postgres.txt; \
+    else \
+      echo "No .master-migrations in the build context: a preview of this image won't reset its database."; \
+    fi
+
 # sqlcmd (Microsoft's go-sqlcmd), for the migration Job's checks and backup and the backend's wait
 # for it (charts/grifballwebapp). One static binary; Microsoft publishes no image with a shell. Pinned
 # by checksum: a new version needs both checksums updated (sha256sum of each release asset).
@@ -108,6 +126,7 @@ COPY --from=publish /app/publish .
 COPY --from=migrations /app/efbundle /app/efbundle
 COPY --from=migrations /app/migrations.txt /app/migrations.txt
 COPY --from=migrations /app/postgres /app/postgres
+COPY --from=migrations /app/master-migrations /app/master-migrations
 COPY --from=convert /app/convert /app/convert
 # The bundles are single-file apps that unpack themselves before they run, into $HOME by default,
 # which a read-only root filesystem doesn't allow. The chart's migrate container has /tmp writable.

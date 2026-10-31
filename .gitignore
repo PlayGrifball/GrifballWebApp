@@ -421,3 +421,6 @@ node-v*
 *.msi
 *.pkg
 *.dmg
+
+# master's migration IDs for the backend image (.github/scripts/master-migrations.sh), written by CI.
+.master-migrations/
