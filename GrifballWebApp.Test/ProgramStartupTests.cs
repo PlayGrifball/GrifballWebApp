@@ -1,6 +1,8 @@
 using DiscordInterface.Generated;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Hosting;
+using GrifballWebApp.Server.Outbox;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Preview;
 using GrifballWebApp.Server.Teams;
@@ -247,6 +249,7 @@ public class ProgramStartupTests
             Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty, "NetCord hosted services must be registered in normal mode");
             Assert.That(hostedTypes, Does.Contain(typeof(QueueBackgroundService)));
             Assert.That(hostedTypes, Does.Contain(typeof(EventsBackgroundService)));
+            Assert.That(hostedTypes, Does.Contain(typeof(OutboxDispatcher)));
             // They were removed before start, so nothing connected to Discord.
             Assert.That(factory.Services.GetServices<IHostedService>().Select(s => s.GetType().Assembly.GetName().Name),
                 Has.None.StartsWith("NetCord"));
@@ -563,5 +566,111 @@ public class ProgramStartupTests
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => ServerProgram.Run(args));
         Assert.That(ex!.Message, Is.EqualTo("ClientId is required, ClientSecret is required, DraftChannel is required"));
+    }
+
+    [Test]
+    public async Task ApiRole_Should_ServeTheApiAndHub_WithoutTheGatewayOrBackgroundServices()
+    {
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = "api";
+        // Scaled out, with the backplane (nothing listens there: it connects in the background).
+        settings["ConnectionStrings:Redis"] = "127.0.0.1:9";
+
+        // Nothing removed: the API role must not start anything that talks to Discord on its own.
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: false);
+        using var client = factory.CreateClient();
+
+        var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
+        TestContext.Out.WriteLine("Hosted services: " + string.Join(", ", hostedTypes.Select(t => t?.FullName)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Api));
+            Assert.That(factory.GatewayClientRegistered, Is.False, "No Discord gateway in the API role");
+            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Empty);
+            foreach (var workerOnly in AppRole.WorkerHostedServices)
+                Assert.That(hostedTypes, Does.Not.Contain(workerOnly));
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
+                Is.InstanceOf<Microsoft.AspNetCore.SignalR.StackExchangeRedis.RedisHubLifetimeManager<TeamsHub>>());
+        });
+
+        // It still sends Discord messages, with the bot's token, and signs people in with Discord.
+        Assert.That(factory.Services.GetRequiredService<RestClient>().Token, Is.Not.Null);
+        var schemes = await factory.Services.GetRequiredService<IAuthenticationSchemeProvider>().GetAllSchemesAsync();
+        Assert.That(schemes.Select(s => s.Name), Does.Contain("Discord"));
+        var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+        Assert.That(checks, Does.Not.Contain("discord").And.Contain("halo_infinite"));
+
+        AssertControllersResolve(factory.Services);
+        await AssertOk(client, "/CommitHash");
+        await AssertOk(client, "/Home/PastSeasons");
+        await AssertOk(client, "/health/live");
+        using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
+        Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.OK), "The hub is mapped");
+    }
+
+    [Test]
+    public async Task WorkerRole_Should_RunTheGatewayAndBackgroundServices_AndAnswerOnlyHealth()
+    {
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = "Worker";
+
+        await using var factory = new StartupFactory(settings, removeDiscordHostedServices: true);
+        using var client = factory.CreateClient();
+
+        var hostedTypes = factory.HostedServices.Select(ImplementationOf).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(factory.Services.GetRequiredService<AppRole>().Kind, Is.EqualTo(AppRoleKind.Worker));
+            Assert.That(factory.GatewayClientRegistered, Is.True);
+            Assert.That(factory.HostedServices.Where(IsNetCord), Is.Not.Empty);
+            foreach (var workerOnly in AppRole.WorkerHostedServices)
+                Assert.That(hostedTypes, Does.Contain(workerOnly));
+            // No ConnectionStrings:Redis: no backplane.
+            Assert.That(factory.Services.GetRequiredService<HubLifetimeManager<TeamsHub>>(),
+                Is.InstanceOf<DefaultHubLifetimeManager<TeamsHub>>());
+        });
+
+        var checks = factory.Services.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Select(r => r.Name);
+        Assert.That(checks, Does.Contain("discord"));
+
+        await AssertOk(client, "/health/live");
+        foreach (var path in new[] { "/CommitHash", "/Home/PastSeasons" })
+        {
+            using var response = await client.GetAsync(path);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"GET {path}: no public API on the worker");
+        }
+        using var hub = await client.PostAsync("/TeamsHub/negotiate?negotiateVersion=1", null);
+        Assert.That(hub.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), "No hub endpoint on the worker");
+    }
+
+    [Test]
+    public async Task UnknownRole_Should_FailStartup()
+    {
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = "both";
+        var args = settings
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Is.EqualTo("App:Role must be all, api or worker, not 'both'"));
+    }
+
+    [TestCase("api")]
+    [TestCase("worker")]
+    public async Task SplitRole_InDirectMode_Should_FailStartup(string role)
+    {
+        // Several pods need the Halo gateway: in Direct mode the tokens are files in one pod's working directory.
+        var settings = NormalModeSettings();
+        settings[AppRole.ConfigurationKey] = role;
+        settings[HaloInfiniteSettings.ModeKey] = "Direct";
+        var args = settings
+            .Select(kv => $"--{kv.Key}={kv.Value}")
+            .Append("--urls=http://127.0.0.1:0")
+            .ToArray();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => ServerProgram.Run(args));
+        Assert.That(ex!.Message, Does.StartWith($"App:Role '{role}' runs the backend as several pods, which needs HaloInfinite:Mode Gateway"));
     }
 }

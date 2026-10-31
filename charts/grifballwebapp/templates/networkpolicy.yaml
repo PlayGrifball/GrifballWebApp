@@ -79,47 +79,105 @@ spec:
     {{- toYaml . | nindent 4 }}
     {{- end }}
   egress:
-    {{- toYaml (list $dns) | nindent 4 }}
-    {{- toYaml (list $database) | nindent 4 }}
-    {{- with $np.backend.httpsTo }}
-    # Discord, Halo Infinite, Google Sheets, Cloudflare's ranges.
-    - to:
-        {{- toYaml . | nindent 8 }}
-      ports:
-        - protocol: TCP
-          port: 443
-    {{- end }}
-    {{- with .Values.backend.telemetry }}
-    {{- if and .enabled .endpoint }}
-    {{- $u := urlParse .endpoint }}
-    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
-    # OpenTelemetry collector.
-    - ports:
-        - protocol: TCP
-          port: {{ $port | int }}
-      {{- with $np.backend.telemetryTo }}
-      to:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- end }}
-    {{- end }}
-    {{- $haloGateway := include "grif.haloGatewayUrl" . }}
-    {{- if and (eq (include "grif.haloMode" .) "gateway") $haloGateway }}
-    {{- $u := urlParse $haloGateway }}
-    {{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
-    # The Halo gateway (backend.halo, Gateway mode).
-    - ports:
-        - protocol: TCP
-          port: {{ $port | int }}
-      {{- with $np.backend.haloGatewayTo }}
-      to:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- end }}
-    {{- with $np.backend.extraEgress }}
+    {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+---
+{{- if .Values.worker.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-worker
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-worker
+  policyTypes: [Ingress, Egress]
+  # Nothing calls the worker (its health endpoints are the kubelet's).
+  {{- with $np.worker.extraIngress }}
+  ingress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  egress:
+    {{- include "grif.backendEgress" (dict "root" . "dns" $dns "database" $database) | nindent 4 }}
+    {{- with $np.worker.extraEgress }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 ---
+{{- end }}
+{{- if include "grif.bundledHaloGateway" . }}
+# The bundled Halo gateway (halo-gateway.enabled) takes calls from the backend and the worker; added to the
+# gateway chart's own policy, which allows its egress and the ingress controller (NetworkPolicies add up).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-halo-gateway-ingress
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: halo-gateway
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: halo-gateway
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+{{- end }}
+{{- if .Values.redis.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grif-redis
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  annotations:
+    # First (Argo CD), so every pod is covered from its start.
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  podSelector:
+    matchLabels:
+      app: grif-redis
+  # In: the backend and the worker. Out: nothing.
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.redis.port }}
+    {{- with $np.redis.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
 {{- if and .Values.mssql.enabled (not $pg) }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -141,6 +199,11 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
         {{- if .Values.migrations.enabled }}
         - podSelector:
             matchLabels:
@@ -206,6 +269,11 @@ spec:
         - podSelector:
             matchLabels:
               app: grif-backend
+        {{- if .Values.worker.enabled }}
+        - podSelector:
+            matchLabels:
+              app: grif-worker
+        {{- end }}
         {{- if .Values.migrations.enabled }}
         - podSelector:
             matchLabels:
@@ -354,4 +422,82 @@ spec:
 {{- range $np.extraPolicies }}
 {{ tpl (toYaml .) $ }}
 ---
+{{- end }}
+
+{{/* The backend's egress, the worker's too: DNS, the database, HTTPS out, telemetry, backend.extraEgress. */}}
+{{- define "grif.backendEgress" -}}
+{{- $np := .root.Values.networkPolicy -}}
+{{- toYaml (list .dns) }}
+{{ toYaml (list .database) }}
+{{- with $np.backend.httpsTo }}
+# Discord, Halo Infinite, Google Sheets, Cloudflare's ranges.
+- to:
+    {{- toYaml . | nindent 4 }}
+  ports:
+    - protocol: TCP
+      port: 443
+{{- end }}
+{{- with .root.Values.backend.telemetry }}
+{{- if and .enabled .endpoint }}
+{{- $u := urlParse .endpoint }}
+{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+# OpenTelemetry collector.
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $np.backend.telemetryTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- $haloGateway := include "grif.haloGatewayUrl" .root }}
+{{- if and (eq (include "grif.haloMode" .root) "gateway") $haloGateway }}
+{{- $u := urlParse $haloGateway }}
+{{- $port := regexFind "[0-9]+$" $u.host | default (ternary "443" "80" (eq $u.scheme "https")) }}
+{{- if include "grif.haloGatewayInRelease" .root }}
+# The bundled Halo gateway (halo-gateway.enabled), in this namespace, on its pods' port.
+- to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: halo-gateway
+          app.kubernetes.io/instance: {{ .root.Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 8080
+{{- else }}
+# The Halo gateway (backend.halo, Gateway mode).
+- ports:
+    - protocol: TCP
+      port: {{ $port | int }}
+  {{- with $np.backend.haloGatewayTo }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with .root.Values.redis }}
+{{- if .enabled }}
+# The SignalR backplane.
+- to:
+    - podSelector:
+        matchLabels:
+          app: grif-redis
+  ports:
+    - protocol: TCP
+      port: {{ .port }}
+{{- else if .external.connectionString.secretName }}
+# The SignalR backplane (external).
+- ports:
+    - protocol: TCP
+      port: {{ $np.redis.port }}
+  {{- with $np.redis.to }}
+  to:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with $np.backend.extraEgress }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}

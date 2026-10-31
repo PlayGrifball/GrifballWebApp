@@ -1,0 +1,108 @@
+{{- $r := .Values.redis -}}
+{{- if and $r.enabled $r.external.connectionString.secretName }}
+{{- fail "redis: enable the chart's (redis.enabled) or name an external one (redis.external.connectionString), not both" }}
+{{- end }}
+{{- if and .Values.worker.enabled (not (include "grif.redis" .)) }}
+{{- fail "worker.enabled needs the SignalR backplane: redis.enabled, or redis.external.connectionString (the worker's hub messages, e.g. draft picks made in Discord, reach browsers through it)" }}
+{{- end }}
+{{- if $r.enabled }}
+# The SignalR backplane (Valkey, Redis's protocol): pub/sub between the backend pods and the worker.
+# Nothing is stored, so nothing is saved: a restart only drops messages sent meanwhile.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-redis
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-redis
+  template:
+    metadata:
+      labels:
+        app: grif-redis
+        {{- include "grif.podLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+        {{- with $r.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $r.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: redis
+          image: {{ include "grif.image" $r.image }}
+          imagePullPolicy: {{ $r.image.pullPolicy }}
+          # No persistence, and no protected mode: only the backend and the worker can reach it
+          # (NetworkPolicy).
+          command: ["valkey-server"]
+          args: ["--port", "{{ $r.port }}", "--save", "", "--appendonly", "no", "--protected-mode", "no"]
+          ports:
+            - name: redis
+              containerPort: {{ $r.port }}
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "-p", "{{ $r.port }}", "ping"]
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 20
+          {{- with $r.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $r.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi
+      {{- with $r.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $r.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grif-redis
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  selector:
+    app: grif-redis
+  ports:
+    - name: redis
+      port: {{ $r.port }}
+      targetPort: redis
+{{- end }}

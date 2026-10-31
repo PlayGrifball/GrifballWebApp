@@ -12,22 +12,17 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { mockResponse, roleOf } from './mockApi.mts';
-import { handleTeamsHubUpgrade, isTeamsHubUpgrade, teamsHubNegotiateBody } from './teamsHubMock.mts';
+import { handleTeamsHubUpgrade, isTeamsHubUpgrade } from './teamsHubMock.mts';
 
 const port = Number(process.env.E2E_PORT ?? 4300);
 const apiPort = port + 1;
 const serverEntry = fileURLToPath(new URL('../dist/grifballwebapp.client/server/server.mjs', import.meta.url));
 
 // The backend, as the server reaches it: without the /api prefix. Plus the Teams SignalR hub
-// (/hub/TeamsHub, proxied here as /TeamsHub): negotiate below, the WebSocket upgrade on 'upgrade'.
+// (/hub/TeamsHub, proxied here as /TeamsHub): its WebSocket upgrade on 'upgrade' (the client skips
+// negotiate).
 const backend = createServer((req, res) => {
   const bare = (req.url ?? '/').split('?')[0];
-  if (bare === '/TeamsHub/negotiate') {
-    const body = JSON.stringify(teamsHubNegotiateBody());
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(body);
-    return;
-  }
   const mocked = mockResponse(roleOf(req.headers.cookie), '/api' + bare);
   res.writeHead(mocked?.status ?? 404, { 'Content-Type': mocked?.contentType ?? 'text/plain' });
   res.end(mocked?.body ?? '');

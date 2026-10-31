@@ -8,6 +8,8 @@ using GrifballWebApp.Server.EventOrganizer;
 using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Excel;
 using GrifballWebApp.Server.Grades;
+using GrifballWebApp.Server.HaloInfinite;
+using GrifballWebApp.Server.Hosting;
 using GrifballWebApp.Server.Identity;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.MatchPlanner;
@@ -34,6 +36,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.OpenApi;
 using NetCord.Hosting.Gateway;
+using NetCord.Hosting.Rest;
 using NetCord.Hosting.Services;
 using NetCord.Hosting.Services.ApplicationCommands;
 using NetCord.Hosting.Services.ComponentInteractions;
@@ -79,13 +82,21 @@ public class Program
         else if (previewMode)
             Log.Logger.ForContext<Program>().Warning(PreviewMode.DiscordStartupMessage);
 
+        // App:Role: all (the default) runs everything; scaled out, api processes serve the site and one worker runs
+        // the Discord gateway and the background services.
+        var role = AppRole.FromConfiguration(builder.Configuration);
+        if (role.Kind is not AppRoleKind.All)
+            Log.Logger.ForContext<Program>().Information("Role: {Role}", role.Kind);
+
         var telemetry = TelemetryOptions.FromConfiguration(builder.Configuration, builder.Environment, GitInfo.CommitShortHash);
         builder.AddSerilogLogging(telemetry);
         // Gateway (the default, previews included) or Direct; logged so the active mode is in the startup logs.
         var haloSettings = HaloInfiniteSettings.FromConfiguration(builder.Configuration);
         Log.Logger.ForContext<Program>().Information("{HaloInfinite}", haloSettings);
+        // Several pods (App:Role api or worker) need the gateway: in Direct mode the tokens are files in one pod's working directory.
+        role.EnsureSupports(haloSettings);
         builder.Services.AddMetricsAndTracing(telemetry, builder.Configuration);
-        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff,
+        builder.Services.AddAppHealthChecks(builder.Configuration, discord: !discordOff && role.RunsWorker,
             // A preview in Direct mode has no Microsoft app or tokens to probe with; in Gateway mode it probes the gateway.
             haloInfinite: !(previewMode && haloSettings.Mode == HaloInfiniteMode.Direct));
         (await builder.Services.ConfigureAppForwardedHeadersAsync(builder.Configuration)).LogTo(Log.Logger);
@@ -97,7 +108,9 @@ public class Program
         {
             options.AddFilter<ExceptionLogHubFilter>();
             options.AddFilter<UserContextHubFilter>();
-        });
+        })
+        // Scaled out (ConnectionStrings:Redis): every process's hub messages reach every API pod's browsers.
+        .AddAppBackplane(builder.Configuration);
 
         // Cookie sessions must send the antiforgery token with every change (CookieAntiforgeryFilter).
         builder.Services.AddAntiforgery(BrowserAuth.ConfigureAntiforgery);
@@ -206,7 +219,7 @@ public class Program
         if (!discordOff)
             builder.Services.AddHostedService<EventsBackgroundService>();
 
-        if (!discordOff)
+        if (!discordOff && role.RunsWorker)
         {
             builder.Services.AddDiscordGateway(options =>
             {
@@ -220,6 +233,11 @@ public class Program
             .AddComponentInteractions<NetCord.ButtonInteraction, NetCord.Services.ComponentInteractions.ButtonInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.StringMenuInteraction, NetCord.Services.ComponentInteractions.StringMenuInteractionContext>(options => DiscordInteractionPipeline.Use(options))
             .AddComponentInteractions<NetCord.ModalInteraction, NetCord.Services.ComponentInteractions.ModalInteractionContext>(options => DiscordInteractionPipeline.Use(options));
+        }
+        else if (!discordOff)
+        {
+            // The API role sends Discord messages but has no gateway (the worker's): just the REST client.
+            builder.Services.AddDiscordRest();
         }
 
         builder.Services.AddSingleton<IDiscordRestClient, DiscordRestClient>();
@@ -290,6 +308,9 @@ public class Program
         // IHaloInfiniteClient: the Halo gateway (default) or the app's own sign-in (HaloInfinite:Mode Direct).
         builder.AddHaloInfinite(haloSettings, retryDelayCalculator);
 
+        // Last: outside the worker roles, drops the hosted services only a worker runs.
+        builder.Services.ApplyAppRole(role);
+
         var app = builder.Build();
 
         using (var scope = app.Services.CreateScope())
@@ -350,17 +371,21 @@ public class Program
 
         app.MapAppHealthChecks();
 
-        app.MapControllers();
+        // The worker answers its health endpoints only.
+        if (role.ServesApi)
+        {
+            app.MapControllers();
 
-        // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
-        app.Use(BrowserAuth.RefuseForeignHubRequests);
+            // Hubs are not MVC, so CookieAntiforgeryFilter does not see them: refuse cookie sessions from other origins.
+            app.Use(BrowserAuth.RefuseForeignHubRequests);
 
-        app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
+            app.MapHub<TeamsHub>("TeamsHub", options => { options.CloseOnAuthenticationExpiration = true; });
 
-        app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
-        app.MapGet("CommitDate", () => GitInfo.CommitDate);
+            app.MapGet("CommitHash", () => GitInfo.CommitShortHash);
+            app.MapGet("CommitDate", () => GitInfo.CommitDate);
+        }
 
-        if (!discordOff)
+        if (!discordOff && role.RunsWorker)
         {
             app.AddModules(typeof(Program).Assembly);
         }

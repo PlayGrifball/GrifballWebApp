@@ -1,0 +1,6 @@
+dependencies:
+- name: halo-gateway
+  repository: oci://ghcr.io/playgrifball/charts
+  version: 0.3.18
+digest: sha256:7041f2e4201c6718f3826d90ed23fe5162d5544deb3add2f02f644d2de561165
+generated: "2026-10-31T18:34:49.734388317Z"

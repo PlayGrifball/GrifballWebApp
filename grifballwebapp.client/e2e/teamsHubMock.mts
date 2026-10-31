@@ -1,34 +1,23 @@
 // A minimal SignalR server for the Teams hub (/hub/TeamsHub), for e2e/serve.mjs: the production
 // server (src/server.ts) proxies /hub to the backend (including the WebSocket upgrade), and without
-// an answer there the team builder page (/season/:id/teams) logs "Failed to complete negotiation"
-// to the console on every load, which fails Lighthouse's best-practices errors-in-console audit.
+// an answer there the team builder page (/season/:id/teams) logs a failed connection to the console
+// on every load, which fails Lighthouse's best-practices errors-in-console audit.
 //
 // The page only *listens* on the hub (SignalRService.addCaptain and friends): its own changes are
 // plain API calls, not hub invocations (teamBuilder.component.ts never calls hubConnection.invoke
-// or .send). So this only has to negotiate, complete the JSON Hub Protocol handshake over the
-// WebSocket and keep the connection alive with pings; nothing a Lighthouse run does needs a real
+// or .send). The client skips negotiate (SignalRService: WebSockets only, so several backend pods
+// need no sticky sessions), so this only has to accept the WebSocket, complete the JSON Hub Protocol
+// handshake and keep the connection alive with pings; nothing a Lighthouse run does needs a real
 // invocation answered. e2e/zoneless.spec.ts's SignalR test mocks the same hub at the Playwright
 // page.route/routeWebSocket level (for a test that pushes a change down it); the two can't share
 // code (this one speaks raw HTTP upgrade + WebSocket frames for a real socket, that one intercepts
-// in the browser), but they share the wire shapes below so the two fakes agree with each other and
-// with the real hub.
-import { createHash, randomUUID } from 'node:crypto';
+// in the browser), but they share the record separator below.
+import { createHash } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Socket } from 'node:net';
 
 /** The JSON Hub Protocol's record separator, after every message (handshake, ping, invocation). */
 export const RS = '\u001e';
-
-/** negotiate's response body (POST /hub/TeamsHub/negotiate): WebSockets only, the one transport the
- * client and e2e/zoneless.spec.ts's fake both try. */
-export function teamsHubNegotiateBody(): object {
-  return {
-    negotiateVersion: 1,
-    connectionId: randomUUID(),
-    connectionToken: randomUUID(),
-    availableTransports: [{ transport: 'WebSockets', transferFormats: ['Text', 'Binary'] }],
-  };
-}
 
 const WEBSOCKET_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 // SignalR's default server timeout is 30s without a message; ping well inside that.

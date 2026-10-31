@@ -1,0 +1,25 @@
+{{- if .Values.worker.enabled }}
+{{- $b := .Values.backend -}}
+{{- $w := .Values.worker -}}
+{{- /* The backend's pod settings, with the worker's own where it sets them. */}}
+{{- $pod := dict "resources" ($w.resources | default $b.resources) "podLabels" (merge (dict) $w.podLabels $b.podLabels) "podAnnotations" (merge (dict) $w.podAnnotations $b.podAnnotations) "nodeSelector" ($w.nodeSelector | default $b.nodeSelector) "tolerations" ($w.tolerations | default $b.tolerations) "affinity" ($w.affinity | default $b.affinity) }}
+# The worker (App:Role worker): the Discord gateway, the background services and the Halo Infinite
+# token refresh, which must run in one process only. Always one pod, the old one gone before the new
+# one starts (Recreate); it serves no API, only its health endpoints.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grif-worker
+  labels:
+    {{- include "grif.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grif-worker
+  strategy:
+    type: Recreate
+  template:
+    {{- include "grif.backendPodTemplate" (dict "root" . "app" "grif-worker" "component" "worker" "role" "worker" "state" $b.persistence.enabled "pod" $pod) | nindent 4 }}
+{{- end }}

@@ -86,6 +86,12 @@
     }
   },
   "properties": {
+    "global": { "type": "object", "description": "Helm's values shared with subcharts." },
+    "halo-gateway": {
+      "type": "object",
+      "description": "The halo-gateway subchart's values (validated by that chart); enabled turns it on.",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
     "secret": {
       "type": "object",
       "additionalProperties": false,
@@ -234,6 +240,42 @@
         "extraEnvFrom": { "$ref": "#/definitions/k8sList" },
         "extraVolumes": { "$ref": "#/definitions/k8sList" },
         "extraVolumeMounts": { "$ref": "#/definitions/k8sList" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" }
+      }
+    },
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "nodeSelector": { "$ref": "#/definitions/stringMap" },
+        "tolerations": { "$ref": "#/definitions/k8sList" },
+        "affinity": { "$ref": "#/definitions/k8sObject" },
+        "podLabels": { "$ref": "#/definitions/stringMap" },
+        "podAnnotations": { "$ref": "#/definitions/stringMap" }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "port": { "$ref": "#/definitions/port" },
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "connectionString": { "$ref": "#/definitions/secretKeyRef" } }
+        },
+        "channelPrefix": { "type": "string" },
+        "resources": { "$ref": "#/definitions/k8sObject" },
+        "podSecurityContext": { "$ref": "#/definitions/k8sObject" },
+        "securityContext": { "$ref": "#/definitions/k8sObject" },
         "podAnnotations": { "$ref": "#/definitions/stringMap" },
         "podLabels": { "$ref": "#/definitions/stringMap" },
         "nodeSelector": { "$ref": "#/definitions/stringMap" },
@@ -590,6 +632,23 @@
             "haloGatewayTo": { "$ref": "#/definitions/peers" },
             "extraIngress": { "$ref": "#/definitions/rules" },
             "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "worker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "extraIngress": { "$ref": "#/definitions/rules" },
+            "extraEgress": { "$ref": "#/definitions/rules" }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "to": { "$ref": "#/definitions/peers" },
+            "port": { "$ref": "#/definitions/port" },
+            "extraIngress": { "$ref": "#/definitions/rules" }
           }
         },
         "mssql": {
