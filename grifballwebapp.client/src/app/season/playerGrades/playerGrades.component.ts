@@ -6,7 +6,8 @@ import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
-import { missing, SeasonSummaryDto, SeasonSummaryService } from '../seasonSummary';
+import { missing, SeasonSummaryService } from '../seasonSummary';
+import type { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
 
 @Component({
     selector: 'app-player-grades',
@@ -31,7 +32,7 @@ export class PlayerGradesComponent implements OnInit {
   readonly pm = signal<PerMinuteDto[]>([]);
   readonly letters = signal<LetterDto[]>([]);
   readonly summary = signal<SeasonSummaryDto | null>(null);
-  /** Grades come from the season's Halo Infinite matches: a backfilled season without any says so. */
+  /** Grades come from the season's Halo Infinite matches: a backfilled or ended season without any says so. */
   readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount + s.bracketMatchCount));
 
   public pmDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills'];

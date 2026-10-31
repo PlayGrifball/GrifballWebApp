@@ -1,3 +1,4 @@
+@if (visible()) {
 <div class="stats-controls">
   <div class="hud-tabs" role="group" aria-label="Phase">
     @for (p of phases; track p.id) {
@@ -13,12 +14,20 @@
     <thead>
       <tr>
         <th scope="col">Player</th>
-        <th scope="col">Team</th>
+        @if (showTeam()) {
+          <th scope="col">Team</th>
+        }
         <th scope="col">Phase</th>
-        <th scope="col" class="hud-num">GP</th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().gamesPlayed.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('gamesPlayed')">GP<span class="stats-sort__dir" aria-hidden="true">{{headers().gamesPlayed.arrow}}</span></button>
+        </th>
         <th scope="col" class="hud-num">W-L</th>
-        <th scope="col" class="hud-num">Goals</th>
-        <th scope="col" class="hud-num">K</th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().goals.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('goals')">Goals<span class="stats-sort__dir" aria-hidden="true">{{headers().goals.arrow}}</span></button>
+        </th>
+        <th scope="col" class="hud-num" [attr.aria-sort]="headers().kills.ariaSort">
+          <button type="button" class="hud-cell-btn stats-sort" (click)="sortBy('kills')">K<span class="stats-sort__dir" aria-hidden="true">{{headers().kills.arrow}}</span></button>
+        </th>
         <th scope="col" class="hud-num">D</th>
         <th scope="col" class="hud-num">K/D</th>
         <th scope="col" class="hud-num">Stops</th>
@@ -27,17 +36,24 @@
     <tbody>
       @for (p of shown(); track p.userID + '-' + p.isPlayoffs + '-' + p.stintIndex + '-' + p.teamID) {
         <tr>
-          <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
           <td>
-            @if (p.teamID) {
-              <a [routerLink]="['/season', seasonID(), 'team', p.teamID]">{{p.teamName}}</a>
-            } @else {
-              <span class="hud-muted">No team</span>
-            }
-            @if (p.tradeNote) {
+            <a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a>
+            @if (!showTeam() && p.tradeNote) {
               <span class="stats-note">{{p.tradeNote}}</span>
             }
           </td>
+          @if (showTeam()) {
+            <td>
+              @if (p.teamID) {
+                <a [routerLink]="['/season', seasonID(), 'team', p.teamID]">{{p.teamName}}</a>
+              } @else {
+                <span class="hud-muted">No team</span>
+              }
+              @if (p.tradeNote) {
+                <span class="stats-note">{{p.tradeNote}}</span>
+              }
+            </td>
+          }
           <td>{{p.isPlayoffs ? 'Playoffs' : 'Regular'}}</td>
           <td class="hud-num">{{p.gamesPlayed}}</td>
           <td class="hud-num">{{p.wins}}-{{p.losses}}</td>
@@ -54,3 +70,4 @@
     <p class="hud-muted stats-empty">No players match.</p>
   }
 </div>
+}

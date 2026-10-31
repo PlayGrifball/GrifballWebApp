@@ -1,4 +1,4 @@
-<div class="hud-page" [class.hud-waiting]="!loaded() && seasons().length === 0">
+<div class="hud-page" [class.hud-waiting]="waiting()">
   <div class="hud-page-head">
     <span class="hud-kicker">&gt; Every season</span>
     <h1 class="hud-title">Seasons</h1>
@@ -58,7 +58,7 @@
       </li>
     }
   </ul>
-  @if (loaded() && shown().length === 0) {
+  @if (empty()) {
     <p class="hud-muted">No seasons match.</p>
   }
 </div>

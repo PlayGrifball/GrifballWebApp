@@ -1,0 +1,85 @@
+<div class="hud-page">
+  <div class="hud-page-head">
+    <a class="hud-kicker" routerLink="/usermanagement">&gt; User management</a>
+    <h1 class="hud-title hud-title--md">Gamertag Claims</h1>
+  </div>
+  <p class="hud-lede">Players from the historical archive, claimed as a user's Xbox account. Approving one gives the user that player's history.</p>
+
+  <div class="hud-tabs claims-filter" role="group" aria-label="Claim status">
+    @for (s of statuses; track s) {
+      <button type="button" class="hud-tab" [class.hud-tab--active]="status() === s" [attr.aria-pressed]="status() === s" (click)="status.set(s)">{{s}}</button>
+    }
+  </div>
+
+  @if (failed()) {
+    <p class="hud-empty hud-empty--error" role="alert">The claims couldn't be loaded.</p>
+  } @else if (empty()) {
+    <p class="hud-empty">{{emptyText()}}</p>
+  } @else {
+    <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Gamertag claims" [class.hud-waiting]="waiting()">
+      <table class="claims-table">
+        <thead>
+          <tr>
+            <th scope="col">Gamertag</th>
+            <th scope="col">Xbox account</th>
+            <th scope="col">Placeholder</th>
+            <th scope="col">Season</th>
+            <th scope="col">Team</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Created</th>
+            @if (decidable()) {
+              <th scope="col">Decision</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of rows(); track c.gamertagClaimID) {
+            <tr>
+              <td class="claims-strong">{{c.gamertag}}</td>
+              <td>
+                @if (c.userID) {
+                  <a [routerLink]="['/profile', c.userID]">{{c.xboxGamertag ?? 'Unknown gamertag'}}</a>
+                } @else {
+                  {{c.xboxGamertag ?? 'Unknown gamertag'}}
+                }
+                <span class="claims-note">XUID {{c.xboxUserID}}</span>
+              </td>
+              <td>
+                @if (c.placeholderUserID) {
+                  <a [routerLink]="['/profile', c.placeholderUserID]">User {{c.placeholderUserID}}</a>
+                } @else {
+                  <span class="hud-muted">None</span>
+                }
+              </td>
+              <td>
+                @if (c.seasonID) {
+                  <a [routerLink]="['/season', c.seasonID]">{{c.seasonName}}</a>
+                } @else {
+                  <span class="hud-muted">-</span>
+                }
+              </td>
+              <td>
+                @if (c.seasonID && c.teamID) {
+                  <a [routerLink]="['/season', c.seasonID, 'team', c.teamID]">{{c.teamName}}</a>
+                } @else {
+                  <span class="hud-muted">-</span>
+                }
+              </td>
+              <td>{{kindLabels[c.kind]}}</td>
+              <td class="hud-muted">{{c.createdAt | date: 'short'}}</td>
+              @if (decidable()) {
+                <td>
+                  <div class="claims-actions">
+                    <button type="button" class="hud-btn claims-btn" [disabled]="acting() !== null" (click)="approve(c)">Approve</button>
+                    <button type="button" class="hud-btn claims-btn claims-btn--reject" [disabled]="acting() !== null" (click)="reject(c)">Reject</button>
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

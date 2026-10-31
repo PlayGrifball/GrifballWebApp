@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { SeasonListItemDto, SeasonsComponent } from './seasons.component';
+import { SeasonsComponent } from './seasons.component';
+import { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 
 function season(seasonID: number, changes: Partial<SeasonListItemDto> = {}): SeasonListItemDto {
   return {
@@ -79,9 +80,41 @@ describe('SeasonsComponent', () => {
     fixture.detectChanges();
     expect(names()).toEqual(['Summer League 2010']);
   });
+
+  it('shows only the latest filters\' list: an older answer is dropped', () => {
+    const [league, game] = Array.from(el().querySelectorAll('select'));
+    league.value = '2';
+    league.dispatchEvent(new Event('change'));
+    const older = http.expectOne(r => r.params.get('leagueID') === '2' && !r.params.has('gameVersionID'));
+    game.value = '1';
+    game.dispatchEvent(new Event('change'));
+    expect(older.cancelled).toBeTrue();
+    http.expectOne(r => r.params.get('leagueID') === '2' && r.params.get('gameVersionID') === '1').flush({ totalCount: 1, results: [all[1]] });
+    fixture.detectChanges();
+    expect(names()).toEqual(['Summer League 2010']);
+  });
+
+  it('labels every filter control', () => {
+    for (const control of Array.from(el().querySelectorAll('select, input')))
+      expect(control.closest('label')!.querySelector('.hud-label')!.textContent!.trim()).not.toBe('');
+    expect(el().querySelector('.hud-page')!.classList).not.toContain('hud-waiting');
+  });
 });
 
 describe('SeasonsComponent failing', () => {
+  it('fades the page in once the first list is in', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(SeasonsComponent);
+    fixture.detectChanges();
+    const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
+    expect(page().classList).toContain('hud-waiting');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No seasons match.');
+    http.expectOne(r => r.url === '/api/Season/GetSeasons').flush({ totalCount: 0, results: [] });
+    fixture.detectChanges();
+    expect(page().classList).not.toContain('hud-waiting');
+  });
+
   it('shows the page, empty, when the list cannot be loaded', () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])] });
     const http = TestBed.inject(HttpTestingController);

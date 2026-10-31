@@ -9,7 +9,8 @@ import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.compone
 import { SeasonEvent, signupsOpen } from '../shared/seasonEvents';
 import { pageNow } from '../shared/pageNow';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
-import { missing, SeasonSummaryDto, SeasonSummaryService } from './seasonSummary';
+import { missing, SeasonSummaryService } from './seasonSummary';
+import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 import { SeasonChampionsComponent } from './seasonChampions/seasonChampions.component';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 
@@ -51,7 +52,7 @@ export class SeasonComponent implements OnInit {
   readonly seasonName = signal<string | null>("Season");
   /** What the season is and has: its header, champions, and which sections have nothing to show. */
   readonly summary = signal<SeasonSummaryDto | null>(null);
-  /** A backfilled season without any matches: the schedule and this week say so. */
+  /** A backfilled or ended season without any matches: the schedule and this week say so. */
   readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount));
   readonly noBracket = computed(() => missing(this.summary(), s => s.bracketMatchCount));
   /** The name is in: the page is shown then, as a longer name can move the Sign up button below it. */

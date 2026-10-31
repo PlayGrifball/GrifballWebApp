@@ -13,6 +13,36 @@
         <mat-hint>What players see, e.g. "Autumn Brawl".</mat-hint>
         <app-error-message [control]="seasonForm.controls['seasonName']" />
       </mat-form-field>
+
+      <div class="hud-field-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Game</mat-label>
+          <mat-select required [ngModel]="model().gameVersionID" (ngModelChange)="patch({ gameVersionID: $event })" name="gameVersionID">
+            @for (game of gameVersions(); track game.gameVersionID) {
+              <mat-option [value]="game.gameVersionID">{{game.name}}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>The Halo it is played in.</mat-hint>
+          <app-error-message [control]="seasonForm.controls['gameVersionID']" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>League</mat-label>
+          <mat-select required [ngModel]="model().leagueID" (ngModelChange)="patch({ leagueID: $event })" name="leagueID">
+            @for (league of leagues(); track league.leagueID) {
+              <mat-option [value]="league.leagueID">{{league.name}}</mat-option>
+            }
+          </mat-select>
+          <app-error-message [control]="seasonForm.controls['leagueID']" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Division</mat-label>
+          <input matInput maxlength="50" [ngModel]="model().division" (ngModelChange)="patch({ division: $event || null })" name="division">
+          <mat-hint>Optional, e.g. "Pro".</mat-hint>
+          <app-error-message [control]="seasonForm.controls['division']" />
+        </mat-form-field>
+      </div>
     </section>
 
     <section class="hud-panel hud-form-group" aria-labelledby="season-timeline">
@@ -79,17 +109,17 @@
       <h2 id="season-copy" class="hud-kicker">Copy from another season</h2>
       <mat-form-field appearance="outline">
         <mat-label>Copy from</mat-label>
-        <mat-select [ngModel]="model().copyFrom" (ngModelChange)="patch({ copyFrom: $event })" name="copyFrom">
+        <mat-select [ngModel]="model().copyFromSeasonID" (ngModelChange)="patch({ copyFromSeasonID: $event })" name="copyFromSeasonID">
           <mat-option [value]="null">Nothing (start empty)</mat-option>
-          @for (season of copyableSeasons(); track season.seasonID) {
-            <mat-option [value]="season.seasonName">{{season.seasonName}}</mat-option>
+          @for (option of copyOptions(); track option.seasonID) {
+            <mat-option [value]="option.seasonID">{{option.label}}</mat-option>
           }
         </mat-select>
         <mat-hint>On save, the parts ticked below replace this season's own.</mat-hint>
-        <app-error-message [control]="seasonForm.controls['copyFrom']" />
+        <app-error-message [control]="seasonForm.controls['copyFromSeasonID']" />
       </mat-form-field>
 
-      @if (model().copyFrom != null) {
+      @if (model().copyFromSeasonID != null) {
       <div class="hud-options">
         <mat-checkbox [ngModel]="model().copyAvailability" (ngModelChange)="patch({ copyAvailability: $event })" name="copyAvailability">Copy Availability</mat-checkbox>
         <mat-checkbox [ngModel]="model().copySignups" (ngModelChange)="patch({ copySignups: $event })" name="copySignups">Copy Signups</mat-checkbox>

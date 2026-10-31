@@ -12,7 +12,7 @@
 
   @if (boards(); as b) {
     <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-    <div class="hud-table-wrap" tabindex="0" role="region" aria-label="Leaderboard table">
+    <div class="hud-table-wrap" tabindex="0" role="region" [attr.aria-label]="tableLabel()">
       @switch (board()) {
         @case ('rings') {
           <table class="board">
@@ -56,7 +56,7 @@
                     <td><a [routerLink]="['/profile', p.userID]">{{p.gamertag}}</a></td>
                     <td class="hud-num">{{p.statValue}}</td>
                     <td class="hud-num">{{p.gamesPlayed}}</td>
-                    <td class="hud-num">{{p.perGame == null ? '-' : (p.perGame | number: '1.2-2')}}</td>
+                    <td class="hud-num">{{p.perGameText}}</td>
                     <td class="hud-num">{{p.seasonsCount}}</td>
                   </tr>
                 }

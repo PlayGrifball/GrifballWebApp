@@ -35,7 +35,7 @@
       <section class="hud-section" aria-labelledby="season-schedule">
         <h2 id="season-schedule" class="hud-h2">Regular season schedule</h2>
         @if (noMatches()) {
-          <app-data-notice message="The match schedule wasn't recorded for this season: it was backfilled from historical records." [sourceUrl]="summary()?.historicalSourceUrl" />
+          <app-data-notice message="The match schedule wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
           <app-schedule-list />
         }
@@ -45,7 +45,7 @@
       <section class="hud-section" aria-labelledby="season-bracket">
         <h2 id="season-bracket" class="hud-h2">Playoffs</h2>
         @if (noBracket()) {
-          <app-data-notice message="The playoff bracket wasn't recorded for this season: it was backfilled from historical records." [sourceUrl]="summary()?.historicalSourceUrl" />
+          <app-data-notice message="The playoff bracket wasn't recorded for this season." [sourceUrl]="summary()?.historicalSourceUrl" />
         } @else {
           <app-playoff-bracket />
         }

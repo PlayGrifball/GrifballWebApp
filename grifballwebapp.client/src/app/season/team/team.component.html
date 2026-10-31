@@ -46,56 +46,21 @@
         </aside>
 
         <section class="hud-section team-matches" aria-labelledby="team-matches">
-            @if (team()?.stats?.length) {
+            <!-- The team's players' stats: nothing at all when it has none -->
+            @if (stats.hasRows()) {
                 <h2 id="team-stats" class="hud-h2">Player stats</h2>
-                <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
-                <div class="hud-table-wrap team-stats" tabindex="0" role="region" aria-labelledby="team-stats">
-                    <table class="team-stats__table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Player</th>
-                                <th scope="col">Phase</th>
-                                <th scope="col" class="hud-num">GP</th>
-                                <th scope="col" class="hud-num">W-L</th>
-                                <th scope="col" class="hud-num">Goals</th>
-                                <th scope="col" class="hud-num">K</th>
-                                <th scope="col" class="hud-num">D</th>
-                                <th scope="col" class="hud-num">K/D</th>
-                                <th scope="col" class="hud-num">Stops</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (s of team()?.stats; track s.userID + (s.isPlayoffs ? 'p' : 'r') + s.stintIndex) {
-                                <tr>
-                                    <td>
-                                        <a [routerLink]="['/profile', s.userID]">{{s.gamertag}}</a>
-                                        @if (s.tradeNote) {
-                                            <span class="team-stats__note">{{s.tradeNote}}</span>
-                                        }
-                                    </td>
-                                    <td>{{s.isPlayoffs ? 'Playoffs' : 'Regular'}}</td>
-                                    <td class="hud-num">{{s.gamesPlayed}}</td>
-                                    <td class="hud-num">{{s.wins}}-{{s.losses}}</td>
-                                    <td class="hud-num">{{s.goals}}</td>
-                                    <td class="hud-num">{{s.kills}}</td>
-                                    <td class="hud-num">{{s.deaths}}</td>
-                                    <td class="hud-num">{{s.kdRatio ?? '-'}}</td>
-                                    <td class="hud-num">{{s.carrierKills}}</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
             }
+            <app-season-player-stats #stats class="team-stats" [class.team-stats--shown]="stats.hasRows()" [seasonID]="seasonID()" [teamID]="teamID()" />
 
             <h2 id="team-matches" class="hud-h2">Matches</h2>
-            @if (team()?.isHistorical && matchesLoaded() && matchCount() === 0) {
-                <app-data-notice message="Match results weren't recorded for this season: it was backfilled from historical records." [sourceUrl]="team()?.historicalSourceUrl" />
+            @if (noMatches()) {
+                <app-data-notice message="Match results weren't recorded for this season." [sourceUrl]="team()?.historicalSourceUrl" />
             } @else {
-            <div class="hud-table-wrap">
+            <!-- Scrolls sideways on phones: focusable, so it scrolls with the keyboard too -->
+            <div class="hud-table-wrap" tabindex="0" role="region" aria-labelledby="team-matches">
                 <table mat-table [dataSource]="matches">
                     <ng-container matColumnDef="otherTeam">
-                        <th mat-header-cell *matHeaderCellDef> Opposing Team </th>
+                        <th mat-header-cell *matHeaderCellDef scope="col"> Opposing Team </th>
                         <td mat-cell *matCellDef="let row">
                             @if (row.otherResult == 'Bye' && row.otherTeamID == undefined) {
                                 BYE
@@ -106,7 +71,7 @@
                     </ng-container>
 
                     <ng-container matColumnDef="score">
-                        <th mat-header-cell *matHeaderCellDef> Score </th>
+                        <th mat-header-cell *matHeaderCellDef scope="col"> Score </th>
                         <td mat-cell *matCellDef="let row">
                             @if (row.result == undefined) {
                                 TBD
@@ -121,17 +86,17 @@
                     </ng-container>
 
                     <ng-container matColumnDef="result">
-                        <th mat-header-cell *matHeaderCellDef> Result </th>
+                        <th mat-header-cell *matHeaderCellDef scope="col"> Result </th>
                         <td mat-cell *matCellDef="let row" [class.hud-gold]="row.result == 'Won'"> {{row.result ?? 'TBD'}} </td>
                     </ng-container>
 
                     <ng-container matColumnDef="scheduledTime">
-                        <th mat-header-cell *matHeaderCellDef> Scheduled Time </th>
+                        <th mat-header-cell *matHeaderCellDef scope="col"> Scheduled Time </th>
                         <td mat-cell *matCellDef="let row" class="hud-muted"> {{row.scheduledTime | toDate | date: 'short'}} </td>
                     </ng-container>
 
                     <ng-container matColumnDef="matchPage">
-                        <th mat-header-cell *matHeaderCellDef> Details </th>
+                        <th mat-header-cell *matHeaderCellDef scope="col"> Details </th>
                         <td mat-cell *matCellDef="let row">
                             <a mat-icon-button [routerLink]="['/seasonmatch', row.seasonMatchID]" aria-label="Open match">
                                 <mat-icon>chevron_right</mat-icon>

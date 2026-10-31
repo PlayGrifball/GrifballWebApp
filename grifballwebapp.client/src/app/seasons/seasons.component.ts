@@ -1,30 +1,8 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { PaginationResult } from '../shared/paginationResult';
-import { SeasonChampionDto } from '../season/seasonSummary';
-
-/** A season in the season list (GET /api/Season/GetSeasons). */
-export interface SeasonListItemDto {
-  seasonID: number;
-  name: string;
-  start: string;
-  end: string;
-  year: number;
-  isCurrent: boolean;
-  leagueID: number;
-  leagueName: string;
-  leagueSlug: string;
-  gameVersionID?: number | null;
-  gameVersionName?: string | null;
-  gameVersionSlug?: string | null;
-  division?: string | null;
-  isHistorical: boolean;
-  historicalSourceUrl?: string | null;
-  teamCount: number;
-  playerCount: number;
-  champions: SeasonChampionDto[];
-}
+import { Subscription } from 'rxjs';
+import { ApiClientService } from '../api/apiClient.service';
+import type { SeasonListItemDto } from '../api/dtos/seasonListItemDto';
 
 interface Option { id: number; name: string; }
 
@@ -40,10 +18,13 @@ export const SEASONS_PAGE_SIZE = 250;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SeasonsComponent implements OnInit {
-  private http = inject(HttpClient);
+  private api = inject(ApiClientService);
+  private request?: Subscription;
 
   readonly seasons = signal<SeasonListItemDto[]>([]);
   readonly loaded = signal(false);
+  /** Nothing to show yet: the page fades in once the first list is in. */
+  readonly waiting = computed(() => !this.loaded() && this.seasons().length === 0);
   /** The leagues and games there are seasons of (from the unfiltered list). */
   readonly leagues = signal<Option[]>([]);
   readonly games = signal<Option[]>([]);
@@ -57,6 +38,11 @@ export class SeasonsComponent implements OnInit {
       ? this.seasons().filter(s => s.name.toLowerCase().includes(query) || s.champions.some(c => c.teamName.toLowerCase().includes(query)))
       : this.seasons();
   });
+  readonly empty = computed(() => this.loaded() && this.shown().length === 0);
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
+  }
 
   ngOnInit(): void {
     this.load(true);
@@ -77,13 +63,10 @@ export class SeasonsComponent implements OnInit {
   }
 
   private load(options: boolean): void {
-    let params = new HttpParams().set('pageSize', SEASONS_PAGE_SIZE);
-    const league = this.league();
-    const game = this.game();
-    if (league !== null) params = params.set('leagueID', league);
-    if (game !== null) params = params.set('gameVersionID', game);
+    // Only the latest filters' list is shown: an older answer arriving late is dropped
+    this.request?.unsubscribe();
     this.loaded.set(false);
-    this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params }).subscribe({
+    this.request = this.api.getSeasonList({ leagueID: this.league(), gameVersionID: this.game() }, SEASONS_PAGE_SIZE).subscribe({
       next: page => {
         this.seasons.set(page.results);
         if (options) {

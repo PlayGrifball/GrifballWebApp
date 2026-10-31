@@ -5,7 +5,8 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { GradesDto, PerMinuteDto, LetterDto } from './gradesDto';
 import { DecimalPipe } from '@angular/common';
 import { Observable, of, throwError } from 'rxjs';
-import { SeasonSummaryDto, SeasonSummaryService } from '../seasonSummary';
+import { SeasonSummaryService } from '../seasonSummary';
+import { SeasonSummaryDto } from '../../api/dtos/seasonSummaryDto';
 
 describe('PlayerGradesComponent', () => {
   let component: PlayerGradesComponent;
@@ -15,7 +16,7 @@ describe('PlayerGradesComponent', () => {
   let summary: Observable<Partial<SeasonSummaryDto>>;
 
   beforeEach(async () => {
-    summary = of({ isHistorical: false, matchCount: 0, bracketMatchCount: 0 });
+    summary = of({ isHistorical: false, hasEnded: false, matchCount: 0, bracketMatchCount: 0 });
     mockActivatedRoute = {
       snapshot: {
         paramMap: {
@@ -43,7 +44,7 @@ describe('PlayerGradesComponent', () => {
   });
 
   it('says a backfilled season without matches has no grades, with its spreadsheet', () => {
-    summary = of({ isHistorical: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' });
+    summary = of({ isHistorical: true, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' });
     fixture.detectChanges();
     httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
     fixture.detectChanges();
@@ -52,8 +53,25 @@ describe('PlayerGradesComponent', () => {
     expect(notice.querySelector('a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
   });
 
+  it('says an ended season of the app\'s own without matches has no grades', () => {
+    summary = of({ isHistorical: false, hasEnded: true, matchCount: 0, bracketMatchCount: 0, historicalSourceUrl: null });
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    fixture.detectChanges();
+    const notice = (fixture.nativeElement as HTMLElement).querySelector('app-data-notice')!;
+    expect(notice.textContent).toContain('none were recorded for this season');
+    expect(notice.querySelector('a')).toBeNull();
+  });
+
+  it('has no notice for a season still going without matches yet', () => {
+    fixture.detectChanges();
+    httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-data-notice')).toBeNull();
+  });
+
   it('has no notice for a season with matches, or when the season cannot be loaded', () => {
-    summary = of({ isHistorical: true, matchCount: 4, bracketMatchCount: 0 });
+    summary = of({ isHistorical: true, hasEnded: true, matchCount: 4, bracketMatchCount: 0 });
     fixture.detectChanges();
     httpTestingController.expectOne('/api/Grades/GetGrades/7').flush({ totals: [], perMinutes: [], letters: [] });
     fixture.detectChanges();
@@ -430,7 +448,7 @@ describe('PlayerGradesComponent rendering', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PlayerGradesComponent, HttpClientTestingModule],
-      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }, { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, matchCount: 1, bracketMatchCount: 0 }) } }]
+      providers: [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => '7' } } } }, { provide: SeasonSummaryService, useValue: { get: () => of({ isHistorical: false, hasEnded: false, matchCount: 1, bracketMatchCount: 0 }) } }]
     }).compileComponents();
 
     http = TestBed.inject(HttpTestingController);

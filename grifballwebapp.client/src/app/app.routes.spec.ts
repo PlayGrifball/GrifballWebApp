@@ -19,6 +19,7 @@ import { UserManagementComponent } from './userManagement/userManagement.compone
 import { CreateUserComponent } from './userManagement/createUser/createUser.component';
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
+import { GamertagClaimsComponent } from './userManagement/gamertagClaims/gamertagClaims.component';
 import { ProfileComponent } from './profile/profile.component';
 import { SeasonsComponent } from './seasons/seasons.component';
 import { LeaderboardsComponent } from './leaderboards/leaderboards.component';
@@ -89,6 +90,12 @@ describe('APP_ROUTES', () => {
     expect(userManagementRoute).toBeDefined();
     expect(userManagementRoute?.title).toBe('User Management');
     expect(userManagementRoute?.canActivate).toBeDefined();
+  });
+
+  it('has the sysadmins\' gamertag claims page, guarded', () => {
+    const claimsRoute = APP_ROUTES.find(r => r.path === 'usermanagement/claims');
+    expect(claimsRoute?.title).toBe('Gamertag Claims');
+    expect(claimsRoute?.canActivate?.length).toBe(1);
   });
 
   it('should have commissioner-dashboard route with guard', () => {
@@ -181,6 +188,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
+    'usermanagement/claims': GamertagClaimsComponent,
     'profile/:userID': ProfileComponent,
     'seasons': SeasonsComponent,
     'leaderboards': LeaderboardsComponent,
@@ -209,7 +217,7 @@ describe('APP_ROUTES lazy loading', () => {
       'seasonManager', 'seasonEdit/:seasonID', 'seasonAvailability/:seasonID',
       'infiniteclient', 'usermanagement', 'usermanagement/createuser',
       'usermanagement/edituser/:userID', 'usermanagement/mergeuser',
-      'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput',
+      'usermanagement/mergeuser/:fromInput', 'usermanagement/mergeuser/:fromInput/:toInput', 'usermanagement/claims',
       'excel', 'excel/:inputSpreadsheetId/:inputSheetName', 'commissioner-dashboard',
     ]));
   });

@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { LeaderboardsComponent, LeaderboardsDto } from './leaderboards.component';
+import { LeaderboardsComponent } from './leaderboards.component';
+import { LeaderboardsDto } from '../api/dtos/leaderboardsDto';
 
 describe('LeaderboardsComponent', () => {
   let fixture: ComponentFixture<LeaderboardsComponent>;
@@ -54,6 +55,24 @@ describe('LeaderboardsComponent', () => {
     choose('Games played');
     expect(rows()).toEqual([['1', 'Ironman', '300', '30', '-', '3']]);
     expect(el().querySelector('[aria-pressed="true"]')!.textContent!.trim()).toBe('Games played');
+  });
+
+  it('marks the chosen board pressed, names the table after it and scopes every header to its column', () => {
+    http.expectOne('/api/Leaderboards/GetLeaderboards').flush(boards);
+    fixture.detectChanges();
+    const pressed = () => Array.from(el().querySelectorAll('.hud-tab')).map(b => b.getAttribute('aria-pressed'));
+    expect(pressed()).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+    expect(el().querySelector('.hud-table-wrap')!.getAttribute('aria-label')).toBe('Championships leaderboard');
+
+    for (const title of ['Championships', 'Dynasties', 'Goals']) {
+      choose(title);
+      const headers = Array.from(el().querySelectorAll('th'));
+      expect(headers.length).toBeGreaterThan(0);
+      expect(headers.every(th => th.getAttribute('scope') === 'col')).withContext(title).toBeTrue();
+    }
+    expect(pressed()).toEqual(['false', 'false', 'true', 'false', 'false', 'false']);
+    expect(el().querySelector('.hud-table-wrap')!.getAttribute('aria-label')).toBe('Goals leaderboard');
+    expect(fixture.componentInstance.metric()!.leaders[0].perGameText).toBe('1.50');
   });
 
   it('says when the leaderboards cannot be loaded', () => {

@@ -1,0 +1,59 @@
+:host {
+  display: block;
+}
+
+.hud-lede {
+  margin-bottom: 20px;
+}
+
+.claims-filter {
+  margin-bottom: 16px;
+}
+
+.claims-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.claims-table th,
+.claims-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+// Links in the table: a tap target of at least 44px
+.claims-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.claims-strong {
+  color: var(--hud-heading);
+  font-weight: 700;
+}
+
+.claims-note {
+  display: block;
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+
+.claims-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.claims-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.claims-btn--reject {
+  border-color: var(--hud-red);
+}

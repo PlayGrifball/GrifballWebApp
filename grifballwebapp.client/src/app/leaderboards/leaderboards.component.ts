@@ -1,58 +1,32 @@
-import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { formatNumber } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-
-export interface RingLeaderDto { userID: number; gamertag: string; ringsCount: number; titles: string[]; }
-
-/** A team name's titles across seasons, linked to its latest title-winning team. */
-export interface DynastyDto {
-  teamName: string;
-  latestTeamID: number;
-  latestSeasonID: number;
-  championshipsCount: number;
-  seasonsActive: number;
-  titles: string[];
-}
-
-export interface MetricLeaderDto {
-  userID: number;
-  gamertag: string;
-  statValue: number;
-  gamesPlayed: number;
-  perGame?: number | null;
-  seasonsCount: number;
-  secondaryStat?: string | null;
-}
-
-export interface LeaderboardsDto {
-  ringLeaders: RingLeaderDto[];
-  dynasties: DynastyDto[];
-  goalLeaders: MetricLeaderDto[];
-  killLeaders: MetricLeaderDto[];
-  gamesPlayedLeaders: MetricLeaderDto[];
-  carrierStopLeaders: MetricLeaderDto[];
-}
+import { ApiClientService } from '../api/apiClient.service';
+import type { LeaderboardsDto, MetricLeaderDto } from '../api/dtos/leaderboardsDto';
 
 export type Board = 'rings' | 'dynasties' | 'goals' | 'kills' | 'games' | 'stops';
+type MetricBoard = Exclude<Board, 'rings' | 'dynasties'>;
 
-const METRICS: Record<'goals' | 'kills' | 'games' | 'stops', { title: string, list: (l: LeaderboardsDto) => MetricLeaderDto[] }> = {
+const METRICS: Record<MetricBoard, { title: string, list: (l: LeaderboardsDto) => MetricLeaderDto[] }> = {
   goals: { title: 'Goals', list: l => l.goalLeaders },
   kills: { title: 'Kills', list: l => l.killLeaders },
   games: { title: 'Games played', list: l => l.gamesPlayedLeaders },
   stops: { title: 'Carrier stops', list: l => l.carrierStopLeaders },
 };
 
+const isMetric = (board: Board): board is MetricBoard => board in METRICS;
+
 /** The all-time leaderboards over every season: titles, dynasties and career totals. */
 @Component({
   selector: 'app-leaderboards',
-  imports: [RouterLink, DecimalPipe],
+  imports: [RouterLink],
   templateUrl: './leaderboards.component.html',
   styleUrl: './leaderboards.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeaderboardsComponent implements OnInit {
-  private http = inject(HttpClient);
+  private api = inject(ApiClientService);
+  private locale = inject(LOCALE_ID);
 
   readonly boards = signal<LeaderboardsDto | null>(null);
   readonly loaded = signal(false);
@@ -67,17 +41,26 @@ export class LeaderboardsComponent implements OnInit {
     { id: 'stops', title: 'Carrier stops' },
   ];
 
-  /** The chosen career-total board, null for the titles boards. */
+  /** The table's accessible name: the chosen board's. */
+  readonly tableLabel = computed(() => `${this.tabs.find(t => t.id === this.board())!.title} leaderboard`);
+
+  /** The chosen career-total board, its per-game figures ready to show; null for the titles boards. */
   readonly metric = computed(() => {
     const board = this.board();
     const boards = this.boards();
-    if (!boards || board === 'rings' || board === 'dynasties')
+    if (!boards || !isMetric(board))
       return null;
-    return { title: METRICS[board].title, leaders: METRICS[board].list(boards) };
+    return {
+      title: METRICS[board].title,
+      leaders: METRICS[board].list(boards).map(leader => ({
+        ...leader,
+        perGameText: leader.perGame == null ? '-' : formatNumber(leader.perGame, this.locale, '1.2-2'),
+      })),
+    };
   });
 
   ngOnInit(): void {
-    this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards').subscribe({
+    this.api.getLeaderboards().subscribe({
       next: boards => {
         this.boards.set(boards);
         this.loaded.set(true);

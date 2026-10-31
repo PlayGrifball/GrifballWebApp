@@ -12,14 +12,15 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
 import { input } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
-import { SeasonSummaryDto, SeasonSummaryService } from './seasonSummary';
+import { SeasonSummaryService } from './seasonSummary';
+import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
 
 /** A season as GetSeasonSummary answers: one played in the app unless changed. */
 function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {
   return {
     seasonID: id, seasonName: `Season ${id}`, year: 2025, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
-    gameVersionSlug: 'infinite', division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 4, signupCount: 10,
+    gameVersionSlug: 'infinite', division: null, isHistorical: false, hasEnded: false, historicalSourceUrl: null, teamCount: 4, signupCount: 10,
     matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [], ...changes,
   };
 }
@@ -238,6 +239,39 @@ describe('SeasonComponent', () => {
       fixture.detectChanges();
       expect(shown()).toEqual(['app-team-standings', 'app-season-this-week']);
       expect(el().querySelector('app-season-player-stats')).toBeNull();
+    });
+  });
+
+  describe('a season played in the app', () => {
+    const el = () => fixture.nativeElement as HTMLElement;
+    const notices = () => Array.from(el().querySelectorAll('app-data-notice')).map(n => n.textContent!.trim());
+
+    it('says what was not recorded once it has ended without it, with no banner', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: true, matchCount: 0, bracketMatchCount: 0 })));
+      fixture.detectChanges();
+      expect(el().querySelector('app-backfilled-banner')).toBeNull();
+      expect(notices()).toEqual(["Match results weren't recorded for this season."]);
+      fixture.componentRef.setInput('tab', 'bracket');
+      fixture.detectChanges();
+      expect(notices()).toEqual(["The playoff bracket wasn't recorded for this season."]);
+      expect(el().querySelector('app-data-notice a')).toBeNull();
+    });
+
+    it('shows an ended season what it has as usual', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: true, bracketMatchCount: 0 })));
+      fixture.detectChanges();
+      expect(shown()).toEqual(['app-team-standings', 'app-season-this-week']);
+      fixture.componentRef.setInput('tab', 'schedule');
+      fixture.detectChanges();
+      expect(shown()).toEqual(['app-schedule-list']);
+    });
+
+    it('shows the empty sections of a season still going, as there is more to come', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { hasEnded: false, matchCount: 0, bracketMatchCount: 0 })));
+      fixture.componentRef.setInput('tab', 'bracket');
+      fixture.detectChanges();
+      expect(notices()).toEqual([]);
+      expect(shown()).toEqual(['app-playoff-bracket']);
     });
   });
 

@@ -31,7 +31,7 @@ export const serverRoutes: ServerRoute[] = [
     'seasonAvailability/:seasonID',
     'infiniteclient',
     'usermanagement',
-    'usermanagement/**',
+    'usermanagement/**', // the user editor, merging and gamertag claims
     'excel',
     'excel/**',
     'commissioner-dashboard',

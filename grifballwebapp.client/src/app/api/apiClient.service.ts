@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable, switchMap } from 'rxjs';
 import type { SeasonDto } from './dtos/seasonDto';
@@ -11,6 +11,13 @@ import { RemovePlayerFromTeamRequestDto } from './dtos/RemovePlayerFromTeamReque
 import { MovePlayerToTeamRequestDto } from './dtos/MovePlayerToTeamRequestDto';
 import { AddPlayerToTeamRequestDto } from './dtos/AddPlayerToTeamRequestDto';
 import { SeasonEvent } from '../shared/seasonEvents';
+import type { GameVersionDto, LeagueDto } from './dtos/optionDtos';
+import { seasonSummaryUrl, type SeasonSummaryDto } from './dtos/seasonSummaryDto';
+import type { SeasonPlayerStatDto } from './dtos/seasonPlayerStatDto';
+import type { SeasonListFilter, SeasonListItemDto } from './dtos/seasonListItemDto';
+import type { LeaderboardsDto } from './dtos/leaderboardsDto';
+import type { AddGamertagHistoryDto, GamertagClaimDto, GamertagClaimStatus } from './dtos/gamertagClaimDto';
+import type { PaginationResult } from '../shared/paginationResult';
 
 @Injectable({
   providedIn: 'root'
@@ -43,6 +50,60 @@ export class ApiClientService {
 
   upsertSeason(seasonDto: SeasonDto): Observable<number> {
     return this.http.post<number>('/api/EventOrganizer/UpsertSeason/', seasonDto);
+  }
+
+  /** The games a season can be played in, for the season editor. */
+  getGameVersions(): Observable<GameVersionDto[]> {
+    return this.http.get<GameVersionDto[]>('/api/EventOrganizer/GetGameVersions');
+  }
+
+  /** The leagues a season can belong to, for the season editor. */
+  getLeagues(): Observable<LeagueDto[]> {
+    return this.http.get<LeagueDto[]>('/api/EventOrganizer/GetLeagues');
+  }
+
+  /** A season's header, champions and how much of each kind of data it has. */
+  getSeasonSummary(seasonID: number): Observable<SeasonSummaryDto> {
+    return this.http.get<SeasonSummaryDto>(seasonSummaryUrl(seasonID));
+  }
+
+  /** The season's player stats; with a team, only that team's rows. */
+  getSeasonPlayerStats(seasonID: number, teamID?: number | null): Observable<SeasonPlayerStatDto[]> {
+    const params = teamID != null ? new HttpParams().set('teamID', teamID) : undefined;
+    return this.http.get<SeasonPlayerStatDto[]>('/api/Season/GetSeasonPlayerStats/' + seasonID, { params });
+  }
+
+  /** Every season, the current ones included (the seasons page), of one league and game when given. */
+  getSeasonList(filter: SeasonListFilter, pageSize: number): Observable<PaginationResult<SeasonListItemDto>> {
+    let params = new HttpParams().set('pageSize', pageSize);
+    if (filter.leagueID !== null) params = params.set('leagueID', filter.leagueID);
+    if (filter.gameVersionID !== null) params = params.set('gameVersionID', filter.gameVersionID);
+    return this.http.get<PaginationResult<SeasonListItemDto>>('/api/Season/GetSeasons', { params });
+  }
+
+  /** The all-time leaderboards: titles, dynasties and career totals. */
+  getLeaderboards(): Observable<LeaderboardsDto> {
+    return this.http.get<LeaderboardsDto>('/api/Leaderboards/GetLeaderboards');
+  }
+
+  /** The gamertag claims with this status, for the sysadmins to review. */
+  getGamertagClaims(status: GamertagClaimStatus): Observable<GamertagClaimDto[]> {
+    return this.http.get<GamertagClaimDto[]>('/api/GamertagClaims/GetClaims', { params: new HttpParams().set('status', status) });
+  }
+
+  /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. */
+  approveGamertagClaim(gamertagClaimID: number): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/ApproveClaim/' + gamertagClaimID, null);
+  }
+
+  /** Answers 204; a refusal is a 400 or 409 with a ProblemDetails body. */
+  rejectGamertagClaim(gamertagClaimID: number): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/RejectClaim/' + gamertagClaimID, null);
+  }
+
+  /** Records a gamertag an Xbox account went by. */
+  addGamertagHistory(dto: AddGamertagHistoryDto): Observable<void> {
+    return this.http.post<void>('/api/GamertagClaims/AddGamertagHistory', dto);
   }
 
   getCurrentSeasonID(): Observable<number> {

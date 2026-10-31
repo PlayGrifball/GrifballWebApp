@@ -4,7 +4,8 @@ import { of, Subject, throwError } from 'rxjs';
 import { SignupsComponent } from './signups.component';
 import { ApiClientService } from '../api/apiClient.service';
 import { SignupResponseDto } from '../api/dtos/signupResponseDto';
-import { SeasonSummaryDto, SeasonSummaryService } from '../season/seasonSummary';
+import { SeasonSummaryService } from '../season/seasonSummary';
+import { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 
 describe('SignupsComponent', () => {
   let fixture: ComponentFixture<SignupsComponent>;
@@ -18,7 +19,7 @@ describe('SignupsComponent', () => {
 
   beforeEach(async () => {
     seasonID = '3';
-    summary = { isHistorical: false, signupCount: 0 };
+    summary = { isHistorical: false, hasEnded: false, signupCount: 0 };
     api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSignups']);
     api.getSignups.and.returnValue(of([]));
     api.getCurrentSeasonID.and.returnValue(of(9));
@@ -40,11 +41,20 @@ describe('SignupsComponent', () => {
     .map(r => Array.from(r.querySelectorAll('td')).map(td => td.textContent!.trim()));
 
   it('says a backfilled season has no signup data, with its spreadsheet, in place of the table', () => {
-    summary = { isHistorical: true, signupCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' };
+    summary = { isHistorical: true, hasEnded: true, signupCount: 0, historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x' };
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('app-data-notice')!.textContent).toContain("signup data isn't available");
+    expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
     expect(el.querySelector('app-data-notice a')!.getAttribute('href')).toBe('https://docs.google.com/spreadsheets/d/x');
+    expect(el.querySelector('table')).toBeNull();
+  });
+
+  it('says an ended season of the app\'s own has no signups, without a spreadsheet', () => {
+    summary = { isHistorical: false, hasEnded: true, signupCount: 0, historicalSourceUrl: null };
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-data-notice')!.textContent).toContain("Signups weren't recorded for this season.");
+    expect(el.querySelector('app-data-notice a')).toBeNull();
     expect(el.querySelector('table')).toBeNull();
   });
 

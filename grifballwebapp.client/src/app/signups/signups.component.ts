@@ -6,7 +6,8 @@ import { ActivatedRoute } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../season/seasonTabs/seasonTabs.component';
 import { DataNoticeComponent } from '../shared/dataNotice/dataNotice.component';
-import { missing, SeasonSummaryDto, SeasonSummaryService } from '../season/seasonSummary';
+import { missing, SeasonSummaryService } from '../season/seasonSummary';
+import type { SeasonSummaryDto } from '../api/dtos/seasonSummaryDto';
 
 @Component({
     selector: 'app-signups',
@@ -27,7 +28,7 @@ export class SignupsComponent implements OnInit {
 
   readonly signUps = signal<SignupResponseDto[]>([]);
   readonly summary = signal<SeasonSummaryDto | null>(null);
-  /** A backfilled season has no signups: the page says so instead of an empty table. */
+  /** A backfilled or ended season without signups: the page says so instead of an empty table. */
   readonly noSignups = computed(() => missing(this.summary(), s => s.signupCount));
   public displayedColumns: string[] = ['personName', 'timestamp', 'teamName', 'willCaptain', 'requiresAssistanceDrafting'];
   seasonID: number = 0;

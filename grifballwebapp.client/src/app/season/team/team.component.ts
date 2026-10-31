@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, effect, input, signal, WritableSignal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
@@ -12,6 +12,7 @@ import { fromApiDate } from '../../shared/apiDates';
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
 import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
+import { SeasonPlayerStatsComponent } from '../seasonPlayerStats/seasonPlayerStats.component';
 @Component({
     selector: 'app-team',
     imports: [
@@ -24,6 +25,7 @@ import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dat
         ToDatePipe,
         BackfilledBannerComponent,
         DataNoticeComponent,
+        SeasonPlayerStatsComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -38,9 +40,14 @@ export class TeamComponent {
 
   team: WritableSignal<TeamDto | null> = signal(null);
   matches: MatTableDataSource<MatchDto> = new MatTableDataSource<MatchDto>();
-  /** The matches have loaded: a backfilled season without any says so. */
+  /** The matches have loaded: a backfilled or ended season without any says so. */
   readonly matchesLoaded = signal(false);
   readonly matchCount = signal(0);
+  /** No matches, and none to come: the team's season was backfilled or is over. */
+  readonly noMatches = computed(() => {
+    const team = this.team();
+    return !!team && (!!team.isHistorical || !!team.seasonHasEnded) && this.matchesLoaded() && this.matchCount() === 0;
+  });
 
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
@@ -78,12 +85,13 @@ export interface TeamDto
   seasonID?: number,
   /** The season was backfilled from the historical archive; historicalSourceUrl is its spreadsheet. */
   isHistorical?: boolean,
+  /** The team's season is over. */
+  seasonHasEnded: boolean,
   historicalSourceUrl?: string | null,
   /** wins and losses are the source spreadsheet's: the season's matches are not in the app. */
   recordFromSource?: boolean,
   /** The tiers whose title the team won. */
   titles?: string[],
-  stats?: TeamPlayerStatDto[],
   wins: number,
   losses: number,
   tbd: number,
@@ -100,25 +108,6 @@ export interface PlayerDto
   draftRound: number | null,
   /** Its drafted captain, or the one its title names. */
   isCaptain?: boolean,
-}
-
-/** A player's totals for the team in one phase of the season. */
-export interface TeamPlayerStatDto
-{
-  userID: number,
-  gamertag: string,
-  isPlayoffs: boolean,
-  stintIndex: number,
-  tradeNote?: string | null,
-  roleNote?: string | null,
-  gamesPlayed: number,
-  wins: number,
-  losses: number,
-  goals: number,
-  kills: number,
-  deaths: number,
-  kdRatio?: number | null,
-  carrierKills: number,
 }
 
 export interface MatchDto
