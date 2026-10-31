@@ -325,9 +325,42 @@ The Job, the CronJobs and the backend run as the backend image's non-root user (
 Kubernetes (`runAsNonRoot`); SQL Server runs as its own (10001), PostgreSQL as its own (70). Only the
 database servers' permission-fixing init containers and the frontend's server (on port 80) run as root.
 
-The backend runs one replica: the Discord bot's gateway connection, the background queue and events
-services, and Grunt's token file on a ReadWriteOnce volume all assume a single instance. The migrations
-don't: more backend pods would only be more waiters.
+## Scaling out
+
+By default the backend is one pod doing everything (`App:Role` unset, i.e. `all`), and that stays the
+recommended setup until one pod isn't enough. To run several:
+
+```yaml
+backend:
+  replicas: 3              # the API pods (App:Role api), rolling
+  persistence:
+    enabled: false         # once the app has started once with it (see below)
+worker:
+  enabled: true            # grif-worker (App:Role worker): always 1 pod, Recreate
+redis:
+  enabled: true            # the SignalR backplane; or external.connectionString
+```
+
+- **grif-worker** runs what must run once: the Discord gateway (commands, buttons, messages), the
+  queue and events background services, and the Halo Infinite token refresh. It answers only its
+  health endpoints and gets no Service; its NetworkPolicy has the backend's egress and no ingress.
+- **grif-backend** then serves the API and the SignalR hub: no gateway (it sends Discord messages over
+  REST), no background services, and it only reads the Halo Infinite token, never refreshes it. More
+  than one replica without the worker is refused.
+- **redis** joins the pods' SignalR hubs, so a change made on one pod, or a draft pick made in Discord
+  (on the worker), reaches every browser. `worker.enabled` requires it. Browsers open the hub's
+  WebSocket directly, without SignalR's negotiate request, so the Service needs no sticky sessions.
+  The chart's own is a small Valkey that stores nothing; `redis.external.connectionString` names a
+  Secret holding a StackExchange.Redis connection string instead (allow it with
+  `networkPolicy.redis`), and `redis.channelPrefix` lets environments share one server.
+- **The state volume** (`backend.persistence`) is no longer needed: the app keeps the Halo Infinite
+  token in the database, encrypted with ASP.NET Data Protection (keys in the database too), and on
+  its first start imports Grunt's old `tokens.json` / `AccountAuthorization.txt` from the volume
+  once. Keep the volume until a pod of this version has started with it, then disable it; with
+  `worker.enabled` it's mounted in the worker. Without the volume the backend rolls instead of
+  being recreated (`backend.strategy` empty).
+
+The migrations Job is the same either way; every pod waits for it.
 
 ## Metrics
 
@@ -350,9 +383,11 @@ what it needs.
 | Pod | In | Out |
 | --- | --- | --- |
 | frontend | port 80 from anyone (`frontend.from`) | DNS, the backend |
-| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port |
-| SQL Server | backend, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
-| PostgreSQL | backend, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
+| backend | the frontend | DNS, the database, HTTPS to the internet (`backend.httpsTo`: Discord, Halo, Google), the OpenTelemetry endpoint's port, Redis |
+| worker (`worker.enabled`) | - (`worker.extraIngress`) | the backend's |
+| Redis (`redis.enabled`) | backend, worker | - |
+| SQL Server | backend, worker, migration Job, backup CronJobs, sql-exporter; the LoadBalancer if enabled (`mssql.loadBalancerFrom`) | DNS |
+| PostgreSQL | backend, worker, migration Job, scheduled backup, sql-exporter; the LoadBalancer if enabled (`postgres.loadBalancerFrom`) | DNS |
 | migration Job | - | DNS, the database |
 | backup CronJobs | - | DNS, the database (PostgreSQL's retention: DNS only, it only deletes files) |
 | sql-exporter | its metrics port from anyone (`sqlExporter.from`) | DNS, the database |
@@ -390,5 +425,5 @@ helm unittest charts/grifballwebapp
 No version bump needed: master publishes every change as a new patch version. Bump the major or minor
 in `Chart.yaml` for changes that need it.
 
-`e2e/run.sh bundled|external|postgres|minimal` runs the chart on a real cluster (the workflow uses k3s in
+`e2e/run.sh bundled|external|postgres|minimal|scaleout` runs the chart on a real cluster (the workflow uses k3s in
 Docker, with app images built from the checkout): the header of the script lists what it checks.

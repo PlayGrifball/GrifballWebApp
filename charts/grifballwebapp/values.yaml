@@ -136,6 +136,13 @@ backend:
     # secretConfig (ClientConfiguration:ClientId, ...).
     # ClientConfiguration:
     #   RedirectUrl: ""
+    # Its token is kept in the database; the process that owns the sign-in refreshes it (defaults):
+    # HaloInfinite:
+    #   TokenRefresh:
+    #     CheckInterval: "00:01:00"
+    #     RefreshBefore: "00:15:00"
+    #     RetryAfter: "00:10:00"
+    # App:Role (all, api, worker) and ConnectionStrings:Redis are set by worker and redis below.
     # Google Sheets imports. Key (the service account's JSON key file) defaults to the file mounted
     # by googleCredentials.
     # GoogleSheets:
