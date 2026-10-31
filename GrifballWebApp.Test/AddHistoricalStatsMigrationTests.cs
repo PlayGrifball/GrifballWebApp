@@ -115,12 +115,17 @@ public class AddHistoricalStatsMigrationTests
     }
 
     [Test]
-    public async Task Down_RemovesHistoricalSeasons_AndUpAgain()
+    public async Task Down_RemovesHistoricalSeasonsAndPlaceholders_MakesNamesFit_AndUpAgain()
     {
-        var user = new User { UserName = "historical:Someone", IsDummyUser = true };
+        var user = new User { UserName = "historical:Someone", NormalizedUserName = "HISTORICAL:SOMEONE", IsDummyUser = true };
+        var other = new User { UserName = "dummy", IsDummyUser = true };
         var historical = NewSeason("Summer League 2025 (Classic Legacy) with a long name", sourceId: "agla/x");
         var own = NewSeason("Season of the app's own");
-        _context.AddRange(user, historical, own);
+        var longName = NewSeason("An app season with a name longer than thirty");
+        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var shared = NewSeason("Shared");
+        var sharedElsewhere = NewSeason("Shared", late.LeagueID);
+        _context.AddRange(user, other, historical, own, longName, shared, sharedElsewhere);
         await _context.SaveChangesAsync();
         _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = historical.SeasonID, GameVersionID = 6, Gamertag = "Someone" });
         await _context.SaveChangesAsync();
@@ -137,10 +142,48 @@ public class AddHistoricalStatsMigrationTests
         var names = await _context.Database
             .SqlQueryRaw<string>(Sql("SELECT [SeasonName] AS [Value] FROM [Event].[Seasons]", """SELECT "SeasonName" AS "Value" FROM "Event"."Seasons" """))
             .ToListAsync();
-        Assert.That(names, Is.EqualTo(new[] { "Season of the app's own" }));
+        var users = await _context.Database
+            .SqlQueryRaw<string>(Sql("SELECT [UserName] AS [Value] FROM [Auth].[Users]", """SELECT "UserName" AS "Value" FROM "Auth"."Users" """))
+            .ToListAsync();
+        Assert.Multiple(() =>
+        {
+            var id = longName.SeasonID.ToString();
+            Assert.That(names, Is.EquivalentTo(new[] { "Season of the app's own", $"{longName.SeasonName[..(29 - id.Length)]}~{id}", "Shared", $"Shared~{sharedElsewhere.SeasonID}" }));
+            Assert.That(names.Select(n => n.Length), Is.All.LessThanOrEqualTo(30));
+            Assert.That(users, Has.Member("dummy").And.No.Member("historical:Someone"), "The import's placeholders go; other dummy users stay");
+        });
 
         await migrator.MigrateAsync();
-        Assert.That(await _context.Seasons.Select(s => s.LeagueID).SingleAsync(), Is.EqualTo(League.DefaultLeagueID));
+        Assert.That(await _context.Seasons.Select(s => s.LeagueID).Distinct().SingleAsync(), Is.EqualTo(League.DefaultLeagueID), "Up gives them the app's league again");
+    }
+
+    [Test]
+    public async Task Up_RecordsTheRenamesTheXboxUsersHistoryHolds()
+    {
+        var (migrator, _) = await BeforeTheMigration();
+        // Written in SQL: the model has columns this migration adds. Each statement its own transaction, so each rename
+        // leaves a version in the history.
+        await _context.Database.ExecuteSqlRawAsync(Sql(
+            "INSERT INTO [Xbox].[XboxUsers] ([XboxUserID], [Gamertag], [CreatedAt], [ModifiedAt]) VALUES (1, N'First', '2025-01-01', '2025-01-01'), (2, N'Never Renamed', '2025-01-01', '2025-01-01')",
+            """INSERT INTO "Xbox"."XboxUsers" ("XboxUserID", "Gamertag", "CreatedAt", "ModifiedAt") VALUES (1, 'First', '2025-01-01Z', '2025-01-01Z'), (2, 'Never Renamed', '2025-01-01Z', '2025-01-01Z')"""));
+        foreach (var name in new[] { "Second", "Third" })
+            await _context.Database.ExecuteSqlRawAsync(Sql(
+                "UPDATE [Xbox].[XboxUsers] SET [Gamertag] = {0} WHERE [XboxUserID] = 1",
+                """UPDATE "Xbox"."XboxUsers" SET "Gamertag" = {0} WHERE "XboxUserID" = 1"""), name);
+
+        await migrator.MigrateAsync();
+
+        var history = await _context.XboxGamertagHistory.AsNoTracking().OrderBy(h => h.LastSeen).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(history.Select(h => (h.XboxUserID, h.Gamertag, h.NormalizedGamertag, h.Source)), Is.EqualTo(new[]
+            {
+                (1L, "First", "FIRST", GamertagHistorySource.RenameDetected),
+                (1L, "Second", "SECOND", GamertagHistorySource.RenameDetected),
+            }), "Not the current gamertag, and nothing for an account never renamed");
+            Assert.That(history.Select(h => h.LastSeen), Is.All.Not.Null);
+            Assert.That(history.All(h => h.FirstSeen is null || h.FirstSeen <= h.LastSeen));
+        });
     }
 
     private static Season NewSeason(string name, int leagueId = League.DefaultLeagueID, string? sourceId = null) => new()

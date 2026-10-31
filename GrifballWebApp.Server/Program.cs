@@ -226,7 +226,14 @@ public class Program
         builder.Services.AddNotifications(typeof(Program).Assembly);
 
         builder.Services.AddTransient<IDataPullService, DataPullService>();
+        // The historical import: queued by HistoricalImportController, run in the background by HistoricalImportWorker
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportOptions>().Bind(builder.Configuration.GetSection("HistoricalImport"));
+        builder.Services.AddOptions<GrifballWebApp.Server.Historical.HistoricalImportWorkerOptions>().Bind(builder.Configuration.GetSection("HistoricalImport:Worker"));
         builder.Services.AddTransient<GrifballWebApp.Server.Historical.IHistoricalImportService, GrifballWebApp.Server.Historical.HistoricalImportService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.HistoricalImportJobs>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Historical.GamertagClaimService>();
+        builder.Services.AddSingleton<GrifballWebApp.Server.Historical.HistoricalImportSignal>();
+        builder.Services.AddHostedService<GrifballWebApp.Server.Historical.HistoricalImportWorker>();
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();

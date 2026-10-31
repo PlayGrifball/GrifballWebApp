@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Surprenant.Grunt.Core;
@@ -170,5 +171,39 @@ public class GetsertXboxUserServiceTests
             Assert.That(result.User?.UserName, Is.EqualTo("owner"), "Still the same account's, so it can't be taken");
             Assert.That(stored.Gamertag, Is.EqualTo("NewName"), "Halo's spelling");
         });
+    }
+
+    [Test]
+    public async Task GetsertXboxUserByGamertag_RenamedPlayer_KeepsTheOldGamertagInItsHistory()
+    {
+        var before = DateTime.UtcNow.AddSeconds(-1);
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "OldName" });
+        await _context.SaveChangesAsync();
+        var apiResponse = new HaloApiResultContainer<Surprenant.Grunt.Models.User, HaloApiErrorContainer>(
+            new Surprenant.Grunt.Models.User { gamertag = "NewName", xuid = "789" }, null);
+        _haloInfiniteClientFactory.UserByGamertag("NewName").Returns(Task.FromResult(apiResponse));
+
+        await _service.GetsertXboxUserByGamertag("NewName");
+
+        await using var fresh = _context.NewContextLike();
+        var history = await fresh.XboxGamertagHistory.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That((history.XboxUserID, history.Gamertag, history.NormalizedGamertag, history.Source), Is.EqualTo((789L, "OldName", "OLDNAME", GamertagHistorySource.RenameDetected)));
+            Assert.That(history.FirstSeen is null || history.FirstSeen <= history.LastSeen, "From when it was stored (its last change), if known");
+            Assert.That(history.LastSeen, Is.GreaterThan(before), "Until the rename was seen");
+        });
+    }
+
+    [Test]
+    public async Task GetsertXboxUserByGamertag_SameNameInAnotherCase_IsNoRename()
+    {
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 789, Gamertag = "Some Name" });
+        await _context.SaveChangesAsync();
+        // Found by the case-insensitive lookup first; asked of the API only when it isn't
+        var (result, _) = await _service.GetsertXboxUserByGamertag("some name");
+
+        Assert.That(result!.XboxUserID, Is.EqualTo(789));
+        Assert.That(await _context.XboxGamertagHistory.AnyAsync(), Is.False);
     }
 }

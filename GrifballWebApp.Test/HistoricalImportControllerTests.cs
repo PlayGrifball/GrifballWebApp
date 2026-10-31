@@ -1,64 +1,189 @@
+using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Server.Profile;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using System.Text;
 
 namespace GrifballWebApp.Test;
 
+/// <summary>The upload queues a job (202) that the worker runs in the background; the job endpoint reports on it.</summary>
 [TestFixture]
+[FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
 [Parallelizable(ParallelScope.All)]
 public class HistoricalImportControllerTests
 {
+    private GrifballContext _context;
+    private HistoricalImportSignal _signal;
+    private HistoricalImportController _controller;
+    private IHistoricalImportService _import;
+
+    [SetUp]
+    public async Task Setup()
+    {
+        _context = await SetUpFixture.NewGrifballContext();
+        _signal = new HistoricalImportSignal();
+        _controller = new HistoricalImportController(new HistoricalImportJobs(_context, _signal), new GamertagClaimService(_context, new UserMergeService(_context)));
+        _import = Substitute.For<IHistoricalImportService>();
+    }
+
+    [TearDown]
+    public async Task TearDown() => await _context.DropDatabaseAndDispose();
+
     private static IFormFile File(string json)
     {
         var bytes = Encoding.UTF8.GetBytes(json);
         return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "file.json");
     }
 
-    [Test]
-    public async Task Import_ReadsTheUploadedFiles_AndReturnsTheReport()
+    private HistoricalImportWorker Worker(TimeProvider? time = null)
     {
-        var service = Substitute.For<IHistoricalImportService>();
-        HistoricalArchiveInput? passed = null;
-        var report = new HistoricalImportReport { SeasonsCreated = 1 };
-        service.Import(Arg.Do<HistoricalArchiveInput>(i => passed = i), Arg.Any<CancellationToken>()).Returns(report);
-        var controller = new HistoricalImportController(service);
+        var services = new ServiceCollection();
+        services.AddScoped(_ => _context.NewContextLike());
+        services.AddScoped(_ => _import);
+        return new HistoricalImportWorker(services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(), _signal,
+            Options.Create(new HistoricalImportWorkerOptions { PollInterval = TimeSpan.FromMilliseconds(50) }), time ?? TimeProvider.System,
+            NullLogger<HistoricalImportWorker>.Instance);
+    }
 
-        var result = await controller.Import(
+    [Test]
+    public async Task Import_QueuesTheUploadedArchive_AndTheWorkerRunsIt()
+    {
+        HistoricalArchiveInput? passed = null;
+        _import.Import(Arg.Do<HistoricalArchiveInput>(i => passed = i), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+            {
+                await call.Arg<Func<HistoricalImportProgress, Task>>()(new HistoricalImportProgress("Importing S 2019", 0, 1));
+                return new HistoricalImportReport { SeasonsCreated = 1, Warnings = ["look at this"] };
+            });
+
+        var result = await _controller.Import(
             File("""{ "seasons": [ { "seasonName": "S 2019", "gameVersion": "halo3", "league": "AGLA", "players": [ { "gamertag": "a", "kills": "3" } ] } ] }"""),
             File("""{ "champions": [ { "season": "S 2019", "league": "Pro", "team": "T", "roster": ["a"] } ] }"""),
-            File("""{ "agla/s-2019": { "regular": ["x"] } }"""),
+            File("""{ "s/Stats": { "regular": ["x"] } }"""),
             File("""{ "sources": [ { "id": "w", "url": "https://example.org/w" } ] }"""),
             CancellationToken.None);
 
-        Assert.That(result.Value, Is.SameAs(report));
-        Assert.That(passed!.Seasons.Seasons.Single().Players.Single().Kills, Is.EqualTo(3));
-        Assert.That(passed.Championships!.Champions.Single().Tier, Is.EqualTo("Pro"));
-        Assert.That(passed.WaypointMatches!["agla/s-2019"].Regular, Is.EqualTo(new[] { "x" }));
-        Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
+        var accepted = (AcceptedAtActionResult)result;
+        var jobId = ((HistoricalImportQueued)accepted.Value!).JobID;
+        Assert.That(accepted.ActionName, Is.EqualTo(nameof(HistoricalImportController.Job)));
+        var queued = (await _controller.Job(jobId, CancellationToken.None)).Value!;
+        Assert.That((queued.Status, queued.Report), Is.EqualTo(("Queued", (HistoricalImportReport?)null)));
+
+        Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.True);
+
+        var done = (await _controller.Job(jobId, CancellationToken.None)).Value!;
+        Assert.Multiple(async () =>
+        {
+            Assert.That((done.Status, done.Stage, done.SeasonsTotal), Is.EqualTo(("Succeeded", "Done", 1)));
+            Assert.That(done.Report!.SeasonsCreated, Is.EqualTo(1));
+            Assert.That(done.Report.Warnings, Is.EqualTo(new[] { "look at this" }));
+            Assert.That((done.StartedAt, done.FinishedAt), Is.Not.EqualTo(((DateTime?)null, (DateTime?)null)));
+            Assert.That(passed!.Seasons.Seasons.Single().Players.Single().Kills, Is.EqualTo(3));
+            Assert.That(passed.Championships!.Champions.Single().Tier, Is.EqualTo("Pro"));
+            Assert.That(passed.WaypointMatches!["s/Stats"].Regular, Is.EqualTo(new[] { "x" }));
+            Assert.That(passed.Catalog!.Sources.Single().Url, Is.EqualTo("https://example.org/w"));
+            Assert.That(await _context.HistoricalImportJobs.Select(j => j.Payload).SingleAsync(), Is.Null, "The archive isn't kept once the job ends");
+        });
+        Assert.That(await Worker().RunNextAsync(CancellationToken.None), Is.False, "Nothing queued");
     }
 
     [Test]
-    public async Task Import_OnlyTheSeasons()
+    public async Task AJobThatThrows_IsFailed_WithTheReason()
     {
-        var service = Substitute.For<IHistoricalImportService>();
-        service.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
-        var result = await new HistoricalImportController(service).Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None);
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns<HistoricalImportReport>(_ => throw new InvalidOperationException("boom"));
+        var jobId = ((HistoricalImportQueued)((AcceptedAtActionResult)await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None)).Value!).JobID;
 
-        Assert.That(result.Value, Is.Not.Null);
-        await service.Received(1).Import(Arg.Is<HistoricalArchiveInput>(i => i.Championships == null && i.WaypointMatches == null && i.Catalog == null), Arg.Any<CancellationToken>());
+        await Worker().RunNextAsync(CancellationToken.None);
+
+        var job = (await _controller.Job(jobId, CancellationToken.None)).Value!;
+        Assert.That((job.Status, job.Error, job.Stage), Is.EqualTo(("Failed", "boom", "Failed")));
     }
+
+    [Test]
+    public async Task AJobLeftRunningByAStoppedProcess_IsQueuedAgain_OnceItsHeartbeatIsStale()
+    {
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>()).Returns(new HistoricalImportReport());
+        var payload = System.Text.Json.JsonSerializer.Serialize(new HistoricalArchiveInput { Seasons = new UnifiedArchive() });
+        var now = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+        _context.HistoricalImportJobs.AddRange(
+            new HistoricalImportJob { Status = HistoricalImportJobStatus.Running, Payload = payload, HeartbeatAt = now.AddHours(-1) },
+            new HistoricalImportJob { Status = HistoricalImportJobStatus.Running, Payload = payload, HeartbeatAt = now.AddMinutes(-1) });
+        await _context.SaveChangesAsync();
+
+        await Worker(new FixedTimeProvider(now)).RunNextAsync(CancellationToken.None);
+
+        var jobs = await _context.HistoricalImportJobs.AsNoTracking().OrderBy(j => j.HistoricalImportJobID).Select(j => j.Status).ToListAsync();
+        Assert.That(jobs, Is.EqualTo(new[] { HistoricalImportJobStatus.Succeeded, HistoricalImportJobStatus.Running }), "The fresh one is still someone's");
+    }
+
+    [Test]
+    public async Task TheWorker_RunsAQueuedJob_WhenWoken_AndStopsWithTheHost()
+    {
+        var ran = new TaskCompletionSource();
+        _import.Import(Arg.Any<HistoricalArchiveInput>(), Arg.Any<Func<HistoricalImportProgress, Task>?>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { ran.TrySetResult(); return new HistoricalImportReport(); });
+        var worker = Worker();
+        await worker.StartAsync(CancellationToken.None);
+
+        await _controller.Import(File("""{ "seasons": [] }"""), null, null, null, CancellationToken.None);
+
+        await ran.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await worker.StopAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task Job_AnUnknownJob_IsNotFound()
+        => Assert.That((await _controller.Job(999, CancellationToken.None)).Result, Is.InstanceOf<NotFoundResult>());
 
     [TestCase("not json")]
     [TestCase("null")]
     public async Task Import_AFileThatIsNotTheArchive_IsABadRequest(string json)
     {
-        var service = Substitute.For<IHistoricalImportService>();
-        var result = await new HistoricalImportController(service).Import(File(json), null, null, null, CancellationToken.None);
+        var result = await _controller.Import(File(json), null, null, null, CancellationToken.None);
 
-        Assert.That(result.Result, Is.InstanceOf<BadRequestObjectResult>());
-        await service.DidNotReceiveWithAnyArgs().Import(default!, default);
+        Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
+        Assert.That(await _context.HistoricalImportJobs.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task Claims_CanBeListedApprovedAndRejected_AndHistoryAdded()
+    {
+        var placeholder = new User { UserName = "historical:Old", IsDummyUser = true };
+        _context.Users.Add(placeholder);
+        _context.XboxUsers.AddRange(new XboxUser { XboxUserID = 1, Gamertag = "A" }, new XboxUser { XboxUserID = 2, Gamertag = "B" });
+        await _context.SaveChangesAsync();
+        _context.GamertagClaims.AddRange(
+            new GamertagClaim { Kind = GamertagClaimKind.SetGamertag, XboxUserID = 1, Gamertag = "Old", NormalizedGamertag = "OLD", PlaceholderUserID = placeholder.Id },
+            new GamertagClaim { Kind = GamertagClaimKind.SetGamertag, XboxUserID = 2, Gamertag = "Other", NormalizedGamertag = "OTHER" });
+        await _context.SaveChangesAsync();
+
+        var pending = await _controller.Claims(ct: CancellationToken.None);
+        Assert.That(pending, Has.Count.EqualTo(2));
+        Assert.That(await _controller.RejectClaim(pending[1].GamertagClaimID, CancellationToken.None), Is.InstanceOf<OkResult>());
+        Assert.That(await _controller.ApproveClaim(pending[0].GamertagClaimID, CancellationToken.None), Is.InstanceOf<OkResult>());
+        Assert.That(await _controller.GamertagHistory(new AddGamertagHistoryRequest { XboxUserID = 2, Gamertag = "Older" }, CancellationToken.None), Is.InstanceOf<OkResult>());
+
+        Assert.That(await _controller.Claims(ct: CancellationToken.None), Is.Empty);
+        Assert.That(await _controller.Claims(GamertagClaimStatus.Approved, CancellationToken.None), Has.Count.EqualTo(1));
+        Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task TheSignal_WakesOneWaiter_AndDoesntPileUp()
+    {
+        var signal = new HistoricalImportSignal();
+        signal.Notify();
+        signal.Notify();
+        Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.True);
+        Assert.That(await signal.WaitAsync(TimeSpan.Zero, CancellationToken.None), Is.False);
     }
 }
 

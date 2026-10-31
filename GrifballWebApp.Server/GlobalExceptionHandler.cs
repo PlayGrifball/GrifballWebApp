@@ -60,6 +60,8 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         SignupsClosedException => Refusal(StatusCodes.Status400BadRequest, "Request refused", "Signups are closed for this season"),
         MergeConflictException => Refusal(StatusCodes.Status409Conflict, "Conflict", exception.Message),
         UserHasHistoricalStatsException => Refusal(StatusCodes.Status409Conflict, "Conflict", "User has historical stats; merge instead."),
+        Historical.GamertagClaimException => Refusal(StatusCodes.Status400BadRequest, "Request refused", exception.Message),
+        EventOrganizer.SeasonRefusedException e => Refusal(e.Status, e.Status == StatusCodes.Status409Conflict ? "Conflict" : "Request refused", exception.Message),
         UserNotFoundException => Refusal(StatusCodes.Status404NotFound, "Not found", exception.Message),
         _ => null,
     };

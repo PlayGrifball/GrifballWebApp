@@ -33,6 +33,7 @@ public class EventOrganizerService
     public Task<SeasonDto?> GetSeason(int seasonID, CancellationToken ct = default)
     {
         return _context.Seasons
+            .Where(x => !x.IsHistorical) // imported from the archive: not the organizer's to edit
             .Select(x => new SeasonDto()
             {
                 SeasonID = x.SeasonID,
@@ -64,12 +65,22 @@ public class EventOrganizerService
                 .Include(x => x.SeasonAvailability)
                 .Where(x => x.SeasonID == dto.SeasonID).FirstOrDefaultAsync(ct)
                 ?? throw new Exception("Season does not exist");
+            if (season.IsHistorical)
+                throw new SeasonRefusedException("That season was imported from the historical archive and can't be edited here.");
         }
         else
         {
             season = new Season();
             _context.Seasons.Add(season);
         }
+
+        // Names are unique per league, and the archive's seasons are hidden from the organizer: say which one has it
+        var taken = await _context.Seasons.Where(x => x.LeagueID == season.LeagueID && x.SeasonName == dto.SeasonName && x.SeasonID != dto.SeasonID)
+            .Select(x => new { x.IsHistorical }).FirstOrDefaultAsync(ct);
+        if (taken is not null)
+            throw new SeasonRefusedException(taken.IsHistorical
+                ? $"A historical season of this league is already named {dto.SeasonName}. Choose another name."
+                : $"There is already a season named {dto.SeasonName}. Choose another name.", StatusCodes.Status409Conflict);
 
         season.SeasonName = dto.SeasonName;
         season.PublicAt = dto.PublicAt;
@@ -142,4 +153,10 @@ public class EventOrganizerService
         await transaction.CommitAsync(ct);
         return season.SeasonID;
     }
+}
+
+/// <summary>A season change the organizer can't make; the message is for the user.</summary>
+public class SeasonRefusedException(string message, int status = StatusCodes.Status400BadRequest) : Exception(message)
+{
+    public int Status { get; } = status;
 }

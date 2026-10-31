@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,12 +43,15 @@ public class ProfileController : ControllerBase
         if (user is null)
             return NotFound();
 
-        var aliases = await _context.PlayerAliases
-            .AsNoTracking()
-            .Where(a => a.UserID == userID)
-            .Select(a => a.Alias)
-            .Distinct()
-            .ToListAsync(ct);
+        // The gamertags the user's Xbox account had before (its renames)
+        var pastGamertags = user.XboxUserID is null
+            ? []
+            : await _context.XboxGamertagHistory
+                .AsNoTracking()
+                .Where(h => h.XboxUserID == user.XboxUserID)
+                .OrderByDescending(h => h.LastSeen)
+                .Select(h => h.Gamertag)
+                .ToListAsync(ct);
 
         var championships = await _context.PlayerChampionships
             .AsNoTracking()
@@ -155,14 +159,14 @@ public class ProfileController : ControllerBase
                     Losses = l,
                     WinPercent = gp > 0 ? Math.Round((decimal)w / gp * 100m, 1) : null,
                     Goals = goals,
-                    GoalsPerGame = gp > 0 ? Math.Round((decimal)goals / gp, 2) : null,
+                    GoalsPerGame = PerSheetGame(g, s => s.Goals),
                     Kills = k,
                     Deaths = d,
                     Assists = a,
                     KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                     KdSpread = k - d,
                     CarrierKills = stops,
-                    StopsPerGame = gp > 0 ? Math.Round((decimal)stops / gp, 2) : null,
+                    StopsPerGame = PerSheetGame(g, s => s.CarrierKills),
                     Sprees = g.Sum(s => s.Sprees),
                     MultiKills = g.Sum(s => s.MultiKills),
                     Exterminations = g.Sum(s => s.Exterminations),
@@ -202,14 +206,14 @@ public class ProfileController : ControllerBase
                 Losses = l,
                 WinPercent = gp > 0 ? Math.Round((decimal)w / gp * 100m, 1) : null,
                 Goals = goals,
-                GoalsPerGame = gp > 0 ? Math.Round((decimal)goals / gp, 2) : null,
+                GoalsPerGame = PerSheetGame(rawStats, s => s.Goals),
                 Kills = k,
                 Deaths = d,
                 Assists = a,
                 KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                 KdSpread = k - d,
                 CarrierKills = stops,
-                StopsPerGame = gp > 0 ? Math.Round((decimal)stops / gp, 2) : null,
+                StopsPerGame = PerSheetGame(rawStats, s => s.CarrierKills),
                 Sprees = rawStats.Sum(s => s.Sprees),
                 MultiKills = rawStats.Sum(s => s.MultiKills),
                 Exterminations = rawStats.Sum(s => s.Exterminations),
@@ -230,7 +234,7 @@ public class ProfileController : ControllerBase
             Gamertag = user.XboxUser?.Gamertag,
             DisplayName = user.DisplayName,
             IsDummyUser = user.IsDummyUser,
-            Aliases = aliases,
+            PastGamertags = pastGamertags,
             Championships = championships,
             CareerByGame = careerByGame,
             OverallCareer = overall,
@@ -261,5 +265,16 @@ public class ProfileController : ControllerBase
             return null;
         var parsed = int.TryParse(stringName, out var id);
         return parsed ? id : null;
+    }
+
+    /// <summary>
+    /// A stat per game over the sheet rows only: Waypoint rows (Halo Infinite matches) have no goals or carrier stops,
+    /// so counting their games would pull the average down.
+    /// </summary>
+    private static decimal? PerSheetGame(IEnumerable<PlayerSeasonStat> rows, Func<PlayerSeasonStat, int> stat)
+    {
+        var sheet = rows.Where(s => s.Source == StatSource.Manual).ToList();
+        var games = sheet.Sum(s => s.GamesPlayed);
+        return games > 0 ? Math.Round((decimal)sheet.Sum(stat) / games, 2) : null;
     }
 }

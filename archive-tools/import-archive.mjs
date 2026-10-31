@@ -106,7 +106,27 @@ async function main() {
       throw new Error(`Server returned HTTP ${res.status}: ${body}`);
     }
 
-    const report = await res.json();
+    // The import runs in the background: 202 with the job, whose progress and report the job endpoint gives
+    const { jobID } = await res.json();
+    console.log(`  Queued as job ${jobID}`);
+    let job;
+    let lastStage = "";
+    for (;;) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      const status = await fetch(`${options.baseUrl}/HistoricalImport/Job/${jobID}`, { headers });
+      if (!status.ok)
+        throw new Error(`Job status returned HTTP ${status.status}: ${await status.text()}`);
+      job = await status.json();
+      const stage = `${job.status}: ${job.stage ?? ""} (${job.seasonsDone}/${job.seasonsTotal} seasons)`;
+      if (stage !== lastStage)
+        console.log(`  ${stage}`);
+      lastStage = stage;
+      if (job.status === "Succeeded" || job.status === "Failed")
+        break;
+    }
+    if (job.status === "Failed")
+      throw new Error(`Job ${jobID} failed: ${job.error}`);
+    const report = job.report;
     console.log(`\n=== Import Report ===`);
     console.log(`  Seasons Created:         ${report.seasonsCreated}`);
     console.log(`  Seasons Updated:         ${report.seasonsUpdated}`);
@@ -117,6 +137,14 @@ async function main() {
     console.log(`  Dummy Users Created:     ${report.dummyUsersCreated}`);
     console.log(`  Manual Replaced By API:  ${report.manualReplacedByWaypoint}`);
     console.log(`  Waypoint Matches Pulled: ${report.waypointMatchesPulled}`);
+    console.log(`  Roster Suggestions:      ${report.suggestionsCreated} (approve or reject at /HistoricalImport/Claims)`);
+    for (const [label, list] of [["Missing Waypoint matches", report.missingMatches], ["Warnings", report.warnings]]) {
+      if (list?.length) {
+        console.log(`\n  ${label} (${list.length}):`);
+        list.slice(0, 10).forEach(s => console.log(`    - ${s}`));
+        if (list.length > 10) console.log(`    ... and ${list.length - 10} more`);
+      }
+    }
     if (report.skipped?.length) {
       console.log(`\n  Skipped Items (${report.skipped.length}):`);
       report.skipped.slice(0, 10).forEach(s => console.log(`    - ${s}`));

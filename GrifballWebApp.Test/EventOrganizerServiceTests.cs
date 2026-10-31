@@ -254,4 +254,68 @@ public class EventOrganizerServiceTests
             Assert.That(listed.Single().PublicAt, Is.EqualTo(publicAt));
         });
     }
+
+    private async Task<Season> HistoricalSeason(string name)
+    {
+        var season = new Season
+        {
+            SeasonName = name,
+            IsHistorical = true,
+            HistoricalSourceID = "wl19/" + name,
+            SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc),
+        };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        return season;
+    }
+
+    private static SeasonDto Dto(string name, int seasonId = 0)
+    {
+        var now = DateTime.UtcNow;
+        return new SeasonDto { SeasonID = seasonId, SeasonName = name, SeasonStart = now.AddDays(10), SeasonEnd = now.AddDays(40), SignupsOpen = now, SignupsClose = now.AddDays(5), DraftStart = now.AddDays(7) };
+    }
+
+    [Test]
+    public async Task HistoricalSeasons_AreNotTheOrganizers_ToRead()
+    {
+        var season = await HistoricalSeason("Winter League 2019");
+
+        Assert.That(await _service.GetSeason(season.SeasonID), Is.Null);
+        Assert.That(await _service.GetSeasons(), Is.Empty);
+    }
+
+    [Test]
+    public async Task HistoricalSeasons_AreNotTheOrganizers_ToEdit()
+    {
+        var season = await HistoricalSeason("Winter League 2019");
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Renamed", season.SeasonID)));
+
+        Assert.That((ex!.Status, ex.Message), Is.EqualTo((400, "That season was imported from the historical archive and can't be edited here.")));
+    }
+
+    [Test]
+    public async Task ANewSeason_NamedLikeAHiddenHistoricalOne_SaysSo()
+    {
+        await HistoricalSeason("Winter League 2019");
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("winter league 2019")));
+
+        Assert.That(ex!.Status, Is.EqualTo(409));
+        Assert.That(ex.Message, Does.Contain("A historical season of this league is already named"));
+    }
+
+    [Test]
+    public async Task RenamingASeason_ToAnotherSeasonsName_SaysSo_ButKeepingItsOwnNameIsFine()
+    {
+        var first = await _service.UpsertSeason(Dto("Season 1"));
+        await _service.UpsertSeason(Dto("Season 2"));
+
+        var ex = await Assert.ThrowsAsync<SeasonRefusedException>(() => _service.UpsertSeason(Dto("Season 2", first)));
+        Assert.That(ex!.Message, Is.EqualTo("There is already a season named Season 2. Choose another name."));
+
+        _context.ChangeTracker.Clear();
+        Assert.That(await _service.UpsertSeason(Dto("Season 1", first)), Is.EqualTo(first));
+    }
 }

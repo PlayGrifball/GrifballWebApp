@@ -1,5 +1,6 @@
 ﻿using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
+using GrifballWebApp.Server.Historical;
 using Microsoft.EntityFrameworkCore;
 using Surprenant.Grunt.Core;
 
@@ -54,6 +55,13 @@ public class GetsertXboxUserService : IGetsertXboxUserService
             .FirstOrDefaultAsync(ct);
         if (renamed is not null)
         {
+            // The name it had goes into its gamertag history first: seasons played under it still find this account.
+            // It was current from when it was stored (the row's last change) until now.
+            if (!string.Equals(renamed.Gamertag, response.Result.gamertag, StringComparison.OrdinalIgnoreCase))
+            {
+                var since = renamed.ModifiedAt > DateTime.MinValue ? renamed.ModifiedAt : (DateTime?)null;
+                await _grifballContext.UpsertGamertagHistoryAsync(renamed.XboxUserID, renamed.Gamertag, since, DateTime.UtcNow, GamertagHistorySource.RenameDetected, ct);
+            }
             renamed.Gamertag = response.Result.gamertag;
             await _grifballContext.SaveChangesAsync(ct);
             return (renamed, null);

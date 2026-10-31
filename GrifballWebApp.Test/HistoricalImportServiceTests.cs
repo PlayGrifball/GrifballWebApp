@@ -5,6 +5,7 @@ using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace GrifballWebApp.Test;
@@ -23,7 +24,7 @@ public class HistoricalImportServiceTests
     {
         _context = await SetUpFixture.NewGrifballContext();
         _dataPull = Substitute.For<IDataPullService>();
-        _service = new HistoricalImportService(_context, _dataPull, NullLogger<HistoricalImportService>.Instance);
+        _service = new HistoricalImportService(_context, _dataPull, Options.Create(new HistoricalImportOptions { MatchPullBackoff = TimeSpan.Zero }), NullLogger<HistoricalImportService>.Instance);
     }
 
     [TearDown]
@@ -51,7 +52,7 @@ public class HistoricalImportServiceTests
             Assert.That(users.Select(u => u.UserName), Is.EquivalentTo(new[] { "historical:Shadow S16", "historical:x0 pie x0" }));
             Assert.That(users.Select(u => u.DisplayName), Is.EquivalentTo(new[] { "Shadow S16", "x0 pie x0" }));
             Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(4));
-            Assert.That(await _context.PlayerAliases.CountAsync(), Is.Zero, "An alias is a second Xbox account, never a spelling or rename");
+            Assert.That(await _context.XboxGamertagHistory.CountAsync(), Is.Zero, "No gamertag history from spellings");
             Assert.That(report.SeasonsCreated, Is.EqualTo(2));
             Assert.That(report.StatsInserted, Is.EqualTo(4));
             Assert.That(report.DummyUsersCreated, Is.EqualTo(2));
@@ -84,13 +85,12 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
-    public async Task Import_FindsRealAccountsByXboxGamertag_AndOtherXboxAccountsByAlias()
+    public async Task Import_FindsAccountsByTheirCurrentGamertag_AndRenamedOnesByTheirGamertagHistory()
     {
         var byXbox = new User { UserName = "noah", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
-        var byAlias = new User { UserName = "pie" };
+        var byAlias = new User { UserName = "pie", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "Pie Now" } };
         _context.AddRange(byXbox, byAlias);
-        await _context.SaveChangesAsync();
-        _context.PlayerAliases.Add(new PlayerAlias { UserID = byAlias.Id, Alias = "x0 pie x0", NormalizedAlias = "X0 PIE X0" });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 2, Gamertag = "x0 pie x0", NormalizedGamertag = "X0 PIE X0", LastSeen = Utc(2020), Source = GamertagHistorySource.RenameDetected });
         await _context.SaveChangesAsync();
 
         var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("shadow s16"), Player("X0 Pie X0"))));
@@ -330,7 +330,8 @@ public class HistoricalImportServiceTests
         });
 
         Assert.That(report.Skipped, Has.Some.Contains("could not be pulled"));
-        Assert.That(report.Skipped, Has.Some.Contains("1 of 1 Waypoint matches are not in the database"));
+        Assert.That(report.MissingMatches, Has.One.Contains("regular season: 1 of 1 matches missing"));
+        await _dataPull.Received(3).GetAndSaveMatch(missing); // tried again with backoff
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.Source).SingleAsync(), Is.EqualTo(StatSource.Manual));
     }
 
@@ -386,13 +387,17 @@ public class HistoricalImportServiceTests
             Championships = new ChampionsArchive { Champions = [new ArchiveChampionship { Season = "Winter League 2019", Game = "Halo 3", Tier = "Open", Team = "T", Roster = ["Silva"] }] },
         });
         var user = await _context.Users.SingleAsync();
-        _context.PlayerAliases.Add(new PlayerAlias { UserID = user.Id, GameVersionID = 1, Alias = "Silva Two", NormalizedAlias = "SILVA TWO", IsPrimary = false, Source = "test" });
+        var seasonId = await _context.Seasons.Select(s => s.SeasonID).SingleAsync();
+        _context.XboxUsers.Add(new XboxUser { XboxUserID = 5, Gamertag = "Silva Now" });
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 5, Gamertag = "Silva", NormalizedGamertag = "SILVA", Source = GamertagHistorySource.Manual });
+        _context.GamertagClaims.Add(new GamertagClaim { Kind = GamertagClaimKind.RosterMatch, XboxUserID = 5, Gamertag = "Silva", NormalizedGamertag = "SILVA", PlaceholderUserID = user.Id, SeasonID = seasonId });
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
 
         var stat = await _context.PlayerSeasonStats.Include(s => s.Season).ThenInclude(s => s.GameVersion).Include(s => s.GameVersion).Include(s => s.User).SingleAsync();
         var title = await _context.PlayerChampionships.Include(c => c.User).Include(c => c.League).Include(c => c.GameVersion).SingleAsync();
-        var alias = await _context.PlayerAliases.Include(a => a.User).Include(a => a.GameVersion).SingleAsync();
+        var history = await _context.XboxGamertagHistory.Include(h => h.XboxUser).SingleAsync();
+        var claim = await _context.GamertagClaims.Include(c => c.XboxUser).Include(c => c.PlaceholderUser).Include(c => c.Season).SingleAsync();
         var halo3 = await _context.GameVersions.Include(g => g.Seasons).SingleAsync(g => g.Slug == "halo3");
         Assert.Multiple(() =>
         {
@@ -400,7 +405,8 @@ public class HistoricalImportServiceTests
             Assert.That(stat.GameVersion.Slug, Is.EqualTo("halo3"));
             Assert.That(title.PlayerChampionshipID, Is.GreaterThan(0));
             Assert.That((title.User.Id, title.League.Slug, title.GameVersion.Slug), Is.EqualTo((user.Id, "agla", "halo3")));
-            Assert.That((alias.PlayerAliasID > 0, alias.User.Id, alias.GameVersion.Slug, alias.GameVersionID, alias.IsPrimary, alias.Source), Is.EqualTo((true, user.Id, "halo3", 1, false, "test")));
+            Assert.That((history.XboxGamertagHistoryID > 0, history.XboxUser.Gamertag, history.FirstSeen, history.LastSeen), Is.EqualTo((true, "Silva Now", (DateTime?)null, (DateTime?)null)));
+            Assert.That((claim.GamertagClaimID > 0, claim.XboxUser.Gamertag, claim.PlaceholderUser.Id, claim.Season.SeasonName, claim.TeamName, claim.Status), Is.EqualTo((true, "Silva Now", user.Id, "Winter League 2019", (string?)null, GamertagClaimStatus.Pending)));
             Assert.That(halo3.Seasons.Select(s => s.SeasonName), Is.EqualTo(new[] { "Winter League 2019" }));
         });
     }
@@ -491,6 +497,178 @@ public class HistoricalImportServiceTests
         SourceSheet = sheet,
         Players = entry.Players,
     };
+
+    private static DateTime Utc(int year, int month = 1, int day = 1) => new(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+
+    [Test]
+    public async Task Import_NeverGivesAnOlderSeasonsGamertag_ToTheAccountThatOnlyHoldsItNow()
+    {
+        // The account took "Shadow S16" in 2021; before that it was "Rookie"
+        var now = new User { UserName = "now", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
+        _context.Users.Add(now);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", FirstSeen = Utc(2015), LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+
+        var report = await _service.Import(Input(
+            Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shadow S16"), Player("Rookie")),
+            Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Shadow S16"))));
+
+        var rows = await _context.PlayerSeasonStats.AsNoTracking().Include(s => s.Season).Include(s => s.User).ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(rows.Single(r => r.Gamertag == "Rookie").UserID, Is.EqualTo(now.Id), "Its history covers 2019");
+            Assert.That(rows.Single(r => r.Gamertag == "Shadow S16" && r.Season.SeasonName == "Winter League 2019").User.UserName, Is.EqualTo("historical:Shadow S16"),
+                "Someone else's 2019 gamertag: the account only took it in 2021");
+        });
+        // In 2023 the account had it
+        Assert.That(rows.Single(r => r.Season.SeasonName == "Winter League 2023 (DA)").UserID, Is.EqualTo(now.Id));
+    }
+
+    [Test]
+    public async Task Import_GivesARecentSeasonsGamertag_ToTheAccountThatHadItThen()
+    {
+        var now = new User { UserName = "now", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Shadow S16" } };
+        _context.Users.Add(now);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Rookie", NormalizedGamertag = "ROOKIE", LastSeen = Utc(2021, 3), Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+
+        await _service.Import(Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Shadow S16"))));
+
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(now.Id), "Renamed before the season");
+    }
+
+    [Test]
+    public async Task Import_AGamertagTwoAccountsHistoriesClaim_IsLeftToItsPlaceholder_WithAWarning()
+    {
+        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
+        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        _context.Users.AddRange(a, b);
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "Shared", NormalizedGamertag = "SHARED", Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+
+        var report = await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shared"))));
+
+        Assert.That(report.Warnings, Has.One.Contains("more than one Xbox account"));
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.User.UserName).SingleAsync(), Is.EqualTo("historical:Shared"));
+    }
+
+    [Test]
+    public async Task Import_ADatedHistoryRowWins_OverAnotherAccountsUndatedOne()
+    {
+        var a = new User { UserName = "a", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "A Now" } };
+        var b = new User { UserName = "b", XboxUser = new XboxUser { XboxUserID = 2, Gamertag = "B Now" } };
+        _context.Users.AddRange(a, b);
+        _context.XboxGamertagHistory.AddRange(
+            new XboxGamertagHistory { XboxUserID = 1, Gamertag = "Shared", NormalizedGamertag = "SHARED", FirstSeen = Utc(2018), LastSeen = Utc(2020), Source = GamertagHistorySource.Manual },
+            new XboxGamertagHistory { XboxUserID = 2, Gamertag = "Shared", NormalizedGamertag = "SHARED", Source = GamertagHistorySource.Manual });
+        await _context.SaveChangesAsync();
+
+        await _service.Import(Input(Entry("Winter League 2019", "halo3", "AGLA", false, Player("Shared"))));
+
+        Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(a.Id));
+    }
+
+    [Test]
+    public async Task Import_ARenamedPlayersSheetRowInAWaypointSeason_IsNotCountedTwice()
+    {
+        var real = new User { UserName = "real", XboxUser = new XboxUser { XboxUserID = 100, Gamertag = "New Tag" } };
+        _context.Users.Add(real);
+        _context.XboxGamertagHistory.Add(new XboxGamertagHistory { XboxUserID = 100, Gamertag = "Old Tag", NormalizedGamertag = "OLD TAG", FirstSeen = Utc(2022), LastSeen = Utc(2024), Source = GamertagHistorySource.RenameDetected });
+        await _context.SaveChangesAsync();
+        var match = Guid.NewGuid();
+        await AddMatch(match, (100, "New Tag", Outcomes.Won, 30, 10));
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Old Tag", kills: 1))).Seasons,
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
+        });
+
+        var stat = await _context.PlayerSeasonStats.AsNoTracking().SingleAsync();
+        Assert.That((stat.UserID, stat.Source), Is.EqualTo((real.Id, StatSource.Waypoint)));
+        Assert.That(report.ManualReplacedByWaypoint, Is.EqualTo(1));
+        Assert.That(report.Warnings, Is.Empty, "Every sheet row matched");
+    }
+
+    [Test]
+    public async Task Import_WaypointReplacesManual_OnlyForAPhaseWithEveryMatchPulled()
+    {
+        var regular = Guid.NewGuid();
+        var playoff = Guid.NewGuid();
+        var lost = Guid.NewGuid();
+        await AddMatch(regular, (100, "Hells Angel cx", Outcomes.Won, 30, 10));
+        await AddMatch(playoff, (100, "Hells Angel cx", Outcomes.Won, 5, 1));
+        // The API doesn't return it: GetAndSaveMatch saves nothing
+
+        var report = await _service.Import(new HistoricalArchiveInput
+        {
+            Seasons = Input(
+                Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx", kills: 1)),
+                Entry("Winter League 2023 (DA)", "infinite", "AGLA", true, Player("Hells Angel cx", kills: 2))).Seasons,
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [regular.ToString()], Playoffs = [playoff.ToString(), lost.ToString()] } },
+        });
+
+        var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(stats.Single(s => !s.IsPlayoffs).Source, Is.EqualTo(StatSource.Waypoint));
+            Assert.That((stats.Single(s => s.IsPlayoffs).Source, stats.Single(s => s.IsPlayoffs).Kills), Is.EqualTo((StatSource.Manual, 2)), "A playoff match is missing");
+            Assert.That(report.Skipped, Has.Some.Contains($"Waypoint match {lost}: not found"));
+            Assert.That(report.MissingMatches, Has.One.Contains("playoffs: 1 of 2 matches missing").And.Contains(lost.ToString()));
+            Assert.That(report.WaypointMatchesPulled, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task Import_SuggestsRosterMatches_AndApprovingOneMergesThePlaceholder_WithoutCountingThePlayerTwice()
+    {
+        var teammate = new User { UserName = "teammate", XboxUser = new XboxUser { XboxUserID = 1, Gamertag = "Teammate" } };
+        _context.Users.Add(teammate);
+        await _context.SaveChangesAsync();
+        var match = Guid.NewGuid();
+        // XUID 2 played as "New B" on Teammate's team; the sheet lists that player as "Old B"
+        await AddMatch(match, (1, "Teammate", Outcomes.Won, 10, 5), (2, "New B", Outcomes.Won, 20, 5), (3, "Opponent", Outcomes.Lost, 5, 30));
+        var input = new HistoricalArchiveInput
+        {
+            Seasons = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false,
+                Player("Teammate", team: "Ram Ranch"), Player("Old B", kills: 99, team: "Ram Ranch"), Player("Opponent", team: "Others"))).Seasons,
+            WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
+        };
+
+        var report = await _service.Import(input);
+
+        var claim = await _context.GamertagClaims.AsNoTracking().SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.SuggestionsCreated, Is.EqualTo(1));
+            Assert.That(report.Warnings, Has.One.Contains("Old B matches no Xbox account"));
+            Assert.That((claim.Kind, claim.XboxUserID, claim.Gamertag, claim.TeamName, claim.Status), Is.EqualTo((GamertagClaimKind.RosterMatch, 2L, "Old B", "Ram Ranch", GamertagClaimStatus.Pending)));
+        });
+        var again = await _service.Import(input);
+        Assert.That((again.SuggestionsCreated, await _context.GamertagClaims.CountAsync()), Is.EqualTo((0, 1)), "Not suggested twice");
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.Gamertag == "Old B"), Is.EqualTo(1), "Not merged automatically");
+
+        await new GamertagClaimService(_context, new UserMergeService(_context)).Approve(claim.GamertagClaimID);
+        _context.ChangeTracker.Clear();
+
+        var newB = await _context.Users.SingleAsync(u => u.XboxUserID == 2);
+        var history = await _context.XboxGamertagHistory.SingleAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That((history.XboxUserID, history.Gamertag, history.Source, history.FirstSeen, history.LastSeen), Is.EqualTo((2L, "Old B", GamertagHistorySource.RosterMatch, (DateTime?)Utc(2023), (DateTime?)Utc(2024).AddSeconds(-1))));
+            Assert.That(await _context.PlayerSeasonStats.Where(s => s.UserID == newB.Id).Select(s => s.Source).ToListAsync(), Is.EqualTo(new[] { StatSource.Waypoint }),
+                "The placeholder's sheet row went with the merge: the Waypoint row replaces it");
+            Assert.That(await _context.Users.AnyAsync(u => u.UserName == "historical:Old B"), Is.False);
+        });
+
+        // And a re-run finds "Old B" through the history now
+        var third = await _service.Import(input);
+        Assert.That(third.Warnings, Has.None.Contains("Old B"));
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == newB.Id), Is.EqualTo(1));
+    }
 
     /// <summary>The compiled archive in the repository imports, and a second run changes no row counts.</summary>
     [Test]

@@ -37,7 +37,9 @@ public class GrifballContext :
     public virtual DbSet<Season> Seasons { get; set; }
     public virtual DbSet<PlayerSeasonStat> PlayerSeasonStats { get; set; }
     public virtual DbSet<PlayerChampionship> PlayerChampionships { get; set; }
-    public virtual DbSet<PlayerAlias> PlayerAliases { get; set; }
+    public virtual DbSet<XboxGamertagHistory> XboxGamertagHistory { get; set; }
+    public virtual DbSet<GamertagClaim> GamertagClaims { get; set; }
+    public virtual DbSet<HistoricalImportJob> HistoricalImportJobs { get; set; }
     public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
@@ -113,7 +115,9 @@ public class GrifballContext :
             .HasFilter(Database.IsNpgsql() ? "\"HistoricalSourceID\" IS NOT NULL" : "[HistoricalSourceID] IS NOT NULL");
         modelBuilder.ApplyConfiguration(new Configuration.PlayerSeasonStatConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
-        modelBuilder.ApplyConfiguration(new Configuration.PlayerAliasConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.XboxGamertagHistoryConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.GamertagClaimConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.HistoricalImportJobConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());

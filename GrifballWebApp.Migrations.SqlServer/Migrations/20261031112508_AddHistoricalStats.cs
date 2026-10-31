@@ -88,6 +88,88 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 defaultValue: "");
 
             migrationBuilder.CreateTable(
+                name: "GamertagClaims",
+                schema: "Event",
+                columns: table => new
+                {
+                    GamertagClaimID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Kind = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: false),
+                    Gamertag = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    NormalizedGamertag = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    PlaceholderUserID = table.Column<int>(type: "int", nullable: true),
+                    SeasonID = table.Column<int>(type: "int", nullable: true),
+                    TeamName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GamertagClaims", x => x.GamertagClaimID);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_Seasons_SeasonID",
+                        column: x => x.SeasonID,
+                        principalSchema: "Event",
+                        principalTable: "Seasons",
+                        principalColumn: "SeasonID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_Users_PlaceholderUserID",
+                        column: x => x.PlaceholderUserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_XboxUsers_XboxUserID",
+                        column: x => x.XboxUserID,
+                        principalSchema: "Xbox",
+                        principalTable: "XboxUsers",
+                        principalColumn: "XboxUserID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "GamertagClaimsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalImportJobs",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalImportJobID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    Payload = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Stage = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    SeasonsDone = table.Column<int>(type: "int", nullable: false),
+                    SeasonsTotal = table.Column<int>(type: "int", nullable: false),
+                    Report = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Error = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    HeartbeatAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    FinishedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalImportJobs", x => x.HistoricalImportJobID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Leagues",
                 schema: "Event",
                 columns: table => new
@@ -111,52 +193,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 })
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "LeaguesHistory")
-                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
-                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
-                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
-
-            migrationBuilder.CreateTable(
-                name: "PlayerAliases",
-                schema: "Event",
-                columns: table => new
-                {
-                    PlayerAliasID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserID = table.Column<int>(type: "int", nullable: false),
-                    GameVersionID = table.Column<int>(type: "int", nullable: true),
-                    Alias = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    NormalizedAlias = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    IsPrimary = table.Column<bool>(type: "bit", nullable: false),
-                    Source = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
-                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
-                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
-                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
-                    CreatedByID = table.Column<int>(type: "int", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PlayerAliases", x => x.PlayerAliasID);
-                    table.ForeignKey(
-                        name: "FK_PlayerAliases_GameVersions_GameVersionID",
-                        column: x => x.GameVersionID,
-                        principalSchema: "Other",
-                        principalTable: "GameVersions",
-                        principalColumn: "GameVesionID",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_PlayerAliases_Users_UserID",
-                        column: x => x.UserID,
-                        principalSchema: "Auth",
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "PlayerAliasesHistory")
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
@@ -241,6 +277,45 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 })
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "PlayerSeasonStatsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.CreateTable(
+                name: "XboxGamertagHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    XboxGamertagHistoryID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: false),
+                    Gamertag = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    NormalizedGamertag = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    FirstSeen = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastSeen = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Source = table.Column<int>(type: "int", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodEndColumn", true),
+                    PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false)
+                        .Annotation("SqlServer:TemporalIsPeriodStartColumn", true),
+                    CreatedByID = table.Column<int>(type: "int", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_XboxGamertagHistory", x => x.XboxGamertagHistoryID);
+                    table.ForeignKey(
+                        name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
+                        column: x => x.XboxUserID,
+                        principalSchema: "Xbox",
+                        principalTable: "XboxUsers",
+                        principalColumn: "XboxUserID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "XboxGamertagHistoryHistory")
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
@@ -397,6 +472,43 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_PlaceholderUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "PlaceholderUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_SeasonID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "SeasonID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Status",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "XboxUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HistoricalImportJobs_Status",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Leagues_LeagueName",
                 schema: "Event",
                 table: "Leagues",
@@ -408,25 +520,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event",
                 table: "Leagues",
                 column: "Slug",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_GameVersionID",
-                schema: "Event",
-                table: "PlayerAliases",
-                column: "GameVersionID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_NormalizedAlias",
-                schema: "Event",
-                table: "PlayerAliases",
-                column: "NormalizedAlias");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_UserID_NormalizedAlias",
-                schema: "Event",
-                table: "PlayerAliases",
-                columns: new[] { "UserID", "NormalizedAlias" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -485,6 +578,19 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "PlayerSeasonStats",
                 column: "UserID");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistory_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                column: "NormalizedGamertag");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                columns: new[] { "XboxUserID", "NormalizedGamertag" },
+                unique: true);
+
             migrationBuilder.AddForeignKey(
                 name: "FK_Seasons_GameVersions_GameVersionID",
                 schema: "Event",
@@ -504,18 +610,34 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 principalTable: "Leagues",
                 principalColumn: "LeagueID",
                 onDelete: ReferentialAction.Restrict);
+            // The renames the XboxUsers table's own history already holds: each account's earlier gamertags, from when the
+            // first version with it began to when the last one ended.
+            migrationBuilder.Sql("""
+                INSERT INTO [Event].[XboxGamertagHistory] ([XboxUserID], [Gamertag], [NormalizedGamertag], [FirstSeen], [LastSeen], [Source], [CreatedAt], [ModifiedAt])
+                SELECT h.[XboxUserID], MAX(CAST(LTRIM(RTRIM(h.[Gamertag])) AS nvarchar(50))), CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50)),
+                    MIN(h.[PeriodStart]), MAX(h.[PeriodEnd]), 1, SYSUTCDATETIME(), SYSUTCDATETIME()
+                FROM [Xbox].[XboxUsers] FOR SYSTEM_TIME ALL AS h
+                JOIN [Xbox].[XboxUsers] AS x ON x.[XboxUserID] = h.[XboxUserID]
+                WHERE UPPER(LTRIM(RTRIM(h.[Gamertag]))) <> UPPER(LTRIM(RTRIM(x.[Gamertag])))
+                GROUP BY h.[XboxUserID], CAST(UPPER(LTRIM(RTRIM(h.[Gamertag]))) AS nvarchar(50));
+                """);
+
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Historical seasons go (their stats and titles with them, by cascade), and so do their old versions: SeasonName
-            // is 30 long again below, and SQL Server alters the history table's column with the table's. A name of the
-            // app's own longer than that is cut. The history can only be written to with versioning off, each its own
-            // batch: SQL Server checks a batch that writes to the history table before versioning is off.
+            // Data-lossy by necessity: historical seasons go (their stats and titles with them, by cascade), and so do their
+            // old versions. SeasonName is 30 long again and unique on its own: a longer name, or one two leagues share, gets
+            // its ID ("Name~12") so that it fits and the index can be made. The history can only be written to with
+            // versioning off, each its own batch: SQL Server checks a batch that writes to the history table before
+            // versioning is off. Placeholder users the import made are deleted at the end, once nothing refers to them.
             migrationBuilder.Sql("""
                 DELETE FROM [Event].[Seasons] WHERE [IsHistorical] = 1;
-                UPDATE [Event].[Seasons] SET [SeasonName] = LEFT([SeasonName], 30) WHERE LEN([SeasonName]) > 30;
+                UPDATE s SET [SeasonName] = LEFT(s.[SeasonName], 29 - LEN(CAST(s.[SeasonID] AS nvarchar(11)))) + N'~' + CAST(s.[SeasonID] AS nvarchar(11))
+                FROM [Event].[Seasons] AS s
+                WHERE LEN(s.[SeasonName]) > 30
+                    OR EXISTS (SELECT 1 FROM [Event].[Seasons] AS o WHERE o.[SeasonName] = s.[SeasonName] AND o.[SeasonID] < s.[SeasonID]);
                 """);
             migrationBuilder.Sql("""
                 ALTER TABLE [Event].[Seasons] SET (SYSTEM_VERSIONING = OFF);
@@ -539,13 +661,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "Seasons");
 
             migrationBuilder.DropTable(
-                name: "PlayerAliases",
+                name: "GamertagClaims",
                 schema: "Event")
                 .Annotation("SqlServer:IsTemporal", true)
-                .Annotation("SqlServer:TemporalHistoryTableName", "PlayerAliasesHistory")
+                .Annotation("SqlServer:TemporalHistoryTableName", "GamertagClaimsHistory")
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalImportJobs",
+                schema: "Event");
 
             migrationBuilder.DropTable(
                 name: "PlayerChampionships",
@@ -561,6 +687,15 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 schema: "Event")
                 .Annotation("SqlServer:IsTemporal", true)
                 .Annotation("SqlServer:TemporalHistoryTableName", "PlayerSeasonStatsHistory")
+                .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
+                .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
+                .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
+
+            migrationBuilder.DropTable(
+                name: "XboxGamertagHistory",
+                schema: "Event")
+                .Annotation("SqlServer:IsTemporal", true)
+                .Annotation("SqlServer:TemporalHistoryTableName", "XboxGamertagHistoryHistory")
                 .Annotation("SqlServer:TemporalHistoryTableSchema", "Event")
                 .Annotation("SqlServer:TemporalPeriodEndColumnName", "PeriodEnd")
                 .Annotation("SqlServer:TemporalPeriodStartColumnName", "PeriodStart");
@@ -646,6 +781,9 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                 table: "Seasons",
                 column: "SeasonName",
                 unique: true);
+
+            // Placeholder users the historical import made (and nothing refers to now)
+            migrationBuilder.Sql("DELETE FROM [Auth].[Users] WHERE [IsDummyUser] = 1 AND [UserName] LIKE N'historical:%';");
         }
     }
 }

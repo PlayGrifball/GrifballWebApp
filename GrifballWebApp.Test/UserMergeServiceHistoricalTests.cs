@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GrifballWebApp.Test;
 
-/// <summary>A merge moves historical stats, championships and aliases before the source is deleted (their foreign keys
+/// <summary>A merge moves historical stats and championships before the source is deleted (their foreign keys
 /// are restricted), and refuses what it can't settle before changing anything.</summary>
 [TestFixture]
 [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
@@ -36,11 +36,10 @@ public class UserMergeServiceHistoricalTests
     public async Task TearDown() => await _context.DropDatabaseAndDispose();
 
     [Test]
-    public async Task Merge_MovesStatsChampionshipsAndAliases_ThenDeletesThePlaceholder()
+    public async Task Merge_MovesStatsAndChampionships_ThenDeletesThePlaceholder()
     {
         _context.PlayerSeasonStats.Add(Stat(_dummy, _season, kills: 10));
         _context.PlayerChampionships.Add(Title(_dummy, _season, "Pro"));
-        _context.PlayerAliases.Add(new PlayerAlias { UserID = _dummy.Id, Alias = "Second Account", NormalizedAlias = "SECOND ACCOUNT" });
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
@@ -51,12 +50,11 @@ public class UserMergeServiceHistoricalTests
             Assert.That(await _context.Users.AnyAsync(u => u.Id == _dummy.Id), Is.False);
             Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
             Assert.That(await _context.PlayerChampionships.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
-            Assert.That(await _context.PlayerAliases.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_real.Id));
         });
     }
 
     [Test]
-    public async Task Merge_WaypointStatsReplaceTheOthersManualStatsForTheSeason()
+    public async Task Merge_WaypointStatsReplaceTheOthersManualStats_ForThatPhaseOnly()
     {
         _context.PlayerSeasonStats.AddRange(
             Stat(_real, _season, kills: 100, source: StatSource.Waypoint),
@@ -72,6 +70,7 @@ public class UserMergeServiceHistoricalTests
         Assert.That(stats.Select(s => (s.SeasonID, s.UserID, s.Kills, s.Source)), Is.EquivalentTo(new[]
         {
             (_season.SeasonID, _real.Id, 100, StatSource.Waypoint),
+            (_season.SeasonID, _real.Id, 5, StatSource.Manual), // the playoffs have no Waypoint row
             (_other.SeasonID, _real.Id, 7, StatSource.Manual),
         }));
     }
@@ -143,16 +142,14 @@ public class UserMergeServiceHistoricalTests
         Assert.That(await _context.PlayerSeasonStats.Select(s => s.UserID).SingleAsync(), Is.EqualTo(_dummy.Id));
     }
 
-    [TestCase(false, true)]
-    [TestCase(true, false)]
-    public async Task DeletingTheSource_WithoutMovingItsTitlesOrAliases_IsRefused(bool championships, bool aliases)
+    [Test]
+    public async Task DeletingTheSource_WithoutMovingItsTitles_IsRefused()
     {
         _context.PlayerChampionships.Add(Title(_dummy, _season, "Pro"));
-        _context.PlayerAliases.Add(new PlayerAlias { UserID = _dummy.Id, Alias = "Other", NormalizedAlias = "OTHER" });
         await _context.SaveChangesAsync();
 
         await Assert.ThrowsAsync<UserHasHistoricalStatsException>(() =>
-            _service.Merge(_real.Id, _dummy.Id, new MergeOptions { TransferChampionships = championships, TransferAliases = aliases }));
+            _service.Merge(_real.Id, _dummy.Id, new MergeOptions { TransferChampionships = false }));
     }
 
     [Test]
@@ -168,19 +165,15 @@ public class UserMergeServiceHistoricalTests
     }
 
     [Test]
-    public async Task Merge_ATitleOrAliasBothHold_IsKeptOnce()
+    public async Task Merge_ATitleBothHold_IsKeptOnce()
     {
         _context.PlayerChampionships.AddRange(Title(_real, _season, "Pro"), Title(_dummy, _season, "pro"), Title(_dummy, _other, "Pro"));
-        _context.PlayerAliases.AddRange(
-            new PlayerAlias { UserID = _real.Id, Alias = "Other", NormalizedAlias = "OTHER" },
-            new PlayerAlias { UserID = _dummy.Id, Alias = "other", NormalizedAlias = "OTHER" });
         await _context.SaveChangesAsync();
 
         await _service.Merge(_real.Id, _dummy.Id);
 
         _context.ChangeTracker.Clear();
         Assert.That(await _context.PlayerChampionships.CountAsync(c => c.UserID == _real.Id), Is.EqualTo(2));
-        Assert.That(await _context.PlayerAliases.CountAsync(), Is.EqualTo(1));
     }
 
     private static Season HistoricalSeason(string name, string sourceId) => new()

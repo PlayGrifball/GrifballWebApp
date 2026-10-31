@@ -1,4 +1,5 @@
 using GrifballWebApp.Database;
+using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -55,19 +56,43 @@ public class SetGamertagService : ISetGamertagService
         {
             user.XboxUser = xboxUser;
 
-            // A placeholder (dummy) user may exist from the historical archive without an XboxUser link:
-            var dummyNormalized = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant();
-            var dummyUser = await _context.Users.FirstOrDefaultAsync(u => u.IsDummyUser && u.NormalizedUserName == dummyNormalized, ct);
-            if (dummyUser is not null && dummyUser.Id != userID)
+            // Placeholders (historical:<gamertag>) of the gamertags this Xbox account is known to have had are this
+            // player's: merged. A placeholder of the gamertag itself only shares a name with the account (someone else
+            // may have used it years ago), so a commissioner decides: it becomes a pending claim.
+            var pastGamertags = await _context.XboxGamertagHistory.Where(h => h.XboxUserID == xboxUser.XboxUserID)
+                .Select(h => h.Gamertag).ToListAsync(ct);
+            foreach (var past in pastGamertags)
             {
+                var placeholder = await Placeholder(past, ct);
+                if (placeholder is null || placeholder.Id == userID)
+                    continue;
                 try
                 {
-                    await _userMergeService.Merge(userID, dummyUser.Id, null, ct);
+                    await _userMergeService.Merge(userID, placeholder.Id, null, ct);
                 }
                 catch (MergeConflictException e)
                 {
                     await _context.RollbackTransactionAsync(ct);
                     return "That gamertag's placeholder account could not be merged into yours: " + e.Message + " Contact a commissioner.";
+                }
+            }
+
+            var namesake = await Placeholder(xboxUser.Gamertag, ct);
+            if (namesake is not null && namesake.Id != userID)
+            {
+                var normalized = HistoricalKeys.Normalize(xboxUser.Gamertag);
+                var claimed = await _context.GamertagClaims.AnyAsync(c => c.Kind == GamertagClaimKind.SetGamertag
+                    && c.XboxUserID == xboxUser.XboxUserID && c.NormalizedGamertag == normalized, ct);
+                if (!claimed)
+                {
+                    _context.GamertagClaims.Add(new GamertagClaim
+                    {
+                        Kind = GamertagClaimKind.SetGamertag,
+                        XboxUserID = xboxUser.XboxUserID,
+                        Gamertag = HistoricalKeys.CleanGamertag(xboxUser.Gamertag),
+                        NormalizedGamertag = normalized,
+                        PlaceholderUserID = namesake.Id,
+                    });
                 }
             }
         }
@@ -96,5 +121,12 @@ public class SetGamertagService : ISetGamertagService
         await _context.CommitTransactionAsync(ct);
 
         return null; // Success, no error message
+    }
+
+    /// <summary>The placeholder of a gamertag not yet tied to an Xbox account.</summary>
+    private Task<GrifballWebApp.Database.Models.User?> Placeholder(string gamertag, CancellationToken ct)
+    {
+        var name = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant();
+        return _context.Users.FirstOrDefaultAsync(u => u.IsDummyUser && u.XboxUserID == null && u.NormalizedUserName == name, ct);
     }
 }

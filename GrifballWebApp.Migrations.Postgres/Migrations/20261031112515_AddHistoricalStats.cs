@@ -170,6 +170,106 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Other\".\"GameVersions\"');");
 
             migrationBuilder.CreateTable(
+                name: "GamertagClaims",
+                schema: "Event",
+                columns: table => new
+                {
+                    GamertagClaimID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Kind = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: false),
+                    Gamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
+                    NormalizedGamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
+                    PlaceholderUserID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonID = table.Column<int>(type: "integer", nullable: true),
+                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "transaction_timestamp()"),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GamertagClaims", x => x.GamertagClaimID);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_Seasons_SeasonID",
+                        column: x => x.SeasonID,
+                        principalSchema: "Event",
+                        principalTable: "Seasons",
+                        principalColumn: "SeasonID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_Users_PlaceholderUserID",
+                        column: x => x.PlaceholderUserID,
+                        principalSchema: "Auth",
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_GamertagClaims_XboxUsers_XboxUserID",
+                        column: x => x.XboxUserID,
+                        principalSchema: "Xbox",
+                        principalTable: "XboxUsers",
+                        principalColumn: "XboxUserID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GamertagClaimsHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    Gamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
+                    GamertagClaimID = table.Column<int>(type: "integer", nullable: true),
+                    Kind = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    NormalizedGamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PlaceholderUserID = table.Column<int>(type: "integer", nullable: true),
+                    SeasonID = table.Column<int>(type: "integer", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: true),
+                    TeamName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true, collation: "case_insensitive"),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: true)
+                },
+                constraints: table =>
+                {
+                });
+
+            migrationBuilder.CreateTable(
+                name: "HistoricalImportJobs",
+                schema: "Event",
+                columns: table => new
+                {
+                    HistoricalImportJobID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Payload = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    Stage = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true, collation: "case_insensitive"),
+                    SeasonsDone = table.Column<int>(type: "integer", nullable: false),
+                    SeasonsTotal = table.Column<int>(type: "integer", nullable: false),
+                    Report = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    Error = table.Column<string>(type: "text", nullable: true, collation: "case_insensitive"),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    HeartbeatAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    FinishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HistoricalImportJobs", x => x.HistoricalImportJobID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Leagues",
                 schema: "Event",
                 columns: table => new
@@ -204,68 +304,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                     PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Slug = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive")
-                },
-                constraints: table =>
-                {
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PlayerAliases",
-                schema: "Event",
-                columns: table => new
-                {
-                    PlayerAliasID = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserID = table.Column<int>(type: "integer", nullable: false),
-                    GameVersionID = table.Column<int>(type: "integer", nullable: true),
-                    Alias = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
-                    NormalizedAlias = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
-                    IsPrimary = table.Column<bool>(type: "boolean", nullable: false),
-                    Source = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
-                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "transaction_timestamp()"),
-                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PlayerAliases", x => x.PlayerAliasID);
-                    table.ForeignKey(
-                        name: "FK_PlayerAliases_GameVersions_GameVersionID",
-                        column: x => x.GameVersionID,
-                        principalSchema: "Other",
-                        principalTable: "GameVersions",
-                        principalColumn: "GameVesionID",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_PlayerAliases_Users_UserID",
-                        column: x => x.UserID,
-                        principalSchema: "Auth",
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PlayerAliasesHistory",
-                schema: "Event",
-                columns: table => new
-                {
-                    Alias = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
-                    GameVersionID = table.Column<int>(type: "integer", nullable: true),
-                    IsPrimary = table.Column<bool>(type: "boolean", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
-                    NormalizedAlias = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    PlayerAliasID = table.Column<int>(type: "integer", nullable: true),
-                    Source = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
-                    UserID = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -428,6 +466,61 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "XboxGamertagHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    XboxGamertagHistoryID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: false),
+                    Gamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
+                    NormalizedGamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, collation: "case_insensitive"),
+                    FirstSeen = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastSeen = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Source = table.Column<int>(type: "integer", nullable: false),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, computedColumnSql: "'infinity'::timestamp with time zone", stored: true),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "transaction_timestamp()"),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_XboxGamertagHistory", x => x.XboxGamertagHistoryID);
+                    table.ForeignKey(
+                        name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
+                        column: x => x.XboxUserID,
+                        principalSchema: "Xbox",
+                        principalTable: "XboxUsers",
+                        principalColumn: "XboxUserID",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "XboxGamertagHistoryHistory",
+                schema: "Event",
+                columns: table => new
+                {
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedByID = table.Column<int>(type: "integer", nullable: true),
+                    FirstSeen = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Gamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
+                    LastSeen = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ModifiedByID = table.Column<int>(type: "integer", nullable: true),
+                    NormalizedGamertag = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true, collation: "case_insensitive"),
+                    PeriodEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    PeriodStart = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Source = table.Column<int>(type: "integer", nullable: true),
+                    XboxGamertagHistoryID = table.Column<int>(type: "integer", nullable: true),
+                    XboxUserID = table.Column<long>(type: "bigint", nullable: true)
+                },
+                constraints: table =>
+                {
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PlayerChampionships",
                 schema: "Event",
                 columns: table => new
@@ -584,6 +677,67 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Kind_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "GamertagClaims",
+                columns: new[] { "Kind", "XboxUserID", "NormalizedGamertag" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_PlaceholderUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "PlaceholderUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_SeasonID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "SeasonID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_Status",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaims_XboxUserID",
+                schema: "Event",
+                table: "GamertagClaims",
+                column: "XboxUserID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaimsHistory_GamertagClaimID_PeriodEnd",
+                schema: "Event",
+                table: "GamertagClaimsHistory",
+                columns: new[] { "GamertagClaimID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaimsHistory_PlaceholderUserID_PeriodEnd",
+                schema: "Event",
+                table: "GamertagClaimsHistory",
+                columns: new[] { "PlaceholderUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaimsHistory_SeasonID_PeriodEnd",
+                schema: "Event",
+                table: "GamertagClaimsHistory",
+                columns: new[] { "SeasonID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GamertagClaimsHistory_XboxUserID_PeriodEnd",
+                schema: "Event",
+                table: "GamertagClaimsHistory",
+                columns: new[] { "XboxUserID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_HistoricalImportJobs_Status",
+                schema: "Event",
+                table: "HistoricalImportJobs",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Leagues_LeagueName",
                 schema: "Event",
                 table: "Leagues",
@@ -602,43 +756,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "LeaguesHistory",
                 columns: new[] { "LeagueID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_GameVersionID",
-                schema: "Event",
-                table: "PlayerAliases",
-                column: "GameVersionID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_NormalizedAlias",
-                schema: "Event",
-                table: "PlayerAliases",
-                column: "NormalizedAlias");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliases_UserID_NormalizedAlias",
-                schema: "Event",
-                table: "PlayerAliases",
-                columns: new[] { "UserID", "NormalizedAlias" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliasesHistory_GameVersionID_PeriodEnd",
-                schema: "Event",
-                table: "PlayerAliasesHistory",
-                columns: new[] { "GameVersionID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliasesHistory_PlayerAliasID_PeriodEnd",
-                schema: "Event",
-                table: "PlayerAliasesHistory",
-                columns: new[] { "PlayerAliasID", "PeriodEnd" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PlayerAliasesHistory_UserID_PeriodEnd",
-                schema: "Event",
-                table: "PlayerAliasesHistory",
-                columns: new[] { "UserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerChampionships_GamertagUsed",
@@ -750,6 +867,31 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "PlayerSeasonStatsHistory",
                 columns: new[] { "UserID", "PeriodEnd" });
 
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistory_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                column: "NormalizedGamertag");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag",
+                schema: "Event",
+                table: "XboxGamertagHistory",
+                columns: new[] { "XboxUserID", "NormalizedGamertag" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistoryHistory_XboxGamertagHistoryID_PeriodEnd",
+                schema: "Event",
+                table: "XboxGamertagHistoryHistory",
+                columns: new[] { "XboxGamertagHistoryID", "PeriodEnd" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_XboxGamertagHistoryHistory_XboxUserID_PeriodEnd",
+                schema: "Event",
+                table: "XboxGamertagHistoryHistory",
+                columns: new[] { "XboxUserID", "PeriodEnd" });
+
             migrationBuilder.AddForeignKey(
                 name: "FK_Seasons_GameVersions_GameVersionID",
                 schema: "Event",
@@ -770,34 +912,54 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 principalColumn: "LeagueID",
                 onDelete: ReferentialAction.Restrict);
 
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"Leagues\"');");
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"GamertagClaims\"');");
 
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"PlayerAliases\"');");
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"Leagues\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"PlayerChampionships\"');");
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"PlayerSeasonStats\"');");
+
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"XboxGamertagHistory\"');");
+            // The renames the XboxUsers table's history already holds: each account's earlier gamertags, from when the first
+            // version with it began to when the last one ended ('-infinity', the start of rows history was added to, is unknown).
+            migrationBuilder.Sql("""
+                INSERT INTO "Event"."XboxGamertagHistory" ("XboxUserID", "Gamertag", "NormalizedGamertag", "FirstSeen", "LastSeen", "Source", "CreatedAt", "ModifiedAt")
+                SELECT h."XboxUserID", left(max(btrim(h."Gamertag")), 50), left(upper(btrim(h."Gamertag")), 50),
+                    min(NULLIF(h."PeriodStart", '-infinity')), max(h."PeriodEnd"), 1, now(), now()
+                FROM "Xbox"."XboxUsersHistory" AS h
+                JOIN "Xbox"."XboxUsers" AS x ON x."XboxUserID" = h."XboxUserID"
+                WHERE upper(btrim(h."Gamertag")) <> upper(btrim(x."Gamertag"))
+                GROUP BY h."XboxUserID", left(upper(btrim(h."Gamertag")), 50);
+                """);
+
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Historical seasons go (their stats and titles with them, by cascade), and so do their old versions, as
-            // SeasonName is 30 long again below, in the history table too. A name of the app's own longer than that is cut.
+            // Data-lossy by necessity: historical seasons go (their stats and titles with them, by cascade), and so do their
+            // old versions. SeasonName is 30 long again and unique on its own: a longer name, or one two leagues share, gets
+            // its ID ("Name~12") so that it fits and the index can be made. Placeholder users the import made are deleted at
+            // the end, once nothing refers to them.
             migrationBuilder.Sql("""
                 DELETE FROM "Event"."Seasons" WHERE "IsHistorical";
-                UPDATE "Event"."Seasons" SET "SeasonName" = left("SeasonName", 30) WHERE length("SeasonName") > 30;
+                UPDATE "Event"."Seasons" AS s SET "SeasonName" = left(s."SeasonName", 29 - length(s."SeasonID"::text)) || '~' || s."SeasonID"::text
+                WHERE length(s."SeasonName") > 30
+                    OR EXISTS (SELECT 1 FROM "Event"."Seasons" AS o WHERE o."SeasonName" = s."SeasonName" AND o."SeasonID" < s."SeasonID");
                 DELETE FROM "Event"."SeasonsHistory" WHERE "IsHistorical";
                 UPDATE "Event"."SeasonsHistory" SET "SeasonName" = left("SeasonName", 30) WHERE length("SeasonName") > 30;
                 """);
+
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"XboxGamertagHistory\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"PlayerSeasonStats\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"PlayerChampionships\"');");
 
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"PlayerAliases\"');");
-
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"Leagues\"');");
+
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"GamertagClaims\"');");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Seasons_GameVersions_GameVersionID",
@@ -810,15 +972,19 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Seasons");
 
             migrationBuilder.DropTable(
+                name: "GamertagClaims",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "GamertagClaimsHistory",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "HistoricalImportJobs",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
                 name: "LeaguesHistory",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
-                name: "PlayerAliases",
-                schema: "Event");
-
-            migrationBuilder.DropTable(
-                name: "PlayerAliasesHistory",
                 schema: "Event");
 
             migrationBuilder.DropTable(
@@ -835,6 +1001,14 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.DropTable(
                 name: "PlayerSeasonStatsHistory",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "XboxGamertagHistory",
+                schema: "Event");
+
+            migrationBuilder.DropTable(
+                name: "XboxGamertagHistoryHistory",
                 schema: "Event");
 
             migrationBuilder.DropTable(
@@ -978,6 +1152,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 table: "Seasons",
                 column: "SeasonName",
                 unique: true);
+
+            // Placeholder users the historical import made (and nothing refers to now)
+            migrationBuilder.Sql("""DELETE FROM "Auth"."Users" WHERE "IsDummyUser" AND "UserName" LIKE 'historical:%';""");
         }
     }
 }

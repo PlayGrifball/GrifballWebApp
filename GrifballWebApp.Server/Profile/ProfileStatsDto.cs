@@ -6,7 +6,8 @@ public class ProfileStatsDto
     public string? Gamertag { get; set; }
     public string? DisplayName { get; set; }
     public bool IsDummyUser { get; set; }
-    public List<string> Aliases { get; set; } = [];
+    /// <summary>Gamertags the user's Xbox account had before (its renames), latest first.</summary>
+    public List<string> PastGamertags { get; set; } = [];
     public List<PlayerChampionshipDto> Championships { get; set; } = [];
     public List<GameCareerSummaryDto> CareerByGame { get; set; } = [];
     public GameCareerSummaryDto? OverallCareer { get; set; }

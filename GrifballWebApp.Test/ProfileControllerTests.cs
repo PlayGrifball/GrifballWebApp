@@ -166,14 +166,9 @@ public class ProfileControllerTests
             Exterminations = 1
         };
 
-        var alias = new PlayerAlias
-        {
-            UserID = user.Id,
-            Alias = "ChampTagOld",
-            NormalizedAlias = "CHAMPTAGOLD"
-        };
+        var renamed = new XboxGamertagHistory { XboxUserID = xbox.XboxUserID, Gamertag = "ChampTagOld", NormalizedGamertag = "CHAMPTAGOLD", Source = GamertagHistorySource.RenameDetected };
 
-        await _context.AddRangeAsync(title, stat, alias);
+        await _context.AddRangeAsync(title, stat, renamed);
         await _context.SaveChangesAsync();
 
         var actionResult = await _controller.GetProfileStats(user.Id, CancellationToken.None);
@@ -185,7 +180,7 @@ public class ProfileControllerTests
             Assert.That(stats!.UserID, Is.EqualTo(user.Id));
             Assert.That(stats.Gamertag, Is.EqualTo("ChampTag"));
             Assert.That(stats.DisplayName, Is.EqualTo("Spartan Legend"));
-            Assert.That(stats.Aliases, Contains.Item("ChampTagOld"));
+            Assert.That(stats.PastGamertags, Is.EqualTo(new[] { "ChampTagOld" }));
 
             Assert.That(stats.Championships, Has.Count.EqualTo(1));
             Assert.That(stats.Championships[0].Tier, Is.EqualTo("Pro"));
@@ -213,5 +208,63 @@ public class ProfileControllerTests
             Assert.That(stats.Seasons, Has.Count.EqualTo(1));
             Assert.That(stats.Seasons[0].SeasonName, Is.EqualTo("Summer League 2018"));
         });
+    }
+
+    [Test]
+    public async Task GetProfileStats_GoalsAndStopsPerGame_CountOnlyTheSheetsGames()
+    {
+        var user = new User { UserName = "infinite" };
+        await _context.Users.AddAsync(user);
+        var season = new Season
+        {
+            SeasonName = "Winter League 2023 (DA)",
+            GameVersionID = 6,
+            IsHistorical = true,
+            HistoricalSourceID = "2023-da-wl23-stats/Halo Infinite Stats",
+            SeasonStart = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2023, 12, 31, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var other = new Season
+        {
+            SeasonName = "Spring League 2024 (DA)",
+            GameVersionID = 6,
+            IsHistorical = true,
+            HistoricalSourceID = "2024-da-sl24-stats/Aggregate",
+            SeasonStart = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SeasonEnd = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc),
+        };
+        await _context.Seasons.AddRangeAsync(season, other);
+        await _context.SaveChangesAsync();
+        await _context.PlayerSeasonStats.AddRangeAsync(
+            new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5, Source = StatSource.Manual },
+            new PlayerSeasonStat { UserID = user.Id, SeasonID = other.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 30, Source = StatSource.Waypoint });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(40));
+            Assert.That(stats.OverallCareer.GoalsPerGame, Is.EqualTo(2.0m), "20 goals over the sheet's 10 games, not 40");
+            Assert.That(stats.OverallCareer.StopsPerGame, Is.EqualTo(0.5m));
+            Assert.That(stats.CareerByGame.Single().GoalsPerGame, Is.EqualTo(2.0m));
+            Assert.That(stats.PastGamertags, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task GetProfileStats_OnlyWaypointRows_HasNoGoalsOrStopsPerGame()
+    {
+        var user = new User { UserName = "waypoint" };
+        await _context.Users.AddAsync(user);
+        var season = new Season { SeasonName = "S 2024", GameVersionID = 6, IsHistorical = true, HistoricalSourceID = "w/s" };
+        await _context.Seasons.AddAsync(season);
+        await _context.SaveChangesAsync();
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 3, Source = StatSource.Waypoint });
+        await _context.SaveChangesAsync();
+
+        var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
+
+        Assert.That((stats.OverallCareer!.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)));
     }
 }

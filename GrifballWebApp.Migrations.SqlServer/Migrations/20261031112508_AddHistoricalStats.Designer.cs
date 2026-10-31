@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GrifballWebApp.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(GrifballContext))]
-    [Migration("20261031081127_AddHistoricalStats")]
+    [Migration("20261031112508_AddHistoricalStats")]
     partial class AddHistoricalStats
     {
         /// <inheritdoc />
@@ -297,6 +297,150 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             ModifiedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Slug = "infinite"
                         });
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.GamertagClaim", b =>
+                {
+                    b.Property<int>("GamertagClaimID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GamertagClaimID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Gamertag")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NormalizedGamertag")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int?>("PlaceholderUserID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SeasonID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("GamertagClaimID");
+
+                    b.HasIndex("PlaceholderUserID");
+
+                    b.HasIndex("SeasonID");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("XboxUserID");
+
+                    b.HasIndex("Kind", "XboxUserID", "NormalizedGamertag")
+                        .IsUnique();
+
+                    b.ToTable("GamertagClaims", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("GamertagClaimsHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.HistoricalImportJob", b =>
+                {
+                    b.Property<int>("HistoricalImportJobID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HistoricalImportJobID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("HeartbeatAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Report")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SeasonsDone")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeasonsTotal")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Stage")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("HistoricalImportJobID");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("HistoricalImportJobs", "Event");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.League", b =>
@@ -1492,82 +1636,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.ToTable(tb => tb.IsTemporal(ttb =>
                             {
                                 ttb.UseHistoryTable("PasswordResetLinksHistory", "Auth");
-                                ttb
-                                    .HasPeriodStart("PeriodStart")
-                                    .HasColumnName("PeriodStart");
-                                ttb
-                                    .HasPeriodEnd("PeriodEnd")
-                                    .HasColumnName("PeriodEnd");
-                            }));
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerAlias", b =>
-                {
-                    b.Property<int>("PlayerAliasID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerAliasID"));
-
-                    b.Property<string>("Alias")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CreatedByID")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("GameVersionID")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsPrimary")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ModifiedByID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("NormalizedAlias")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodEnd");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("PeriodStart");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("UserID")
-                        .HasColumnType("int");
-
-                    b.HasKey("PlayerAliasID");
-
-                    b.HasIndex("GameVersionID");
-
-                    b.HasIndex("NormalizedAlias");
-
-                    b.HasIndex("UserID", "NormalizedAlias")
-                        .IsUnique();
-
-                    b.ToTable("PlayerAliases", "Event");
-
-                    b.ToTable(tb => tb.IsTemporal(ttb =>
-                            {
-                                ttb.UseHistoryTable("PlayerAliasesHistory", "Event");
                                 ttb
                                     .HasPeriodStart("PeriodStart")
                                     .HasColumnName("PeriodStart");
@@ -3025,6 +3093,79 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                             }));
                 });
 
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory", b =>
+                {
+                    b.Property<int>("XboxGamertagHistoryID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("XboxGamertagHistoryID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedByID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FirstSeen")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Gamertag")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("LastSeen")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedByID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NormalizedGamertag")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodEnd");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("PeriodStart");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
+
+                    b.Property<long>("XboxUserID")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("XboxGamertagHistoryID");
+
+                    b.HasIndex("NormalizedGamertag");
+
+                    b.HasIndex("XboxUserID", "NormalizedGamertag")
+                        .IsUnique();
+
+                    b.ToTable("XboxGamertagHistory", "Event");
+
+                    b.ToTable(tb => tb.IsTemporal(ttb =>
+                            {
+                                ttb.UseHistoryTable("XboxGamertagHistoryHistory", "Event");
+                                ttb
+                                    .HasPeriodStart("PeriodStart")
+                                    .HasColumnName("PeriodStart");
+                                ttb
+                                    .HasPeriodEnd("PeriodEnd")
+                                    .HasColumnName("PeriodEnd");
+                            }));
+                });
+
             modelBuilder.Entity("GrifballWebApp.Database.Models.XboxUser", b =>
                 {
                     b.Property<long>("XboxUserID")
@@ -3214,6 +3355,31 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("FromDiscordUser");
 
                     b.Navigation("ToDiscordUser");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.GamertagClaim", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.User", "PlaceholderUser")
+                        .WithMany()
+                        .HasForeignKey("PlaceholderUserID")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("GrifballWebApp.Database.Models.Season", "Season")
+                        .WithMany()
+                        .HasForeignKey("SeasonID")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
+                        .WithMany()
+                        .HasForeignKey("XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PlaceholderUser");
+
+                    b.Navigation("Season");
+
+                    b.Navigation("XboxUser");
                 });
 
             modelBuilder.Entity("GrifballWebApp.Database.Models.MatchBracketInfo", b =>
@@ -3443,24 +3609,6 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("GrifballWebApp.Database.Models.PlayerAlias", b =>
-                {
-                    b.HasOne("GrifballWebApp.Database.Models.GameVersion", "GameVersion")
-                        .WithMany()
-                        .HasForeignKey("GameVersionID")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("GrifballWebApp.Database.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("GameVersion");
 
                     b.Navigation("User");
                 });
@@ -3777,6 +3925,17 @@ namespace GrifballWebApp.Migrations.SqlServer.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GrifballWebApp.Database.Models.XboxGamertagHistory", b =>
+                {
+                    b.HasOne("GrifballWebApp.Database.Models.XboxUser", "XboxUser")
+                        .WithMany()
+                        .HasForeignKey("XboxUserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("XboxUser");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

@@ -101,16 +101,13 @@ public class UserMergeService : IUserMergeService
         await TransferMatchmaking(mergeTo, mergeFrom, ct);
         await TransferReschedules(mergeToId, mergeFromId, ct);
 
-        // Historical stats, championships and aliases: their foreign keys to the user are restricted, so they move
+        // Historical stats and championships: their foreign keys to the user are restricted, so they move
         // before the source is deleted (a merge that would leave them on a deleted source was refused above).
         if (options.TransferSeasonStats)
             await TransferSeasonStats(mergeToId, mergeFromId, ct);
 
         if (options.TransferChampionships)
             await TransferChampionships(mergeToId, mergeFromId, ct);
-
-        if (options.TransferAliases)
-            await TransferAliases(mergeToId, mergeFromId, ct);
 
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
@@ -172,8 +169,7 @@ public class UserMergeService : IUserMergeService
     private async Task ThrowIfHistoricalRecordsWouldBeLeft(int mergeFromId, MergeOptions options, CancellationToken ct)
     {
         var left = (!options.TransferSeasonStats && await _context.PlayerSeasonStats.AnyAsync(x => x.UserID == mergeFromId, ct))
-            || (!options.TransferChampionships && await _context.PlayerChampionships.AnyAsync(x => x.UserID == mergeFromId, ct))
-            || (!options.TransferAliases && await _context.PlayerAliases.AnyAsync(x => x.UserID == mergeFromId, ct));
+            || (!options.TransferChampionships && await _context.PlayerChampionships.AnyAsync(x => x.UserID == mergeFromId, ct));
         if (left)
             throw new UserHasHistoricalStatsException(mergeFromId);
     }
@@ -181,23 +177,23 @@ public class UserMergeService : IUserMergeService
     private sealed record HistoricalStatKey(int PlayerSeasonStatID, int UserID, int SeasonID, int StintIndex, bool IsPlayoffs, StatSource Source, string SeasonName);
 
     /// <summary>
-    /// Each user's stats as they will be after the merge: in a season where one of them has Waypoint stats, the
-    /// other's Manual ones go (a player's season is never both). Returns the rows kept for each.
+    /// Each user's stats as they will be after the merge: in a phase of a season (regular season or playoffs) where one
+    /// of them has Waypoint stats, the other's Manual ones go (a player's phase is never both). Returns the rows kept for each.
     /// </summary>
     private static (List<HistoricalStatKey> Target, List<HistoricalStatKey> Source) KeptStats(List<HistoricalStatKey> rows, int mergeToId, int mergeFromId)
     {
         var target = rows.Where(r => r.UserID == mergeToId).ToList();
         var source = rows.Where(r => r.UserID == mergeFromId).ToList();
-        var targetWaypointSeasons = target.Where(r => r.Source == StatSource.Waypoint).Select(r => r.SeasonID).ToHashSet();
-        var sourceWaypointSeasons = source.Where(r => r.Source == StatSource.Waypoint).Select(r => r.SeasonID).ToHashSet();
+        var targetWaypoint = target.Where(r => r.Source == StatSource.Waypoint).Select(r => (r.SeasonID, r.IsPlayoffs)).ToHashSet();
+        var sourceWaypoint = source.Where(r => r.Source == StatSource.Waypoint).Select(r => (r.SeasonID, r.IsPlayoffs)).ToHashSet();
         return (
-            target.Where(r => !(r.Source == StatSource.Manual && sourceWaypointSeasons.Contains(r.SeasonID))).ToList(),
-            source.Where(r => !(r.Source == StatSource.Manual && targetWaypointSeasons.Contains(r.SeasonID))).ToList());
+            target.Where(r => !(r.Source == StatSource.Manual && sourceWaypoint.Contains((r.SeasonID, r.IsPlayoffs)))).ToList(),
+            source.Where(r => !(r.Source == StatSource.Manual && targetWaypoint.Contains((r.SeasonID, r.IsPlayoffs)))).ToList());
     }
 
     /// <summary>
-    /// The source's season stats move to the target. Where one of them has Waypoint stats for a season, the other's
-    /// Manual stats for it are removed (Waypoint replaces Manual); any other clash was refused before the merge.
+    /// The source's season stats move to the target. Where one of them has Waypoint stats for a phase of a season, the
+    /// other's Manual stats for it are removed (Waypoint replaces Manual); any other clash was refused before the merge.
     /// </summary>
     private async Task TransferSeasonStats(int mergeToId, int mergeFromId, CancellationToken ct)
     {
@@ -232,20 +228,6 @@ public class UserMergeService : IUserMergeService
                 _context.PlayerChampionships.Remove(championship);
             else
                 championship.UserID = mergeToId;
-        }
-    }
-
-    /// <summary>The source's other Xbox accounts are the target's, but for those it already has ((UserID, NormalizedAlias) is unique).</summary>
-    private async Task TransferAliases(int mergeToId, int mergeFromId, CancellationToken ct)
-    {
-        var aliases = await _context.PlayerAliases.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
-        var targetAliases = await _context.PlayerAliases.Where(x => x.UserID == mergeToId).Select(x => x.NormalizedAlias).ToListAsync(ct);
-        foreach (var alias in aliases)
-        {
-            if (targetAliases.Contains(alias.NormalizedAlias, StringComparer.OrdinalIgnoreCase))
-                _context.PlayerAliases.Remove(alias);
-            else
-                alias.UserID = mergeToId;
         }
     }
 
@@ -394,7 +376,6 @@ public class MergeOptions
     public bool TransferSignups { get; set; } = true;
     public bool TransferSeasonStats { get; set; } = true;
     public bool TransferChampionships { get; set; } = true;
-    public bool TransferAliases { get; set; } = true;
     public bool DeleteMergeFrom { get; set; } = true;
 }
 
@@ -402,7 +383,7 @@ public class MergeOptions
 public class MergeConflictException(string message) : Exception(message);
 
 /// <summary>
-/// A user with historical stats, championships or aliases can't be deleted (the foreign keys are restricted): merge it
+/// A user with historical stats or championships can't be deleted (the foreign keys are restricted): merge it
 /// into the account they belong to instead, which moves them.
 /// </summary>
 public class UserHasHistoricalStatsException(int userId)

@@ -2,6 +2,8 @@ using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Polly;
 using System.Text.Json;
 
 namespace GrifballWebApp.Server.Historical;
@@ -10,10 +12,21 @@ public interface IHistoricalImportService
 {
     /// <summary>
     /// Imports the historical archive: its seasons, players' season stats and championships. Idempotent: a season is
-    /// found again by its HistoricalSourceID ("{sourceWorkbook}/{sourceSheet}"), a stat row by (SeasonID, UserID, StintIndex, IsPlayoffs) and a title by
-    /// (SeasonID, Tier, UserID), so a re-run updates rows in place and adds none. Each season is one transaction.
+    /// found again by its HistoricalSourceID ("{sourceWorkbook}/{sourceSheet}"), a stat row by (SeasonID, UserID,
+    /// StintIndex, IsPlayoffs) and a title by (SeasonID, Tier, UserID), so a re-run updates rows in place and adds none.
+    /// Each season is one transaction. <paramref name="progress"/> hears what it is doing.
     /// </summary>
-    Task<HistoricalImportReport> Import(HistoricalArchiveInput input, CancellationToken ct = default);
+    Task<HistoricalImportReport> Import(HistoricalArchiveInput input, Func<HistoricalImportProgress, Task>? progress = null, CancellationToken ct = default);
+}
+
+public record HistoricalImportProgress(string Stage, int SeasonsDone, int SeasonsTotal);
+
+public class HistoricalImportOptions
+{
+    /// <summary>Attempts at pulling one match (a failed call, after the Halo client's own retries of 429 and 5xx).</summary>
+    public int MatchPullAttempts { get; set; } = 3;
+    /// <summary>The first wait between attempts, doubled after each.</summary>
+    public TimeSpan MatchPullBackoff { get; set; } = TimeSpan.FromSeconds(5);
 }
 
 public class HistoricalImportReport
@@ -24,18 +37,23 @@ public class HistoricalImportReport
     public int StatsUpdated { get; set; }
     public int WaypointStatsInserted { get; set; }
     public int WaypointStatsUpdated { get; set; }
-    /// <summary>Manual rows not imported, or removed, because the player has Waypoint stats for the season.</summary>
+    /// <summary>Manual rows not imported, or removed, because the player has Waypoint stats for that phase of the season.</summary>
     public int ManualReplacedByWaypoint { get; set; }
     public int ChampionshipsInserted { get; set; }
     public int ChampionshipsUpdated { get; set; }
     public int DummyUsersCreated { get; set; }
     public int WaypointMatchesPulled { get; set; }
+    /// <summary>Roster matches suggested for a commissioner (GamertagClaims).</summary>
+    public int SuggestionsCreated { get; set; }
+    /// <summary>Waypoint matches that are not in the database (could not be pulled, or not found), by season and phase:
+    /// that phase kept its Manual stats.</summary>
+    public List<string> MissingMatches { get; set; } = [];
     /// <summary>Why something was left out, one line each.</summary>
-    public List<string> Skipped { get; } = [];
-    /// <summary>What was imported but deserves a look, e.g. a season keyed by its name for want of a workbook and sheet.</summary>
-    public List<string> Warnings { get; } = [];
+    public List<string> Skipped { get; set; } = [];
+    /// <summary>What was imported but deserves a look, e.g. a sheet row of a Waypoint season no account matched.</summary>
+    public List<string> Warnings { get; set; } = [];
     /// <summary>Seasons whose transaction failed and was rolled back.</summary>
-    public List<string> Errors { get; } = [];
+    public List<string> Errors { get; set; } = [];
 }
 
 /// <inheritdoc/>
@@ -50,12 +68,14 @@ public class HistoricalImportService : IHistoricalImportService
 
     private readonly GrifballContext _context;
     private readonly IDataPullService _dataPullService;
+    private readonly HistoricalImportOptions _options;
     private readonly ILogger<HistoricalImportService> _logger;
 
-    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, ILogger<HistoricalImportService> logger)
+    public HistoricalImportService(GrifballContext context, IDataPullService dataPullService, IOptions<HistoricalImportOptions> options, ILogger<HistoricalImportService> logger)
     {
         _context = context;
         _dataPullService = dataPullService;
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -73,8 +93,13 @@ public class HistoricalImportService : IHistoricalImportService
         public WaypointSeasonMatches? Waypoint { get; set; }
     }
 
-    public async Task<HistoricalImportReport> Import(HistoricalArchiveInput input, CancellationToken ct = default)
+    private enum UpsertResult { Inserted, Updated, KeptWaypoint }
+
+    private sealed record SheetPlayer(int UserId, string Gamertag, string? TeamName);
+
+    public async Task<HistoricalImportReport> Import(HistoricalArchiveInput input, Func<HistoricalImportProgress, Task>? progress = null, CancellationToken ct = default)
     {
+        progress ??= _ => Task.CompletedTask;
         var report = new HistoricalImportReport();
         var leagues = await _context.Leagues.ToListAsync(ct);
         var gameVersions = await _context.GameVersions.ToListAsync(ct);
@@ -120,7 +145,7 @@ public class HistoricalImportService : IHistoricalImportService
                 group.SourceUrl = urls.GetValueOrDefault(primary.SourceWorkbook.Trim());
         }
 
-        await GroupChampionships(input.Championships, groups, leagues, gameVersions, report, ct);
+        await GroupChampionships(input.Championships, groups, leagues, gameVersions, ct);
 
         // Waypoint matches can be keyed by any of a season's entries
         var bySourceId = new Dictionary<string, SeasonGroup>(StringComparer.OrdinalIgnoreCase);
@@ -139,13 +164,17 @@ public class HistoricalImportService : IHistoricalImportService
         }
 
         // Matches come from the Halo Infinite API before any season's transaction: no network call holds one open.
-        await PullWaypointMatches(groups.Values, report, ct);
+        await PullWaypointMatches(groups.Values, report, progress, groups.Count, ct);
 
+        var done = 0;
         foreach (var group in groups.Values)
         {
             ct.ThrowIfCancellationRequested();
+            await progress(new HistoricalImportProgress($"Importing {group.SeasonName}", done, groups.Count));
             await ImportSeason(group, gameVersions, report, ct);
+            done++;
         }
+        await progress(new HistoricalImportProgress("Done", done, groups.Count));
 
         _logger.LogInformation("Historical import: {SeasonsCreated} seasons created, {SeasonsUpdated} updated, {StatsInserted} stats added, {StatsUpdated} updated, {DummyUsersCreated} placeholder users, {Skipped} skipped, {Errors} failed",
             report.SeasonsCreated, report.SeasonsUpdated, report.StatsInserted, report.StatsUpdated, report.DummyUsersCreated, report.Skipped.Count, report.Errors.Count);
@@ -164,7 +193,7 @@ public class HistoricalImportService : IHistoricalImportService
     /// historical seasons already imported). A title whose season the archive has no stats for gets a historical season
     /// of its own, keyed "{champions workbook}/{season}" and named as the record names it, so no title is lost.
     /// </summary>
-    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, List<League> leagues, List<GameVersion> gameVersions, HistoricalImportReport report, CancellationToken ct)
+    private async Task GroupChampionships(ChampionsArchive? championships, Dictionary<string, SeasonGroup> groups, List<League> leagues, List<GameVersion> gameVersions, CancellationToken ct)
     {
         if (championships is null || championships.Champions.Count == 0)
             return;
@@ -198,7 +227,12 @@ public class HistoricalImportService : IHistoricalImportService
         }
     }
 
-    private async Task PullWaypointMatches(IEnumerable<SeasonGroup> groups, HistoricalImportReport report, CancellationToken ct)
+    /// <summary>
+    /// Pulls the Waypoint matches not in the database yet through the data pull service. The Halo client retries 429s
+    /// and 5xx itself (its Polly policy, honouring Retry-After); a call that still fails is tried again here with
+    /// exponential backoff. A match the API doesn't return is missing, which its season's import reports.
+    /// </summary>
+    private async Task PullWaypointMatches(IEnumerable<SeasonGroup> groups, HistoricalImportReport report, Func<HistoricalImportProgress, Task> progress, int seasons, CancellationToken ct)
     {
         var ids = groups.Where(g => g.Waypoint is not null)
             .SelectMany(g => WaypointIds(g, report).Keys)
@@ -207,20 +241,34 @@ public class HistoricalImportService : IHistoricalImportService
         if (ids.Count == 0)
             return;
         var have = await _context.Matches.Where(m => ids.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct);
-        foreach (var id in ids.Except(have))
+        var toPull = ids.Except(have).ToList();
+        var retry = Policy.Handle<Exception>(ex => ex is not OperationCanceledException)
+            .WaitAndRetryAsync(Math.Max(_options.MatchPullAttempts - 1, 0),
+                attempt => TimeSpan.FromTicks(_options.MatchPullBackoff.Ticks * (1L << (attempt - 1))),
+                (ex, delay, attempt, _) => _logger.LogWarning(ex, "Pulling a Waypoint match failed (attempt {Attempt}); trying again in {Delay}", attempt, delay));
+        var pulled = 0;
+        foreach (var id in toPull)
         {
             ct.ThrowIfCancellationRequested();
+            if (pulled % 10 == 0)
+                await progress(new HistoricalImportProgress($"Pulling Waypoint matches {pulled}/{toPull.Count}", 0, seasons));
+            pulled++;
             try
             {
-                await _dataPullService.GetAndSaveMatch(id);
-                report.WaypointMatchesPulled++;
+                await retry.ExecuteAsync(_ => _dataPullService.GetAndSaveMatch(id), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Could not pull Waypoint match {MatchID}", id);
                 Skip(report, $"Waypoint match {id}: could not be pulled ({ex.Message})");
                 _context.ChangeTracker.Clear();
+                continue;
             }
+            // GetAndSaveMatch saves nothing for a match the API doesn't return
+            if (await _context.Matches.AnyAsync(m => m.MatchID == id, ct))
+                report.WaypointMatchesPulled++;
+            else
+                Skip(report, $"Waypoint match {id}: not found");
         }
     }
 
@@ -247,7 +295,6 @@ public class HistoricalImportService : IHistoricalImportService
 
     private async Task ImportSeason(SeasonGroup group, List<GameVersion> gameVersions, HistoricalImportReport report, CancellationToken ct)
     {
-        var resolver = new PlayerResolver(_context);
         var counts = new HistoricalImportReport();
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
@@ -260,9 +307,16 @@ public class HistoricalImportService : IHistoricalImportService
                 return;
             }
 
-            var waypointUsers = group.Waypoint is null ? [] : await ImportWaypointStats(group, season, resolver, counts, ct);
-            await ImportManualStats(group, season, waypointUsers, resolver, counts, ct);
+            var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart, season.SeasonEnd);
+            var waypointUsers = group.Waypoint is null
+                ? new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] }
+                : await ImportWaypointStats(group, season, resolver, counts, ct);
+            var sheetPlayers = await ImportManualStats(group, season, waypointUsers, resolver, counts, ct);
+            if (group.Waypoint is not null)
+                await SuggestRosterMatches(group, season, waypointUsers, sheetPlayers, counts, ct);
             await ImportChampionships(group, season, gameVersions, resolver, counts, ct);
+            foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
+                Warn(counts, $"{group.SourceId}: {gamertag} is in more than one Xbox account's gamertag history for the season; left to its placeholder");
 
             await _context.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
@@ -290,18 +344,7 @@ public class HistoricalImportService : IHistoricalImportService
                 Skip(counts, $"Season {group.SeasonName} ({group.League.LeagueName}): the league already has a season with that name that is not {group.SourceId}");
                 return null;
             }
-            var start = new DateTime(HistoricalKeys.Year(group.SeasonName) ?? FallbackYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            season = new Season
-            {
-                HistoricalSourceID = group.SourceId,
-                IsHistorical = true,
-                PublicAt = null,
-                SignupsOpen = start,
-                SignupsClose = start,
-                DraftStart = start,
-                SeasonStart = start,
-                SeasonEnd = start,
-            };
+            season = new Season { HistoricalSourceID = group.SourceId, IsHistorical = true, PublicAt = null };
             _context.Seasons.Add(season);
             counts.SeasonsCreated++;
         }
@@ -309,6 +352,10 @@ public class HistoricalImportService : IHistoricalImportService
         {
             counts.SeasonsUpdated++;
         }
+        // Only the year is known: the season spans it, the window its gamertags are matched for
+        var start = new DateTime(HistoricalKeys.Year(group.SeasonName) ?? FallbackYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        season.SignupsOpen = season.SignupsClose = season.DraftStart = season.SeasonStart = start;
+        season.SeasonEnd = start.AddYears(1).AddSeconds(-1);
         season.SeasonName = group.SeasonName;
         season.LeagueID = group.League.LeagueID;
         season.GameVersionID = group.GameVersion?.GameVesionID;
@@ -320,14 +367,34 @@ public class HistoricalImportService : IHistoricalImportService
 
     /// <summary>
     /// Stats derived from the season's Waypoint matches (pulled into Matches / MatchParticipants), one row per player
-    /// and phase, Source Waypoint. They replace the player's Manual rows for the season. Returns those players.
+    /// and phase, Source Waypoint, for each phase (regular season, playoffs) whose listed matches are all in the
+    /// database: they replace the player's Manual rows for that phase. A phase with a match missing keeps its Manual
+    /// rows, and the missing matches are reported. Returns the users with Waypoint stats, by phase (true: playoffs).
     /// </summary>
-    private async Task<HashSet<int>> ImportWaypointStats(SeasonGroup group, Season season, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    private async Task<Dictionary<bool, HashSet<int>>> ImportWaypointStats(SeasonGroup group, Season season, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
     {
+        var users = new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] };
         var matchPhases = WaypointIds(group, null);
         var ids = matchPhases.Keys.ToList();
+        var present = (await _context.Matches.Where(m => ids.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet();
+        var completePhases = new HashSet<bool>();
+        foreach (var phase in new[] { false, true })
+        {
+            var listed = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
+            if (listed.Count == 0)
+                continue;
+            var missing = listed.Where(id => !present.Contains(id)).ToList();
+            if (missing.Count == 0)
+                completePhases.Add(phase);
+            else
+                counts.MissingMatches.Add($"{group.SourceId} {Phase(phase)}: {missing.Count} of {listed.Count} matches missing ({string.Join(", ", missing)}); kept the sheet's totals");
+        }
+        if (completePhases.Count == 0)
+            return users;
+
+        var completeIds = matchPhases.Where(m => completePhases.Contains(m.Value)).Select(m => m.Key).ToList();
         var participants = await _context.MatchParticipants
-            .Where(p => ids.Contains(p.MatchID))
+            .Where(p => completeIds.Contains(p.MatchID))
             .Select(p => new
             {
                 p.MatchID,
@@ -345,16 +412,12 @@ public class HistoricalImportService : IHistoricalImportService
                 p.AverageLife,
             })
             .ToListAsync(ct);
-        var missing = ids.Count - participants.Select(p => p.MatchID).Distinct().Count();
-        if (missing > 0)
-            Skip(counts, $"{group.SourceId}: {missing} of {ids.Count} Waypoint matches are not in the database");
 
-        var users = new HashSet<int>();
         var rows = new List<PlayerSeasonStat>();
         foreach (var player in participants.GroupBy(p => (p.XboxUserID, Playoffs: matchPhases[p.MatchID])))
         {
             var gamertag = player.First().Gamertag;
-            var userId = await resolver.Resolve(gamertag, player.Key.XboxUserID, ct);
+            var userId = (await resolver.Resolve(gamertag, player.Key.XboxUserID, ct)).UserId;
             var manual = group.Entries.Where(e => e.IsPlayoffs == player.Key.Playoffs)
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
@@ -362,7 +425,7 @@ public class HistoricalImportService : IHistoricalImportService
             var wins = player.Count(p => p.Outcome == Outcomes.Won);
             var kills = player.Sum(p => p.Kills);
             var deaths = player.Sum(p => p.Deaths);
-            var row = new PlayerSeasonStat
+            rows.Add(new PlayerSeasonStat
             {
                 SeasonID = season.SeasonID,
                 UserID = userId,
@@ -388,22 +451,25 @@ public class HistoricalImportService : IHistoricalImportService
                 Score = player.Sum(p => p.PersonalScore),
                 DamageDealt = player.Sum(p => p.DamageDealt),
                 DamageTaken = player.Sum(p => p.DamageTaken),
-            };
-            users.Add(userId);
-            rows.Add(row);
+            });
+            users[player.Key.Playoffs].Add(userId);
         }
 
-        // Waypoint replaces Manual: a player's season is never both
-        var replaced = await _context.PlayerSeasonStats
-            .Where(s => s.SeasonID == season.SeasonID && s.Source == StatSource.Manual && users.Contains(s.UserID))
-            .ToListAsync(ct);
-        _context.PlayerSeasonStats.RemoveRange(replaced);
-        counts.ManualReplacedByWaypoint += replaced.Count;
+        // Waypoint replaces Manual for the phase: a player's phase of a season is never both
+        foreach (var phase in completePhases)
+        {
+            var phaseUsers = users[phase];
+            var replaced = await _context.PlayerSeasonStats
+                .Where(s => s.SeasonID == season.SeasonID && s.IsPlayoffs == phase && s.Source == StatSource.Manual && phaseUsers.Contains(s.UserID))
+                .ToListAsync(ct);
+            // Counted below, once per sheet row (which then is skipped)
+            _context.PlayerSeasonStats.RemoveRange(replaced);
+        }
         await _context.SaveChangesAsync(ct);
 
         foreach (var row in rows)
         {
-            if (await Upsert(row, counts, ct))
+            if (await Upsert(row, ct) == UpsertResult.Inserted)
                 counts.WaypointStatsInserted++;
             else
                 counts.WaypointStatsUpdated++;
@@ -411,8 +477,10 @@ public class HistoricalImportService : IHistoricalImportService
         return users;
     }
 
-    private async Task ImportManualStats(SeasonGroup group, Season season, HashSet<int> waypointUsers, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
+    /// <summary>The sheet's rows. Returns, by phase, each row's player (for roster suggestions).</summary>
+    private async Task<Dictionary<bool, List<SheetPlayer>>> ImportManualStats(SeasonGroup group, Season season, Dictionary<bool, HashSet<int>> waypointUsers, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
     {
+        var sheetPlayers = new Dictionary<bool, List<SheetPlayer>> { [false] = [], [true] = [] };
         var seen = new HashSet<(int UserID, int StintIndex, bool IsPlayoffs)>();
         foreach (var entry in group.Entries)
         {
@@ -420,8 +488,11 @@ public class HistoricalImportService : IHistoricalImportService
             {
                 if (string.IsNullOrWhiteSpace(player.Gamertag))
                     continue;
-                var userId = await resolver.Resolve(player.Gamertag, null, ct);
-                if (waypointUsers.Contains(userId))
+                // Renamed players are found through their gamertag history, so their Waypoint row isn't joined by a
+                // second, Manual one under the old gamertag
+                var userId = (await resolver.Resolve(player.Gamertag, null, ct)).UserId;
+                sheetPlayers[entry.IsPlayoffs].Add(new SheetPlayer(userId, HistoricalKeys.CleanGamertag(player.Gamertag), player.TeamName));
+                if (waypointUsers[entry.IsPlayoffs].Contains(userId))
                 {
                     counts.ManualReplacedByWaypoint++;
                     continue;
@@ -474,16 +545,87 @@ public class HistoricalImportService : IHistoricalImportService
                         ? metrics.GetRawText()
                         : null,
                 };
-                if (await Upsert(row, counts, ct))
-                    counts.StatsInserted++;
-                else
-                    counts.StatsUpdated++;
+                switch (await Upsert(row, ct))
+                {
+                    case UpsertResult.Inserted: counts.StatsInserted++; break;
+                    case UpsertResult.Updated: counts.StatsUpdated++; break;
+                    default: counts.ManualReplacedByWaypoint++; break;
+                }
             }
+        }
+        return sheetPlayers;
+    }
+
+    /// <summary>
+    /// For each phase with Waypoint stats: sheet rows no Xbox account matched (their user has no Waypoint row) and Xbox
+    /// accounts no sheet row matched are probably the same players under old gamertags. Pairs on the same team (an
+    /// account's team is its teammates' sheet team, by majority) become suggestions for a commissioner (GamertagClaims,
+    /// RosterMatch); nothing is merged automatically. The unmatched rows are warned about.
+    /// </summary>
+    private async Task SuggestRosterMatches(SeasonGroup group, Season season, Dictionary<bool, HashSet<int>> waypointUsers, Dictionary<bool, List<SheetPlayer>> sheetPlayers, HistoricalImportReport counts, CancellationToken ct)
+    {
+        var matchPhases = WaypointIds(group, null);
+        foreach (var phase in new[] { false, true })
+        {
+            var phaseWaypointUsers = waypointUsers[phase];
+            if (phaseWaypointUsers.Count == 0)
+                continue;
+            var sheet = sheetPlayers[phase];
+            var unmatchedRows = sheet.Where(s => !phaseWaypointUsers.Contains(s.UserId)).ToList();
+            foreach (var row in unmatchedRows)
+                Warn(counts, $"{group.SourceId} {Phase(phase)}: {row.Gamertag} matches no Xbox account of the season's matches");
+            if (unmatchedRows.Count == 0)
+                continue;
+
+            var sheetUserIds = sheet.Select(s => s.UserId).ToHashSet();
+            var teamOfUser = sheet.Where(s => !string.IsNullOrWhiteSpace(s.TeamName))
+                .GroupBy(s => s.UserId).ToDictionary(g => g.Key, g => g.First().TeamName!);
+            var phaseIds = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
+            var players = await _context.MatchParticipants.Where(p => phaseIds.Contains(p.MatchID))
+                .Select(p => new { p.MatchID, p.TeamID, p.XboxUserID, UserId = p.XboxUser.User != null ? (int?)p.XboxUser.User.Id : null })
+                .ToListAsync(ct);
+            var unmatchedAccounts = players.Where(p => p.UserId is null || !sheetUserIds.Contains(p.UserId.Value))
+                .Select(p => p.XboxUserID).Distinct().ToList();
+            foreach (var xuid in unmatchedAccounts)
+            {
+                var team = players.Where(p => p.XboxUserID == xuid)
+                    .SelectMany(p => players.Where(o => o.MatchID == p.MatchID && o.TeamID == p.TeamID && o.XboxUserID != xuid))
+                    .Where(o => o.UserId is not null && teamOfUser.ContainsKey(o.UserId.Value))
+                    .Select(o => teamOfUser[o.UserId!.Value])
+                    .GroupBy(t => t, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(g => g.Count())
+                    .FirstOrDefault()?.Key;
+                if (team is null)
+                    continue;
+                foreach (var row in unmatchedRows.Where(r => string.Equals(r.TeamName, team, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var isPlaceholder = await _context.Users.AnyAsync(u => u.Id == row.UserId && u.IsDummyUser, ct);
+                    if (!isPlaceholder)
+                        continue;
+                    var normalized = HistoricalKeys.Normalize(row.Gamertag);
+                    var exists = _context.GamertagClaims.Local.Any(c => c.Kind == GamertagClaimKind.RosterMatch && c.XboxUserID == xuid && c.NormalizedGamertag == normalized)
+                        || await _context.GamertagClaims.AnyAsync(c => c.Kind == GamertagClaimKind.RosterMatch && c.XboxUserID == xuid && c.NormalizedGamertag == normalized, ct);
+                    if (exists)
+                        continue;
+                    _context.GamertagClaims.Add(new GamertagClaim
+                    {
+                        Kind = GamertagClaimKind.RosterMatch,
+                        XboxUserID = xuid,
+                        Gamertag = row.Gamertag,
+                        NormalizedGamertag = normalized,
+                        PlaceholderUserID = row.UserId,
+                        SeasonID = season.SeasonID,
+                        TeamName = row.TeamName,
+                    });
+                    counts.SuggestionsCreated++;
+                }
+            }
+            await _context.SaveChangesAsync(ct);
         }
     }
 
-    /// <summary>Adds the row, or copies its values onto the one with its key. True when added.</summary>
-    private async Task<bool> Upsert(PlayerSeasonStat row, HistoricalImportReport counts, CancellationToken ct)
+    /// <summary>Adds the row, or copies its values onto the one with its key. A sheet row never overwrites a Waypoint one.</summary>
+    private async Task<UpsertResult> Upsert(PlayerSeasonStat row, CancellationToken ct)
     {
         var existing = await _context.PlayerSeasonStats.FirstOrDefaultAsync(s => s.SeasonID == row.SeasonID && s.UserID == row.UserID
             && s.StintIndex == row.StintIndex && s.IsPlayoffs == row.IsPlayoffs, ct);
@@ -491,13 +633,10 @@ public class HistoricalImportService : IHistoricalImportService
         {
             _context.PlayerSeasonStats.Add(row);
             await _context.SaveChangesAsync(ct);
-            return true;
+            return UpsertResult.Inserted;
         }
         if (existing.Source == StatSource.Waypoint && row.Source == StatSource.Manual)
-        {
-            counts.ManualReplacedByWaypoint++;
-            return false;
-        }
+            return UpsertResult.KeptWaypoint;
         row.PlayerSeasonStatID = existing.PlayerSeasonStatID;
         row.CreatedAt = existing.CreatedAt;
         row.CreatedByID = existing.CreatedByID;
@@ -506,7 +645,7 @@ public class HistoricalImportService : IHistoricalImportService
         // Only the values that changed are written (and get a history row): a re-run of the same archive changes nothing.
         _context.Entry(existing).CurrentValues.SetValues(row);
         await _context.SaveChangesAsync(ct);
-        return false;
+        return UpsertResult.Updated;
     }
 
     private async Task ImportChampionships(SeasonGroup group, Season season, List<GameVersion> gameVersions, PlayerResolver resolver, HistoricalImportReport counts, CancellationToken ct)
@@ -519,7 +658,7 @@ public class HistoricalImportService : IHistoricalImportService
             var tier = championship.Tier.Trim();
             foreach (var gamertag in championship.Roster.Where(r => !string.IsNullOrWhiteSpace(r)))
             {
-                var userId = await resolver.Resolve(gamertag, null, ct);
+                var userId = (await resolver.Resolve(gamertag, null, ct)).UserId;
                 if (!seen.Add((tier.ToUpperInvariant(), userId)))
                 {
                     Skip(counts, $"{group.SourceId} {tier} champions: {gamertag} is listed twice for one player");
@@ -547,6 +686,7 @@ public class HistoricalImportService : IHistoricalImportService
         }
     }
 
+    private static string Phase(bool playoffs) => playoffs ? "playoffs" : "regular season";
     private static int Int(decimal? value) => value is null ? 0 : (int)Math.Round(value.Value);
     private static int? IntOrNull(decimal? value) => value is null ? null : (int)Math.Round(value.Value);
     private static decimal? Dec(decimal? value, int places) => value is null ? null : Math.Round(value.Value, places);
@@ -575,6 +715,9 @@ public class HistoricalImportService : IHistoricalImportService
         report.ChampionshipsInserted += season.ChampionshipsInserted;
         report.ChampionshipsUpdated += season.ChampionshipsUpdated;
         report.DummyUsersCreated += season.DummyUsersCreated;
+        report.SuggestionsCreated += season.SuggestionsCreated;
+        report.MissingMatches.AddRange(season.MissingMatches);
         report.Skipped.AddRange(season.Skipped);
+        report.Warnings.AddRange(season.Warnings);
     }
 }
