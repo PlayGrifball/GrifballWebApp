@@ -2,8 +2,10 @@ using DiscordInterface.Generated;
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server;
+using GrifballWebApp.Server.Events;
 using GrifballWebApp.Server.Matchmaking;
 using GrifballWebApp.Server.Outbox;
+using GrifballWebApp.Server.Reschedule;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -56,7 +58,9 @@ public sealed class OutboxTestDriver : IAsyncDisposable
             .AddSingleton(Microsoft.Extensions.Options.Options.Create(Options))
             .AddSingleton<TimeProvider>(Time)
             .AddSingleton<OutboxProcessor>()
-            .AddMatchmakingOutboxHandlers();
+            .AddMatchmakingOutboxHandlers()
+            .AddRescheduleOutboxHandlers()
+            .AddEventsOutboxHandlers();
         configure?.Invoke(services);
         _provider = services.BuildServiceProvider();
         Processor = _provider.GetRequiredService<OutboxProcessor>();

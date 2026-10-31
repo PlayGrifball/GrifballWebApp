@@ -89,7 +89,7 @@ public static class MatchOutbox
 
     internal static IEnumerable<MatchedPlayer> PlayersOf(MatchedMatch match) => match.HomeTeam.Players.Concat(match.AwayTeam.Players);
 
-    internal static bool IsNotFound(Exception ex) => ex is RestException { StatusCode: HttpStatusCode.NotFound };
+    internal static bool IsNotFound(Exception ex) => DiscordPosts.IsNotFound(ex);
 }
 
 public sealed record MatchPayload(int MatchId);
@@ -117,14 +117,7 @@ public abstract class MatchLogChannelHandler<TPayload>(IDiscordRestClient discor
     /// <summary>The bot's latest post in the log channel with an embed matching <paramref name="embed"/>, among the last 50.</summary>
     protected async Task<IDiscordRestMessage?> FindBotPostAsync(Func<IDiscordEmbed, bool> embed, CancellationToken ct)
     {
-        var me = await Discord.GetCurrentUserAsync(null, ct);
-        var messages = await Discord.GetMessagesAsync(LogChannel, new PaginationProperties<ulong>()
-        {
-            BatchSize = 50,
-        }).Take(50).ToListAsync(ct);
-        return messages
-            .Where(x => x.Author.Id == me.Id)
-            .FirstOrDefault(x => x.Embeds.Any(embed));
+        return await Discord.FindBotPostAsync(LogChannel, x => x.Embeds.Any(embed), ct);
     }
 
     protected static bool HasMatchId(IDiscordEmbed embed, int matchId)
@@ -194,13 +187,7 @@ public sealed class MatchThreadCreateHandler(IDiscordRestClient discord, IOption
         if (match.ThreadID is not null)
             return OutboxOutcome.Done;
 
-        var group = MatchOutbox.Group(match.Id);
-        var createdResult = await context.Outbox
-            .Where(x => x.GroupKey == group && x.Kind == MatchOutbox.CreatedPost && x.Status == OutboxStatus.Sent)
-            .OrderByDescending(x => x.Sequence)
-            .Select(x => x.Result)
-            .FirstOrDefaultAsync(ct);
-        var created = createdResult is null ? null : System.Text.Json.JsonSerializer.Deserialize<MatchCreatedResult>(createdResult, OutboxJson.Options);
+        var created = await context.SentResultAsync<MatchCreatedResult>(MatchOutbox.Group(match.Id), MatchOutbox.CreatedPost, ct);
         if (created is null)
             throw new InvalidOperationException($"Match {match.Id} has no Match Created post to make its thread from");
 
