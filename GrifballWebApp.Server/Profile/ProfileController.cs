@@ -13,11 +13,13 @@ public class ProfileController : ControllerBase
 {
     private readonly GrifballContext _context;
     private readonly ISetGamertagService _setGamertagService;
+    private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
 
-    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService)
+    public ProfileController(GrifballContext context, ISetGamertagService setGamertagService, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
     {
         _context = context;
         _setGamertagService = setGamertagService;
+        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
     }
 
     [HttpGet("{userID:int}", Name = "GetGamertag")]
@@ -91,41 +93,31 @@ public class ProfileController : ControllerBase
             })
             .ToListAsync(ct);
 
-        var rawStats = await _context.PlayerSeasonStats
-            .AsNoTracking()
-            .Where(s => s.UserID == userID)
-            .Include(s => s.Season)
-                .ThenInclude(sn => sn.League)
-            .Include(s => s.GameVersion)
-            .Include(s => s.Team)
-            .OrderByDescending(s => s.Season.SeasonStart)
-            .ThenBy(s => s.Season.SeasonName)
-            .ThenBy(s => s.IsPlayoffs)
-            .ThenBy(s => s.StintIndex)
-            .ToListAsync(ct);
+        // Season stats: from the season's games where it has them, otherwise the season totals stored for it
+        var rawStats = await _stats.GetAsync(userID: userID, ct: ct);
 
         var seasonDtos = rawStats.Select(s => new PlayerSeasonStatDetailDto
         {
             PlayerSeasonStatID = s.PlayerSeasonStatID,
             SeasonID = s.SeasonID,
-            SeasonName = s.Season.SeasonName,
-            IsHistorical = s.Season.IsHistorical,
-            SeasonSourceUrl = s.Season.HistoricalSourceUrl,
-            LeagueID = s.Season.LeagueID,
-            LeagueName = s.Season.League != null ? s.Season.League.LeagueName : "AGLA",
-            LeagueSlug = s.Season.League != null ? s.Season.League.Slug : "agla",
-            GameVersionID = s.GameVersionID,
-            GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : "Unknown",
-            GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : "unknown",
+            SeasonName = s.SeasonName,
+            IsHistorical = s.IsHistorical,
+            SeasonSourceUrl = s.HistoricalSourceUrl,
+            LeagueID = s.LeagueID,
+            LeagueName = s.LeagueName,
+            LeagueSlug = s.LeagueSlug,
+            GameVersionID = s.GameVersionID ?? 0,
+            GameVersionName = s.GameVersionName ?? "Unknown",
+            GameVersionSlug = s.GameVersionSlug ?? "unknown",
             Division = s.Division,
             TeamID = s.TeamID,
-            TeamName = s.Team?.TeamName,
+            TeamName = s.TeamName,
             TradeNote = s.TradeNote,
             RoleNote = s.RoleNote,
             StintIndex = s.StintIndex,
             IsPlayoffs = s.IsPlayoffs,
             IsCombined = s.IsCombined,
-            Source = s.Source.ToString(),
+            Source = s.FromMatches ? "Matches" : "Recorded",
             GamesPlayed = s.GamesPlayed,
             Wins = s.Wins,
             Losses = s.Losses,
@@ -143,14 +135,16 @@ public class ProfileController : ControllerBase
             DamageDealt = s.DamageDealt,
             DamageTaken = s.DamageTaken,
             Score = s.Score,
-            Year = s.Season.SeasonStart.Year
+            Year = s.SeasonStart.Year
         }).ToList();
 
-        var careerByGame = rawStats
+        // A traded player's stored stint rows and the row combining them: the combined one is not counted twice
+        var counted = rawStats.Where(s => !s.IsCombined).ToList();
+        var careerByGame = counted
             .GroupBy(s => s.GameVersionID)
             .Select(g =>
             {
-                var gv = g.First().GameVersion;
+                var gv = g.First();
                 var distinctSeasons = g.Select(s => s.SeasonID).Distinct().Count();
                 var gp = g.Sum(s => s.GamesPlayed);
                 var w = g.Sum(s => s.Wins);
@@ -164,22 +158,22 @@ public class ProfileController : ControllerBase
                 return new GameCareerSummaryDto
                 {
                     GameVersionID = g.Key,
-                    GameVersionName = gv != null ? gv.GameVersionName : "Unknown",
-                    GameVersionSlug = gv != null ? gv.Slug : "unknown",
+                    GameVersionName = gv.GameVersionName ?? "Unknown",
+                    GameVersionSlug = gv.GameVersionSlug ?? "unknown",
                     SeasonsCount = distinctSeasons,
                     GamesPlayed = gp,
                     Wins = w,
                     Losses = l,
                     WinPercent = gp > 0 ? Math.Round((decimal)w / gp * 100m, 1) : null,
                     Goals = goals,
-                    GoalsPerGame = PerSheetGame(g, s => s.Goals),
+                    GoalsPerGame = PerGame(g, s => s.Goals),
                     Kills = k,
                     Deaths = d,
                     Assists = a,
                     KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                     KdSpread = k - d,
                     CarrierKills = stops,
-                    StopsPerGame = PerSheetGame(g, s => s.CarrierKills),
+                    StopsPerGame = PerGame(g, s => s.CarrierKills, storedOnly: true),
                     Sprees = g.Sum(s => s.Sprees),
                     MultiKills = g.Sum(s => s.MultiKills),
                     Exterminations = g.Sum(s => s.Exterminations),
@@ -197,47 +191,47 @@ public class ProfileController : ControllerBase
             .ToList();
 
         GameCareerSummaryDto? overall = null;
-        if (rawStats.Count > 0)
+        if (counted.Count > 0)
         {
-            var gp = rawStats.Sum(s => s.GamesPlayed);
-            var w = rawStats.Sum(s => s.Wins);
-            var l = rawStats.Sum(s => s.Losses);
-            var goals = rawStats.Sum(s => s.Goals);
-            var k = rawStats.Sum(s => s.Kills);
-            var d = rawStats.Sum(s => s.Deaths);
-            var a = rawStats.Sum(s => s.Assists);
-            var stops = rawStats.Sum(s => s.CarrierKills);
+            var gp = counted.Sum(s => s.GamesPlayed);
+            var w = counted.Sum(s => s.Wins);
+            var l = counted.Sum(s => s.Losses);
+            var goals = counted.Sum(s => s.Goals);
+            var k = counted.Sum(s => s.Kills);
+            var d = counted.Sum(s => s.Deaths);
+            var a = counted.Sum(s => s.Assists);
+            var stops = counted.Sum(s => s.CarrierKills);
 
             overall = new GameCareerSummaryDto
             {
                 GameVersionID = null,
                 GameVersionName = "All Games",
                 GameVersionSlug = "all",
-                SeasonsCount = rawStats.Select(s => s.SeasonID).Distinct().Count(),
+                SeasonsCount = counted.Select(s => s.SeasonID).Distinct().Count(),
                 GamesPlayed = gp,
                 Wins = w,
                 Losses = l,
                 WinPercent = gp > 0 ? Math.Round((decimal)w / gp * 100m, 1) : null,
                 Goals = goals,
-                GoalsPerGame = PerSheetGame(rawStats, s => s.Goals),
+                GoalsPerGame = PerGame(counted, s => s.Goals),
                 Kills = k,
                 Deaths = d,
                 Assists = a,
                 KdRatio = d > 0 ? Math.Round((decimal)k / d, 2) : k,
                 KdSpread = k - d,
                 CarrierKills = stops,
-                StopsPerGame = PerSheetGame(rawStats, s => s.CarrierKills),
-                Sprees = rawStats.Sum(s => s.Sprees),
-                MultiKills = rawStats.Sum(s => s.MultiKills),
-                Exterminations = rawStats.Sum(s => s.Exterminations),
-                Betrayals = rawStats.Sum(s => s.Betrayals),
-                HammerKills = rawStats.Sum(s => s.HammerKills),
-                SwordKills = rawStats.Sum(s => s.SwordKills),
-                BallKills = rawStats.Sum(s => s.BallKills),
-                Punches = rawStats.Sum(s => s.Punches),
-                DamageDealt = rawStats.Any(s => s.DamageDealt.HasValue) ? rawStats.Sum(s => (long)(s.DamageDealt ?? 0)) : null,
-                DamageTaken = rawStats.Any(s => s.DamageTaken.HasValue) ? rawStats.Sum(s => (long)(s.DamageTaken ?? 0)) : null,
-                Score = rawStats.Any(s => s.Score.HasValue) ? rawStats.Sum(s => s.Score ?? 0) : null
+                StopsPerGame = PerGame(counted, s => s.CarrierKills, storedOnly: true),
+                Sprees = counted.Sum(s => s.Sprees),
+                MultiKills = counted.Sum(s => s.MultiKills),
+                Exterminations = counted.Sum(s => s.Exterminations),
+                Betrayals = counted.Sum(s => s.Betrayals),
+                HammerKills = counted.Sum(s => s.HammerKills),
+                SwordKills = counted.Sum(s => s.SwordKills),
+                BallKills = counted.Sum(s => s.BallKills),
+                Punches = counted.Sum(s => s.Punches),
+                DamageDealt = counted.Any(s => s.DamageDealt.HasValue) ? counted.Sum(s => (long)(s.DamageDealt ?? 0)) : null,
+                DamageTaken = counted.Any(s => s.DamageTaken.HasValue) ? counted.Sum(s => (long)(s.DamageTaken ?? 0)) : null,
+                Score = counted.Any(s => s.Score.HasValue) ? counted.Sum(s => s.Score ?? 0) : null
             };
         }
 
@@ -284,10 +278,12 @@ public class ProfileController : ControllerBase
     /// A stat per game over the sheet rows only: Waypoint rows (Halo Infinite matches) have no goals or carrier stops,
     /// so counting their games would pull the average down.
     /// </summary>
-    private static decimal? PerSheetGame(IEnumerable<PlayerSeasonStat> rows, Func<PlayerSeasonStat, int> stat)
+    /// <summary>A stat per game over the lines that record it: goals are in both kinds, carrier stops only in stored
+    /// season totals (a game from Waypoint has none), so games without them don't lower the average.</summary>
+    private static decimal? PerGame(IEnumerable<GrifballWebApp.Server.Stats.SeasonStatLine> lines, Func<GrifballWebApp.Server.Stats.SeasonStatLine, int> stat, bool storedOnly = false)
     {
-        var sheet = rows.Where(s => s.Source == StatSource.Manual).ToList();
-        var games = sheet.Sum(s => s.GamesPlayed);
-        return games > 0 ? Math.Round((decimal)sheet.Sum(stat) / games, 2) : null;
+        var recording = lines.Where(s => !storedOnly || !s.FromMatches).ToList();
+        var games = recording.Sum(s => s.GamesPlayed);
+        return games > 0 ? Math.Round((decimal)recording.Sum(stat) / games, 2) : null;
     }
 }

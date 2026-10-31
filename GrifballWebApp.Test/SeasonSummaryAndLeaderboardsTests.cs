@@ -144,15 +144,15 @@ public class SeasonSummaryAndLeaderboardsTests
 
         Assert.That(stats.Select(s => (s.Gamertag, s.Goals, s.TeamID, s.TeamName, s.IsPlayoffs, s.Source)), Is.EqualTo(new[]
         {
-            ("Captain R", 12, (int?)champs.TeamID, "Relentless", false, "Manual"),
-            ("Benchy", 7, (int?)bench.TeamID, "Benchwarmers", false, "Manual"),
-            ("Runner", 3, (int?)champs.TeamID, "Relentless", false, "Manual"),
-            ("Runner", 2, (int?)champs.TeamID, "Relentless", true, "Manual"),
+            ("Captain R", 12, (int?)champs.TeamID, "Relentless", false, "Recorded"),
+            ("Benchy", 7, (int?)bench.TeamID, "Benchwarmers", false, "Recorded"),
+            ("Runner", 3, (int?)champs.TeamID, "Relentless", false, "Recorded"),
+            ("Runner", 2, (int?)champs.TeamID, "Relentless", true, "Recorded"),
         }));
     }
 
     [Test]
-    public async Task SeasonCatalog_EverySeasonStartedSoFar_HistoricalOrNot_NewestFirst()
+    public async Task SeasonList_EverySeasonStartedSoFar_HistoricalOrNot_LatestFirst()
     {
         var (historical, champs, _, _, _, _) = await SeedHistorical();
         var live = await AddSeason("Autumn Brawl", DateTime.UtcNow.Year - 1, historical: false);
@@ -160,7 +160,7 @@ public class SeasonSummaryAndLeaderboardsTests
         await AddTeam(live, "Live Team", null, null, player);
         var future = await AddSeason("Next Year", DateTime.UtcNow.Year + 1, historical: false);
 
-        var catalog = await new SeasonController(new EventOrganizerService(_context), _service).GetSeasonCatalog(CancellationToken.None);
+        var catalog = (await new SeasonController(new EventOrganizerService(_context), _service).GetSeasons(new SeasonListFilter(), CancellationToken.None)).Results;
 
         Assert.Multiple(() =>
         {
@@ -169,6 +169,33 @@ public class SeasonSummaryAndLeaderboardsTests
             Assert.That(catalog.Select(c => (c.TeamCount, c.PlayerCount)), Is.EqualTo(new[] { (1, 1), (2, 3) }));
             Assert.That(catalog[1].Champions.Single().TeamID, Is.EqualTo(champs.TeamID));
             Assert.That(catalog[0].Champions, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task SeasonList_FiltersByLeagueGameAndWhetherEnded_AndPages()
+    {
+        var late = await _context.Leagues.SingleAsync(l => l.Slug == "late-league");
+        var old = await AddSeason("Summer League 2010", 2010, historical: true);
+        var current = await AddSeason("Now", DateTime.UtcNow.Year, historical: false);
+        var other = await AddSeason("Late League Season 8", 2012, historical: true);
+        other.LeagueID = late.LeagueID;
+        other.GameVersionID = 2;
+        await _context.SaveChangesAsync();
+        var controller = new SeasonController(new EventOrganizerService(_context), _service);
+        async Task<int[]> Ids(SeasonListFilter filter) => (await controller.GetSeasons(filter, CancellationToken.None)).Results.Select(s => s.SeasonID).ToArray();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await Ids(new SeasonListFilter { Ended = true }), Is.EqualTo(new[] { other.SeasonID, old.SeasonID }));
+            Assert.That(await Ids(new SeasonListFilter { Ended = false }), Is.EqualTo(new[] { current.SeasonID }));
+            Assert.That(await Ids(new SeasonListFilter { LeagueID = late.LeagueID }), Is.EqualTo(new[] { other.SeasonID }));
+            Assert.That(await Ids(new SeasonListFilter { GameVersionID = 1 }), Is.EqualTo(new[] { current.SeasonID, old.SeasonID }));
+            Assert.That(await Ids(new SeasonListFilter { SortColumn = "name", SortDirection = GrifballWebApp.Server.Dtos.SortDirection.Asc }), Is.EqualTo(new[] { other.SeasonID, current.SeasonID, old.SeasonID }));
+            var page = await controller.GetSeasons(new SeasonListFilter { PageSize = 1, PageNumber = 2 }, CancellationToken.None);
+            Assert.That((page.TotalCount, page.Results.Single().SeasonID), Is.EqualTo((3, other.SeasonID)));
+            var currentItem = (await controller.GetSeasons(new SeasonListFilter { Ended = false }, CancellationToken.None)).Results.Single();
+            Assert.That(currentItem.IsCurrent, Is.True);
         });
     }
 

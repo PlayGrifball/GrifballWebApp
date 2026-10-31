@@ -38,8 +38,9 @@ public class HistoricalImportReport
     public int TeamsCreated { get; set; }
     public int StatsInserted { get; set; }
     public int StatsUpdated { get; set; }
-    public int WaypointStatsInserted { get; set; }
-    public int WaypointStatsUpdated { get; set; }
+    /// <summary>Season matches made from Waypoint games, and the games linked to them.</summary>
+    public int SeasonMatchesCreated { get; set; }
+    public int GamesLinked { get; set; }
     /// <summary>Manual rows not imported, or removed, because the player has Waypoint stats for that phase of the season.</summary>
     public int ManualReplacedByWaypoint { get; set; }
     public int ChampionshipsInserted { get; set; }
@@ -348,12 +349,13 @@ public class HistoricalImportService : IHistoricalImportService
 
             var resolver = new PlayerResolver(_context, season.SeasonID, season.SeasonStart);
             var teams = await UpsertTeams(group, season, counts, ct);
-            var waypointUsers = group.Waypoint is null
-                ? new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] }
-                : await ImportWaypointStats(group, season, resolver, teams, counts, ct);
-            var sheetPlayers = await ImportManualStats(group, season, waypointUsers, resolver, teams, counts, ct);
+            var waypoint = await ImportWaypointPlayers(group, season, resolver, teams, counts, ct);
+            var sheetPlayers = await ImportManualStats(group, season, waypoint.Users, resolver, teams, counts, ct);
             if (group.Waypoint is not null)
-                await SuggestRosterMatches(group, season, waypointUsers, sheetPlayers, counts, ct);
+            {
+                await SuggestRosterMatches(group, season, waypoint.Users, sheetPlayers, counts, ct);
+                await LinkWaypointMatches(group, season, teams, waypoint, counts, ct);
+            }
             await ImportChampionships(group, season, gameVersions, resolver, teams, counts, ct);
             await SyncRosters(teams, ct);
             foreach (var gamertag in resolver.Ambiguous.Distinct(StringComparer.OrdinalIgnoreCase))
@@ -473,19 +475,44 @@ public class HistoricalImportService : IHistoricalImportService
         await _context.SaveChangesAsync(ct);
     }
 
+    /// <summary>The players of a season's Waypoint matches: by phase, the accounts with games (their stats for the
+    /// phase come from the games, so their sheet rows are not kept), the phases whose games are all in, and each Xbox
+    /// user's account.</summary>
+    private sealed record WaypointPlayers(Dictionary<bool, HashSet<int>> Users, HashSet<bool> CompletePhases, Dictionary<long, int> Accounts);
+
+    /// <summary>A Waypoint game between two of the season's teams.</summary>
+    private sealed record WaypointGame(Guid MatchID, DateTime? Start, bool Playoffs, int? TeamA, Outcomes OutcomeA, int? TeamB, Outcomes OutcomeB);
+
+    private static int? Min(int? a, int? b) => a is null || b is null ? a ?? b : Math.Min(a.Value, b.Value);
+    private static int? Max(int? a, int? b) => a is null || b is null ? null : Math.Max(a.Value, b.Value);
+
+    /// <summary>Games of the same two teams no further apart than this are one series (a season match).</summary>
+    private static readonly TimeSpan SeriesGap = TimeSpan.FromHours(3);
+
     /// <summary>
-    /// Stats derived from the season's Waypoint matches (pulled into Matches / MatchParticipants), one row per player
-    /// and phase, Source Waypoint, for each phase (regular season, playoffs) whose listed matches are all in the
-    /// database: they replace the player's Manual rows for that phase. A phase with a match missing keeps its Manual
-    /// rows, and the missing matches are reported. Returns the users with Waypoint stats, by phase (true: playoffs).
+    /// The players of the season's Waypoint matches (pulled into Matches / MatchParticipants), for each phase (regular
+    /// season, playoffs) whose listed matches are all in the database: each is resolved to their Xbox user's account (a
+    /// placeholder linked to it when it has none) and put on their sheet team. Their stats for the phase then come from
+    /// the games, once <see cref="LinkWaypointMatches"/> links them to the season (SeasonStatsService reads them), so
+    /// their stored totals for it go. A phase with a match missing keeps the sheet's totals, and the missing matches are
+    /// reported. Waypoint totals stored by earlier imports are removed: the games are the stats.
     /// </summary>
-    private async Task<Dictionary<bool, HashSet<int>>> ImportWaypointStats(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
+    private async Task<WaypointPlayers> ImportWaypointPlayers(SeasonGroup group, Season season, PlayerResolver resolver, SeasonTeams teams, HistoricalImportReport counts, CancellationToken ct)
     {
-        var users = new Dictionary<bool, HashSet<int>> { [false] = [], [true] = [] };
-        var matchPhases = WaypointIds(group, null);
+        var players = new WaypointPlayers(new() { [false] = [], [true] = [] }, [], []);
+        _context.PlayerSeasonStats.RemoveRange(await _context.PlayerSeasonStats
+            .Where(s => s.SeasonID == season.SeasonID && s.Source == StatSource.Waypoint).ToListAsync(ct));
+        // Games linked to the season already (an earlier import's) are their players' stats too
+        var linkedPlayers = await _context.MatchParticipants
+            .Where(p => p.MatchTeam.Match.MatchLink!.SeasonMatch.SeasonID == season.SeasonID && p.XboxUser.User != null)
+            .Select(p => new { UserID = p.XboxUser.User!.Id, Playoffs = p.MatchTeam.Match.MatchLink!.SeasonMatch.BracketMatch != null })
+            .Distinct()
+            .ToListAsync(ct);
+        foreach (var linked in linkedPlayers)
+            players.Users[linked.Playoffs].Add(linked.UserID);
+        var matchPhases = group.Waypoint is null ? new Dictionary<Guid, bool>() : WaypointIds(group, null);
         var ids = matchPhases.Keys.ToList();
         var present = (await _context.Matches.Where(m => ids.Contains(m.MatchID)).Select(m => m.MatchID).ToListAsync(ct)).ToHashSet();
-        var completePhases = new HashSet<bool>();
         foreach (var phase in new[] { false, true })
         {
             var listed = matchPhases.Where(m => m.Value == phase).Select(m => m.Key).ToList();
@@ -493,96 +520,138 @@ public class HistoricalImportService : IHistoricalImportService
                 continue;
             var missing = listed.Where(id => !present.Contains(id)).ToList();
             if (missing.Count == 0)
-                completePhases.Add(phase);
+                players.CompletePhases.Add(phase);
             else
                 counts.MissingMatches.Add($"{group.SourceId} {Phase(phase)}: {missing.Count} of {listed.Count} matches missing ({string.Join(", ", missing)}); kept the sheet's totals");
         }
-        if (completePhases.Count == 0)
-            return users;
 
-        var completeIds = matchPhases.Where(m => completePhases.Contains(m.Value)).Select(m => m.Key).ToList();
+        var completeIds = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
         var participants = await _context.MatchParticipants
             .Where(p => completeIds.Contains(p.MatchID))
-            .Select(p => new
-            {
-                p.MatchID,
-                p.XboxUserID,
-                p.XboxUser.Gamertag,
-                p.MatchTeam.Outcome,
-                p.Kills,
-                p.Deaths,
-                p.Assists,
-                p.Betrayals,
-                p.PersonalScore,
-                p.DamageDealt,
-                p.DamageTaken,
-                p.TimePlayed,
-                p.AverageLife,
-            })
+            .Select(p => new { p.MatchID, p.XboxUserID, p.XboxUser.Gamertag })
             .ToListAsync(ct);
-
-        var rows = new List<PlayerSeasonStat>();
         foreach (var player in participants.GroupBy(p => (p.XboxUserID, Playoffs: matchPhases[p.MatchID])))
         {
             var gamertag = player.First().Gamertag;
             var userId = (await resolver.Resolve(gamertag, player.Key.XboxUserID, ct)).UserId;
-            var manual = group.Entries.Where(e => e.IsPlayoffs == player.Key.Playoffs)
+            players.Accounts[player.Key.XboxUserID] = userId;
+            var sheetRow = group.Entries.Where(e => e.IsPlayoffs == player.Key.Playoffs)
                 .SelectMany(e => e.Players)
                 .FirstOrDefault(p => HistoricalKeys.Normalize(p.Gamertag) == HistoricalKeys.Normalize(gamertag));
-            var games = player.Count();
-            var wins = player.Count(p => p.Outcome == Outcomes.Won);
-            var kills = player.Sum(p => p.Kills);
-            var deaths = player.Sum(p => p.Deaths);
-            rows.Add(new PlayerSeasonStat
-            {
-                SeasonID = season.SeasonID,
-                UserID = userId,
-                GameVersionID = group.GameVersion!.GameVesionID,
-                Gamertag = HistoricalKeys.CleanGamertag(gamertag),
-                TeamID = teams.Join(manual?.TeamName, userId),
-                Division = group.Division,
-                StintIndex = 1,
-                IsPlayoffs = player.Key.Playoffs,
-                Source = StatSource.Waypoint,
-                GamesPlayed = games,
-                Wins = wins,
-                Losses = player.Count(p => p.Outcome == Outcomes.Lost),
-                WinPercent = games == 0 ? null : Math.Round(100m * wins / games, 3),
-                Kills = kills,
-                Deaths = deaths,
-                Assists = player.Sum(p => p.Assists),
-                Betrayals = player.Sum(p => p.Betrayals),
-                KdRatio = deaths == 0 ? null : Math.Round((decimal)kills / deaths, 3),
-                KdSpread = kills - deaths,
-                AverageLifeSeconds = Math.Round((decimal)player.Average(p => p.AverageLife.TotalSeconds), 2),
-                TotalSecondsPlayed = (int)Math.Round(player.Sum(p => p.TimePlayed.TotalSeconds)),
-                Score = player.Sum(p => p.PersonalScore),
-                DamageDealt = player.Sum(p => p.DamageDealt),
-                DamageTaken = player.Sum(p => p.DamageTaken),
-            });
-            users[player.Key.Playoffs].Add(userId);
+            teams.Join(sheetRow?.TeamName, userId);
+            players.Users[player.Key.Playoffs].Add(userId);
         }
 
-        // Waypoint replaces Manual for the phase: a player's phase of a season is never both
-        foreach (var phase in completePhases)
+        // The games replace the sheet's totals for the phase: a player's phase of a season is never both
+        foreach (var phase in new[] { false, true })
         {
-            var phaseUsers = users[phase];
-            var replaced = await _context.PlayerSeasonStats
-                .Where(s => s.SeasonID == season.SeasonID && s.IsPlayoffs == phase && s.Source == StatSource.Manual && phaseUsers.Contains(s.UserID))
-                .ToListAsync(ct);
-            // Counted below, once per sheet row (which then is skipped)
-            _context.PlayerSeasonStats.RemoveRange(replaced);
+            var phaseUsers = players.Users[phase];
+            // Counted in ImportManualStats, once per sheet row (which it then skips)
+            _context.PlayerSeasonStats.RemoveRange(await _context.PlayerSeasonStats
+                .Where(s => s.SeasonID == season.SeasonID && s.IsPlayoffs == phase && phaseUsers.Contains(s.UserID))
+                .ToListAsync(ct));
         }
         await _context.SaveChangesAsync(ct);
+        return players;
+    }
 
-        foreach (var row in rows)
+    /// <summary>
+    /// The season's Waypoint games (of its complete phases) become its season matches, as reported games are in the
+    /// app: each game's sides are the season's teams most of their players are on (from the sheets), and the games of
+    /// the same two teams within <see cref="SeriesGap"/> of each other are one series, its score their wins. Playoff
+    /// series are bracket matches, in rounds by the order the teams played them (the archive has no bracket). A side
+    /// that is none of the season's teams (or the same team as the other) is left without one and reported: its
+    /// game still counts in its players' stats. A game linked already is kept as it is.
+    /// </summary>
+    private async Task LinkWaypointMatches(SeasonGroup group, Season season, SeasonTeams teams, WaypointPlayers players, HistoricalImportReport counts, CancellationToken ct)
+    {
+        if (players.CompletePhases.Count == 0)
+            return;
+        var matchPhases = WaypointIds(group, null);
+        var ids = matchPhases.Where(m => players.CompletePhases.Contains(m.Value)).Select(m => m.Key).ToList();
+        var linked = (await _context.MatchLinks.Where(l => ids.Contains(l.MatchID)).Select(l => l.MatchID).ToListAsync(ct)).ToHashSet();
+        var sides = await _context.MatchTeams
+            .Where(t => ids.Contains(t.MatchID))
+            .Select(t => new { t.MatchID, t.Match.StartTime, t.TeamID, t.Outcome, Players = t.MatchParticipants.Select(p => p.XboxUserID).ToList() })
+            .ToListAsync(ct);
+        var teamsOfUser = teams.Players.GroupBy(p => p.UserID).ToDictionary(g => g.Key, g => g.Select(p => p.TeamID).ToList());
+        int? TeamOf(IEnumerable<long> xuids) => xuids
+            .Where(players.Accounts.ContainsKey)
+            .SelectMany(x => teamsOfUser.GetValueOrDefault(players.Accounts[x]) ?? [])
+            .GroupBy(t => t)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key)
+            .Select(g => (int?)g.Key)
+            .FirstOrDefault();
+
+        var games = new List<WaypointGame>();
+        foreach (var match in sides.Where(s => !linked.Contains(s.MatchID)).GroupBy(s => s.MatchID))
         {
-            if (await Upsert(row, ct) == UpsertResult.Inserted)
-                counts.WaypointStatsInserted++;
-            else
-                counts.WaypointStatsUpdated++;
+            var both = match.OrderBy(s => s.TeamID).ToList();
+            if (both.Count > 2)
+            {
+                Warn(counts, $"{group.SourceId}: Waypoint match {match.Key} has more than two teams; not linked to the season");
+                continue;
+            }
+            var (a, b) = (TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
+            if (a == b)
+                (a, b) = (null, null);
+            if (a is null || b is null)
+                Warn(counts, $"{group.SourceId}: Waypoint match {match.Key}: a side is none of the season's teams (by its players' sheet teams); linked without it");
+            games.Add(new WaypointGame(match.Key, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish));
         }
-        return users;
+
+        // Series: the same two teams' games, a phase at a time, no more than SeriesGap apart
+        var series = new List<List<WaypointGame>>();
+        foreach (var pair in games.GroupBy(g => (g.Playoffs, Low: Min(g.TeamA, g.TeamB), High: Max(g.TeamA, g.TeamB))))
+        {
+            List<WaypointGame>? current = null;
+            foreach (var game in pair.OrderBy(g => g.Start))
+            {
+                if (current is null || game.Start is null || current[^1].Start is null || game.Start - current[^1].Start > SeriesGap)
+                    series.Add(current = []);
+                current.Add(game);
+            }
+        }
+
+        var roundOf = new Dictionary<int, int>();
+        var bracketNumber = await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct);
+        foreach (var played in series.OrderBy(s => s[0].Start))
+        {
+            var first = played[0];
+            var (home, away) = (first.TeamA, first.TeamB);
+            // A game's sides in the series' order (its first game's): the other way round when the teams swapped sides
+            bool Swapped(WaypointGame g) => (g.TeamA, g.TeamB) != (home, away) && (g.TeamB, g.TeamA) == (home, away);
+            var homeWins = played.Count(g => (Swapped(g) ? g.OutcomeB : g.OutcomeA) == Outcomes.Won);
+            var awayWins = played.Count(g => (Swapped(g) ? g.OutcomeA : g.OutcomeB) == Outcomes.Won);
+            var match = new SeasonMatch
+            {
+                SeasonID = season.SeasonID,
+                HomeTeamID = home,
+                AwayTeamID = away,
+                HomeTeamScore = homeWins,
+                AwayTeamScore = awayWins,
+                HomeTeamResult = homeWins > awayWins ? SeasonMatchResult.Won : homeWins < awayWins ? SeasonMatchResult.Loss : null,
+                AwayTeamResult = awayWins > homeWins ? SeasonMatchResult.Won : awayWins < homeWins ? SeasonMatchResult.Loss : null,
+                BestOf = Math.Max(played.Count, 2 * Math.Max(homeWins, awayWins) - 1),
+                ScheduledTime = first.Start,
+            };
+            foreach (var (game, index) in played.Select((g, i) => (g, i)))
+                match.MatchLinks.Add(new MatchLink { MatchID = game.MatchID, MatchNumber = index + 1 });
+            if (first.Playoffs)
+            {
+                var round = Math.Max(home is int h ? roundOf.GetValueOrDefault(h) : 0, away is int w ? roundOf.GetValueOrDefault(w) : 0) + 1;
+                if (home is int homeTeam)
+                    roundOf[homeTeam] = round;
+                if (away is int awayTeam)
+                    roundOf[awayTeam] = round;
+                match.BracketMatch = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
+            }
+            _context.SeasonMatches.Add(match);
+            counts.SeasonMatchesCreated++;
+            counts.GamesLinked += played.Count;
+        }
+        await _context.SaveChangesAsync(ct);
     }
 
     /// <summary>The sheet's rows. Returns, by phase, each row's player (for roster suggestions).</summary>
@@ -823,8 +892,8 @@ public class HistoricalImportService : IHistoricalImportService
         report.TeamsCreated += season.TeamsCreated;
         report.StatsInserted += season.StatsInserted;
         report.StatsUpdated += season.StatsUpdated;
-        report.WaypointStatsInserted += season.WaypointStatsInserted;
-        report.WaypointStatsUpdated += season.WaypointStatsUpdated;
+        report.SeasonMatchesCreated += season.SeasonMatchesCreated;
+        report.GamesLinked += season.GamesLinked;
         report.ManualReplacedByWaypoint += season.ManualReplacedByWaypoint;
         report.ChampionshipsInserted += season.ChampionshipsInserted;
         report.ChampionshipsUpdated += season.ChampionshipsUpdated;

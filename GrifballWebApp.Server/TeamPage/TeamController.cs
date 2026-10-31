@@ -9,9 +9,11 @@ namespace GrifballWebApp.Server.TeamPage;
 public class TeamController : ControllerBase
 {
     private readonly GrifballContext _context;
-    public TeamController(GrifballContext context)
+    private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
+    public TeamController(GrifballContext context, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
     {
         _context = context;
+        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
     }
 
     /// <summary>
@@ -43,27 +45,32 @@ public class TeamController : ControllerBase
                     DraftRound = x.DraftRound,
                     IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
                 }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
-                Stats = x.PlayerSeasonStats.OrderBy(s => s.IsPlayoffs).ThenByDescending(s => s.Goals).ThenByDescending(s => s.Kills)
-                    .Select(s => new TeamPlayerStatDto()
-                    {
-                        UserID = s.UserID,
-                        Gamertag = s.Gamertag,
-                        IsPlayoffs = s.IsPlayoffs,
-                        StintIndex = s.StintIndex,
-                        TradeNote = s.TradeNote,
-                        RoleNote = s.RoleNote,
-                        GamesPlayed = s.GamesPlayed,
-                        Wins = s.Wins,
-                        Losses = s.Losses,
-                        Goals = s.Goals,
-                        Kills = s.Kills,
-                        Deaths = s.Deaths,
-                        KdRatio = s.KdRatio,
-                        CarrierKills = s.CarrierKills,
-                    }).ToArray(),
             })
             .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
+        if (team is null)
+            return null;
+        // Its players' stats for it: from the season's games where it has them, otherwise the stored season totals
+        team.Stats = (await _stats.GetAsync(seasonID: team.SeasonID, ct: ct))
+            .Where(s => s.TeamID == teamID)
+            .OrderBy(s => s.IsPlayoffs).ThenByDescending(s => s.Goals).ThenByDescending(s => s.Kills)
+            .Select(s => new TeamPlayerStatDto()
+            {
+                UserID = s.UserID,
+                Gamertag = s.Gamertag,
+                IsPlayoffs = s.IsPlayoffs,
+                StintIndex = s.StintIndex,
+                TradeNote = s.TradeNote,
+                RoleNote = s.RoleNote,
+                GamesPlayed = s.GamesPlayed,
+                Wins = s.Wins,
+                Losses = s.Losses,
+                Goals = s.Goals,
+                Kills = s.Kills,
+                Deaths = s.Deaths,
+                KdRatio = s.KdRatio,
+                CarrierKills = s.CarrierKills,
+            }).ToArray();
         return team;
     }
 

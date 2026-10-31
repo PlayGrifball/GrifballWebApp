@@ -58,34 +58,6 @@ public class HomeController : ControllerBase
         return signups.Concat(drafts).Concat(seasons)
             .OrderBy(x => x.Start).ToArray();
     }
-
-    [HttpGet(Name = "PastSeasons")]
-    public async Task<PaginationResult<Event>> PastSeasons([FromQuery] PaginationFilter filter, CancellationToken ct)
-    {
-        var now = DateTime.UtcNow;
-        // Seasons imported from the historical archive are past seasons like any other, with their source spreadsheet
-        var query = _context.Seasons.Where(s => now > s.SeasonEnd)
-            .Select(x => new Event()
-            {
-                SeasonID = x.SeasonID,
-                Name = x.SeasonName,
-                Start = x.SeasonStart,
-                End = x.SeasonEnd,
-                EventType = EventType.Season,
-                HistoricalSourceUrl = x.HistoricalSourceUrl,
-            });
-
-        if (filter.SortColumn is null)
-        {
-            query = query.OrderByDescending(x => x.End);
-        }
-        else
-        {
-            query = query.OrderBy(filter);
-        }
-
-        return await query.PaginationResult(filter, ct);
-    }
 }
 
 public class Event
@@ -95,8 +67,6 @@ public class Event
     public required DateTime Start { get; set; }
     public required DateTime End { get; set; }
     public required EventType EventType { get; set; }
-    /// <summary>A season imported from the historical archive: its source spreadsheet. Null otherwise.</summary>
-    public string? HistoricalSourceUrl { get; set; }
 }
 
 public enum EventType

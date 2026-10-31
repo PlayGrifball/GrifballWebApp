@@ -237,6 +237,7 @@ public class Program
         builder.Services.AddTransient<IBracketService, BracketService>();
         builder.Services.AddTransient<EventOrganizerService>();
         builder.Services.AddTransient<SignupsService>();
+        builder.Services.AddTransient<GrifballWebApp.Server.Stats.SeasonStatsService>();
         builder.Services.AddTransient<SeasonService>();
         builder.Services.AddTransient<TeamService>();
         builder.Services.AddTransient<IUserManagementService, UserManagementService>();

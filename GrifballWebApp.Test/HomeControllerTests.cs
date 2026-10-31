@@ -197,7 +197,7 @@ public class HomeControllerTests
         var filter = new PaginationFilter();
 
         // Act
-        var result = await _controller.PastSeasons(filter, CancellationToken.None);
+        var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
         Assert.That(result.Results, Is.Empty);
@@ -225,7 +225,7 @@ public class HomeControllerTests
             NewSeason("Summer League 2010", new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc), "https://docs.google.com/spreadsheets/d/x"));
         await _context.SaveChangesAsync();
 
-        var result = await _controller.PastSeasons(new PaginationFilter(), CancellationToken.None);
+        var result = await PastSeasons(new PaginationFilter(), CancellationToken.None);
 
         Assert.That(result.Results.Select(r => (r.Name, r.HistoricalSourceUrl)), Is.EqualTo(new (string, string?)[]
         {
@@ -255,12 +255,11 @@ public class HomeControllerTests
         var filter = new PaginationFilter();
 
         // Act
-        var result = await _controller.PastSeasons(filter, CancellationToken.None);
+        var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(1));
         Assert.That(result.Results[0].Name, Is.EqualTo("Past Season"));
-        Assert.That(result.Results[0].EventType, Is.EqualTo(EventType.Season));
     }
 
     [Test]
@@ -284,7 +283,7 @@ public class HomeControllerTests
         var filter = new PaginationFilter();
 
         // Act
-        var result = await _controller.PastSeasons(filter, CancellationToken.None);
+        var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
         Assert.That(result.Results, Is.Empty);
@@ -321,7 +320,7 @@ public class HomeControllerTests
         var filter = new PaginationFilter();
 
         // Act
-        var result = await _controller.PastSeasons(filter, CancellationToken.None);
+        var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(2));
@@ -352,10 +351,15 @@ public class HomeControllerTests
         var filter = new PaginationFilter { PageNumber = 1, PageSize = 2 };
 
         // Act
-        var result = await _controller.PastSeasons(filter, CancellationToken.None);
+        var result = await PastSeasons(filter, CancellationToken.None);
 
         // Assert
         Assert.That(result.Results, Has.Length.EqualTo(2));
         Assert.That(result.TotalCount, Is.EqualTo(5));
     }
+
+    /// <summary>The home page's past seasons: the season list of the seasons that have ended.</summary>
+    private Task<GrifballWebApp.Server.Dtos.PaginationResult<SeasonListItemDto>> PastSeasons(PaginationFilter filter, CancellationToken ct)
+        => new SeasonController(new GrifballWebApp.Server.EventOrganizer.EventOrganizerService(_context), new SeasonService(_context))
+            .GetSeasons(new SeasonListFilter { Ended = true, PageNumber = filter.PageNumber, PageSize = filter.PageSize, SortColumn = filter.SortColumn, SortDirection = filter.SortDirection }, ct);
 }

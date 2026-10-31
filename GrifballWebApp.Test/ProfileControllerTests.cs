@@ -218,49 +218,36 @@ public class ProfileControllerTests
     }
 
     [Test]
-    public async Task GetProfileStats_GoalsAndStopsPerGame_CountOnlyTheSheetsGames()
+    public async Task GetProfileStats_ALiveSeasonsGames_AndAnotherSeasonsStoredTotals_GoalsPerGameOverBoth_StopsOverTheTotals()
     {
-        var user = new User { UserName = "infinite" };
-        await _context.Users.AddAsync(user);
-        var season = new Season
-        {
-            SeasonName = "Winter League 2023 (DA)",
-            GameVersionID = 6,
-            IsHistorical = true,
-            HistoricalSourceID = "2023-da-wl23-stats/Halo Infinite Stats",
-            SeasonStart = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(2023, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-        };
-        var other = new Season
-        {
-            SeasonName = "Spring League 2024 (DA)",
-            GameVersionID = 6,
-            IsHistorical = true,
-            HistoricalSourceID = "2024-da-sl24-stats/Aggregate",
-            SeasonStart = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            SeasonEnd = new DateTime(2024, 12, 31, 0, 0, 0, DateTimeKind.Utc),
-        };
-        await _context.Seasons.AddRangeAsync(season, other);
+        var seeded = await SeasonMatchTestData.SeedAsync(_context, bestOf: 1);
+        var match = await SeasonMatchTestData.AddMatchAsync(_context, DateTime.UtcNow, SeasonMatchTestData.HomeXbox, Outcomes.Won, SeasonMatchTestData.AwayXbox, Outcomes.Lost);
+        _context.MatchLinks.Add(new MatchLink { MatchID = match.MatchID, SeasonMatchID = seeded.SeasonMatch.SeasonMatchID, MatchNumber = 1 });
+        var user = await _context.Users.SingleAsync(u => u.XboxUserID == 103);
+        var old = new Season { SeasonName = "Winter League 2019", GameVersionID = 1, IsHistorical = true, HistoricalSourceID = "wl19/stats",
+            SeasonStart = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc), SeasonEnd = new DateTime(2019, 12, 31, 0, 0, 0, DateTimeKind.Utc) };
+        _context.Seasons.Add(old);
         await _context.SaveChangesAsync();
-        await _context.PlayerSeasonStats.AddRangeAsync(
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5, Source = StatSource.Manual },
-            new PlayerSeasonStat { UserID = user.Id, SeasonID = other.SeasonID, GameVersionID = 6, Gamertag = "x", GamesPlayed = 30, Source = StatSource.Waypoint });
+        _context.PlayerSeasonStats.Add(new PlayerSeasonStat { UserID = user.Id, SeasonID = old.SeasonID, GameVersionID = 1, Gamertag = "x", GamesPlayed = 10, Goals = 20, CarrierKills = 5 });
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
         Assert.Multiple(() =>
         {
-            Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(40));
-            Assert.That(stats.OverallCareer.GoalsPerGame, Is.EqualTo(2.0m), "20 goals over the sheet's 10 games, not 40");
-            Assert.That(stats.OverallCareer.StopsPerGame, Is.EqualTo(0.5m));
-            Assert.That(stats.CareerByGame.Single().GoalsPerGame, Is.EqualTo(2.0m));
-            Assert.That(stats.PastGamertags, Is.Empty);
+            Assert.That(stats.Seasons.Select(s => (s.SeasonID, s.Source, s.GamesPlayed, s.Goals, s.TeamName)), Is.EqualTo(new[]
+            {
+                (seeded.Season.SeasonID, "Matches", 1, 3, (string?)"Home Team"),
+                (old.SeasonID, "Recorded", 10, 20, (string?)null),
+            }), "The live season from its games, the old one from its totals");
+            Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(11));
+            Assert.That(stats.OverallCareer.GoalsPerGame, Is.EqualTo(2.09m), "23 goals over 11 games");
+            Assert.That(stats.OverallCareer.StopsPerGame, Is.EqualTo(0.5m), "Stops only in the totals: 5 over their 10 games");
         });
     }
 
     [Test]
-    public async Task GetProfileStats_OnlyWaypointRows_HasNoGoalsOrStopsPerGame()
+    public async Task GetProfileStats_WaypointTotalsAnOlderImportStored_AreNotCounted()
     {
         var user = new User { UserName = "waypoint" };
         await _context.Users.AddAsync(user);
@@ -272,7 +259,7 @@ public class ProfileControllerTests
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
-        Assert.That((stats.OverallCareer!.GoalsPerGame, stats.OverallCareer.StopsPerGame), Is.EqualTo(((decimal?)null, (decimal?)null)));
+        Assert.That((stats.Seasons.Count, stats.OverallCareer), Is.EqualTo((0, (GameCareerSummaryDto?)null)));
     }
 
     [Test]

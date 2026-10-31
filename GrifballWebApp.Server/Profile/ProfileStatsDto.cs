@@ -70,7 +70,8 @@ public class GameCareerSummaryDto
 
 public class PlayerSeasonStatDetailDto
 {
-    public int PlayerSeasonStatID { get; set; }
+    /// <summary>The stored row, for stored season totals; null for stats from the season's games.</summary>
+    public int? PlayerSeasonStatID { get; set; }
     public int SeasonID { get; set; }
     public required string SeasonName { get; set; }
     /// <summary>The season's source workbook (Google Sheets), for provenance; null for the app's own seasons.</summary>

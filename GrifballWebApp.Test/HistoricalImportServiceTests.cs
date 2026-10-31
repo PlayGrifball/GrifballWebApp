@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Historical;
+using GrifballWebApp.Server.Stats;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
@@ -291,7 +292,7 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
-    public async Task Import_WaypointMatches_ArePulled_AndReplaceManualStats()
+    public async Task Import_WaypointMatches_ArePulled_LinkedAsSeasonMatches_AndAreThePlayersStats()
     {
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
@@ -323,33 +324,41 @@ public class HistoricalImportServiceTests
         var report = await _service.Import(input);
 
         await _dataPull.DidNotReceive().GetAndSaveMatch(first);
-        var stats = await _context.PlayerSeasonStats.AsNoTracking().Include(s => s.User).Include(s => s.Team).ToListAsync();
-        var regular = stats.Single(s => s.Gamertag == "Hells Angel cx" && !s.IsPlayoffs);
-        Assert.Multiple(() =>
+        var lines = await Lines();
+        var regular = lines.Single(s => s.Gamertag == "Hells Angel cx" && !s.IsPlayoffs);
+        var hells = await _context.Users.AsNoTracking().SingleAsync(u => u.XboxUserID == 100);
+        var matches = await _context.SeasonMatches.AsNoTracking().Include(m => m.MatchLinks).Include(m => m.BracketMatch).Include(m => m.HomeTeam).ToListAsync();
+        Assert.Multiple(async () =>
         {
             Assert.That(report.Errors, Is.Empty);
             Assert.That(report.WaypointMatchesPulled, Is.EqualTo(2));
             Assert.That(report.Skipped, Has.Some.Contains("not a match ID"));
             Assert.That(report.Skipped, Has.Some.Contains("agla/not-a-season"));
-            Assert.That((regular.Source, regular.GamesPlayed, regular.Wins, regular.Losses, regular.Kills, regular.Deaths), Is.EqualTo((StatSource.Waypoint, 2, 1, 1, 50, 30)));
-            Assert.That(regular.Team!.TeamName, Is.EqualTo("Ram Ranch"), "From the sheet");
+            Assert.That((report.SeasonMatchesCreated, report.GamesLinked), Is.EqualTo((3, 3)), "Games with no start time are a series each");
+            Assert.That(matches.SelectMany(m => m.MatchLinks).Select(l => l.MatchID), Is.EquivalentTo(new[] { first, second, playoff }));
+            Assert.That(matches.Select(m => m.HomeTeam!.TeamName), Is.All.EqualTo("Ram Ranch"), "The side of the sheet's team");
+            Assert.That(matches.Count(m => m.BracketMatch != null), Is.EqualTo(1), "The playoff game is a bracket match");
+            Assert.That((regular.FromMatches, regular.GamesPlayed, regular.Wins, regular.Losses, regular.Kills, regular.Deaths), Is.EqualTo((true, 2, 1, 1, 50, 30)));
+            Assert.That(regular.TeamName, Is.EqualTo("Ram Ranch"), "From the sheet");
             Assert.That(regular.KdRatio, Is.EqualTo(1.667m));
             Assert.That(regular.WinPercent, Is.EqualTo(50m));
-            Assert.That(regular.User.XboxUserID, Is.EqualTo(100), "The placeholder is the Xbox account's, so the player claims it by setting their gamertag");
-            Assert.That(stats.Single(s => s.Gamertag == "Hells Angel cx" && s.IsPlayoffs).Source, Is.EqualTo(StatSource.Waypoint));
-            Assert.That(stats.Single(s => s.Gamertag == "Inf3ktion").Source, Is.EqualTo(StatSource.Waypoint));
-            Assert.That(stats.Single(s => s.Gamertag == "Manual Only").Source, Is.EqualTo(StatSource.Manual), "No Waypoint matches: the sheet's totals");
-            Assert.That(stats, Has.Count.EqualTo(4), "Never Manual and Waypoint for one player's season");
+            Assert.That(regular.UserID, Is.EqualTo(hells.Id), "The placeholder is the Xbox account's, so the player claims it by setting their gamertag");
+            Assert.That(lines.Single(s => s.Gamertag == "Hells Angel cx" && s.IsPlayoffs).FromMatches, Is.True);
+            Assert.That(lines.Single(s => s.Gamertag == "Inf3ktion").FromMatches, Is.True);
+            Assert.That(lines.Single(s => s.Gamertag == "Manual Only").FromMatches, Is.False, "No Waypoint matches: the sheet's totals");
+            Assert.That(lines, Has.Count.EqualTo(4), "Never the games and the sheet for one player's season");
+            Assert.That(await _context.PlayerSeasonStats.Select(s => s.Gamertag).ToListAsync(), Is.EqualTo(new[] { "Manual Only" }), "No stored totals for players with games");
             Assert.That(report.ManualReplacedByWaypoint, Is.EqualTo(1));
         });
 
         var again = await _service.Import(input);
-        Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(4));
-        Assert.That((again.WaypointStatsInserted, again.WaypointStatsUpdated, again.StatsInserted), Is.EqualTo((0, 3, 0)));
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(), Is.EqualTo(1));
+        Assert.That(await _context.SeasonMatches.CountAsync(), Is.EqualTo(3), "Linked games are kept as they are");
+        Assert.That((again.SeasonMatchesCreated, again.StatsInserted, again.StatsUpdated), Is.EqualTo((0, 0, 1)));
     }
 
     [Test]
-    public async Task Import_WaypointStats_ReplaceManualStatsImportedEarlier_AndGoToTheLinkedAccount()
+    public async Task Import_WaypointGames_ReplaceSheetTotalsImportedEarlier_AndGoToTheLinkedAccount()
     {
         var input = Input(Entry("Winter League 2023 (DA)", "infinite", "AGLA", false, Player("Hells Angel cx", kills: 1), Player("Hells Angel cx", kills: 2, stint: 2)));
         await _service.Import(input);
@@ -366,13 +375,13 @@ public class HistoricalImportServiceTests
             WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
         });
 
-        var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
-        Assert.That(stats.Select(s => (s.UserID, s.Source, s.Kills)), Is.EquivalentTo(new[]
+        var lines = await Lines();
+        Assert.That(lines.Select(s => (s.UserID, s.FromMatches, s.Kills)), Is.EquivalentTo(new[]
         {
-            (linked.Id, StatSource.Waypoint, 30),
-            (dummy.Id, StatSource.Manual, 1),
-            (dummy.Id, StatSource.Manual, 2),
-        }), "The linked account has the Waypoint row; the placeholder's sheet rows wait for a merge");
+            (linked.Id, true, 30),
+            (dummy.Id, false, 1),
+            (dummy.Id, false, 2),
+        }), "The linked account has the games; the placeholder's sheet rows wait for a merge");
         Assert.That(report.Errors, Is.Empty);
     }
 
@@ -392,8 +401,9 @@ public class HistoricalImportServiceTests
 
         var user = await _context.Users.AsNoTracking().SingleAsync();
         Assert.That(user.XboxUserID, Is.EqualTo(100));
-        var stat = await _context.PlayerSeasonStats.AsNoTracking().SingleAsync();
-        Assert.That((stat.UserID, stat.Source, stat.Kills), Is.EqualTo((user.Id, StatSource.Waypoint, 30)));
+        var line = (await Lines()).Single();
+        Assert.That((line.UserID, line.FromMatches, line.Kills), Is.EqualTo((user.Id, true, 30)));
+        Assert.That(await _context.PlayerSeasonStats.AnyAsync(), Is.False);
     }
 
     [Test]
@@ -436,7 +446,7 @@ public class HistoricalImportServiceTests
     }
 
     [Test]
-    public async Task Import_WithoutTheWaypointMatches_KeepsTheWaypointStatsImportedEarlier()
+    public async Task Import_WithoutTheWaypointMatches_KeepsTheGamesLinkedEarlier()
     {
         var match = Guid.NewGuid();
         await AddMatch(match, (100, "Hells Angel cx", Outcomes.Won, 30, 10));
@@ -461,9 +471,10 @@ public class HistoricalImportServiceTests
 
         var again = await _service.Import(new HistoricalArchiveInput { Seasons = seasons });
 
-        var stat = await _context.PlayerSeasonStats.AsNoTracking().SingleAsync(s => s.Gamertag == "Hells Angel cx");
-        Assert.That((stat.Source, stat.Kills), Is.EqualTo((StatSource.Waypoint, 30)), "The sheet's totals never replace Waypoint stats");
+        var line = (await Lines()).Single(s => s.Gamertag == "Hells Angel cx");
+        Assert.That((line.FromMatches, line.Kills), Is.EqualTo((true, 30)), "The sheet's totals never replace the games");
         Assert.That(again.ManualReplacedByWaypoint, Is.EqualTo(1));
+        Assert.That(await _context.PlayerSeasonStats.AnyAsync(s => s.Gamertag == "Hells Angel cx"), Is.False);
     }
 
     [Test]
@@ -676,8 +687,8 @@ public class HistoricalImportServiceTests
             WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [match.ToString()] } },
         });
 
-        var stat = await _context.PlayerSeasonStats.AsNoTracking().SingleAsync();
-        Assert.That((stat.UserID, stat.Source), Is.EqualTo((real.Id, StatSource.Waypoint)));
+        var line = (await Lines()).Single();
+        Assert.That((line.UserID, line.FromMatches), Is.EqualTo((real.Id, true)));
         Assert.That(report.ManualReplacedByWaypoint, Is.EqualTo(1));
         Assert.That(report.Warnings, Is.Empty, "Every sheet row matched");
     }
@@ -700,11 +711,11 @@ public class HistoricalImportServiceTests
             WaypointMatches = new() { ["winter-league-2023-da/Stats"] = new WaypointSeasonMatches { Regular = [regular.ToString()], Playoffs = [playoff.ToString(), lost.ToString()] } },
         });
 
-        var stats = await _context.PlayerSeasonStats.AsNoTracking().ToListAsync();
+        var stats = await Lines();
         Assert.Multiple(() =>
         {
-            Assert.That(stats.Single(s => !s.IsPlayoffs).Source, Is.EqualTo(StatSource.Waypoint));
-            Assert.That((stats.Single(s => s.IsPlayoffs).Source, stats.Single(s => s.IsPlayoffs).Kills), Is.EqualTo((StatSource.Manual, 2)), "A playoff match is missing");
+            Assert.That(stats.Single(s => !s.IsPlayoffs).FromMatches, Is.True);
+            Assert.That((stats.Single(s => s.IsPlayoffs).FromMatches, stats.Single(s => s.IsPlayoffs).Kills), Is.EqualTo((false, 2)), "A playoff match is missing: the playoffs are not linked");
             Assert.That(report.Skipped, Has.Some.Contains($"Waypoint match {lost}: not found"));
             Assert.That(report.MissingMatches, Has.One.Contains("playoffs: 1 of 2 matches missing").And.Contains(lost.ToString()));
             Assert.That(report.WaypointMatchesPulled, Is.Zero);
@@ -748,15 +759,15 @@ public class HistoricalImportServiceTests
         Assert.Multiple(async () =>
         {
             Assert.That((history.XboxUserID, history.Gamertag, history.Source, history.FirstSeen, history.LastSeen), Is.EqualTo((2L, "Old B", GamertagHistorySource.RosterMatch, (DateTime?)Utc(2023), (DateTime?)Utc(2024).AddSeconds(-1))));
-            Assert.That(await _context.PlayerSeasonStats.Where(s => s.UserID == newB.Id).Select(s => s.Source).ToListAsync(), Is.EqualTo(new[] { StatSource.Waypoint }),
-                "The placeholder's sheet row went with the merge: the Waypoint row replaces it");
+            Assert.That((await Lines()).Where(s => s.UserID == newB.Id).Select(s => (s.FromMatches, s.Kills)), Is.EqualTo(new[] { (true, 20) }),
+                "The placeholder's sheet row went with the merge: the games are the stats");
             Assert.That(await _context.Users.AnyAsync(u => u.UserName == "historical:Old B"), Is.False);
         });
 
         // And a re-run finds "Old B" through the history now
         var third = await _service.Import(input);
         Assert.That(third.Warnings, Has.None.Contains("Old B"));
-        Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == newB.Id), Is.EqualTo(1));
+        Assert.That(await _context.PlayerSeasonStats.CountAsync(s => s.UserID == newB.Id), Is.Zero, "No stored totals for a player with games");
     }
 
     [Test]
@@ -851,6 +862,8 @@ public class HistoricalImportServiceTests
             directory = directory.Parent;
         return directory?.FullName ?? throw new DirectoryNotFoundException("data/historical-archive");
     }
+
+    private Task<List<SeasonStatLine>> Lines() => new SeasonStatsService(_context).GetAsync();
 
     private async Task<(int Seasons, int Stats, int Titles, int Users)> Counts()
         => (await _context.Seasons.CountAsync(), await _context.PlayerSeasonStats.CountAsync(),

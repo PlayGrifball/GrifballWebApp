@@ -13,10 +13,12 @@ public class LeaderboardsController : ControllerBase
     private const int TeamsShown = 20;
 
     private readonly GrifballContext _context;
+    private readonly GrifballWebApp.Server.Stats.SeasonStatsService _stats;
 
-    public LeaderboardsController(GrifballContext context)
+    public LeaderboardsController(GrifballContext context, GrifballWebApp.Server.Stats.SeasonStatsService? stats = null)
     {
         _context = context;
+        _stats = stats ?? new GrifballWebApp.Server.Stats.SeasonStatsService(context);
     }
 
     [HttpGet(Name = "GetLeaderboards")]
@@ -72,23 +74,11 @@ public class LeaderboardsController : ControllerBase
             .Take(TeamsShown)
             .ToList();
 
-        // A player traded mid-season has a row per team and one combining them: the combined one is left out
-        var stats = await _context.PlayerSeasonStats.AsNoTracking()
-            .Where(s => !s.IsCombined)
-            .Select(s => new
-            {
-                s.UserID,
-                s.Gamertag,
-                Current = s.User.XboxUser != null ? s.User.XboxUser.Gamertag : null,
-                s.SeasonID,
-                s.Season.SeasonStart,
-                s.Goals,
-                s.Kills,
-                s.Deaths,
-                s.GamesPlayed,
-                s.CarrierKills,
-            })
-            .ToListAsync(ct);
+        // Every season's stats, from its games or its stored totals (never both for a player's phase of a season). A
+        // traded player's stored row combining their stints is left out: the stints are counted.
+        var stats = (await _stats.GetAsync(ct: ct)).Where(s => !s.IsCombined).ToList();
+        var current = await _context.Users.AsNoTracking().Where(u => u.XboxUser != null)
+            .Select(u => new { u.Id, u.XboxUser!.Gamertag }).ToDictionaryAsync(u => u.Id, u => u.Gamertag, ct);
 
         var players = stats
             .GroupBy(s => s.UserID)
@@ -98,7 +88,7 @@ public class LeaderboardsController : ControllerBase
                 var deaths = g.Sum(s => s.Deaths);
                 return new PlayerTotals(
                     g.Key,
-                    g.Select(s => s.Current).FirstOrDefault(n => n is not null) ?? g.MaxBy(s => s.SeasonStart)!.Gamertag,
+                    current.GetValueOrDefault(g.Key) ?? g.MaxBy(s => s.SeasonStart)!.Gamertag,
                     g.Sum(s => s.GamesPlayed),
                     g.Sum(s => s.Goals),
                     kills,

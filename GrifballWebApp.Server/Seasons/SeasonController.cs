@@ -41,9 +41,10 @@ public class SeasonController : ControllerBase
         return _seasonService.GetSeasonPlayerStats(seasonID, ct);
     }
 
-    [HttpGet(Name = "GetSeasonCatalog")]
-    public Task<List<SeasonCatalogItemDto>> GetSeasonCatalog(CancellationToken ct)
+    /// <summary>The season list (home page's past seasons, the seasons page): filtered, sorted and paged.</summary>
+    [HttpGet(Name = "GetSeasons")]
+    public Task<GrifballWebApp.Server.Dtos.PaginationResult<SeasonListItemDto>> GetSeasons([FromQuery] SeasonListFilter filter, CancellationToken ct)
     {
-        return _seasonService.GetSeasonCatalog(ct);
+        return _seasonService.GetSeasons(filter, ct);
     }
 }

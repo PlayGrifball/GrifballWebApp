@@ -46,7 +46,8 @@ public class ChampionPlayerDto
 /// <summary>A player's totals for one stint of the season (regular season or playoffs), with their team.</summary>
 public class SeasonPlayerStatDto
 {
-    public int PlayerSeasonStatID { get; set; }
+    /// <summary>The stored row, for stored season totals; null for stats from the season's games.</summary>
+    public int? PlayerSeasonStatID { get; set; }
     public int UserID { get; set; }
     public required string Gamertag { get; set; }
     public int? TeamID { get; set; }
@@ -57,7 +58,7 @@ public class SeasonPlayerStatDto
     public int StintIndex { get; set; }
     public bool IsPlayoffs { get; set; }
     public bool IsCombined { get; set; }
-    /// <summary>Manual (a stats sheet's totals) or Waypoint (from the season's matches).</summary>
+    /// <summary>Matches (totalled from the season's games) or Recorded (season totals stored, e.g. a historical sheet's).</summary>
     public required string Source { get; set; }
     public int GamesPlayed { get; set; }
     public int Wins { get; set; }
@@ -75,12 +76,24 @@ public class SeasonPlayerStatDto
     public int Exterminations { get; set; }
 }
 
-/// <summary>A season in the archive's catalog of every season played so far.</summary>
-public class SeasonCatalogItemDto
+/// <summary>The filters of the season list (GET Season/GetSeasons), with its paging and sorting.</summary>
+public class SeasonListFilter : GrifballWebApp.Server.Dtos.PaginationFilter
+{
+    public int? LeagueID { get; set; }
+    public int? GameVersionID { get; set; }
+    /// <summary>True: only seasons that have ended; false: only the current ones; null: both.</summary>
+    public bool? Ended { get; set; }
+}
+
+/// <summary>A season in the season list: every season that has started, imported or played in the app alike.</summary>
+public class SeasonListItemDto
 {
     public int SeasonID { get; set; }
-    public required string SeasonName { get; set; }
+    public required string Name { get; set; }
+    public DateTime Start { get; set; }
+    public DateTime End { get; set; }
     public int Year { get; set; }
+    public bool IsCurrent { get; set; }
     public int LeagueID { get; set; }
     public required string LeagueName { get; set; }
     public required string LeagueSlug { get; set; }
