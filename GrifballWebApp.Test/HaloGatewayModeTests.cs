@@ -221,13 +221,13 @@ public class HaloGatewayModeTests
     }
 
     [Test]
-    public void AccountStatus_CallerCancels_Throws()
+    public async Task AccountStatus_CallerCancels_Throws()
     {
         var handler = new StubHandler(_ => throw new TaskCanceledException());
         using var cancelled = new CancellationTokenSource();
-        cancelled.Cancel();
+        await cancelled.CancelAsync();
 
-        Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => AccountStatus(handler).GetAsync(cancelled.Token));
+        await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), () => AccountStatus(handler).GetAsync(cancelled.Token));
     }
 
     private static HaloGatewayAccountStatus AccountStatus(StubHandler handler, string baseUrl = "http://gw.test:8080/")
