@@ -56,6 +56,7 @@ public class QueueServiceTests
 
         // Initialize the service
         _service = new QueueService(_logger, _discordOptions, _queueRepository, _discordClient, _context, _dataPullService);
+        _service.DiscordRetryDelay = TimeSpan.Zero;
 
         // Seed ranks
         await new RankSeeder(_context, new TestReader()).SeedRanks();

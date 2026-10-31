@@ -16,6 +16,9 @@ namespace GrifballWebApp.Server;
 /// </summary>
 public class DiscordCommandsHandler
 {
+    /// <summary>Discord rejects an embed field with no value (400): a zero-width space stands in for "nothing".</summary>
+    internal const string EmptyFieldValue = "\u200B";
+
     private readonly GrifballContext _context;
     private readonly ILogger<DiscordCommandsHandler> _logger;
     private readonly IDataPullService _dataPullService;
@@ -115,10 +118,10 @@ public class DiscordCommandsHandler
                 emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Score").WithValue(team.Score.ToString()).WithInline(true));
                 emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Outcome").WithValue(team.Outcome.ToString()).WithInline(true));
                 var gts = string.Join(", ", team.MatchParticipants.Select(x => x.XboxUser.Gamertag));
-                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Players").WithValue(gts).WithInline(false));
+                emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("Players").WithValue(string.IsNullOrEmpty(gts) ? EmptyFieldValue : gts).WithInline(false));
                 if (index != match.MatchTeams.Count - 1)
                 {
-                    emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("**-------------------------**").WithInline(false));
+                    emded.Fields = emded.Fields.Append(new EmbedFieldProperties().WithName("**-------------------------**").WithValue(EmptyFieldValue).WithInline(false));
                 }
             }
 

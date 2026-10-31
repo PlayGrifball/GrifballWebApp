@@ -17,18 +17,40 @@ namespace GrifballWebApp.Server.Matchmaking;
 public class MatchmakingButtonHandler
 {
     private readonly IQueueRepository _queryService;
-    private readonly IPublisher _publisher;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly GrifballContext _context;
     private readonly IDiscordRestClient _discordClient;
     private readonly QueueService _displayQueueService;
+    private readonly ILogger<MatchmakingButtonHandler> _logger;
 
-    public MatchmakingButtonHandler(IQueueRepository queryService, IPublisher publisher, GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService)
+    public MatchmakingButtonHandler(IQueueRepository queryService, IServiceScopeFactory scopeFactory, GrifballContext context, IDiscordRestClient discordClient, QueueService displayQueueService, ILogger<MatchmakingButtonHandler> logger)
     {
         _queryService = queryService;
-        _publisher = publisher;
+        _scopeFactory = scopeFactory;
         _context = context;
         _discordClient = discordClient;
         _displayQueueService = displayQueueService;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Refreshes the queue display (and makes matches) without holding up the reply. It runs in its own scope: the
+    /// interaction's scope, and its DbContext, are disposed once the reply is sent.
+    /// </summary>
+    public Task RefreshQueueDisplay()
+    {
+        return Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                await scope.ServiceProvider.GetRequiredService<IPublisher>().Publish(new UpdateDisplayNotification());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to refresh the matchmaking queue display");
+            }
+        });
     }
 
     private async Task<Database.Models.User?> UserGuard(IDiscordButtonInteractionContext discordContext)
@@ -77,7 +99,7 @@ public class MatchmakingButtonHandler
         {
             await _queryService.AddPlayerToQueue(user.Id);
 
-            _ = _publisher.Publish(new UpdateDisplayNotification());
+            _ = RefreshQueueDisplay();
             await discordContext.TempResponse("You have joined the queue! 🎉");
         }
     }
@@ -96,7 +118,7 @@ public class MatchmakingButtonHandler
         else
         {
             await _queryService.RemovePlayerToQueue(user.Id);
-            _ = _publisher.Publish(new UpdateDisplayNotification());
+            _ = RefreshQueueDisplay();
             await discordContext.TempResponse("You have left the queue");
         }
     }

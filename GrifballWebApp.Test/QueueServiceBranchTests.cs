@@ -70,6 +70,7 @@ public class QueueServiceBranchTests
             MatchPlayers = 4,
         };
         _service = new QueueService(_logger, Options.Create(_options), new QueueRepository(_context), _discordClient, _context, _dataPullService);
+        _service.DiscordRetryDelay = TimeSpan.Zero;
     }
 
     [TearDown]
@@ -295,7 +296,7 @@ public class QueueServiceBranchTests
     {
         var home = await SeedUsers(1);
         var away = await SeedUsers(1);
-        await SeedMatch(home, away, startedAt: DateTime.UtcNow.AddHours(3), threadId: null);
+        await SeedMatch(home, away, startedAt: DateTime.UtcNow.AddHours(3));
         _context.ChangeTracker.Clear();
 
         await _service.Go(CancellationToken.None);
@@ -435,7 +436,7 @@ public class QueueServiceBranchTests
     {
         var users = await SeedUsers(4, withDiscord: true);
         var failingId = (ulong)users[0].DiscordUser!.DiscordUserID;
-        _thread.AddUserAsync(failingId, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+        _discordClient.AddGuildThreadUserAsync(ThreadId, failingId, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("not in guild"));
         _context.QueuedPlayer.AddRange(users.Select((u, i) => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-10 + i) }));
         await _context.SaveChangesAsync();
@@ -444,7 +445,7 @@ public class QueueServiceBranchTests
         await _service.Go(CancellationToken.None);
 
         foreach (var u in users)
-            await _thread.Received(1).AddUserAsync((ulong)u.DiscordUser!.DiscordUserID, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+            await _discordClient.Received(1).AddGuildThreadUserAsync(ThreadId, (ulong)u.DiscordUser!.DiscordUserID, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
         var warning = _logger.Entries.Single(x => x.Level == LogLevel.Warning);
         Assert.That(warning.Message, Is.EqualTo($"Failed to add user to thread {failingId}"));
 
@@ -550,6 +551,424 @@ public class QueueServiceBranchTests
             Assert.That(buttons.Select(b => b.Label), Is.EqualTo(new[] { "Home Team Won", "Away Team Won", "Cancel" }));
             Assert.That(buttons.Select(b => b.CustomId).Distinct().Count(), Is.EqualTo(3));
             Assert.That(buttons.All(b => b.CustomId.Contains('5')), Is.True, "Match id is encoded in the custom id");
+        });
+    }
+
+    [Test]
+    public async Task Go_KickedPlayerWhoRejoined_IsMatchedAgain_AndTheTickCompletes()
+    {
+        // A kicked player may queue again (IsInMatch ignores kicked players), so the tick must neither remove them as
+        // still "in" the old match nor try to remove their queue row twice.
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var oldMatch = await SeedMatch(home, away);
+        oldMatch.HomeTeam.Players[0].Kicked = true;
+        var kicked = home[0];
+        var others = await SeedUsers(3);
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = kicked.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-5) });
+        _context.QueuedPlayer.AddRange(others.Select((u, i) => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-4 + i) }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        Assert.That(await new QueueRepository(_context).IsInMatch(kicked.Id, CancellationToken.None), Is.False, "Kicked players are not in the match");
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var matches = await fresh.MatchedMatches.Include(x => x.HomeTeam.Players).Include(x => x.AwayTeam.Players).ToListAsync();
+        var newMatch = matches.Single(x => x.Id != oldMatch.Id);
+        Assert.Multiple(() =>
+        {
+            Assert.That(newMatch.HomeTeam.Players.Concat(newMatch.AwayTeam.Players).Select(x => x.UserID),
+                Is.EquivalentTo(others.Select(x => x.Id).Append(kicked.Id)));
+            Assert.That(fresh.QueuedPlayer.Any(), Is.False, "Everyone queued was matched");
+            Assert.That(_logger.Entries.Where(x => x.Level >= LogLevel.Error), Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Go_QueuedPlayerStillInAnActiveMatch_IsRemoved_AndNotMatched()
+    {
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        await SeedMatch(home, away);
+        var others = await SeedUsers(3);
+        // home[1] is still in the active match: removed from the queue, which leaves too few for a match
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = home[1].Id, JoinedAt = DateTime.UtcNow.AddMinutes(-5) });
+        _context.QueuedPlayer.AddRange(others.Select(u => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await fresh.MatchedMatches.CountAsync(), Is.EqualTo(1));
+            Assert.That(await fresh.QueuedPlayer.Select(x => x.UserID).ToListAsync(), Is.EquivalentTo(others.Select(x => x.Id)));
+        });
+    }
+
+    [Test]
+    public async Task Go_VoteEndedMatch_KickedPlayersGetNoWinLossOrMmr()
+    {
+        var home = await SeedUsers(3);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        match.HomeTeam.Players[2].Kicked = true;
+        match.AwayTeam.Players[1].Kicked = true;
+        await _context.SaveChangesAsync();
+        foreach (var p in match.HomeTeam.Players.Take(2))
+            await Vote(match, p, WinnerVote.Home);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var kickedWinner = await fresh.Users.SingleAsync(x => x.Id == home[2].Id);
+        var kickedLoser = await fresh.Users.SingleAsync(x => x.Id == away[1].Id);
+        var winner = await fresh.Users.SingleAsync(x => x.Id == home[0].Id);
+        var loser = await fresh.Users.SingleAsync(x => x.Id == away[0].Id);
+        var log = SentTo(LogChannel).Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That((kickedWinner.Wins, kickedWinner.Losses, kickedWinner.MMR), Is.EqualTo((0, 0, 1000)));
+            Assert.That((kickedLoser.Wins, kickedLoser.Losses, kickedLoser.MMR), Is.EqualTo((0, 0, 1000)));
+            Assert.That((winner.Wins, winner.MMR), Is.EqualTo((1, 1024)));
+            Assert.That((loser.Losses, loser.MMR), Is.EqualTo((1, 980)));
+            Assert.That(Field(log, "Home Team MMR Changes").Split('\n'), Has.Length.EqualTo(2), "Kicked players are not listed");
+            Assert.That(Field(log, "Away Team MMR Changes").Split('\n'), Has.Length.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task Go_DiscordFailsWhileAnnouncingAMatch_TheMatchIsStillCreated_AndActiveMatchesStillFinish()
+    {
+        // An active match that a majority voted to end
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        var active = await SeedMatch(home, away);
+        await Vote(active, active.HomeTeam.Players[0], WinnerVote.Home);
+        await Vote(active, active.AwayTeam.Players[0], WinnerVote.Home);
+        // And enough players queued for a new match, whose thread can't be made
+        var queued = await SeedUsers(4);
+        _context.QueuedPlayer.AddRange(queued.Select(u => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("discord down"));
+
+        await _service.Go(CancellationToken.None);
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var created = await fresh.MatchedMatches.Where(x => x.Id != active.Id).ToListAsync();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(created, Has.Count.EqualTo(1), "Made once, and not made again on the next tick");
+            Assert.That(created.Single().Active, Is.True);
+            Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
+            Assert.That((await fresh.MatchedMatches.SingleAsync(x => x.Id == active.Id)).Active, Is.False, "The voted match still ended");
+            Assert.That(_logger.Entries.Where(x => x.Level == LogLevel.Error).Select(x => x.Message), Is.EqualTo(Enumerable.Repeat($"Failed to announce match {created.Single().Id} on Discord", 2)), "Tried again on the next tick");
+        });
+    }
+
+    [Test]
+    public async Task Go_HaloDownloadFails_VoteEndingsStillHappen()
+    {
+        _dataPullService.DownloadRecentMatchesForPlayers(Arg.Any<List<long>>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("halo down"));
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        var match = await SeedMatch(home, away);
+        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Exception, Is.TypeOf<HttpRequestException>());
+    }
+
+    [Test]
+    public async Task Go_OneMatchFailingToFinish_DoesNotStopTheOthers()
+    {
+        var home1 = await SeedUsers(1);
+        var away1 = await SeedUsers(1);
+        var first = await SeedMatch(home1, away1, threadId: 1);
+        var home2 = await SeedUsers(1);
+        var away2 = await SeedUsers(1);
+        var second = await SeedMatch(home2, away2, threadId: 2);
+        foreach (var m in new[] { first, second })
+        {
+            await Vote(m, m.HomeTeam.Players[0], WinnerVote.Home);
+            await Vote(m, m.AwayTeam.Players[0], WinnerVote.Home);
+        }
+        _context.ChangeTracker.Clear();
+        // The first match's result can't be posted on the first try
+        var calls = 0;
+        _discordClient.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(_ => ++calls == 1 ? throw new InvalidOperationException("discord down") : Substitute.For<IDiscordRestMessage>());
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var users = await fresh.Users.ToListAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(calls, Is.EqualTo(3), "The first post was tried again, and the second match was still finished");
+            Assert.That(_logger.Entries.Count(x => x.Level == LogLevel.Error), Is.Zero);
+            Assert.That(users.Sum(x => x.Wins), Is.EqualTo(2), "Both matches' results were saved before Discord was told");
+        });
+    }
+
+    [Test]
+    public async Task Go_QueueMessageFails_IsLogged_AndMatchesStillFinish()
+    {
+        _discordClient.GetCurrentUserAsync(Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("discord down"));
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        var match = await SeedMatch(home, away);
+        await Vote(match, match.HomeTeam.Players[0], WinnerVote.Cancel);
+        await Vote(match, match.AwayTeam.Players[0], WinnerVote.Cancel);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.False);
+        Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo("Failed to update the matchmaking queue message"));
+    }
+
+    [Test]
+    public async Task Go_VoteEndedMatch_TeamWhosePlayersWereAllKicked_ShowsNoPlayers()
+    {
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        match.HomeTeam.Players[0].Kicked = true;
+        await _context.SaveChangesAsync();
+        foreach (var p in match.AwayTeam.Players)
+            await Vote(match, p, WinnerVote.Away);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        Assert.That(Field(SentTo(LogChannel).Single(), "Home Team MMR Changes"), Is.EqualTo("No players"), "Discord rejects an empty field");
+    }
+
+    private static Task<IDiscordRestMessage> Fail() => Task.FromException<IDiscordRestMessage>(new HttpRequestException("503 Service Unavailable"));
+
+    private IDiscordRestMessage Message(ulong id)
+    {
+        var m = Substitute.For<IDiscordRestMessage>();
+        m.Id.Returns(id);
+        return m;
+    }
+
+    private IDiscordRestMessage MatchCreatedMessage(int matchId, IDiscordGuildThread? startedThread = null)
+    {
+        var m = Message(55);
+        m.Author.Id.Returns(BotId);
+        var field = Substitute.For<IDiscordEmbedField>();
+        field.Name.Returns("Match ID");
+        field.Value.Returns(matchId.ToString());
+        var e = Substitute.For<IDiscordEmbed>();
+        e.Title.Returns("Match Created");
+        e.Fields.Returns([field]);
+        m.Embeds.Returns([e]);
+        m.StartedThread.Returns(startedThread);
+        return m;
+    }
+
+    private int CreatedPosts() => SentTo(LogChannel).Count(x => x.Content?.Contains("has been created successfully") == true);
+
+    [Test]
+    public async Task Go_VoteMessageFails_NextTickRetries_InTheSameThread()
+    {
+        var failing = true;
+        _discordClient.SendMessageAsync(ThreadId, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(_ => failing ? Fail() : Task.FromResult(Message(88)));
+        var users = await SeedUsers(4);
+        _context.QueuedPlayer.AddRange(users.Select((u, i) => new QueuedPlayer { UserID = u.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-10 + i) }));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using (var fresh = Fresh())
+        {
+            var match = await fresh.MatchedMatches.SingleAsync();
+            Assert.That(match.Active, Is.True, "Still within the deadline");
+            Assert.That(match.ThreadID, Is.EqualTo(ThreadId));
+            Assert.That(match.VoteMessageID, Is.Null);
+            Assert.That(await fresh.QueuedPlayer.CountAsync(), Is.Zero);
+        }
+
+        failing = false;
+        await _service.Go(CancellationToken.None);
+
+        await using (var fresh = Fresh())
+        {
+            var match = await fresh.MatchedMatches.SingleAsync();
+            Assert.Multiple(() =>
+            {
+                Assert.That(match.Active, Is.True);
+                Assert.That(match.VoteMessageID, Is.EqualTo(88ul));
+                Assert.That(CreatedPosts(), Is.EqualTo(1), "The match message is not posted again");
+            });
+        }
+        await _discordClient.Received(1).CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test]
+    public async Task Go_ThreadCreationFailed_RetryMakesTheThreadFromTheMessageAlreadyPosted()
+    {
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away, startedAt: DateTime.UtcNow.AddMinutes(-1), threadId: null);
+        _discordClient.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
+            .Returns(_ => new[] { MatchCreatedMessage(match.Id + 1000), MatchCreatedMessage(match.Id) }.ToAsyncEnumerable());
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await _discordClient.Received(1).CreateGuildThreadAsync(LogChannel, 55ul, Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await using var fresh = Fresh();
+        var saved = await fresh.MatchedMatches.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(CreatedPosts(), Is.Zero);
+            Assert.That(saved.ThreadID, Is.EqualTo(ThreadId));
+            Assert.That(saved.VoteMessageID, Is.EqualTo(77ul));
+        });
+    }
+
+    [Test]
+    public async Task Go_ThreadMadeButNotSaved_RetryReusesIt_AndInvitesThePlayers()
+    {
+        var home = await SeedUsers(1, withDiscord: true);
+        var away = await SeedUsers(1, withDiscord: true);
+        var match = await SeedMatch(home, away, startedAt: DateTime.UtcNow.AddMinutes(-1), threadId: null);
+        _discordClient.GetMessagesAsync(LogChannel, Arg.Any<PaginationProperties<ulong>>(), Arg.Any<RestRequestProperties>())
+            .Returns(_ => new[] { MatchCreatedMessage(match.Id, _thread) }.ToAsyncEnumerable());
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await _discordClient.DidNotReceive().CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        foreach (var u in home.Concat(away))
+            await _discordClient.Received(1).AddGuildThreadUserAsync(ThreadId, (ulong)u.DiscordUser!.DiscordUserID, Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>());
+        await using var fresh = Fresh();
+        var saved = await fresh.MatchedMatches.SingleAsync();
+        Assert.Multiple(() =>
+        {
+            Assert.That(CreatedPosts(), Is.Zero);
+            Assert.That(saved.ThreadID, Is.EqualTo(ThreadId));
+            Assert.That(saved.VoteMessageID, Is.EqualTo(77ul));
+            Assert.That(SentTo(ThreadId), Has.Count.EqualTo(1), "Just the vote message");
+        });
+    }
+
+    [Test]
+    public async Task Go_AnnounceStillFailingPastTheDeadline_CancelsMatch_AndRequeuesPlayersAtTheFrontInOrder()
+    {
+        _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("502 Bad Gateway"));
+        // Queue order was a, b, c, d: dealt out home a, c and away b, d.
+        var users = await SeedUsers(4);
+        var (a, b, c, d) = (users[0], users[1], users[2], users[3]);
+        var match = await SeedMatch([a, c], [b, d], startedAt: DateTime.UtcNow - QueueService.AnnounceDeadline - TimeSpan.FromMinutes(1), threadId: null);
+        var later = (await SeedUsers(1))[0];
+        _context.QueuedPlayer.Add(new QueuedPlayer { UserID = later.Id, JoinedAt = DateTime.UtcNow.AddMinutes(-2) });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var saved = await fresh.MatchedMatches.SingleAsync();
+        var queue = await fresh.QueuedPlayer.OrderBy(x => x.JoinedAt).Select(x => x.UserID).ToListAsync();
+        var canceled = SentTo(LogChannel).Where(x => x.Embeds?.Any(e => e.Title == "Match Canceled") == true).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(saved.Active, Is.False);
+            Assert.That(queue, Is.EqualTo(new[] { a.Id, b.Id, c.Id, d.Id, later.Id }), "Back in their old order, ahead of who queued after them");
+            Assert.That(canceled, Has.Count.EqualTo(1));
+            Assert.That(canceled.Single().Embeds!.Single().Description, Does.Contain($"Match #{match.Id} has been canceled"));
+        });
+        await using var repoContext = Fresh();
+        Assert.That(await new QueueRepository(repoContext).IsInMatch(a.Id, CancellationToken.None), Is.False, "Free to be matched again");
+    }
+
+    [Test]
+    public async Task Go_AnnounceFailingWithinTheDeadline_KeepsTheMatch()
+    {
+        _discordClient.CreateGuildThreadAsync(Arg.Any<ulong>(), Arg.Any<ulong>(), Arg.Any<GuildThreadFromMessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new HttpRequestException("502 Bad Gateway"));
+        var home = await SeedUsers(1);
+        var away = await SeedUsers(1);
+        await SeedMatch(home, away, startedAt: DateTime.UtcNow.AddMinutes(-2), threadId: null);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        Assert.That((await fresh.MatchedMatches.SingleAsync()).Active, Is.True);
+        Assert.That(await fresh.QueuedPlayer.AnyAsync(), Is.False);
+        Assert.That(_logger.Entries.Any(x => x.Level == LogLevel.Error && x.Message.StartsWith("Failed to announce match")), Is.True);
+    }
+
+    [Test]
+    public async Task Go_MatchEndedPostFailsOnce_IsPostedOnTheRetry_AndTheThreadClosed()
+    {
+        var calls = 0;
+        _discordClient.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(_ => ++calls == 1 ? Fail() : Task.FromResult(Message(78)));
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        foreach (var p in match.HomeTeam.Players.Concat(match.AwayTeam.Players).Take(3))
+            await Vote(match, p, WinnerVote.Home);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        var posts = SentTo(LogChannel);
+        Assert.Multiple(() =>
+        {
+            Assert.That(posts, Has.Count.EqualTo(2));
+            Assert.That(posts.Select(x => x.Embeds!.Single().Title), Is.All.EqualTo("Match Ended"));
+            Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."));
+            Assert.That(_logger.Entries.Any(x => x.Level == LogLevel.Error), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task Go_MatchEndedPostKeepsFailing_GivesUpAfterTheAttempts_AndStillClosesTheThread()
+    {
+        _discordClient.SendMessageAsync(LogChannel, Arg.Any<MessageProperties>(), Arg.Any<RestRequestProperties>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Fail());
+        var home = await SeedUsers(2);
+        var away = await SeedUsers(2);
+        var match = await SeedMatch(home, away);
+        foreach (var p in match.HomeTeam.Players.Concat(match.AwayTeam.Players).Take(3))
+            await Vote(match, p, WinnerVote.Home);
+        _context.ChangeTracker.Clear();
+
+        await _service.Go(CancellationToken.None);
+
+        await using var fresh = Fresh();
+        var active = (await fresh.MatchedMatches.SingleAsync()).Active;
+        Assert.Multiple(() =>
+        {
+            Assert.That(SentTo(LogChannel), Has.Count.EqualTo(QueueService.EndPostAttempts));
+            Assert.That(_logger.Entries.Single(x => x.Level == LogLevel.Error).Message, Is.EqualTo($"Failed to post the end of match {match.Id} after {QueueService.EndPostAttempts} attempts"));
+            Assert.That(SentTo(ThreadId).Single().Content, Does.StartWith("Match Completed."));
+            Assert.That(active, Is.False, "The ending itself stands");
         });
     }
 }
