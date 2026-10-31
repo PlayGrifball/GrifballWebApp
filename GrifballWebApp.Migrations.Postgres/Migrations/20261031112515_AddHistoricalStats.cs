@@ -545,8 +545,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "XboxGamertagHistory",
-                schema: "Event",
+                name: "PastGamertags",
+                schema: "Xbox",
                 columns: table => new
                 {
                     XboxGamertagHistoryID = table.Column<int>(type: "integer", nullable: false)
@@ -566,9 +566,9 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_XboxGamertagHistory", x => x.XboxGamertagHistoryID);
+                    table.PrimaryKey("PK_PastGamertags", x => x.XboxGamertagHistoryID);
                     table.ForeignKey(
-                        name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
+                        name: "FK_PastGamertags_XboxUsers_XboxUserID",
                         column: x => x.XboxUserID,
                         principalSchema: "Xbox",
                         principalTable: "XboxUsers",
@@ -577,8 +577,8 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "XboxGamertagHistoryHistory",
-                schema: "Event",
+                name: "PastGamertagsHistory",
+                schema: "Xbox",
                 columns: table => new
                 {
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -977,28 +977,28 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 columns: new[] { "UserID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_XboxGamertagHistory_NormalizedGamertag",
-                schema: "Event",
-                table: "XboxGamertagHistory",
+                name: "IX_PastGamertags_NormalizedGamertag",
+                schema: "Xbox",
+                table: "PastGamertags",
                 column: "NormalizedGamertag");
 
             migrationBuilder.CreateIndex(
-                name: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag",
-                schema: "Event",
-                table: "XboxGamertagHistory",
+                name: "IX_PastGamertags_XboxUserID_NormalizedGamertag",
+                schema: "Xbox",
+                table: "PastGamertags",
                 columns: new[] { "XboxUserID", "NormalizedGamertag" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_XboxGamertagHistoryHistory_XboxGamertagHistoryID_PeriodEnd",
-                schema: "Event",
-                table: "XboxGamertagHistoryHistory",
+                name: "IX_PastGamertagsHistory_XboxGamertagHistoryID_PeriodEnd",
+                schema: "Xbox",
+                table: "PastGamertagsHistory",
                 columns: new[] { "XboxGamertagHistoryID", "PeriodEnd" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_XboxGamertagHistoryHistory_XboxUserID_PeriodEnd",
-                schema: "Event",
-                table: "XboxGamertagHistoryHistory",
+                name: "IX_PastGamertagsHistory_XboxUserID_PeriodEnd",
+                schema: "Xbox",
+                table: "PastGamertagsHistory",
                 columns: new[] { "XboxUserID", "PeriodEnd" });
 
             migrationBuilder.AddForeignKey(
@@ -1029,13 +1029,13 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"PlayerSeasonStats\"');");
 
-            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Event\".\"XboxGamertagHistory\"');");
+            migrationBuilder.Sql("CALL public.grif_enable_versioning('\"Xbox\".\"PastGamertags\"');");
             // The renames the XboxUsers table's history already holds: each account's earlier gamertags, from when the first
             // version with it began to when the last one ended ('-infinity', the start of rows history was added to, is unknown).
             // Gamertags are normalised as the app does (HistoricalKeys): trimmed, runs of whitespace made one space, upper-cased
             // (in the "C" collation: regular expressions refuse the case-insensitive one).
             migrationBuilder.Sql("""
-                INSERT INTO "Event"."XboxGamertagHistory" ("XboxUserID", "Gamertag", "NormalizedGamertag", "FirstSeen", "LastSeen", "Source", "CreatedAt", "ModifiedAt")
+                INSERT INTO "Xbox"."PastGamertags" ("XboxUserID", "Gamertag", "NormalizedGamertag", "FirstSeen", "LastSeen", "Source", "CreatedAt", "ModifiedAt")
                 SELECT h."XboxUserID", left(max(btrim(regexp_replace(h."Gamertag" COLLATE "C", '\s+', ' ', 'g'))), 50), left(upper(btrim(regexp_replace(h."Gamertag" COLLATE "C", '\s+', ' ', 'g'))), 50),
                     min(NULLIF(h."PeriodStart", '-infinity')), max(h."PeriodEnd"), 1, now(), now()
                 FROM "Xbox"."XboxUsersHistory" AS h
@@ -1047,16 +1047,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
         
 
             // Round 3 of the review: championships take their league from the season, claims link their team, stat rows
-            // have no division of their own, and the gamertag history moves to the Xbox schema as PastGamertags
+            // have no division of their own (the gamertag history is created in the Xbox schema as PastGamertags above)
             migrationBuilder.DropForeignKey(
                 name: "FK_PlayerChampionships_Leagues_LeagueID",
                 schema: "Event",
                 table: "PlayerChampionships");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
-                schema: "Event",
-                table: "XboxGamertagHistory");
 
             migrationBuilder.DropIndex(
                 name: "IX_PlayerChampionshipsHistory_LeagueID_PeriodEnd",
@@ -1073,10 +1069,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_XboxGamertagHistory",
-                schema: "Event",
-                table: "XboxGamertagHistory");
 
             migrationBuilder.DropColumn(
                 name: "Division",
@@ -1112,43 +1104,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
-            migrationBuilder.RenameTable(
-                name: "XboxGamertagHistoryHistory",
-                schema: "Event",
-                newName: "PastGamertagsHistory",
-                newSchema: "Xbox");
 
-            migrationBuilder.RenameTable(
-                name: "XboxGamertagHistory",
-                schema: "Event",
-                newName: "PastGamertags",
-                newSchema: "Xbox");
 
-            migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Xbox\".\"PastGamertags\"');");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_XboxGamertagHistoryHistory_XboxUserID_PeriodEnd",
-                schema: "Xbox",
-                table: "PastGamertagsHistory",
-                newName: "IX_PastGamertagsHistory_XboxUserID_PeriodEnd");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_XboxGamertagHistoryHistory_XboxGamertagHistoryID_PeriodEnd",
-                schema: "Xbox",
-                table: "PastGamertagsHistory",
-                newName: "IX_PastGamertagsHistory_XboxGamertagHistoryID_PeriodEnd");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag",
-                schema: "Xbox",
-                table: "PastGamertags",
-                newName: "IX_PastGamertags_XboxUserID_NormalizedGamertag");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_XboxGamertagHistory_NormalizedGamertag",
-                schema: "Xbox",
-                table: "PastGamertags",
-                newName: "IX_PastGamertags_NormalizedGamertag");
 
             migrationBuilder.AddColumn<int>(
                 name: "TeamID",
@@ -1166,11 +1127,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"GamertagClaims\"');");
 
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_PastGamertags",
-                schema: "Xbox",
-                table: "PastGamertags",
-                column: "XboxGamertagHistoryID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_GamertagClaimsHistory_TeamID_PeriodEnd",
@@ -1201,15 +1157,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 principalTable: "Teams",
                 principalColumn: "TeamID");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_PastGamertags_XboxUsers_XboxUserID",
-                schema: "Xbox",
-                table: "PastGamertags",
-                column: "XboxUserID",
-                principalSchema: "Xbox",
-                principalTable: "XboxUsers",
-                principalColumn: "XboxUserID",
-                onDelete: ReferentialAction.Cascade);
         }
 
         /// <inheritdoc />
@@ -1221,10 +1168,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_PastGamertags_XboxUsers_XboxUserID",
-                schema: "Xbox",
-                table: "PastGamertags");
 
             migrationBuilder.DropIndex(
                 name: "IX_GamertagClaimsHistory_TeamID_PeriodEnd",
@@ -1241,10 +1184,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_PastGamertags",
-                schema: "Xbox",
-                table: "PastGamertags");
 
             migrationBuilder.DropColumn(
                 name: "TeamID",
@@ -1256,43 +1195,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event",
                 table: "GamertagClaims");
 
-            migrationBuilder.RenameTable(
-                name: "PastGamertagsHistory",
-                schema: "Xbox",
-                newName: "XboxGamertagHistoryHistory",
-                newSchema: "Event");
 
-            migrationBuilder.RenameTable(
-                name: "PastGamertags",
-                schema: "Xbox",
-                newName: "XboxGamertagHistory",
-                newSchema: "Event");
 
-            migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"XboxGamertagHistory\"');");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PastGamertagsHistory_XboxUserID_PeriodEnd",
-                schema: "Event",
-                table: "XboxGamertagHistoryHistory",
-                newName: "IX_XboxGamertagHistoryHistory_XboxUserID_PeriodEnd");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PastGamertagsHistory_XboxGamertagHistoryID_PeriodEnd",
-                schema: "Event",
-                table: "XboxGamertagHistoryHistory",
-                newName: "IX_XboxGamertagHistoryHistory_XboxGamertagHistoryID_PeriodEnd");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PastGamertags_XboxUserID_NormalizedGamertag",
-                schema: "Event",
-                table: "XboxGamertagHistory",
-                newName: "IX_XboxGamertagHistory_XboxUserID_NormalizedGamertag");
 
-            migrationBuilder.RenameIndex(
-                name: "IX_PastGamertags_NormalizedGamertag",
-                schema: "Event",
-                table: "XboxGamertagHistory",
-                newName: "IX_XboxGamertagHistory_NormalizedGamertag");
 
             migrationBuilder.AddColumn<string>(
                 name: "Division",
@@ -1353,11 +1261,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
 
             migrationBuilder.Sql("CALL public.grif_refresh_versioning('\"Event\".\"GamertagClaims\"');");
 
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_XboxGamertagHistory",
-                schema: "Event",
-                table: "XboxGamertagHistory",
-                column: "XboxGamertagHistoryID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerChampionshipsHistory_LeagueID_PeriodEnd",
@@ -1388,15 +1291,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 principalColumn: "LeagueID",
                 onDelete: ReferentialAction.Restrict);
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_XboxGamertagHistory_XboxUsers_XboxUserID",
-                schema: "Event",
-                table: "XboxGamertagHistory",
-                column: "XboxUserID",
-                principalSchema: "Xbox",
-                principalTable: "XboxUsers",
-                principalColumn: "XboxUserID",
-                onDelete: ReferentialAction.Cascade);
         
 
             // Data-lossy by necessity: historical seasons go (their stats and titles with them, by cascade), and so do their
@@ -1467,7 +1361,7 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 oldNullable: true,
                 oldCollation: "case_insensitive");
 
-            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"XboxGamertagHistory\"');");
+            migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Xbox\".\"PastGamertags\"');");
 
             migrationBuilder.Sql("CALL public.grif_disable_versioning('\"Event\".\"PlayerSeasonStats\"');");
 
@@ -1520,12 +1414,12 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 schema: "Event");
 
             migrationBuilder.DropTable(
-                name: "XboxGamertagHistory",
-                schema: "Event");
+                name: "PastGamertags",
+                schema: "Xbox");
 
             migrationBuilder.DropTable(
-                name: "XboxGamertagHistoryHistory",
-                schema: "Event");
+                name: "PastGamertagsHistory",
+                schema: "Xbox");
 
             migrationBuilder.DropTable(
                 name: "Leagues",
