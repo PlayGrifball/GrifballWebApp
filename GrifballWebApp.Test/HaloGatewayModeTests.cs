@@ -151,6 +151,31 @@ public class HaloGatewayModeTests
         });
     }
 
+    [TestCase(HttpStatusCode.TooManyRequests)]
+    [TestCase(HttpStatusCode.ServiceUnavailable)]
+    public async Task Direct_TheFactorysHttpClientRetriesHalosThrottlingAndErrors(HttpStatusCode first)
+    {
+        var builder = Builder((HaloInfiniteSettings.ModeKey, "Direct"));
+        var delays = Substitute.For<IRetryDelayCalculator>();
+        delays.CalculateDelay(Arg.Any<int>(), Arg.Any<HttpResponseMessage?>()).Returns(TimeSpan.Zero);
+        builder.AddHaloInfinite(HaloInfiniteSettings.FromConfiguration(builder.Configuration), delays);
+        var answers = new Queue<HttpStatusCode>([first, HttpStatusCode.OK]);
+        var halo = new StubHandler(_ => new HttpResponseMessage(answers.Dequeue()));
+        // The client the factory's HaloInfiniteClients are built on, with Halo stubbed underneath the retry policy.
+        builder.Services.AddHttpClient(nameof(IHaloInfiniteClient)).ConfigurePrimaryHttpMessageHandler(() => halo);
+        using var services = builder.Services.BuildServiceProvider();
+
+        using var response = await services.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IHaloInfiniteClient))
+            .GetAsync("https://halo.test/hi/stats");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(halo.Requests, Has.Count.EqualTo(2));
+            delays.Received(1).CalculateDelay(1, Arg.Any<HttpResponseMessage?>());
+        });
+    }
+
     [Test]
     public void Direct_RegistersTheFactoryAsTheClient()
     {
@@ -218,6 +243,16 @@ public class HaloGatewayModeTests
             Assert.That(account.Healthy, Is.False);
             Assert.That(account.Error, Is.EqualTo(nameof(HttpRequestException)));
         });
+    }
+
+    [Test]
+    public async Task AccountStatus_LongAnswer_Truncated()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(new string('x', 500)) });
+
+        var account = await AccountStatus(handler).GetAsync();
+
+        Assert.That(account.Status, Has.Length.EqualTo(32));
     }
 
     [Test]
@@ -321,6 +356,72 @@ public class HaloGatewayModeTests
         {
             Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
             Assert.That(result.Description, Does.Contain("401").And.Contain("HaloGateway:ApiKey"));
+        });
+    }
+
+    [Test]
+    public async Task Check_QuotaSpent_SaysSo()
+    {
+        var (check, client, gateway, _) = GatewayCheck();
+        gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(new HaloGatewayAccount(true, "Healthy", null));
+        client.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(429));
+
+        var result = await Run(check);
+
+        Assert.That(result.Description, Does.Contain("429").And.Contain("quota"));
+    }
+
+    [Test]
+    public async Task Check_GatewayAnswersWithoutAStatus_Degraded()
+    {
+        var (check, client, gateway, _) = GatewayCheck();
+        gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(new HaloGatewayAccount(true, null, "gateway /health answered 404"));
+        client.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(200));
+
+        var result = await Run(check);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
+            Assert.That(result.Description, Does.Contain("Halo gateway reachable (gateway /health answered 404)"));
+        });
+    }
+
+    [Test]
+    public async Task Check_GatewayStatusThrows_Unreachable_NothingEscapes()
+    {
+        var (check, client, gateway, _) = GatewayCheck();
+        gateway.GetAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("boom"));
+        client.StatsGetMatchStats(Arg.Any<string>()).Returns(Response(200));
+
+        var result = await Run(check);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Status, Is.EqualTo(HealthStatus.Degraded));
+            Assert.That(result.Description, Does.Contain("Halo gateway unreachable (InvalidOperationException)"));
+        });
+    }
+
+    [Test]
+    public async Task StatusDto_WithoutAKey_SaysSo()
+    {
+        var (check, client, gateway, _) = GatewayCheck();
+        gateway.GetAsync(Arg.Any<CancellationToken>()).Returns(HaloGatewayAccount.Unreachable("HttpRequestException"));
+        client.StatsGetMatchStats(Arg.Any<string>()).ThrowsAsync(new HttpRequestException("down"));
+        var settings = HaloInfiniteSettings.FromConfiguration(Config());
+
+        var dto = HaloStatusDto.Gateway(settings, await check.ProbeNowAsync());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto.ApiKeyConfigured, Is.False);
+            Assert.That(dto.Reachable, Is.False);
+            Assert.That(dto.AccountStatus, Is.Null);
+            Assert.That(dto.ApiCode, Is.Null);
+            Assert.That(dto.Healthy, Is.False);
+            Assert.That(dto.GatewayUrl, Is.EqualTo(HaloInfiniteSettings.DefaultGatewayBaseUrl));
+            Assert.That(dto.GatewayAdminUrl, Is.EqualTo(HaloInfiniteSettings.DefaultGatewayAdminUrl));
         });
     }
 
