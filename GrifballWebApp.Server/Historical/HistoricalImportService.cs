@@ -687,7 +687,7 @@ public class HistoricalImportService : IHistoricalImportService
             var (a, b) = (TeamOf(both[0].Players), both.Count == 2 ? TeamOf(both[1].Players) : null);
             if (a == b)
                 (a, b) = (null, null);
-            if (a is null || b is null)
+            if ((a is null || b is null) && teams.ByName.Count > 0)
                 Warn(counts, $"{group.SourceId}: Waypoint match {match.Key}: a side is none of the season's teams (by its players' sheet teams); linked without it");
             games.Add(new WaypointGame(match.Key, both[0].StartTime, matchPhases[match.Key], a, both[0].Outcome, b, both.Count == 2 ? both[1].Outcome : Outcomes.DidNotFinish));
         }
@@ -706,6 +706,9 @@ public class HistoricalImportService : IHistoricalImportService
         }
 
         var roundOf = new Dictionary<int, int>();
+        // Each slot is the team's previous series, or a seed for its first (the bracket's rule: one or the other)
+        var lastSeries = new Dictionary<int, MatchBracketInfo>();
+        var seed = 0;
         var bracketNumber = await _context.SeasonMatches.CountAsync(m => m.SeasonID == season.SeasonID && m.BracketMatch != null, ct);
         foreach (var played in series.OrderBy(s => s[0].Start))
         {
@@ -736,7 +739,20 @@ public class HistoricalImportService : IHistoricalImportService
                     roundOf[homeTeam] = round;
                 if (away is int awayTeam)
                     roundOf[awayTeam] = round;
-                match.BracketMatch = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
+                var info = new MatchBracketInfo { RoundNumber = round, MatchNumber = ++bracketNumber, Bracket = Bracket.Winner };
+                if (home is int h1 && lastSeries.TryGetValue(h1, out var homePrevious))
+                    info.HomeTeamPreviousMatchBracketInfo = homePrevious;
+                else
+                    info.HomeTeamSeedNumber = ++seed;
+                if (away is int a1 && lastSeries.TryGetValue(a1, out var awayPrevious))
+                    info.AwayTeamPreviousMatchBracketInfo = awayPrevious;
+                else
+                    info.AwayTeamSeedNumber = ++seed;
+                if (home is int h2)
+                    lastSeries[h2] = info;
+                if (away is int a2)
+                    lastSeries[a2] = info;
+                match.BracketMatch = info;
             }
             _context.SeasonMatches.Add(match);
             counts.SeasonMatchesCreated++;

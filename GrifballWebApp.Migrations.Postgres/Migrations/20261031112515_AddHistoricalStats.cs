@@ -103,12 +103,26 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 nullable: true,
                 collation: "case_insensitive");
 
+            // The app's own seasons so far are Halo Infinite's (a season now always has its game): given as the column's
+            // default, so the rows get it without a new version in their history, then the default is dropped
             migrationBuilder.AddColumn<int>(
                 name: "GameVersionID",
                 schema: "Event",
                 table: "Seasons",
                 type: "integer",
-                nullable: true);
+                nullable: true,
+                defaultValue: 6);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "GameVersionID",
+                schema: "Event",
+                table: "Seasons",
+                type: "integer",
+                nullable: true,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldNullable: true,
+                oldDefaultValue: 6);
 
             migrationBuilder.AddColumn<string>(
                 name: "HistoricalSourceID",
@@ -1031,8 +1045,6 @@ namespace GrifballWebApp.Migrations.Postgres.Migrations
                 """);
 
         
-            // The app's own seasons so far are Halo Infinite's: a season now always has its game
-            migrationBuilder.Sql("""UPDATE "Event"."Seasons" SET "GameVersionID" = 6 WHERE "GameVersionID" IS NULL;""");
 
             // Round 3 of the review: championships take their league from the season, claims link their team, stat rows
             // have no division of their own, and the gamertag history moves to the Xbox schema as PastGamertags
