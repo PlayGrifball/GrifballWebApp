@@ -1,6 +1,7 @@
 using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -110,10 +111,9 @@ public class ProfileControllerTests
         user.XboxUserID = xbox.XboxUserID;
         await _context.XboxUsers.AddAsync(xbox);
 
-        var league = new League { LeagueName = "AGLA", Slug = "agla" };
-        var h3 = new GameVersion { GameVersionName = "Halo 3", Slug = "halo3" };
-        await _context.AddRangeAsync(league, h3);
-        await _context.SaveChangesAsync();
+        // Both are seeded by the migrations
+        var league = await _context.Leagues.SingleAsync(l => l.Slug == "agla");
+        var h3 = await _context.GameVersions.SingleAsync(g => g.Slug == "halo3");
 
         var season = new Season
         {
@@ -126,7 +126,8 @@ public class ProfileControllerTests
             SignupsClose = new DateTime(2018, 5, 25, 0, 0, 0, DateTimeKind.Utc),
             DraftStart = new DateTime(2018, 5, 26, 0, 0, 0, DateTimeKind.Utc),
             IsHistorical = true,
-            HistoricalSourceID = "agla/summer-league-2018"
+            HistoricalSourceID = "2018-sml18-stats/Stats",
+            HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x"
         };
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
@@ -191,6 +192,8 @@ public class ProfileControllerTests
             Assert.That(stats.Championships[0].TeamName, Is.EqualTo("Dynasty"));
             Assert.That(stats.Championships[0].IsCaptain, Is.True);
             Assert.That(stats.Championships[0].Year, Is.EqualTo(2018));
+            Assert.That(stats.Championships[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
+            Assert.That(stats.Seasons[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
 
             Assert.That(stats.OverallCareer, Is.Not.Null);
             Assert.That(stats.OverallCareer!.GamesPlayed, Is.EqualTo(10));

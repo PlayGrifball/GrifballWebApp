@@ -182,6 +182,8 @@ export function mockRoutes(role: Role): Record<string, MockBody> {
     ],
     '/api/profile/getgamertag/117': { gamertag: 'MasterChief117' },
     '/api/profile/getgamertag/999': { gamertag: 'CommanderGrif' },
+    '/api/profile/getprofilestats/117': { userID: 117, gamertag: 'MasterChief117', displayName: 'MasterChief117', isDummyUser: false, aliases: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] },
+    '/api/profile/getprofilestats/999': { userID: 999, gamertag: 'CommanderGrif', displayName: 'CommanderGrif', isDummyUser: false, aliases: [], championships: [], careerByGame: [], overallCareer: null, seasons: [] },
     '/api/ExternalLogins/Mine': { hasPassword: true, logins: [{ loginProvider: 'Discord', providerKey: '81234567890123456', providerDisplayName: 'Discord' }], providers: [{ name: 'Discord', displayName: 'Discord' }] },
     '/api/Signups/getSignup/13': null,
     '/api/Signups/getTimeslots/13': timeslots,
