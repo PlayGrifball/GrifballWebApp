@@ -26,7 +26,7 @@ async function mockBackend(page: Page, role: Role, failFirst: string[] = []): Pr
 
 const PAGES = [
   { path: '/', role: 'anon', ready: 'tr.mat-mdc-row', early: ['/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons?pageSize=10&pageNumber=1'] },
-  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonName/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
+  { path: '/season/12', role: 'player', ready: '.week-card', early: ['/api/Season/getSeasonSummary/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=schedule', role: 'anon', ready: '.sched-match', early: ['/api/MatchPlanner/GetUnscheduledMatches/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=bracket', role: 'anon', ready: '.brackets-viewer .match', early: ['/api/Brackets/GetViewerData?seasonID=12'] },
   { path: '/seasonmatch/31', role: 'anon', ready: '.lobby-player', early: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },

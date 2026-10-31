@@ -129,24 +129,9 @@ export const APP_ROUTES: Routes = [
     title: 'User Profile'
   },
   {
-    path: 'player/:gamertag',
-    loadComponent: () => import('./player-redirect/player-redirect.component').then(m => m.PlayerRedirectComponent),
-    title: 'Spartan Profile'
-  },
-  {
     path: 'archive',
     loadComponent: () => import('./archive/archive-hub/archive-hub.component').then(m => m.ArchiveHubComponent),
     title: 'Historical Archive'
-  },
-  {
-    path: 'archive/season/:seasonID',
-    loadComponent: () => import('./archive/historical-season/historical-season.component').then(m => m.HistoricalSeasonComponent),
-    title: 'Historical Season'
-  },
-  {
-    path: 'archive/team/:teamSlug',
-    loadComponent: () => import('./archive/historical-team/historical-team.component').then(m => m.HistoricalTeamComponent),
-    title: 'Historical Team'
   },
   {
     path: 'excel',

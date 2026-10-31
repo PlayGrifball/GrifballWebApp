@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.stats-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.stats-search {
+  min-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid var(--hud-border);
+  background: var(--hud-input);
+  color: var(--hud-text);
+  font-size: 14px;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.stats-table th.hud-num,
+.stats-table td.hud-num {
+  text-align: right;
+}
+
+.stats-note {
+  display: block;
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+
+.stats-empty {
+  margin: 12px 0;
+}

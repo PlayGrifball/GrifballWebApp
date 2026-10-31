@@ -239,8 +239,8 @@ describe('ProfileComponent', () => {
           gameVersionName: 'Halo 3',
           gameVersionSlug: 'halo3',
           tier: 'Pro',
+          teamID: 40,
           teamName: 'Blue Team',
-          teamSlug: 'blue-team',
           isHistorical: true,
           isCaptain: true,
           gamertagUsed: 'MasterChief',
@@ -306,8 +306,8 @@ describe('ProfileComponent', () => {
           gameVersionName: 'Halo 3',
           gameVersionSlug: 'halo3',
           division: 'Pro',
+          teamID: 40,
           teamName: 'Blue Team',
-          teamSlug: 'blue-team',
           isHistorical: true,
           stintIndex: 1,
           isPlayoffs: false,
@@ -346,14 +346,14 @@ describe('ProfileComponent', () => {
     expect(el.textContent).toContain('12 - 2');
     expect(el.textContent).toContain('85.7% Win rate');
 
-    // Verify router links exist for historical season and team
+    // A historical season and its team are linked like any other: their own season and team pages
     const seasonLink = el.querySelector('.trophy-season a');
     expect(seasonLink).not.toBeNull();
-    expect(seasonLink?.getAttribute('href')).toBe('/archive/season/10');
+    expect(seasonLink?.getAttribute('href')).toBe('/season/10');
 
     const teamLink = el.querySelector('.trophy-meta a.trophy-team');
     expect(teamLink).not.toBeNull();
-    expect(teamLink?.getAttribute('href')).toBe('/archive/team/blue-team');
+    expect(teamLink?.getAttribute('href')).toBe('/season/10/team/40');
 
     const tabs = Array.from(el.querySelectorAll<HTMLButtonElement>('.hud-tab'));
     expect(tabs.map(t => t.getAttribute('aria-pressed'))).toEqual(['true', 'false']);

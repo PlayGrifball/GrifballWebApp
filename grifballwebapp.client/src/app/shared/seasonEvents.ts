@@ -4,7 +4,9 @@ export interface SeasonEvent {
   name: string,
   start: string,
   end: string,
-  eventType: 'Signup' | 'Draft' | 'Season'
+  eventType: 'Signup' | 'Draft' | 'Season',
+  /** A past season backfilled from the historical archive: its source spreadsheet (/api/Home/PastSeasons). */
+  historicalSourceUrl?: string | null,
 }
 
 export const eventTitles: Record<SeasonEvent['eventType'], string> = {

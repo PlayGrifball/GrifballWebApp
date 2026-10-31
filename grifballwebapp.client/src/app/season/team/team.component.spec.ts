@@ -136,4 +136,51 @@ describe('TeamComponent', () => {
     expect(component.matches.data[0].scheduledTime instanceof DateTime).toBeTrue();
     expect(rows()[0]).toContain(new DatePipe('en-US').transform('2026-04-01T19:00:00Z', 'short')!);
   });
+
+  describe('a team of a season backfilled from historical records', () => {
+    const url = 'https://docs.google.com/spreadsheets/d/x';
+    const historical: TeamDto = {
+      teamName: 'Relentless', wins: 9, losses: 1, tbd: 0, seasonID: 2, isHistorical: true, historicalSourceUrl: url,
+      recordFromSource: true, titles: ['Pro'],
+      players: [
+        { teamPlayerID: 5, userID: 30, gamertag: 'Captain R', draftCaptainOrder: null, draftRound: null, isCaptain: true },
+        { teamPlayerID: 6, userID: 31, gamertag: 'Runner', draftCaptainOrder: null, draftRound: null, isCaptain: false },
+      ],
+      stats: [
+        { userID: 30, gamertag: 'Captain R', isPlayoffs: false, stintIndex: 1, tradeNote: null, roleNote: null, gamesPlayed: 10, wins: 9, losses: 1, goals: 7, kills: 80, deaths: 40, kdRatio: 2, carrierKills: 9 },
+        { userID: 31, gamertag: 'Runner', isPlayoffs: true, stintIndex: 1, tradeNote: 'From Blue', roleNote: null, gamesPlayed: 3, wins: 3, losses: 0, goals: 2, kills: 20, deaths: 10, kdRatio: null, carrierKills: 1 },
+      ],
+    };
+
+    it('shows the banner, the record from the spreadsheet, its titles and captain, and no draft rounds', () => {
+      load(historical, []);
+      expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
+      expect(el().textContent).toContain('From the source spreadsheet');
+      expect(el().textContent).toContain('Pro champions');
+      const roster = Array.from(el().querySelectorAll('.team-player')).map(p => Array.from(p.children).map(c => c.textContent!.trim()).join(' '));
+      expect(roster).toEqual(['C Captain R Captain', 'R Runner']);
+    });
+
+    it('shows its players' stats, linked to their profiles', () => {
+      load(historical, []);
+      const statRows = Array.from(el().querySelectorAll('.team-stats tbody tr'));
+      expect(statRows.length).toBe(2);
+      expect(statRows[0].querySelector('a')!.getAttribute('href')).toBe('/profile/30');
+      expect(statRows[1].textContent).toContain('Playoffs');
+      expect(statRows[1].textContent).toContain('From Blue');
+    });
+
+    it('says the matches were not recorded, with the spreadsheet, in place of an empty table', () => {
+      load(historical, []);
+      expect(el().querySelector('app-data-notice')!.textContent).toContain("Match results weren't recorded");
+      expect(el().querySelector('app-data-notice a')!.getAttribute('href')).toBe(url);
+      expect(el().querySelector('table[mat-table]')).toBeNull();
+    });
+
+    it('shows the matches it does have as usual', () => {
+      load(historical, [match({})]);
+      expect(el().querySelector('app-data-notice')).toBeNull();
+      expect(rows().length).toBe(1);
+    });
+  });
 });

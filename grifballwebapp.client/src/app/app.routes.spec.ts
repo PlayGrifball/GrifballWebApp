@@ -20,10 +20,7 @@ import { CreateUserComponent } from './userManagement/createUser/createUser.comp
 import { EditUserComponent } from './userManagement/editUser/editUser.component';
 import { MergeUserComponent } from './userManagement/mergeUser/mergeUser.component';
 import { ProfileComponent } from './profile/profile.component';
-import { PlayerRedirectComponent } from './player-redirect/player-redirect.component';
 import { ArchiveHubComponent } from './archive/archive-hub/archive-hub.component';
-import { HistoricalSeasonComponent } from './archive/historical-season/historical-season.component';
-import { HistoricalTeamComponent } from './archive/historical-team/historical-team.component';
 import { ExcelComponent } from './excel/excel.component';
 import { CommissionerDashboardComponent } from './commissioner-dashboard/commissioner-dashboard.component';
 import { RescheduleRequestComponent } from './reschedule-request/reschedule-request.component';
@@ -125,28 +122,14 @@ describe('APP_ROUTES', () => {
     expect(profileRoute?.title).toBe('User Profile');
   });
 
-  it('should have player route with gamertag parameter', () => {
-    const playerRoute = APP_ROUTES.find(r => r.path === 'player/:gamertag');
-    expect(playerRoute).toBeDefined();
-    expect(playerRoute?.title).toBe('Spartan Profile');
-  });
-
   it('should have archive hub route', () => {
     const archiveRoute = APP_ROUTES.find(r => r.path === 'archive');
     expect(archiveRoute).toBeDefined();
     expect(archiveRoute?.title).toBe('Historical Archive');
   });
 
-  it('should have archive season route', () => {
-    const archiveSeasonRoute = APP_ROUTES.find(r => r.path === 'archive/season/:seasonID');
-    expect(archiveSeasonRoute).toBeDefined();
-    expect(archiveSeasonRoute?.title).toBe('Historical Season');
-  });
-
-  it('should have archive team route', () => {
-    const archiveTeamRoute = APP_ROUTES.find(r => r.path === 'archive/team/:teamSlug');
-    expect(archiveTeamRoute).toBeDefined();
-    expect(archiveTeamRoute?.title).toBe('Historical Team');
+  it('has no separate pages for historical seasons, teams or gamertags', () => {
+    expect(APP_ROUTES.map(r => r.path).filter(p => p?.startsWith('archive/') || p?.startsWith('player/'))).toEqual([]);
   });
 
   it('should have all routes with lazy loading', () => {
@@ -196,10 +179,7 @@ describe('APP_ROUTES lazy loading', () => {
     'usermanagement/mergeuser/:fromInput': MergeUserComponent,
     'usermanagement/mergeuser/:fromInput/:toInput': MergeUserComponent,
     'profile/:userID': ProfileComponent,
-    'player/:gamertag': PlayerRedirectComponent,
     'archive': ArchiveHubComponent,
-    'archive/season/:seasonID': HistoricalSeasonComponent,
-    'archive/team/:teamSlug': HistoricalTeamComponent,
     'excel': ExcelComponent,
     'excel/:inputSpreadsheetId/:inputSheetName': ExcelComponent,
     'commissioner-dashboard': CommissionerDashboardComponent,

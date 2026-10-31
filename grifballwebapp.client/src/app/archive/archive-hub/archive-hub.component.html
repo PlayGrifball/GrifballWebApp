@@ -80,7 +80,7 @@
             <div class="season-card-top">
               <div class="season-title-wrap">
                 <h2 class="season-card-title">
-                  <a [routerLink]="['/archive/season', item.seasonID]" class="hud-text-link">{{item.seasonName}}</a>
+                  <a [routerLink]="['/season', item.seasonID]" class="hud-text-link">{{item.seasonName}}</a>
                 </h2>
               </div>
               <div class="season-badges">
@@ -99,10 +99,10 @@
                 <div class="champions-preview">
                   <span class="hud-label">Champions:</span>
                   <div class="champions-chips">
-                    @for (champ of item.champions; track champ.tier + champ.teamSlug) {
+                    @for (champ of item.champions; track champ.tier + champ.teamID) {
                       <div class="champ-chip">
                         <span class="champ-tier font-mono">{{champ.tier}}:</span>
-                        <a [routerLink]="['/archive/team', champ.teamSlug]" class="champ-team hud-text-link">🏆 {{champ.teamName}}</a>
+                        <a [routerLink]="['/season', item.seasonID, 'team', champ.teamID]" class="champ-team hud-text-link">🏆 {{champ.teamName}}</a>
                       </div>
                     }
                   </div>
@@ -114,14 +114,17 @@
                   <span>{{item.teamCount}} Teams</span> &middot;
                   <span>{{item.playerCount}} Spartans</span>
                 </div>
-                <a [routerLink]="['/archive/season', item.seasonID]" class="hud-btn hud-btn--sm">View Season &gt;</a>
+                @if (item.historicalSourceUrl) {
+                  <a [href]="item.historicalSourceUrl" target="_blank" rel="noopener noreferrer" class="hud-text-link source-link">Source spreadsheet</a>
+                }
+                <a [routerLink]="['/season', item.seasonID]" class="hud-btn hud-btn--sm">View Season &gt;</a>
               </div>
             </div>
           </article>
         } @empty {
           <div class="hud-panel hud-panel--chamfer empty-panel">
             <span class="hud-kicker">&gt; No Results</span>
-            <p class="hud-muted">No historical campaigns match your filter criteria.</p>
+            <p class="hud-muted">No seasons match your filter criteria.</p>
           </div>
         }
       </div>
@@ -227,7 +230,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (t of lb.franchiseDynasties; track t.teamSlug; let idx = $index) {
+                  @for (t of lb.dynasties; track t.teamName; let idx = $index) {
                     <tr [class.gold-row]="idx === 0" [class.silver-row]="idx === 1" [class.bronze-row]="idx === 2">
                       <td class="rank-col font-mono">
                         @if (idx === 0) { 🥇 1 }
@@ -236,7 +239,7 @@
                         @else { #{{idx + 1}} }
                       </td>
                       <td>
-                        <a [routerLink]="['/archive/team', t.teamSlug]" class="hud-text-link font-bold">{{t.teamName}}</a>
+                        <a [routerLink]="['/season', t.latestSeasonID, 'team', t.latestTeamID]" class="hud-text-link font-bold">{{t.teamName}}</a>
                       </td>
                       <td class="hud-num font-mono hud-gold font-bold rings-val">
                         🏆 {{t.championshipsCount}}

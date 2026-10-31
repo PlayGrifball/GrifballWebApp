@@ -12,6 +12,17 @@ import { TeamStandingsComponent } from './teamStandings/teamStandings.component'
 import { SeasonThisWeekComponent } from './seasonThisWeek/seasonThisWeek.component';
 import { input } from '@angular/core';
 import { SeasonEvent } from '../shared/seasonEvents';
+import { SeasonSummaryDto, SeasonSummaryService } from './seasonSummary';
+import { SeasonPlayerStatsComponent } from './seasonPlayerStats/seasonPlayerStats.component';
+
+/** A season as GetSeasonSummary answers: one played in the app unless changed. */
+function seasonSummary(id: number, changes: Partial<SeasonSummaryDto> = {}): SeasonSummaryDto {
+  return {
+    seasonID: id, seasonName: `Season ${id}`, year: 2025, leagueID: 1, leagueName: 'AGLA', gameVersionName: 'Halo Infinite',
+    gameVersionSlug: 'infinite', division: null, isHistorical: false, historicalSourceUrl: null, teamCount: 4, signupCount: 10,
+    matchCount: 6, bracketMatchCount: 3, playerStatCount: 0, champions: [], ...changes,
+  };
+}
 
 @Component({ selector: 'app-schedule-list', template: '' })
 class StubScheduleList {}
@@ -21,16 +32,20 @@ class StubPlayoffBracket {}
 class StubTeamStandings { readonly loaded = signal(false); }
 @Component({ selector: 'app-season-this-week', template: '' })
 class StubThisWeek { readonly seasonID = input<number>(); }
+@Component({ selector: 'app-season-player-stats', template: '' })
+class StubPlayerStats { readonly seasonID = input<number>(); }
 
 describe('SeasonComponent', () => {
   let fixture: ComponentFixture<SeasonComponent>;
   let api: jasmine.SpyObj<ApiClientService>;
+  let summaries: jasmine.SpyObj<SeasonSummaryService>;
   let seasonID: string | null;
 
   beforeEach(async () => {
     seasonID = '5';
-    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName', 'getCurrentAndFutureEvents']);
-    api.getSeasonName.and.callFake((id: number) => of(`Season ${id}`));
+    api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
+    summaries.get.and.callFake((id: number) => of(seasonSummary(id)));
     api.getCurrentSeasonID.and.returnValue(of(8));
     api.getCurrentAndFutureEvents.and.returnValue(of([]));
 
@@ -39,12 +54,13 @@ describe('SeasonComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ApiClientService, useValue: api },
+        { provide: SeasonSummaryService, useValue: summaries },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => seasonID } } } },
       ]
     })
       .overrideComponent(SeasonComponent, {
-        remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent] },
-        add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek] }
+        remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent, SeasonPlayerStatsComponent] },
+        add: { imports: [StubScheduleList, StubPlayoffBracket, StubTeamStandings, StubThisWeek, StubPlayerStats] }
       })
       .compileComponents();
 
@@ -56,7 +72,7 @@ describe('SeasonComponent', () => {
   it('shows the name of the season in the route', () => {
     fixture.detectChanges();
 
-    expect(api.getSeasonName).toHaveBeenCalledWith(5);
+    expect(summaries.get).toHaveBeenCalledWith(5);
     expect(api.getCurrentSeasonID).not.toHaveBeenCalled();
     expect(heading()).toBe('Season 5');
   });
@@ -66,17 +82,17 @@ describe('SeasonComponent', () => {
     fixture.detectChanges();
 
     expect(api.getCurrentSeasonID).toHaveBeenCalled();
-    expect(api.getSeasonName).toHaveBeenCalledWith(8);
+    expect(summaries.get).toHaveBeenCalledWith(8);
     expect(heading()).toBe('Season 8');
   });
 
 
   it('shows the season name once it arrives, without a manual detectChanges', async () => {
-    const name = new Subject<string>();
-    api.getSeasonName.and.returnValue(name);
+    const name = new Subject<SeasonSummaryDto>();
+    summaries.get.and.returnValue(name);
     await fixture.whenStable();
 
-    name.next('Late Season');
+    name.next(seasonSummary(5, { seasonName: 'Late Season' }));
     await fixture.whenStable();
 
     expect(heading()).toBe('Late Season');
@@ -112,8 +128,8 @@ describe('SeasonComponent', () => {
   });
 
   it('keeps the page hidden until the season name is in, also when it fails', () => {
-    const name = new Subject<string>();
-    api.getSeasonName.and.returnValue(name);
+    const name = new Subject<SeasonSummaryDto>();
+    summaries.get.and.returnValue(name);
     fixture.detectChanges();
     const page = () => (fixture.nativeElement as HTMLElement).querySelector('.hud-page')!;
     expect(page().classList).toContain('hud-waiting');
@@ -182,6 +198,54 @@ describe('SeasonComponent', () => {
     });
   });
 
+  describe('a season backfilled from historical records', () => {
+    const url = 'https://docs.google.com/spreadsheets/d/x';
+    const el = () => fixture.nativeElement as HTMLElement;
+    const notices = () => Array.from(el().querySelectorAll('app-data-notice')).map(n => n.textContent!.trim());
+
+    beforeEach(() => summaries.get.and.callFake((id: number) => of(seasonSummary(id, {
+      seasonName: 'Summer League 2010', year: 2010, gameVersionName: 'Halo 3', division: 'Pro', isHistorical: true,
+      historicalSourceUrl: url, signupCount: 0, matchCount: 0, bracketMatchCount: 0, playerStatCount: 12,
+      champions: [{ tier: 'Pro', teamID: 40, teamName: 'Relentless', roster: [{ userID: 7, gamertag: 'Captain R', isCaptain: true }] }],
+    }))));
+
+    it('shows the banner with its spreadsheet, its game and division, champions and player stats', () => {
+      fixture.detectChanges();
+      expect(el().querySelector('app-backfilled-banner a')!.getAttribute('href')).toBe(url);
+      expect(Array.from(el().querySelectorAll('.season-meta__pill')).map(p => p.textContent!.trim())).toEqual(['2010', 'AGLA', 'Halo 3', 'Pro']);
+      expect(el().querySelector('app-season-champions')!.textContent).toContain('Relentless');
+      expect(el().querySelector('app-season-player-stats')).not.toBeNull();
+    });
+
+    it('says the results were not recorded in place of this week', () => {
+      fixture.detectChanges();
+      expect(shown()).toEqual(['app-team-standings']);
+      expect(notices()).toEqual(["Match results weren't recorded for this season."]);
+    });
+
+    for (const [tab, text] of [['schedule', 'match schedule'], ['bracket', 'playoff bracket']]) {
+      it(`says the ${text} was not recorded on ?tab=${tab}, with the spreadsheet`, () => {
+        fixture.componentRef.setInput('tab', tab);
+        fixture.detectChanges();
+        expect(shown()).toEqual([]);
+        expect(notices()[0]).toContain(`The ${text} wasn't recorded`);
+        expect(el().querySelector('app-data-notice a')!.getAttribute('href')).toBe(url);
+      });
+    }
+
+    it('shows what it does have, like matches pulled from Waypoint, as usual', () => {
+      summaries.get.and.callFake((id: number) => of(seasonSummary(id, { isHistorical: true, matchCount: 8, bracketMatchCount: 0 })));
+      fixture.detectChanges();
+      expect(shown()).toEqual(['app-team-standings', 'app-season-this-week']);
+      expect(el().querySelector('app-season-player-stats')).toBeNull();
+    });
+  });
+
+  it('shows no banner or notices for a season played in the app', () => {
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-backfilled-banner, app-data-notice, app-season-champions')).toBeNull();
+  });
+
   it('falls back to the overview for an unknown tab', () => {
     fixture.componentRef.setInput('tab', 'nope');
     fixture.detectChanges();
@@ -191,8 +255,9 @@ describe('SeasonComponent', () => {
 
 describe('SeasonComponent links', () => {
   it('links to the sub-pages of the current season', async () => {
-    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getSeasonName', 'getCurrentAndFutureEvents']);
-    api.getSeasonName.and.returnValue(of('Season 5'));
+    const api = jasmine.createSpyObj('ApiClientService', ['getCurrentSeasonID', 'getCurrentAndFutureEvents']);
+    const summaries = jasmine.createSpyObj('SeasonSummaryService', ['get']);
+    summaries.get.and.returnValue(of(seasonSummary(5)));
     const day = 24 * 3600 * 1000;
     api.getCurrentAndFutureEvents.and.returnValue(of([{ seasonID: 5, name: 'Season 5', eventType: 'Signup',
       start: new Date(Date.now() - day).toISOString(), end: new Date(Date.now() + day).toISOString() }]));
@@ -200,6 +265,7 @@ describe('SeasonComponent links', () => {
       providers: [
         provideRouter([{ path: 'season/:seasonID', component: SeasonComponent }]),
         { provide: ApiClientService, useValue: api },
+        { provide: SeasonSummaryService, useValue: summaries },
       ]
     }).overrideComponent(SeasonComponent, {
       remove: { imports: [ScheduleListComponent, PlayoffBracketComponent, TeamStandingsComponent, SeasonThisWeekComponent] },

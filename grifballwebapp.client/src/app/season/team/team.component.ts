@@ -11,6 +11,7 @@ import { fromApiDate } from '../../shared/apiDates';
 
 import { ToDatePipe } from '../../shared/toDate.pipe';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
+import { BackfilledBannerComponent, DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
 @Component({
     selector: 'app-team',
     imports: [
@@ -21,6 +22,8 @@ import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
         RouterModule,
         MatIcon,
         ToDatePipe,
+        BackfilledBannerComponent,
+        DataNoticeComponent,
     ],
     templateUrl: './team.component.html',
     styleUrl: './team.component.scss',
@@ -35,6 +38,9 @@ export class TeamComponent {
 
   team: WritableSignal<TeamDto | null> = signal(null);
   matches: MatTableDataSource<MatchDto> = new MatTableDataSource<MatchDto>();
+  /** The matches have loaded: a backfilled season without any says so. */
+  readonly matchesLoaded = signal(false);
+  readonly matchCount = signal(0);
 
   displayedColumns: string[] = ['otherTeam', 'score', 'result', 'scheduledTime', 'matchPage'];
 
@@ -47,7 +53,11 @@ export class TeamComponent {
       });
   
       this.getMatches().subscribe({
-        next: (v) => this.matches.data = v,
+        next: (v) => {
+          this.matches.data = v;
+          this.matchCount.set(v.length);
+          this.matchesLoaded.set(true);
+        },
       });
     })
   }
@@ -65,6 +75,15 @@ export class TeamComponent {
 export interface TeamDto
 {
   teamName: string,
+  seasonID?: number,
+  /** The season was backfilled from the historical archive; historicalSourceUrl is its spreadsheet. */
+  isHistorical?: boolean,
+  historicalSourceUrl?: string | null,
+  /** wins and losses are the source spreadsheet's: the season's matches are not in the app. */
+  recordFromSource?: boolean,
+  /** The tiers whose title the team won. */
+  titles?: string[],
+  stats?: TeamPlayerStatDto[],
   wins: number,
   losses: number,
   tbd: number,
@@ -79,6 +98,27 @@ export interface PlayerDto
   gamertag: string | null,
   draftCaptainOrder: number | null,
   draftRound: number | null,
+  /** Its drafted captain, or the one its title names. */
+  isCaptain?: boolean,
+}
+
+/** A player's totals for the team in one phase of the season. */
+export interface TeamPlayerStatDto
+{
+  userID: number,
+  gamertag: string,
+  isPlayoffs: boolean,
+  stintIndex: number,
+  tradeNote?: string | null,
+  roleNote?: string | null,
+  gamesPlayed: number,
+  wins: number,
+  losses: number,
+  goals: number,
+  kills: number,
+  deaths: number,
+  kdRatio?: number | null,
+  carrierKills: number,
 }
 
 export interface MatchDto

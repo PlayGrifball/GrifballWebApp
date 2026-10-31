@@ -1,0 +1,56 @@
+:host {
+  display: block;
+  margin-bottom: 24px;
+}
+
+.champions {
+  border-left: 3px solid var(--hud-gold);
+}
+
+.champions__title {
+  color: var(--hud-gold);
+}
+
+.champions__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.champion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.champion__tier {
+  color: var(--hud-gold);
+  font: 12px var(--hud-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.champion__team {
+  color: var(--hud-heading);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.champion__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.champion__captain {
+  margin-left: 4px;
+  padding: 1px 4px;
+  border: 1px solid var(--hud-gold);
+  color: var(--hud-gold);
+  font: 12px var(--hud-font-mono);
+}

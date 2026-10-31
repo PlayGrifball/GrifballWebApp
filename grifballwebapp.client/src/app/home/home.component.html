@@ -68,6 +68,9 @@
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Season</th>
           <td mat-cell *matCellDef="let row">
             <a class="home-archive__link" [routerLink]="['/season', row.seasonID]">{{row.name}}</a>
+            @if (row.historicalSourceUrl) {
+              <a class="home-archive__source" [href]="row.historicalSourceUrl" target="_blank" rel="noopener noreferrer">Source spreadsheet</a>
+            }
           </td>
         </ng-container>
         <ng-container matColumnDef="start">

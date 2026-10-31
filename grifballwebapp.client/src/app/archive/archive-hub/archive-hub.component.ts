@@ -5,8 +5,8 @@ import { FormsModule } from '@angular/forms';
 
 export interface HistoricalCatalogChampionDto {
   tier: string;
+  teamID: number;
   teamName: string;
-  teamSlug: string;
   roster: { userID: number; gamertag: string; isCaptain: boolean }[];
 }
 
@@ -21,6 +21,7 @@ export interface HistoricalCatalogItemDto {
   gameVersionName?: string | null;
   gameVersionSlug?: string | null;
   division?: string | null;
+  isHistorical: boolean;
   historicalSourceUrl?: string | null;
   teamCount: number;
   playerCount: number;
@@ -34,9 +35,11 @@ export interface HistoricalPlayerRingLeaderDto {
   titles: string[];
 }
 
+/** A team name's titles across seasons, linked to its latest title-winning team. */
 export interface HistoricalTeamRingLeaderDto {
   teamName: string;
-  teamSlug: string;
+  latestTeamID: number;
+  latestSeasonID: number;
   championshipsCount: number;
   seasonsActive: number;
   titles: string[];
@@ -54,7 +57,7 @@ export interface HistoricalPlayerMetricLeaderDto {
 
 export interface HistoricalLeaderboardsDto {
   ringLeaders: HistoricalPlayerRingLeaderDto[];
-  franchiseDynasties: HistoricalTeamRingLeaderDto[];
+  dynasties: HistoricalTeamRingLeaderDto[];
   goalLeaders: HistoricalPlayerMetricLeaderDto[];
   killLeaders: HistoricalPlayerMetricLeaderDto[];
   gamesPlayedLeaders: HistoricalPlayerMetricLeaderDto[];
@@ -129,7 +132,7 @@ export class ArchiveHubComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.http.get<HistoricalCatalogItemDto[]>('api/historical/catalog')
+    this.http.get<HistoricalCatalogItemDto[]>('/api/Season/GetSeasonCatalog')
       .subscribe({
         next: (data) => {
           this.catalog.set(data);
@@ -162,7 +165,7 @@ export class ArchiveHubComponent implements OnInit {
 
   private loadLeaderboards(): void {
     this.loadingLeaderboards.set(true);
-    this.http.get<HistoricalLeaderboardsDto>('api/historical/leaderboards')
+    this.http.get<HistoricalLeaderboardsDto>('/api/Leaderboards/GetLeaderboards')
       .subscribe({
         next: (data) => {
           this.leaderboards.set(data);

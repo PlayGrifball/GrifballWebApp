@@ -10,7 +10,7 @@ const SITE = `http://localhost:${process.env.E2E_PORT ?? 4300}`;
 
 const PAGES = [
   { path: '/', content: '.home-hero h1', text: 'Winter Campaign', data: ['/api/Home/CurrentAndFutureEvents/', '/api/Home/PastSeasons'] },
-  { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/Season/getSeasonName/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
+  { path: '/season/12', content: 'app-team-standings', text: 'Red Rampage', data: ['/api/Season/getSeasonSummary/12', '/api/TeamStandings/GetTeamStandings/12', '/api/MatchPlanner/GetScheduledMatches/12'] },
   { path: '/season/12?tab=schedule', content: '.sched-match', text: 'Gravity Wells', data: ['/api/MatchPlanner/GetScheduledMatches/12', '/api/MatchPlanner/GetUnscheduledMatches/12'] },
   { path: '/seasonmatch/31', content: '.lobby-player', text: 'Blue Bombers', data: ['/api/SeasonMatch/GetSeasonMatchPage/31'] },
   { path: '/profile/117', content: '.profile-card', text: 'MasterChief117', data: ['/api/profile/getgamertag/117', '/api/profile/getprofilestats/117'] },

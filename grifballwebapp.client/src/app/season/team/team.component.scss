@@ -40,3 +40,36 @@
 }
 
 .team-player__name { flex-grow: 1; font-weight: 600; overflow-wrap: anywhere; }
+
+.team-record__note {
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+
+.team-stats {
+  margin-bottom: 24px;
+}
+
+.team-stats__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.team-stats__table th,
+.team-stats__table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hud-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.team-stats__table .hud-num {
+  text-align: right;
+}
+
+.team-stats__note {
+  display: block;
+  color: var(--hud-muted);
+  font-size: 12px;
+}

@@ -20,13 +20,15 @@ describe('ArchiveHubComponent', () => {
       gameVersionID: 1,
       gameVersionName: 'Halo 3',
       gameVersionSlug: 'halo3',
+      isHistorical: true,
+      historicalSourceUrl: 'https://docs.google.com/spreadsheets/d/x',
       teamCount: 12,
       playerCount: 60,
       champions: [
         {
           tier: 'Pro',
           teamName: 'Relentless',
-          teamSlug: 'relentless',
+          teamID: 40,
           roster: [{ userID: 1, gamertag: 'Legendary', isCaptain: true }]
         }
       ]
@@ -41,6 +43,7 @@ describe('ArchiveHubComponent', () => {
       gameVersionID: 2,
       gameVersionName: 'Halo 4',
       gameVersionSlug: 'halo4',
+      isHistorical: false,
       teamCount: 8,
       playerCount: 40,
       champions: []
@@ -51,8 +54,8 @@ describe('ArchiveHubComponent', () => {
     ringLeaders: [
       { userID: 1, gamertag: 'Legendary', ringsCount: 5, titles: ['Summer League 2011 (Pro)'] }
     ],
-    franchiseDynasties: [
-      { teamName: 'Relentless', teamSlug: 'relentless', championshipsCount: 4, seasonsActive: 10, titles: ['Summer League 2011 (Pro)'] }
+    dynasties: [
+      { teamName: 'Relentless', latestTeamID: 40, latestSeasonID: 10, championshipsCount: 4, seasonsActive: 10, titles: ['Summer League 2011 (Pro)'] }
     ],
     goalLeaders: [
       { userID: 1, gamertag: 'Legendary', statValue: 120, gamesPlayed: 30, perGame: 4.0, seasonsCount: 5 }
@@ -90,7 +93,7 @@ describe('ArchiveHubComponent', () => {
   it('should create and load catalog', () => {
     fixture.detectChanges();
 
-    const req = httpTesting.expectOne('api/historical/catalog');
+    const req = httpTesting.expectOne('/api/Season/GetSeasonCatalog');
     expect(req.request.method).toBe('GET');
     req.flush(mockCatalog);
 
@@ -99,9 +102,21 @@ describe('ArchiveHubComponent', () => {
     expect(component.availableGames()).toContain('Halo 4');
   });
 
+  it('links seasons and champions to the season and team pages every season has, and the spreadsheet', () => {
+    fixture.detectChanges();
+    httpTesting.expectOne('/api/Season/GetSeasonCatalog').flush(mockCatalog);
+    fixture.detectChanges();
+    const hrefs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.seasons-grid a')).map(a => a.getAttribute('href'));
+    expect(hrefs).toContain('/season/101');
+    expect(hrefs).toContain('/season/101/team/40');
+    expect(hrefs).toContain('https://docs.google.com/spreadsheets/d/x');
+    expect(hrefs).toContain('/season/102');
+    expect(hrefs.some(h => h?.startsWith('/archive/'))).toBeFalse();
+  });
+
   it('should filter catalog by game version and search query', () => {
     fixture.detectChanges();
-    const req = httpTesting.expectOne('api/historical/catalog');
+    const req = httpTesting.expectOne('/api/Season/GetSeasonCatalog');
     req.flush(mockCatalog);
 
     // Filter by game
@@ -118,11 +133,11 @@ describe('ArchiveHubComponent', () => {
 
   it('should load leaderboards when switching to leaderboards tab', () => {
     fixture.detectChanges();
-    const catReq = httpTesting.expectOne('api/historical/catalog');
+    const catReq = httpTesting.expectOne('/api/Season/GetSeasonCatalog');
     catReq.flush(mockCatalog);
 
     component.setTab('leaderboards');
-    const lbReq = httpTesting.expectOne('api/historical/leaderboards');
+    const lbReq = httpTesting.expectOne('/api/Leaderboards/GetLeaderboards');
     expect(lbReq.request.method).toBe('GET');
     lbReq.flush(mockLeaderboards);
 

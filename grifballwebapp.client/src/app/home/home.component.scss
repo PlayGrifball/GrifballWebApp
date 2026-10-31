@@ -19,3 +19,11 @@
 }
 
 .mat-mdc-paginator { border-top: 1px solid var(--hud-hairline); }
+
+.home-archive__source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: 12px;
+  font-size: 13px;
+}

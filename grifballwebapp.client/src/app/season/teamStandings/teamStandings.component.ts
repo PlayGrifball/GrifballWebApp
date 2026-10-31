@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { TeamStandingDto } from './teamStandingDto';
 import { MatTableModule } from '@angular/material/table';
@@ -24,6 +24,8 @@ export class TeamStandingsComponent implements OnInit {
   readonly teamStandings = signal<TeamStandingDto[]>([]);
   /** The standings have loaded (or failed to, or there is no season). */
   readonly loaded = signal(false);
+  /** Some records are the source spreadsheet's (a backfilled season without matches). */
+  readonly fromSource = computed(() => this.teamStandings().some(t => t.recordFromSource));
 
   displayedColumns: string[] = ['rank', 'teamName', 'wins', 'losses'];
 

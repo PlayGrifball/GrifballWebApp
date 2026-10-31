@@ -1,16 +1,19 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { GradesDto, Letter, LetterDto, PerMinuteDto } from './gradesDto';
 import { MatTableModule } from '@angular/material/table';
 import { SeasonTabsComponent } from '../seasonTabs/seasonTabs.component';
+import { DataNoticeComponent } from '../../shared/dataNotice/dataNotice.component';
+import { missing, SeasonSummaryDto, SeasonSummaryService } from '../seasonSummary';
 
 @Component({
     selector: 'app-player-grades',
     imports: [
         SeasonTabsComponent,
-        MatTableModule
+        MatTableModule,
+        DataNoticeComponent,
     ],
     providers: [DecimalPipe],
     templateUrl: './playerGrades.component.html',
@@ -21,11 +24,15 @@ export class PlayerGradesComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
   private pipe = inject(DecimalPipe);
+  private summaries = inject(SeasonSummaryService);
 
   private seasonID: number = 0;
 
   readonly pm = signal<PerMinuteDto[]>([]);
   readonly letters = signal<LetterDto[]>([]);
+  readonly summary = signal<SeasonSummaryDto | null>(null);
+  /** Grades come from the season's Halo Infinite matches: a backfilled season without any says so. */
+  readonly noMatches = computed(() => missing(this.summary(), s => s.matchCount + s.bracketMatchCount));
 
   public pmDisplayedColumns: string[] = ['gamertag', 'goals', 'kdSpread', 'punches', 'sprees', 'doubleKills', 'tripleKills', 'multiKills', 'xFactor', 'kills'];
 
@@ -175,6 +182,7 @@ export class PlayerGradesComponent implements OnInit {
 
   ngOnInit(): void {
     this.seasonID = Number(this.route.snapshot.paramMap.get('seasonID'));
+    this.summaries.get(this.seasonID).subscribe({ next: s => this.summary.set(s), error: () => {} });
     this.getGrades();
   }
 

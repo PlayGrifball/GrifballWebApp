@@ -56,6 +56,23 @@ describe('TeamStandingsComponent', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('No standings yet.');
   });
 
+  it('says the records are the source spreadsheet's when they are', () => {
+    fixture.detectChanges();
+    http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([
+      { teamID: 10, teamName: 'Alpha', wins: 9, losses: 1, recordFromSource: true },
+    ]);
+    fixture.detectChanges();
+    expect(rows()).toEqual([['1', 'Alpha', '9', '1']]);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Records from the source spreadsheet');
+  });
+
+  it('has no note for records from matches', () => {
+    fixture.detectChanges();
+    http.expectOne('api/TeamStandings/GetTeamStandings/2').flush([{ teamID: 10, teamName: 'Alpha', wins: 4, losses: 1 }]);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Records from the source spreadsheet');
+  });
+
   it('logs and leaves the table empty when the request fails', () => {
     const log = spyOn(console, 'log');
     fixture.detectChanges();

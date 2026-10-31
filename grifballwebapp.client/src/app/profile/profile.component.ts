@@ -24,8 +24,8 @@ export interface PlayerChampionshipDto {
   gameVersionName?: string | null;
   gameVersionSlug?: string | null;
   tier: string;
+  teamID: number;
   teamName: string;
-  teamSlug?: string | null;
   isCaptain: boolean;
   gamertagUsed: string;
   year?: number | null;
@@ -75,8 +75,8 @@ export interface PlayerSeasonStatDetailDto {
   gameVersionName: string;
   gameVersionSlug: string;
   division?: string | null;
+  teamID?: number | null;
   teamName?: string | null;
-  teamSlug?: string | null;
   tradeNote?: string | null;
   roleNote?: string | null;
   stintIndex: number;
