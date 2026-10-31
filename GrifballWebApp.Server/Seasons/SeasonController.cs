@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Server.EventOrganizer;
+using GrifballWebApp.Server.EventOrganizer;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrifballWebApp.Server.Seasons;
@@ -26,5 +26,24 @@ public class SeasonController : ControllerBase
     public Task<string?> GetSeasonName([FromRoute] int seasonID, CancellationToken ct)
     {
         return _seasonService.GetSeasonName(seasonID, ct);
+    }
+
+    [HttpGet("{seasonID:int}", Name = "GetSeasonSummary")]
+    public async Task<ActionResult<SeasonSummaryDto>> GetSeasonSummary([FromRoute] int seasonID, CancellationToken ct)
+    {
+        var summary = await _seasonService.GetSeasonSummary(seasonID, ct);
+        return summary is null ? NotFound() : summary;
+    }
+
+    [HttpGet("{seasonID:int}", Name = "GetSeasonPlayerStats")]
+    public Task<List<SeasonPlayerStatDto>> GetSeasonPlayerStats([FromRoute] int seasonID, CancellationToken ct)
+    {
+        return _seasonService.GetSeasonPlayerStats(seasonID, ct);
+    }
+
+    [HttpGet(Name = "GetSeasonCatalog")]
+    public Task<List<SeasonCatalogItemDto>> GetSeasonCatalog(CancellationToken ct)
+    {
+        return _seasonService.GetSeasonCatalog(ct);
     }
 }

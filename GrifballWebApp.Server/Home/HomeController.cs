@@ -63,7 +63,8 @@ public class HomeController : ControllerBase
     public async Task<PaginationResult<Event>> PastSeasons([FromQuery] PaginationFilter filter, CancellationToken ct)
     {
         var now = DateTime.UtcNow;
-        var query = _context.Seasons.Where(s => now > s.SeasonEnd && !s.IsHistorical)
+        // Seasons imported from the historical archive are past seasons like any other, with their source spreadsheet
+        var query = _context.Seasons.Where(s => now > s.SeasonEnd)
             .Select(x => new Event()
             {
                 SeasonID = x.SeasonID,
@@ -71,6 +72,7 @@ public class HomeController : ControllerBase
                 Start = x.SeasonStart,
                 End = x.SeasonEnd,
                 EventType = EventType.Season,
+                HistoricalSourceUrl = x.HistoricalSourceUrl,
             });
 
         if (filter.SortColumn is null)
@@ -93,6 +95,8 @@ public class Event
     public required DateTime Start { get; set; }
     public required DateTime End { get; set; }
     public required EventType EventType { get; set; }
+    /// <summary>A season imported from the historical archive: its source spreadsheet. Null otherwise.</summary>
+    public string? HistoricalSourceUrl { get; set; }
 }
 
 public enum EventType

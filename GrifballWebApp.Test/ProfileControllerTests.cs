@@ -131,6 +131,9 @@ public class ProfileControllerTests
         };
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
+        var dynasty = new Team { SeasonID = season.SeasonID, TeamName = "Dynasty" };
+        await _context.Teams.AddAsync(dynasty);
+        await _context.SaveChangesAsync();
 
         var title = new PlayerChampionship
         {
@@ -139,7 +142,7 @@ public class ProfileControllerTests
             LeagueID = league.LeagueID,
             GameVersionID = h3.GameVesionID,
             Tier = "Pro",
-            TeamName = "Dynasty",
+            TeamID = dynasty.TeamID,
             IsCaptain = true,
             GamertagUsed = "ChampTag"
         };
@@ -150,7 +153,7 @@ public class ProfileControllerTests
             SeasonID = season.SeasonID,
             GameVersionID = h3.GameVesionID,
             Gamertag = "ChampTag",
-            TeamName = "Dynasty",
+            TeamID = dynasty.TeamID,
             StintIndex = 1,
             IsPlayoffs = false,
             GamesPlayed = 10,
@@ -185,13 +188,13 @@ public class ProfileControllerTests
             Assert.That(stats.Championships, Has.Count.EqualTo(1));
             Assert.That(stats.Championships[0].Tier, Is.EqualTo("Pro"));
             Assert.That(stats.Championships[0].TeamName, Is.EqualTo("Dynasty"));
-            Assert.That(stats.Championships[0].TeamSlug, Is.EqualTo("dynasty"));
+            Assert.That(stats.Championships[0].TeamID, Is.EqualTo(dynasty.TeamID));
             Assert.That(stats.Championships[0].IsHistorical, Is.True);
             Assert.That(stats.Championships[0].IsCaptain, Is.True);
             Assert.That(stats.Championships[0].Year, Is.EqualTo(2018));
             Assert.That(stats.Championships[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
             Assert.That(stats.Seasons[0].SeasonSourceUrl, Is.EqualTo("https://docs.google.com/spreadsheets/d/x"));
-            Assert.That(stats.Seasons[0].TeamSlug, Is.EqualTo("dynasty"));
+            Assert.That((stats.Seasons[0].TeamID, stats.Seasons[0].TeamName), Is.EqualTo(((int?)dynasty.TeamID, "Dynasty")));
             Assert.That(stats.Seasons[0].IsHistorical, Is.True);
 
             Assert.That(stats.OverallCareer, Is.Not.Null);
@@ -294,66 +297,9 @@ public class ProfileControllerTests
     }
 
     [Test]
-    public async Task ResolveGamertag_DirectXboxUser_ReturnsUserId()
+    public async Task GetProfileStats_ARowWithoutATeam_HasNone()
     {
-        var user = new User { UserName = "gamer1", XboxUser = new XboxUser { XboxUserID = 101, Gamertag = "MasterChief" } };
-        await _context.Users.AddAsync(user);
-        await _context.SaveChangesAsync();
-
-        var result = await _controller.ResolveGamertag("MasterChief", CancellationToken.None);
-
-        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
-        var ok = (OkObjectResult)result.Result!;
-        Assert.That(ok.Value, Is.EqualTo(user.Id));
-    }
-
-    [Test]
-    public async Task ResolveGamertag_PastGamertag_ReturnsUserId()
-    {
-        var user = new User { UserName = "gamer2", XboxUser = new XboxUser { XboxUserID = 202, Gamertag = "CurrentTag" } };
-        await _context.Users.AddAsync(user);
-        await _context.XboxGamertagHistory.AddAsync(new XboxGamertagHistory
-        {
-            XboxUserID = 202,
-            Gamertag = "OldTag",
-            NormalizedGamertag = "OLDTAG",
-            Source = GamertagHistorySource.RenameDetected
-        });
-        await _context.SaveChangesAsync();
-
-        var result = await _controller.ResolveGamertag("oldtag", CancellationToken.None);
-
-        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
-        var ok = (OkObjectResult)result.Result!;
-        Assert.That(ok.Value, Is.EqualTo(user.Id));
-    }
-
-    [Test]
-    public async Task ResolveGamertag_HistoricalDummyUser_ReturnsUserId()
-    {
-        var user = new User { UserName = "historical:OLDLEGEND", DisplayName = "OldLegend", IsDummyUser = true };
-        await _context.Users.AddAsync(user);
-        await _context.SaveChangesAsync();
-
-        var result = await _controller.ResolveGamertag("OldLegend", CancellationToken.None);
-
-        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
-        var ok = (OkObjectResult)result.Result!;
-        Assert.That(ok.Value, Is.EqualTo(user.Id));
-    }
-
-    [Test]
-    public async Task ResolveGamertag_NotFound_ReturnsNotFound()
-    {
-        var result = await _controller.ResolveGamertag("NonExistentSpartan", CancellationToken.None);
-
-        Assert.That(result.Result, Is.InstanceOf<NotFoundResult>());
-    }
-
-    [Test]
-    public async Task GetProfileStats_PopulatesTeamSlugAndIsHistorical()
-    {
-        var user = new User { UserName = "slugtester" };
+        var user = new User { UserName = "teamless" };
         await _context.Users.AddAsync(user);
         var season = new Season
         {
@@ -366,37 +312,11 @@ public class ProfileControllerTests
         };
         await _context.Seasons.AddAsync(season);
         await _context.SaveChangesAsync();
-
-        await _context.PlayerChampionships.AddAsync(new PlayerChampionship
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            LeagueID = 1,
-            Tier = "Pro",
-            TeamName = "B E N C H W A R M E R S",
-            GamertagUsed = "slugtester"
-        });
-
-        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat
-        {
-            UserID = user.Id,
-            SeasonID = season.SeasonID,
-            GameVersionID = 1,
-            Gamertag = "slugtester",
-            TeamName = "Relentless",
-            GamesPlayed = 10,
-            Goals = 5
-        });
+        await _context.PlayerSeasonStats.AddAsync(new PlayerSeasonStat { UserID = user.Id, SeasonID = season.SeasonID, GameVersionID = 1, Gamertag = "teamless", GamesPlayed = 10 });
         await _context.SaveChangesAsync();
 
         var stats = (await _controller.GetProfileStats(user.Id, CancellationToken.None)).Value!;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(stats.Championships.Single().TeamSlug, Is.EqualTo("b-e-n-c-h-w-a-r-m-e-r-s"));
-            Assert.That(stats.Championships.Single().IsHistorical, Is.True);
-            Assert.That(stats.Seasons.Single().TeamSlug, Is.EqualTo("relentless"));
-            Assert.That(stats.Seasons.Single().IsHistorical, Is.True);
-        });
+        Assert.That((stats.Seasons.Single().TeamID, stats.Seasons.Single().TeamName, stats.Seasons.Single().IsHistorical), Is.EqualTo(((int?)null, (string?)null, true)));
     }
 }

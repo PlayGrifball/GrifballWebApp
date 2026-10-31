@@ -20,9 +20,11 @@ public class TeamStandingsService
             {
                 TeamID = t.TeamID,
                 TeamName = t.TeamName,
-                Wins = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won).Count() +
+                RecordFromSource = t.RecordedWins != null || t.RecordedLosses != null,
+                // A team of a season whose matches are not in the app has the record its source spreadsheet gives
+                Wins = t.RecordedWins ?? t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won).Count() +
                        t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won).Count(),
-                Losses = t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Loss || x.HomeTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count() +
+                Losses = t.RecordedLosses ?? t.HomeMatches.Where(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Loss || x.HomeTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count() +
                          t.AwayMatches.Where(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Loss || x.AwayTeamResult == Database.Models.SeasonMatchResult.Forfeit).Count(),
             })
             .OrderByDescending(x => x.Wins)

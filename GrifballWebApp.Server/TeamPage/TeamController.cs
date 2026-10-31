@@ -14,26 +14,57 @@ public class TeamController : ControllerBase
         _context = context;
     }
 
+    /// <summary>
+    /// The team: its record (from its matches, or the one its source spreadsheet gives for a season whose matches are
+    /// not in the app), roster, titles and its players' season stats where the season has them.
+    /// </summary>
     [HttpGet("{teamID:int}", Name = "Team")]
-    public Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct)
+    public async Task<TeamDto?> Team([FromRoute] int teamID, CancellationToken ct)
     {
-        return _context.Teams.Where(x => x.TeamID == teamID)
+        var team = await _context.Teams.Where(x => x.TeamID == teamID)
             .Select(x => new TeamDto()
             {
                 TeamName = x.TeamName,
-                Wins = x.HomeMatches.Count(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won) + x.AwayMatches.Count(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won),
-                Losses = x.HomeMatches.Count(x => x.HomeTeamResult != Database.Models.SeasonMatchResult.Won && x.HomeTeamResult != null) + x.AwayMatches.Count(x => x.AwayTeamResult != Database.Models.SeasonMatchResult.Won && x.AwayTeamResult != null),
+                SeasonID = x.SeasonID,
+                IsHistorical = x.Season.IsHistorical,
+                HistoricalSourceUrl = x.Season.HistoricalSourceUrl,
+                RecordFromSource = x.RecordedWins != null || x.RecordedLosses != null,
+                Wins = x.RecordedWins ?? x.HomeMatches.Count(x => x.HomeTeamResult == Database.Models.SeasonMatchResult.Won) + x.AwayMatches.Count(x => x.AwayTeamResult == Database.Models.SeasonMatchResult.Won),
+                Losses = x.RecordedLosses ?? x.HomeMatches.Count(x => x.HomeTeamResult != Database.Models.SeasonMatchResult.Won && x.HomeTeamResult != null) + x.AwayMatches.Count(x => x.AwayTeamResult != Database.Models.SeasonMatchResult.Won && x.AwayTeamResult != null),
                 TBD = x.HomeMatches.Count(x => x.HomeTeamResult == null) + x.AwayMatches.Count(x => x.AwayTeamResult == null),
+                Titles = x.PlayerChampionships.Select(c => c.Tier).Distinct().ToArray(),
                 Players = x.TeamPlayers.Select(x => new PlayerDto()
                 {
                     TeamPlayerID = x.TeamPlayerID,
                     UserID = x.UserID,
-                    Gamertag = x.User.XboxUser.Gamertag,
+                    // A placeholder for a player of an imported season has no Xbox account: the name the sheet gave
+                    Gamertag = x.User.XboxUser != null ? x.User.XboxUser.Gamertag : x.User.DisplayName,
                     DraftCaptainOrder = x.DraftCaptainOrder,
                     DraftRound = x.DraftRound,
-                }).OrderBy(x => x.DraftCaptainOrder != null ? 0 : x.DraftRound).ToArray(),
+                    IsCaptain = x.CaptainTeam != null || x.DraftCaptainOrder != null,
+                }).OrderBy(x => x.IsCaptain ? 0 : 1).ThenBy(x => x.DraftRound).ThenBy(x => x.Gamertag).ToArray(),
+                Stats = x.PlayerSeasonStats.OrderBy(s => s.IsPlayoffs).ThenByDescending(s => s.Goals).ThenByDescending(s => s.Kills)
+                    .Select(s => new TeamPlayerStatDto()
+                    {
+                        UserID = s.UserID,
+                        Gamertag = s.Gamertag,
+                        IsPlayoffs = s.IsPlayoffs,
+                        StintIndex = s.StintIndex,
+                        TradeNote = s.TradeNote,
+                        RoleNote = s.RoleNote,
+                        GamesPlayed = s.GamesPlayed,
+                        Wins = s.Wins,
+                        Losses = s.Losses,
+                        Goals = s.Goals,
+                        Kills = s.Kills,
+                        Deaths = s.Deaths,
+                        KdRatio = s.KdRatio,
+                        CarrierKills = s.CarrierKills,
+                    }).ToArray(),
             })
+            .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
+        return team;
     }
 
     [HttpGet("{teamID:int}", Name = "Matches")]
@@ -75,6 +106,15 @@ public class TeamController : ControllerBase
 public class TeamDto
 {
     public required string TeamName { get; set; }
+    public int SeasonID { get; set; }
+    /// <summary>The season was backfilled from the historical archive: <see cref="HistoricalSourceUrl"/> is its spreadsheet.</summary>
+    public bool IsHistorical { get; set; }
+    public string? HistoricalSourceUrl { get; set; }
+    /// <summary>Wins and Losses are the source spreadsheet's (the season's matches are not in the app).</summary>
+    public bool RecordFromSource { get; set; }
+    /// <summary>The tiers whose title the team won.</summary>
+    public string[] Titles { get; set; } = [];
+    public TeamPlayerStatDto[] Stats { get; set; } = [];
     public required int Wins { get; set; }
     public required int Losses { get; set; }
     public required int TBD { get; set; }
@@ -88,6 +128,27 @@ public class PlayerDto
     public required string Gamertag { get; set; }
     public required int? DraftCaptainOrder { get; set; }
     public required int? DraftRound { get; set; }
+    /// <summary>The team's captain: its drafted captain, or the one its title names.</summary>
+    public bool IsCaptain { get; set; }
+}
+
+/// <summary>A player's totals for the team in one phase of the season.</summary>
+public class TeamPlayerStatDto
+{
+    public int UserID { get; set; }
+    public required string Gamertag { get; set; }
+    public bool IsPlayoffs { get; set; }
+    public int StintIndex { get; set; }
+    public string? TradeNote { get; set; }
+    public string? RoleNote { get; set; }
+    public int GamesPlayed { get; set; }
+    public int Wins { get; set; }
+    public int Losses { get; set; }
+    public int Goals { get; set; }
+    public int Kills { get; set; }
+    public int Deaths { get; set; }
+    public decimal? KdRatio { get; set; }
+    public int CarrierKills { get; set; }
 }
 
 public class MatchDto

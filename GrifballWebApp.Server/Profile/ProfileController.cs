@@ -32,61 +32,6 @@ public class ProfileController : ControllerBase
             .FirstOrDefaultAsync(ct);
     }
 
-    [HttpGet("{gamertag}", Name = "ResolveGamertag")]
-    public async Task<ActionResult<int>> ResolveGamertag([FromRoute] string gamertag, CancellationToken ct)
-    {
-        var cleaned = Historical.HistoricalKeys.CleanGamertag(gamertag);
-        if (string.IsNullOrWhiteSpace(cleaned))
-            return NotFound();
-
-        var normalized = Historical.HistoricalKeys.Normalize(gamertag);
-
-        // 1. Direct active XboxUser gamertag match
-        var userByXbox = await _context.Users
-            .AsNoTracking()
-            .Where(u => u.XboxUser != null && u.XboxUser.Gamertag == cleaned)
-            .Select(u => u.Id)
-            .FirstOrDefaultAsync(ct);
-
-        if (userByXbox != 0)
-            return Ok(userByXbox);
-
-        // 2. Renamed XboxGamertagHistory match
-        var userByHistory = await _context.XboxGamertagHistory
-            .AsNoTracking()
-            .Where(h => h.NormalizedGamertag == normalized)
-            .OrderByDescending(h => h.LastSeen == null)
-            .ThenByDescending(h => h.LastSeen)
-            .Select(h => (int?)h.XboxUser.User.Id)
-            .FirstOrDefaultAsync(ct);
-
-        if (userByHistory.HasValue && userByHistory.Value != 0)
-            return Ok(userByHistory.Value);
-
-        // 3. Historical dummy placeholder user: "historical:<gamertag>"
-        var dummyName = Historical.HistoricalKeys.DummyUserName(cleaned);
-        var dummyUser = await _context.Users
-            .AsNoTracking()
-            .Where(u => u.UserName == dummyName)
-            .Select(u => u.Id)
-            .FirstOrDefaultAsync(ct);
-
-        if (dummyUser != 0)
-            return Ok(dummyUser);
-
-        // 4. Match against Gamertag on PlayerSeasonStats
-        var userByStat = await _context.PlayerSeasonStats
-            .AsNoTracking()
-            .Where(s => s.Gamertag == cleaned)
-            .Select(s => s.UserID)
-            .FirstOrDefaultAsync(ct);
-
-        if (userByStat != 0)
-            return Ok(userByStat);
-
-        return NotFound();
-    }
-
     [HttpGet("{userID:int}", Name = "GetProfileStats")]
     public async Task<ActionResult<ProfileStatsDto>> GetProfileStats([FromRoute] int userID, CancellationToken ct)
     {
@@ -138,8 +83,8 @@ public class ProfileController : ControllerBase
                 GameVersionName = c.GameVersion != null ? c.GameVersion.GameVersionName : null,
                 GameVersionSlug = c.GameVersion != null ? c.GameVersion.Slug : null,
                 Tier = c.Tier,
-                TeamName = c.TeamName,
-                TeamSlug = string.IsNullOrWhiteSpace(c.TeamName) ? null : Historical.HistoricalKeys.Slug(c.TeamName),
+                TeamID = c.TeamID,
+                TeamName = c.Team.TeamName,
                 IsCaptain = c.IsCaptain,
                 GamertagUsed = c.GamertagUsed,
                 Year = c.Season.SeasonStart.Year
@@ -152,6 +97,7 @@ public class ProfileController : ControllerBase
             .Include(s => s.Season)
                 .ThenInclude(sn => sn.League)
             .Include(s => s.GameVersion)
+            .Include(s => s.Team)
             .OrderByDescending(s => s.Season.SeasonStart)
             .ThenBy(s => s.Season.SeasonName)
             .ThenBy(s => s.IsPlayoffs)
@@ -172,8 +118,8 @@ public class ProfileController : ControllerBase
             GameVersionName = s.GameVersion != null ? s.GameVersion.GameVersionName : "Unknown",
             GameVersionSlug = s.GameVersion != null ? s.GameVersion.Slug : "unknown",
             Division = s.Division,
-            TeamName = s.TeamName,
-            TeamSlug = string.IsNullOrWhiteSpace(s.TeamName) ? null : Historical.HistoricalKeys.Slug(s.TeamName),
+            TeamID = s.TeamID,
+            TeamName = s.Team?.TeamName,
             TradeNote = s.TradeNote,
             RoleNote = s.RoleNote,
             StintIndex = s.StintIndex,

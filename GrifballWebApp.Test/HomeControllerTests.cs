@@ -205,6 +205,36 @@ public class HomeControllerTests
     }
 
     [Test]
+    public async Task PastSeasons_IncludeHistoricalSeasons_ByDate_WithTheirSpreadsheet()
+    {
+        var now = DateTime.UtcNow;
+        Season NewSeason(string name, DateTime end, string? source = null) => new()
+        {
+            SeasonName = name,
+            SeasonStart = end.AddDays(-60),
+            SeasonEnd = end,
+            SignupsOpen = end.AddDays(-80),
+            SignupsClose = end.AddDays(-70),
+            DraftStart = end.AddDays(-65),
+            IsHistorical = source is not null,
+            HistoricalSourceID = source is null ? null : "wb/" + name,
+            HistoricalSourceUrl = source,
+        };
+        _context.Seasons.AddRange(
+            NewSeason("Last Season", now.AddDays(-10)),
+            NewSeason("Summer League 2010", new DateTime(2010, 12, 31, 0, 0, 0, DateTimeKind.Utc), "https://docs.google.com/spreadsheets/d/x"));
+        await _context.SaveChangesAsync();
+
+        var result = await _controller.PastSeasons(new PaginationFilter(), CancellationToken.None);
+
+        Assert.That(result.Results.Select(r => (r.Name, r.HistoricalSourceUrl)), Is.EqualTo(new (string, string?)[]
+        {
+            ("Last Season", null),
+            ("Summer League 2010", "https://docs.google.com/spreadsheets/d/x"),
+        }), "Latest first");
+    }
+
+    [Test]
     public async Task PastSeasons_Should_ReturnPastSeasons_When_SeasonsHaveEnded()
     {
         // Arrange

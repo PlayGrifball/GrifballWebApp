@@ -277,12 +277,12 @@ public class EventOrganizerServiceTests
     }
 
     [Test]
-    public async Task HistoricalSeasons_AreNotTheOrganizers_ToRead()
+    public async Task HistoricalSeasons_AreListedForTheOrganizer_LikeAnyOther()
     {
         var season = await HistoricalSeason("Winter League 2019");
 
-        Assert.That(await _service.GetSeason(season.SeasonID), Is.Null);
-        Assert.That(await _service.GetSeasons(), Is.Empty);
+        Assert.That((await _service.GetSeason(season.SeasonID))!.SeasonName, Is.EqualTo("Winter League 2019"));
+        Assert.That((await _service.GetSeasons()).Select(s => s.SeasonID), Is.EqualTo(new[] { season.SeasonID }));
     }
 
     [Test]
@@ -296,7 +296,7 @@ public class EventOrganizerServiceTests
     }
 
     [Test]
-    public async Task ANewSeason_NamedLikeAHiddenHistoricalOne_SaysSo()
+    public async Task ANewSeason_NamedLikeAHistoricalOne_SaysSo()
     {
         await HistoricalSeason("Winter League 2019");
 

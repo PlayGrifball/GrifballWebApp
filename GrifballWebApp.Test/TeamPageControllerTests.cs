@@ -157,4 +157,52 @@ public class TeamPageControllerTests
             Assert.That((bye.Result, bye.OtherTeamID, bye.OtherTeamName, bye.Score), Is.EqualTo(((SeasonMatchResult?)SeasonMatchResult.Won, (int?)null, (string?)null, (int?)null)));
         });
     }
+
+    [Test]
+    public async Task Team_OfAHistoricalSeason_HasItsSpreadsheetsRecord_Titles_Captain_AndStats()
+    {
+        var season = new Season { SeasonName = "Summer League 2010", IsHistorical = true, HistoricalSourceID = "wb/sml10", HistoricalSourceUrl = "https://docs.google.com/spreadsheets/d/x" };
+        _context.Seasons.Add(season);
+        await _context.SaveChangesAsync();
+        var captain = new User { UserName = "historical:Captain R", DisplayName = "Captain R", IsDummyUser = true };
+        var runner = await _context.AddUser("runner", gamertag: "Runner");
+        _context.Users.Add(captain);
+        await _context.SaveChangesAsync();
+        var team = new Team { SeasonID = season.SeasonID, TeamName = "Relentless", RecordedWins = 9, RecordedLosses = 1 };
+        var captainRow = new TeamPlayer { UserID = captain.Id };
+        team.TeamPlayers.Add(new TeamPlayer { UserID = runner.Id });
+        team.TeamPlayers.Add(captainRow);
+        _context.Teams.Add(team);
+        await _context.SaveChangesAsync();
+        team.CaptainID = captainRow.TeamPlayerID;
+        _context.PlayerSeasonStats.AddRange(
+            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = runner.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Runner Old", Goals = 3, IsPlayoffs = true },
+            new PlayerSeasonStat { SeasonID = season.SeasonID, UserID = captain.Id, TeamID = team.TeamID, GameVersionID = 1, Gamertag = "Captain R", Goals = 9, TradeNote = "From Hens" });
+        await _context.SaveChangesAsync();
+        await new GrifballWebApp.Server.Championships.ChampionshipService(_context).SetChampionsAsync(season.SeasonID, "Pro", team.TeamID, null, 1);
+        _context.ChangeTracker.Clear();
+
+        var dto = (await _controller.Team(team.TeamID, CancellationToken.None))!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((dto.SeasonID, dto.IsHistorical, dto.HistoricalSourceUrl), Is.EqualTo((season.SeasonID, true, "https://docs.google.com/spreadsheets/d/x")));
+            Assert.That((dto.Wins, dto.Losses, dto.TBD, dto.RecordFromSource), Is.EqualTo((9, 1, 0, true)));
+            Assert.That(dto.Titles, Is.EqualTo(new[] { "Pro" }));
+            Assert.That(dto.Players.Select(p => (p.Gamertag, p.IsCaptain)), Is.EqualTo(new[] { ("Captain R", true), ("Runner", false) }),
+                "The captain first; a placeholder by the name the sheet gave");
+            Assert.That(dto.Stats.Select(s => (s.Gamertag, s.IsPlayoffs, s.Goals, s.TradeNote)), Is.EqualTo(new[] { ("Captain R", false, 9, (string?)"From Hens"), ("Runner Old", true, 3, (string?)null) }),
+                "Regular season first, most goals first");
+        });
+    }
+
+    [Test]
+    public async Task Team_OfTheAppsOwnSeason_HasNoTitlesOrStats_AndItsRecordFromMatches()
+    {
+        var (_, a, _, _, _, _, _) = await Seed();
+
+        var dto = (await _controller.Team(a.TeamID, CancellationToken.None))!;
+
+        Assert.That((dto.RecordFromSource, dto.IsHistorical, dto.Titles.Length, dto.Stats.Length, dto.Players[0].IsCaptain), Is.EqualTo((false, false, 0, 0, true)));
+    }
 }

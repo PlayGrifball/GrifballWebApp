@@ -28,8 +28,8 @@ public class PlayerChampionshipDto
     public string? GameVersionName { get; set; }
     public string? GameVersionSlug { get; set; }
     public required string Tier { get; set; }
+    public int TeamID { get; set; }
     public required string TeamName { get; set; }
-    public string? TeamSlug { get; set; }
     public bool IsCaptain { get; set; }
     public required string GamertagUsed { get; set; }
     public int? Year { get; set; }
@@ -82,8 +82,8 @@ public class PlayerSeasonStatDetailDto
     public required string GameVersionName { get; set; }
     public required string GameVersionSlug { get; set; }
     public string? Division { get; set; }
+    public int? TeamID { get; set; }
     public string? TeamName { get; set; }
-    public string? TeamSlug { get; set; }
     public string? TradeNote { get; set; }
     public string? RoleNote { get; set; }
     public int StintIndex { get; set; }
