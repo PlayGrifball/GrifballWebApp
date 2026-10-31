@@ -90,7 +90,7 @@
       } else if ((m = /^\/seasonmatch\/([1-9]\d*)$/.exec(path))) {
         urls.push('/api/SeasonMatch/GetSeasonMatchPage/' + m[1]);
       } else if ((m = /^\/profile\/([1-9]\d*)$/.exec(path))) {
-        urls.push('/api/profile/getgamertag/' + m[1]);
+        urls.push('/api/profile/getgamertag/' + m[1], '/api/profile/getprofilestats/' + m[1]);
       }
       var responses = {};
       urls.forEach(function (url) {

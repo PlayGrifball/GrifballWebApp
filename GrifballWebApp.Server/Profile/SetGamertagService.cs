@@ -1,4 +1,5 @@
-﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database;
+using GrifballWebApp.Server.Historical;
 using GrifballWebApp.Server.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,6 +54,22 @@ public class SetGamertagService : ISetGamertagService
         if (xboxUser.User is null) // Simple just take the gamertag
         {
             user.XboxUser = xboxUser;
+
+            // A placeholder (dummy) user may exist from the historical archive without an XboxUser link:
+            var dummyNormalized = HistoricalKeys.DummyUserName(gamertag).ToUpperInvariant();
+            var dummyUser = await _context.Users.FirstOrDefaultAsync(u => u.IsDummyUser && u.NormalizedUserName == dummyNormalized, ct);
+            if (dummyUser is not null && dummyUser.Id != userID)
+            {
+                try
+                {
+                    await _userMergeService.Merge(userID, dummyUser.Id, null, ct);
+                }
+                catch (MergeConflictException e)
+                {
+                    await _context.RollbackTransactionAsync(ct);
+                    return "That gamertag's placeholder account could not be merged into yours: " + e.Message + " Contact a commissioner.";
+                }
+            }
         }
         else // Must check if this is a dummy account
         {

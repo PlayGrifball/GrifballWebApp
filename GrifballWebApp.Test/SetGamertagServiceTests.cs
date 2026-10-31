@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database;
+using GrifballWebApp.Database;
 using GrifballWebApp.Database.Models;
 using GrifballWebApp.Server.Profile;
 using GrifballWebApp.Server.Services;
@@ -308,5 +308,56 @@ public class SetGamertagServiceTests
         Assert.That(result, Does.Contain("on different teams in season S1"));
         await using var fresh = _context.NewContextLike();
         Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.Null, "Nothing changed");
+    }
+
+    [Test]
+    public async Task DummyTakeover_WhenDummyHasNoXboxUserLink_MergesByUserName()
+    {
+        var dummy = new User
+        {
+            UserName = "historical:Ghost Spartan",
+            NormalizedUserName = "HISTORICAL:GHOST SPARTAN",
+            DisplayName = "Ghost Spartan",
+            IsDummyUser = true
+        };
+        var real = await _context.AddUser("real_ghost");
+        _context.Users.Add(dummy);
+        await _context.SaveChangesAsync();
+
+        var season = await _context.AddSeason("Historical S1");
+        _context.PlayerSeasonStats.Add(new PlayerSeasonStat
+        {
+            UserID = dummy.Id,
+            SeasonID = season.SeasonID,
+            GameVersionID = 1,
+            Gamertag = "Ghost Spartan",
+            GamesPlayed = 10,
+            Wins = 8,
+            Losses = 2,
+            Goals = 12,
+            Kills = 100,
+            Deaths = 50,
+            StintIndex = 1,
+            IsPlayoffs = false
+        });
+        await _context.SaveChangesAsync();
+
+        var newXboxUser = new XboxUser { XboxUserID = 998877, Gamertag = "Ghost Spartan" };
+        _context.XboxUsers.Add(newXboxUser);
+        await _context.SaveChangesAsync();
+
+        _getsertXboxUserService.GetsertXboxUserByGamertag("Ghost Spartan", Arg.Any<CancellationToken>())
+            .Returns((newXboxUser, null));
+
+        var result = await _setGamertagService.SetGamertag(real.Id, "Ghost Spartan");
+
+        await using var fresh = _context.NewContextLike();
+        Assert.Multiple(async () =>
+        {
+            Assert.That(result, Is.Null);
+            Assert.That(await fresh.Users.AnyAsync(x => x.Id == dummy.Id), Is.False, "Dummy user was merged and deleted");
+            Assert.That((await fresh.Users.SingleAsync(x => x.Id == real.Id)).XboxUserID, Is.EqualTo(998877));
+            Assert.That(await fresh.PlayerSeasonStats.Where(s => s.UserID == real.Id).CountAsync(), Is.EqualTo(1), "Stats transferred to real user");
+        });
     }
 }
