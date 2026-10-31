@@ -97,6 +97,35 @@ public class UserMergeService : IUserMergeService
             signups.ForEach(x => x.UserID = mergeToId);
         }
 
+        if (options.TransferSeasonStats)
+        {
+            var stats = await _context.PlayerSeasonStats.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+            stats.ForEach(x => x.UserID = mergeToId);
+        }
+
+        if (options.TransferChampionships)
+        {
+            var championships = await _context.PlayerChampionships.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+            championships.ForEach(x => x.UserID = mergeToId);
+        }
+
+        if (options.TransferAliases)
+        {
+            var aliases = await _context.PlayerAliases.Where(x => x.UserID == mergeFromId).ToListAsync(ct);
+            foreach (var alias in aliases)
+            {
+                var existing = await _context.PlayerAliases.AnyAsync(a => a.UserID == mergeToId && a.NormalizedAlias == alias.NormalizedAlias, ct);
+                if (!existing)
+                {
+                    alias.UserID = mergeToId;
+                }
+                else
+                {
+                    _context.PlayerAliases.Remove(alias);
+                }
+            }
+        }
+
         // Delete just in case it doesnt cascade
         var rolesToDelete = await _context.UserRoles.Where(x => x.UserId == mergeFromId).ToArrayAsync(ct);
         _context.UserRoles.RemoveRange(rolesToDelete);
@@ -149,5 +178,8 @@ public class MergeOptions
     public bool TransferTeamPlayers { get; set; } = true;
     public bool TransferExperiences { get; set; } = true;
     public bool TransferSignups { get; set; } = true;
+    public bool TransferSeasonStats { get; set; } = true;
+    public bool TransferChampionships { get; set; } = true;
+    public bool TransferAliases { get; set; } = true;
     public bool DeleteMergeFrom { get; set; } = true;
 }

@@ -182,7 +182,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/GWL/2023-gwl-sl23-reach-schedule/12_HEXASbaseINFO.csv"
+      "csvFile": null
     },
     {
       "index": 13,
@@ -235,7 +235,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/GWL/2023-gwl-sl23-reach-schedule/15_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 16,

@@ -123,7 +123,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/06_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 7,
@@ -278,7 +278,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/14_MatchBot_Pivot.csv"
+      "csvFile": null
     },
     {
       "index": 15,
@@ -287,7 +287,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/15_Aggregate_Pivot.csv"
+      "csvFile": null
     },
     {
       "index": 16,
@@ -296,7 +296,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2024/2024-da-sl24-stats/16_PG_Agg_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 17,

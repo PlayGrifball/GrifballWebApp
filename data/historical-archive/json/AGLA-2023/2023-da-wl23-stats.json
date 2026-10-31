@@ -154,7 +154,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/08_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 9,
@@ -185,7 +185,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/10_Full_Season_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 11,
@@ -295,7 +295,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2023/2023-da-wl23-stats/16_Playoff_Stats_Pivot.csv"
+      "csvFile": null
     },
     {
       "index": 17,

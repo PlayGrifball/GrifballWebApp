@@ -576,7 +576,9 @@ async function main() {
           totalSheets++;
           totalRows += sh.rowCount;
           const csvFileName = `${String(i + 1).padStart(2, '0')}_${safeName(sh.name)}.csv`;
+          let csvFilePath = null;
           if (sh.rowCount > 0) {
+            csvFilePath = `csv/${src.category}/${src.id}/${csvFileName}`;
             await fs.writeFile(path.join(catCsvDir, csvFileName), toCsv(sh.rows), 'utf8');
           }
           entry.sheets.push({
@@ -586,7 +588,7 @@ async function main() {
             rowCount: sh.rowCount,
             colCount: sh.colCount,
             sampleHeader: sh.rows[0]?.slice(0, 12) || [],
-            csvFile: `csv/${src.category}/${src.id}/${csvFileName}`,
+            csvFile: csvFilePath,
           });
         }
 
@@ -640,7 +642,11 @@ async function main() {
             totalSheets++;
             totalRows += sh.rowCount;
             const csvFileName = `${String(i + 1).padStart(2, '0')}_${safeName(sh.name)}.csv`;
-            await fs.writeFile(path.join(catCsvDir, csvFileName), toCsv(sh.rows), 'utf8');
+            let csvFilePath = null;
+            if (sh.rowCount > 0) {
+              csvFilePath = `csv/${src.category}/${src.id}/${csvFileName}`;
+              await fs.writeFile(path.join(catCsvDir, csvFileName), toCsv(sh.rows), 'utf8');
+            }
             entry.sheets.push({
               index: i + 1,
               name: sh.name,
@@ -648,7 +654,7 @@ async function main() {
               rowCount: sh.rowCount,
               colCount: sh.colCount,
               sampleHeader: sh.rows[0]?.slice(0, 12) || [],
-              csvFile: `csv/${src.category}/${src.id}/${csvFileName}`,
+              csvFile: csvFilePath,
             });
           }
           const catJsonDir = path.join(JSON_DIR, src.category);

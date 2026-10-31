@@ -1,0 +1,570 @@
+[
+  {
+    "workbook": "2018-sml18-fantasy-rey",
+    "seasonName": "Summer League 2018 (Fantasy Rey)",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Total Stats",
+        "headerRow": 1,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2019-wl19-schedule-stats",
+    "seasonName": "Winter League 2019",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Team and Player Stats",
+        "headerRow": 1,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 1,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2019-sl19-schedule-stats",
+    "seasonName": "Spring League 2019",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Team and Player Stats",
+        "headerRow": 1,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2020-sml20-halo3",
+    "seasonName": "Summer League 2020",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2020-fl20-pc-schedule-stats",
+    "seasonName": "Fall League 2020 (PC)",
+    "league": "AGLA",
+    "game": "reach",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Game Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-wl21-legacy-stats",
+    "seasonName": "Winter League 2021 (Legacy)",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Legacy",
+    "tabs": [
+      {
+        "name": "Individual Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-wl21-rookie-stats",
+    "seasonName": "Winter League 2021 (Rookie)",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Rookie",
+    "tabs": [
+      {
+        "name": "Individual Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-sml21-pro-stats",
+    "seasonName": "Summer League 2021 (Pro)",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Pro",
+    "tabs": [
+      {
+        "name": "Individual Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      },
+      {
+        "name": "FL21_Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false,
+        "customSeason": "Fall League 2021 (Pro)"
+      },
+      {
+        "name": "FL21_PlayoffStats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false,
+        "customSeason": "Fall League 2021 (Pro)"
+      }
+    ]
+  },
+  {
+    "workbook": "2021-sml21-ammy-stats",
+    "seasonName": "Summer League 2021 (Amateur)",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Amateur",
+    "tabs": [
+      {
+        "name": "Individual Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      },
+      {
+        "name": "FL21_Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false,
+        "customSeason": "Fall League 2021 (Amateur)"
+      },
+      {
+        "name": "FL21_PlayoffStats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false,
+        "customSeason": "Fall League 2021 (Amateur)"
+      }
+    ]
+  },
+  {
+    "workbook": "2022-h3-action-stats",
+    "seasonName": "2022 H3 Action League",
+    "league": "AGLA",
+    "game": "halo3",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2022-h4-bid-stats",
+    "seasonName": "2022 H4 Bid Season",
+    "league": "AGLA",
+    "game": "halo4",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2023-da-wl23-stats",
+    "seasonName": "Winter League 2023 (DA)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo Infinite Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2024-da-sl24-stats",
+    "seasonName": "Spring League 2024 (DA)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Aggregate",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": true
+      }
+    ]
+  },
+  {
+    "workbook": "2025-octane-wl25-stats",
+    "seasonName": "Winter League 2025 (Octane)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Regular Season Stats Sheet stat",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats Sheet stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2025-octane-sl25-bid-stats",
+    "seasonName": "Spring League 2025 (Octane Bid)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Regular Season Stats Sheet stat",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoff Stats Sheet stats",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2025-classic-sml25-pro-stats",
+    "seasonName": "Summer League 2025 (Classic Pro)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Pro",
+    "tabs": [
+      {
+        "name": "Regular + Playoffs Season Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": true
+      }
+    ]
+  },
+  {
+    "workbook": "2025-classic-sml25-legacy-stats",
+    "seasonName": "Summer League 2025 (Classic Legacy)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Legacy",
+    "tabs": [
+      {
+        "name": "Regular + Playoff Season Stats ",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": true
+      }
+    ]
+  },
+  {
+    "workbook": "2026-sl26-minor-stats-schedule",
+    "seasonName": "Spring League 2026 (Minor)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Minor",
+    "tabs": [
+      {
+        "name": "Regular Season Stats Sheet",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2026-sl26-major-stats",
+    "seasonName": "Spring League 2026 (Major)",
+    "league": "AGLA",
+    "game": "infinite",
+    "division": "Major",
+    "tabs": [
+      {
+        "name": "Regular Season Stats Sheet",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      },
+      {
+        "name": "Playoffs Season Stats Sheet",
+        "headerRow": 0,
+        "isPlayoffs": true,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2024-igl-evolved-fl24-stats",
+    "seasonName": "Fall League 2024 (Evolved)",
+    "league": "IGL",
+    "game": "infinite",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Regular Season Stats Sheet stat",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "gwl-ts1-halo4",
+    "seasonName": "GWL Tournament Series #1",
+    "league": "GWL",
+    "game": "halo4",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo 4 Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "gwl-ts2-reach",
+    "seasonName": "GWL Tournament Series #2",
+    "league": "GWL",
+    "game": "reach",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo Reach Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2023-gwl-sl23-reach-schedule",
+    "seasonName": "GWL Spring League 2023",
+    "league": "GWL",
+    "game": "reach",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo Reach Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-side-respawn-h4-1",
+    "seasonName": "Respawn Fall Series 1",
+    "league": "Community/Side",
+    "game": "halo4",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo 4 Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-side-respawn-h4-2",
+    "seasonName": "Respawn Fall Series 2",
+    "league": "Community/Side",
+    "game": "halo4",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo 4 Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "2021-side-respawn-h4-3",
+    "seasonName": "Respawn Fall Series 3",
+    "league": "Community/Side",
+    "game": "halo4",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Halo 4 Stats",
+        "headerRow": 0,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "side-reach-pc-stats",
+    "seasonName": "Reach PC League",
+    "league": "Community/Side",
+    "game": "reach",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "Team & Player Stats",
+        "headerRow": 8,
+        "isPlayoffs": false,
+        "isCombined": false
+      }
+    ]
+  },
+  {
+    "workbook": "late-league-aspence-main",
+    "seasonName": "Late League Multi-Season",
+    "league": "Late League",
+    "game": "multi",
+    "division": "Open",
+    "tabs": [
+      {
+        "name": "S8Halo 3 Stats",
+        "headerRow": 0,
+        "game": "halo3",
+        "customSeason": "Late League Season 8 (Halo 3)"
+      },
+      {
+        "name": "S7Halo 3 Stats",
+        "headerRow": 0,
+        "game": "halo3",
+        "customSeason": "Late League Season 7 (Halo 3)"
+      },
+      {
+        "name": "S6Halo 3 Stats",
+        "headerRow": 0,
+        "game": "halo3",
+        "customSeason": "Late League Season 6 (Halo 3)"
+      },
+      {
+        "name": "S5Halo 3 Stats Remix",
+        "headerRow": 0,
+        "game": "halo3",
+        "customSeason": "Late League Season 5 (Halo 3)"
+      },
+      {
+        "name": "S8Halo Reach Stats",
+        "headerRow": 0,
+        "game": "reach",
+        "customSeason": "Late League Season 8 (Reach)"
+      },
+      {
+        "name": "S7Halo Reach Stats",
+        "headerRow": 0,
+        "game": "reach",
+        "customSeason": "Late League Season 7 (Reach)"
+      },
+      {
+        "name": "S6Halo Reach Stats",
+        "headerRow": 0,
+        "game": "reach",
+        "customSeason": "Late League Season 6 (Reach)"
+      },
+      {
+        "name": "S8Halo 4 Stats",
+        "headerRow": 0,
+        "game": "halo4",
+        "customSeason": "Late League Season 8 (Halo 4)"
+      },
+      {
+        "name": "S7Halo 4 Stats",
+        "headerRow": 0,
+        "game": "halo4",
+        "customSeason": "Late League Season 7 (Halo 4)"
+      },
+      {
+        "name": "S6Halo 4 Stats",
+        "headerRow": 0,
+        "game": "halo4",
+        "customSeason": "Late League Season 6 (Halo 4)"
+      },
+      {
+        "name": "S7Halo 5 Stats",
+        "headerRow": 0,
+        "game": "halo5",
+        "customSeason": "Late League Season 7 (Halo 5)"
+      }
+    ]
+  }
+]

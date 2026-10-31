@@ -1,4 +1,4 @@
-﻿#nullable disable
+#nullable disable
 
 namespace GrifballWebApp.Database.Models;
 public class Season : AuditableEntity
@@ -22,6 +22,13 @@ public class Season : AuditableEntity
     public DateTime DraftStart { get; set; }
     public DateTime SeasonStart { get; set; }
     public DateTime SeasonEnd { get; set; }
+    public int? GameVersionID { get; set; }
+    public int? LeagueID { get; set; }
+    public string Division { get; set; }
+    public bool IsHistorical { get; set; }
+    public string HistoricalSourceID { get; set; }
+    public virtual GameVersion GameVersion { get; set; }
+    public virtual League League { get; set; }
     public virtual ICollection<Team> Teams { get; set; }
     public virtual ICollection<SeasonMatch> SeasonMatches { get; set; }
     public virtual ICollection<SeasonSignup> SeasonSignups { get; set; }

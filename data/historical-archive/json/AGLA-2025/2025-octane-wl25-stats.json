@@ -69,7 +69,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2025/2025-octane-wl25-stats/04_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 5,
@@ -298,7 +298,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2025/2025-octane-wl25-stats/15_Copy_of_Regular_Season_PG_Stat.csv"
+      "csvFile": null
     },
     {
       "index": 16,
@@ -307,7 +307,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/AGLA-2025/2025-octane-wl25-stats/16_Reg_Play_PG_Stats.csv"
+      "csvFile": null
     }
   ],
   "bytes": 2937614,

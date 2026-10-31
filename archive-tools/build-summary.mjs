@@ -8,7 +8,13 @@ const COMPILED_DIR = path.join(BASE_DIR, 'compiled');
 
 function toNum(val) {
   if (val === null || val === undefined || val === '') return null;
-  const n = Number(String(val).replace(/,/g, '').trim());
+  const cleaned = String(val).replace(/,/g, '').trim();
+  // Whitespace-only cells are empty, not zero (Number(' ') === 0).
+  if (cleaned === '') return null;
+  // Integers beyond 2^53 (e.g. 17–19 digit Discord snowflake IDs) would be silently
+  // rounded by Number(); keep them as exact strings instead.
+  if (/^-?\d+$/.test(cleaned) && !Number.isSafeInteger(Number(cleaned))) return cleaned;
+  const n = Number(cleaned);
   return Number.isFinite(n) ? n : val;
 }
 
@@ -261,22 +267,34 @@ async function buildReadme(catalog, champions, infiniteStats, lateLeague) {
   lines.push('');
   lines.push('---');
   lines.push('');
+  // Tab / row figures below are read from the catalog so these notes cannot drift from the data.
+  const src = (id) => catalog.sources.find(s => s.id === id) || { sheets: [] };
+  const tabCount = (id) => (src(id).sheets || []).length;
+  const sheetOf = (id, name) => (src(id).sheets || []).find(sh => sh.name === name);
+  const rows = (id, name) => (sheetOf(id, name)?.rowCount ?? 0).toLocaleString();
+  const csvName = (id, name) => `\`${(sheetOf(id, name)?.csvFile || '').split('/').pop() || name}\``;
+  const mb = (id) => `${(src(id).bytes / 1e6).toFixed(2)} MB`;
+
   lines.push('## Recovery Notes on Dead / Restricted Links');
   lines.push('');
   lines.push('1. **2018 SL18 Pro/Legacy/Ammy Schedules (`DEAD`) & `grifballstats.com/AGLASML18Stats.php`:**');
-  lines.push('   - While the 3 Google Sheets return HTTP `410 Gone` and `grifballstats.com` is offline, **`2018-sml18-fantasy-rey` (`SML18 Fantasy by Rey`)** contains **31 tabs**, including `03_Fixtures_Results.csv` (`AGLA SL18 Fixtures & Results`, 75 rows), `08_Total_Stats.csv` (62 rows), and weekly `09_W1_Stats.csv` through `16_W8_Stats.csv` (`AGLA SL18 Stats`).');
+  lines.push(`   - While the 3 Google Sheets return HTTP \`410 Gone\` and \`grifballstats.com\` is offline, **\`2018-sml18-fantasy-rey\` (\`SML18 Fantasy by Rey\`)** contains **${tabCount('2018-sml18-fantasy-rey')} tabs**, including ${csvName('2018-sml18-fantasy-rey', 'Fixtures & Results')} (\`AGLA SL18 Fixtures & Results\`, ${rows('2018-sml18-fantasy-rey', 'Fixtures & Results')} rows), ${csvName('2018-sml18-fantasy-rey', 'Total Stats')} (${rows('2018-sml18-fantasy-rey', 'Total Stats')} rows), and weekly \`W1\`–\`W4\` Stats / Points / Team Points tabs.`);
+  lines.push('   - **Caveat:** the `W3` and `W4` tabs are byte-identical copies of `W2` (and `W1 Points` is identical to `Points System`), so only `W1`–`W2` appear to contain distinct weekly data. There are no `W5`–`W8` tabs.');
   lines.push('2. **2018 FL18 Schedule (`DEAD`):**');
   lines.push('   - Permanently deleted (`410 Gone`), but all team rosters, captains, and bids are preserved in **`2018-fl18-bid-league` (`FL18 Bid League`)**, and the champion (`One Hit Wonders`) is recorded in `agla-champions.json`.');
   lines.push('3. **2019 WL19 Playoff Bracket (`challonge.com/h3wl19`):**');
-  lines.push('   - Challonge blocks automated requests via Cloudflare (`403`), but **`2019-wl19-schedule-stats` (`WL19 Schedule & Stats`)** preserves the full playoff stats (`03_Playoff_Stats.csv`, 64 rows), regular season schedule (`01_Schedule.csv`, 144 rows), and every single game result (`14_Game_Results.csv`, 3,415 rows).');
+  lines.push(`   - Challonge blocks automated requests via Cloudflare (\`403\`), but **\`2019-wl19-schedule-stats\` (\`WL19 Schedule & Stats\`)** preserves the playoff stats (${csvName('2019-wl19-schedule-stats', 'Playoff Stats')}, ${rows('2019-wl19-schedule-stats', 'Playoff Stats')} rows), regular season schedule (${csvName('2019-wl19-schedule-stats', 'Schedule')}, ${rows('2019-wl19-schedule-stats', 'Schedule')} rows), and per-game results (${csvName('2019-wl19-schedule-stats', 'Game Results')}, ${rows('2019-wl19-schedule-stats', 'Game Results')} rows). The bracket itself is not recovered.`);
   lines.push('4. **2021 Fall League (`FL21`) Bonus Discovery:**');
-  lines.push('   - Although not listed as a separate link, **`2021-sml21-pro-stats`** and **`2021-sml21-ammy-stats`** contain full `FL21_Stats`, `FL21_PlayoffStats`, and `FL21_MatchHistory` tabs (353 and 586 match rows).');
+  lines.push(`   - Although not listed as a separate link, **\`2021-sml21-pro-stats\`** and **\`2021-sml21-ammy-stats\`** contain \`FL21_Stats\`, \`FL21_PlayoffStats\`, and \`FL21_MatchHistory\` tabs (${rows('2021-sml21-pro-stats', 'FL21_MatchHistory')} and ${rows('2021-sml21-ammy-stats', 'FL21_MatchHistory')} match rows).`);
   lines.push('5. **2022 ASpence Halo 4 Bid Season Draft (`DEAD`):**');
-  lines.push('   - The draft sheet is `410 Gone`, but **`2022-h4-bid-sheet`** (28 tabs) and **`2022-h4-bid-stats`** (19 tabs) preserve all 4 bidding rounds (`Round 1`–`Round 4`), `Final Team Seeds`, `Players Sheet`, `AGLA Pro/Ammy Season Raw Data`, and full match history (`H4B1_MatchH`, 960 rows).');
+  lines.push(`   - The draft sheet is \`410 Gone\`, but **\`2022-h4-bid-sheet\`** (${tabCount('2022-h4-bid-sheet')} tabs) and **\`2022-h4-bid-stats\`** (${tabCount('2022-h4-bid-stats')} tabs) preserve all 4 bidding rounds (\`Round 1\`–\`Round 4\`), \`Bid Values\`, \`Signed\`, \`AGLA Pro/Ammy Season Raw Data\`, team rosters (\`Teams\`), and match history (\`Match_History\`, ${rows('2022-h4-bid-stats', 'Match_History')} rows).`);
   lines.push('6. **2024 IGL Infektions Halo Infinite FL24 Stats (`1drv.ms`):**');
-  lines.push('   - OneDrive personal link requires Microsoft authentication, but **`2024-igl-evolved-fl24-stats`** (2.17 MB `.xlsx` with `Overall Stats`, `Carnage Reports`, `Players`, `Matches`, `Rounds`) and **`2025-octane-sl25-bid-stats`** (`05_IGL_Fall_Season_2024_Stats_Shee.csv`, 50 rows) preserve the IGL Fall 2024 stats.');
+  lines.push(`   - OneDrive personal link requires Microsoft authentication, but **\`2024-igl-evolved-fl24-stats\`** (${mb('2024-igl-evolved-fl24-stats')} \`.xlsx\`) preserves the IGL Fall 2024 stats: \`IGL Fall Season 2024 Stats Shee\` (${rows('2024-igl-evolved-fl24-stats', 'IGL Fall Season 2024 Stats Shee')} rows), \`IGL Fall Season 2024 Sheet hist\` (${rows('2024-igl-evolved-fl24-stats', 'IGL Fall Season 2024 Sheet hist')} rows), \`PlayerGrades+\`, \`TeamInfo\`, and \`Review HI_MatchH\` (${rows('2024-igl-evolved-fl24-stats', 'Review HI_MatchH')} rows).`);
+  lines.push('   - **Note:** the same-named `IGL Fall Season 2024 Stats Shee` tabs in the 2025 Octane/Classic stats workbooks contain only a header row.');
   lines.push('7. **PlayGrifball.com Website (`http://playgrifball.com/`):**');
-  lines.push('   - Live domain is parked/404, so our downloader automatically queried the **Internet Archive Wayback Machine CDX API** and recovered the `2021-05-18` snapshot (`raw/website-playgrifball.wayback.html`).');
+  lines.push('   - Live domain is parked/404, so our downloader queried the **Internet Archive Wayback Machine CDX API** and saved an archived snapshot (`raw/website-playgrifball.wayback.html`).');
+  lines.push('8. **Late League Website (`lateleague.org`):**');
+  lines.push('   - `raw/late-league-website.html` is only the empty single-page-app shell (no rendered content); no data was recovered from it.');
   lines.push('');
   lines.push('---');
   lines.push('');
@@ -307,7 +325,8 @@ async function buildReadme(catalog, champions, infiniteStats, lateLeague) {
       lines.push(`|---:|---|---|---:|---:|---|`);
       for (const sh of s.sheets) {
         const vis = sh.hidden ? 'Hidden' : 'Visible';
-        lines.push(`| ${sh.index} | ${sh.name.replace(/\|/g, '\\|')} | ${vis} | ${sh.rowCount} | ${sh.colCount} | \`${sh.csvFile}\` |`);
+        const csvCell = sh.csvFile ? `\`${sh.csvFile}\`` : '— (empty sheet, no CSV)';
+        lines.push(`| ${sh.index} | ${sh.name.replace(/\|/g, '\\|')} | ${vis} | ${sh.rowCount} | ${sh.colCount} | ${csvCell} |`);
       }
     lines.push('');
   }

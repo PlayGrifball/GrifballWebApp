@@ -27,7 +27,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/02_S9_Halo_Reach_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 3,
@@ -36,7 +36,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/03_S9_HR_Match_History.csv"
+      "csvFile": null
     },
     {
       "index": 4,
@@ -125,7 +125,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/09_Grifbux_Total.csv"
+      "csvFile": null
     },
     {
       "index": 10,
@@ -721,7 +721,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/38_H3S8_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 39,
@@ -796,7 +796,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/42_H5S8_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 43,
@@ -805,7 +805,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/43_H4S8_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 44,
@@ -814,7 +814,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/44_H4S7_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 45,
@@ -823,7 +823,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/45_HRS8_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 46,
@@ -920,7 +920,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/50_H3S7_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 51,
@@ -929,7 +929,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/51_H3S6_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 52,
@@ -938,7 +938,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/52_HRS7_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 53,
@@ -947,7 +947,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/53_HRS6_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 54,
@@ -978,7 +978,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/55_H4S6_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 56,
@@ -1009,7 +1009,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/57_H5S7_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 58,
@@ -1018,7 +1018,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/58_H3S5_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 59,
@@ -1093,7 +1093,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/62_H5S6_PG_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 63,
@@ -1212,7 +1212,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/68_H3_PG_Stats_Master.csv"
+      "csvFile": null
     },
     {
       "index": 69,
@@ -1221,7 +1221,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/69_HR_PG_Stats_Master.csv"
+      "csvFile": null
     },
     {
       "index": 70,
@@ -1230,7 +1230,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/70_H4_PG_Stats_Master.csv"
+      "csvFile": null
     },
     {
       "index": 71,
@@ -1239,7 +1239,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/71_H5_PG_Stats_Master.csv"
+      "csvFile": null
     },
     {
       "index": 72,
@@ -1754,7 +1754,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/95_H5S7_MatchH.csv"
+      "csvFile": null
     },
     {
       "index": 96,
@@ -1763,7 +1763,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/96_H5S6_MatchH.csv"
+      "csvFile": null
     },
     {
       "index": 97,
@@ -1882,7 +1882,7 @@
       "rowCount": 0,
       "colCount": 0,
       "sampleHeader": [],
-      "csvFile": "csv/Late-League/late-league-aspence-main/103_S5Halo_3_Stats.csv"
+      "csvFile": null
     },
     {
       "index": 104,

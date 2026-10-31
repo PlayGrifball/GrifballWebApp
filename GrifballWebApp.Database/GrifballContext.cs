@@ -1,4 +1,4 @@
-﻿using GrifballWebApp.Database.Models;
+using GrifballWebApp.Database.Models;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -33,7 +33,11 @@ public class GrifballContext :
     public virtual DbSet<MedalEarned> MedalEarned { get; set; }
     public virtual DbSet<MedalType> MedalTypes { get; set; }
     public virtual DbSet<Region> Regions { get; set; }
+    public virtual DbSet<League> Leagues { get; set; }
     public virtual DbSet<Season> Seasons { get; set; }
+    public virtual DbSet<PlayerSeasonStat> PlayerSeasonStats { get; set; }
+    public virtual DbSet<PlayerChampionship> PlayerChampionships { get; set; }
+    public virtual DbSet<PlayerAlias> PlayerAliases { get; set; }
     public virtual DbSet<SeasonAvailability> SeasonAvailability { get; set; }
     public virtual DbSet<SeasonMatch> SeasonMatches { get; set; }
     public virtual DbSet<SeasonSignup> SeasonSignups { get; set; }
@@ -99,8 +103,12 @@ public class GrifballContext :
         modelBuilder.ApplyConfiguration(new Configuration.MedalEarnedConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.MedalTypeConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RegionConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.LeagueConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.RoleConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.PlayerSeasonStatConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.PlayerChampionshipConfiguration());
+        modelBuilder.ApplyConfiguration(new Configuration.PlayerAliasConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonAvailabilityConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonMatchConfiguration());
         modelBuilder.ApplyConfiguration(new Configuration.SeasonSignupConfiguration());
