@@ -11,12 +11,10 @@ release:
 set:
   mssql.acceptEula: true
 tests:
+  # Off, the subchart renders nothing at all: helm-unittest then reports its templates as missing, so this
+  # checks grif's side (no grif-halo-gateway-ingress, the shared gateway's URL and namespace).
   - it: is off by default, with the shared gateway's URL and namespace
     asserts:
-      - hasDocuments: { count: 0 }
-        template: charts/halo-gateway/templates/deployment.yaml
-      - hasDocuments: { count: 0 }
-        template: charts/halo-gateway/templates/service.yaml
       - hasDocuments: { count: 4 }
         template: templates/networkpolicy.yaml
       - contains:
